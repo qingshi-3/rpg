@@ -1,0 +1,48 @@
+[gd_scene load_steps=9 format=3 uid="uid://cwuchs7gbapph"]
+
+[ext_resource type="Script" uid="uid://2u80f8wpormt" path="res://src/Presentation/Battle/BattleRoot.cs" id="1_battle_root"]
+[ext_resource type="PackedScene" uid="uid://c2oee8rh6qi6" path="res://scenes/battle/maps/TutorialBattleMap.tscn" id="2_tutorial_map"]
+[ext_resource type="Script" uid="uid://bakjqpxs7s4bt" path="res://src/Presentation/Battle/Debug/BattleDebugController.cs" id="3_debug_controller"]
+[ext_resource type="Script" uid="uid://dvp4k3s1kasgx" path="res://src/Presentation/Battle/Debug/BattleCellInfoDebug.cs" id="4_cell_info_debug"]
+[ext_resource type="Script" uid="uid://bfqmtu3qnlfgv" path="res://src/Presentation/Battle/BattleGridHighlightOverlay.cs" id="5_grid_highlight_overlay"]
+[ext_resource type="Script" uid="uid://c0wovrc4y6m7u" path="res://src/Presentation/Battle/Debug/BattleGuideGridDebug.cs" id="6_guide_grid_debug"]
+[ext_resource type="Script" uid="uid://bobwqpsmf6y7f" path="res://src/Presentation/Battle/BattleCameraController.cs" id="7_camera_controller"]
+[ext_resource type="Script" uid="uid://dyx6vbfok2cen" path="res://src/Presentation/Battle/UI/BattleHudRoot.cs" id="8_battle_hud_root"]
+
+[node name="BattleRoot" type="Node2D"]
+script = ExtResource("1_battle_root")
+BattleMapScene = ExtResource("2_tutorial_map")
+
+[node name="MapRoot" type="Node2D" parent="."]
+
+[node name="UnitRoot" type="Node2D" parent="."]
+
+[node name="OverlayRoot" type="Node2D" parent="."]
+
+[node name="GridHighlightOverlay" type="Node2D" parent="OverlayRoot"]
+script = ExtResource("5_grid_highlight_overlay")
+
+[node name="DebugRoot" type="Node" parent="."]
+script = ExtResource("3_debug_controller")
+
+[node name="CellInfoDebug" type="Node" parent="DebugRoot"]
+script = ExtResource("4_cell_info_debug")
+
+[node name="GuideGridDebug" type="Node" parent="DebugRoot"]
+script = ExtResource("6_guide_grid_debug")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(575, 324)
+zoom = Vector2(2.2, 2.2)
+script = ExtResource("7_camera_controller")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="BattleHudRoot" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("8_battle_hud_root")

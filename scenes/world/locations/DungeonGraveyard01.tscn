@@ -1,0 +1,80 @@
+﻿[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/world/locations/WorldLocationBase.tscn" id="1_location_base"]
+[ext_resource type="Script" path="res://src/Presentation/World/WorldSpawnPoint.cs" id="2_spawn_point"]
+[ext_resource type="Script" path="res://src/Presentation/World/WorldEntrance.cs" id="3_world_entrance"]
+[ext_resource type="Script" path="res://src/Presentation/World/WorldEncounterTrigger.cs" id="4_encounter_trigger"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_exit"]
+size = Vector2(80, 80)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_encounter"]
+size = Vector2(96, 96)
+
+[node name="DungeonGraveyard01" instance=ExtResource("1_location_base")]
+LocationId = "dungeon_graveyard_01"
+
+[node name="Ground" type="ColorRect" parent="."]
+offset_left = -360.0
+offset_top = -200.0
+offset_right = 360.0
+offset_bottom = 200.0
+color = Color(0.14, 0.13, 0.18, 1)
+
+[node name="MainPath" type="ColorRect" parent="."]
+offset_left = -280.0
+offset_top = -44.0
+offset_right = 280.0
+offset_bottom = 44.0
+color = Color(0.28, 0.27, 0.31, 1)
+
+[node name="EntranceSpawn" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(-260, 0)
+script = ExtResource("2_spawn_point")
+SpawnId = "entrance"
+
+[node name="BossReturnSpawn" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(80, 0)
+script = ExtResource("2_spawn_point")
+SpawnId = "after_battle"
+
+[node name="TownExit" type="Area2D" parent="Entrances"]
+position = Vector2(-320, 0)
+script = ExtResource("3_world_entrance")
+TargetLocationId = "town_village_01"
+TargetSpawnId = "from_graveyard"
+
+[node name="Visual" type="ColorRect" parent="Entrances/TownExit"]
+offset_left = -40.0
+offset_top = -40.0
+offset_right = 40.0
+offset_bottom = 40.0
+color = Color(0.38, 0.7, 0.95, 0.8)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Entrances/TownExit"]
+shape = SubResource("RectangleShape2D_exit")
+
+[node name="OldChest" type="Node2D" parent="Interactables"]
+position = Vector2(80, -92)
+
+[node name="Visual" type="ColorRect" parent="Interactables/OldChest"]
+offset_left = -14.0
+offset_top = -10.0
+offset_right = 14.0
+offset_bottom = 10.0
+color = Color(0.65, 0.43, 0.16, 1)
+
+[node name="TutorialBattleTrigger" type="Area2D" parent="EncounterTriggers"]
+position = Vector2(220, 0)
+script = ExtResource("4_encounter_trigger")
+EncounterId = "tutorial_battle"
+
+[node name="Visual" type="ColorRect" parent="EncounterTriggers/TutorialBattleTrigger"]
+offset_left = -48.0
+offset_top = -48.0
+offset_right = 48.0
+offset_bottom = 48.0
+color = Color(0.9, 0.25, 0.25, 0.75)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="EncounterTriggers/TutorialBattleTrigger"]
+shape = SubResource("RectangleShape2D_encounter")

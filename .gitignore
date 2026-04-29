@@ -1,0 +1,15 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Local IDE and OS state
+.idea/
+.vs/
+.vscode/
+*.user
+*.suo
+*.old
+
+# Build outputs
+bin/
+obj/

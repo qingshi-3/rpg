@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="WorldLocationDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Definitions/World/WorldLocationDefinition.cs" id="1_definition_script"]
+[ext_resource type="PackedScene" path="res://scenes/world/locations/TownVillage01.tscn" id="2_location_scene"]
+
+[resource]
+script = ExtResource("1_definition_script")
+Id = "town_village_01"
+LocationType = 0
+LocationScene = ExtResource("2_location_scene")
+DefaultSpawnId = "main"
+

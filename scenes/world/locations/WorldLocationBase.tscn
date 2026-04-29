@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/WorldLocation.cs" id="1_world_location"]
+
+[node name="WorldLocationBase" type="Node2D"]
+script = ExtResource("1_world_location")
+
+[node name="SpawnPoints" type="Node2D" parent="."]
+
+[node name="Entrances" type="Node2D" parent="."]
+
+[node name="NPCs" type="Node2D" parent="."]
+
+[node name="Interactables" type="Node2D" parent="."]
+
+[node name="EncounterTriggers" type="Node2D" parent="."]
+
