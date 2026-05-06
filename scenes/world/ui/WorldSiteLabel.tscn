@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://d1ag17gnst50g"]
+
+[node name="WorldSiteLabel" type="Label"]
+z_index = 30
+horizontal_alignment = 1
+autowrap_mode = 3
+clip_text = true

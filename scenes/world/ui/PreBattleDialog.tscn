@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://oxeim6qbsyi4"]
+
+[node name="PreBattleDialog" type="AcceptDialog"]
+oversampling_override = 1.0
+title = "战前情报"
+size = Vector2i(166, 124)
+visible = true
+ok_button_text = "进入战斗"

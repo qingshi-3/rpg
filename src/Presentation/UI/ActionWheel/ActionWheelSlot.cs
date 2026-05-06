@@ -1,17 +1,15 @@
 using System;
 using Godot;
+using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.UI.ActionWheel;
 
 public partial class ActionWheelSlot : Control
 {
-    private readonly Label _iconLabel = new();
-    private readonly Label _label = new();
-    private readonly Label _costLabel = new();
-
+    private Label _iconLabel;
+    private Label _label;
+    private Label _costLabel;
     private ActionWheelCommandViewModel _command;
-    private bool _isActive;
-    private bool _isHovered;
 
     public event Action<ActionWheelSlot> Pressed;
     public event Action<ActionWheelSlot> CancelRequested;
@@ -23,20 +21,12 @@ public partial class ActionWheelSlot : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        CustomMinimumSize = new Vector2(96, 62);
-
-        BuildLabel(_iconLabel, 2, HorizontalAlignment.Center);
-        BuildLabel(_label, 22, HorizontalAlignment.Center);
-        BuildLabel(_costLabel, 42, HorizontalAlignment.Center);
+        _iconLabel = GameUiSceneFactory.GetRequiredNode<Label>(this, "IconLabel", nameof(ActionWheelSlot));
+        _label = GameUiSceneFactory.GetRequiredNode<Label>(this, "Label", nameof(ActionWheelSlot));
+        _costLabel = GameUiSceneFactory.GetRequiredNode<Label>(this, "CostLabel", nameof(ActionWheelSlot));
 
         MouseEntered += OnMouseEntered;
         MouseExited += OnMouseExited;
-    }
-
-    public override void _Draw()
-    {
-        DrawStyleBox(BuildSlotStyle(true), new Rect2(Vector2.Zero, Size));
-        DrawStyleBox(BuildSlotStyle(false), new Rect2(Vector2.Zero, Size));
     }
 
     public override void _GuiInput(InputEvent @event)
@@ -61,32 +51,18 @@ public partial class ActionWheelSlot : Control
     public void SetCommand(ActionWheelCommandViewModel command)
     {
         _command = command;
-        _iconLabel.Text = string.IsNullOrWhiteSpace(command.IconText) ? "•" : command.IconText;
-        _label.Text = command.Label;
-        _costLabel.Text = command.ApCost.HasValue ? $"{command.ApCost.Value} AP" : "";
-        ApplyTextColor();
-        QueueRedraw();
-    }
-
-    public void SetActive(bool active)
-    {
-        if (_isActive == active)
+        if (_iconLabel == null || _label == null || _costLabel == null)
         {
             return;
         }
 
-        _isActive = active;
-        QueueRedraw();
+        _iconLabel.Text = string.IsNullOrWhiteSpace(command.IconText) ? "•" : command.IconText;
+        _label.Text = command.Label;
+        _costLabel.Text = command.ApCost.HasValue ? $"{command.ApCost.Value} AP" : "";
     }
 
-    private void BuildLabel(Label label, float y, HorizontalAlignment alignment)
+    public void SetActive(bool active)
     {
-        label.MouseFilter = MouseFilterEnum.Ignore;
-        label.HorizontalAlignment = alignment;
-        label.VerticalAlignment = VerticalAlignment.Center;
-        label.Position = new Vector2(4, y);
-        label.Size = new Vector2(76, 18);
-        AddChild(label);
     }
 
     public override void _Notification(int what)
@@ -99,72 +75,21 @@ public partial class ActionWheelSlot : Control
 
     private void OnMouseEntered()
     {
-        _isHovered = true;
         Hovered?.Invoke(this);
-        QueueRedraw();
     }
 
     private void OnMouseExited()
     {
-        _isHovered = false;
         Unhovered?.Invoke(this);
-        QueueRedraw();
-    }
-
-    private Color GetBackgroundColor()
-    {
-        if (_command is { IsEnabled: false })
-        {
-            return new Color(0.14f, 0.14f, 0.14f, 0.46f);
-        }
-
-        if (_isActive)
-        {
-            return new Color(0.94f, 0.78f, 0.38f, 0.88f);
-        }
-
-        if (_isHovered)
-        {
-            return new Color(0.93f, 0.91f, 0.78f, 0.82f);
-        }
-
-        return new Color(0.08f, 0.08f, 0.08f, 0.62f);
-    }
-
-    private Color GetBorderColor()
-    {
-        if (_command is { IsEnabled: false })
-        {
-            return new Color(1f, 1f, 1f, 0.2f);
-        }
-
-        return _isActive || _isHovered
-            ? new Color(1f, 0.92f, 0.5f, 0.95f)
-            : new Color(1f, 1f, 1f, 0.35f);
-    }
-
-    private StyleBoxFlat BuildSlotStyle(bool fill)
-    {
-        var style = new StyleBoxFlat
-        {
-            BgColor = fill ? GetBackgroundColor() : Colors.Transparent,
-            BorderColor = fill ? Colors.Transparent : GetBorderColor(),
-            AntiAliasing = true
-        };
-
-        int radius = Mathf.RoundToInt(Mathf.Min(Size.X, Size.Y) * 0.28f);
-        style.SetCornerRadiusAll(radius);
-
-        if (!fill)
-        {
-            style.SetBorderWidthAll(_isActive ? 3 : 1);
-        }
-
-        return style;
     }
 
     private void LayoutLabels()
     {
+        if (_iconLabel == null || _label == null || _costLabel == null)
+        {
+            return;
+        }
+
         float labelWidth = Mathf.Max(Size.X - 8f, 24f);
 
         _iconLabel.Position = new Vector2(4, 2);
@@ -175,14 +100,4 @@ public partial class ActionWheelSlot : Control
         _costLabel.Size = new Vector2(labelWidth, 18);
     }
 
-    private void ApplyTextColor()
-    {
-        Color color = _command is { IsEnabled: false }
-            ? new Color(1f, 1f, 1f, 0.42f)
-            : Colors.White;
-
-        _iconLabel.AddThemeColorOverride("font_color", color);
-        _label.AddThemeColorOverride("font_color", color);
-        _costLabel.AddThemeColorOverride("font_color", color);
-    }
 }

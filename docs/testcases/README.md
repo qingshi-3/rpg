@@ -15,4 +15,5 @@ It is not an automated test suite. Its purpose is to keep verification points ou
 ## Current Documents
 
 - `phase1-core-prototype.md`: Phase 1 combat prototype checks.
-
+- `strategic-world-v1.md`: Strategic world V1 logic, battle writeback, raid, UI, and persistence checks.
+- `smoke-check-template.md`: Reusable template for focused manual smoke checks.

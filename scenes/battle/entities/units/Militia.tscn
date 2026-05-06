@@ -1,0 +1,44 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleEntity.cs" id="1_entity"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/FactionComponent.cs" id="2_faction"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/HealthComponent.cs" id="3_health"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/ActionPointComponent.cs" id="4_ap"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/MovementComponent.cs" id="5_move"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/AttackComponent.cs" id="6_attack"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/GridOccupantComponent.cs" id="7_grid"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/SelectableComponent.cs" id="8_selectable"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/TargetableComponent.cs" id="9_targetable"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/UnitAnimationComponent.cs" id="10_anim"]
+
+[node name="Militia" type="Area2D"]
+script = ExtResource("1_entity")
+
+[node name="FactionComponent" type="Node" parent="."]
+script = ExtResource("2_faction")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("3_health")
+
+[node name="ActionPointComponent" type="Node" parent="."]
+script = ExtResource("4_ap")
+
+[node name="MovementComponent" type="Node" parent="."]
+script = ExtResource("5_move")
+
+[node name="AttackComponent" type="Node" parent="."]
+script = ExtResource("6_attack")
+
+[node name="GridOccupantComponent" type="Node" parent="."]
+script = ExtResource("7_grid")
+
+[node name="SelectableComponent" type="Node" parent="."]
+script = ExtResource("8_selectable")
+
+[node name="TargetableComponent" type="Node" parent="."]
+script = ExtResource("9_targetable")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="UnitAnimationComponent" type="Node" parent="."]
+script = ExtResource("10_anim")

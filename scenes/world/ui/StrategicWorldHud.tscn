@@ -1,0 +1,199 @@
+[gd_scene format=3 uid="uid://b0jkn47t51ide"]
+
+[node name="StrategicWorldHud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="Background" type="ColorRect" parent="."]
+z_index = -100
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.05, 0.058, 0.052, 1)
+
+[node name="TopResourceBar" type="PanelContainer" parent="."]
+z_index = 80
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 34.0
+offset_right = -34.0
+offset_bottom = 78.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="TopResourceBarContent" type="MarginContainer" parent="TopResourceBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
+
+[node name="TopResourceRow" type="HBoxContainer" parent="TopResourceBar/TopResourceBarContent"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleResourceStack" type="VBoxContainer" parent="TopResourceBar/TopResourceBarContent/TopResourceRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 1
+
+[node name="Title" type="Label" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TitleResourceStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "战略大世界"
+vertical_alignment = 1
+clip_text = true
+
+[node name="ResourceLabel" type="Label" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TitleResourceStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "人口 0/0    经济 0    石材 0    世界步 0"
+vertical_alignment = 1
+clip_text = true
+
+[node name="NoticeLabel" type="Label" parent="TopResourceBar/TopResourceBarContent/TopResourceRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+horizontal_alignment = 2
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="WorldClockLabel" type="Label" parent="TopResourceBar/TopResourceBarContent/TopResourceRow"]
+custom_minimum_size = Vector2(190, 0)
+layout_mode = 2
+text = "世界推进：运行 1x
+下一世界步：8s"
+horizontal_alignment = 2
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="TopRightControls" type="HBoxContainer" parent="TopResourceBar/TopResourceBarContent/TopResourceRow"]
+custom_minimum_size = Vector2(348, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="PauseButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+focus_mode = 2
+mouse_default_cursor_shape = 2
+text = "暂停"
+
+[node name="QuickButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+custom_minimum_size = Vector2(44, 44)
+layout_mode = 2
+focus_mode = 2
+mouse_default_cursor_shape = 2
+text = "1x"
+
+[node name="SaveButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+custom_minimum_size = Vector2(76, 44)
+layout_mode = 2
+text = "保存"
+
+[node name="LoadButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+custom_minimum_size = Vector2(76, 44)
+layout_mode = 2
+text = "读取"
+
+[node name="ResetButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+custom_minimum_size = Vector2(76, 44)
+layout_mode = 2
+text = "重置"
+
+[node name="SiteDetailPanel" type="PanelContainer" parent="."]
+z_index = 80
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -553.0
+offset_top = 92.0
+offset_right = -33.0
+offset_bottom = -34.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="SiteDetailPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Scroll" type="ScrollContainer" parent="SiteDetailPanel/Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="SiteTitleLabel" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+
+[node name="SiteBodyLabel" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+
+[node name="FacilityTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "建筑"
+
+[node name="FacilityList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="GarrisonTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "驻军"
+
+[node name="GarrisonList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="ThreatTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "威胁"
+
+[node name="ThreatList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ActionTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "行动"
+
+[node name="ActionList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8

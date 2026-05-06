@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.UI.ActionWheel;
 
@@ -122,10 +123,11 @@ public partial class ActionWheel : Control
     public event Action<ActionWheelCommandViewModel> InvalidCommandSelected;
     public event Action<string> LayerChanged;
 
+    public bool HasActiveCommand => !string.IsNullOrWhiteSpace(_activeCommandId);
+
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Pass;
-        CustomMinimumSize = new Vector2(1290, 345);
         SetProcess(false);
     }
 
@@ -285,17 +287,20 @@ public partial class ActionWheel : Control
 
         foreach (ActionWheelCommandViewModel command in GetActiveCommands())
         {
-            var slot = new ActionWheelSlot
+            ActionWheelSlot slot = GameUiSceneFactory.CreateActionWheelSlot(nameof(ActionWheel));
+            if (slot == null)
             {
-                Size = SlotSize,
-                CustomMinimumSize = SlotSize
-            };
-            slot.SetCommand(command);
-            slot.SetActive(command.Id == _activeCommandId);
+                continue;
+            }
+
+            slot.Size = SlotSize;
+            slot.CustomMinimumSize = SlotSize;
             slot.Pressed += OnSlotPressed;
             slot.CancelRequested += OnSlotCancelRequested;
             slot.Hovered += OnSlotHovered;
             AddChild(slot);
+            slot.SetCommand(command);
+            slot.SetActive(command.Id == _activeCommandId);
             _slots.Add(slot);
         }
 

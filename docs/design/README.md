@@ -1,15 +1,22 @@
 # Design Index
 
-This directory stores stable design documents.
+This directory stores stable design documents. The top-level folders are organized by document role and game domain:
 
-Use focused documents rather than putting all design context into one large file.
+- `core/`: product direction and core player loop.
+- `architecture/`: cross-system architecture, boundaries, and content-authoring rules.
+- `world/`: Strategic World V1 and world-layer specs.
+- `battle/`: battle runtime, combat interaction, intent, cards, units, and battle demos.
+- `character/`: character definitions, emotion, and relationship systems.
 
-## Routes
+## Current Entry Points
 
-- Product vision: `product/vision.md`
-- Core gameplay loop: `gameplay/core-loop.md`
-- System architecture index: `systems/README.md`
-- World exploration: `world/exploration-world.md`
+- Core direction: `core/README.md`
+- Architecture: `architecture/README.md`
+- Sanguo Qunying reference architecture: `architecture/sanguo-qunying-reference-architecture.md`
+- Strategic World V1: `world/strategic-world-v1.md`
+- Strategic world RTS navigation and armies: `world/strategic-world-rts-navigation-and-armies.md`
+- Battle: `battle/README.md`
+- Character and emotion: `character/README.md`
 
 ## Rule
 

@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820">
+  <defs>
+    <style>
+      text { font-family: "Noto Sans SC", "Microsoft YaHei", "DengXian", Arial, sans-serif; }
+      .bg { fill: #15191e; }
+      .panel { fill: #20262d; stroke: #46515d; stroke-width: 2; }
+      .title { fill: #fff; font-size: 30px; font-weight: 700; }
+      .subtitle { fill: #d7dee6; font-size: 17px; }
+      .section { fill: #fff; font-size: 22px; font-weight: 700; }
+      .label { fill: #eef3f7; font-size: 18px; font-weight: 700; }
+      .small { fill: #cbd5dd; font-size: 14px; }
+      .tiny { fill: #b8c3cc; font-size: 12px; }
+      .card { fill: #27303a; stroke: #4a5663; stroke-width: 2; rx: 12; }
+      .node { stroke-width: 3; rx: 12; }
+      .deploy { fill: #265f3a; stroke: #85d090; }
+      .core { fill: #6a2f38; stroke: #e06661; }
+      .search { fill: #31465f; stroke: #84b7e8; }
+      .extract { fill: #254f65; stroke: #77c7ef; }
+      .defend { fill: #624b2b; stroke: #d8a64b; }
+      .mechanic { fill: #49346f; stroke: #be91ff; }
+      .arrow { fill: none; stroke: #d0d8df; stroke-width: 5; marker-end: url(#arrow); }
+      .green { stroke: #75c988; }
+      .blue { stroke: #78c7ef; }
+      .red { stroke: #e06661; }
+      .purple { stroke: #be91ff; }
+      .gold { stroke: #d8a64b; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L8,3 z" fill="#d0d8df"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1400" height="820"/>
+  <text class="title" x="42" y="48">目标模式拆解：同一张地图，不同战斗体验</text>
+  <text class="subtitle" x="42" y="78">参考搜打撤、任务制合作射击、地牢撤离等模式，抽象成战棋可用的目标模板。</text>
+
+  <rect class="panel" x="40" y="105" width="1320" height="650" rx="10"/>
+  <g transform="translate(78 150)">
+    <!-- mode 1 -->
+    <rect class="card" x="0" y="0" width="390" height="150"/>
+    <text class="section" x="22" y="34">A. 讨伐破局</text>
+    <rect class="node deploy" x="24" y="62" width="76" height="44"/><text class="small" x="44" y="89">入口</text>
+    <path class="arrow green" d="M104 84 H164"/>
+    <rect class="node mechanic" x="168" y="62" width="78" height="44"/><text class="small" x="188" y="89">机制</text>
+    <path class="arrow purple" d="M250 84 H310"/>
+    <rect class="node core" x="314" y="62" width="54" height="44"/><text class="small" x="328" y="89">Boss</text>
+    <text class="tiny" x="24" y="130">核心：拆 Boss 规则，最后击败核心目标。</text>
+
+    <!-- mode 2 -->
+    <rect class="card" x="430" y="0" width="390" height="150"/>
+    <text class="section" x="452" y="34">B. 搜打撤</text>
+    <rect class="node deploy" x="454" y="62" width="70" height="44"/><text class="small" x="472" y="89">入口</text>
+    <path class="arrow green" d="M528 84 H578"/>
+    <rect class="node search" x="582" y="62" width="70" height="44"/><text class="small" x="600" y="89">搜索</text>
+    <path class="arrow blue" d="M656 84 H706"/>
+    <rect class="node extract" x="710" y="62" width="76" height="44"/><text class="small" x="728" y="89">撤离</text>
+    <text class="tiny" x="454" y="130">核心：拿多少、打不打 Boss、何时撤。</text>
+
+    <!-- mode 3 -->
+    <rect class="card" x="860" y="0" width="390" height="150"/>
+    <text class="section" x="882" y="34">C. 救援护送</text>
+    <rect class="node deploy" x="884" y="62" width="70" height="44"/><text class="small" x="902" y="89">入口</text>
+    <path class="arrow green" d="M958 84 H1008"/>
+    <rect class="node search" x="1012" y="62" width="70" height="44"/><text class="small" x="1030" y="89">救人</text>
+    <path class="arrow blue" d="M1086 84 H1136"/>
+    <rect class="node extract" x="1140" y="62" width="76" height="44"/><text class="small" x="1158" y="89">撤离</text>
+    <text class="tiny" x="884" y="130">核心：伤员/ NPC 是移动目标和负担。</text>
+
+    <!-- mode 4 -->
+    <rect class="card" x="0" y="190" width="390" height="150"/>
+    <text class="section" x="22" y="224">D. 破坏净化</text>
+    <rect class="node deploy" x="24" y="252" width="70" height="44"/><text class="small" x="42" y="279">入口</text>
+    <path class="arrow green" d="M98 274 H140"/>
+    <rect class="node mechanic" x="144" y="252" width="62" height="44"/><text class="small" x="158" y="279">M1</text>
+    <path class="arrow purple" d="M210 274 H252"/>
+    <rect class="node mechanic" x="256" y="252" width="62" height="44"/><text class="small" x="270" y="279">M2</text>
+    <path class="arrow blue" d="M322 274 H352"/>
+    <rect class="node extract" x="356" y="252" width="20" height="44"/>
+    <text class="tiny" x="24" y="320">核心：不一定杀 Boss，目标是摧毁机制源。</text>
+
+    <!-- mode 5 -->
+    <rect class="card" x="430" y="190" width="390" height="150"/>
+    <text class="section" x="452" y="224">E. 阻击防守</text>
+    <rect class="node deploy" x="454" y="252" width="70" height="44"/><text class="small" x="472" y="279">入口</text>
+    <path class="arrow green" d="M528 274 H578"/>
+    <rect class="node defend" x="582" y="252" width="70" height="44"/><text class="small" x="600" y="279">守点</text>
+    <path class="arrow red" d="M748 274 H660"/>
+    <rect class="node core" x="752" y="252" width="48" height="44"/><text class="small" x="763" y="279">敌</text>
+    <text class="tiny" x="454" y="320">核心：撑回合、争空间，Boss 是压力源。</text>
+
+    <!-- mode 6 -->
+    <rect class="card" x="860" y="190" width="390" height="150"/>
+    <text class="section" x="882" y="224">F. 潜入侦察</text>
+    <rect class="node deploy" x="884" y="252" width="70" height="44"/><text class="small" x="902" y="279">入口</text>
+    <path class="arrow green" d="M958 274 H1008"/>
+    <rect class="node search" x="1012" y="252" width="70" height="44"/><text class="small" x="1030" y="279">情报</text>
+    <path class="arrow blue" d="M1086 274 H1136"/>
+    <rect class="node extract" x="1140" y="252" width="76" height="44"/><text class="small" x="1158" y="279">撤离</text>
+    <text class="tiny" x="884" y="320">核心：低战斗、高信息，暴露后转撤离。</text>
+
+    <!-- design contract -->
+    <rect class="card" x="0" y="385" width="1250" height="180"/>
+    <text class="section" x="22" y="422">同一地图如何复用</text>
+    <text class="small" x="22" y="460">固定不变：入口、路线、水路、障碍、高地、Boss 核心、撤离点、搜索点。</text>
+    <text class="small" x="22" y="492">按模式切换：胜利条件、奖励结算、撤离压力、敌人意图、增援节奏、哪些节点初始可见。</text>
+    <text class="small" x="22" y="524">玩家策略：不是“把全图清空”，而是根据目标决定进攻、搜索、破坏、防守、撤离之间的优先级。</text>
+  </g>
+</svg>

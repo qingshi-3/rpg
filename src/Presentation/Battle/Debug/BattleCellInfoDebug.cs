@@ -2,22 +2,36 @@ using System.Linq;
 using System.Text;
 using Godot;
 using Rpg.Domain.Battle.Grid;
+using Rpg.Presentation.Battle.Entities;
+using Rpg.Presentation.Battle.Rules;
+using Rpg.Presentation.Common;
+using Rpg.Presentation.World.Sites;
 
 namespace Rpg.Presentation.Battle.Debug;
 
 public partial class BattleCellInfoDebug : BattleDebugComponent
 {
-    [ExportGroup("Hover信息")]
+    private const string GoodColor = "#8ff0a4";
+    private const string BadColor = "#ff6b6b";
+    private const string WarnColor = "#ffd166";
+    private const string MutedColor = "#9fb2c8";
+    private const string SectionColor = "#7dd3fc";
+    private const string TextColor = "#eef4ff";
+
+    [ExportGroup("Hover 信息")]
 
     [Export]
     public Vector2 PanelOffset { get; set; } = new(18, 18);
 
     [Export]
-    public int MaxLayerLines { get; set; } = 8;
+    public bool ShowLayerDetails { get; set; }
+
+    [Export]
+    public int MaxLayerLines { get; set; } = 2;
 
     private CanvasLayer _canvasLayer;
     private PanelContainer _panel;
-    private Label _label;
+    private RichTextLabel _label;
     private BattleMapLayer _coordinateLayer;
 
     public override void _Ready()
@@ -27,15 +41,21 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
         SetProcess(false);
     }
 
-    public override void Configure(BattleRoot battleRoot, BattleMapView battleMapView, BattleGridMap gridMap)
+    public override void Configure(WorldSiteRoot siteRoot, BattleMapView battleMapView, BattleGridMap gridMap)
     {
-        base.Configure(battleRoot, battleMapView, gridMap);
-        _coordinateLayer = battleMapView == null ? null : BattleMapLayerQueries.FindCoordinateLayer(battleMapView);
+        base.Configure(siteRoot, battleMapView, gridMap);
+        battleMapView?.EnsureRuntimeData();
+        _coordinateLayer = battleMapView?.CoordinateLayer;
     }
 
     public override void _Process(double delta)
     {
-        if (!DebugEnabled || BattleMapView == null || GridMap == null || _coordinateLayer == null)
+        if (!DebugEnabled ||
+            SiteRoot?.AllowsDebugHoverInfo != true ||
+            BattleMapView == null ||
+            GridMap == null ||
+            _label == null ||
+            _coordinateLayer == null)
         {
             SetPanelVisible(false);
             return;
@@ -45,14 +65,25 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
         Vector2I tilePosition = _coordinateLayer.LocalToMap(_coordinateLayer.ToLocal(mouseGlobal));
         var position = new GridPosition(tilePosition.X, tilePosition.Y);
 
-        if (!GridMap.TryGetCell(position, out GridCell cell))
+        BattleEntity hoveredEntity = SiteRoot?.FindEntityAt(position);
+
+        GridMap.TryGetCell(position, out GridCell cell);
+        if (hoveredEntity != null)
+        {
+            _label.Text = FormatEntity(hoveredEntity, cell);
+            MovePanelToMouse();
+            SetPanelVisible(true);
+            return;
+        }
+
+        if (cell == null)
         {
             SetPanelVisible(false);
             return;
         }
 
         _label.Text = FormatCell(cell);
-        _panel.GlobalPosition = GetViewport().GetMousePosition() + PanelOffset;
+        MovePanelToMouse();
         SetPanelVisible(true);
     }
 
@@ -68,41 +99,28 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
 
     private void BuildPanel()
     {
-        _canvasLayer = new CanvasLayer();
+        _canvasLayer = GameUiSceneFactory.Instantiate<CanvasLayer>(
+            GameUiSceneFactory.BattleCellInfoDebugPanelScenePath,
+            nameof(BattleCellInfoDebug));
+        if (_canvasLayer == null)
+        {
+            return;
+        }
+
         AddChild(_canvasLayer);
+        _panel = GameUiSceneFactory.GetRequiredNode<PanelContainer>(
+            _canvasLayer,
+            "Panel",
+            nameof(BattleCellInfoDebug));
+        _label = GameUiSceneFactory.GetRequiredNode<RichTextLabel>(
+            _canvasLayer,
+            "Panel/Margin/Label",
+            nameof(BattleCellInfoDebug));
+    }
 
-        _panel = new PanelContainer
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore
-        };
-
-        var style = new StyleBoxFlat
-        {
-            BgColor = new Color(0, 0, 0, 0.82f),
-            BorderColor = new Color(1, 1, 1, 0.25f)
-        };
-        style.SetBorderWidthAll(1);
-        style.SetCornerRadiusAll(4);
-        _panel.AddThemeStyleboxOverride("panel", style);
-
-        var margin = new MarginContainer
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore
-        };
-        margin.AddThemeConstantOverride("margin_left", 8);
-        margin.AddThemeConstantOverride("margin_top", 6);
-        margin.AddThemeConstantOverride("margin_right", 8);
-        margin.AddThemeConstantOverride("margin_bottom", 6);
-
-        _label = new Label
-        {
-            MouseFilter = Control.MouseFilterEnum.Ignore
-        };
-        _label.AddThemeColorOverride("font_color", Colors.White);
-
-        margin.AddChild(_label);
-        _panel.AddChild(margin);
-        _canvasLayer.AddChild(_panel);
+    private void MovePanelToMouse()
+    {
+        _panel.GlobalPosition = GetViewport().GetMousePosition() + PanelOffset;
     }
 
     private void SetPanelVisible(bool visible)
@@ -113,40 +131,233 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
         }
     }
 
-    private string FormatCell(GridCell cell)
+    private static string FormatEntity(BattleEntity entity, GridCell cell)
     {
+        HealthComponent health = entity.GetComponent<HealthComponent>();
+        ActionPointComponent actionPoint = entity.GetComponent<ActionPointComponent>();
+        MovementComponent movement = entity.GetComponent<MovementComponent>();
+        AttackComponent attack = entity.GetComponent<AttackComponent>();
+        GridOccupantComponent grid = entity.GetComponent<GridOccupantComponent>();
+        FactionComponent faction = entity.GetComponent<FactionComponent>();
+
         var builder = new StringBuilder();
-        builder.AppendLine($"地块 {cell.Position}");
-        builder.AppendLine($"高度：{cell.Height}");
-        builder.AppendLine($"有地基：{BoolText(cell.HasFoundation)}");
-        builder.AppendLine($"可行走：{BoolText(cell.IsWalkable)}");
-        builder.AppendLine($"阻挡视线：{BoolText(cell.BlocksLineOfSight)}");
-        builder.AppendLine($"高度转换：{BoolText(cell.IsHeightTransition)}");
-
-        if (cell.HasFoundationHeightConflict)
+        builder.Append($"{ColorText("单位", SectionColor)}  [b]{ColorText(entity.DisplayName, TextColor)}[/b]");
+        if (!string.IsNullOrWhiteSpace(entity.EntityId))
         {
-            builder.AppendLine("地基高度冲突：是");
+            builder.Append($"  {ColorText(entity.EntityId, MutedColor)}");
         }
 
-        builder.AppendLine($"来源图层：{cell.Layers.Count}");
+        builder.AppendLine();
+        AppendField(builder, "阵营", FactionText(faction?.Faction ?? BattleFaction.Neutral), SectionColor);
 
-        foreach (GridCellLayerData layer in cell.Layers.Take(MaxLayerLines))
+        if (grid != null)
         {
-            builder.AppendLine(
-                $"- {layer.LayerName} {RoleText(layer.Role)} 高度={layer.Height} 源={layer.SourceId} 图集=({layer.AtlasX},{layer.AtlasY}) 变体={layer.AlternativeTile}");
+            AppendField(builder, "位置", grid.Position.ToString(), TextColor);
         }
 
-        if (cell.Layers.Count > MaxLayerLines)
+        if (health != null)
         {
-            builder.AppendLine($"另有 {cell.Layers.Count - MaxLayerLines} 层未显示");
+            string color = health.IsDead ? BadColor : GoodColor;
+            AppendField(builder, "生命", $"{health.Hp}/{health.MaxHp}", color);
+        }
+
+        if (actionPoint != null)
+        {
+            string color = actionPoint.Ap > 0 ? GoodColor : WarnColor;
+            AppendField(builder, "行动点", $"{actionPoint.Ap}/{actionPoint.MaxAp}", color);
+        }
+
+        if (movement != null)
+        {
+            string water = movement.CanEnterWater ? "可入水" : "不可入水";
+            AppendField(
+                builder,
+                "移动",
+                $"范围 {movement.MoveRange} / 次数 {movement.MoveUsesRemaining}/{movement.MaxMoveUsesPerTurn} / 消耗 {movement.ApCost} AP / {water}",
+                TextColor);
+        }
+
+        if (attack != null)
+        {
+            AppendField(builder, "攻击", $"伤害 {attack.Damage} / 射程 {attack.Range} / 消耗 {attack.ApCost} AP", TextColor);
+        }
+
+        string flags = BuildEntityFlagSummary(entity, cell);
+        if (!string.IsNullOrWhiteSpace(flags))
+        {
+            builder.AppendLine();
+            builder.Append(flags);
+        }
+
+        if (cell != null)
+        {
+            builder.AppendLine();
+            builder.Append(ColorText($"脚下 {TerrainText(cell.TerrainTag)} H{cell.Height} C{cell.MoveCost}", MutedColor));
         }
 
         return builder.ToString();
     }
 
-    private static string BoolText(bool value)
+    private string FormatCell(GridCell cell)
     {
-        return value ? "是" : "否";
+        bool passable = cell.IsWalkable && cell.MoveCost > 0;
+        string passColor = passable ? GoodColor : BadColor;
+        string tags = cell.TerrainTags.Count == 0
+            ? "-"
+            : string.Join(",", cell.TerrainTags.Select(SafeText));
+
+        var builder = new StringBuilder();
+        builder.Append(
+            $"{ColorText("地块", SectionColor)}  " +
+            $"[color={passColor}][b]{(passable ? "可通行" : "不可通行")}[/b][/color]  " +
+            $"{ColorText(cell.Position.ToString(), TextColor)}  " +
+            $"{ColorText($"H{cell.Height} C{cell.MoveCost}", MutedColor)}  " +
+            $"{ColorText(TerrainText(cell.TerrainTag), SectionColor)}");
+
+        if (tags != "-")
+        {
+            builder.Append($"  {ColorText(tags, MutedColor)}");
+        }
+
+        string flags = BuildCellFlagSummary(cell);
+        if (!string.IsNullOrWhiteSpace(flags))
+        {
+            builder.AppendLine();
+            builder.Append(flags);
+        }
+
+        if (!ShowLayerDetails)
+        {
+            return builder.ToString();
+        }
+
+        builder.AppendLine();
+        builder.Append(ColorText($"图层 {cell.Layers.Count}", SectionColor));
+
+        foreach (GridCellLayerData layer in cell.Layers.Take(MaxLayerLines))
+        {
+            builder.AppendLine();
+            builder.Append("  ");
+            builder.Append(FormatLayer(layer));
+        }
+
+        if (cell.Layers.Count > MaxLayerLines)
+        {
+            builder.AppendLine();
+            builder.Append("  ");
+            builder.Append(ColorText($"+{cell.Layers.Count - MaxLayerLines} 层", MutedColor));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildEntityFlagSummary(BattleEntity entity, GridCell cell)
+    {
+        var builder = new StringBuilder();
+
+        if (BattleRuleQueries.IsDefeated(entity))
+        {
+            AppendFlag(builder, "已倒下", BadColor);
+        }
+
+        SelectableComponent selectable = entity.GetComponent<SelectableComponent>();
+        if (selectable is { IsSelectable: false })
+        {
+            AppendFlag(builder, "不可选择", MutedColor);
+        }
+
+        TargetableComponent targetable = entity.GetComponent<TargetableComponent>();
+        if (targetable is { IsTargetable: false })
+        {
+            AppendFlag(builder, "不可作为目标", MutedColor);
+        }
+
+        GridOccupantComponent grid = entity.GetComponent<GridOccupantComponent>();
+        if (grid is { BlocksMovement: true })
+        {
+            AppendFlag(builder, "阻挡占位", WarnColor);
+        }
+
+        MovementComponent movement = entity.GetComponent<MovementComponent>();
+        if (cell != null && movement != null && BattleRuleQueries.IsWater(cell) && !movement.CanEnterWater)
+        {
+            AppendFlag(builder, "脚下为禁入水域", BadColor);
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildCellFlagSummary(GridCell cell)
+    {
+        var builder = new StringBuilder();
+
+        if (!cell.HasFoundation)
+        {
+            AppendFlag(builder, "无地基", BadColor);
+        }
+
+        if (cell.IsObstacle)
+        {
+            AppendFlag(builder, "障碍", BadColor);
+        }
+
+        if (cell.IsHeightTransition)
+        {
+            AppendFlag(builder, "高度过渡", WarnColor);
+        }
+
+        if (cell.CanStandOn)
+        {
+            AppendFlag(builder, "特殊可站立", WarnColor);
+        }
+
+        if (cell.HasFoundationHeightConflict)
+        {
+            AppendFlag(builder, "高度冲突", BadColor);
+        }
+
+        return builder.ToString();
+    }
+
+    private static void AppendField(StringBuilder builder, string label, string value, string color)
+    {
+        builder.AppendLine();
+        builder.Append($"{ColorText(label, MutedColor)}：{ColorText(value, color)}");
+    }
+
+    private static void AppendFlag(StringBuilder builder, string label, string color)
+    {
+        if (builder.Length > 0)
+        {
+            builder.Append("  ");
+        }
+
+        builder.Append(ColorText(label, color));
+    }
+
+    private static string FormatLayer(GridCellLayerData layer)
+    {
+        string role = RoleText(layer.Role);
+        string walkText = layer.AffectsWalkability ? layer.Walkable ? "可走" : "阻挡" : "不影响通行";
+        string walkColor = layer.AffectsWalkability ? layer.Walkable ? GoodColor : BadColor : MutedColor;
+        string objectMark = layer.IsObstacle ? $" {ColorText("障碍", BadColor)}" : "";
+        string standMark = layer.CanStandOn ? $" {ColorText("可站", WarnColor)}" : "";
+        string tag = string.IsNullOrWhiteSpace(layer.TerrainTag)
+            ? ""
+            : $" {ColorText(TerrainText(layer.TerrainTag), MutedColor)}";
+
+        return $"{ColorText(layer.LayerName, TextColor)} {ColorText(role, MutedColor)} H{layer.Height} {ColorText(walkText, walkColor)} C{layer.MoveCost}{standMark}{objectMark}{tag}";
+    }
+
+    private static string FactionText(BattleFaction faction)
+    {
+        return faction switch
+        {
+            BattleFaction.Player => "我方",
+            BattleFaction.Enemy => "敌方",
+            BattleFaction.Neutral => "中立",
+            _ => faction.ToString()
+        };
     }
 
     private static string RoleText(LayerRole role)
@@ -155,10 +366,34 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
         {
             LayerRole.Foundation => "地基",
             LayerRole.Detail => "细节",
-            LayerRole.Object => "物件",
+            LayerRole.Object => "物体",
             LayerRole.Stair => "楼梯",
             LayerRole.Overlay => "覆盖",
             _ => role.ToString()
         };
+    }
+
+    private static string TerrainText(string terrainTag)
+    {
+        if (string.IsNullOrWhiteSpace(terrainTag))
+        {
+            return "陆地";
+        }
+
+        return terrainTag.Equals("water", System.StringComparison.OrdinalIgnoreCase)
+            ? "水域"
+            : SafeText(terrainTag);
+    }
+
+    private static string ColorText(string text, string color)
+    {
+        return $"[color={color}]{SafeText(text)}[/color]";
+    }
+
+    private static string SafeText(string text)
+    {
+        return (text ?? "")
+            .Replace("[", "［", System.StringComparison.Ordinal)
+            .Replace("]", "］", System.StringComparison.Ordinal);
     }
 }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using Rpg.Domain.Battle.Grid;
+using Rpg.Presentation.World.Sites;
 
 namespace Rpg.Presentation.Battle.Debug;
 
@@ -17,21 +18,21 @@ public partial class BattleDebugController : Node
     [Export]
     public Key ToggleKey { get; set; } = Key.F3;
 
-    private BattleRoot _battleRoot;
+    private WorldSiteRoot _siteRoot;
     private BattleMapView _battleMapView;
     private BattleGridMap _gridMap;
 
     public override void _Ready()
     {
-        _battleRoot = GetParentOrNull<BattleRoot>();
+        _siteRoot = GetParentOrNull<WorldSiteRoot>();
 
-        if (_battleRoot == null)
+        if (_siteRoot == null)
         {
-            GD.PushWarning("BattleDebugController must be a direct child of BattleRoot.");
+            GD.PushWarning("BattleDebugController must be a direct child of WorldSiteRoot.");
             return;
         }
 
-        _battleRoot.BattleMapLoaded += OnBattleMapLoaded;
+        _siteRoot.SiteMapLoaded += OnSiteMapLoaded;
         ApplyDebugEnabled();
     }
 
@@ -62,19 +63,20 @@ public partial class BattleDebugController : Node
         ApplyDebugEnabled();
     }
 
-    private void OnBattleMapLoaded(Node activeMap)
+    private void OnSiteMapLoaded(Node activeSiteMap)
     {
-        _battleMapView = activeMap as BattleMapView;
-        _gridMap = _battleMapView == null ? null : GridMapReader.Read(_battleMapView);
+        _battleMapView = activeSiteMap as BattleMapView;
+        _battleMapView?.EnsureRuntimeData();
+        _gridMap = _siteRoot.ActiveGridMap ?? _battleMapView?.GridMap;
 
         if (_battleMapView == null)
         {
-            GD.PushWarning("Loaded battle map is not a BattleMapView; debug grid data is unavailable.");
+            GD.PushWarning("Loaded site map is not a BattleMapView; debug grid data is unavailable.");
         }
 
         foreach (BattleDebugComponent component in EnumerateDebugComponents(this))
         {
-            component.Configure(_battleRoot, _battleMapView, _gridMap);
+            component.Configure(_siteRoot, _battleMapView, _gridMap);
         }
 
         ApplyDebugEnabled();

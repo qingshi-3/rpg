@@ -1,6 +1,8 @@
 # Tutorial Battle Spec
 
-This is the implementation-facing specification for the tutorial battle.
+This is the implementation-facing design target for the tutorial battle.
+
+Current prototype note: the minimal loop currently validates direct hero control, terrain-aware movement, attack resolution, and enemy high-level Intent. Push, Block, and automatic Archer behavior remain future RuleSystem/content work.
 
 For high-level goals and scope, read `tutorial-battle.md` first.
 
@@ -156,4 +158,4 @@ Expected system result:
 - Skeleton melee Intent target.
 - Thrower ranged Intent target and affected cell or unit.
 
-Preview vocabulary should follow `docs/design/systems/targeting-and-preview.md`.
+Preview vocabulary should follow `docs/design/battle/targeting-and-preview.md`.

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.Battle.UI;
 
@@ -9,37 +10,19 @@ public partial class UnitStatusCard : Control
     private const float BottomLeftInsetRatio = 0.68f;
     private const float LeftEdgeConcavityRatio = 0.025f;
 
-    private readonly Label _portrait = new();
-    private readonly Label _name = new();
-    private readonly Label _hp = new();
-    private readonly Label _ap = new();
+    private Label _portrait;
+    private Label _name;
+    private Label _hp;
+    private Label _ap;
 
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
-        CustomMinimumSize = new Vector2(300, 132);
 
-        _portrait.CustomMinimumSize = new Vector2(46, 46);
-        _portrait.HorizontalAlignment = HorizontalAlignment.Center;
-        _portrait.VerticalAlignment = VerticalAlignment.Center;
-        _portrait.Text = "头像";
-        _portrait.AddThemeFontSizeOverride("font_size", 13);
-        _portrait.AddThemeColorOverride("font_color", Colors.White);
-        _portrait.AddThemeStyleboxOverride("normal", BuildPortraitStyle());
-        AddChild(_portrait);
-
-        foreach (Label label in new[] { _name, _hp, _ap })
-        {
-            label.MouseFilter = MouseFilterEnum.Ignore;
-            label.AddThemeColorOverride("font_color", Colors.White);
-            label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-            AddChild(label);
-        }
-
-        _name.AddThemeFontSizeOverride("font_size", 16);
-        _hp.AddThemeFontSizeOverride("font_size", 13);
-        _ap.AddThemeFontSizeOverride("font_size", 13);
-
+        _portrait = GameUiSceneFactory.GetRequiredNode<Label>(this, "Portrait", nameof(UnitStatusCard));
+        _name = GameUiSceneFactory.GetRequiredNode<Label>(this, "NameLabel", nameof(UnitStatusCard));
+        _hp = GameUiSceneFactory.GetRequiredNode<Label>(this, "HpLabel", nameof(UnitStatusCard));
+        _ap = GameUiSceneFactory.GetRequiredNode<Label>(this, "ApLabel", nameof(UnitStatusCard));
         LayoutContent();
         SetUnit("骑士", 24, 24, 3, 3);
     }
@@ -64,6 +47,11 @@ public partial class UnitStatusCard : Control
 
     public void SetUnit(string unitName, int hp, int maxHp, int ap, int maxAp)
     {
+        if (_name == null || _hp == null || _ap == null)
+        {
+            return;
+        }
+
         _name.Text = unitName;
         _hp.Text = $"生命 {hp}/{maxHp}";
         _ap.Text = $"行动点 {BuildApPips(ap, maxAp)}";
@@ -89,6 +77,11 @@ public partial class UnitStatusCard : Control
 
     private void LayoutContent()
     {
+        if (_portrait == null || _name == null || _hp == null || _ap == null)
+        {
+            return;
+        }
+
         float width = Mathf.Max(Size.X, CustomMinimumSize.X);
         float height = Mathf.Max(Size.Y, CustomMinimumSize.Y);
         float leftInset = GetBottomLeftInset(width);
@@ -169,15 +162,4 @@ public partial class UnitStatusCard : Control
         return closed;
     }
 
-    private static StyleBoxFlat BuildPortraitStyle()
-    {
-        var style = new StyleBoxFlat
-        {
-            BgColor = new Color(0.04f, 0.04f, 0.04f, 0.54f),
-            BorderColor = new Color(1f, 1f, 1f, 0.24f)
-        };
-        style.SetBorderWidthAll(1);
-        style.SetCornerRadiusAll(24);
-        return style;
-    }
 }

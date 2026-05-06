@@ -1,48 +1,24 @@
 using Godot;
+using Rpg.Presentation.Battle.Abilities;
+using Rpg.Presentation.Common;
 using Rpg.Presentation.UI.ActionWheel;
 
 namespace Rpg.Presentation.Battle.UI;
 
 public partial class CommandInfoPanel : PanelContainer
 {
-    private readonly Label _title = new();
-    private readonly Label _cost = new();
-    private readonly Label _description = new();
-    private readonly Label _state = new();
+    private Label _title;
+    private Label _cost;
+    private Label _description;
+    private Label _state;
 
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
-        CustomMinimumSize = new Vector2(300, 68);
-        AddThemeStyleboxOverride("panel", BuildPanelStyle());
-
-        var margin = new MarginContainer
-        {
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        margin.AddThemeConstantOverride("margin_left", 12);
-        margin.AddThemeConstantOverride("margin_top", 6);
-        margin.AddThemeConstantOverride("margin_right", 12);
-        margin.AddThemeConstantOverride("margin_bottom", 6);
-
-        var root = new VBoxContainer
-        {
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        root.AddThemeConstantOverride("separation", 1);
-
-        ConfigureLabel(_title, 17, new Color(1f, 0.88f, 0.48f, 1f));
-        ConfigureLabel(_cost, 12, new Color(0.76f, 0.9f, 1f, 0.92f));
-        ConfigureLabel(_description, 12, new Color(1f, 1f, 1f, 0.82f));
-        ConfigureLabel(_state, 12, new Color(1f, 0.56f, 0.42f, 0.92f));
-
-        root.AddChild(_title);
-        root.AddChild(_cost);
-        root.AddChild(_description);
-        root.AddChild(_state);
-        margin.AddChild(root);
-        AddChild(margin);
-
+        _title = GameUiSceneFactory.GetRequiredNode<Label>(this, "Margin/Root/Title", nameof(CommandInfoPanel));
+        _cost = GameUiSceneFactory.GetRequiredNode<Label>(this, "Margin/Root/Cost", nameof(CommandInfoPanel));
+        _description = GameUiSceneFactory.GetRequiredNode<Label>(this, "Margin/Root/Description", nameof(CommandInfoPanel));
+        _state = GameUiSceneFactory.GetRequiredNode<Label>(this, "Margin/Root/State", nameof(CommandInfoPanel));
         ShowDefault();
     }
 
@@ -78,21 +54,13 @@ public partial class CommandInfoPanel : PanelContainer
         _state.Text = GetCommandState(command, selected);
     }
 
-    private static void ConfigureLabel(Label label, int fontSize, Color color, bool wrap = false)
-    {
-        label.MouseFilter = MouseFilterEnum.Ignore;
-        label.AddThemeFontSizeOverride("font_size", fontSize);
-        label.AddThemeColorOverride("font_color", color);
-        label.AutowrapMode = wrap ? TextServer.AutowrapMode.WordSmart : TextServer.AutowrapMode.Off;
-        label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
-    }
-
     private static string GetCommandDescription(ActionWheelCommandViewModel command)
     {
         return command.Id switch
         {
             "move" => "预览范围，选择地块移动",
             "attack" => "预览范围，选择目标攻击",
+            _ when BattleAbilityQueries.IsAbilityCommand(command.Id) => "预览范围，选择目标释放能力",
             "skill-menu" => "展开技能转盘",
             "cards" => "后续接入卡牌指令",
             "corps" => "后续接入兵团指挥",
@@ -118,15 +86,4 @@ public partial class CommandInfoPanel : PanelContainer
         return selected ? "已选中" : "可使用";
     }
 
-    private static StyleBoxFlat BuildPanelStyle()
-    {
-        var style = new StyleBoxFlat
-        {
-            BgColor = new Color(0.02f, 0.02f, 0.02f, 0.4f),
-            BorderColor = new Color(1f, 1f, 1f, 0.16f)
-        };
-        style.SetBorderWidthAll(1);
-        style.SetCornerRadiusAll(6);
-        return style;
-    }
 }

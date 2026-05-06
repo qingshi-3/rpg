@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Battle/UI/BattleActionDock.cs" id="1_script"]
+[ext_resource type="Script" path="res://src/Presentation/UI/ActionWheel/ActionWheel.cs" id="2_action_wheel"]
+
+[node name="BattleActionDock" type="Control"]
+custom_minimum_size = Vector2(620, 260)
+mouse_filter = 1
+script = ExtResource("1_script")
+
+[node name="ActionWheel" type="Control" parent="."]
+custom_minimum_size = Vector2(1290, 345)
+layout_mode = 0
+mouse_filter = 1
+script = ExtResource("2_action_wheel")

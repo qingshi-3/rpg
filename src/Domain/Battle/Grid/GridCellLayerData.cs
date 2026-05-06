@@ -10,6 +10,11 @@ public sealed class GridCellLayerData
         bool affectsLineOfSight,
         bool isHeightTransitionLayer,
         bool isVisualOnly,
+        bool walkable,
+        int moveCost,
+        bool canStandOn,
+        bool isObstacle,
+        string terrainTag,
         int sourceId,
         int atlasX,
         int atlasY,
@@ -22,6 +27,11 @@ public sealed class GridCellLayerData
         AffectsLineOfSight = affectsLineOfSight;
         IsHeightTransitionLayer = isHeightTransitionLayer;
         IsVisualOnly = isVisualOnly;
+        Walkable = walkable;
+        MoveCost = moveCost;
+        CanStandOn = canStandOn;
+        IsObstacle = isObstacle;
+        TerrainTag = terrainTag;
         SourceId = sourceId;
         AtlasX = atlasX;
         AtlasY = atlasY;
@@ -35,6 +45,11 @@ public sealed class GridCellLayerData
     public bool AffectsLineOfSight { get; }
     public bool IsHeightTransitionLayer { get; }
     public bool IsVisualOnly { get; }
+    public bool Walkable { get; }
+    public int MoveCost { get; }
+    public bool CanStandOn { get; }
+    public bool IsObstacle { get; }
+    public string TerrainTag { get; }
     public int SourceId { get; }
     public int AtlasX { get; }
     public int AtlasY { get; }

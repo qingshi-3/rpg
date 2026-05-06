@@ -1,0 +1,133 @@
+[gd_scene format=3]
+
+[node name="SitePeacetimeHudRoot" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="SiteTopBar" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 66.0
+grow_horizontal = 2
+
+[node name="TopMargin" type="MarginContainer" parent="SiteTopBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 8
+
+[node name="TopBox" type="HBoxContainer" parent="SiteTopBar/TopMargin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="SiteHudTitle" type="Label" parent="SiteTopBar/TopMargin/TopBox"]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+vertical_alignment = 1
+clip_text = true
+
+[node name="SiteResourceLabel" type="Label" parent="SiteTopBar/TopMargin/TopBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+vertical_alignment = 1
+clip_text = true
+
+[node name="ReturnMapButton" type="Button" parent="SiteTopBar/TopMargin/TopBox"]
+custom_minimum_size = Vector2(128, 38)
+layout_mode = 2
+text = "返回大地图"
+focus_mode = 2
+
+[node name="SitePeacetimePanel" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(520, 0)
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -544.0
+offset_top = 82.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 2
+
+[node name="Margin" type="MarginContainer" parent="SitePeacetimePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="Scroll" type="ScrollContainer" parent="SitePeacetimePanel/Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="SiteHudBody" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+
+[node name="SiteSelectionLabel" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3
+
+[node name="FacilityTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "建筑点"
+
+[node name="SiteFacilityList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="GarrisonTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "驻军"
+
+[node name="SiteGarrisonList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="ThreatTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "威胁"
+
+[node name="SiteThreatList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="ActionTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "行动"
+
+[node name="SiteActionList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="SiteNoticeLabel" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 3

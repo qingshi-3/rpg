@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="BattleUnitDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Definitions/Battle/BattleUnitDefinition.cs" id="1_definition"]
+[ext_resource type="PackedScene" path="res://scenes/battle/entities/units/Militia.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_definition")
+Id = "militia"
+DisplayName = "驻备民兵"
+EntityScene = ExtResource("2_scene")
+DebugMarkerColor = Color(0.38, 0.78, 0.46, 0.95)
+MaxHp = 10
+MaxActionPoints = 2
+MoveRange = 3
+MoveActionPointCost = 1
+MaxMoveUsesPerTurn = 1
+AttackDamage = 3
+AttackRange = 1
+AttackActionPointCost = 1
+BlocksMovement = true
+IsTargetable = true

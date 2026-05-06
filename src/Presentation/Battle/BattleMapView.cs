@@ -1,4 +1,6 @@
 using Godot;
+using Rpg.Domain.Battle.Grid;
+using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Presentation.Battle;
 
@@ -51,6 +53,11 @@ public partial class BattleMapView : Node2D
     public TileMapLayer HighObjectLayer { get; private set; }
     public TileMapLayer StairLayer { get; private set; }
     public TileMapLayer OverlayLayer { get; private set; }
+    public BattleGridMap GridMap { get; private set; }
+    public BattleMapLayer CoordinateLayer { get; private set; }
+    public bool RuntimeDataReady { get; private set; }
+
+    private bool _runtimeDataInitialized;
 
     public override void _Ready()
     {
@@ -65,5 +72,32 @@ public partial class BattleMapView : Node2D
         HighObjectLayer = GetNode<TileMapLayer>(HighObjectLayerPath);
         StairLayer = GetNode<TileMapLayer>(StairLayerPath);
         OverlayLayer = GetNode<TileMapLayer>(OverlayLayerPath);
+
+        EnsureRuntimeData();
+    }
+
+    public void EnsureRuntimeData()
+    {
+        if (_runtimeDataInitialized)
+        {
+            return;
+        }
+
+        GridMap = GridMapReader.Read(this);
+        CoordinateLayer = BattleMapLayerQueries.FindCoordinateLayer(this);
+        RuntimeDataReady = GridMap != null && CoordinateLayer != null;
+        _runtimeDataInitialized = true;
+
+        if (!RuntimeDataReady)
+        {
+            GameLog.Warn(
+                nameof(BattleMapView),
+                $"Map runtime missing critical layer gridMap={GridMap != null} coordinateLayer={CoordinateLayer != null} path={GetPath()}");
+            return;
+        }
+
+        GameLog.Info(
+            nameof(BattleMapView),
+            $"Map runtime ready path={GetPath()} cells={GridMap.Cells.Count} surfaces={GridMap.Surfaces.Count} coordinateLayer={CoordinateLayer.GetPath()}");
     }
 }

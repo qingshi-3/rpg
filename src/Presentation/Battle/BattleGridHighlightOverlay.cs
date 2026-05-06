@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Domain.Battle.Grid;
+using Rpg.Presentation.World.Sites;
 
 namespace Rpg.Presentation.Battle;
 
@@ -30,6 +31,12 @@ public partial class BattleGridHighlightOverlay : Node2D
     public Color MoveColor { get; set; } = new(0.2f, 0.65f, 1f, 0.24f);
 
     [Export]
+    public Color PathColor { get; set; } = new(1f, 0.82f, 0.18f, 0.34f);
+
+    [Export]
+    public Color ThreatColor { get; set; } = new(1f, 0.36f, 0.12f, 0.18f);
+
+    [Export]
     public Color AttackColor { get; set; } = new(1f, 0.22f, 0.18f, 0.24f);
 
     [Export]
@@ -42,13 +49,32 @@ public partial class BattleGridHighlightOverlay : Node2D
     public Color SelectedColor { get; set; } = new(0.35f, 1f, 0.55f, 0.22f);
 
     [Export]
-    public Color InvalidColor { get; set; } = new(0.55f, 0.55f, 0.55f, 0.18f);
+    public Color InvalidColor { get; set; } = new(1f, 0.04f, 0.02f, 0.38f);
 
     [Export]
     public float RangeBorderWidth { get; set; } = 1.5f;
 
-    private readonly Dictionary<BattleGridHighlightKind, HashSet<GridPosition>> _cellsByKind = new();
+    [ExportGroup("Path Arrows")]
 
+    [Export]
+    public Color PathArrowColor { get; set; } = new(1f, 0.94f, 0.35f, 0.86f);
+
+    [Export]
+    public float PathArrowWidth { get; set; } = 2.2f;
+
+    [Export]
+    public float PathArrowHeadLength { get; set; } = 6f;
+
+    [Export]
+    public float PathArrowHeadAngleDegrees { get; set; } = 34f;
+
+    [Export]
+    public float PathArrowCellPaddingRatio { get; set; } = 0.28f;
+
+    private readonly Dictionary<BattleGridHighlightKind, HashSet<GridPosition>> _cellsByKind = new();
+    private readonly List<GridPosition> _pathCells = new();
+
+    private WorldSiteRoot _siteRoot;
     private BattleMapView _battleMapView;
     private BattleGridMap _gridMap;
     private BattleMapLayer _coordinateLayer;
@@ -59,18 +85,18 @@ public partial class BattleGridHighlightOverlay : Node2D
         ZIndex = 100;
         SetProcess(HoverEnabled);
 
-        BattleRoot battleRoot = FindBattleRoot();
-        if (battleRoot == null)
+        _siteRoot = FindWorldSiteRoot();
+        if (_siteRoot == null)
         {
-            GD.PushWarning("BattleGridHighlightOverlay could not find BattleRoot.");
+            GD.PushWarning("BattleGridHighlightOverlay could not find WorldSiteRoot.");
             return;
         }
 
-        battleRoot.BattleMapLoaded += OnBattleMapLoaded;
+        _siteRoot.SiteMapLoaded += OnSiteMapLoaded;
 
-        if (battleRoot.ActiveMap != null)
+        if (_siteRoot.ActiveSiteMap != null)
         {
-            OnBattleMapLoaded(battleRoot.ActiveMap);
+            OnSiteMapLoaded(_siteRoot.ActiveSiteMap);
         }
     }
 
@@ -98,7 +124,22 @@ public partial class BattleGridHighlightOverlay : Node2D
             return;
         }
 
+        if (kind == BattleGridHighlightKind.Path)
+        {
+            SetPath(cells);
+            return;
+        }
+
         _cellsByKind[kind] = cells.ToHashSet();
+        Rebuild();
+    }
+
+    public void SetPath(IEnumerable<GridPosition> cells)
+    {
+        GridPosition[] orderedCells = cells.ToArray();
+        _pathCells.Clear();
+        _pathCells.AddRange(orderedCells);
+        _cellsByKind[BattleGridHighlightKind.Path] = orderedCells.ToHashSet();
         Rebuild();
     }
 
@@ -110,6 +151,11 @@ public partial class BattleGridHighlightOverlay : Node2D
             return;
         }
 
+        if (kind == BattleGridHighlightKind.Path)
+        {
+            _pathCells.Clear();
+        }
+
         if (_cellsByKind.Remove(kind))
         {
             Rebuild();
@@ -119,16 +165,19 @@ public partial class BattleGridHighlightOverlay : Node2D
     public void ClearAll()
     {
         _cellsByKind.Clear();
+        _pathCells.Clear();
         _hoverCell = null;
         Rebuild();
     }
 
-    private void OnBattleMapLoaded(Node activeMap)
+    private void OnSiteMapLoaded(Node activeSiteMap)
     {
-        _battleMapView = activeMap as BattleMapView;
-        _gridMap = _battleMapView == null ? null : GridMapReader.Read(_battleMapView);
-        _coordinateLayer = _battleMapView == null ? null : BattleMapLayerQueries.FindCoordinateLayer(_battleMapView);
+        _battleMapView = activeSiteMap as BattleMapView;
+        _battleMapView?.EnsureRuntimeData();
+        _gridMap = _siteRoot?.ActiveGridMap ?? _battleMapView?.GridMap;
+        _coordinateLayer = _battleMapView?.CoordinateLayer;
         _hoverCell = null;
+        _pathCells.Clear();
         Rebuild();
     }
 
@@ -168,6 +217,8 @@ public partial class BattleGridHighlightOverlay : Node2D
                 AddCellHighlight(kind, cell);
             }
         }
+
+        AddPathArrows();
 
         if (_hoverCell.HasValue)
         {
@@ -242,6 +293,84 @@ public partial class BattleGridHighlightOverlay : Node2D
         });
     }
 
+    private void AddPathArrows()
+    {
+        if (_pathCells.Count < 2)
+        {
+            return;
+        }
+
+        for (int index = 0; index < _pathCells.Count - 1; index++)
+        {
+            AddPathArrow(_pathCells[index], _pathCells[index + 1]);
+        }
+    }
+
+    private void AddPathArrow(GridPosition from, GridPosition to)
+    {
+        Vector2 fromCenter = BuildCellCenter(from);
+        Vector2 toCenter = BuildCellCenter(to);
+        Vector2 delta = toCenter - fromCenter;
+        float length = delta.Length();
+        if (length <= 0.01f)
+        {
+            return;
+        }
+
+        Vector2 direction = delta / length;
+        float padding = Mathf.Min(
+            length * 0.35f,
+            GetCellHalfExtent(from) * Mathf.Clamp(PathArrowCellPaddingRatio, 0f, 0.45f));
+        Vector2 start = fromCenter + direction * padding;
+        Vector2 end = toCenter - direction * padding;
+
+        if ((end - start).Length() <= 1f)
+        {
+            start = fromCenter;
+            end = toCenter;
+        }
+
+        int zIndex = (int)BattleGridHighlightKind.Hover * 2 - 1;
+        AddChild(new Line2D
+        {
+            Points = new[] { start, end },
+            Width = PathArrowWidth,
+            DefaultColor = PathArrowColor,
+            ZIndex = zIndex
+        });
+
+        float headLength = Mathf.Min(PathArrowHeadLength, length * 0.32f);
+        float headAngle = Mathf.DegToRad(PathArrowHeadAngleDegrees);
+        Vector2 back = -direction;
+        AddPathArrowHeadSegment(end, end + back.Rotated(headAngle) * headLength, zIndex);
+        AddPathArrowHeadSegment(end, end + back.Rotated(-headAngle) * headLength, zIndex);
+    }
+
+    private void AddPathArrowHeadSegment(Vector2 start, Vector2 end, int zIndex)
+    {
+        AddChild(new Line2D
+        {
+            Points = new[] { start, end },
+            Width = PathArrowWidth,
+            DefaultColor = PathArrowColor,
+            ZIndex = zIndex
+        });
+    }
+
+    private Vector2 BuildCellCenter(GridPosition cell)
+    {
+        var origin = new Vector2I(cell.X, cell.Y);
+        return ToLocal(_coordinateLayer.ToGlobal(_coordinateLayer.MapToLocal(origin)));
+    }
+
+    private float GetCellHalfExtent(GridPosition cell)
+    {
+        Vector2 center = BuildCellCenter(cell);
+        Vector2 right = BuildCellCenter(new GridPosition(cell.X + 1, cell.Y));
+        Vector2 down = BuildCellCenter(new GridPosition(cell.X, cell.Y + 1));
+        return Mathf.Min((right - center).Length(), (down - center).Length()) * 0.5f;
+    }
+
     private Vector2[] BuildCellPolygon(GridPosition cell)
     {
         var origin = new Vector2I(cell.X, cell.Y);
@@ -275,6 +404,8 @@ public partial class BattleGridHighlightOverlay : Node2D
         return kind switch
         {
             BattleGridHighlightKind.Move => (MoveColor, WithAlpha(MoveColor, 0.55f), RangeBorderWidth),
+            BattleGridHighlightKind.Path => (PathColor, WithAlpha(PathColor, 0.72f), RangeBorderWidth + 0.35f),
+            BattleGridHighlightKind.Threat => (ThreatColor, WithAlpha(ThreatColor, 0.46f), RangeBorderWidth),
             BattleGridHighlightKind.Attack => (AttackColor, WithAlpha(AttackColor, 0.58f), RangeBorderWidth),
             BattleGridHighlightKind.Skill => (SkillColor, WithAlpha(SkillColor, 0.56f), RangeBorderWidth),
             BattleGridHighlightKind.Target => (TargetColor, WithAlpha(TargetColor, 0.58f), RangeBorderWidth),
@@ -293,6 +424,8 @@ public partial class BattleGridHighlightOverlay : Node2D
     private static IEnumerable<BattleGridHighlightKind> GetRangeDrawOrder()
     {
         yield return BattleGridHighlightKind.Move;
+        yield return BattleGridHighlightKind.Path;
+        yield return BattleGridHighlightKind.Threat;
         yield return BattleGridHighlightKind.Skill;
         yield return BattleGridHighlightKind.Attack;
         yield return BattleGridHighlightKind.Target;
@@ -300,15 +433,15 @@ public partial class BattleGridHighlightOverlay : Node2D
         yield return BattleGridHighlightKind.Invalid;
     }
 
-    private BattleRoot FindBattleRoot()
+    private WorldSiteRoot FindWorldSiteRoot()
     {
         Node current = this;
 
         while (current != null)
         {
-            if (current is BattleRoot battleRoot)
+            if (current is WorldSiteRoot siteRoot)
             {
-                return battleRoot;
+                return siteRoot;
             }
 
             current = current.GetParent();

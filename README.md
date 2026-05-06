@@ -1,27 +1,59 @@
 # rpg
 
-一个从零开始制作的 2D 像素风 RPG 游戏项目，使用 Godot 4.5 开发。
+一个使用 Godot 4.5 开发的 2D 像素风战棋 RPG 项目。
+
+当前产品方向暂定为：
+
+```text
+有温度的异世界建国式战棋肉鸽 RPG
+```
+
+每一局都是一段小型异世界 RPG 战役。玩家从弱小据点出发，在模块化随机小世界中探索、招募伙伴、经营势力、处理事件、收集情报，并在机制型战棋战斗中读懂敌人的计划、破坏 Boss 的规则，逐步建立自己的新生势力。
+
+## 游戏介绍
+
+这个项目不希望只把“英雄、战棋、意图、回合制、养成、兵团指挥”等标签堆在一起，而是围绕一个更完整的体验主轴展开：
+
+```text
+领地给玩家势力感。
+角色给玩家情感锚点。
+战斗给玩家破局成就。
+```
+
+大世界提供探索、整顿、招募、经营、剧情事件和战前准备；场域进入战时后提供低负担但高机制密度的回合制战棋体验。敌人意图不是单纯的 UI 提示，而是玩家读取敌方计划、提前准备并改变战局的策略窗口。
+
+## 核心体验
+
+- 模块化随机小世界：每局世界有变化，但城镇、据点、矿洞、危险区域、招募点、Boss 巢穴等模块保持可理解的稳定结构。
+- 有温度的伙伴养成：队友不只是数值卡片，而是拥有名字、性格、立场、关系、事件和战斗机制的角色。
+- 轻量经营与整顿：战后允许玩家治疗、训练、修整、侦察、互动和准备，不默认施加强时间压力。
+- 机制型战棋战斗：小怪和 Boss 都应有清晰机制身份，避免纯血量和攻击力的数值互拍。
+- 敌人意图与情报：通过侦察、角色能力和战场 UI 让玩家逐步读懂敌人的推进、攻击、蓄力、召唤和控制计划。
+- 战斗与大世界互相影响：大世界准备改变战斗，战斗结果也改变世界状态、角色关系和后续事件。
 
 ## 项目目标
 
-- 构建一个可扩展的 2D 像素风 RPG 基础框架。
-- 优先打通地图、角色移动、交互、战斗、物品与任务等核心玩法闭环。
-- 保持资源、脚本和场景结构清晰，方便后续持续迭代。
+- 优先验证“异世界小世界 + 机制战棋 + 建立势力”的垂直切片。
+- 构建大世界与可持久运营场域的双层结构，并让经营准备和战时结果产生真实互相影响。
+- 打磨低负担、可读、可反制的机制型战斗，而不是堆叠复杂操作。
+- 为后续角色情感、剧情事件、据点经营、敌人意图、兵团指挥和局外成长保留清晰扩展边界。
+- 保持资源、脚本、场景和文档结构清晰，方便长期迭代。
 
 ## 技术栈
 
 - 引擎：Godot 4.5
 - 渲染：GL Compatibility
-- 类型：2D 像素风 RPG
+- 类型：2D 像素风 / 回合制战棋 / RPG / 轻量肉鸽
 - 脚本：C#
 
 ## 本地运行
 
 1. 使用 Godot 4.5 打开本目录。
 2. 在编辑器中导入 `project.godot`。
-3. 运行主场景 `scenes/battle/BattleRoot.tscn`。
+3. 运行战役地图 Demo：`scenes/world/CampaignMapDemo.tscn`。
+4. 也可以单独运行场域战时执行场景：`scenes/world/sites/WorldSiteRoot.tscn`。
 
-当前主场景是通用战斗壳，默认加载教程战斗地图。
+当前战役地图 Demo 会读取第一章“亡灵军团指挥官”配置。第一层交互是自由选择地点，进入地点后再触发事件池、遭遇或据点动作；`WorldSiteRoot` 也可以独立运行，用于调试战时闭环。
 
 ## C# 开发
 
@@ -39,10 +71,9 @@ dotnet build rpg.sln
 后续开发可按以下结构逐步整理：
 
 ```text
-assets/      美术、音频、字体等原始与导入资源
+assets/      美术、音频、字体、Godot Resource 与导入资源
 scenes/      Godot 场景文件
 src/         C# 源码
-assets/      Godot Resource 数据与导入资产
 docs/        设计文档、技术变更与测试说明
 ```
 
@@ -50,9 +81,10 @@ docs/        设计文档、技术变更与测试说明
 
 - 文档入口：`docs/README.md`
 - 协作规则：`docs/collaboration/ai-collaboration.md`
-- 产品层：`docs/design/product/vision.md`
-- 玩法层：`docs/design/gameplay/core-loop.md`
-- 系统层：`docs/design/systems/README.md`
+- 核心方向：`docs/design/core/README.md`
+- 架构层：`docs/design/architecture/README.md`
+- 战斗层：`docs/design/battle/README.md`
+- 角色层：`docs/design/character/README.md`
 - 世界层：`docs/design/world/README.md`
 - 内容层：`docs/content/tutorial/tutorial-battle.md`
 - 路线图：`docs/roadmap/current-design-progress.md`、`docs/roadmap/development-priority.md`

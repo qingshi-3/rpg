@@ -1,0 +1,74 @@
+[gd_scene load_steps=15 format=3 uid="uid://x3kdwb8wb6wk"]
+
+[ext_resource type="Script" uid="uid://2u80f8wpormt" path="res://src/Presentation/World/Sites/WorldSiteRoot.cs" id="1_world_site_root"]
+[ext_resource type="PackedScene" uid="uid://c2oee8rh6qi6" path="res://scenes/world/sites/impl/BonefieldSite.tscn" id="2_bonefield_site"]
+[ext_resource type="Script" uid="uid://bakjqpxs7s4bt" path="res://src/Presentation/Battle/Debug/BattleDebugController.cs" id="3_debug_controller"]
+[ext_resource type="Script" uid="uid://dvp4k3s1kasgx" path="res://src/Presentation/Battle/Debug/BattleCellInfoDebug.cs" id="4_cell_info_debug"]
+[ext_resource type="Script" uid="uid://bfqmtu3qnlfgv" path="res://src/Presentation/Battle/BattleGridHighlightOverlay.cs" id="5_grid_highlight_overlay"]
+[ext_resource type="Script" uid="uid://c0wovrc4y6m7u" path="res://src/Presentation/Battle/Debug/BattleGuideGridDebug.cs" id="6_guide_grid_debug"]
+[ext_resource type="Script" uid="uid://bobwqpsmf6y7f" path="res://src/Presentation/Battle/BattleCameraController.cs" id="7_camera_controller"]
+[ext_resource type="Script" uid="uid://dyx6vbfok2cen" path="res://src/Presentation/Battle/UI/BattleHudRoot.cs" id="8_battle_hud_root"]
+[ext_resource type="Script" uid="uid://b41rc0nsy8p5x" path="res://src/Presentation/Battle/Input/BattleInputRouter.cs" id="18_battle_input_router"]
+[ext_resource type="Script" uid="uid://jvyjfkvrm127" path="res://src/Presentation/Battle/Entities/BattleUnitRoot.cs" id="19_battle_unit_root"]
+[ext_resource type="Script" uid="uid://n60fh60j035m" path="res://src/Presentation/Battle/Preview/BattlePreviewController.cs" id="20_battle_preview_controller"]
+[ext_resource type="Script" uid="uid://c7i4kj6d7oyed" path="res://src/Presentation/Battle/Flow/BattleCommandController.cs" id="21_battle_command_controller"]
+[ext_resource type="Script" uid="uid://dvne2r1f12dwp" path="res://src/Presentation/Battle/Flow/BattleTurnController.cs" id="22_battle_turn_controller"]
+[ext_resource type="Script" uid="uid://c510f7rdfirvx" path="res://src/Presentation/Battle/Flow/BattleIntentController.cs" id="23_battle_intent_controller"]
+
+[node name="WorldSiteRoot" type="Node2D"]
+script = ExtResource("1_world_site_root")
+SiteMapScene = ExtResource("2_bonefield_site")
+
+[node name="MapRoot" type="Node2D" parent="."]
+
+[node name="UnitRoot" type="Node2D" parent="."]
+script = ExtResource("19_battle_unit_root")
+
+[node name="InputRoot" type="Node" parent="."]
+
+[node name="BattleInputRouter" type="Node" parent="InputRoot"]
+script = ExtResource("18_battle_input_router")
+
+[node name="FlowRoot" type="Node" parent="."]
+
+[node name="BattleCommandController" type="Node" parent="FlowRoot"]
+script = ExtResource("21_battle_command_controller")
+
+[node name="BattleTurnController" type="Node" parent="FlowRoot"]
+script = ExtResource("22_battle_turn_controller")
+
+[node name="BattleIntentController" type="Node" parent="FlowRoot"]
+script = ExtResource("23_battle_intent_controller")
+
+[node name="OverlayRoot" type="Node2D" parent="."]
+
+[node name="GridHighlightOverlay" type="Node2D" parent="OverlayRoot"]
+script = ExtResource("5_grid_highlight_overlay")
+
+[node name="BattlePreviewController" type="Node" parent="OverlayRoot"]
+script = ExtResource("20_battle_preview_controller")
+
+[node name="DebugRoot" type="Node" parent="."]
+script = ExtResource("3_debug_controller")
+
+[node name="CellInfoDebug" type="Node" parent="DebugRoot"]
+script = ExtResource("4_cell_info_debug")
+
+[node name="GuideGridDebug" type="Node" parent="DebugRoot"]
+script = ExtResource("6_guide_grid_debug")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(575, 324)
+zoom = Vector2(2.2, 2.2)
+script = ExtResource("7_camera_controller")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="BattleHudRoot" type="Control" parent="CanvasLayer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("8_battle_hud_root")

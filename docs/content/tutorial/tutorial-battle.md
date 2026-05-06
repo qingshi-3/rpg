@@ -14,16 +14,17 @@ Detailed coordinates, unit behavior, beat scripts, and preview requirements live
 
 ## Battlefield Summary
 
-- 6x6 grid.
+- Compact grid-based encounter.
 - Central obstacle.
-- Warrior and automatic Archer start on the player side.
+- Warrior starts on the player side.
+- Automatic Archer is planned for the RuleSystem/minion phase, not the current minimal loop.
 - Skeleton and Thrower start on the enemy side.
 - Full coordinate plan lives in `tutorial-battle-spec.md`.
 
 ## Player Side
 
 - Warrior: directly controlled.
-- Archer: automatic.
+- Archer: planned automatic minion.
 
 ## Enemies
 
@@ -32,17 +33,17 @@ Detailed coordinates, unit behavior, beat scripts, and preview requirements live
 
 ## Key Experiences
 
-- Push enemies to change their attack outcome.
-- Block damage.
-- Let a minion attack automatically.
+- Move to change enemy Intent outcomes.
+- Attack and defeat enemies.
+- Later RuleSystem work will add automatic minion behavior.
 - Spend AP on either direct damage or prevention, not both every turn.
 - Read enemy Intent before committing the Warrior action.
 
 ## Success Checks
 
 - The player understands what each enemy is about to do.
-- The player can change at least one enemy outcome with Warrior positioning, Push, or Block.
-- The Archer's automatic behavior is predictable from its rule priority.
+- The player can change at least one enemy outcome with Warrior positioning.
+- Future Archer automatic behavior is predictable from its rule priority.
 - AP creates a visible tradeoff between attack, movement, and prevention.
 - The battle teaches only the Phase 1 loop and does not introduce cards or progression.
 

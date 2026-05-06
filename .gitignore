@@ -10,6 +10,9 @@
 *.suo
 *.old
 
+# Local AI reference clones
+.codex/external/GodotPrompter/
+
 # Build outputs
 bin/
 obj/

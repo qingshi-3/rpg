@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[node name="WorldSiteHitButton" type="Button"]
+focus_mode = 0
+mouse_default_cursor_shape = 2
+flat = true
+text = ""
