@@ -19,6 +19,7 @@ public sealed class WorldArmyState
     public float Radius { get; set; } = 18.0f;
     public WorldArmyStatus Status { get; set; } = WorldArmyStatus.Idle;
     public WorldArmyIntent Intent { get; set; } = WorldArmyIntent.None;
+    public WorldSiteAttackDirection TargetApproachDirection { get; set; } = WorldSiteAttackDirection.Any;
     public List<GarrisonState> GarrisonUnits { get; set; } = new();
     public ResourceStore CargoResources { get; set; } = new();
     public int CreatedTick { get; set; }
@@ -37,6 +38,15 @@ public sealed class WorldArmyState
 
     [JsonIgnore]
     public bool HasNavigationPath { get; private set; }
+
+    [JsonIgnore]
+    public bool HasArrivalApproachOffset { get; private set; }
+
+    [JsonIgnore]
+    public bool IsCompletingArrivalApproach { get; private set; }
+
+    [JsonIgnore]
+    public Vector2 ArrivalApproachOffset { get; private set; }
 
     [JsonIgnore]
     public Vector2 WorldPosition
@@ -91,5 +101,34 @@ public sealed class WorldArmyState
         NavigationSurfaceVersion = -1;
         NavigationPathDestination = default;
         HasNavigationPath = false;
+    }
+
+    public void SetTargetApproachDirection(WorldSiteAttackDirection direction)
+    {
+        TargetApproachDirection = direction;
+    }
+
+    public void ClearTargetApproachDirection()
+    {
+        TargetApproachDirection = WorldSiteAttackDirection.Any;
+    }
+
+    public void SetArrivalApproachOffset(Vector2 offset)
+    {
+        ArrivalApproachOffset = offset;
+        HasArrivalApproachOffset = offset.LengthSquared() > 0.001f;
+        IsCompletingArrivalApproach = false;
+    }
+
+    public void BeginArrivalApproach()
+    {
+        IsCompletingArrivalApproach = HasArrivalApproachOffset;
+    }
+
+    public void ClearArrivalApproachOffset()
+    {
+        ArrivalApproachOffset = default;
+        HasArrivalApproachOffset = false;
+        IsCompletingArrivalApproach = false;
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Godot;
+using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Application.World;
 
@@ -8,7 +9,16 @@ public sealed class StrategicNavigationContext
     private const float PointMergeDistanceSquared = 0.001f;
     private const float EndpointTolerance = 8.0f;
     private const float PathValidationSampleDistance = 8.0f;
+    private const int TilePathMaxExpandedCells = 20000;
     private static int NextVersion = 1;
+    private static readonly Vector2I[] TilePathNeighborOffsets =
+    {
+        new(1, 0),
+        new(-1, 0),
+        new(0, 1),
+        new(0, -1)
+    };
+
     private readonly bool _isAvailable;
     private readonly Rid _navigationMap;
     private readonly TileMapLayer _navigationTileLayer;
@@ -191,37 +201,228 @@ public sealed class StrategicNavigationContext
         if (path.Points.Count == 0)
         {
             failureReason = "godot_navigation_path_empty";
-            return false;
+            return TryBuildTileLayerFallbackPath(start, destination, failureReason, out path, out failureReason);
         }
 
         if (path.Points[0].DistanceTo(start) > EndpointTolerance)
         {
             path.Points.Clear();
             failureReason = "godot_navigation_start_outside_navigation";
-            return false;
+            return TryBuildTileLayerFallbackPath(start, destination, failureReason, out path, out failureReason);
         }
 
         if (path.Points[^1].DistanceTo(destination) > EndpointTolerance)
         {
             path.Points.Clear();
             failureReason = "godot_navigation_destination_outside_navigation";
-            return false;
+            return TryBuildTileLayerFallbackPath(start, destination, failureReason, out path, out failureReason);
         }
 
         if (path.Points.Count <= 1 && start.DistanceSquaredTo(destination) > PointMergeDistanceSquared)
         {
             path.Points.Clear();
             failureReason = "godot_navigation_path_empty";
+            return TryBuildTileLayerFallbackPath(start, destination, failureReason, out path, out failureReason);
+        }
+
+        if (!IsPathInsideNavigationLayer(path.Points, out failureReason))
+        {
+            string godotFailureReason = failureReason;
+            path.Points.Clear();
+            return TryBuildTileLayerFallbackPath(start, destination, godotFailureReason, out path, out failureReason);
+        }
+
+        return true;
+    }
+
+    private bool TryBuildTileLayerFallbackPath(
+        Vector2 start,
+        Vector2 destination,
+        string godotFailureReason,
+        out StrategicNavigationPath path,
+        out string failureReason)
+    {
+        if (TryBuildTileLayerPath(start, destination, out path, out failureReason))
+        {
+            GameLog.Warn(
+                nameof(StrategicNavigationContext),
+                $"StrategicTileNavigationFallbackBuilt reason={godotFailureReason} start={start} destination={destination} points={path.Points.Count}");
+            return true;
+        }
+
+        string tileFailureReason = failureReason;
+        failureReason = $"{godotFailureReason}; tile_fallback={tileFailureReason}";
+        GameLog.Warn(
+            nameof(StrategicNavigationContext),
+            $"StrategicTileNavigationFallbackFailed reason={godotFailureReason} tileReason={tileFailureReason} start={start} destination={destination}");
+        return false;
+    }
+
+    private bool TryBuildTileLayerPath(
+        Vector2 start,
+        Vector2 destination,
+        out StrategicNavigationPath path,
+        out string failureReason)
+    {
+        path = new StrategicNavigationPath { ProviderId = "strategic_tile_layer" };
+        failureReason = "";
+        if (!TryGetNavigationCell(start, out Vector2I startCell))
+        {
+            failureReason = "tile_navigation_start_cell_missing";
+            return false;
+        }
+
+        if (!TryGetNavigationCell(destination, out Vector2I destinationCell))
+        {
+            failureReason = "tile_navigation_destination_cell_missing";
+            return false;
+        }
+
+        if (!IsNavigationCellPainted(startCell))
+        {
+            failureReason = $"tile_navigation_start_cell_unpainted cell={startCell}";
+            return false;
+        }
+
+        if (!IsNavigationCellPainted(destinationCell))
+        {
+            failureReason = $"tile_navigation_destination_cell_unpainted cell={destinationCell}";
+            return false;
+        }
+
+        if (!TryFindTileCellPath(startCell, destinationCell, out List<Vector2I> cells, out failureReason))
+        {
+            return false;
+        }
+
+        AddPointIfDistinct(path, start);
+        foreach (Vector2I cell in cells)
+        {
+            if (!TryGetNavigationCellMapPoint(cell, out Vector2 mapPoint))
+            {
+                path.Points.Clear();
+                failureReason = $"tile_navigation_cell_point_missing cell={cell}";
+                return false;
+            }
+
+            AddPointIfDistinct(path, mapPoint);
+        }
+
+        AddPointIfDistinct(path, destination);
+        if (path.Points.Count <= 1 && start.DistanceSquaredTo(destination) > PointMergeDistanceSquared)
+        {
+            path.Points.Clear();
+            failureReason = "tile_navigation_path_empty";
             return false;
         }
 
         if (!IsPathInsideNavigationLayer(path.Points, out failureReason))
         {
             path.Points.Clear();
+            failureReason = $"tile_navigation_{failureReason}";
             return false;
         }
 
         return true;
+    }
+
+    private bool TryFindTileCellPath(
+        Vector2I startCell,
+        Vector2I destinationCell,
+        out List<Vector2I> cells,
+        out string failureReason)
+    {
+        cells = new List<Vector2I>();
+        failureReason = "";
+        if (startCell == destinationCell)
+        {
+            cells.Add(startCell);
+            return true;
+        }
+
+        PriorityQueue<Vector2I, float> frontier = new();
+        Dictionary<Vector2I, Vector2I> previousByCell = new();
+        Dictionary<Vector2I, int> costByCell = new();
+        HashSet<Vector2I> closed = new();
+        frontier.Enqueue(startCell, 0.0f);
+        costByCell[startCell] = 0;
+        int expanded = 0;
+
+        while (frontier.Count > 0)
+        {
+            Vector2I current = frontier.Dequeue();
+            if (!closed.Add(current))
+            {
+                continue;
+            }
+
+            expanded++;
+            if (expanded > TilePathMaxExpandedCells)
+            {
+                failureReason = $"tile_navigation_search_limit start_cell={startCell} destination_cell={destinationCell} expanded={expanded}";
+                return false;
+            }
+
+            if (current == destinationCell)
+            {
+                return ReconstructTileCellPath(startCell, destinationCell, previousByCell, cells, out failureReason);
+            }
+
+            foreach (Vector2I offset in TilePathNeighborOffsets)
+            {
+                Vector2I next = new(current.X + offset.X, current.Y + offset.Y);
+                if (!IsNavigationCellPainted(next))
+                {
+                    continue;
+                }
+
+                int nextCost = costByCell[current] + 1;
+                if (costByCell.TryGetValue(next, out int existingCost) && nextCost >= existingCost)
+                {
+                    continue;
+                }
+
+                costByCell[next] = nextCost;
+                previousByCell[next] = current;
+                float priority = nextCost + GetTileCellManhattanDistance(next, destinationCell);
+                frontier.Enqueue(next, priority);
+            }
+        }
+
+        failureReason = $"tile_navigation_path_missing start_cell={startCell} destination_cell={destinationCell} expanded={expanded}";
+        return false;
+    }
+
+    private static bool ReconstructTileCellPath(
+        Vector2I startCell,
+        Vector2I destinationCell,
+        IReadOnlyDictionary<Vector2I, Vector2I> previousByCell,
+        List<Vector2I> cells,
+        out string failureReason)
+    {
+        failureReason = "";
+        cells.Clear();
+        Vector2I current = destinationCell;
+        cells.Add(current);
+        while (current != startCell)
+        {
+            if (!previousByCell.TryGetValue(current, out current))
+            {
+                failureReason = $"tile_navigation_reconstruct_failed cell={current}";
+                cells.Clear();
+                return false;
+            }
+
+            cells.Add(current);
+        }
+
+        cells.Reverse();
+        return true;
+    }
+
+    private static int GetTileCellManhattanDistance(Vector2I from, Vector2I to)
+    {
+        return System.Math.Abs(from.X - to.X) + System.Math.Abs(from.Y - to.Y);
     }
 
     private bool IsPathInsideNavigationLayer(IReadOnlyList<Vector2> points, out string failureReason)

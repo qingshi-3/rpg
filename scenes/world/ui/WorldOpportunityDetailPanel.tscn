@@ -1,0 +1,82 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://z8y93yh7c75x" path="res://src/Presentation/World/WorldOpportunityDetailPanel.cs" id="1_panel"]
+
+[node name="WorldOpportunityDetailPanel" type="VBoxContainer"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+script = ExtResource("1_panel")
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "野外小场域"
+autowrap_mode = 3
+
+[node name="DescriptionLabel" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "临时出现的野外机会。"
+autowrap_mode = 3
+
+[node name="MetaGrid" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="StatusLabel" type="Label" parent="MetaGrid"]
+layout_mode = 2
+text = "状态"
+
+[node name="StatusValueLabel" type="Label" parent="MetaGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "可处理"
+autowrap_mode = 3
+
+[node name="SpawnPointLabel" type="Label" parent="MetaGrid"]
+layout_mode = 2
+text = "生成点"
+
+[node name="SpawnPointValueLabel" type="Label" parent="MetaGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "—"
+autowrap_mode = 3
+
+[node name="RemainingLabel" type="Label" parent="MetaGrid"]
+layout_mode = 2
+text = "剩余"
+
+[node name="RemainingValueLabel" type="Label" parent="MetaGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "0 世界步"
+autowrap_mode = 3
+
+[node name="RewardLabel" type="Label" parent="MetaGrid"]
+layout_mode = 2
+text = "奖励"
+
+[node name="RewardValueLabel" type="Label" parent="MetaGrid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "无固定奖励"
+autowrap_mode = 3
+
+[node name="HintLabel" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "短生命周期机会，不占用场域建筑位；完成后会从地图消失。"
+autowrap_mode = 3
+
+[node name="CompleteButton" type="Button" parent="."]
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 2
+mouse_default_cursor_shape = 2
+text = "处理机会"
+autowrap_mode = 3

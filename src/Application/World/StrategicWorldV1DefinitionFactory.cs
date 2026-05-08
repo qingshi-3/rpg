@@ -1,13 +1,18 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
+using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Application.World;
 
 public static class StrategicWorldV1DefinitionFactory
 {
+    private const string InitialStateResourcePath = "res://assets/definitions/world/strategic_world_v1_initial_state.tres";
+
     public static StrategicWorldDefinition Create()
     {
         return new StrategicWorldDefinition
@@ -17,9 +22,13 @@ public static class StrategicWorldV1DefinitionFactory
             StartingSiteId = StrategicWorldIds.SitePlayerCamp,
             PlayerFactionId = StrategicWorldIds.FactionPlayer,
             EnemyFactionIds = new List<string> { StrategicWorldIds.FactionUndead },
+            FactionDefinitions = CreateFactions(),
             ResourceDefinitions = CreateResources(),
             FacilityDefinitions = CreateFacilities(),
             SiteDefinitions = CreateSites(),
+            OpportunityDefinitions = CreateOpportunities(),
+            OpportunitySpawnPoints = CreateOpportunitySpawnPoints(),
+            OpportunitySpawnRules = CreateOpportunitySpawnRules(),
             ActionDefinitions = CreateActions(),
             ThreatRules = CreateThreatRules(),
             InitialResources = new List<ResourceAmountDefinition>
@@ -56,6 +65,73 @@ public static class StrategicWorldV1DefinitionFactory
                 DisplayName = "石材",
                 Description = "矿场产出，防御塔和修复设施消耗。",
                 Category = ResourceCategory.Material
+            }
+        };
+    }
+
+    private static List<FactionDefinition> CreateFactions()
+    {
+        return new List<FactionDefinition>
+        {
+            new()
+            {
+                Id = StrategicWorldIds.FactionPlayer,
+                DisplayName = "玩家营地",
+                Description = "能通过出征小队介入世界层战斗，依靠后勤和场域设施稳住防线。",
+                Capabilities = new List<FactionCapabilityDefinition>
+                {
+                    new()
+                    {
+                        Id = StrategicWorldIds.FactionCapabilityFieldIntervention,
+                        DisplayName = "战场介入",
+                        Description = "世界层战斗进入任意阶段后，玩家可手动进入战斗并覆盖自动结算结果。",
+                        Values = new Dictionary<string, int>
+                        {
+                            ["world_defense_bonus"] = 1
+                        }
+                    },
+                    new()
+                    {
+                        Id = StrategicWorldIds.FactionCapabilityCampLogistics,
+                        DisplayName = "营地后勤",
+                        Description = "己方场域在世界层防守结算中获得少量稳定加成。",
+                        Values = new Dictionary<string, int>
+                        {
+                            ["world_defense_bonus"] = 2
+                        }
+                    }
+                }
+            },
+            new()
+            {
+                Id = StrategicWorldIds.FactionUndead,
+                DisplayName = "亡灵",
+                Description = "依靠持续压迫和坟场增援强化世界层 Raid。",
+                Capabilities = new List<FactionCapabilityDefinition>
+                {
+                    new()
+                    {
+                        Id = StrategicWorldIds.FactionCapabilityRelentlessRaid,
+                        DisplayName = "无休突袭",
+                        Description = "亡灵 Raid 会拖入更长的世界层交战过程，给玩家留下介入窗口。",
+                        Values = new Dictionary<string, int>
+                        {
+                            ["world_attack_bonus"] = 2,
+                            ["world_battle_duration_bonus"] = 1
+                        }
+                    },
+                    new()
+                    {
+                        Id = StrategicWorldIds.FactionCapabilityGraveReinforcement,
+                        DisplayName = "坟场增援",
+                        Description = "世界层投影结算时提高攻击方兵力评分和阶段性消耗。",
+                        Values = new Dictionary<string, int>
+                        {
+                            ["world_attack_bonus"] = 2,
+                            ["world_attrition_bonus"] = 1
+                        }
+                    }
+                }
             }
         };
     }
@@ -111,7 +187,7 @@ public static class StrategicWorldV1DefinitionFactory
 
     private static List<WorldSiteDefinition> CreateSites()
     {
-        return new List<WorldSiteDefinition>
+        List<WorldSiteDefinition> sites = new()
         {
             new()
             {
@@ -152,11 +228,6 @@ public static class StrategicWorldV1DefinitionFactory
                             new(19, 17)
                         }
                     }
-                },
-                InitialGarrison = new List<GarrisonDefinition>
-                {
-                    new() { UnitTypeId = StrategicWorldIds.UnitPlayerKnight, Count = 1, Morale = 80 },
-                    new() { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 1 }
                 },
                 EntranceDefinitions = new List<BattleEntranceDefinition>
                 {
@@ -209,15 +280,12 @@ public static class StrategicWorldV1DefinitionFactory
                         }
                     }
                 },
-                InitialGarrison = new List<GarrisonDefinition>
-                {
-                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1, Morale = 35 },
-                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonArcher, Count = 1, Morale = 35 }
-                },
                 EntranceDefinitions = new List<BattleEntranceDefinition>
                 {
-                    new() { EntranceId = "main_entrance", DisplayName = "埋骨地入口", FactionId = StrategicWorldIds.FactionPlayer, BattleAnchorId = "bonefield_main_entrance" },
-                    new() { EntranceId = "defense_post", DisplayName = "防守据点", FactionId = StrategicWorldIds.FactionPlayer, BattleAnchorId = "bonefield_defense_post", Source = "Garrison" }
+                    new() { EntranceId = "undead_raid_east", DisplayName = "东侧亡灵进攻点", FactionId = StrategicWorldIds.FactionUndead, Direction = WorldSiteAttackDirection.East, BattleAnchorId = "bonefield_east_raid", Source = "Attacker" },
+                    new() { EntranceId = "main_entrance", DisplayName = "埋骨地入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.West, BattleAnchorId = "bonefield_main_entrance" },
+                    new() { EntranceId = "main_entrance_east", DisplayName = "埋骨地东侧入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.East, BattleAnchorId = "bonefield_east_entrance" },
+                    new() { EntranceId = "defense_post", DisplayName = "防守据点", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.Any, BattleAnchorId = "bonefield_defense_post", Source = "Garrison" }
                 },
                 Tags = new List<string> { "resource_site" }
             },
@@ -244,6 +312,71 @@ public static class StrategicWorldV1DefinitionFactory
                 Tags = new List<string> { "undead_source" }
             }
         };
+
+        ApplyInitialStateResource(sites);
+        return sites;
+    }
+
+    private static void ApplyInitialStateResource(List<WorldSiteDefinition> sites)
+    {
+        StrategicWorldInitialStateResource initialState = GD.Load<StrategicWorldInitialStateResource>(InitialStateResourcePath);
+        if (initialState == null)
+        {
+            GameLog.Error(nameof(StrategicWorldV1DefinitionFactory), $"Missing strategic world initial state resource path={InitialStateResourcePath}");
+            throw new InvalidOperationException($"Missing strategic world initial state resource: {InitialStateResourcePath}");
+        }
+
+        Dictionary<string, WorldSiteDefinition> siteById = sites.ToDictionary(site => site.Id);
+        int appliedEntryCount = 0;
+
+        foreach (WorldSiteInitialStateResource siteState in initialState.Sites)
+        {
+            if (siteState == null)
+            {
+                continue;
+            }
+
+            string siteId = siteState.SiteId?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(siteId))
+            {
+                GameLog.Warn(nameof(StrategicWorldV1DefinitionFactory), "Initial site state skipped because SiteId is empty.");
+                continue;
+            }
+
+            if (!siteById.TryGetValue(siteId, out WorldSiteDefinition site))
+            {
+                GameLog.Warn(nameof(StrategicWorldV1DefinitionFactory), $"Initial site state references unknown site id={siteId}");
+                continue;
+            }
+
+            site.InitialGarrison.Clear();
+
+            foreach (WorldInitialGarrisonEntryResource entry in siteState.InitialGarrison)
+            {
+                if (entry == null)
+                {
+                    continue;
+                }
+
+                GarrisonDefinition garrison = entry.ToDefinition();
+                if (string.IsNullOrWhiteSpace(garrison.UnitTypeId))
+                {
+                    GameLog.Warn(nameof(StrategicWorldV1DefinitionFactory), $"Initial garrison skipped site={siteId} reason=empty_unit_definition");
+                    continue;
+                }
+
+                if (garrison.Count <= 0)
+                {
+                    GameLog.Warn(nameof(StrategicWorldV1DefinitionFactory), $"Initial garrison skipped site={siteId} unit={garrison.UnitTypeId} reason=non_positive_count count={garrison.Count}");
+                    continue;
+                }
+
+                site.InitialGarrison.Add(garrison);
+                appliedEntryCount++;
+            }
+        }
+
+        GameLog.Info(nameof(StrategicWorldV1DefinitionFactory), $"StrategicWorldInitialStateApplied path={InitialStateResourcePath} site_count={initialState.Sites.Count} garrison_entries={appliedEntryCount}");
     }
 
     private static List<WorldActionDefinition> CreateActions()
@@ -352,6 +485,110 @@ public static class StrategicWorldV1DefinitionFactory
         };
     }
 
+    private static List<WorldOpportunityDefinition> CreateOpportunities()
+    {
+        return new List<WorldOpportunityDefinition>
+        {
+            new()
+            {
+                Id = StrategicWorldIds.OpportunitySpiritHerbPatch,
+                DisplayName = "灵草丛",
+                Description = "荒野短暂显露的灵草丛。小队可以采集，获得少量经济。",
+                PoolId = StrategicWorldIds.OpportunityPoolWildernessV1,
+                Weight = 3,
+                DurationTicks = 4,
+                CompletionText = "采集灵草，换得经济 +2。",
+                CompletionRewards = new List<ResourceAmountDefinition>
+                {
+                    new(StrategicWorldIds.ResourceEconomy, 2)
+                },
+                Tags = new List<string> { "wilderness", "gather" }
+            },
+            new()
+            {
+                Id = StrategicWorldIds.OpportunityLostCaravan,
+                DisplayName = "迷路商队",
+                Description = "一支避开亡灵的商队迷失在野外。护送他们离开可以获得报酬。",
+                PoolId = StrategicWorldIds.OpportunityPoolWildernessV1,
+                Weight = 2,
+                DurationTicks = 3,
+                CompletionText = "护送商队脱险，获得经济 +3。",
+                CompletionRewards = new List<ResourceAmountDefinition>
+                {
+                    new(StrategicWorldIds.ResourceEconomy, 3)
+                },
+                Tags = new List<string> { "wilderness", "rescue" }
+            },
+            new()
+            {
+                Id = StrategicWorldIds.OpportunityLooseStoneVein,
+                DisplayName = "裸露石脉",
+                Description = "雨后露出的浅层石脉，只会在短时间内可采。",
+                PoolId = StrategicWorldIds.OpportunityPoolWildernessV1,
+                Weight = 2,
+                DurationTicks = 5,
+                CompletionText = "开采裸露石脉，石材 +3。",
+                CompletionRewards = new List<ResourceAmountDefinition>
+                {
+                    new(StrategicWorldIds.ResourceStone, 3)
+                },
+                Tags = new List<string> { "wilderness", "gather" }
+            }
+        };
+    }
+
+    private static List<OpportunitySpawnPointDefinition> CreateOpportunitySpawnPoints()
+    {
+        return new List<OpportunitySpawnPointDefinition>
+        {
+            new()
+            {
+                Id = "wilderness_west_road",
+                DisplayName = "西侧荒路",
+                MapPosition = new Vector2(484, 319),
+                Radius = 58.0f
+            },
+            new()
+            {
+                Id = "wilderness_bonefield_outskirts",
+                DisplayName = "埋骨地外缘",
+                MapPosition = new Vector2(892, 400),
+                Radius = 66.0f
+            },
+            new()
+            {
+                Id = "wilderness_south_ridge",
+                DisplayName = "南侧荒脊",
+                MapPosition = new Vector2(689, 515),
+                Radius = 54.0f
+            }
+        };
+    }
+
+    private static List<OpportunitySpawnRuleDefinition> CreateOpportunitySpawnRules()
+    {
+        return new List<OpportunitySpawnRuleDefinition>
+        {
+            new()
+            {
+                Id = StrategicWorldIds.OpportunityRuleWildernessV1,
+                PoolId = StrategicWorldIds.OpportunityPoolWildernessV1,
+                MinWorldTick = 1,
+                CheckIntervalTicks = 2,
+                SpawnChancePermille = 650,
+                CooldownTicks = 3,
+                MaxActiveCount = 2,
+                PositionJitterRadius = 36.0f,
+                SpawnPointIds = new List<string>
+                {
+                    "wilderness_west_road",
+                    "wilderness_bonefield_outskirts",
+                    "wilderness_south_ridge"
+                }
+            }
+        };
+    }
+
     private static List<ThreatRuleDefinition> CreateThreatRules()
     {
         return new List<ThreatRuleDefinition>
@@ -367,7 +604,10 @@ public static class StrategicWorldV1DefinitionFactory
                 EnemyForces = new List<GarrisonDefinition>
                 {
                     new() { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1, Morale = 30 },
-                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonArcher, Count = 1, Morale = 30 }
+                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonArcher, Count = 1, Morale = 30 },
+                    new() { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1, Morale = 35 },
+                    new() { UnitTypeId = StrategicWorldIds.UnitGraveMarksman, Count = 1, Morale = 35 },
+                    new() { UnitTypeId = StrategicWorldIds.UnitDeathBlighter, Count = 1, Morale = 40 }
                 },
                 TriggerConditions = new List<WorldConditionDefinition>
                 {

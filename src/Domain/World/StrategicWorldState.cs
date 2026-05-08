@@ -13,6 +13,9 @@ public sealed class StrategicWorldState
     public Dictionary<string, WorldSiteState> SiteStates { get; set; } = new();
     public Dictionary<string, EnemyThreatPlan> ThreatPlans { get; set; } = new();
     public Dictionary<string, WorldArmyState> ArmyStates { get; set; } = new();
+    public Dictionary<string, WorldBattleState> WorldBattleStates { get; set; } = new();
+    public Dictionary<string, WorldOpportunityState> OpportunityStates { get; set; } = new();
+    public Dictionary<string, int> OpportunityRuleCooldowns { get; set; } = new();
     public List<string> CompletedEventIds { get; set; } = new();
     public List<string> Flags { get; set; } = new();
 }

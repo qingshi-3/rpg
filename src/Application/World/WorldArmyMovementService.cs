@@ -7,8 +7,10 @@ namespace Rpg.Application.World;
 
 public sealed class WorldArmyMovementService
 {
+    private const float ArrivalReachDistance = 1.0f;
     private const float FieldInterceptThreshold = 24.0f;
     private const float WaypointReachDistance = 4.0f;
+    private const int NavigationRepairSearchCellRadius = 8;
     private readonly WorldSiteDeploymentService _deploymentService = new();
 
     public WorldArmyMovementResult AdvanceArmies(
@@ -28,40 +30,60 @@ public sealed class WorldArmyMovementService
             if (army.Status != WorldArmyStatus.Moving)
             {
                 army.ClearNavigationPath();
+                army.ClearArrivalApproachOffset();
                 continue;
             }
 
             Vector2 current = army.WorldPosition;
             Vector2 destination = army.Destination;
-            float arriveDistance = Mathf.Max(1.0f, army.Radius);
+            float waypointReachDistance = Mathf.Max(WaypointReachDistance, army.Radius * 0.25f);
+            float step = Mathf.Max(0.0f, army.MoveSpeed) * (float)delta;
+            if (army.IsCompletingArrivalApproach)
+            {
+                AdvanceArrivalApproach(state, definition, army, result, step);
+                continue;
+            }
+
             if (!EnsureNavigationPath(state, army, current, destination, navigationContext, result))
             {
                 continue;
             }
 
-            if (current.DistanceTo(destination) <= arriveDistance)
+            if (current.DistanceTo(destination) <= ArrivalReachDistance)
             {
-                army.WorldPosition = destination;
-                MarkArrived(state, definition, army, result);
+                if (TryBeginArrivalApproach(army))
+                {
+                    AdvanceArrivalApproach(state, definition, army, result, step);
+                }
+                else
+                {
+                    MarkArrived(state, definition, army, result);
+                }
+
                 continue;
             }
 
-            Vector2 nextPoint = GetNextPathPoint(army, current, arriveDistance);
+            Vector2 nextPoint = GetNextPathPoint(army, current, waypointReachDistance);
             float distance = current.DistanceTo(nextPoint);
             if (distance <= 0.001f)
             {
                 continue;
             }
 
-            float step = Mathf.Max(0.0f, army.MoveSpeed) * (float)delta;
             if (step >= distance)
             {
                 army.WorldPosition = nextPoint;
-                AdvancePathIndexIfReached(army, nextPoint, arriveDistance);
-                if (nextPoint.DistanceTo(destination) <= arriveDistance)
+                AdvancePathIndexIfReached(army, nextPoint, waypointReachDistance);
+                if (army.WorldPosition.DistanceTo(destination) <= ArrivalReachDistance)
                 {
-                    army.WorldPosition = destination;
-                    MarkArrived(state, definition, army, result);
+                    if (TryBeginArrivalApproach(army))
+                    {
+                        AdvanceArrivalApproach(state, definition, army, result, Mathf.Max(0.0f, step - distance));
+                    }
+                    else
+                    {
+                        MarkArrived(state, definition, army, result);
+                    }
                 }
 
                 continue;
@@ -76,6 +98,59 @@ public sealed class WorldArmyMovementService
         }
 
         return result;
+    }
+
+    private void AdvanceArrivalApproach(
+        StrategicWorldState state,
+        StrategicWorldDefinition definition,
+        WorldArmyState army,
+        WorldArmyMovementResult result,
+        float step)
+    {
+        Vector2 finalDestination = ResolveFinalArrivalPosition(army);
+        if (MoveArmyToward(army, finalDestination, step, ArrivalReachDistance))
+        {
+            MarkArrived(state, definition, army, result);
+        }
+    }
+
+    private static bool MoveArmyToward(WorldArmyState army, Vector2 target, float step, float reachDistance)
+    {
+        Vector2 current = army.WorldPosition;
+        float distance = current.DistanceTo(target);
+        if (distance <= reachDistance)
+        {
+            return true;
+        }
+
+        if (distance <= 0.001f || step <= 0.0f)
+        {
+            return false;
+        }
+
+        if (step >= distance)
+        {
+            army.WorldPosition = target;
+            return true;
+        }
+
+        army.WorldPosition = current + (target - current).Normalized() * step;
+        return army.WorldPosition.DistanceTo(target) <= reachDistance;
+    }
+
+    private static bool TryBeginArrivalApproach(WorldArmyState army)
+    {
+        if (army?.HasArrivalApproachOffset != true)
+        {
+            return false;
+        }
+
+        army.BeginArrivalApproach();
+        army.ClearNavigationPath();
+        GameLog.Info(
+            nameof(WorldArmyMovementService),
+            $"WorldArmyArrivalApproachStarted army={army.ArmyId} navigation={army.Destination} final={ResolveFinalArrivalPosition(army)}");
+        return army.IsCompletingArrivalApproach;
     }
 
     private static bool EnsureNavigationPath(
@@ -97,6 +172,8 @@ public sealed class WorldArmyMovementService
             return true;
         }
 
+        current = RepairNavigationPointIfNeeded(army, navigationContext, current, isDestination: false);
+        destination = RepairNavigationPointIfNeeded(army, navigationContext, destination, isDestination: true);
         if (!navigationContext.TryBuildPath(current, destination, out StrategicNavigationPath path, out string failureReason))
         {
             FailNavigationPath(state, army, result, failureReason);
@@ -110,6 +187,45 @@ public sealed class WorldArmyMovementService
         return true;
     }
 
+    private static Vector2 RepairNavigationPointIfNeeded(
+        WorldArmyState army,
+        StrategicNavigationContext navigationContext,
+        Vector2 point,
+        bool isDestination)
+    {
+        if (navigationContext.IsPointNavigable(point, out _))
+        {
+            return point;
+        }
+
+        if (!navigationContext.TryGetNearestNavigablePoint(
+                point,
+                NavigationRepairSearchCellRadius,
+                out Vector2 repairedPoint,
+                out string failureReason))
+        {
+            GameLog.Warn(
+                nameof(WorldArmyMovementService),
+                $"WorldArmyNavigationPointRepairFailed army={army.ArmyId} kind={(isDestination ? "destination" : "start")} point={point} reason={failureReason}");
+            return point;
+        }
+
+        if (isDestination)
+        {
+            army.Destination = repairedPoint;
+        }
+        else
+        {
+            army.WorldPosition = repairedPoint;
+        }
+
+        army.ClearNavigationPath();
+        GameLog.Info(
+            nameof(WorldArmyMovementService),
+            $"WorldArmyNavigationPointRepaired army={army.ArmyId} kind={(isDestination ? "destination" : "start")} from={point} to={repairedPoint}");
+        return repairedPoint;
+    }
+
     private static void FailNavigationPath(
         StrategicWorldState state,
         WorldArmyState army,
@@ -117,6 +233,8 @@ public sealed class WorldArmyMovementService
         string failureReason)
     {
         army.ClearNavigationPath();
+        army.ClearArrivalApproachOffset();
+        army.ClearTargetApproachDirection();
         army.Status = WorldArmyStatus.Idle;
         result.PathFailedArmyIds.Add(army.ArmyId);
         result.Messages.Add($"部队 {army.ArmyId} 无法找到行军路径。");
@@ -130,18 +248,24 @@ public sealed class WorldArmyMovementService
         GameLog.Error(nameof(WorldArmyMovementService), $"WorldArmyPathFailed army={army.ArmyId} reason={failureReason}");
     }
 
-    private static Vector2 GetNextPathPoint(WorldArmyState army, Vector2 current, float arriveDistance)
+    private static Vector2 GetNextPathPoint(WorldArmyState army, Vector2 current, float waypointReachDistance)
     {
         if (!army.HasNavigationPath || army.NavigationPathPoints.Count == 0)
         {
             return army.Destination;
         }
 
-        float waypointReachDistance = Mathf.Max(WaypointReachDistance, arriveDistance * 0.25f);
         while (army.NavigationPathPointIndex < army.NavigationPathPoints.Count - 1 &&
                current.DistanceTo(army.NavigationPathPoints[army.NavigationPathPointIndex]) <= waypointReachDistance)
         {
             army.NavigationPathPointIndex++;
+        }
+
+        if (army.NavigationPathPointIndex >= army.NavigationPathPoints.Count - 1 &&
+            current.DistanceTo(army.NavigationPathPoints[army.NavigationPathPointIndex]) <= waypointReachDistance &&
+            army.NavigationPathPoints[army.NavigationPathPointIndex].DistanceSquaredTo(army.Destination) > 0.001f)
+        {
+            return army.Destination;
         }
 
         return army.NavigationPathPointIndex < army.NavigationPathPoints.Count
@@ -149,14 +273,13 @@ public sealed class WorldArmyMovementService
             : army.Destination;
     }
 
-    private static void AdvancePathIndexIfReached(WorldArmyState army, Vector2 current, float arriveDistance)
+    private static void AdvancePathIndexIfReached(WorldArmyState army, Vector2 current, float waypointReachDistance)
     {
         if (!army.HasNavigationPath || army.NavigationPathPoints.Count == 0)
         {
             return;
         }
 
-        float waypointReachDistance = Mathf.Max(WaypointReachDistance, arriveDistance * 0.25f);
         if (army.NavigationPathPointIndex < army.NavigationPathPoints.Count - 1 &&
             current.DistanceTo(army.NavigationPathPoints[army.NavigationPathPointIndex]) <= waypointReachDistance)
         {
@@ -167,6 +290,7 @@ public sealed class WorldArmyMovementService
     private void MarkArrived(StrategicWorldState state, StrategicWorldDefinition definition, WorldArmyState army, WorldArmyMovementResult result)
     {
         army.ClearNavigationPath();
+        army.ClearArrivalApproachOffset();
         if (army.Intent == WorldArmyIntent.ReinforceSite &&
             !_deploymentService.CanAcceptArmyGarrison(state, definition, army, out string failureReason))
         {
@@ -324,6 +448,10 @@ public sealed class WorldArmyMovementService
                 enemyArmy.Status = WorldArmyStatus.Attacking;
                 playerArmy.ClearNavigationPath();
                 enemyArmy.ClearNavigationPath();
+                playerArmy.ClearArrivalApproachOffset();
+                playerArmy.ClearTargetApproachDirection();
+                enemyArmy.ClearArrivalApproachOffset();
+                enemyArmy.ClearTargetApproachDirection();
                 result.FieldIntercepts.Add(new WorldArmyInterceptResult
                 {
                     PlayerArmyId = playerArmy.ArmyId,
@@ -351,5 +479,15 @@ public sealed class WorldArmyMovementService
     {
         return army.Status == WorldArmyStatus.Moving &&
                army.Intent is WorldArmyIntent.Raid or WorldArmyIntent.AssaultSite or WorldArmyIntent.ReinforceSite or WorldArmyIntent.Intercept or WorldArmyIntent.MoveToPosition;
+    }
+
+    private static Vector2 ResolveFinalArrivalPosition(WorldArmyState army)
+    {
+        if (army?.HasArrivalApproachOffset == true)
+        {
+            return army.Destination + army.ArrivalApproachOffset;
+        }
+
+        return army?.Destination ?? default;
     }
 }

@@ -4,6 +4,9 @@
 oversampling_override = 1.0
 title = "战斗发生"
 size = Vector2i(182, 124)
-visible = true
+visible = false
+exclusive = true
+unresizable = true
+borderless = true
 ok_button_text = "确定"
 dialog_text = "发生了战斗。"

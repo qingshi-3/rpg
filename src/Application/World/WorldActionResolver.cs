@@ -74,6 +74,11 @@ public sealed class WorldActionResolver
 
         if (action.Id == StrategicWorldIds.ActionAutoResolveRaid)
         {
+            if (WorldBattleProgressionService.HasActiveBattleForThreat(state, request.ThreatId))
+            {
+                return WorldActionResult.Failed(action.Id, "world_battle_in_progress", "战斗正在世界层推演中，可选择介入，或让世界时钟继续推进。");
+            }
+
             return _threatService.ResolveRaidAutomatically(state, request.ThreatId);
         }
 
@@ -137,7 +142,7 @@ public sealed class WorldActionResolver
         failureReason = "";
 
         if (action.Scope != WorldActionScope.Threat &&
-            state.ThreatPlans.Values.Any(threat => threat.Stage == ThreatStage.Attacking))
+            HasBlockingAttackingThreat(state, definition))
         {
             failureReason = "attacking_threat_pending";
             return false;
@@ -173,6 +178,12 @@ public sealed class WorldActionResolver
 
         if (action.Scope == WorldActionScope.Threat)
         {
+            if (action.Id == StrategicWorldIds.ActionAutoResolveRaid &&
+                WorldBattleProgressionService.HasActiveBattleForThreat(state, selectedThreatId))
+            {
+                return false;
+            }
+
             return !string.IsNullOrWhiteSpace(selectedThreatId) &&
                    state.ThreatPlans.TryGetValue(selectedThreatId, out EnemyThreatPlan threat) &&
                    threat.Stage == ThreatStage.Attacking;
@@ -362,6 +373,17 @@ public sealed class WorldActionResolver
 
         if (battleKind == BattleKind.DefenseRaid)
         {
+            WorldBattleState battle = WorldBattleProgressionService.FindActiveBattleForThreat(state, request.ThreatId);
+            if (battle != null)
+            {
+                return _battleRequestBuilder.BuildWorldBattleInterventionRequest(
+                    state,
+                    definition,
+                    battle.BattleId,
+                    returnScenePath,
+                    siteScenePath);
+            }
+
             return _battleRequestBuilder.BuildDefenseRaidRequest(state, definition, request.ThreatId, returnScenePath, siteScenePath);
         }
 
@@ -565,6 +587,14 @@ public sealed class WorldActionResolver
         return new List<string> { $"当前防守：民兵 {militia}，防御塔 {towers}" };
     }
 
+    private static bool HasBlockingAttackingThreat(StrategicWorldState state, StrategicWorldDefinition definition)
+    {
+        return state?.ThreatPlans.Values.Any(threat =>
+            threat.Stage == ThreatStage.Attacking &&
+            WorldBattleProgressionService.IsPlayerInvolvedThreat(state, definition, threat) &&
+            !WorldBattleProgressionService.HasActiveBattleForThreat(state, threat.Id)) == true;
+    }
+
     private static string GetResourceDisplayName(StrategicWorldDefinitionQueries queries, string resourceId)
     {
         return queries.GetResource(resourceId)?.DisplayName ?? resourceId;
@@ -581,7 +611,7 @@ public sealed class WorldActionResolver
             "no_valid_facility_slot" => "没有合法建筑槽位",
             "threat_not_attackable" => "敌方威胁尚未到达",
             "not_enough_garrison" => "驻军不足",
-            "no_expedition_units" => "没有可出征兵团",
+            "no_expedition_units" => "没有可出征英雄或小兵",
             "missing_source_site" => "找不到出发场域",
             "missing_target_site" => "找不到目标场域",
             "source_site_not_owned" => "只能从己方场域出征",

@@ -7,6 +7,11 @@ public static class StrategicWorldIds
     public const string FactionPlayer = "player";
     public const string FactionUndead = "undead";
 
+    public const string FactionCapabilityFieldIntervention = "field_intervention";
+    public const string FactionCapabilityCampLogistics = "camp_logistics";
+    public const string FactionCapabilityRelentlessRaid = "relentless_raid";
+    public const string FactionCapabilityGraveReinforcement = "grave_reinforcement";
+
     public const string ResourcePopulation = "population";
     public const string ResourceEconomy = "economy";
     public const string ResourceStone = "stone";
@@ -23,8 +28,17 @@ public static class StrategicWorldIds
     public const string UnitPlayerKnight = "player_knight";
     public const string UnitSkeletonWarrior = "skeleton_warrior";
     public const string UnitSkeletonArcher = "skeleton_archer";
+    public const string UnitGraveShadow = "neutral_shadow1";
+    public const string UnitGraveMarksman = "neutral_shadowranged";
+    public const string UnitDeathBlighter = "neutral_deathblighter";
 
     public const string ThreatRuleGraveyardRaidBonefield = "graveyard_raid_bonefield";
+
+    public const string OpportunityPoolWildernessV1 = "wilderness_v1";
+    public const string OpportunityRuleWildernessV1 = "wilderness_v1_rule";
+    public const string OpportunitySpiritHerbPatch = "spirit_herb_patch";
+    public const string OpportunityLostCaravan = "lost_caravan";
+    public const string OpportunityLooseStoneVein = "loose_stone_vein";
 
     public const string ActionBuildMine = "build_mine";
     public const string ActionBuildDefenseTower = "build_defense_tower";

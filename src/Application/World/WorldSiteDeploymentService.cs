@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using Rpg.Application.Battle;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
@@ -131,8 +132,10 @@ public sealed class WorldSiteDeploymentService
             for (int index = 1; index <= garrison.Count; index++)
             {
                 string placementId = BuildGarrisonPlacementId(garrison.UnitTypeId, index);
-                if (site.UnitPlacements.Any(placement => placement.PlacementId == placementId))
+                WorldSiteUnitPlacement existing = site.UnitPlacements.FirstOrDefault(placement => placement.PlacementId == placementId);
+                if (existing != null)
                 {
+                    ApplyGarrisonMetadata(existing, site, zone, garrison.UnitTypeId, index);
                     continue;
                 }
 
@@ -142,12 +145,124 @@ public sealed class WorldSiteDeploymentService
                     PlacementId = placementId,
                     UnitTypeId = garrison.UnitTypeId,
                     UnitIndex = index,
+                    FactionId = site.OwnerFactionId,
+                    PlacementKind = WorldSiteUnitPlacementKind.Garrison,
+                    SourceKind = "Garrison",
+                    SourceId = site.SiteId,
                     ZoneId = zone.ZoneId,
                     CellX = cell.X,
                     CellY = cell.Y
                 });
             }
         }
+    }
+
+    public void ClearBattlePlacementsForForces(WorldSiteState site, IEnumerable<BattleForceRequest> forces)
+    {
+        if (site == null || forces == null)
+        {
+            return;
+        }
+
+        HashSet<string> sourceKeys = forces
+            .Where(force => force != null && force.Count > 0)
+            .Select(force => BuildSourceKey(ResolveForceSourceKind(force), ResolveForceSourceId(force)))
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .ToHashSet();
+        if (sourceKeys.Count == 0)
+        {
+            return;
+        }
+
+        int removed = site.UnitPlacements.RemoveAll(placement =>
+            !IsGarrisonPlacement(placement) &&
+            sourceKeys.Contains(BuildSourceKey(placement.SourceKind, placement.SourceId)));
+        if (removed > 0)
+        {
+            GameLog.Info(nameof(WorldSiteDeploymentService), $"BattlePlacementsCleared site={site.SiteId} sources={sourceKeys.Count} removed={removed}");
+        }
+    }
+
+    public bool EnsureBattlePlacementsForForce(
+        WorldSiteState site,
+        BattleForceRequest force,
+        WorldSiteUnitPlacementKind placementKind,
+        WorldSiteAttackDirection direction,
+        IReadOnlyList<WorldSiteDeploymentCell> candidates,
+        string threatId,
+        string preferredEntranceId,
+        out string failureReason)
+    {
+        failureReason = "";
+        if (site == null || force == null || string.IsNullOrWhiteSpace(force.UnitDefinitionId))
+        {
+            failureReason = "missing_force";
+            return false;
+        }
+
+        if (force.Count <= 0)
+        {
+            return true;
+        }
+
+        if (candidates == null || candidates.Count == 0)
+        {
+            failureReason = "deployment_candidates_missing";
+            GameLog.Error(
+                nameof(WorldSiteDeploymentService),
+                $"BattlePlacementFailed site={site.SiteId} force={force.ForceId} unit={force.UnitDefinitionId} reason={failureReason} direction={direction}");
+            return false;
+        }
+
+        string sourceKind = ResolveForceSourceKind(force);
+        string sourceId = ResolveForceSourceId(force);
+        string armyId = ResolveArmyId(sourceKind, sourceId);
+        int created = 0;
+
+        for (int index = 1; index <= force.Count; index++)
+        {
+            string placementId = BuildBattlePlacementId(sourceKind, sourceId, force.UnitDefinitionId, index);
+            WorldSiteUnitPlacement existing = site.UnitPlacements.FirstOrDefault(placement => placement.PlacementId == placementId);
+            if (existing != null)
+            {
+                ApplyBattleMetadata(existing, force, placementKind, sourceKind, sourceId, armyId, threatId, preferredEntranceId, direction, index);
+                continue;
+            }
+
+            if (!TryResolveNextBattleCell(site, candidates, out WorldSiteDeploymentCell cell))
+            {
+                failureReason = "deployment_cell_unavailable";
+                GameLog.Error(
+                    nameof(WorldSiteDeploymentService),
+                    $"BattlePlacementFailed site={site.SiteId} force={force.ForceId} unit={force.UnitDefinitionId} index={index} reason={failureReason} direction={direction}");
+                return false;
+            }
+
+            site.UnitPlacements.Add(new WorldSiteUnitPlacement
+            {
+                PlacementId = placementId,
+                UnitTypeId = force.UnitDefinitionId,
+                UnitIndex = index,
+                FactionId = force.FactionId ?? "",
+                PlacementKind = placementKind,
+                SourceKind = sourceKind,
+                SourceId = sourceId,
+                ArmyId = armyId,
+                ThreatId = threatId ?? "",
+                ZoneId = "",
+                EntranceId = preferredEntranceId ?? "",
+                AttackDirection = direction,
+                CellX = cell.Cell.X,
+                CellY = cell.Cell.Y,
+                CellHeight = cell.Height
+            });
+            created++;
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteDeploymentService),
+            $"BattlePlacementsEnsured site={site.SiteId} force={force.ForceId} unit={force.UnitDefinitionId} count={force.Count} created={created} kind={placementKind} source={sourceKind}:{sourceId} direction={direction} entrance={preferredEntranceId ?? ""}");
+        return true;
     }
 
     public bool TryMovePlacement(
@@ -277,13 +392,129 @@ public sealed class WorldSiteDeploymentService
         return string.IsNullOrWhiteSpace(zone?.ZoneId) ? fallback ?? "" : zone.ZoneId;
     }
 
-    private static bool IsGarrisonPlacement(WorldSiteUnitPlacement placement)
+    public static bool IsGarrisonPlacement(WorldSiteUnitPlacement placement)
     {
-        return placement != null && !string.IsNullOrWhiteSpace(placement.UnitTypeId);
+        return placement != null &&
+               (placement.PlacementKind == WorldSiteUnitPlacementKind.Garrison ||
+                placement.PlacementId.StartsWith("garrison:", System.StringComparison.OrdinalIgnoreCase));
     }
 
     private static string BuildGarrisonPlacementId(string unitTypeId, int index)
     {
         return $"garrison:{unitTypeId}:{index}";
+    }
+
+    private static void ApplyGarrisonMetadata(
+        WorldSiteUnitPlacement placement,
+        WorldSiteState site,
+        SiteDeploymentZoneDefinition zone,
+        string unitTypeId,
+        int index)
+    {
+        placement.UnitTypeId = unitTypeId;
+        placement.UnitIndex = index;
+        placement.FactionId = site.OwnerFactionId;
+        placement.PlacementKind = WorldSiteUnitPlacementKind.Garrison;
+        placement.SourceKind = "Garrison";
+        placement.SourceId = site.SiteId;
+        placement.ArmyId = "";
+        placement.ThreatId = "";
+        placement.ZoneId = zone?.ZoneId ?? placement.ZoneId;
+        placement.EntranceId = "";
+        placement.AttackDirection = WorldSiteAttackDirection.Any;
+    }
+
+    private static void ApplyBattleMetadata(
+        WorldSiteUnitPlacement placement,
+        BattleForceRequest force,
+        WorldSiteUnitPlacementKind placementKind,
+        string sourceKind,
+        string sourceId,
+        string armyId,
+        string threatId,
+        string entranceId,
+        WorldSiteAttackDirection direction,
+        int index)
+    {
+        placement.UnitTypeId = force.UnitDefinitionId;
+        placement.UnitIndex = index;
+        placement.FactionId = force.FactionId ?? "";
+        placement.PlacementKind = placementKind;
+        placement.SourceKind = sourceKind;
+        placement.SourceId = sourceId;
+        placement.ArmyId = armyId;
+        placement.ThreatId = threatId ?? "";
+        placement.EntranceId = entranceId ?? "";
+        placement.AttackDirection = direction;
+    }
+
+    private static bool TryResolveNextBattleCell(
+        WorldSiteState site,
+        IReadOnlyList<WorldSiteDeploymentCell> candidates,
+        out WorldSiteDeploymentCell cell)
+    {
+        foreach (WorldSiteDeploymentCell candidate in candidates)
+        {
+            bool occupied = site.UnitPlacements.Any(placement =>
+                placement.CellX == candidate.Cell.X &&
+                placement.CellY == candidate.Cell.Y);
+            if (!occupied)
+            {
+                cell = candidate;
+                return true;
+            }
+        }
+
+        cell = default;
+        return false;
+    }
+
+    private static string ResolveForceSourceKind(BattleForceRequest force)
+    {
+        return string.IsNullOrWhiteSpace(force?.SourceKind) ? "BattleForce" : force.SourceKind;
+    }
+
+    private static string ResolveForceSourceId(BattleForceRequest force)
+    {
+        if (force == null)
+        {
+            return "";
+        }
+
+        if (!string.IsNullOrWhiteSpace(force.SourceId))
+        {
+            return force.SourceId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(force.ForceId))
+        {
+            return force.ForceId;
+        }
+
+        return force.UnitDefinitionId ?? "";
+    }
+
+    private static string ResolveArmyId(string sourceKind, string sourceId)
+    {
+        return sourceKind switch
+        {
+            "PlayerArmy" or "EnemyArmy" or "ThreatArmy" => sourceId ?? "",
+            _ => ""
+        };
+    }
+
+    private static string BuildBattlePlacementId(string sourceKind, string sourceId, string unitTypeId, int index)
+    {
+        return $"battle:{sourceKind}:{sourceId}:{unitTypeId}:{index}";
+    }
+
+    private static string BuildSourceKey(string sourceKind, string sourceId)
+    {
+        if (string.IsNullOrWhiteSpace(sourceKind) || string.IsNullOrWhiteSpace(sourceId))
+        {
+            return "";
+        }
+
+        return $"{sourceKind}:{sourceId}";
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle;
 using Rpg.Definitions.World;
@@ -20,6 +21,10 @@ public sealed class WorldBattleRequestBuilder
         StrategicWorldDefinitionQueries queries = new(definition);
         WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
         WorldSiteDefinition siteDefinition = queries.GetSite(StrategicWorldIds.SiteBonefield);
+        WorldArmyState sourceArmy = !string.IsNullOrWhiteSpace(sourceArmyId) &&
+                                    state.ArmyStates.TryGetValue(sourceArmyId, out WorldArmyState army)
+            ? army
+            : null;
 
         BattleStartRequest request = new()
         {
@@ -27,19 +32,20 @@ public sealed class WorldBattleRequestBuilder
             BattleKind = BattleKind.AssaultSite,
             EncounterId = "assault_bonefield",
             SourceArmyId = sourceArmyId ?? "",
-            SourceSiteId = StrategicWorldIds.SitePlayerCamp,
+            SourceSiteId = string.IsNullOrWhiteSpace(sourceArmy?.SourceSiteId) ? StrategicWorldIds.SitePlayerCamp : sourceArmy.SourceSiteId,
             TargetSiteId = StrategicWorldIds.SiteBonefield,
             AttackerFactionId = StrategicWorldIds.FactionPlayer,
             DefenderFactionId = StrategicWorldIds.FactionUndead,
+            AttackDirection = ResolveAttackDirection(definition, sourceArmy, StrategicWorldIds.SitePlayerCamp, StrategicWorldIds.SiteBonefield),
             MapDefinitionId = "bonefield_assault_v1",
             ReturnScenePath = returnScenePath ?? "",
             SiteScenePath = string.IsNullOrWhiteSpace(siteScenePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : siteScenePath,
             SiteStateSnapshot = BuildSnapshot(site)
         };
         request.ObjectiveIds.Add("occupy_bonefield");
-        AddEntrances(request, siteDefinition, StrategicWorldIds.FactionPlayer, "main_entrance");
-        if (!string.IsNullOrWhiteSpace(sourceArmyId) &&
-            state.ArmyStates.TryGetValue(sourceArmyId, out WorldArmyState sourceArmy))
+        AddEntrances(request, siteDefinition, StrategicWorldIds.FactionPlayer, "", includeGarrisonEntrances: false);
+        AddEntrances(request, siteDefinition, StrategicWorldIds.FactionUndead, "", includeGarrisonEntrances: false);
+        if (sourceArmy != null)
         {
             AddArmyForces(request.PlayerForces, sourceArmy, "PlayerArmy", state.PlayerFactionId);
         }
@@ -51,7 +57,7 @@ public sealed class WorldBattleRequestBuilder
         _deploymentService.EnsureGarrisonPlacements(site, siteDefinition);
         AddSiteGarrisonForces(request.EnemyForces, site, "DefenderSite", request.DefenderFactionId);
 
-        GameLog.Info(nameof(WorldBattleRequestBuilder), $"BattleRequested kind={request.BattleKind} target={request.TargetSiteId} request={request.RequestId}");
+        GameLog.Info(nameof(WorldBattleRequestBuilder), $"BattleRequested kind={request.BattleKind} target={request.TargetSiteId} direction={request.AttackDirection} request={request.RequestId}");
         return request;
     }
 
@@ -66,6 +72,10 @@ public sealed class WorldBattleRequestBuilder
         EnemyThreatPlan threat = state.ThreatPlans[threatId];
         WorldSiteState site = state.SiteStates[threat.TargetSiteId];
         WorldSiteDefinition siteDefinition = queries.GetSite(threat.TargetSiteId);
+        WorldArmyState threatArmy = !string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
+                                    state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState resolvedThreatArmy)
+            ? resolvedThreatArmy
+            : null;
         _deploymentService.EnsureGarrisonPlacements(site, siteDefinition);
 
         BattleStartRequest request = new()
@@ -78,6 +88,7 @@ public sealed class WorldBattleRequestBuilder
             ThreatId = threat.Id,
             AttackerFactionId = StrategicWorldIds.FactionUndead,
             DefenderFactionId = StrategicWorldIds.FactionPlayer,
+            AttackDirection = ResolveAttackDirection(definition, threatArmy, threat.SourceSiteId, threat.TargetSiteId),
             MapDefinitionId = "bonefield_defense_v1",
             ReturnScenePath = returnScenePath ?? "",
             SiteScenePath = string.IsNullOrWhiteSpace(siteScenePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : siteScenePath,
@@ -85,6 +96,7 @@ public sealed class WorldBattleRequestBuilder
         };
         request.ObjectiveIds.Add("defend_bonefield");
         AddEntrances(request, siteDefinition, StrategicWorldIds.FactionPlayer, "");
+        AddEntrances(request, siteDefinition, request.AttackerFactionId, "", includeGarrisonEntrances: false);
 
         foreach (GarrisonState garrison in site.Garrison.Where(item => item.Count > 0))
         {
@@ -98,14 +110,12 @@ public sealed class WorldBattleRequestBuilder
                 FactionId = StrategicWorldIds.FactionPlayer,
                 PreferredEntranceId = "defense_post"
             };
-            AddGarrisonPlacements(force, site, garrison.UnitTypeId, garrison.Count);
             request.PlayerForces.Add(force);
         }
 
-        if (!string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
-            state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState enemyArmy))
+        if (threatArmy != null)
         {
-            AddArmyForces(request.EnemyForces, enemyArmy, "ThreatArmy", enemyArmy.OwnerFactionId);
+            AddArmyForces(request.EnemyForces, threatArmy, "ThreatArmy", threatArmy.OwnerFactionId);
         }
         else
         {
@@ -142,7 +152,41 @@ public sealed class WorldBattleRequestBuilder
             }
         }
 
-        GameLog.Info(nameof(WorldBattleRequestBuilder), $"BattleRequested kind={request.BattleKind} target={request.TargetSiteId} threat={request.ThreatId} modifiers={request.BattleModifiers.Count} forces={request.PlayerForces.Count}");
+        GameLog.Info(nameof(WorldBattleRequestBuilder), $"BattleRequested kind={request.BattleKind} target={request.TargetSiteId} threat={request.ThreatId} direction={request.AttackDirection} modifiers={request.BattleModifiers.Count} forces={request.PlayerForces.Count}");
+        return request;
+    }
+
+    public BattleStartRequest BuildWorldBattleInterventionRequest(
+        StrategicWorldState state,
+        StrategicWorldDefinition definition,
+        string worldBattleId,
+        string returnScenePath,
+        string siteScenePath)
+    {
+        if (state == null ||
+            string.IsNullOrWhiteSpace(worldBattleId) ||
+            state.WorldBattleStates == null ||
+            !state.WorldBattleStates.TryGetValue(worldBattleId, out WorldBattleState battle))
+        {
+            return null;
+        }
+
+        BattleStartRequest request = BuildDefenseRaidRequest(
+            state,
+            definition,
+            battle.ThreatId,
+            returnScenePath,
+            siteScenePath);
+        request.WorldBattleId = battle.BattleId;
+        request.WorldBattlePhase = battle.CurrentPhase.ToString();
+        request.ContextId = battle.BattleId;
+        request.EncounterId = $"{request.EncounterId}:{battle.CurrentPhase}";
+        request.AttackerFactionId = battle.AttackerFactionId;
+        request.DefenderFactionId = battle.DefenderFactionId;
+        request.BattleModifiers.Add(BuildWorldBattlePhaseModifier(battle));
+        GameLog.Info(
+            nameof(WorldBattleRequestBuilder),
+            $"WorldBattleInterventionRequested battle={battle.BattleId} phase={battle.CurrentPhase} request={request.RequestId}");
         return request;
     }
 
@@ -179,17 +223,19 @@ public sealed class WorldBattleRequestBuilder
             ThreatId = enemyArmy.RelatedThreatId,
             AttackerFactionId = state.PlayerFactionId,
             DefenderFactionId = enemyArmy.OwnerFactionId,
+            AttackDirection = ResolveAttackDirection(definition, playerArmy.SourceSiteId, site.SiteId),
             MapDefinitionId = "field_intercept_v1",
             ReturnScenePath = returnScenePath ?? "",
             SiteScenePath = string.IsNullOrWhiteSpace(siteScenePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : siteScenePath,
             SiteStateSnapshot = BuildSnapshot(site)
         };
         request.ObjectiveIds.Add("win_field_intercept");
-        AddEntrances(request, siteDefinition, state.PlayerFactionId, "");
+        AddEntrances(request, siteDefinition, state.PlayerFactionId, "", includeGarrisonEntrances: false);
+        AddEntrances(request, siteDefinition, enemyArmy.OwnerFactionId, "", includeGarrisonEntrances: false);
         AddArmyForces(request.PlayerForces, playerArmy, "PlayerArmy", state.PlayerFactionId);
         AddArmyForces(request.EnemyForces, enemyArmy, "EnemyArmy", enemyArmy.OwnerFactionId);
 
-        GameLog.Info(nameof(WorldBattleRequestBuilder), $"BattleRequested kind={request.BattleKind} playerArmy={playerArmy.ArmyId} enemyArmy={enemyArmy.ArmyId} threat={request.ThreatId}");
+        GameLog.Info(nameof(WorldBattleRequestBuilder), $"BattleRequested kind={request.BattleKind} playerArmy={playerArmy.ArmyId} enemyArmy={enemyArmy.ArmyId} threat={request.ThreatId} direction={request.AttackDirection}");
         return request;
     }
 
@@ -223,7 +269,51 @@ public sealed class WorldBattleRequestBuilder
         return snapshot;
     }
 
-    private static void AddEntrances(BattleStartRequest request, WorldSiteDefinition siteDefinition, string factionId, string preferredEntranceId)
+    private static BattleModifier BuildWorldBattlePhaseModifier(WorldBattleState battle)
+    {
+        int pressure = battle.CurrentPhase switch
+        {
+            WorldBattlePhase.Skirmish => 1,
+            WorldBattlePhase.Engagement => 2,
+            WorldBattlePhase.Decisive => 3,
+            WorldBattlePhase.Resolution => 4,
+            _ => 0
+        };
+        bool attackerHasMomentum = battle.ProjectedOutcome is WorldBattleOutcome.AttackerDamagedSite or WorldBattleOutcome.AttackerCapturedSite ||
+                                   battle.AttackerPower >= battle.DefenderPower;
+        Dictionary<string, int> values = new()
+        {
+            ["phase_pressure"] = pressure,
+            ["attacker_power"] = battle.AttackerPower,
+            ["defender_power"] = battle.DefenderPower
+        };
+        if (pressure > 0)
+        {
+            values[attackerHasMomentum ? "player_damage" : "enemy_damage"] = pressure;
+        }
+
+        return new BattleModifier
+        {
+            Id = $"{battle.BattleId}:phase:{battle.CurrentPhase}",
+            Type = "world_battle_phase",
+            SourceKind = "WorldBattle",
+            SourceId = battle.BattleId,
+            Uses = 1,
+            Values = values,
+            Tags =
+            {
+                battle.CurrentPhase.ToString(),
+                battle.ProjectedOutcome.ToString()
+            }
+        };
+    }
+
+    private static void AddEntrances(
+        BattleStartRequest request,
+        WorldSiteDefinition siteDefinition,
+        string factionId,
+        string preferredEntranceId,
+        bool includeGarrisonEntrances = true)
     {
         if (siteDefinition == null)
         {
@@ -242,16 +332,112 @@ public sealed class WorldBattleRequestBuilder
                 continue;
             }
 
+            if (!includeGarrisonEntrances &&
+                string.Equals(entrance.Source, "Garrison", System.StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string resolvedFactionId = string.IsNullOrWhiteSpace(entrance.FactionId) ? factionId : entrance.FactionId;
+            if (request.AvailableEntrances.Any(existing =>
+                    existing.EntranceId == entrance.EntranceId &&
+                    existing.FactionId == resolvedFactionId &&
+                    existing.Direction == entrance.Direction))
+            {
+                continue;
+            }
+
             request.AvailableEntrances.Add(new BattleEntranceRequest
             {
                 EntranceId = entrance.EntranceId,
                 DisplayName = entrance.DisplayName,
-                FactionId = string.IsNullOrWhiteSpace(entrance.FactionId) ? factionId : entrance.FactionId,
+                FactionId = resolvedFactionId,
                 Capacity = entrance.Capacity,
+                Direction = entrance.Direction,
                 BattleAnchorId = entrance.BattleAnchorId,
                 Source = entrance.Source
             });
         }
+    }
+
+    private static WorldSiteAttackDirection ResolveAttackDirection(
+        StrategicWorldDefinition definition,
+        WorldArmyState sourceArmy,
+        string fallbackSourceSiteId,
+        string targetSiteId)
+    {
+        if (sourceArmy != null && !string.IsNullOrWhiteSpace(targetSiteId))
+        {
+            if (sourceArmy.TargetApproachDirection != WorldSiteAttackDirection.Any)
+            {
+                return sourceArmy.TargetApproachDirection;
+            }
+
+            WorldSiteAttackDirection direction = ResolveAttackDirection(definition, sourceArmy.WorldPosition, targetSiteId);
+            if (direction != WorldSiteAttackDirection.Any)
+            {
+                return direction;
+            }
+        }
+
+        return ResolveAttackDirection(definition, fallbackSourceSiteId, targetSiteId);
+    }
+
+    private static WorldSiteAttackDirection ResolveAttackDirection(
+        StrategicWorldDefinition definition,
+        Godot.Vector2 sourcePosition,
+        string targetSiteId)
+    {
+        if (definition == null || string.IsNullOrWhiteSpace(targetSiteId))
+        {
+            return WorldSiteAttackDirection.Any;
+        }
+
+        WorldSiteDefinition targetSite = definition.SiteDefinitions.FirstOrDefault(site => site.Id == targetSiteId);
+        if (targetSite == null)
+        {
+            return WorldSiteAttackDirection.Any;
+        }
+
+        return ResolveDirectionFromDelta(sourcePosition.X - targetSite.MapPosition.X, sourcePosition.Y - targetSite.MapPosition.Y);
+    }
+
+    private static WorldSiteAttackDirection ResolveAttackDirection(
+        StrategicWorldDefinition definition,
+        string sourceSiteId,
+        string targetSiteId)
+    {
+        if (definition == null ||
+            string.IsNullOrWhiteSpace(sourceSiteId) ||
+            string.IsNullOrWhiteSpace(targetSiteId) ||
+            sourceSiteId == targetSiteId)
+        {
+            return WorldSiteAttackDirection.Any;
+        }
+
+        WorldSiteDefinition sourceSite = definition.SiteDefinitions.FirstOrDefault(site => site.Id == sourceSiteId);
+        WorldSiteDefinition targetSite = definition.SiteDefinitions.FirstOrDefault(site => site.Id == targetSiteId);
+        if (sourceSite == null || targetSite == null)
+        {
+            return WorldSiteAttackDirection.Any;
+        }
+
+        return ResolveDirectionFromDelta(sourceSite.MapPosition.X - targetSite.MapPosition.X, sourceSite.MapPosition.Y - targetSite.MapPosition.Y);
+    }
+
+    private static WorldSiteAttackDirection ResolveDirectionFromDelta(float deltaX, float deltaY)
+    {
+        if (System.Math.Abs(deltaX) < 0.001f && System.Math.Abs(deltaY) < 0.001f)
+        {
+            return WorldSiteAttackDirection.Any;
+        }
+
+        if (System.Math.Abs(deltaX) >= System.Math.Abs(deltaY))
+        {
+            return deltaX < 0f ? WorldSiteAttackDirection.West : WorldSiteAttackDirection.East;
+        }
+
+        return deltaY < 0f ? WorldSiteAttackDirection.North : WorldSiteAttackDirection.South;
     }
 
     private static void AddGarrisonPlacements(
@@ -302,7 +488,6 @@ public sealed class WorldBattleRequestBuilder
                 Count = garrison.Count,
                 FactionId = factionId
             };
-            AddGarrisonPlacements(force, site, garrison.UnitTypeId, garrison.Count);
             target.Add(force);
         }
     }

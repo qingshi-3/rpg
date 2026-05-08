@@ -10,6 +10,8 @@ public sealed class WorldTickService
 {
     private readonly WorldConditionEvaluator _conditionEvaluator = new();
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
+    private readonly WorldOpportunityService _opportunityService = new();
+    private readonly WorldBattleProgressionService _worldBattleProgressionService = new();
 
     public WorldTickResult AdvanceWorldTick(StrategicWorldState state, StrategicWorldDefinition definition)
     {
@@ -23,6 +25,9 @@ public sealed class WorldTickService
         ApplyProduction(state, queries, result);
         GenerateThreats(state, definition, queries, result);
         ProgressThreats(state, result);
+        _worldBattleProgressionService.EnsureBattlesForAttackingThreats(state, definition, result);
+        _worldBattleProgressionService.AdvanceWorldBattles(state, definition, result);
+        _opportunityService.AdvanceOpportunities(state, definition, result);
 
         result.Events.Add(new GameEvent
         {

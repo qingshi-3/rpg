@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://x3kdwb8wb6wk"]
+[gd_scene load_steps=16 format=3 uid="uid://x3kdwb8wb6wk"]
 
 [ext_resource type="Script" uid="uid://2u80f8wpormt" path="res://src/Presentation/World/Sites/WorldSiteRoot.cs" id="1_world_site_root"]
 [ext_resource type="PackedScene" uid="uid://c2oee8rh6qi6" path="res://scenes/world/sites/impl/BonefieldSite.tscn" id="2_bonefield_site"]
@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://c7i4kj6d7oyed" path="res://src/Presentation/Battle/Flow/BattleCommandController.cs" id="21_battle_command_controller"]
 [ext_resource type="Script" uid="uid://dvne2r1f12dwp" path="res://src/Presentation/Battle/Flow/BattleTurnController.cs" id="22_battle_turn_controller"]
 [ext_resource type="Script" uid="uid://c510f7rdfirvx" path="res://src/Presentation/Battle/Flow/BattleIntentController.cs" id="23_battle_intent_controller"]
+[ext_resource type="Script" uid="uid://cv25ye6mjqydp" path="res://src/Presentation/Battle/Preview/BattleSelectionVignetteOverlay.cs" id="24_selection_vignette"]
 
 [node name="WorldSiteRoot" type="Node2D"]
 script = ExtResource("1_world_site_root")
@@ -63,6 +64,17 @@ zoom = Vector2(2.2, 2.2)
 script = ExtResource("7_camera_controller")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="SelectionVignetteOverlay" type="ColorRect" parent="CanvasLayer"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("24_selection_vignette")
 
 [node name="BattleHudRoot" type="Control" parent="CanvasLayer"]
 layout_mode = 3

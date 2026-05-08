@@ -9,9 +9,13 @@ public sealed class StrategicWorldDefinition
     public string StartingSiteId { get; set; } = "";
     public string PlayerFactionId { get; set; } = "player";
     public List<string> EnemyFactionIds { get; set; } = new();
+    public List<FactionDefinition> FactionDefinitions { get; set; } = new();
     public List<ResourceDefinition> ResourceDefinitions { get; set; } = new();
     public List<FacilityDefinition> FacilityDefinitions { get; set; } = new();
     public List<WorldSiteDefinition> SiteDefinitions { get; set; } = new();
+    public List<WorldOpportunityDefinition> OpportunityDefinitions { get; set; } = new();
+    public List<OpportunitySpawnPointDefinition> OpportunitySpawnPoints { get; set; } = new();
+    public List<OpportunitySpawnRuleDefinition> OpportunitySpawnRules { get; set; } = new();
     public List<WorldActionDefinition> ActionDefinitions { get; set; } = new();
     public List<ThreatRuleDefinition> ThreatRules { get; set; } = new();
     public List<ResourceAmountDefinition> InitialResources { get; set; } = new();

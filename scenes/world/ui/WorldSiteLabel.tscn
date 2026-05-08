@@ -1,7 +1,19 @@
-[gd_scene format=3 uid="uid://d1ag17gnst50g"]
+[gd_scene load_steps=2 format=3 uid="uid://d1ag17gnst50g"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_world_site_name"]
+font_size = 15
+font_color = Color(0.96, 0.91, 0.78, 1)
+outline_size = 5
+outline_color = Color(0.025, 0.023, 0.02, 0.92)
 
 [node name="WorldSiteLabel" type="Label"]
-z_index = 30
+z_index = 70
+custom_minimum_size = Vector2(160, 44)
+mouse_filter = 2
+text = "场域"
+label_settings = SubResource("LabelSettings_world_site_name")
 horizontal_alignment = 1
+vertical_alignment = 1
 autowrap_mode = 3
 clip_text = true
+text_overrun_behavior = 3

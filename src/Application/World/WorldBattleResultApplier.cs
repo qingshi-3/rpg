@@ -11,6 +11,7 @@ public sealed class WorldBattleResultApplier
     private readonly WorldTickService _worldTickService = new();
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
     private readonly WorldSiteDeploymentService _deploymentService = new();
+    private readonly WorldBattleProgressionService _worldBattleProgressionService = new();
 
     public WorldActionResult Apply(
         StrategicWorldState state,
@@ -28,13 +29,21 @@ public sealed class WorldBattleResultApplier
             return WorldActionResult.Failed("battle_result", "battle_result_mismatch", "战斗结果与发起请求不匹配。");
         }
 
-        WorldActionResult actionResult = request.BattleKind switch
+        WorldActionResult actionResult;
+        if (!string.IsNullOrWhiteSpace(request.WorldBattleId))
+        {
+            actionResult = _worldBattleProgressionService.ApplyPlayerInterventionResult(state, definition, request, result);
+        }
+        else
+        {
+            actionResult = request.BattleKind switch
         {
             BattleKind.AssaultSite => ApplyAssaultBonefield(state, definition, request, result),
             BattleKind.DefenseRaid => ApplyDefenseRaid(state, request, result),
             BattleKind.FieldIntercept => ApplyFieldIntercept(state, request, result),
             _ => WorldActionResult.Failed("battle_result", "unsupported_battle_kind", "暂不支持该战斗类型回写。")
-        };
+            };
+        }
 
         if (!actionResult.Success)
         {
@@ -136,6 +145,7 @@ public sealed class WorldBattleResultApplier
         }
 
         army.Status = status;
+        army.ClearTargetApproachDirection();
         result.Events.Add(new GameEvent
         {
             Kind = "WorldArmyStateChanged",

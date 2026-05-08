@@ -4,5 +4,8 @@
 oversampling_override = 1.0
 title = "战前情报"
 size = Vector2i(166, 124)
-visible = true
+visible = false
+exclusive = true
+unresizable = true
+borderless = true
 ok_button_text = "进入战斗"
