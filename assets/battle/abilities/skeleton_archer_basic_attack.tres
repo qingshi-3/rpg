@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="AbilityDefinition" load_steps=8 format=3 uid="uid://bc5xhqxq5icru"]
+
+[ext_resource type="Script" uid="uid://bhil7m1my4jvo" path="res://src/Definitions/Battle/Abilities/AbilityDefinition.cs" id="1_definition"]
+[ext_resource type="Script" uid="uid://ig8o4jrp1jtp" path="res://src/Definitions/Battle/Abilities/AbilityEffect.cs" id="1_tahsy"]
+[ext_resource type="Script" uid="uid://jeq011qrexcx" path="res://src/Definitions/Battle/Abilities/SingleHostileUnitTargetRule.cs" id="2_target_rule"]
+[ext_resource type="Script" uid="uid://bdjw2mqyun52v" path="res://src/Definitions/Battle/Abilities/DamageAbilityEffect.cs" id="3_damage"]
+[ext_resource type="Script" uid="uid://cvpgdbxfieysd" path="res://src/Definitions/Battle/Abilities/AbilityTargetRule.cs" id="3_tr8ml"]
+
+[sub_resource type="Resource" id="DamageAbilityEffect_archer_basic"]
+script = ExtResource("3_damage")
+Damage = 2
+
+[sub_resource type="Resource" id="SingleHostileUnitTargetRule_archer_basic"]
+script = ExtResource("2_target_rule")
+
+[resource]
+script = ExtResource("1_definition")
+Id = "basic_attack"
+DisplayName = "攻击"
+IconText = "攻"
+Range = 3
+TargetRules = Array[ExtResource("3_tr8ml")]([SubResource("SingleHostileUnitTargetRule_archer_basic")])
+Effects = Array[ExtResource("1_tahsy")]([SubResource("DamageAbilityEffect_archer_basic")])

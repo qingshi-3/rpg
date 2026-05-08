@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="BattleUnitVisualDefinition" load_steps=4 format=3 uid="uid://bhbsl4020kcyy"]
+
+[ext_resource type="Resource" uid="uid://cvvghru2jhsxw" path="res://assets/battle/unit_visuals/default_battle_unit_animation_set.tres" id="1_u8pj0"]
+[ext_resource type="SpriteFrames" uid="uid://chx2balabnrah" path="res://assets/battle/unit_visuals/frames/闪烁scintilla.tres" id="2_o1jkb"]
+[ext_resource type="Script" uid="uid://b5lqkuxa0rjxu" path="res://src/Definitions/Battle/BattleUnitVisualDefinition.cs" id="3_ii1kt"]
+
+[resource]
+script = ExtResource("3_ii1kt")
+SpriteFrames = ExtResource("2_o1jkb")
+AnimationSet = ExtResource("1_u8pj0")
+Offset = Vector2(0, -9.6)
+Scale = Vector2(0.244, 0.244)
+Modulate = Color(1, 0.52, 0.2, 1)

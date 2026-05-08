@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="BattleUnitAnimationSet" load_steps=2 format=3 uid="uid://cvvghru2jhsxw"]
+
+[ext_resource type="Script" uid="uid://b0r8xku2yqf2a" path="res://src/Definitions/Battle/Animation/BattleUnitAnimationSet.cs" id="1_animation_set"]
+
+[resource]
+script = ExtResource("1_animation_set")
