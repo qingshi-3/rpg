@@ -1,0 +1,6272 @@
+{
+  "source": "res://assets/textures/units",
+  "output": "res://assets/battle/units",
+  "generatedUnitPackages": 696,
+  "tileSize": 101,
+  "generated": [
+	{
+	  "id": "boss_andromeda",
+	  "displayName": "首领安德洛墨达",
+	  "folderName": "首领_安德洛墨达",
+	  "sourceFileName": "boss_andromeda.png",
+	  "targetPngName": "boss_andromeda.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_antiswarm",
+	  "displayName": "首领反虫群",
+	  "folderName": "首领_反虫群",
+	  "sourceFileName": "boss_antiswarm.png",
+	  "targetPngName": "boss_antiswarm.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "boss_borealjuggernaut",
+	  "displayName": "首领北境重装",
+	  "folderName": "首领_北境重装",
+	  "sourceFileName": "boss_borealjuggernaut.png",
+	  "targetPngName": "boss_borealjuggernaut.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_candypanda",
+	  "displayName": "首领糖果熊猫",
+	  "folderName": "首领_糖果熊猫",
+	  "sourceFileName": "boss_candypanda.png",
+	  "targetPngName": "boss_candypanda.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_chaosknight",
+	  "displayName": "首领混沌骑士",
+	  "folderName": "首领_混沌骑士",
+	  "sourceFileName": "boss_chaosknight.png",
+	  "targetPngName": "boss_chaosknight.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "boss_christmas",
+	  "displayName": "首领圣诞使者",
+	  "folderName": "首领_圣诞使者",
+	  "sourceFileName": "boss_christmas.png",
+	  "targetPngName": "boss_christmas.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_cindera",
+	  "displayName": "首领辛德拉",
+	  "folderName": "首领_辛德拉",
+	  "sourceFileName": "boss_cindera.png",
+	  "targetPngName": "boss_cindera.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_city",
+	  "displayName": "首领城域守卫",
+	  "folderName": "首领_城域守卫",
+	  "sourceFileName": "boss_city.png",
+	  "targetPngName": "boss_city.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_crystal",
+	  "displayName": "首领水晶体",
+	  "folderName": "首领_水晶体",
+	  "sourceFileName": "boss_crystal.png",
+	  "targetPngName": "boss_crystal.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_decepticle",
+	  "displayName": "首领欺诈机体",
+	  "folderName": "首领_欺诈机体",
+	  "sourceFileName": "boss_decepticle.png",
+	  "targetPngName": "boss_decepticle.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_decepticlechassis",
+	  "displayName": "首领欺诈机体底盘",
+	  "folderName": "首领_欺诈机体底盘",
+	  "sourceFileName": "boss_decepticlechassis.png",
+	  "targetPngName": "boss_decepticlechassis.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_decepticlehelm",
+	  "displayName": "首领欺诈机体头盔",
+	  "folderName": "首领_欺诈机体头盔",
+	  "sourceFileName": "boss_decepticlehelm.png",
+	  "targetPngName": "boss_decepticlehelm.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_decepticleprime",
+	  "displayName": "首领欺诈机体主宰",
+	  "folderName": "首领_欺诈机体主宰",
+	  "sourceFileName": "boss_decepticleprime.png",
+	  "targetPngName": "boss_decepticleprime.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_decepticlesword",
+	  "displayName": "首领欺诈机体剑刃",
+	  "folderName": "首领_欺诈机体剑刃",
+	  "sourceFileName": "boss_decepticlesword.png",
+	  "targetPngName": "boss_decepticlesword.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_decepticlewings",
+	  "displayName": "首领欺诈机体翼",
+	  "folderName": "首领_欺诈机体翼",
+	  "sourceFileName": "boss_decepticlewings.png",
+	  "targetPngName": "boss_decepticlewings.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_dissonance",
+	  "displayName": "首领失谐者",
+	  "folderName": "首领_失谐者",
+	  "sourceFileName": "boss_dissonance.png",
+	  "targetPngName": "boss_dissonance.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_emp",
+	  "displayName": "首领电磁脉冲体",
+	  "folderName": "首领_电磁脉冲体",
+	  "sourceFileName": "boss_emp.png",
+	  "targetPngName": "boss_emp.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_gol",
+	  "displayName": "首领戈尔",
+	  "folderName": "首领_戈尔",
+	  "sourceFileName": "boss_gol.png",
+	  "targetPngName": "boss_gol.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_grym",
+	  "displayName": "首领格里姆",
+	  "folderName": "首领_格里姆",
+	  "sourceFileName": "boss_grym.png",
+	  "targetPngName": "boss_grym.png",
+	  "width": 512,
+	  "height": 2048
+	},
+	{
+	  "id": "boss_harmony",
+	  "displayName": "首领和谐体",
+	  "folderName": "首领_和谐体",
+	  "sourceFileName": "boss_harmony.png",
+	  "targetPngName": "boss_harmony.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_invader",
+	  "displayName": "首领入侵者",
+	  "folderName": "首领_入侵者",
+	  "sourceFileName": "boss_invader.png",
+	  "targetPngName": "boss_invader.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_kane",
+	  "displayName": "首领凯恩",
+	  "folderName": "首领_凯恩",
+	  "sourceFileName": "boss_kane.png",
+	  "targetPngName": "boss_kane.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_kron",
+	  "displayName": "首领克隆",
+	  "folderName": "首领_克隆",
+	  "sourceFileName": "boss_kron.png",
+	  "targetPngName": "boss_kron.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_legion",
+	  "displayName": "首领军团",
+	  "folderName": "首领_军团",
+	  "sourceFileName": "boss_legion.png",
+	  "targetPngName": "boss_legion.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_malyk",
+	  "displayName": "首领马利克",
+	  "folderName": "首领_马利克",
+	  "sourceFileName": "boss_malyk.png",
+	  "targetPngName": "boss_malyk.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_manaman",
+	  "displayName": "首领法力人",
+	  "folderName": "首领_法力人",
+	  "sourceFileName": "boss_manaman.png",
+	  "targetPngName": "boss_manaman.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_orias",
+	  "displayName": "首领奥里亚斯",
+	  "folderName": "首领_奥里亚斯",
+	  "sourceFileName": "boss_orias.png",
+	  "targetPngName": "boss_orias.png",
+	  "width": 256,
+	  "height": 2048
+	},
+	{
+	  "id": "boss_oriasidol",
+	  "displayName": "首领奥里亚斯神像",
+	  "folderName": "首领_奥里亚斯神像",
+	  "sourceFileName": "boss_oriasidol.png",
+	  "targetPngName": "boss_oriasidol.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_paragon",
+	  "displayName": "首领典范者",
+	  "folderName": "首领_典范者",
+	  "sourceFileName": "boss_paragon.png",
+	  "targetPngName": "boss_paragon.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_protector",
+	  "displayName": "首领保护者",
+	  "folderName": "首领_保护者",
+	  "sourceFileName": "boss_protector.png",
+	  "targetPngName": "boss_protector.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_sandpanther",
+	  "displayName": "首领沙地豹",
+	  "folderName": "首领_沙地豹",
+	  "sourceFileName": "boss_sandpanther.png",
+	  "targetPngName": "boss_sandpanther.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_serpenti",
+	  "displayName": "首领蛇裔",
+	  "folderName": "首领_蛇裔",
+	  "sourceFileName": "boss_serpenti.png",
+	  "targetPngName": "boss_serpenti.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_shadowlord",
+	  "displayName": "首领暗影领主",
+	  "folderName": "首领_暗影领主",
+	  "sourceFileName": "boss_shadowlord.png",
+	  "targetPngName": "boss_shadowlord.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_shinkagezendo_copy",
+	  "displayName": "首领新影禅道副本",
+	  "folderName": "首领_新影禅道副本",
+	  "sourceFileName": "boss_shinkagezendo copy.png",
+	  "targetPngName": "boss_shinkagezendo_copy.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_shinkagezendo",
+	  "displayName": "首领新影禅道",
+	  "folderName": "首领_新影禅道",
+	  "sourceFileName": "boss_shinkagezendo.png",
+	  "targetPngName": "boss_shinkagezendo.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_skurge",
+	  "displayName": "首领灾刃",
+	  "folderName": "首领_灾刃",
+	  "sourceFileName": "boss_skurge.png",
+	  "targetPngName": "boss_skurge.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_skyfalltyrant",
+	  "displayName": "首领天坠暴君",
+	  "folderName": "首领_天坠暴君",
+	  "sourceFileName": "boss_skyfalltyrant.png",
+	  "targetPngName": "boss_skyfalltyrant.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_solfist",
+	  "displayName": "首领太阳之拳",
+	  "folderName": "首领_太阳之拳",
+	  "sourceFileName": "boss_solfist.png",
+	  "targetPngName": "boss_solfist.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_soulstealer",
+	  "displayName": "首领夺魂者",
+	  "folderName": "首领_夺魂者",
+	  "sourceFileName": "boss_soulstealer.png",
+	  "targetPngName": "boss_soulstealer.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_spelleater",
+	  "displayName": "首领噬法者",
+	  "folderName": "首领_噬法者",
+	  "sourceFileName": "boss_spelleater.png",
+	  "targetPngName": "boss_spelleater.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_taskmaster",
+	  "displayName": "首领监工",
+	  "folderName": "首领_监工",
+	  "sourceFileName": "boss_taskmaster.png",
+	  "targetPngName": "boss_taskmaster.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_treatdemon",
+	  "displayName": "首领糖宴恶魔",
+	  "folderName": "首领_糖宴恶魔",
+	  "sourceFileName": "boss_treatdemon.png",
+	  "targetPngName": "boss_treatdemon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_treatdrake",
+	  "displayName": "首领糖宴幼龙",
+	  "folderName": "首领_糖宴幼龙",
+	  "sourceFileName": "boss_treatdrake.png",
+	  "targetPngName": "boss_treatdrake.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_treatoni",
+	  "displayName": "首领糖宴鬼人",
+	  "folderName": "首领_糖宴鬼人",
+	  "sourceFileName": "boss_treatoni.png",
+	  "targetPngName": "boss_treatoni.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_umbra",
+	  "displayName": "首领影曜",
+	  "folderName": "首领_影曜",
+	  "sourceFileName": "boss_umbra.png",
+	  "targetPngName": "boss_umbra.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_unhallowed",
+	  "displayName": "首领亵渎者",
+	  "folderName": "首领_亵渎者",
+	  "sourceFileName": "boss_unhallowed.png",
+	  "targetPngName": "boss_unhallowed.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_valiant",
+	  "displayName": "首领英勇者",
+	  "folderName": "首领_英勇者",
+	  "sourceFileName": "boss_valiant.png",
+	  "targetPngName": "boss_valiant.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_vampire",
+	  "displayName": "首领吸血者",
+	  "folderName": "首领_吸血者",
+	  "sourceFileName": "boss_vampire.png",
+	  "targetPngName": "boss_vampire.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_wolfpunch",
+	  "displayName": "首领狼拳",
+	  "folderName": "首领_狼拳",
+	  "sourceFileName": "boss_wolfpunch.png",
+	  "targetPngName": "boss_wolfpunch.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_wraith",
+	  "displayName": "首领怨魂",
+	  "folderName": "首领_怨魂",
+	  "sourceFileName": "boss_wraith.png",
+	  "targetPngName": "boss_wraith.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "boss_wujin",
+	  "displayName": "首领无尽武者",
+	  "folderName": "首领_无尽武者",
+	  "sourceFileName": "boss_wujin.png",
+	  "targetPngName": "boss_wujin.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "critter_1",
+	  "displayName": "小生物1",
+	  "folderName": "中立_小生物1",
+	  "sourceFileName": "critter_1.png",
+	  "targetPngName": "critter_1.png",
+	  "width": 512,
+	  "height": 512
+	},
+	{
+	  "id": "critter_2",
+	  "displayName": "小生物2",
+	  "folderName": "中立_小生物2",
+	  "sourceFileName": "critter_2.png",
+	  "targetPngName": "critter_2.png",
+	  "width": 512,
+	  "height": 512
+	},
+	{
+	  "id": "f1_3rdgeneral",
+	  "displayName": "阵营1三号将军",
+	  "folderName": "f1_三号将军",
+	  "sourceFileName": "f1_3rdgeneral.png",
+	  "targetPngName": "f1_3rdgeneral.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f1_altgeneral",
+	  "displayName": "阵营1替补将军",
+	  "folderName": "f1_替补将军",
+	  "sourceFileName": "f1_altgeneral.png",
+	  "targetPngName": "f1_altgeneral.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_altgeneraltier2",
+	  "displayName": "阵营1二阶替补将军",
+	  "folderName": "f1_二阶替补将军",
+	  "sourceFileName": "f1_altgeneraltier2.png",
+	  "targetPngName": "f1_altgeneraltier2.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_archdeacon",
+	  "displayName": "阵营1Archdeacon",
+	  "folderName": "f1_异界Archdeacon",
+	  "sourceFileName": "f1_archdeacon.png",
+	  "targetPngName": "f1_archdeacon.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_auroralioness",
+	  "displayName": "阵营1极光Ioness",
+	  "folderName": "f1_极光Ioness",
+	  "sourceFileName": "f1_auroralioness.png",
+	  "targetPngName": "f1_auroralioness.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_azuritelion",
+	  "displayName": "阵营1天蓝石狮",
+	  "folderName": "f1_天蓝石狮",
+	  "sourceFileName": "f1_azuritelion.png",
+	  "targetPngName": "f1_azuritelion.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_baastchampion",
+	  "displayName": "阵营1Baast冠军",
+	  "folderName": "f1_Baast冠军",
+	  "sourceFileName": "f1_baastchampion.png",
+	  "targetPngName": "f1_baastchampion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_backlinearcher",
+	  "displayName": "阵营1后排弓手",
+	  "folderName": "f1_后排弓手",
+	  "sourceFileName": "f1_backlinearcher.png",
+	  "targetPngName": "f1_backlinearcher.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_bromemk2",
+	  "displayName": "阵营1Brome二型",
+	  "folderName": "f1_Brome二型",
+	  "sourceFileName": "f1_bromemk2.png",
+	  "targetPngName": "f1_bromemk2.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f1_buildcommon",
+	  "displayName": "阵营1通用建筑",
+	  "folderName": "f1_通用建筑",
+	  "sourceFileName": "f1_buildcommon.png",
+	  "targetPngName": "f1_buildcommon.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_buildminion",
+	  "displayName": "阵营1召唤物建筑",
+	  "folderName": "f1_召唤物建筑",
+	  "sourceFileName": "f1_buildminion.png",
+	  "targetPngName": "f1_buildminion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_caliber-o",
+	  "displayName": "阵营1CaliberO",
+	  "folderName": "f1_异界CaliberO",
+	  "sourceFileName": "f1_caliber-o.png",
+	  "targetPngName": "f1_caliber-o.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_caster",
+	  "displayName": "阵营1施法者",
+	  "folderName": "f1_施法者",
+	  "sourceFileName": "f1_caster.png",
+	  "targetPngName": "f1_caster.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_elyxstormblade",
+	  "displayName": "阵营1Elyx风暴刃",
+	  "folderName": "f1_Elyx风暴刃",
+	  "sourceFileName": "f1_elyxstormblade.png",
+	  "targetPngName": "f1_elyxstormblade.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_elyxstormblademk2",
+	  "displayName": "阵营1Elyx风暴刃二型",
+	  "folderName": "f1_Elyx风暴刃二型",
+	  "sourceFileName": "f1_elyxstormblademk2.png",
+	  "targetPngName": "f1_elyxstormblademk2.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_excelsious",
+	  "displayName": "阵营1Excelsious",
+	  "folderName": "f1_异界Excelsious",
+	  "sourceFileName": "f1_excelsious.png",
+	  "targetPngName": "f1_excelsious.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_fiz",
+	  "displayName": "阵营1Fiz",
+	  "folderName": "f1_异界Fiz",
+	  "sourceFileName": "f1_fiz.png",
+	  "targetPngName": "f1_fiz.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_friendsguard",
+	  "displayName": "阵营1Friends守卫",
+	  "folderName": "f1_Friends守卫",
+	  "sourceFileName": "f1_friendsguard.png",
+	  "targetPngName": "f1_friendsguard.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_general_skinroguelegacy",
+	  "displayName": "阵营1将军Skinroguelegacy",
+	  "folderName": "f1_将军Skinroguelegacy",
+	  "sourceFileName": "f1_general_skinroguelegacy.png",
+	  "targetPngName": "f1_general_skinroguelegacy.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_general",
+	  "displayName": "阵营1将军",
+	  "folderName": "f1_将军",
+	  "sourceFileName": "f1_general.png",
+	  "targetPngName": "f1_general.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_grandmasterzir",
+	  "displayName": "阵营1宗师Zir",
+	  "folderName": "f1_宗师Zir",
+	  "sourceFileName": "f1_grandmasterzir.png",
+	  "targetPngName": "f1_grandmasterzir.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_groundbreaker",
+	  "displayName": "阵营1Ground破坏者",
+	  "folderName": "f1_Ground破坏者",
+	  "sourceFileName": "f1_groundbreaker.png",
+	  "targetPngName": "f1_groundbreaker.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_gryphinox",
+	  "displayName": "阵营1Gryphinox",
+	  "folderName": "f1_异界Gryphinox",
+	  "sourceFileName": "f1_gryphinox.png",
+	  "targetPngName": "f1_gryphinox.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_invincibuddy",
+	  "displayName": "阵营1Invincibuddy",
+	  "folderName": "f1_异界Invincibuddy",
+	  "sourceFileName": "f1_invincibuddy.png",
+	  "targetPngName": "f1_invincibuddy.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_ironcliffeguardian",
+	  "displayName": "阵营1铁崖守护者",
+	  "folderName": "f1_铁崖守护者",
+	  "sourceFileName": "f1_ironcliffeguardian.png",
+	  "targetPngName": "f1_ironcliffeguardian.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_ironcliffemonument",
+	  "displayName": "阵营1铁崖Monument",
+	  "folderName": "f1_铁崖Monument",
+	  "sourceFileName": "f1_ironcliffemonument.png",
+	  "targetPngName": "f1_ironcliffemonument.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_kaisergladiator",
+	  "displayName": "阵营1Kaiser角斗士",
+	  "folderName": "f1_Kaiser角斗士",
+	  "sourceFileName": "f1_kaisergladiator.png",
+	  "targetPngName": "f1_kaisergladiator.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_kingsguard",
+	  "displayName": "阵营1Kings守卫",
+	  "folderName": "f1_Kings守卫",
+	  "sourceFileName": "f1_kingsguard.png",
+	  "targetPngName": "f1_kingsguard.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_leovoyant",
+	  "displayName": "阵营1Leovoyant",
+	  "folderName": "f1_异界Leovoyant",
+	  "sourceFileName": "f1_leovoyant.png",
+	  "targetPngName": "f1_leovoyant.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_mech",
+	  "displayName": "阵营1机械兵",
+	  "folderName": "f1_机械兵",
+	  "sourceFileName": "f1_mech.png",
+	  "targetPngName": "f1_mech.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_melee",
+	  "displayName": "阵营1近战兵",
+	  "folderName": "f1_近战兵",
+	  "sourceFileName": "f1_melee.png",
+	  "targetPngName": "f1_melee.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_peacekeeper",
+	  "displayName": "阵营1维和者",
+	  "folderName": "f1_维和者",
+	  "sourceFileName": "f1_peacekeeper.png",
+	  "targetPngName": "f1_peacekeeper.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_peacekeeper2",
+	  "displayName": "阵营1维和者2",
+	  "folderName": "f1_维和者2",
+	  "sourceFileName": "f1_peacekeeper2.png",
+	  "targetPngName": "f1_peacekeeper2.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_radiantdragoon",
+	  "displayName": "阵营1辉光龙骑兵",
+	  "folderName": "f1_辉光龙骑兵",
+	  "sourceFileName": "f1_radiantdragoon.png",
+	  "targetPngName": "f1_radiantdragoon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_ranged",
+	  "displayName": "阵营1远程兵",
+	  "folderName": "f1_远程兵",
+	  "sourceFileName": "f1_ranged.png",
+	  "targetPngName": "f1_ranged.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_rightfulheir",
+	  "displayName": "阵营1Rightfulheir",
+	  "folderName": "f1_异界Rightfulheir",
+	  "sourceFileName": "f1_rightfulheir.png",
+	  "targetPngName": "f1_rightfulheir.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_scintilla",
+	  "displayName": "阵营1闪烁",
+	  "folderName": "f1_闪烁",
+	  "sourceFileName": "f1_scintilla.png",
+	  "targetPngName": "f1_scintilla.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_silverguardsquire",
+	  "displayName": "阵营1白银守卫侍从",
+	  "folderName": "f1_白银守卫侍从",
+	  "sourceFileName": "f1_silverguardsquire.png",
+	  "targetPngName": "f1_silverguardsquire.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_silvermanevanguard",
+	  "displayName": "阵营1白银Manevan守卫",
+	  "folderName": "f1_白银Manevan守卫",
+	  "sourceFileName": "f1_silvermanevanguard.png",
+	  "targetPngName": "f1_silvermanevanguard.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_sinergyunit",
+	  "displayName": "阵营1Sinergyunit",
+	  "folderName": "f1_异界Sinergyunit",
+	  "sourceFileName": "f1_sinergyunit.png",
+	  "targetPngName": "f1_sinergyunit.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_sister",
+	  "displayName": "阵营1修女",
+	  "folderName": "f1_修女",
+	  "sourceFileName": "f1_sister.png",
+	  "targetPngName": "f1_sister.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_slo",
+	  "displayName": "阵营1Slo",
+	  "folderName": "f1_异界Slo",
+	  "sourceFileName": "f1_slo.png",
+	  "targetPngName": "f1_slo.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_solarius",
+	  "displayName": "阵营1Solarius",
+	  "folderName": "f1_异界Solarius",
+	  "sourceFileName": "f1_solarius.png",
+	  "targetPngName": "f1_solarius.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_solpontiff",
+	  "displayName": "阵营1Solpontiff",
+	  "folderName": "f1_异界Solpontiff",
+	  "sourceFileName": "f1_solpontiff.png",
+	  "targetPngName": "f1_solpontiff.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_special",
+	  "displayName": "阵营1特殊单位",
+	  "folderName": "f1_特殊单位",
+	  "sourceFileName": "f1_special.png",
+	  "targetPngName": "f1_special.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_spellbladeadept",
+	  "displayName": "阵营1法刃Adept",
+	  "folderName": "f1_法刃Adept",
+	  "sourceFileName": "f1_spellbladeadept.png",
+	  "targetPngName": "f1_spellbladeadept.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_sunbreaker",
+	  "displayName": "阵营1破日Er",
+	  "folderName": "f1_破日Er",
+	  "sourceFileName": "f1_sunbreaker.png",
+	  "targetPngName": "f1_sunbreaker.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_sunbreakguardian",
+	  "displayName": "阵营1破日守护者",
+	  "folderName": "f1_破日守护者",
+	  "sourceFileName": "f1_sunbreakguardian.png",
+	  "targetPngName": "f1_sunbreakguardian.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_sunforgelancer",
+	  "displayName": "阵营1日铸枪兵",
+	  "folderName": "f1_日铸枪兵",
+	  "sourceFileName": "f1_sunforgelancer.png",
+	  "targetPngName": "f1_sunforgelancer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_sunriser",
+	  "displayName": "阵营1日升R",
+	  "folderName": "f1_日升R",
+	  "sourceFileName": "f1_sunriser.png",
+	  "targetPngName": "f1_sunriser.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_sunstonemaiden",
+	  "displayName": "阵营1日石Maiden",
+	  "folderName": "f1_日石Maiden",
+	  "sourceFileName": "f1_sunstonemaiden.png",
+	  "targetPngName": "f1_sunstonemaiden.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_sunstonetemplar",
+	  "displayName": "阵营1日石Templar",
+	  "folderName": "f1_日石Templar",
+	  "sourceFileName": "f1_sunstonetemplar.png",
+	  "targetPngName": "f1_sunstonetemplar.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_sunwisp",
+	  "displayName": "阵营1太阳精灵",
+	  "folderName": "f1_太阳精灵",
+	  "sourceFileName": "f1_sunwisp.png",
+	  "targetPngName": "f1_sunwisp.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_support",
+	  "displayName": "阵营1支援者",
+	  "folderName": "f1_支援者",
+	  "sourceFileName": "f1_support.png",
+	  "targetPngName": "f1_support.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_tank",
+	  "displayName": "阵营1重装兵",
+	  "folderName": "f1_重装兵",
+	  "sourceFileName": "f1_tank.png",
+	  "targetPngName": "f1_tank.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_tier2general",
+	  "displayName": "阵营1二阶将军",
+	  "folderName": "f1_二阶将军",
+	  "sourceFileName": "f1_tier2general.png",
+	  "targetPngName": "f1_tier2general.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_warblade",
+	  "displayName": "阵营1战刃",
+	  "folderName": "f1_战刃",
+	  "sourceFileName": "f1_warblade.png",
+	  "targetPngName": "f1_warblade.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_windbladecommander",
+	  "displayName": "阵营1风刃指挥官",
+	  "folderName": "f1_风刃指挥官",
+	  "sourceFileName": "f1_windbladecommander.png",
+	  "targetPngName": "f1_windbladecommander.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f1_xylestormblade",
+	  "displayName": "阵营1Xyle风暴刃",
+	  "folderName": "f1_Xyle风暴刃",
+	  "sourceFileName": "f1_xylestormblade.png",
+	  "targetPngName": "f1_xylestormblade.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_3rdgeneral",
+	  "displayName": "阵营2三号将军",
+	  "folderName": "f2_三号将军",
+	  "sourceFileName": "f2_3rdgeneral.png",
+	  "targetPngName": "f2_3rdgeneral.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_ace",
+	  "displayName": "阵营2Ace",
+	  "folderName": "f2_异界Ace",
+	  "sourceFileName": "f2_ace.png",
+	  "targetPngName": "f2_ace.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_altgeneral",
+	  "displayName": "阵营2替补将军",
+	  "folderName": "f2_替补将军",
+	  "sourceFileName": "f2_altgeneral.png",
+	  "targetPngName": "f2_altgeneral.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_altgeneraltier2",
+	  "displayName": "阵营2二阶替补将军",
+	  "folderName": "f2_二阶替补将军",
+	  "sourceFileName": "f2_altgeneraltier2.png",
+	  "targetPngName": "f2_altgeneraltier2.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f2_buildcommon",
+	  "displayName": "阵营2通用建筑",
+	  "folderName": "f2_通用建筑",
+	  "sourceFileName": "f2_buildcommon.png",
+	  "targetPngName": "f2_buildcommon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_buildlegendary",
+	  "displayName": "阵营2传奇建筑",
+	  "folderName": "f2_传奇建筑",
+	  "sourceFileName": "f2_buildlegendary.png",
+	  "targetPngName": "f2_buildlegendary.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_buildminion",
+	  "displayName": "阵营2召唤物建筑",
+	  "folderName": "f2_召唤物建筑",
+	  "sourceFileName": "f2_buildminion.png",
+	  "targetPngName": "f2_buildminion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_caligrapher",
+	  "displayName": "阵营2Caligrapher",
+	  "folderName": "f2_异界Caligrapher",
+	  "sourceFileName": "f2_caligrapher.png",
+	  "targetPngName": "f2_caligrapher.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_caster",
+	  "displayName": "阵营2施法者",
+	  "folderName": "f2_施法者",
+	  "sourceFileName": "f2_caster.png",
+	  "targetPngName": "f2_caster.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_chakriavatar",
+	  "displayName": "阵营2Chakriavatar",
+	  "folderName": "f2_异界Chakriavatar",
+	  "sourceFileName": "f2_chakriavatar.png",
+	  "targetPngName": "f2_chakriavatar.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_deathphantom",
+	  "displayName": "阵营2死亡Phantom",
+	  "folderName": "f2_死亡Phantom",
+	  "sourceFileName": "f2_deathphantom.png",
+	  "targetPngName": "f2_deathphantom.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_demononi",
+	  "displayName": "阵营2恶魔Oni",
+	  "folderName": "f2_恶魔Oni",
+	  "sourceFileName": "f2_demononi.png",
+	  "targetPngName": "f2_demononi.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_eclipseasura",
+	  "displayName": "阵营2Eclipseasura",
+	  "folderName": "f2_异界Eclipseasura",
+	  "sourceFileName": "f2_eclipseasura.png",
+	  "targetPngName": "f2_eclipseasura.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_eternitypainter",
+	  "displayName": "阵营2Eternitypainter",
+	  "folderName": "f2_异界Eternitypainter",
+	  "sourceFileName": "f2_eternitypainter.png",
+	  "targetPngName": "f2_eternitypainter.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_firewyrm",
+	  "displayName": "阵营2火Wyrm",
+	  "folderName": "f2_火Wyrm",
+	  "sourceFileName": "f2_firewyrm.png",
+	  "targetPngName": "f2_firewyrm.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_flareslinger",
+	  "displayName": "阵营2Flareslinger",
+	  "folderName": "f2_异界Flareslinger",
+	  "sourceFileName": "f2_flareslinger.png",
+	  "targetPngName": "f2_flareslinger.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_general_skindogehai",
+	  "displayName": "阵营2将军Skindogehai",
+	  "folderName": "f2_将军Skindogehai",
+	  "sourceFileName": "f2_general_skindogehai.png",
+	  "targetPngName": "f2_general_skindogehai.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_general",
+	  "displayName": "阵营2将军",
+	  "folderName": "f2_将军",
+	  "sourceFileName": "f2_general.png",
+	  "targetPngName": "f2_general.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_geomancer",
+	  "displayName": "阵营2地脉术士",
+	  "folderName": "f2_地脉术士",
+	  "sourceFileName": "f2_geomancer.png",
+	  "targetPngName": "f2_geomancer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_godpalmblacktiger",
+	  "displayName": "阵营2Godpalmblacktiger",
+	  "folderName": "f2_异界Godpalmblacktiger",
+	  "sourceFileName": "f2_godpalmblacktiger.png",
+	  "targetPngName": "f2_godpalmblacktiger.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_grandmasterzendo",
+	  "displayName": "阵营2宗师Zendo",
+	  "folderName": "f2_宗师Zendo",
+	  "sourceFileName": "f2_grandmasterzendo.png",
+	  "targetPngName": "f2_grandmasterzendo.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_hammonnladeseeker",
+	  "displayName": "阵营2Hammonnladeseeker",
+	  "folderName": "f2_异界Hammonnladeseeker",
+	  "sourceFileName": "f2_hammonnladeseeker.png",
+	  "targetPngName": "f2_hammonnladeseeker.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_heartofthesonghai",
+	  "displayName": "阵营2Heartofthesonghai",
+	  "folderName": "f2_异界Heartofthesonghai",
+	  "sourceFileName": "f2_heartofthesonghai.png",
+	  "targetPngName": "f2_heartofthesonghai.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_katara",
+	  "displayName": "阵营2Katara",
+	  "folderName": "f2_异界Katara",
+	  "sourceFileName": "f2_katara.png",
+	  "targetPngName": "f2_katara.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_keshraifanblade",
+	  "displayName": "阵营2Keshraifan刃",
+	  "folderName": "f2_Keshraifan刃",
+	  "sourceFileName": "f2_keshraifanblade.png",
+	  "targetPngName": "f2_keshraifanblade.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_kibeholder",
+	  "displayName": "阵营2Kibeholder",
+	  "folderName": "f2_异界Kibeholder",
+	  "sourceFileName": "f2_kibeholder.png",
+	  "targetPngName": "f2_kibeholder.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_kindling",
+	  "displayName": "阵营2Kindling",
+	  "folderName": "f2_异界Kindling",
+	  "sourceFileName": "f2_kindling.png",
+	  "targetPngName": "f2_kindling.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_lanternfox",
+	  "displayName": "阵营2Lantern狐",
+	  "folderName": "f2_Lantern狐",
+	  "sourceFileName": "f2_lanternfox.png",
+	  "targetPngName": "f2_lanternfox.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_mage4winds",
+	  "displayName": "阵营2Mage4风S",
+	  "folderName": "f2_Mage4风S",
+	  "sourceFileName": "f2_mage4winds.png",
+	  "targetPngName": "f2_mage4winds.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_masteroftaikwai",
+	  "displayName": "阵营2大师Oftaikwai",
+	  "folderName": "f2_大师Oftaikwai",
+	  "sourceFileName": "f2_masteroftaikwai.png",
+	  "targetPngName": "f2_masteroftaikwai.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_mech",
+	  "displayName": "阵营2机械兵",
+	  "folderName": "f2_机械兵",
+	  "sourceFileName": "f2_mech.png",
+	  "targetPngName": "f2_mech.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_melee",
+	  "displayName": "阵营2近战兵",
+	  "folderName": "f2_近战兵",
+	  "sourceFileName": "f2_melee.png",
+	  "targetPngName": "f2_melee.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_ogremonk02",
+	  "displayName": "阵营2Ogremonk02",
+	  "folderName": "f2_异界Ogremonk02",
+	  "sourceFileName": "f2_ogremonk02.png",
+	  "targetPngName": "f2_ogremonk02.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_onnabugeisha",
+	  "displayName": "阵营2Onnabugeisha",
+	  "folderName": "f2_异界Onnabugeisha",
+	  "sourceFileName": "f2_onnabugeisha.png",
+	  "targetPngName": "f2_onnabugeisha.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_onyxjaguar",
+	  "displayName": "阵营2Onyxjaguar",
+	  "folderName": "f2_异界Onyxjaguar",
+	  "sourceFileName": "f2_onyxjaguar.png",
+	  "targetPngName": "f2_onyxjaguar.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_orizuru",
+	  "displayName": "阵营2Orizuru",
+	  "folderName": "f2_异界Orizuru",
+	  "sourceFileName": "f2_orizuru.png",
+	  "targetPngName": "f2_orizuru.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_pandabear",
+	  "displayName": "阵营2熊猫熊",
+	  "folderName": "f2_熊猫熊",
+	  "sourceFileName": "f2_pandabear.png",
+	  "targetPngName": "f2_pandabear.png",
+	  "width": 512,
+	  "height": 512
+	},
+	{
+	  "id": "f2_pandabear02",
+	  "displayName": "阵营2熊猫熊02",
+	  "folderName": "f2_熊猫熊02",
+	  "sourceFileName": "f2_pandabear02.png",
+	  "targetPngName": "f2_pandabear02.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_panddo",
+	  "displayName": "阵营2Panddo",
+	  "folderName": "f2_异界Panddo",
+	  "sourceFileName": "f2_panddo.png",
+	  "targetPngName": "f2_panddo.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_paperdropper",
+	  "displayName": "阵营2Paperdropper",
+	  "folderName": "f2_异界Paperdropper",
+	  "sourceFileName": "f2_paperdropper.png",
+	  "targetPngName": "f2_paperdropper.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_ranged",
+	  "displayName": "阵营2远程兵",
+	  "folderName": "f2_远程兵",
+	  "sourceFileName": "f2_ranged.png",
+	  "targetPngName": "f2_ranged.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_seenoevil",
+	  "displayName": "阵营2Seenoevil",
+	  "folderName": "f2_异界Seenoevil",
+	  "sourceFileName": "f2_seenoevil.png",
+	  "targetPngName": "f2_seenoevil.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_sekitori",
+	  "displayName": "阵营2Sekitori",
+	  "folderName": "f2_异界Sekitori",
+	  "sourceFileName": "f2_sekitori.png",
+	  "targetPngName": "f2_sekitori.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_sepukku",
+	  "displayName": "阵营2Sepukku",
+	  "folderName": "f2_异界Sepukku",
+	  "sourceFileName": "f2_sepukku.png",
+	  "targetPngName": "f2_sepukku.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_shidaimk2",
+	  "displayName": "阵营2Shidai二型",
+	  "folderName": "f2_Shidai二型",
+	  "sourceFileName": "f2_shidaimk2.png",
+	  "targetPngName": "f2_shidaimk2.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f2_sister",
+	  "displayName": "阵营2修女",
+	  "folderName": "f2_修女",
+	  "sourceFileName": "f2_sister.png",
+	  "targetPngName": "f2_sister.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_songhaisentinel",
+	  "displayName": "阵营2Songhaisentinel",
+	  "folderName": "f2_异界Songhaisentinel",
+	  "sourceFileName": "f2_songhaisentinel.png",
+	  "targetPngName": "f2_songhaisentinel.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f2_sparrowhawk",
+	  "displayName": "阵营2Sparrow鹰",
+	  "folderName": "f2_Sparrow鹰",
+	  "sourceFileName": "f2_sparrowhawk.png",
+	  "targetPngName": "f2_sparrowhawk.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_special",
+	  "displayName": "阵营2特殊单位",
+	  "folderName": "f2_特殊单位",
+	  "sourceFileName": "f2_special.png",
+	  "targetPngName": "f2_special.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_spellthief",
+	  "displayName": "阵营2法术Thief",
+	  "folderName": "f2_法术Thief",
+	  "sourceFileName": "f2_spellthief.png",
+	  "targetPngName": "f2_spellthief.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_stormkage",
+	  "displayName": "阵营2风暴Kage",
+	  "folderName": "f2_风暴Kage",
+	  "sourceFileName": "f2_stormkage.png",
+	  "targetPngName": "f2_stormkage.png",
+	  "width": 256,
+	  "height": 2048
+	},
+	{
+	  "id": "f2_supekuta",
+	  "displayName": "阵营2Supekuta",
+	  "folderName": "f2_异界Supekuta",
+	  "sourceFileName": "f2_supekuta.png",
+	  "targetPngName": "f2_supekuta.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_support",
+	  "displayName": "阵营2支援者",
+	  "folderName": "f2_支援者",
+	  "sourceFileName": "f2_support.png",
+	  "targetPngName": "f2_support.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_synergyunit",
+	  "displayName": "阵营2Synergyunit",
+	  "folderName": "f2_异界Synergyunit",
+	  "sourceFileName": "f2_synergyunit.png",
+	  "targetPngName": "f2_synergyunit.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_tank",
+	  "displayName": "阵营2重装兵",
+	  "folderName": "f2_重装兵",
+	  "sourceFileName": "f2_tank.png",
+	  "targetPngName": "f2_tank.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_tier2general",
+	  "displayName": "阵营2二阶将军",
+	  "folderName": "f2_二阶将军",
+	  "sourceFileName": "f2_tier2general.png",
+	  "targetPngName": "f2_tier2general.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f2_twilightfox",
+	  "displayName": "阵营2Twilight狐",
+	  "folderName": "f2_Twilight狐",
+	  "sourceFileName": "f2_twilightfox.png",
+	  "targetPngName": "f2_twilightfox.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f2_xho",
+	  "displayName": "阵营2Xho",
+	  "folderName": "f2_异界Xho",
+	  "sourceFileName": "f2_xho.png",
+	  "targetPngName": "f2_xho.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_3rdgeneral",
+	  "displayName": "阵营3三号将军",
+	  "folderName": "f3_三号将军",
+	  "sourceFileName": "f3_3rdgeneral.png",
+	  "targetPngName": "f3_3rdgeneral.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_allomancer",
+	  "displayName": "阵营3Allomancer",
+	  "folderName": "f3_异界Allomancer",
+	  "sourceFileName": "f3_allomancer.png",
+	  "targetPngName": "f3_allomancer.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_altgeneral",
+	  "displayName": "阵营3替补将军",
+	  "folderName": "f3_替补将军",
+	  "sourceFileName": "f3_altgeneral.png",
+	  "targetPngName": "f3_altgeneral.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_altgeneraltier2",
+	  "displayName": "阵营3二阶替补将军",
+	  "folderName": "f3_二阶替补将军",
+	  "sourceFileName": "f3_altgeneraltier2.png",
+	  "targetPngName": "f3_altgeneraltier2.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f3_anubis",
+	  "displayName": "阵营3Anubis",
+	  "folderName": "f3_异界Anubis",
+	  "sourceFileName": "f3_anubis.png",
+	  "targetPngName": "f3_anubis.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_aymarahealer",
+	  "displayName": "阵营3Aymarahealer",
+	  "folderName": "f3_异界Aymarahealer",
+	  "sourceFileName": "f3_aymarahealer.png",
+	  "targetPngName": "f3_aymarahealer.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_badlandsscout",
+	  "displayName": "阵营3Badlandsscout",
+	  "folderName": "f3_异界Badlandsscout",
+	  "sourceFileName": "f3_badlandsscout.png",
+	  "targetPngName": "f3_badlandsscout.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_bobble",
+	  "displayName": "阵营3Bobble",
+	  "folderName": "f3_异界Bobble",
+	  "sourceFileName": "f3_bobble.png",
+	  "targetPngName": "f3_bobble.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_buildcommon",
+	  "displayName": "阵营3通用建筑",
+	  "folderName": "f3_通用建筑",
+	  "sourceFileName": "f3_buildcommon.png",
+	  "targetPngName": "f3_buildcommon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_buildminion",
+	  "displayName": "阵营3召唤物建筑",
+	  "folderName": "f3_召唤物建筑",
+	  "sourceFileName": "f3_buildminion.png",
+	  "targetPngName": "f3_buildminion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_ciphyronmk2",
+	  "displayName": "阵营3Ciphyron二型",
+	  "folderName": "f3_Ciphyron二型",
+	  "sourceFileName": "f3_ciphyronmk2.png",
+	  "targetPngName": "f3_ciphyronmk2.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_curseddervish",
+	  "displayName": "阵营3Curseddervish",
+	  "folderName": "f3_异界Curseddervish",
+	  "sourceFileName": "f3_curseddervish.png",
+	  "targetPngName": "f3_curseddervish.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_deathobelysk",
+	  "displayName": "阵营3死亡Obelysk",
+	  "folderName": "f3_死亡Obelysk",
+	  "sourceFileName": "f3_deathobelysk.png",
+	  "targetPngName": "f3_deathobelysk.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_dervish",
+	  "displayName": "阵营3Dervish",
+	  "folderName": "f3_异界Dervish",
+	  "sourceFileName": "f3_dervish.png",
+	  "targetPngName": "f3_dervish.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_desertspirit",
+	  "displayName": "阵营3Desert灵魂",
+	  "folderName": "f3_Desert灵魂",
+	  "sourceFileName": "f3_desertspirit.png",
+	  "targetPngName": "f3_desertspirit.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_dreamshaper",
+	  "displayName": "阵营3Dreamshaper",
+	  "folderName": "f3_异界Dreamshaper",
+	  "sourceFileName": "f3_dreamshaper.png",
+	  "targetPngName": "f3_dreamshaper.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_dunecaster",
+	  "displayName": "阵营3Dune施法者",
+	  "folderName": "f3_Dune施法者",
+	  "sourceFileName": "f3_dunecaster.png",
+	  "targetPngName": "f3_dunecaster.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_duskweaver",
+	  "displayName": "阵营3Duskweaver",
+	  "folderName": "f3_异界Duskweaver",
+	  "sourceFileName": "f3_duskweaver.png",
+	  "targetPngName": "f3_duskweaver.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_endlessobelysk",
+	  "displayName": "阵营3Endlessobelysk",
+	  "folderName": "f3_异界Endlessobelysk",
+	  "sourceFileName": "f3_endlessobelysk.png",
+	  "targetPngName": "f3_endlessobelysk.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_eurus",
+	  "displayName": "阵营3Eurus",
+	  "folderName": "f3_异界Eurus",
+	  "sourceFileName": "f3_eurus.png",
+	  "targetPngName": "f3_eurus.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_falcius",
+	  "displayName": "阵营3Falcius",
+	  "folderName": "f3_异界Falcius",
+	  "sourceFileName": "f3_falcius.png",
+	  "targetPngName": "f3_falcius.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_general",
+	  "displayName": "阵营3将军",
+	  "folderName": "f3_将军",
+	  "sourceFileName": "f3_general.png",
+	  "targetPngName": "f3_general.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_glassmirage",
+	  "displayName": "阵营3Glassmirage",
+	  "folderName": "f3_异界Glassmirage",
+	  "sourceFileName": "f3_glassmirage.png",
+	  "targetPngName": "f3_glassmirage.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_grandmasternoshrak",
+	  "displayName": "阵营3宗师Noshrak",
+	  "folderName": "f3_宗师Noshrak",
+	  "sourceFileName": "f3_grandmasternoshrak.png",
+	  "targetPngName": "f3_grandmasternoshrak.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_incinera",
+	  "displayName": "阵营3Incinera",
+	  "folderName": "f3_异界Incinera",
+	  "sourceFileName": "f3_incinera.png",
+	  "targetPngName": "f3_incinera.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_insightcaster",
+	  "displayName": "阵营3Insight施法者",
+	  "folderName": "f3_Insight施法者",
+	  "sourceFileName": "f3_insightcaster.png",
+	  "targetPngName": "f3_insightcaster.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_irondervish",
+	  "displayName": "阵营3铁Dervish",
+	  "folderName": "f3_铁Dervish",
+	  "sourceFileName": "f3_irondervish.png",
+	  "targetPngName": "f3_irondervish.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_ishtarhunter",
+	  "displayName": "阵营3Ishtarhunter",
+	  "folderName": "f3_异界Ishtarhunter",
+	  "sourceFileName": "f3_ishtarhunter.png",
+	  "targetPngName": "f3_ishtarhunter.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_keeperofages",
+	  "displayName": "阵营3守望者Ofages",
+	  "folderName": "f3_守望者Ofages",
+	  "sourceFileName": "f3_keeperofages.png",
+	  "targetPngName": "f3_keeperofages.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_lavastormobelysk",
+	  "displayName": "阵营3Lava风暴Obelysk",
+	  "folderName": "f3_Lava风暴Obelysk",
+	  "sourceFileName": "f3_lavastormobelysk.png",
+	  "targetPngName": "f3_lavastormobelysk.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_mech",
+	  "displayName": "阵营3机械兵",
+	  "folderName": "f3_机械兵",
+	  "sourceFileName": "f3_mech.png",
+	  "targetPngName": "f3_mech.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_miniscarab",
+	  "displayName": "阵营3Miniscarab",
+	  "folderName": "f3_异界Miniscarab",
+	  "sourceFileName": "f3_miniscarab.png",
+	  "targetPngName": "f3_miniscarab.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f3_nimbus",
+	  "displayName": "阵营3Nimbus",
+	  "folderName": "f3_异界Nimbus",
+	  "sourceFileName": "f3_nimbus.png",
+	  "targetPngName": "f3_nimbus.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_obelyskduskwind",
+	  "displayName": "阵营3Obelyskdusk风",
+	  "folderName": "f3_Obelyskdusk风",
+	  "sourceFileName": "f3_obelyskduskwind.png",
+	  "targetPngName": "f3_obelyskduskwind.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_obelyskgoldenflame",
+	  "displayName": "阵营3Obelysk黄金火焰",
+	  "folderName": "f3_Obelysk黄金火焰",
+	  "sourceFileName": "f3_obelyskgoldenflame.png",
+	  "targetPngName": "f3_obelyskgoldenflame.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_obelyskredsand",
+	  "displayName": "阵营3Obelyskred沙",
+	  "folderName": "f3_Obelyskred沙",
+	  "sourceFileName": "f3_obelyskredsand.png",
+	  "targetPngName": "f3_obelyskredsand.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_onyxpantheran",
+	  "displayName": "阵营3Onyx豹An",
+	  "folderName": "f3_Onyx豹An",
+	  "sourceFileName": "f3_onyxpantheran.png",
+	  "targetPngName": "f3_onyxpantheran.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_orbweaver",
+	  "displayName": "阵营3Orbweaver",
+	  "folderName": "f3_异界Orbweaver",
+	  "sourceFileName": "f3_orbweaver.png",
+	  "targetPngName": "f3_orbweaver.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_palacetrinketeer",
+	  "displayName": "阵营3Palacetrinketeer",
+	  "folderName": "f3_异界Palacetrinketeer",
+	  "sourceFileName": "f3_palacetrinketeer.png",
+	  "targetPngName": "f3_palacetrinketeer.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_pax",
+	  "displayName": "阵营3Pax",
+	  "folderName": "f3_异界Pax",
+	  "sourceFileName": "f3_pax.png",
+	  "targetPngName": "f3_pax.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_plague_totem",
+	  "displayName": "阵营3PlagueTotem",
+	  "folderName": "f3_异界PlagueTotem",
+	  "sourceFileName": "f3_plague_totem.png",
+	  "targetPngName": "f3_plague_totem.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_pyromancer",
+	  "displayName": "阵营3Pyromancer",
+	  "folderName": "f3_异界Pyromancer",
+	  "sourceFileName": "f3_pyromancer.png",
+	  "targetPngName": "f3_pyromancer.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_rae",
+	  "displayName": "阵营3Rae",
+	  "folderName": "f3_异界Rae",
+	  "sourceFileName": "f3_rae.png",
+	  "targetPngName": "f3_rae.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_rehorah",
+	  "displayName": "阵营3Rehorah",
+	  "folderName": "f3_异界Rehorah",
+	  "sourceFileName": "f3_rehorah.png",
+	  "targetPngName": "f3_rehorah.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_sakkak",
+	  "displayName": "阵营3Sakkak",
+	  "folderName": "f3_异界Sakkak",
+	  "sourceFileName": "f3_sakkak.png",
+	  "targetPngName": "f3_sakkak.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_sandhowler",
+	  "displayName": "阵营3沙Howler",
+	  "folderName": "f3_沙Howler",
+	  "sourceFileName": "f3_sandhowler.png",
+	  "targetPngName": "f3_sandhowler.png",
+	  "width": 256,
+	  "height": 2048
+	},
+	{
+	  "id": "f3_scarabtera",
+	  "displayName": "阵营3Scarabtera",
+	  "folderName": "f3_异界Scarabtera",
+	  "sourceFileName": "f3_scarabtera.png",
+	  "targetPngName": "f3_scarabtera.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_sinergyunit",
+	  "displayName": "阵营3Sinergyunit",
+	  "folderName": "f3_异界Sinergyunit",
+	  "sourceFileName": "f3_sinergyunit.png",
+	  "targetPngName": "f3_sinergyunit.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_sirocco",
+	  "displayName": "阵营3Sirocco",
+	  "folderName": "f3_异界Sirocco",
+	  "sourceFileName": "f3_sirocco.png",
+	  "targetPngName": "f3_sirocco.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_sister",
+	  "displayName": "阵营3修女",
+	  "folderName": "f3_修女",
+	  "sourceFileName": "f3_sister.png",
+	  "targetPngName": "f3_sister.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_starfirescarab",
+	  "displayName": "阵营3Star火Scarab",
+	  "folderName": "f3_Star火Scarab",
+	  "sourceFileName": "f3_starfirescarab.png",
+	  "targetPngName": "f3_starfirescarab.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_tier2general",
+	  "displayName": "阵营3二阶将军",
+	  "folderName": "f3_二阶将军",
+	  "sourceFileName": "f3_tier2general.png",
+	  "targetPngName": "f3_tier2general.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f3_trifectaperfecta",
+	  "displayName": "阵营3Trifectaperfecta",
+	  "folderName": "f3_异界Trifectaperfecta",
+	  "sourceFileName": "f3_trifectaperfecta.png",
+	  "targetPngName": "f3_trifectaperfecta.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_windgiver",
+	  "displayName": "阵营3风Giver",
+	  "folderName": "f3_风Giver",
+	  "sourceFileName": "f3_windgiver.png",
+	  "targetPngName": "f3_windgiver.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_windshriek",
+	  "displayName": "阵营3风Shriek",
+	  "folderName": "f3_风Shriek",
+	  "sourceFileName": "f3_windshriek.png",
+	  "targetPngName": "f3_windshriek.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_windslicer",
+	  "displayName": "阵营3风Sl冰R",
+	  "folderName": "f3_风Sl冰R",
+	  "sourceFileName": "f3_windslicer.png",
+	  "targetPngName": "f3_windslicer.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_windstriker",
+	  "displayName": "阵营3风Striker",
+	  "folderName": "f3_风Striker",
+	  "sourceFileName": "f3_windstriker.png",
+	  "targetPngName": "f3_windstriker.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_zephyr",
+	  "displayName": "阵营3Zephyr",
+	  "folderName": "f3_异界Zephyr",
+	  "sourceFileName": "f3_zephyr.png",
+	  "targetPngName": "f3_zephyr.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_zirixfestive",
+	  "displayName": "阵营3Zirix节庆",
+	  "folderName": "f3_Zirix节庆",
+	  "sourceFileName": "f3_zirixfestive.png",
+	  "targetPngName": "f3_zirixfestive.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_zodiac",
+	  "displayName": "阵营3Zodiac",
+	  "folderName": "f3_异界Zodiac",
+	  "sourceFileName": "f3_zodiac.png",
+	  "targetPngName": "f3_zodiac.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f3_zodiac02",
+	  "displayName": "阵营3Zodiac02",
+	  "folderName": "f3_异界Zodiac02",
+	  "sourceFileName": "f3_zodiac02.png",
+	  "targetPngName": "f3_zodiac02.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_3rdgeneral",
+	  "displayName": "阵营4三号将军",
+	  "folderName": "f4_三号将军",
+	  "sourceFileName": "f4_3rdgeneral.png",
+	  "targetPngName": "f4_3rdgeneral.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f4_abomination",
+	  "displayName": "阵营4Abomination",
+	  "folderName": "f4_异界Abomination",
+	  "sourceFileName": "f4_abomination.png",
+	  "targetPngName": "f4_abomination.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_abyssiansentinel",
+	  "displayName": "阵营4Abyssiansentinel",
+	  "folderName": "f4_异界Abyssiansentinel",
+	  "sourceFileName": "f4_abyssiansentinel.png",
+	  "targetPngName": "f4_abyssiansentinel.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_altgeneral",
+	  "displayName": "阵营4替补将军",
+	  "folderName": "f4_替补将军",
+	  "sourceFileName": "f4_altgeneral.png",
+	  "targetPngName": "f4_altgeneral.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f4_altgeneraltier2",
+	  "displayName": "阵营4二阶替补将军",
+	  "folderName": "f4_二阶替补将军",
+	  "sourceFileName": "f4_altgeneraltier2.png",
+	  "targetPngName": "f4_altgeneraltier2.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f4_arachne",
+	  "displayName": "阵营4Arachne",
+	  "folderName": "f4_异界Arachne",
+	  "sourceFileName": "f4_arachne.png",
+	  "targetPngName": "f4_arachne.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_arcanedevourer",
+	  "displayName": "阵营4Arcanedevourer",
+	  "folderName": "f4_异界Arcanedevourer",
+	  "sourceFileName": "f4_arcanedevourer.png",
+	  "targetPngName": "f4_arcanedevourer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_blacksolus",
+	  "displayName": "阵营4Blacksolus",
+	  "folderName": "f4_异界Blacksolus",
+	  "sourceFileName": "f4_blacksolus.png",
+	  "targetPngName": "f4_blacksolus.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_bloodbaronette",
+	  "displayName": "阵营4Bloodbaronette",
+	  "folderName": "f4_异界Bloodbaronette",
+	  "sourceFileName": "f4_bloodbaronette.png",
+	  "targetPngName": "f4_bloodbaronette.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_bloodmoon",
+	  "displayName": "阵营4Blood月",
+	  "folderName": "f4_Blood月",
+	  "sourceFileName": "f4_bloodmoon.png",
+	  "targetPngName": "f4_bloodmoon.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_buildcommon",
+	  "displayName": "阵营4通用建筑",
+	  "folderName": "f4_通用建筑",
+	  "sourceFileName": "f4_buildcommon.png",
+	  "targetPngName": "f4_buildcommon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_buildlegendary",
+	  "displayName": "阵营4传奇建筑",
+	  "folderName": "f4_传奇建筑",
+	  "sourceFileName": "f4_buildlegendary.png",
+	  "targetPngName": "f4_buildlegendary.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_buildminion",
+	  "displayName": "阵营4召唤物建筑",
+	  "folderName": "f4_召唤物建筑",
+	  "sourceFileName": "f4_buildminion.png",
+	  "targetPngName": "f4_buildminion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_crawler",
+	  "displayName": "阵营4Crawler",
+	  "folderName": "f4_异界Crawler",
+	  "sourceFileName": "f4_crawler.png",
+	  "targetPngName": "f4_crawler.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_creepmangler",
+	  "displayName": "阵营4Creepmangler",
+	  "folderName": "f4_异界Creepmangler",
+	  "sourceFileName": "f4_creepmangler.png",
+	  "targetPngName": "f4_creepmangler.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_creepydemon",
+	  "displayName": "阵营4Creepy恶魔",
+	  "folderName": "f4_Creepy恶魔",
+	  "sourceFileName": "f4_creepydemon.png",
+	  "targetPngName": "f4_creepydemon.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_daemondeep",
+	  "displayName": "阵营4Daemondeep",
+	  "folderName": "f4_异界Daemondeep",
+	  "sourceFileName": "f4_daemondeep.png",
+	  "targetPngName": "f4_daemondeep.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_daemongate",
+	  "displayName": "阵营4Daemongate",
+	  "folderName": "f4_异界Daemongate",
+	  "sourceFileName": "f4_daemongate.png",
+	  "targetPngName": "f4_daemongate.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_daemonvoid",
+	  "displayName": "阵营4Daemon虚空",
+	  "folderName": "f4_Daemon虚空",
+	  "sourceFileName": "f4_daemonvoid.png",
+	  "targetPngName": "f4_daemonvoid.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_darkspine",
+	  "displayName": "阵营4黑暗Spine",
+	  "folderName": "f4_黑暗Spine",
+	  "sourceFileName": "f4_darkspine.png",
+	  "targetPngName": "f4_darkspine.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_deathknell",
+	  "displayName": "阵营4死亡Knell",
+	  "folderName": "f4_死亡Knell",
+	  "sourceFileName": "f4_deathknell.png",
+	  "targetPngName": "f4_deathknell.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_demonofeternity",
+	  "displayName": "阵营4恶魔Ofeternity",
+	  "folderName": "f4_恶魔Ofeternity",
+	  "sourceFileName": "f4_demonofeternity.png",
+	  "targetPngName": "f4_demonofeternity.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_desolater",
+	  "displayName": "阵营4Desolater",
+	  "folderName": "f4_异界Desolater",
+	  "sourceFileName": "f4_desolater.png",
+	  "targetPngName": "f4_desolater.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_engulfingshadow",
+	  "displayName": "阵营4Engulfing暗影",
+	  "folderName": "f4_Engulfing暗影",
+	  "sourceFileName": "f4_engulfingshadow.png",
+	  "targetPngName": "f4_engulfingshadow.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_fallenaspect",
+	  "displayName": "阵营4Fallenaspect",
+	  "folderName": "f4_异界Fallenaspect",
+	  "sourceFileName": "f4_fallenaspect.png",
+	  "targetPngName": "f4_fallenaspect.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_furosa",
+	  "displayName": "阵营4Furosa",
+	  "folderName": "f4_异界Furosa",
+	  "sourceFileName": "f4_furosa.png",
+	  "targetPngName": "f4_furosa.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_general",
+	  "displayName": "阵营4将军",
+	  "folderName": "f4_将军",
+	  "sourceFileName": "f4_general.png",
+	  "targetPngName": "f4_general.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_gloomchaser",
+	  "displayName": "阵营4Gloomchaser",
+	  "folderName": "f4_异界Gloomchaser",
+	  "sourceFileName": "f4_gloomchaser.png",
+	  "targetPngName": "f4_gloomchaser.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_gor",
+	  "displayName": "阵营4Gor",
+	  "folderName": "f4_异界Gor",
+	  "sourceFileName": "f4_gor.png",
+	  "targetPngName": "f4_gor.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_grandmastervariax",
+	  "displayName": "阵营4宗师Variax",
+	  "folderName": "f4_宗师Variax",
+	  "sourceFileName": "f4_grandmastervariax.png",
+	  "targetPngName": "f4_grandmastervariax.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_horror",
+	  "displayName": "阵营4Horror",
+	  "folderName": "f4_异界Horror",
+	  "sourceFileName": "f4_horror.png",
+	  "targetPngName": "f4_horror.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_horrorburster",
+	  "displayName": "阵营4Horrorburster",
+	  "folderName": "f4_异界Horrorburster",
+	  "sourceFileName": "f4_horrorburster.png",
+	  "targetPngName": "f4_horrorburster.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_husk",
+	  "displayName": "阵营4Husk",
+	  "folderName": "f4_异界Husk",
+	  "sourceFileName": "f4_husk.png",
+	  "targetPngName": "f4_husk.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f4_juggernaut",
+	  "displayName": "阵营4Juggernaut",
+	  "folderName": "f4_异界Juggernaut",
+	  "sourceFileName": "f4_juggernaut.png",
+	  "targetPngName": "f4_juggernaut.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_klaxon",
+	  "displayName": "阵营4Klaxon",
+	  "folderName": "f4_异界Klaxon",
+	  "sourceFileName": "f4_klaxon.png",
+	  "targetPngName": "f4_klaxon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_limbodweller",
+	  "displayName": "阵营4Limbodweller",
+	  "folderName": "f4_异界Limbodweller",
+	  "sourceFileName": "f4_limbodweller.png",
+	  "targetPngName": "f4_limbodweller.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_maehvmk2",
+	  "displayName": "阵营4Maehv二型",
+	  "folderName": "f4_Maehv二型",
+	  "sourceFileName": "f4_maehvmk2.png",
+	  "targetPngName": "f4_maehvmk2.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f4_mech",
+	  "displayName": "阵营4机械兵",
+	  "folderName": "f4_机械兵",
+	  "sourceFileName": "f4_mech.png",
+	  "targetPngName": "f4_mech.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_megafiend",
+	  "displayName": "阵营4Megafiend",
+	  "folderName": "f4_异界Megafiend",
+	  "sourceFileName": "f4_megafiend.png",
+	  "targetPngName": "f4_megafiend.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_miniminion",
+	  "displayName": "阵营4Miniminion",
+	  "folderName": "f4_异界Miniminion",
+	  "sourceFileName": "f4_miniminion.png",
+	  "targetPngName": "f4_miniminion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_mistressofcommands",
+	  "displayName": "阵营4Mistressofcommands",
+	  "folderName": "f4_异界Mistressofcommands",
+	  "sourceFileName": "f4_mistressofcommands.png",
+	  "targetPngName": "f4_mistressofcommands.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_moonrider",
+	  "displayName": "阵营4月Rider",
+	  "folderName": "f4_月Rider",
+	  "sourceFileName": "f4_moonrider.png",
+	  "targetPngName": "f4_moonrider.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_nightfiend",
+	  "displayName": "阵营4夜Fiend",
+	  "folderName": "f4_夜Fiend",
+	  "sourceFileName": "f4_nightfiend.png",
+	  "targetPngName": "f4_nightfiend.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_nightsorrow",
+	  "displayName": "阵营4夜Sorrow",
+	  "folderName": "f4_夜Sorrow",
+	  "sourceFileName": "f4_nightsorrow.png",
+	  "targetPngName": "f4_nightsorrow.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_nocturn",
+	  "displayName": "阵营4Nocturn",
+	  "folderName": "f4_异界Nocturn",
+	  "sourceFileName": "f4_nocturn.png",
+	  "targetPngName": "f4_nocturn.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_ooz",
+	  "displayName": "阵营4Ooz",
+	  "folderName": "f4_异界Ooz",
+	  "sourceFileName": "f4_ooz.png",
+	  "targetPngName": "f4_ooz.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_phantasm",
+	  "displayName": "阵营4Phantasm",
+	  "folderName": "f4_异界Phantasm",
+	  "sourceFileName": "f4_phantasm.png",
+	  "targetPngName": "f4_phantasm.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f4_pitstrider",
+	  "displayName": "阵营4Pitstrider",
+	  "folderName": "f4_异界Pitstrider",
+	  "sourceFileName": "f4_pitstrider.png",
+	  "targetPngName": "f4_pitstrider.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_plaguedr",
+	  "displayName": "阵营4Plaguedr",
+	  "folderName": "f4_异界Plaguedr",
+	  "sourceFileName": "f4_plaguedr.png",
+	  "targetPngName": "f4_plaguedr.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_reaperninemoons",
+	  "displayName": "阵营4Reapernine月S",
+	  "folderName": "f4_Reapernine月S",
+	  "sourceFileName": "f4_reaperninemoons.png",
+	  "targetPngName": "f4_reaperninemoons.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_remora",
+	  "displayName": "阵营4Remora",
+	  "folderName": "f4_异界Remora",
+	  "sourceFileName": "f4_remora.png",
+	  "targetPngName": "f4_remora.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_shadowdancer",
+	  "displayName": "阵营4暗影Dancer",
+	  "folderName": "f4_暗影Dancer",
+	  "sourceFileName": "f4_shadowdancer.png",
+	  "targetPngName": "f4_shadowdancer.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_sinergyunit",
+	  "displayName": "阵营4Sinergyunit",
+	  "folderName": "f4_异界Sinergyunit",
+	  "sourceFileName": "f4_sinergyunit.png",
+	  "targetPngName": "f4_sinergyunit.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_siren",
+	  "displayName": "阵营4Siren",
+	  "folderName": "f4_异界Siren",
+	  "sourceFileName": "f4_siren.png",
+	  "targetPngName": "f4_siren.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_sister",
+	  "displayName": "阵营4修女",
+	  "folderName": "f4_修女",
+	  "sourceFileName": "f4_sister.png",
+	  "targetPngName": "f4_sister.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_skullcaster",
+	  "displayName": "阵营4Skull施法者",
+	  "folderName": "f4_Skull施法者",
+	  "sourceFileName": "f4_skullcaster.png",
+	  "targetPngName": "f4_skullcaster.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_tier2general",
+	  "displayName": "阵营4二阶将军",
+	  "folderName": "f4_二阶将军",
+	  "sourceFileName": "f4_tier2general.png",
+	  "targetPngName": "f4_tier2general.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f4_underworldbrute",
+	  "displayName": "阵营4Underworldbrute",
+	  "folderName": "f4_异界Underworldbrute",
+	  "sourceFileName": "f4_underworldbrute.png",
+	  "targetPngName": "f4_underworldbrute.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_3rdgeneral",
+	  "displayName": "阵营5三号将军",
+	  "folderName": "f5_三号将军",
+	  "sourceFileName": "f5_3rdgeneral.png",
+	  "targetPngName": "f5_3rdgeneral.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_altgeneral",
+	  "displayName": "阵营5替补将军",
+	  "folderName": "f5_替补将军",
+	  "sourceFileName": "f5_altgeneral.png",
+	  "targetPngName": "f5_altgeneral.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_altgeneraltier2",
+	  "displayName": "阵营5二阶替补将军",
+	  "folderName": "f5_二阶替补将军",
+	  "sourceFileName": "f5_altgeneraltier2.png",
+	  "targetPngName": "f5_altgeneraltier2.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f5_ankylos",
+	  "displayName": "阵营5Ankylos",
+	  "folderName": "f5_异界Ankylos",
+	  "sourceFileName": "f5_ankylos.png",
+	  "targetPngName": "f5_ankylos.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_armada",
+	  "displayName": "阵营5Armada",
+	  "folderName": "f5_异界Armada",
+	  "sourceFileName": "f5_armada.png",
+	  "targetPngName": "f5_armada.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_brundlbeast",
+	  "displayName": "阵营5Brundl野兽",
+	  "folderName": "f5_Brundl野兽",
+	  "sourceFileName": "f5_brundlbeast.png",
+	  "targetPngName": "f5_brundlbeast.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_buildcommon",
+	  "displayName": "阵营5通用建筑",
+	  "folderName": "f5_通用建筑",
+	  "sourceFileName": "f5_buildcommon.png",
+	  "targetPngName": "f5_buildcommon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_buildminion",
+	  "displayName": "阵营5召唤物建筑",
+	  "folderName": "f5_召唤物建筑",
+	  "sourceFileName": "f5_buildminion.png",
+	  "targetPngName": "f5_buildminion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_catalystquillbeast",
+	  "displayName": "阵营5Catalystquill野兽",
+	  "folderName": "f5_Catalystquill野兽",
+	  "sourceFileName": "f5_catalystquillbeast.png",
+	  "targetPngName": "f5_catalystquillbeast.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_dreadnaught",
+	  "displayName": "阵营5Dreadnaught",
+	  "folderName": "f5_异界Dreadnaught",
+	  "sourceFileName": "f5_dreadnaught.png",
+	  "targetPngName": "f5_dreadnaught.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_drogon",
+	  "displayName": "阵营5Drogon",
+	  "folderName": "f5_异界Drogon",
+	  "sourceFileName": "f5_drogon.png",
+	  "targetPngName": "f5_drogon.png",
+	  "width": 512,
+	  "height": 2048
+	},
+	{
+	  "id": "f5_earthwalker",
+	  "displayName": "阵营5Earthwalker",
+	  "folderName": "f5_异界Earthwalker",
+	  "sourceFileName": "f5_earthwalker.png",
+	  "targetPngName": "f5_earthwalker.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_egg",
+	  "displayName": "阵营5Egg",
+	  "folderName": "f5_异界Egg",
+	  "sourceFileName": "f5_egg.png",
+	  "targetPngName": "f5_egg.png",
+	  "width": 512,
+	  "height": 512
+	},
+	{
+	  "id": "f5_firebreather",
+	  "displayName": "阵营5火Breather",
+	  "folderName": "f5_火Breather",
+	  "sourceFileName": "f5_firebreather.png",
+	  "targetPngName": "f5_firebreather.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_flumposaur",
+	  "displayName": "阵营5Flumposaur",
+	  "folderName": "f5_异界Flumposaur",
+	  "sourceFileName": "f5_flumposaur.png",
+	  "targetPngName": "f5_flumposaur.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_general",
+	  "displayName": "阵营5将军",
+	  "folderName": "f5_将军",
+	  "sourceFileName": "f5_general.png",
+	  "targetPngName": "f5_general.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_genesis",
+	  "displayName": "阵营5Genesis",
+	  "folderName": "f5_异界Genesis",
+	  "sourceFileName": "f5_genesis.png",
+	  "targetPngName": "f5_genesis.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_gibblegup",
+	  "displayName": "阵营5Gibblegup",
+	  "folderName": "f5_异界Gibblegup",
+	  "sourceFileName": "f5_gibblegup.png",
+	  "targetPngName": "f5_gibblegup.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_grandmasterkraigon",
+	  "displayName": "阵营5宗师Kraigon",
+	  "folderName": "f5_宗师Kraigon",
+	  "sourceFileName": "f5_grandmasterkraigon.png",
+	  "targetPngName": "f5_grandmasterkraigon.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_grimrock",
+	  "displayName": "阵营5Grimrock",
+	  "folderName": "f5_异界Grimrock",
+	  "sourceFileName": "f5_grimrock.png",
+	  "targetPngName": "f5_grimrock.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_gro",
+	  "displayName": "阵营5Gro",
+	  "folderName": "f5_异界Gro",
+	  "sourceFileName": "f5_gro.png",
+	  "targetPngName": "f5_gro.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_juggernaut",
+	  "displayName": "阵营5Juggernaut",
+	  "folderName": "f5_异界Juggernaut",
+	  "sourceFileName": "f5_juggernaut.png",
+	  "targetPngName": "f5_juggernaut.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_kolossus",
+	  "displayName": "阵营5Kolossus",
+	  "folderName": "f5_异界Kolossus",
+	  "sourceFileName": "f5_kolossus.png",
+	  "targetPngName": "f5_kolossus.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_kujata",
+	  "displayName": "阵营5Kujata",
+	  "folderName": "f5_异界Kujata",
+	  "sourceFileName": "f5_kujata.png",
+	  "targetPngName": "f5_kujata.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_lavalasher",
+	  "displayName": "阵营5Lavalasher",
+	  "folderName": "f5_异界Lavalasher",
+	  "sourceFileName": "f5_lavalasher.png",
+	  "targetPngName": "f5_lavalasher.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_magma",
+	  "displayName": "阵营5熔岩",
+	  "folderName": "f5_熔岩",
+	  "sourceFileName": "f5_magma.png",
+	  "targetPngName": "f5_magma.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_mandrake",
+	  "displayName": "阵营5Man幼龙",
+	  "folderName": "f5_Man幼龙",
+	  "sourceFileName": "f5_mandrake.png",
+	  "targetPngName": "f5_mandrake.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_mankatorwarbeast",
+	  "displayName": "阵营5Mankatorwar野兽",
+	  "folderName": "f5_Mankatorwar野兽",
+	  "sourceFileName": "f5_mankatorwarbeast.png",
+	  "targetPngName": "f5_mankatorwarbeast.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_mech",
+	  "displayName": "阵营5机械兵",
+	  "folderName": "f5_机械兵",
+	  "sourceFileName": "f5_mech.png",
+	  "targetPngName": "f5_mech.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_megabrontodon",
+	  "displayName": "阵营5Megabrontodon",
+	  "folderName": "f5_异界Megabrontodon",
+	  "sourceFileName": "f5_megabrontodon.png",
+	  "targetPngName": "f5_megabrontodon.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_minibeast",
+	  "displayName": "阵营5Mini野兽",
+	  "folderName": "f5_Mini野兽",
+	  "sourceFileName": "f5_minibeast.png",
+	  "targetPngName": "f5_minibeast.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_molokihuntress",
+	  "displayName": "阵营5Molokihuntress",
+	  "folderName": "f5_异界Molokihuntress",
+	  "sourceFileName": "f5_molokihuntress.png",
+	  "targetPngName": "f5_molokihuntress.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_mythronquest",
+	  "displayName": "阵营5Mythronquest",
+	  "folderName": "f5_异界Mythronquest",
+	  "sourceFileName": "f5_mythronquest.png",
+	  "targetPngName": "f5_mythronquest.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_omniseer",
+	  "displayName": "阵营5Omni先知",
+	  "folderName": "f5_Omni先知",
+	  "sourceFileName": "f5_omniseer.png",
+	  "targetPngName": "f5_omniseer.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_orphanoftheaspect",
+	  "displayName": "阵营5Orphanoftheaspect",
+	  "folderName": "f5_异界Orphanoftheaspect",
+	  "sourceFileName": "f5_orphanoftheaspect.png",
+	  "targetPngName": "f5_orphanoftheaspect.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_oxalaia",
+	  "displayName": "阵营5Oxalaia",
+	  "folderName": "f5_异界Oxalaia",
+	  "sourceFileName": "f5_oxalaia.png",
+	  "targetPngName": "f5_oxalaia.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_primordialgazer",
+	  "displayName": "阵营5Primordialgazer",
+	  "folderName": "f5_异界Primordialgazer",
+	  "sourceFileName": "f5_primordialgazer.png",
+	  "targetPngName": "f5_primordialgazer.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_pteryx",
+	  "displayName": "阵营5Pteryx",
+	  "folderName": "f5_异界Pteryx",
+	  "sourceFileName": "f5_pteryx.png",
+	  "targetPngName": "f5_pteryx.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_ragebinder",
+	  "displayName": "阵营5Ragebinder",
+	  "folderName": "f5_异界Ragebinder",
+	  "sourceFileName": "f5_ragebinder.png",
+	  "targetPngName": "f5_ragebinder.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_ragnoramk2",
+	  "displayName": "阵营5Ragnora二型",
+	  "folderName": "f5_Ragnora二型",
+	  "sourceFileName": "f5_ragnoramk2.png",
+	  "targetPngName": "f5_ragnoramk2.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f5_rancour",
+	  "displayName": "阵营5Rancour",
+	  "folderName": "f5_异界Rancour",
+	  "sourceFileName": "f5_rancour.png",
+	  "targetPngName": "f5_rancour.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f5_rex",
+	  "displayName": "阵营5Rex",
+	  "folderName": "f5_异界Rex",
+	  "sourceFileName": "f5_rex.png",
+	  "targetPngName": "f5_rex.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_silitharelder",
+	  "displayName": "阵营5Silitharelder",
+	  "folderName": "f5_异界Silitharelder",
+	  "sourceFileName": "f5_silitharelder.png",
+	  "targetPngName": "f5_silitharelder.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_silitharveteran",
+	  "displayName": "阵营5Silithar老兵",
+	  "folderName": "f5_Silithar老兵",
+	  "sourceFileName": "f5_silitharveteran.png",
+	  "targetPngName": "f5_silitharveteran.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_silitharyoung",
+	  "displayName": "阵营5Silitharyoung",
+	  "folderName": "f5_异界Silitharyoung",
+	  "sourceFileName": "f5_silitharyoung.png",
+	  "targetPngName": "f5_silitharyoung.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_sinergyunit",
+	  "displayName": "阵营5Sinergyunit",
+	  "folderName": "f5_异界Sinergyunit",
+	  "sourceFileName": "f5_sinergyunit.png",
+	  "targetPngName": "f5_sinergyunit.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_sister",
+	  "displayName": "阵营5修女",
+	  "folderName": "f5_修女",
+	  "sourceFileName": "f5_sister.png",
+	  "targetPngName": "f5_sister.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_spiritharvester",
+	  "displayName": "阵营5灵魂Harvester",
+	  "folderName": "f5_灵魂Harvester",
+	  "sourceFileName": "f5_spiritharvester.png",
+	  "targetPngName": "f5_spiritharvester.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_support",
+	  "displayName": "阵营5支援者",
+	  "folderName": "f5_支援者",
+	  "sourceFileName": "f5_support.png",
+	  "targetPngName": "f5_support.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_tank",
+	  "displayName": "阵营5重装兵",
+	  "folderName": "f5_重装兵",
+	  "sourceFileName": "f5_tank.png",
+	  "targetPngName": "f5_tank.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_thraex",
+	  "displayName": "阵营5Thraex",
+	  "folderName": "f5_异界Thraex",
+	  "sourceFileName": "f5_thraex.png",
+	  "targetPngName": "f5_thraex.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_tier2general",
+	  "displayName": "阵营5二阶将军",
+	  "folderName": "f5_二阶将军",
+	  "sourceFileName": "f5_tier2general.png",
+	  "targetPngName": "f5_tier2general.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_unstableflump",
+	  "displayName": "阵营5Unstableflump",
+	  "folderName": "f5_异界Unstableflump",
+	  "sourceFileName": "f5_unstableflump.png",
+	  "targetPngName": "f5_unstableflump.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_unstableleviathan",
+	  "displayName": "阵营5Unstableleviathan",
+	  "folderName": "f5_异界Unstableleviathan",
+	  "sourceFileName": "f5_unstableleviathan.png",
+	  "targetPngName": "f5_unstableleviathan.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_upgradizon",
+	  "displayName": "阵营5Upgradizon",
+	  "folderName": "f5_异界Upgradizon",
+	  "sourceFileName": "f5_upgradizon.png",
+	  "targetPngName": "f5_upgradizon.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_valknu",
+	  "displayName": "阵营5Valknu",
+	  "folderName": "f5_异界Valknu",
+	  "sourceFileName": "f5_valknu.png",
+	  "targetPngName": "f5_valknu.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_vindicator",
+	  "displayName": "阵营5Vindicator",
+	  "folderName": "f5_异界Vindicator",
+	  "sourceFileName": "f5_vindicator.png",
+	  "targetPngName": "f5_vindicator.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_visionar",
+	  "displayName": "阵营5Visionar",
+	  "folderName": "f5_异界Visionar",
+	  "sourceFileName": "f5_visionar.png",
+	  "targetPngName": "f5_visionar.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f5_wildinceptor",
+	  "displayName": "阵营5Wildinceptor",
+	  "folderName": "f5_异界Wildinceptor",
+	  "sourceFileName": "f5_wildinceptor.png",
+	  "targetPngName": "f5_wildinceptor.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_3rdgeneral",
+	  "displayName": "阵营6三号将军",
+	  "folderName": "f6_三号将军",
+	  "sourceFileName": "f6_3rdgeneral.png",
+	  "targetPngName": "f6_3rdgeneral.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_altgeneral",
+	  "displayName": "阵营6替补将军",
+	  "folderName": "f6_替补将军",
+	  "sourceFileName": "f6_altgeneral.png",
+	  "targetPngName": "f6_altgeneral.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_altgeneraltier2",
+	  "displayName": "阵营6二阶替补将军",
+	  "folderName": "f6_二阶替补将军",
+	  "sourceFileName": "f6_altgeneraltier2.png",
+	  "targetPngName": "f6_altgeneraltier2.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f6_arcticrhyno",
+	  "displayName": "阵营6Arcticrhyno",
+	  "folderName": "f6_异界Arcticrhyno",
+	  "sourceFileName": "f6_arcticrhyno.png",
+	  "targetPngName": "f6_arcticrhyno.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_auroraguardian",
+	  "displayName": "阵营6极光守护者",
+	  "folderName": "f6_极光守护者",
+	  "sourceFileName": "f6_auroraguardian.png",
+	  "targetPngName": "f6_auroraguardian.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_blazingspines",
+	  "displayName": "阵营6Blazingspines",
+	  "folderName": "f6_异界Blazingspines",
+	  "sourceFileName": "f6_blazingspines.png",
+	  "targetPngName": "f6_blazingspines.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_bloodsurge",
+	  "displayName": "阵营6Bloodsurge",
+	  "folderName": "f6_异界Bloodsurge",
+	  "sourceFileName": "f6_bloodsurge.png",
+	  "targetPngName": "f6_bloodsurge.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_bonechillbarrier",
+	  "displayName": "阵营6Bonechillbarrier",
+	  "folderName": "f6_异界Bonechillbarrier",
+	  "sourceFileName": "f6_bonechillbarrier.png",
+	  "targetPngName": "f6_bonechillbarrier.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_buildcommon",
+	  "displayName": "阵营6通用建筑",
+	  "folderName": "f6_通用建筑",
+	  "sourceFileName": "f6_buildcommon.png",
+	  "targetPngName": "f6_buildcommon.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_buildlegendary",
+	  "displayName": "阵营6传奇建筑",
+	  "folderName": "f6_传奇建筑",
+	  "sourceFileName": "f6_buildlegendary.png",
+	  "targetPngName": "f6_buildlegendary.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_buildminion",
+	  "displayName": "阵营6召唤物建筑",
+	  "folderName": "f6_召唤物建筑",
+	  "sourceFileName": "f6_buildminion.png",
+	  "targetPngName": "f6_buildminion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_bur",
+	  "displayName": "阵营6Bur",
+	  "folderName": "f6_异界Bur",
+	  "sourceFileName": "f6_bur.png",
+	  "targetPngName": "f6_bur.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_circulus",
+	  "displayName": "阵营6Circulus",
+	  "folderName": "f6_异界Circulus",
+	  "sourceFileName": "f6_circulus.png",
+	  "targetPngName": "f6_circulus.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_crystalbeetle",
+	  "displayName": "阵营6水晶Beetle",
+	  "folderName": "f6_水晶Beetle",
+	  "sourceFileName": "f6_crystalbeetle.png",
+	  "targetPngName": "f6_crystalbeetle.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_doofybear",
+	  "displayName": "阵营6Doofy熊",
+	  "folderName": "f6_Doofy熊",
+	  "sourceFileName": "f6_doofybear.png",
+	  "targetPngName": "f6_doofybear.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_draugarlord",
+	  "displayName": "阵营6Draugar领主",
+	  "folderName": "f6_Draugar领主",
+	  "sourceFileName": "f6_draugarlord.png",
+	  "targetPngName": "f6_draugarlord.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_eldersaberspine",
+	  "displayName": "阵营6Eldersaberspine",
+	  "folderName": "f6_异界Eldersaberspine",
+	  "sourceFileName": "f6_eldersaberspine.png",
+	  "targetPngName": "f6_eldersaberspine.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_elklodon",
+	  "displayName": "阵营6Elklodon",
+	  "folderName": "f6_异界Elklodon",
+	  "sourceFileName": "f6_elklodon.png",
+	  "targetPngName": "f6_elklodon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_evilcrystalwisp",
+	  "displayName": "阵营6Evil水晶精灵",
+	  "folderName": "f6_Evil水晶精灵",
+	  "sourceFileName": "f6_evilcrystalwisp.png",
+	  "targetPngName": "f6_evilcrystalwisp.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_explodingwall",
+	  "displayName": "阵营6Explodingwall",
+	  "folderName": "f6_异界Explodingwall",
+	  "sourceFileName": "f6_explodingwall.png",
+	  "targetPngName": "f6_explodingwall.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_faiefestive",
+	  "displayName": "阵营6Faie节庆",
+	  "folderName": "f6_Faie节庆",
+	  "sourceFileName": "f6_faiefestive.png",
+	  "targetPngName": "f6_faiefestive.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_fenrirwarmaster",
+	  "displayName": "阵营6Fenrirwar大师",
+	  "folderName": "f6_Fenrirwar大师",
+	  "sourceFileName": "f6_fenrirwarmaster.png",
+	  "targetPngName": "f6_fenrirwarmaster.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_fenrirwerewolf",
+	  "displayName": "阵营6Fenrirwere狼",
+	  "folderName": "f6_Fenrirwere狼",
+	  "sourceFileName": "f6_fenrirwerewolf.png",
+	  "targetPngName": "f6_fenrirwerewolf.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_freeblade",
+	  "displayName": "阵营6Free刃",
+	  "folderName": "f6_Free刃",
+	  "sourceFileName": "f6_freeblade.png",
+	  "targetPngName": "f6_freeblade.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_frostbitehawker",
+	  "displayName": "阵营6霜Bite鹰Er",
+	  "folderName": "f6_霜Bite鹰Er",
+	  "sourceFileName": "f6_frostbitehawker.png",
+	  "targetPngName": "f6_frostbitehawker.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_frostdrake",
+	  "displayName": "阵营6霜幼龙",
+	  "folderName": "f6_霜幼龙",
+	  "sourceFileName": "f6_frostdrake.png",
+	  "targetPngName": "f6_frostdrake.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_frostiva",
+	  "displayName": "阵营6霜Iva",
+	  "folderName": "f6_霜Iva",
+	  "sourceFileName": "f6_frostiva.png",
+	  "targetPngName": "f6_frostiva.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f6_general",
+	  "displayName": "阵营6将军",
+	  "folderName": "f6_将军",
+	  "sourceFileName": "f6_general.png",
+	  "targetPngName": "f6_general.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_ghostseraphim",
+	  "displayName": "阵营6Ghostseraphim",
+	  "folderName": "f6_异界Ghostseraphim",
+	  "sourceFileName": "f6_ghostseraphim.png",
+	  "targetPngName": "f6_ghostseraphim.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_grandmasterembla",
+	  "displayName": "阵营6宗师Embla",
+	  "folderName": "f6_宗师Embla",
+	  "sourceFileName": "f6_grandmasterembla.png",
+	  "targetPngName": "f6_grandmasterembla.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_gravitywell",
+	  "displayName": "阵营6Gravitywell",
+	  "folderName": "f6_异界Gravitywell",
+	  "sourceFileName": "f6_gravitywell.png",
+	  "targetPngName": "f6_gravitywell.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_greatwhitenorth",
+	  "displayName": "阵营6Greatwhitenorth",
+	  "folderName": "f6_异界Greatwhitenorth",
+	  "sourceFileName": "f6_greatwhitenorth.png",
+	  "targetPngName": "f6_greatwhitenorth.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_huldra",
+	  "displayName": "阵营6Huldra",
+	  "folderName": "f6_异界Huldra",
+	  "sourceFileName": "f6_huldra.png",
+	  "targetPngName": "f6_huldra.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_icedryad",
+	  "displayName": "阵营6冰Dryad",
+	  "folderName": "f6_冰Dryad",
+	  "sourceFileName": "f6_icedryad.png",
+	  "targetPngName": "f6_icedryad.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_icehornet",
+	  "displayName": "阵营6冰Hornet",
+	  "folderName": "f6_冰Hornet",
+	  "sourceFileName": "f6_icehornet.png",
+	  "targetPngName": "f6_icehornet.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_icy",
+	  "displayName": "阵营6Icy",
+	  "folderName": "f6_异界Icy",
+	  "sourceFileName": "f6_icy.png",
+	  "targetPngName": "f6_icy.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_ilenamk2",
+	  "displayName": "阵营6Ilena二型",
+	  "folderName": "f6_Ilena二型",
+	  "sourceFileName": "f6_ilenamk2.png",
+	  "targetPngName": "f6_ilenamk2.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_justice",
+	  "displayName": "阵营6Just冰",
+	  "folderName": "f6_Just冰",
+	  "sourceFileName": "f6_justice.png",
+	  "targetPngName": "f6_justice.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_kindredhunter",
+	  "displayName": "阵营6Kindredhunter",
+	  "folderName": "f6_异界Kindredhunter",
+	  "sourceFileName": "f6_kindredhunter.png",
+	  "targetPngName": "f6_kindredhunter.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_mech",
+	  "displayName": "阵营6机械兵",
+	  "folderName": "f6_机械兵",
+	  "sourceFileName": "f6_mech.png",
+	  "targetPngName": "f6_mech.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_minitreant",
+	  "displayName": "阵营6Mini树人",
+	  "folderName": "f6_Mini树人",
+	  "sourceFileName": "f6_minitreant.png",
+	  "targetPngName": "f6_minitreant.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_motherofdrakes",
+	  "displayName": "阵营6Motherof幼龙S",
+	  "folderName": "f6_Motherof幼龙S",
+	  "sourceFileName": "f6_motherofdrakes.png",
+	  "targetPngName": "f6_motherofdrakes.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_myriad",
+	  "displayName": "阵营6Myriad",
+	  "folderName": "f6_异界Myriad",
+	  "sourceFileName": "f6_myriad.png",
+	  "targetPngName": "f6_myriad.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_mythronquest",
+	  "displayName": "阵营6Mythronquest",
+	  "folderName": "f6_异界Mythronquest",
+	  "sourceFileName": "f6_mythronquest.png",
+	  "targetPngName": "f6_mythronquest.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_perfectreflection",
+	  "displayName": "阵营6Perfectreflection",
+	  "folderName": "f6_异界Perfectreflection",
+	  "sourceFileName": "f6_perfectreflection.png",
+	  "targetPngName": "f6_perfectreflection.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_ravager",
+	  "displayName": "阵营6Ravager",
+	  "folderName": "f6_异界Ravager",
+	  "sourceFileName": "f6_ravager.png",
+	  "targetPngName": "f6_ravager.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_seismicelemental",
+	  "displayName": "阵营6Seism冰Lemental",
+	  "folderName": "f6_Seism冰Lemental",
+	  "sourceFileName": "f6_seismicelemental.png",
+	  "targetPngName": "f6_seismicelemental.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_sentinel",
+	  "displayName": "阵营6Sentinel",
+	  "folderName": "f6_异界Sentinel",
+	  "sourceFileName": "f6_sentinel.png",
+	  "targetPngName": "f6_sentinel.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_shadowvespyr",
+	  "displayName": "阵营6暗影Vespyr",
+	  "folderName": "f6_暗影Vespyr",
+	  "sourceFileName": "f6_shadowvespyr.png",
+	  "targetPngName": "f6_shadowvespyr.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_sinergyunit",
+	  "displayName": "阵营6Sinergyunit",
+	  "folderName": "f6_异界Sinergyunit",
+	  "sourceFileName": "f6_sinergyunit.png",
+	  "targetPngName": "f6_sinergyunit.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_sister",
+	  "displayName": "阵营6修女",
+	  "folderName": "f6_修女",
+	  "sourceFileName": "f6_sister.png",
+	  "targetPngName": "f6_sister.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_sleetdasher",
+	  "displayName": "阵营6Sleetdasher",
+	  "folderName": "f6_异界Sleetdasher",
+	  "sourceFileName": "f6_sleetdasher.png",
+	  "targetPngName": "f6_sleetdasher.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_snowchaser",
+	  "displayName": "阵营6Snowchaser",
+	  "folderName": "f6_异界Snowchaser",
+	  "sourceFileName": "f6_snowchaser.png",
+	  "targetPngName": "f6_snowchaser.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_snowchasermk2",
+	  "displayName": "阵营6Snowchaser二型",
+	  "folderName": "f6_Snowchaser二型",
+	  "sourceFileName": "f6_snowchasermk2.png",
+	  "targetPngName": "f6_snowchasermk2.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_snowman",
+	  "displayName": "阵营6Snowman",
+	  "folderName": "f6_异界Snowman",
+	  "sourceFileName": "f6_snowman.png",
+	  "targetPngName": "f6_snowman.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_snowrippler",
+	  "displayName": "阵营6Snowrippler",
+	  "folderName": "f6_异界Snowrippler",
+	  "sourceFileName": "f6_snowrippler.png",
+	  "targetPngName": "f6_snowrippler.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_snowwyvern",
+	  "displayName": "阵营6Snowwyvern",
+	  "folderName": "f6_异界Snowwyvern",
+	  "sourceFileName": "f6_snowwyvern.png",
+	  "targetPngName": "f6_snowwyvern.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_spiritwolf",
+	  "displayName": "阵营6灵魂狼",
+	  "folderName": "f6_灵魂狼",
+	  "sourceFileName": "f6_spiritwolf.png",
+	  "targetPngName": "f6_spiritwolf.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_tier2general",
+	  "displayName": "阵营6二阶将军",
+	  "folderName": "f6_二阶将军",
+	  "sourceFileName": "f6_tier2general.png",
+	  "targetPngName": "f6_tier2general.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "f6_treant",
+	  "displayName": "阵营6树人",
+	  "folderName": "f6_树人",
+	  "sourceFileName": "f6_treant.png",
+	  "targetPngName": "f6_treant.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_tundraguardian",
+	  "displayName": "阵营6Tundra守护者",
+	  "folderName": "f6_Tundra守护者",
+	  "sourceFileName": "f6_tundraguardian.png",
+	  "targetPngName": "f6_tundraguardian.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_vanarsentinel",
+	  "displayName": "阵营6Vanarsentinel",
+	  "folderName": "f6_异界Vanarsentinel",
+	  "sourceFileName": "f6_vanarsentinel.png",
+	  "targetPngName": "f6_vanarsentinel.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_voiceofthewind",
+	  "displayName": "阵营6Vo冰Ofthe风",
+	  "folderName": "f6_Vo冰Ofthe风",
+	  "sourceFileName": "f6_voiceofthewind.png",
+	  "targetPngName": "f6_voiceofthewind.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_waterbear",
+	  "displayName": "阵营6水熊",
+	  "folderName": "f6_水熊",
+	  "sourceFileName": "f6_waterbear.png",
+	  "targetPngName": "f6_waterbear.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_waterelemental",
+	  "displayName": "阵营6水元素",
+	  "folderName": "f6_水元素",
+	  "sourceFileName": "f6_waterelemental.png",
+	  "targetPngName": "f6_waterelemental.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_whitewyvern",
+	  "displayName": "阵营6Whitewyvern",
+	  "folderName": "f6_异界Whitewyvern",
+	  "sourceFileName": "f6_whitewyvern.png",
+	  "targetPngName": "f6_whitewyvern.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_wolfraven",
+	  "displayName": "阵营6狼Raven",
+	  "folderName": "f6_狼Raven",
+	  "sourceFileName": "f6_wolfraven.png",
+	  "targetPngName": "f6_wolfraven.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_ynuyttracker",
+	  "displayName": "阵营6Ynuyttracker",
+	  "folderName": "f6_异界Ynuyttracker",
+	  "sourceFileName": "f6_ynuyttracker.png",
+	  "targetPngName": "f6_ynuyttracker.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_ynuytunleashed",
+	  "displayName": "阵营6Ynuytunleashed",
+	  "folderName": "f6_异界Ynuytunleashed",
+	  "sourceFileName": "f6_ynuytunleashed.png",
+	  "targetPngName": "f6_ynuytunleashed.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "f6_ynuytwarlock",
+	  "displayName": "阵营6Ynuytwarlock",
+	  "folderName": "f6_异界Ynuytwarlock",
+	  "sourceFileName": "f6_ynuytwarlock.png",
+	  "targetPngName": "f6_ynuytwarlock.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_abjudicator",
+	  "displayName": "中立Abjudicator",
+	  "folderName": "中立_异界Abjudicator",
+	  "sourceFileName": "neutral_abjudicator.png",
+	  "targetPngName": "neutral_abjudicator.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_aer",
+	  "displayName": "中立Aer",
+	  "folderName": "中立_异界Aer",
+	  "sourceFileName": "neutral_aer.png",
+	  "targetPngName": "neutral_aer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_aethermaster",
+	  "displayName": "中立Aether大师",
+	  "folderName": "中立_Aether大师",
+	  "sourceFileName": "neutral_aethermaster.png",
+	  "targetPngName": "neutral_aethermaster.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_alterrexx",
+	  "displayName": "中立替补Errexx",
+	  "folderName": "中立_替补Errexx",
+	  "sourceFileName": "neutral_alterrexx.png",
+	  "targetPngName": "neutral_alterrexx.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_amu",
+	  "displayName": "中立Amu",
+	  "folderName": "中立_异界Amu",
+	  "sourceFileName": "neutral_amu.png",
+	  "targetPngName": "neutral_amu.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_arakiheadhunter",
+	  "displayName": "中立Arakiheadhunter",
+	  "folderName": "中立_异界Arakiheadhunter",
+	  "sourceFileName": "neutral_arakiheadhunter.png",
+	  "targetPngName": "neutral_arakiheadhunter.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_arrowwhistler",
+	  "displayName": "中立Arrowwhistler",
+	  "folderName": "中立_异界Arrowwhistler",
+	  "sourceFileName": "neutral_arrowwhistler.png",
+	  "targetPngName": "neutral_arrowwhistler.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_artificer",
+	  "displayName": "中立Artif冰R",
+	  "folderName": "中立_Artif冰R",
+	  "sourceFileName": "neutral_artificer.png",
+	  "targetPngName": "neutral_artificer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_artificereshaper",
+	  "displayName": "中立Artif冰Reshaper",
+	  "folderName": "中立_Artif冰Reshaper",
+	  "sourceFileName": "neutral_artificereshaper.png",
+	  "targetPngName": "neutral_artificereshaper.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_ashmephyt",
+	  "displayName": "中立Ashmephyt",
+	  "folderName": "中立_异界Ashmephyt",
+	  "sourceFileName": "neutral_ashmephyt.png",
+	  "targetPngName": "neutral_ashmephyt.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_astralcrusader",
+	  "displayName": "中立Astralcrusader",
+	  "folderName": "中立_异界Astralcrusader",
+	  "sourceFileName": "neutral_astralcrusader.png",
+	  "targetPngName": "neutral_astralcrusader.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_astralprime",
+	  "displayName": "中立Astral主宰",
+	  "folderName": "中立_Astral主宰",
+	  "sourceFileName": "neutral_astralprime.png",
+	  "targetPngName": "neutral_astralprime.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_azureherald",
+	  "displayName": "中立Azureherald",
+	  "folderName": "中立_异界Azureherald",
+	  "sourceFileName": "neutral_azureherald.png",
+	  "targetPngName": "neutral_azureherald.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_bastion",
+	  "displayName": "中立Bastion",
+	  "folderName": "中立_异界Bastion",
+	  "sourceFileName": "neutral_bastion.png",
+	  "targetPngName": "neutral_bastion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_beastcavern",
+	  "displayName": "中立野兽Cavern",
+	  "folderName": "中立_野兽Cavern",
+	  "sourceFileName": "neutral_beastcavern.png",
+	  "targetPngName": "neutral_beastcavern.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_beastdarkharbinger",
+	  "displayName": "中立野兽黑暗Harbinger",
+	  "folderName": "中立_野兽黑暗Harbinger",
+	  "sourceFileName": "neutral_beastdarkharbinger.png",
+	  "targetPngName": "neutral_beastdarkharbinger.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_beastmaster",
+	  "displayName": "中立野兽大师",
+	  "folderName": "中立_野兽大师",
+	  "sourceFileName": "neutral_beastmaster.png",
+	  "targetPngName": "neutral_beastmaster.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_beastmirkwooddevourer",
+	  "displayName": "中立野兽Mirkwooddevourer",
+	  "folderName": "中立_野兽Mirkwooddevourer",
+	  "sourceFileName": "neutral_beastmirkwooddevourer.png",
+	  "targetPngName": "neutral_beastmirkwooddevourer.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_beastphasehound",
+	  "displayName": "中立野兽Phasehound",
+	  "folderName": "中立_野兽Phasehound",
+	  "sourceFileName": "neutral_beastphasehound.png",
+	  "targetPngName": "neutral_beastphasehound.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_beastrepulsion",
+	  "displayName": "中立野兽Repulsion",
+	  "folderName": "中立_野兽Repulsion",
+	  "sourceFileName": "neutral_beastrepulsion.png",
+	  "targetPngName": "neutral_beastrepulsion.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_beastsaberspinetiger",
+	  "displayName": "中立野兽Saberspinetiger",
+	  "folderName": "中立_野兽Saberspinetiger",
+	  "sourceFileName": "neutral_beastsaberspinetiger.png",
+	  "targetPngName": "neutral_beastsaberspinetiger.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_beastswamp",
+	  "displayName": "中立野兽Swamp",
+	  "folderName": "中立_野兽Swamp",
+	  "sourceFileName": "neutral_beastswamp.png",
+	  "targetPngName": "neutral_beastswamp.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_blacklocust",
+	  "displayName": "中立Blacklocust",
+	  "folderName": "中立_异界Blacklocust",
+	  "sourceFileName": "neutral_blacklocust.png",
+	  "targetPngName": "neutral_blacklocust.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_blisteringscorn",
+	  "displayName": "中立Blisteringscorn",
+	  "folderName": "中立_异界Blisteringscorn",
+	  "sourceFileName": "neutral_blisteringscorn.png",
+	  "targetPngName": "neutral_blisteringscorn.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_bloodletter",
+	  "displayName": "中立Bloodletter",
+	  "folderName": "中立_异界Bloodletter",
+	  "sourceFileName": "neutral_bloodletter.png",
+	  "targetPngName": "neutral_bloodletter.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "neutral_bloodstonealchemist",
+	  "displayName": "中立血石炼金术士",
+	  "folderName": "中立_血石炼金术士",
+	  "sourceFileName": "neutral_bloodstonealchemist.png",
+	  "targetPngName": "neutral_bloodstonealchemist.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_blueconjurer",
+	  "displayName": "中立Blueconjurer",
+	  "folderName": "中立_异界Blueconjurer",
+	  "sourceFileName": "neutral_blueconjurer.png",
+	  "targetPngName": "neutral_blueconjurer.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_bonereaper",
+	  "displayName": "中立Bonereaper",
+	  "folderName": "中立_异界Bonereaper",
+	  "sourceFileName": "neutral_bonereaper.png",
+	  "targetPngName": "neutral_bonereaper.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_boulderbreach",
+	  "displayName": "中立巨石Breach",
+	  "folderName": "中立_巨石Breach",
+	  "sourceFileName": "neutral_boulderbreach.png",
+	  "targetPngName": "neutral_boulderbreach.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_boulderhurler",
+	  "displayName": "中立巨石Hurler",
+	  "folderName": "中立_巨石Hurler",
+	  "sourceFileName": "neutral_boulderhurler.png",
+	  "targetPngName": "neutral_boulderhurler.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_buildcommon",
+	  "displayName": "中立通用建筑",
+	  "folderName": "中立_通用建筑",
+	  "sourceFileName": "neutral_buildcommon.png",
+	  "targetPngName": "neutral_buildcommon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_buildepic",
+	  "displayName": "中立史诗建筑",
+	  "folderName": "中立_史诗建筑",
+	  "sourceFileName": "neutral_buildepic.png",
+	  "targetPngName": "neutral_buildepic.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_buildminion",
+	  "displayName": "中立召唤物建筑",
+	  "folderName": "中立_召唤物建筑",
+	  "sourceFileName": "neutral_buildminion.png",
+	  "targetPngName": "neutral_buildminion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_calculator",
+	  "displayName": "中立Calculator",
+	  "folderName": "中立_异界Calculator",
+	  "sourceFileName": "neutral_calculator.png",
+	  "targetPngName": "neutral_calculator.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_capriciouswarrior",
+	  "displayName": "中立Capricious战士",
+	  "folderName": "中立_Capricious战士",
+	  "sourceFileName": "neutral_capriciouswarrior.png",
+	  "targetPngName": "neutral_capriciouswarrior.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_captainhankheart",
+	  "displayName": "中立Captainhankheart",
+	  "folderName": "中立_异界Captainhankheart",
+	  "sourceFileName": "neutral_captainhankheart.png",
+	  "targetPngName": "neutral_captainhankheart.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_celebrant",
+	  "displayName": "中立Celebrant",
+	  "folderName": "中立_异界Celebrant",
+	  "sourceFileName": "neutral_celebrant.png",
+	  "targetPngName": "neutral_celebrant.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_chakkram",
+	  "displayName": "中立Chakkram",
+	  "folderName": "中立_异界Chakkram",
+	  "sourceFileName": "neutral_chakkram.png",
+	  "targetPngName": "neutral_chakkram.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_chaoselemental",
+	  "displayName": "中立混沌元素",
+	  "folderName": "中立_混沌元素",
+	  "sourceFileName": "neutral_chaoselemental.png",
+	  "targetPngName": "neutral_chaoselemental.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_chloroara",
+	  "displayName": "中立Chloroara",
+	  "folderName": "中立_异界Chloroara",
+	  "sourceFileName": "neutral_chloroara.png",
+	  "targetPngName": "neutral_chloroara.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_contentiousbrute",
+	  "displayName": "中立Contentiousbrute",
+	  "folderName": "中立_异界Contentiousbrute",
+	  "sourceFileName": "neutral_contentiousbrute.png",
+	  "targetPngName": "neutral_contentiousbrute.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_crimsonmystic",
+	  "displayName": "中立Crimsonmystic",
+	  "folderName": "中立_异界Crimsonmystic",
+	  "sourceFileName": "neutral_crimsonmystic.png",
+	  "targetPngName": "neutral_crimsonmystic.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_critterc",
+	  "displayName": "中立Critterc",
+	  "folderName": "中立_异界Critterc",
+	  "sourceFileName": "neutral_critterc.png",
+	  "targetPngName": "neutral_critterc.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_critterd",
+	  "displayName": "中立Critterd",
+	  "folderName": "中立_异界Critterd",
+	  "sourceFileName": "neutral_critterd.png",
+	  "targetPngName": "neutral_critterd.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_cryptographer",
+	  "displayName": "中立Cryptographer",
+	  "folderName": "中立_异界Cryptographer",
+	  "sourceFileName": "neutral_cryptographer.png",
+	  "targetPngName": "neutral_cryptographer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_dagona",
+	  "displayName": "中立Dagona",
+	  "folderName": "中立_异界Dagona",
+	  "sourceFileName": "neutral_dagona.png",
+	  "targetPngName": "neutral_dagona.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_dagonafish",
+	  "displayName": "中立Dagonafish",
+	  "folderName": "中立_异界Dagonafish",
+	  "sourceFileName": "neutral_dagonafish.png",
+	  "targetPngName": "neutral_dagonafish.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_darknemesis",
+	  "displayName": "中立黑暗Nemesis",
+	  "folderName": "中立_黑暗Nemesis",
+	  "sourceFileName": "neutral_darknemesis.png",
+	  "targetPngName": "neutral_darknemesis.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_daywatcher",
+	  "displayName": "中立Daywatcher",
+	  "folderName": "中立_异界Daywatcher",
+	  "sourceFileName": "neutral_daywatcher.png",
+	  "targetPngName": "neutral_daywatcher.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_deathblighter",
+	  "displayName": "中立死亡Blighter",
+	  "folderName": "中立_死亡Blighter",
+	  "sourceFileName": "neutral_deathblighter.png",
+	  "targetPngName": "neutral_deathblighter.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_deceptib0t",
+	  "displayName": "中立Deceptib0t",
+	  "folderName": "中立_异界Deceptib0t",
+	  "sourceFileName": "neutral_deceptib0t.png",
+	  "targetPngName": "neutral_deceptib0t.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_dex",
+	  "displayName": "中立Dex",
+	  "folderName": "中立_异界Dex",
+	  "sourceFileName": "neutral_dex.png",
+	  "targetPngName": "neutral_dex.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_diamondgolem",
+	  "displayName": "中立钻石魔像",
+	  "folderName": "中立_钻石魔像",
+	  "sourceFileName": "neutral_diamondgolem.png",
+	  "targetPngName": "neutral_diamondgolem.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_dilotas_attack",
+	  "displayName": "中立DilotasAttack",
+	  "folderName": "中立_异界DilotasAttack",
+	  "sourceFileName": "neutral_dilotas_attack.png",
+	  "targetPngName": "neutral_dilotas_attack.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_dreamgazer",
+	  "displayName": "中立Dreamgazer",
+	  "folderName": "中立_异界Dreamgazer",
+	  "sourceFileName": "neutral_dreamgazer.png",
+	  "targetPngName": "neutral_dreamgazer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_dustwailer",
+	  "displayName": "中立Dustwailer",
+	  "folderName": "中立_异界Dustwailer",
+	  "sourceFileName": "neutral_dustwailer.png",
+	  "targetPngName": "neutral_dustwailer.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_eclipse",
+	  "displayName": "中立Eclipse",
+	  "folderName": "中立_异界Eclipse",
+	  "sourceFileName": "neutral_eclipse.png",
+	  "targetPngName": "neutral_eclipse.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_emp",
+	  "displayName": "中立电磁脉冲体",
+	  "folderName": "中立_电磁脉冲体",
+	  "sourceFileName": "neutral_emp.png",
+	  "targetPngName": "neutral_emp.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_envybaer",
+	  "displayName": "中立Envybaer",
+	  "folderName": "中立_异界Envybaer",
+	  "sourceFileName": "neutral_envybaer.png",
+	  "targetPngName": "neutral_envybaer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_exun",
+	  "displayName": "中立Exun",
+	  "folderName": "中立_异界Exun",
+	  "sourceFileName": "neutral_exun.png",
+	  "targetPngName": "neutral_exun.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_feralu",
+	  "displayName": "中立Feralu",
+	  "folderName": "中立_异界Feralu",
+	  "sourceFileName": "neutral_feralu.png",
+	  "targetPngName": "neutral_feralu.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_firestarter",
+	  "displayName": "中立火Starter",
+	  "folderName": "中立_火Starter",
+	  "sourceFileName": "neutral_firestarter.png",
+	  "targetPngName": "neutral_firestarter.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_fog",
+	  "displayName": "中立Fog",
+	  "folderName": "中立_异界Fog",
+	  "sourceFileName": "neutral_fog.png",
+	  "targetPngName": "neutral_fog.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_gambler",
+	  "displayName": "中立Gambler",
+	  "folderName": "中立_异界Gambler",
+	  "sourceFileName": "neutral_gambler.png",
+	  "targetPngName": "neutral_gambler.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_gauntletmaster",
+	  "displayName": "中立Gauntlet大师",
+	  "folderName": "中立_Gauntlet大师",
+	  "sourceFileName": "neutral_gauntletmaster.png",
+	  "targetPngName": "neutral_gauntletmaster.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_geargrinder",
+	  "displayName": "中立Geargrinder",
+	  "folderName": "中立_异界Geargrinder",
+	  "sourceFileName": "neutral_geargrinder.png",
+	  "targetPngName": "neutral_geargrinder.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_ghostlynx",
+	  "displayName": "中立Ghostlynx",
+	  "folderName": "中立_异界Ghostlynx",
+	  "sourceFileName": "neutral_ghostlynx.png",
+	  "targetPngName": "neutral_ghostlynx.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_ghoulie",
+	  "displayName": "中立Ghoulie",
+	  "folderName": "中立_异界Ghoulie",
+	  "sourceFileName": "neutral_ghoulie.png",
+	  "targetPngName": "neutral_ghoulie.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_giantcrab",
+	  "displayName": "中立Giantcrab",
+	  "folderName": "中立_异界Giantcrab",
+	  "sourceFileName": "neutral_giantcrab.png",
+	  "targetPngName": "neutral_giantcrab.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_gnasher",
+	  "displayName": "中立Gnasher",
+	  "folderName": "中立_异界Gnasher",
+	  "sourceFileName": "neutral_gnasher.png",
+	  "targetPngName": "neutral_gnasher.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_goldenhammer",
+	  "displayName": "中立黄金战锤",
+	  "folderName": "中立_黄金战锤",
+	  "sourceFileName": "neutral_goldenhammer.png",
+	  "targetPngName": "neutral_goldenhammer.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_goldenjusticar",
+	  "displayName": "中立黄金Justicar",
+	  "folderName": "中立_黄金Justicar",
+	  "sourceFileName": "neutral_goldenjusticar.png",
+	  "targetPngName": "neutral_goldenjusticar.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_goldenmantella",
+	  "displayName": "中立黄金Mantella",
+	  "folderName": "中立_黄金Mantella",
+	  "sourceFileName": "neutral_goldenmantella.png",
+	  "targetPngName": "neutral_goldenmantella.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_golem_crossbones",
+	  "displayName": "中立魔像Crossbones",
+	  "folderName": "中立_魔像Crossbones",
+	  "sourceFileName": "neutral_golem_crossbones.png",
+	  "targetPngName": "neutral_golem_crossbones.png",
+	  "width": 256,
+	  "height": 2048
+	},
+	{
+	  "id": "neutral_golembloodshard",
+	  "displayName": "中立魔像Bloodshard",
+	  "folderName": "中立_魔像Bloodshard",
+	  "sourceFileName": "neutral_golembloodshard.png",
+	  "targetPngName": "neutral_golembloodshard.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_golemdragonbone",
+	  "displayName": "中立魔像龙Bone",
+	  "folderName": "中立_魔像龙Bone",
+	  "sourceFileName": "neutral_golemdragonbone.png",
+	  "targetPngName": "neutral_golemdragonbone.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_golemice",
+	  "displayName": "中立魔像冰",
+	  "folderName": "中立_魔像冰",
+	  "sourceFileName": "neutral_golemice.png",
+	  "targetPngName": "neutral_golemice.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_golemnature",
+	  "displayName": "中立魔像Nature",
+	  "folderName": "中立_魔像Nature",
+	  "sourceFileName": "neutral_golemnature.png",
+	  "targetPngName": "neutral_golemnature.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_golemrunesand",
+	  "displayName": "中立魔像Rune沙",
+	  "folderName": "中立_魔像Rune沙",
+	  "sourceFileName": "neutral_golemrunesand.png",
+	  "targetPngName": "neutral_golemrunesand.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_golemsteel",
+	  "displayName": "中立魔像钢",
+	  "folderName": "中立_魔像钢",
+	  "sourceFileName": "neutral_golemsteel.png",
+	  "targetPngName": "neutral_golemsteel.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_golemstone",
+	  "displayName": "中立魔像石",
+	  "folderName": "中立_魔像石",
+	  "sourceFileName": "neutral_golemstone.png",
+	  "targetPngName": "neutral_golemstone.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_golemstormmetal",
+	  "displayName": "中立魔像风暴Metal",
+	  "folderName": "中立_魔像风暴Metal",
+	  "sourceFileName": "neutral_golemstormmetal.png",
+	  "targetPngName": "neutral_golemstormmetal.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_grablackhole",
+	  "displayName": "中立Grablackhole",
+	  "folderName": "中立_异界Grablackhole",
+	  "sourceFileName": "neutral_grablackhole.png",
+	  "targetPngName": "neutral_grablackhole.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_grimes",
+	  "displayName": "中立Grimes",
+	  "folderName": "中立_异界Grimes",
+	  "sourceFileName": "neutral_grimes.png",
+	  "targetPngName": "neutral_grimes.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_grincher",
+	  "displayName": "中立Grincher",
+	  "folderName": "中立_异界Grincher",
+	  "sourceFileName": "neutral_grincher.png",
+	  "targetPngName": "neutral_grincher.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_gro",
+	  "displayName": "中立Gro",
+	  "folderName": "中立_异界Gro",
+	  "sourceFileName": "neutral_gro.png",
+	  "targetPngName": "neutral_gro.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_hatred",
+	  "displayName": "中立Hatred",
+	  "folderName": "中立_异界Hatred",
+	  "sourceFileName": "neutral_hatred.png",
+	  "targetPngName": "neutral_hatred.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_healingmystic",
+	  "displayName": "中立Healingmystic",
+	  "folderName": "中立_异界Healingmystic",
+	  "sourceFileName": "neutral_healingmystic.png",
+	  "targetPngName": "neutral_healingmystic.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_healingmysticbandainamco",
+	  "displayName": "中立Healingmysticbandainamco",
+	  "folderName": "中立_异界Healingmysticbandainamco",
+	  "sourceFileName": "neutral_healingmysticbandainamco.png",
+	  "targetPngName": "neutral_healingmysticbandainamco.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_healingmystictwitch",
+	  "displayName": "中立Healingmystictwitch",
+	  "folderName": "中立_异界Healingmystictwitch",
+	  "sourceFileName": "neutral_healingmystictwitch.png",
+	  "targetPngName": "neutral_healingmystictwitch.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_highhand",
+	  "displayName": "中立Highhand",
+	  "folderName": "中立_异界Highhand",
+	  "sourceFileName": "neutral_highhand.png",
+	  "targetPngName": "neutral_highhand.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_hollowgrovekeeper",
+	  "displayName": "中立Hollowgrove守望者",
+	  "folderName": "中立_Hollowgrove守望者",
+	  "sourceFileName": "neutral_hollowgrovekeeper.png",
+	  "targetPngName": "neutral_hollowgrovekeeper.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_hsuku",
+	  "displayName": "中立Hsuku",
+	  "folderName": "中立_异界Hsuku",
+	  "sourceFileName": "neutral_hsuku.png",
+	  "targetPngName": "neutral_hsuku.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_hydrax",
+	  "displayName": "中立Hydrax",
+	  "folderName": "中立_异界Hydrax",
+	  "sourceFileName": "neutral_hydrax.png",
+	  "targetPngName": "neutral_hydrax.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_incindy",
+	  "displayName": "中立Incindy",
+	  "folderName": "中立_异界Incindy",
+	  "sourceFileName": "neutral_incindy.png",
+	  "targetPngName": "neutral_incindy.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_inquisitorkron",
+	  "displayName": "中立Inquisitorkron",
+	  "folderName": "中立_异界Inquisitorkron",
+	  "sourceFileName": "neutral_inquisitorkron.png",
+	  "targetPngName": "neutral_inquisitorkron.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_ion",
+	  "displayName": "中立Ion",
+	  "folderName": "中立_异界Ion",
+	  "sourceFileName": "neutral_ion.png",
+	  "targetPngName": "neutral_ion.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_ironclad",
+	  "displayName": "中立铁Clad",
+	  "folderName": "中立_铁Clad",
+	  "sourceFileName": "neutral_ironclad.png",
+	  "targetPngName": "neutral_ironclad.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "neutral_jaxi",
+	  "displayName": "中立Jaxi",
+	  "folderName": "中立_异界Jaxi",
+	  "sourceFileName": "neutral_jaxi.png",
+	  "targetPngName": "neutral_jaxi.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_jaxtruesight",
+	  "displayName": "中立Jaxtruesight",
+	  "folderName": "中立_异界Jaxtruesight",
+	  "sourceFileName": "neutral_jaxtruesight.png",
+	  "targetPngName": "neutral_jaxtruesight.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_keeperofthevale",
+	  "displayName": "中立守望者Ofthevale",
+	  "folderName": "中立_守望者Ofthevale",
+	  "sourceFileName": "neutral_keeperofthevale.png",
+	  "targetPngName": "neutral_keeperofthevale.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_keeperofthevalue",
+	  "displayName": "中立守望者Ofthevalue",
+	  "folderName": "中立_守望者Ofthevalue",
+	  "sourceFileName": "neutral_keeperofthevalue.png",
+	  "targetPngName": "neutral_keeperofthevalue.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_khymera",
+	  "displayName": "中立Khymera",
+	  "folderName": "中立_异界Khymera",
+	  "sourceFileName": "neutral_khymera.png",
+	  "targetPngName": "neutral_khymera.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_kin",
+	  "displayName": "中立Kin",
+	  "folderName": "中立_异界Kin",
+	  "sourceFileName": "neutral_kin.png",
+	  "targetPngName": "neutral_kin.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_koi",
+	  "displayName": "中立Koi",
+	  "folderName": "中立_异界Koi",
+	  "sourceFileName": "neutral_koi.png",
+	  "targetPngName": "neutral_koi.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_komodokin",
+	  "displayName": "中立Komodokin",
+	  "folderName": "中立_异界Komodokin",
+	  "sourceFileName": "neutral_komodokin.png",
+	  "targetPngName": "neutral_komodokin.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_ladylocke",
+	  "displayName": "中立Ladylocke",
+	  "folderName": "中立_异界Ladylocke",
+	  "sourceFileName": "neutral_ladylocke.png",
+	  "targetPngName": "neutral_ladylocke.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_letigress",
+	  "displayName": "中立Letigress",
+	  "folderName": "中立_异界Letigress",
+	  "sourceFileName": "neutral_letigress.png",
+	  "targetPngName": "neutral_letigress.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_letigresscub",
+	  "displayName": "中立Letigresscub",
+	  "folderName": "中立_异界Letigresscub",
+	  "sourceFileName": "neutral_letigresscub.png",
+	  "targetPngName": "neutral_letigresscub.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_loreweaver",
+	  "displayName": "中立Loreweaver",
+	  "folderName": "中立_异界Loreweaver",
+	  "sourceFileName": "neutral_loreweaver.png",
+	  "targetPngName": "neutral_loreweaver.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_luxignis",
+	  "displayName": "中立Luxignis",
+	  "folderName": "中立_异界Luxignis",
+	  "sourceFileName": "neutral_luxignis.png",
+	  "targetPngName": "neutral_luxignis.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mageswarm",
+	  "displayName": "中立Mageswarm",
+	  "folderName": "中立_异界Mageswarm",
+	  "sourceFileName": "neutral_mageswarm.png",
+	  "targetPngName": "neutral_mageswarm.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_masteroftheseven",
+	  "displayName": "中立大师Oftheseven",
+	  "folderName": "中立_大师Oftheseven",
+	  "sourceFileName": "neutral_masteroftheseven.png",
+	  "targetPngName": "neutral_masteroftheseven.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_maw",
+	  "displayName": "中立Maw",
+	  "folderName": "中立_异界Maw",
+	  "sourceFileName": "neutral_maw.png",
+	  "targetPngName": "neutral_maw.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mechaz0rcannon",
+	  "displayName": "中立机械Az0rcannon",
+	  "folderName": "中立_机械Az0rcannon",
+	  "sourceFileName": "neutral_mechaz0rcannon.png",
+	  "targetPngName": "neutral_mechaz0rcannon.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mechaz0rchassis",
+	  "displayName": "中立机械Az0r底盘",
+	  "folderName": "中立_机械Az0r底盘",
+	  "sourceFileName": "neutral_mechaz0rchassis.png",
+	  "targetPngName": "neutral_mechaz0rchassis.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mechaz0rhelm",
+	  "displayName": "中立机械Az0r头盔",
+	  "folderName": "中立_机械Az0r头盔",
+	  "sourceFileName": "neutral_mechaz0rhelm.png",
+	  "targetPngName": "neutral_mechaz0rhelm.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mechaz0rsuper",
+	  "displayName": "中立机械Az0r超型",
+	  "folderName": "中立_机械Az0r超型",
+	  "sourceFileName": "neutral_mechaz0rsuper.png",
+	  "targetPngName": "neutral_mechaz0rsuper.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mechaz0rsword",
+	  "displayName": "中立机械Az0r剑",
+	  "folderName": "中立_机械Az0r剑",
+	  "sourceFileName": "neutral_mechaz0rsword.png",
+	  "targetPngName": "neutral_mechaz0rsword.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mechaz0rwing",
+	  "displayName": "中立机械Az0r翼",
+	  "folderName": "中立_机械Az0r翼",
+	  "sourceFileName": "neutral_mechaz0rwing.png",
+	  "targetPngName": "neutral_mechaz0rwing.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_meltdown",
+	  "displayName": "中立Meltdown",
+	  "folderName": "中立_异界Meltdown",
+	  "sourceFileName": "neutral_meltdown.png",
+	  "targetPngName": "neutral_meltdown.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercarcanelimiter",
+	  "displayName": "中立佣兵Arcanelimiter",
+	  "folderName": "中立_佣兵Arcanelimiter",
+	  "sourceFileName": "neutral_mercarcanelimiter.png",
+	  "targetPngName": "neutral_mercarcanelimiter.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercarchonspellbinder",
+	  "displayName": "中立佣兵Archon法术Binder",
+	  "folderName": "中立_佣兵Archon法术Binder",
+	  "sourceFileName": "neutral_mercarchonspellbinder.png",
+	  "targetPngName": "neutral_mercarchonspellbinder.png",
+	  "width": 256,
+	  "height": 2048
+	},
+	{
+	  "id": "neutral_mercazurehorn",
+	  "displayName": "中立佣兵Azurehorn",
+	  "folderName": "中立_佣兵Azurehorn",
+	  "sourceFileName": "neutral_mercazurehorn.png",
+	  "targetPngName": "neutral_mercazurehorn.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_merccaster1",
+	  "displayName": "中立佣兵施法者1",
+	  "folderName": "中立_佣兵施法者1",
+	  "sourceFileName": "neutral_merccaster1.png",
+	  "targetPngName": "neutral_merccaster1.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercdaggerkiri",
+	  "displayName": "中立佣兵匕首Kiri",
+	  "folderName": "中立_佣兵匕首Kiri",
+	  "sourceFileName": "neutral_mercdaggerkiri.png",
+	  "targetPngName": "neutral_mercdaggerkiri.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercflamebloodwarlock",
+	  "displayName": "中立佣兵火焰Bloodwarlock",
+	  "folderName": "中立_佣兵火焰Bloodwarlock",
+	  "sourceFileName": "neutral_mercflamebloodwarlock.png",
+	  "targetPngName": "neutral_mercflamebloodwarlock.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercfrostbonenaga",
+	  "displayName": "中立佣兵霜Bonenaga",
+	  "folderName": "中立_佣兵霜Bonenaga",
+	  "sourceFileName": "neutral_mercfrostbonenaga.png",
+	  "targetPngName": "neutral_mercfrostbonenaga.png",
+	  "width": 256,
+	  "height": 2048
+	},
+	{
+	  "id": "neutral_mercgambitgirl",
+	  "displayName": "中立佣兵Gambitgirl",
+	  "folderName": "中立_佣兵Gambitgirl",
+	  "sourceFileName": "neutral_mercgambitgirl.png",
+	  "targetPngName": "neutral_mercgambitgirl.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercgrenadier",
+	  "displayName": "中立佣兵Grenadier",
+	  "folderName": "中立_佣兵Grenadier",
+	  "sourceFileName": "neutral_mercgrenadier.png",
+	  "targetPngName": "neutral_mercgrenadier.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercmelee1",
+	  "displayName": "中立佣兵Melee1",
+	  "folderName": "中立_佣兵Melee1",
+	  "sourceFileName": "neutral_mercmelee1.png",
+	  "targetPngName": "neutral_mercmelee1.png",
+	  "width": 512,
+	  "height": 512
+	},
+	{
+	  "id": "neutral_mercmelee2",
+	  "displayName": "中立佣兵Melee2",
+	  "folderName": "中立_佣兵Melee2",
+	  "sourceFileName": "neutral_mercmelee2.png",
+	  "targetPngName": "neutral_mercmelee2.png",
+	  "width": 512,
+	  "height": 512
+	},
+	{
+	  "id": "neutral_mercmelee3",
+	  "displayName": "中立佣兵Melee3",
+	  "folderName": "中立_佣兵Melee3",
+	  "sourceFileName": "neutral_mercmelee3.png",
+	  "targetPngName": "neutral_mercmelee3.png",
+	  "width": 512,
+	  "height": 512
+	},
+	{
+	  "id": "neutral_mercmelee4",
+	  "displayName": "中立佣兵Melee4",
+	  "folderName": "中立_佣兵Melee4",
+	  "sourceFileName": "neutral_mercmelee4.png",
+	  "targetPngName": "neutral_mercmelee4.png",
+	  "width": 512,
+	  "height": 512
+	},
+	{
+	  "id": "neutral_mercmindwarper",
+	  "displayName": "中立佣兵Mindwarper",
+	  "folderName": "中立_佣兵Mindwarper",
+	  "sourceFileName": "neutral_mercmindwarper.png",
+	  "targetPngName": "neutral_mercmindwarper.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercneedler",
+	  "displayName": "中立佣兵Needler",
+	  "folderName": "中立_佣兵Needler",
+	  "sourceFileName": "neutral_mercneedler.png",
+	  "targetPngName": "neutral_mercneedler.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercowlbearmage",
+	  "displayName": "中立佣兵Owl熊Mage",
+	  "folderName": "中立_佣兵Owl熊Mage",
+	  "sourceFileName": "neutral_mercowlbearmage.png",
+	  "targetPngName": "neutral_mercowlbearmage.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercpirate",
+	  "displayName": "中立佣兵Pirate",
+	  "folderName": "中立_佣兵Pirate",
+	  "sourceFileName": "neutral_mercpirate.png",
+	  "targetPngName": "neutral_mercpirate.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercpiratebeast",
+	  "displayName": "中立佣兵Pirate野兽",
+	  "folderName": "中立_佣兵Pirate野兽",
+	  "sourceFileName": "neutral_mercpiratebeast.png",
+	  "targetPngName": "neutral_mercpiratebeast.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercranged1",
+	  "displayName": "中立佣兵Ranged1",
+	  "folderName": "中立_佣兵Ranged1",
+	  "sourceFileName": "neutral_mercranged1.png",
+	  "targetPngName": "neutral_mercranged1.png",
+	  "width": 512,
+	  "height": 512
+	},
+	{
+	  "id": "neutral_mercshieldoracle",
+	  "displayName": "中立佣兵盾牌神谕者",
+	  "folderName": "中立_佣兵盾牌神谕者",
+	  "sourceFileName": "neutral_mercshieldoracle.png",
+	  "targetPngName": "neutral_mercshieldoracle.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercsightlessfarseer",
+	  "displayName": "中立佣兵Sightlessfar先知",
+	  "folderName": "中立_佣兵Sightlessfar先知",
+	  "sourceFileName": "neutral_mercsightlessfarseer.png",
+	  "targetPngName": "neutral_mercsightlessfarseer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercsongweaver",
+	  "displayName": "中立佣兵Songweaver",
+	  "folderName": "中立_佣兵Songweaver",
+	  "sourceFileName": "neutral_mercsongweaver.png",
+	  "targetPngName": "neutral_mercsongweaver.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercsunseer",
+	  "displayName": "中立佣兵太阳先知",
+	  "folderName": "中立_佣兵太阳先知",
+	  "sourceFileName": "neutral_mercsunseer.png",
+	  "targetPngName": "neutral_mercsunseer.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercswornavanger",
+	  "displayName": "中立誓约佣兵Avanger",
+	  "folderName": "中立_誓约佣兵Avanger",
+	  "sourceFileName": "neutral_mercswornavanger.png",
+	  "targetPngName": "neutral_mercswornavanger.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mercsworndefender",
+	  "displayName": "中立誓约佣兵防御者",
+	  "folderName": "中立_誓约佣兵防御者",
+	  "sourceFileName": "neutral_mercsworndefender.png",
+	  "targetPngName": "neutral_mercsworndefender.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_merctwilightmage",
+	  "displayName": "中立佣兵Twilightmage",
+	  "folderName": "中立_佣兵Twilightmage",
+	  "sourceFileName": "neutral_merctwilightmage.png",
+	  "targetPngName": "neutral_merctwilightmage.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_merctwinbladewarmonger",
+	  "displayName": "中立佣兵Twin刃Warmonger",
+	  "folderName": "中立_佣兵Twin刃Warmonger",
+	  "sourceFileName": "neutral_merctwinbladewarmonger.png",
+	  "targetPngName": "neutral_merctwinbladewarmonger.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_metaltooth",
+	  "displayName": "中立Met替补Ooth",
+	  "folderName": "中立_Met替补Ooth",
+	  "sourceFileName": "neutral_metaltooth.png",
+	  "targetPngName": "neutral_metaltooth.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_minijax",
+	  "displayName": "中立Minijax",
+	  "folderName": "中立_异界Minijax",
+	  "sourceFileName": "neutral_minijax.png",
+	  "targetPngName": "neutral_minijax.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mirrormancer",
+	  "displayName": "中立Mirrormancer",
+	  "folderName": "中立_异界Mirrormancer",
+	  "sourceFileName": "neutral_mirrormancer.png",
+	  "targetPngName": "neutral_mirrormancer.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_moebius",
+	  "displayName": "中立Moebius",
+	  "folderName": "中立_异界Moebius",
+	  "sourceFileName": "neutral_moebius.png",
+	  "targetPngName": "neutral_moebius.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mogwai",
+	  "displayName": "中立Mogwai",
+	  "folderName": "中立_异界Mogwai",
+	  "sourceFileName": "neutral_mogwai.png",
+	  "targetPngName": "neutral_mogwai.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_moltengolem",
+	  "displayName": "中立Molten魔像",
+	  "folderName": "中立_Molten魔像",
+	  "sourceFileName": "neutral_moltengolem.png",
+	  "targetPngName": "neutral_moltengolem.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monster_explodingdemon",
+	  "displayName": "中立怪物Exploding恶魔",
+	  "folderName": "中立_怪物Exploding恶魔_monster_explodingdemon",
+	  "sourceFileName": "neutral_monster_explodingdemon.png",
+	  "targetPngName": "neutral_monster_explodingdemon.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterartifacthunter",
+	  "displayName": "中立怪物Artifacthunter",
+	  "folderName": "中立_怪物Artifacthunter",
+	  "sourceFileName": "neutral_monsterartifacthunter.png",
+	  "targetPngName": "neutral_monsterartifacthunter.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterblacksandburrower",
+	  "displayName": "中立怪物Black沙Burrower",
+	  "folderName": "中立_怪物Black沙Burrower",
+	  "sourceFileName": "neutral_monsterblacksandburrower.png",
+	  "targetPngName": "neutral_monsterblacksandburrower.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monstercoiledcrawler",
+	  "displayName": "中立怪物Coiledcrawler",
+	  "folderName": "中立_怪物Coiledcrawler",
+	  "sourceFileName": "neutral_monstercoiledcrawler.png",
+	  "targetPngName": "neutral_monstercoiledcrawler.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monstercrystalwisp",
+	  "displayName": "中立怪物水晶精灵",
+	  "folderName": "中立_怪物水晶精灵",
+	  "sourceFileName": "neutral_monstercrystalwisp.png",
+	  "targetPngName": "neutral_monstercrystalwisp.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterdancingblades",
+	  "displayName": "中立怪物Dancing刃S",
+	  "folderName": "中立_怪物Dancing刃S",
+	  "sourceFileName": "neutral_monsterdancingblades.png",
+	  "targetPngName": "neutral_monsterdancingblades.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterdarkharbinger",
+	  "displayName": "中立怪物黑暗Harbinger",
+	  "folderName": "中立_怪物黑暗Harbinger",
+	  "sourceFileName": "neutral_monsterdarkharbinger.png",
+	  "targetPngName": "neutral_monsterdarkharbinger.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterdragonhawk",
+	  "displayName": "中立怪物龙鹰",
+	  "folderName": "中立_怪物龙鹰",
+	  "sourceFileName": "neutral_monsterdragonhawk.png",
+	  "targetPngName": "neutral_monsterdragonhawk.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterdreamoracle",
+	  "displayName": "中立怪物Dream神谕者",
+	  "folderName": "中立_怪物Dream神谕者",
+	  "sourceFileName": "neutral_monsterdreamoracle.png",
+	  "targetPngName": "neutral_monsterdreamoracle.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterexplodingdemon",
+	  "displayName": "中立怪物Exploding恶魔",
+	  "folderName": "中立_怪物Exploding恶魔_monsterexplodingdemon",
+	  "sourceFileName": "neutral_monsterexplodingdemon.png",
+	  "targetPngName": "neutral_monsterexplodingdemon.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterflamewing",
+	  "displayName": "中立怪物火焰翼",
+	  "folderName": "中立_怪物火焰翼",
+	  "sourceFileName": "neutral_monsterflamewing.png",
+	  "targetPngName": "neutral_monsterflamewing.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterlightningbeetle",
+	  "displayName": "中立怪物Lightningbeetle",
+	  "folderName": "中立_怪物Lightningbeetle",
+	  "sourceFileName": "neutral_monsterlightningbeetle.png",
+	  "targetPngName": "neutral_monsterlightningbeetle.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsteroculus",
+	  "displayName": "中立怪物Oculus",
+	  "folderName": "中立_怪物Oculus",
+	  "sourceFileName": "neutral_monsteroculus.png",
+	  "targetPngName": "neutral_monsteroculus.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsteronyxscorpion",
+	  "displayName": "中立怪物Onyxscorpion",
+	  "folderName": "中立_怪物Onyxscorpion",
+	  "sourceFileName": "neutral_monsteronyxscorpion.png",
+	  "targetPngName": "neutral_monsteronyxscorpion.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterputridmindflayer",
+	  "displayName": "中立怪物Putridmindflayer",
+	  "folderName": "中立_怪物Putridmindflayer",
+	  "sourceFileName": "neutral_monsterputridmindflayer.png",
+	  "targetPngName": "neutral_monsterputridmindflayer.png",
+	  "width": 256,
+	  "height": 2048
+	},
+	{
+	  "id": "neutral_monsterredsynja",
+	  "displayName": "中立怪物Redsynja",
+	  "folderName": "中立_怪物Redsynja",
+	  "sourceFileName": "neutral_monsterredsynja.png",
+	  "targetPngName": "neutral_monsterredsynja.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monstershreddingmantis",
+	  "displayName": "中立怪物Shreddingmantis",
+	  "folderName": "中立_怪物Shreddingmantis",
+	  "sourceFileName": "neutral_monstershreddingmantis.png",
+	  "targetPngName": "neutral_monstershreddingmantis.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_monsterwhistlingblade",
+	  "displayName": "中立怪物Whistling刃",
+	  "folderName": "中立_怪物Whistling刃",
+	  "sourceFileName": "neutral_monsterwhistlingblade.png",
+	  "targetPngName": "neutral_monsterwhistlingblade.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_moonlitsorcerer",
+	  "displayName": "中立月Litsorcerer",
+	  "folderName": "中立_月Litsorcerer",
+	  "sourceFileName": "neutral_moonlitsorcerer.png",
+	  "targetPngName": "neutral_moonlitsorcerer.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mrgoldmclover",
+	  "displayName": "中立Mrgoldmclover",
+	  "folderName": "中立_异界Mrgoldmclover",
+	  "sourceFileName": "neutral_mrgoldmclover.png",
+	  "targetPngName": "neutral_mrgoldmclover.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_mystery",
+	  "displayName": "中立Mystery",
+	  "folderName": "中立_异界Mystery",
+	  "sourceFileName": "neutral_mystery.png",
+	  "targetPngName": "neutral_mystery.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_nightwatcher",
+	  "displayName": "中立夜Watcher",
+	  "folderName": "中立_夜Watcher",
+	  "sourceFileName": "neutral_nightwatcher.png",
+	  "targetPngName": "neutral_nightwatcher.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_nip",
+	  "displayName": "中立Nip",
+	  "folderName": "中立_异界Nip",
+	  "sourceFileName": "neutral_nip.png",
+	  "targetPngName": "neutral_nip.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_oni",
+	  "displayName": "中立Oni",
+	  "folderName": "中立_异界Oni",
+	  "sourceFileName": "neutral_oni.png",
+	  "targetPngName": "neutral_oni.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_owlshadescholar",
+	  "displayName": "中立Owlshadescholar",
+	  "folderName": "中立_异界Owlshadescholar",
+	  "sourceFileName": "neutral_owlshadescholar.png",
+	  "targetPngName": "neutral_owlshadescholar.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_paddo",
+	  "displayName": "中立Paddo",
+	  "folderName": "中立_异界Paddo",
+	  "sourceFileName": "neutral_paddo.png",
+	  "targetPngName": "neutral_paddo.png",
+	  "width": 2048,
+	  "height": 2048
+	},
+	{
+	  "id": "neutral_pandora",
+	  "displayName": "中立Pandora",
+	  "folderName": "中立_异界Pandora",
+	  "sourceFileName": "neutral_pandora.png",
+	  "targetPngName": "neutral_pandora.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_pandoraminioncelerity",
+	  "displayName": "中立Pandoraminioncelerity",
+	  "folderName": "中立_异界Pandoraminioncelerity",
+	  "sourceFileName": "neutral_pandoraminioncelerity.png",
+	  "targetPngName": "neutral_pandoraminioncelerity.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_pandoraminionfly",
+	  "displayName": "中立Pandoraminionfly",
+	  "folderName": "中立_异界Pandoraminionfly",
+	  "sourceFileName": "neutral_pandoraminionfly.png",
+	  "targetPngName": "neutral_pandoraminionfly.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_pandoraminionfrenzy",
+	  "displayName": "中立Pandoraminionfrenzy",
+	  "folderName": "中立_异界Pandoraminionfrenzy",
+	  "sourceFileName": "neutral_pandoraminionfrenzy.png",
+	  "targetPngName": "neutral_pandoraminionfrenzy.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_pandoraminionprovoke",
+	  "displayName": "中立Pandoraminionprovoke",
+	  "folderName": "中立_异界Pandoraminionprovoke",
+	  "sourceFileName": "neutral_pandoraminionprovoke.png",
+	  "targetPngName": "neutral_pandoraminionprovoke.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_pandoraminionrush",
+	  "displayName": "中立Pandoraminionrush",
+	  "folderName": "中立_异界Pandoraminionrush",
+	  "sourceFileName": "neutral_pandoraminionrush.png",
+	  "targetPngName": "neutral_pandoraminionrush.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_partyelf",
+	  "displayName": "中立Partyelf",
+	  "folderName": "中立_异界Partyelf",
+	  "sourceFileName": "neutral_partyelf.png",
+	  "targetPngName": "neutral_partyelf.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_pennyarcade01",
+	  "displayName": "中立Pennyarcade01",
+	  "folderName": "中立_异界Pennyarcade01",
+	  "sourceFileName": "neutral_pennyarcade01.png",
+	  "targetPngName": "neutral_pennyarcade01.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_pennyarcade02",
+	  "displayName": "中立Pennyarcade02",
+	  "folderName": "中立_异界Pennyarcade02",
+	  "sourceFileName": "neutral_pennyarcade02.png",
+	  "targetPngName": "neutral_pennyarcade02.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_pennyarcade03",
+	  "displayName": "中立Pennyarcade03",
+	  "folderName": "中立_异界Pennyarcade03",
+	  "sourceFileName": "neutral_pennyarcade03.png",
+	  "targetPngName": "neutral_pennyarcade03.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_pennyarcade04",
+	  "displayName": "中立Pennyarcade04",
+	  "folderName": "中立_异界Pennyarcade04",
+	  "sourceFileName": "neutral_pennyarcade04.png",
+	  "targetPngName": "neutral_pennyarcade04.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_primusshieldmaster",
+	  "displayName": "中立Primus盾牌大师",
+	  "folderName": "中立_Primus盾牌大师",
+	  "sourceFileName": "neutral_primusshieldmaster.png",
+	  "targetPngName": "neutral_primusshieldmaster.png",
+	  "width": 256,
+	  "height": 2048
+	},
+	{
+	  "id": "neutral_prismaticillusionist",
+	  "displayName": "中立Prismaticillusionist",
+	  "folderName": "中立_异界Prismaticillusionist",
+	  "sourceFileName": "neutral_prismaticillusionist.png",
+	  "targetPngName": "neutral_prismaticillusionist.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_prismaticillusionistminion",
+	  "displayName": "中立Prismaticillusionistminion",
+	  "folderName": "中立_异界Prismaticillusionistminion",
+	  "sourceFileName": "neutral_prismaticillusionistminion.png",
+	  "targetPngName": "neutral_prismaticillusionistminion.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_prongbok",
+	  "displayName": "中立Prongbok",
+	  "folderName": "中立_异界Prongbok",
+	  "sourceFileName": "neutral_prongbok.png",
+	  "targetPngName": "neutral_prongbok.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_prophetwhitepalm",
+	  "displayName": "中立Prophetwhitepalm",
+	  "folderName": "中立_异界Prophetwhitepalm",
+	  "sourceFileName": "neutral_prophetwhitepalm.png",
+	  "targetPngName": "neutral_prophetwhitepalm.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_purgatos",
+	  "displayName": "中立Purgatos",
+	  "folderName": "中立_异界Purgatos",
+	  "sourceFileName": "neutral_purgatos.png",
+	  "targetPngName": "neutral_purgatos.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_quahog",
+	  "displayName": "中立Quahog",
+	  "folderName": "中立_异界Quahog",
+	  "sourceFileName": "neutral_quahog.png",
+	  "targetPngName": "neutral_quahog.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_quartermastergauj",
+	  "displayName": "中立Quarter大师Gauj",
+	  "folderName": "中立_Quarter大师Gauj",
+	  "sourceFileName": "neutral_quartermastergauj.png",
+	  "targetPngName": "neutral_quartermastergauj.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_rawr",
+	  "displayName": "中立Rawr",
+	  "folderName": "中立_异界Rawr",
+	  "sourceFileName": "neutral_rawr.png",
+	  "targetPngName": "neutral_rawr.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_razorcraggolem",
+	  "displayName": "中立Razorcrag魔像",
+	  "folderName": "中立_Razorcrag魔像",
+	  "sourceFileName": "neutral_razorcraggolem.png",
+	  "targetPngName": "neutral_razorcraggolem.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_rejuvenator",
+	  "displayName": "中立Rejuvenator",
+	  "folderName": "中立_异界Rejuvenator",
+	  "sourceFileName": "neutral_rejuvenator.png",
+	  "targetPngName": "neutral_rejuvenator.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_replicator",
+	  "displayName": "中立Replicator",
+	  "folderName": "中立_异界Replicator",
+	  "sourceFileName": "neutral_replicator.png",
+	  "targetPngName": "neutral_replicator.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_rok",
+	  "displayName": "中立Rok",
+	  "folderName": "中立_异界Rok",
+	  "sourceFileName": "neutral_rok.png",
+	  "targetPngName": "neutral_rok.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_rook",
+	  "displayName": "中立Rook",
+	  "folderName": "中立_异界Rook",
+	  "sourceFileName": "neutral_rook.png",
+	  "targetPngName": "neutral_rook.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_rubyrifter",
+	  "displayName": "中立红宝石Rifter",
+	  "folderName": "中立_红宝石Rifter",
+	  "sourceFileName": "neutral_rubyrifter.png",
+	  "targetPngName": "neutral_rubyrifter.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_saberspinemk2",
+	  "displayName": "中立Saberspine二型",
+	  "folderName": "中立_Saberspine二型",
+	  "sourceFileName": "neutral_saberspinemk2.png",
+	  "targetPngName": "neutral_saberspinemk2.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_sai",
+	  "displayName": "中立Sai",
+	  "folderName": "中立_异界Sai",
+	  "sourceFileName": "neutral_sai.png",
+	  "targetPngName": "neutral_sai.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_sapphireseer",
+	  "displayName": "中立蓝宝石先知",
+	  "folderName": "中立_蓝宝石先知",
+	  "sourceFileName": "neutral_sapphireseer.png",
+	  "targetPngName": "neutral_sapphireseer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_sarlacmk2",
+	  "displayName": "中立Sarlac二型",
+	  "folderName": "中立_Sarlac二型",
+	  "sourceFileName": "neutral_sarlacmk2.png",
+	  "targetPngName": "neutral_sarlacmk2.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_scarzig",
+	  "displayName": "中立Scarzig",
+	  "folderName": "中立_异界Scarzig",
+	  "sourceFileName": "neutral_scarzig.png",
+	  "targetPngName": "neutral_scarzig.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_serpenti",
+	  "displayName": "中立蛇裔",
+	  "folderName": "中立_蛇裔",
+	  "sourceFileName": "neutral_serpenti.png",
+	  "targetPngName": "neutral_serpenti.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_shadow1",
+	  "displayName": "中立暗影1",
+	  "folderName": "中立_暗影1",
+	  "sourceFileName": "neutral_shadow1.png",
+	  "targetPngName": "neutral_shadow1.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_shadow2",
+	  "displayName": "中立暗影2",
+	  "folderName": "中立_暗影2",
+	  "sourceFileName": "neutral_shadow2.png",
+	  "targetPngName": "neutral_shadow2.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_shadow3",
+	  "displayName": "中立暗影3",
+	  "folderName": "中立_暗影3",
+	  "sourceFileName": "neutral_shadow3.png",
+	  "targetPngName": "neutral_shadow3.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_shadowcaster",
+	  "displayName": "中立暗影施法者",
+	  "folderName": "中立_暗影施法者",
+	  "sourceFileName": "neutral_shadowcaster.png",
+	  "targetPngName": "neutral_shadowcaster.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_shadowranged",
+	  "displayName": "中立暗影Ranged",
+	  "folderName": "中立_暗影Ranged",
+	  "sourceFileName": "neutral_shadowranged.png",
+	  "targetPngName": "neutral_shadowranged.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_shirodogdragon",
+	  "displayName": "中立Shirodog龙",
+	  "folderName": "中立_Shirodog龙",
+	  "sourceFileName": "neutral_shirodogdragon.png",
+	  "targetPngName": "neutral_shirodogdragon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_shuffler",
+	  "displayName": "中立Shuffler",
+	  "folderName": "中立_异界Shuffler",
+	  "sourceFileName": "neutral_shuffler.png",
+	  "targetPngName": "neutral_shuffler.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_silhouettetracer",
+	  "displayName": "中立Silhouettetracer",
+	  "folderName": "中立_异界Silhouettetracer",
+	  "sourceFileName": "neutral_silhouettetracer.png",
+	  "targetPngName": "neutral_silhouettetracer.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_silverbeak",
+	  "displayName": "中立白银Beak",
+	  "folderName": "中立_白银Beak",
+	  "sourceFileName": "neutral_silverbeak.png",
+	  "targetPngName": "neutral_silverbeak.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_silvermech",
+	  "displayName": "中立白银机械",
+	  "folderName": "中立_白银机械",
+	  "sourceFileName": "neutral_silvermech.png",
+	  "targetPngName": "neutral_silvermech.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_singletonmythron",
+	  "displayName": "中立Singletonmythron",
+	  "folderName": "中立_异界Singletonmythron",
+	  "sourceFileName": "neutral_singletonmythron.png",
+	  "targetPngName": "neutral_singletonmythron.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_sinistersilhouette",
+	  "displayName": "中立Sinistersilhouette",
+	  "folderName": "中立_异界Sinistersilhouette",
+	  "sourceFileName": "neutral_sinistersilhouette.png",
+	  "targetPngName": "neutral_sinistersilhouette.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_sister",
+	  "displayName": "中立修女",
+	  "folderName": "中立_修女",
+	  "sourceFileName": "neutral_sister.png",
+	  "targetPngName": "neutral_sister.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_skywing",
+	  "displayName": "中立天空翼",
+	  "folderName": "中立_天空翼",
+	  "sourceFileName": "neutral_skywing.png",
+	  "targetPngName": "neutral_skywing.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_soboro",
+	  "displayName": "中立Soboro",
+	  "folderName": "中立_异界Soboro",
+	  "sourceFileName": "neutral_soboro.png",
+	  "targetPngName": "neutral_soboro.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_sol",
+	  "displayName": "中立Sol",
+	  "folderName": "中立_异界Sol",
+	  "sourceFileName": "neutral_sol.png",
+	  "targetPngName": "neutral_sol.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_spelljammer",
+	  "displayName": "中立法术Jammer",
+	  "folderName": "中立_法术Jammer",
+	  "sourceFileName": "neutral_spelljammer.png",
+	  "targetPngName": "neutral_spelljammer.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_spellsammermk2",
+	  "displayName": "中立法术Sammer二型",
+	  "folderName": "中立_法术Sammer二型",
+	  "sourceFileName": "neutral_spellsammermk2.png",
+	  "targetPngName": "neutral_spellsammermk2.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_spellspark",
+	  "displayName": "中立法术Spark",
+	  "folderName": "中立_法术Spark",
+	  "sourceFileName": "neutral_spellspark.png",
+	  "targetPngName": "neutral_spellspark.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_spiritscribe",
+	  "displayName": "中立灵魂Scribe",
+	  "folderName": "中立_灵魂Scribe",
+	  "sourceFileName": "neutral_spiritscribe.png",
+	  "targetPngName": "neutral_spiritscribe.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_sunelemental",
+	  "displayName": "中立太阳元素",
+	  "folderName": "中立_太阳元素",
+	  "sourceFileName": "neutral_sunelemental.png",
+	  "targetPngName": "neutral_sunelemental.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_sunsetparagon",
+	  "displayName": "中立日落Paragon",
+	  "folderName": "中立_日落Paragon",
+	  "sourceFileName": "neutral_sunsetparagon.png",
+	  "targetPngName": "neutral_sunsetparagon.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_sunsteeldefender",
+	  "displayName": "中立日钢防御者",
+	  "folderName": "中立_日钢防御者",
+	  "sourceFileName": "neutral_sunsteeldefender.png",
+	  "targetPngName": "neutral_sunsteeldefender.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_superdoxx",
+	  "displayName": "中立超型Doxx",
+	  "folderName": "中立_超型Doxx",
+	  "sourceFileName": "neutral_superdoxx.png",
+	  "targetPngName": "neutral_superdoxx.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_superscarzig",
+	  "displayName": "中立超型Scarzig",
+	  "folderName": "中立_超型Scarzig",
+	  "sourceFileName": "neutral_superscarzig.png",
+	  "targetPngName": "neutral_superscarzig.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_swordofakrane",
+	  "displayName": "中立剑Ofakrane",
+	  "folderName": "中立_剑Ofakrane",
+	  "sourceFileName": "neutral_swordofakrane.png",
+	  "targetPngName": "neutral_swordofakrane.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_syvrel",
+	  "displayName": "中立Syvrel",
+	  "folderName": "中立_异界Syvrel",
+	  "sourceFileName": "neutral_syvrel.png",
+	  "targetPngName": "neutral_syvrel.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_taura",
+	  "displayName": "中立Taura",
+	  "folderName": "中立_异界Taura",
+	  "sourceFileName": "neutral_taura.png",
+	  "targetPngName": "neutral_taura.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_tethermancer",
+	  "displayName": "中立束缚术士",
+	  "folderName": "中立_束缚术士",
+	  "sourceFileName": "neutral_tethermancer.png",
+	  "targetPngName": "neutral_tethermancer.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_thecollective",
+	  "displayName": "中立Thecollective",
+	  "folderName": "中立_异界Thecollective",
+	  "sourceFileName": "neutral_thecollective.png",
+	  "targetPngName": "neutral_thecollective.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_thegreatprotector",
+	  "displayName": "中立Thegreat保护者",
+	  "folderName": "中立_Thegreat保护者",
+	  "sourceFileName": "neutral_thegreatprotector.png",
+	  "targetPngName": "neutral_thegreatprotector.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_thescientist",
+	  "displayName": "中立Thescientist",
+	  "folderName": "中立_异界Thescientist",
+	  "sourceFileName": "neutral_thescientist.png",
+	  "targetPngName": "neutral_thescientist.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_thunderhorn",
+	  "displayName": "中立雷霆Horn",
+	  "folderName": "中立_雷霆Horn",
+	  "sourceFileName": "neutral_thunderhorn.png",
+	  "targetPngName": "neutral_thunderhorn.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_timekeeper",
+	  "displayName": "中立Time守望者",
+	  "folderName": "中立_Time守望者",
+	  "sourceFileName": "neutral_timekeeper.png",
+	  "targetPngName": "neutral_timekeeper.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_tombstone",
+	  "displayName": "中立Tomb石",
+	  "folderName": "中立_Tomb石",
+	  "sourceFileName": "neutral_tombstone.png",
+	  "targetPngName": "neutral_tombstone.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_tribalcaster",
+	  "displayName": "中立部族施法者",
+	  "folderName": "中立_部族施法者",
+	  "sourceFileName": "neutral_tribalcaster.png",
+	  "targetPngName": "neutral_tribalcaster.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_tribalmelee1",
+	  "displayName": "中立部族Melee1",
+	  "folderName": "中立_部族Melee1",
+	  "sourceFileName": "neutral_tribalmelee1.png",
+	  "targetPngName": "neutral_tribalmelee1.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_tribalmelee2",
+	  "displayName": "中立部族Melee2",
+	  "folderName": "中立_部族Melee2",
+	  "sourceFileName": "neutral_tribalmelee2.png",
+	  "targetPngName": "neutral_tribalmelee2.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_tribalmelee3",
+	  "displayName": "中立部族Melee3",
+	  "folderName": "中立_部族Melee3",
+	  "sourceFileName": "neutral_tribalmelee3.png",
+	  "targetPngName": "neutral_tribalmelee3.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_tribalmelee4",
+	  "displayName": "中立部族Melee4",
+	  "folderName": "中立_部族Melee4",
+	  "sourceFileName": "neutral_tribalmelee4.png",
+	  "targetPngName": "neutral_tribalmelee4.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_tribalranged1",
+	  "displayName": "中立部族Ranged1",
+	  "folderName": "中立_部族Ranged1",
+	  "sourceFileName": "neutral_tribalranged1.png",
+	  "targetPngName": "neutral_tribalranged1.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_tribalranged2",
+	  "displayName": "中立部族Ranged2",
+	  "folderName": "中立_部族Ranged2",
+	  "sourceFileName": "neutral_tribalranged2.png",
+	  "targetPngName": "neutral_tribalranged2.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_trinitywing",
+	  "displayName": "中立Trinity翼",
+	  "folderName": "中立_Trinity翼",
+	  "sourceFileName": "neutral_trinitywing.png",
+	  "targetPngName": "neutral_trinitywing.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_ubo",
+	  "displayName": "中立Ubo",
+	  "folderName": "中立_异界Ubo",
+	  "sourceFileName": "neutral_ubo.png",
+	  "targetPngName": "neutral_ubo.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_unseven",
+	  "displayName": "中立Unseven",
+	  "folderName": "中立_异界Unseven",
+	  "sourceFileName": "neutral_unseven.png",
+	  "targetPngName": "neutral_unseven.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_veteranflamewing",
+	  "displayName": "中立老兵火焰翼",
+	  "folderName": "中立_老兵火焰翼",
+	  "sourceFileName": "neutral_veteranflamewing.png",
+	  "targetPngName": "neutral_veteranflamewing.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_vex",
+	  "displayName": "中立Vex",
+	  "folderName": "中立_异界Vex",
+	  "sourceFileName": "neutral_vex.png",
+	  "targetPngName": "neutral_vex.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_voidhunter",
+	  "displayName": "中立虚空Hunter",
+	  "folderName": "中立_虚空Hunter",
+	  "sourceFileName": "neutral_voidhunter.png",
+	  "targetPngName": "neutral_voidhunter.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_wartalon",
+	  "displayName": "中立Wartalon",
+	  "folderName": "中立_异界Wartalon",
+	  "sourceFileName": "neutral_wartalon.png",
+	  "targetPngName": "neutral_wartalon.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_whitewidow",
+	  "displayName": "中立Whitewidow",
+	  "folderName": "中立_异界Whitewidow",
+	  "sourceFileName": "neutral_whitewidow.png",
+	  "targetPngName": "neutral_whitewidow.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_wildtahr",
+	  "displayName": "中立Wildtahr",
+	  "folderName": "中立_异界Wildtahr",
+	  "sourceFileName": "neutral_wildtahr.png",
+	  "targetPngName": "neutral_wildtahr.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_windrunner",
+	  "displayName": "中立风Runner",
+	  "folderName": "中立_风Runner",
+	  "sourceFileName": "neutral_windrunner.png",
+	  "targetPngName": "neutral_windrunner.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_windstopper",
+	  "displayName": "中立风Stopper",
+	  "folderName": "中立_风Stopper",
+	  "sourceFileName": "neutral_windstopper.png",
+	  "targetPngName": "neutral_windstopper.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_wingsofparadise",
+	  "displayName": "中立翼Ofparadise",
+	  "folderName": "中立_翼Ofparadise",
+	  "sourceFileName": "neutral_wingsofparadise.png",
+	  "targetPngName": "neutral_wingsofparadise.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_xho",
+	  "displayName": "中立Xho",
+	  "folderName": "中立_异界Xho",
+	  "sourceFileName": "neutral_xho.png",
+	  "targetPngName": "neutral_xho.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_xyle01",
+	  "displayName": "中立Xyle01",
+	  "folderName": "中立_异界Xyle01",
+	  "sourceFileName": "neutral_xyle01.png",
+	  "targetPngName": "neutral_xyle01.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_xyle02",
+	  "displayName": "中立Xyle02",
+	  "folderName": "中立_异界Xyle02",
+	  "sourceFileName": "neutral_xyle02.png",
+	  "targetPngName": "neutral_xyle02.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_xyle03",
+	  "displayName": "中立Xyle03",
+	  "folderName": "中立_异界Xyle03",
+	  "sourceFileName": "neutral_xyle03.png",
+	  "targetPngName": "neutral_xyle03.png",
+	  "width": 512,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_yun",
+	  "displayName": "中立Yun",
+	  "folderName": "中立_异界Yun",
+	  "sourceFileName": "neutral_yun.png",
+	  "targetPngName": "neutral_yun.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_z0r",
+	  "displayName": "中立Z0r",
+	  "folderName": "中立_异界Z0r",
+	  "sourceFileName": "neutral_z0r.png",
+	  "targetPngName": "neutral_z0r.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_zenrui",
+	  "displayName": "中立Zenrui",
+	  "folderName": "中立_异界Zenrui",
+	  "sourceFileName": "neutral_zenrui.png",
+	  "targetPngName": "neutral_zenrui.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_zukong",
+	  "displayName": "中立Zukong",
+	  "folderName": "中立_异界Zukong",
+	  "sourceFileName": "neutral_zukong.png",
+	  "targetPngName": "neutral_zukong.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_zurael",
+	  "displayName": "中立Zurael",
+	  "folderName": "中立_异界Zurael",
+	  "sourceFileName": "neutral_zurael.png",
+	  "targetPngName": "neutral_zurael.png",
+	  "width": 2048,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_zyx",
+	  "displayName": "中立Zyx",
+	  "folderName": "中立_异界Zyx",
+	  "sourceFileName": "neutral_zyx.png",
+	  "targetPngName": "neutral_zyx.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "neutral_zyxfestive",
+	  "displayName": "中立Zyx节庆",
+	  "folderName": "中立_Zyx节庆",
+	  "sourceFileName": "neutral_zyxfestive.png",
+	  "targetPngName": "neutral_zyxfestive.png",
+	  "width": 1024,
+	  "height": 1024
+	},
+	{
+	  "id": "prop_cranewisp",
+	  "displayName": "场景物件Crane精灵",
+	  "folderName": "中立_Crane精灵",
+	  "sourceFileName": "prop_cranewisp.png",
+	  "targetPngName": "prop_cranewisp.png",
+	  "width": 256,
+	  "height": 128
+	}
+  ]
+}

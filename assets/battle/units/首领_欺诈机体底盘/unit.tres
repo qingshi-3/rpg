@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="BattleUnitDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Definitions/Battle/BattleUnitDefinition.cs" id="1_definition"]
+[ext_resource type="Resource" path="res://assets/battle/units/首领_欺诈机体底盘/visual.tres" id="2_visual"]
+
+[resource]
+script = ExtResource("1_definition")
+Id = "boss_decepticlechassis"
+DisplayName = "首领欺诈机体底盘"
+Visual = ExtResource("2_visual")
+DebugMarkerColor = Color(0.9, 0.28, 0.22, 0.95)
+MaxHp = 36
+MaxActionPoints = 3
+MoveRange = 3
+MoveActionPointCost = 1
+MaxMoveUsesPerTurn = 1
+AttackDamage = 8
+AttackRange = 1
+AttackActionPointCost = 1
+BlocksMovement = true
+IsTargetable = true

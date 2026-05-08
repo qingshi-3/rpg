@@ -1,17 +1,20 @@
-[gd_resource type="Resource" script_class="BattleUnitDefinition" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="BattleUnitDefinition" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://src/Definitions/Battle/BattleUnitDefinition.cs" id="1_definition"]
-[ext_resource type="PackedScene" path="res://scenes/battle/entities/units/BoneSkeletonArcher.tscn" id="2_scene"]
+[ext_resource type="Resource" path="res://assets/battle/unit_visuals/visual/skeleton_archer_visual.tres" id="3_visual"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Abilities/AbilityDefinition.cs" id="4_ability_definition"]
+[ext_resource type="Resource" path="res://assets/battle/abilities/skeleton_archer_basic_attack.tres" id="5_basic_attack"]
 
 [resource]
 script = ExtResource("1_definition")
 Id = "skeleton_archer"
 DisplayName = "腐骨射手"
-EntityScene = ExtResource("2_scene")
+Visual = ExtResource("3_visual")
+Abilities = Array[ExtResource("4_ability_definition")]([ExtResource("5_basic_attack")])
 DebugMarkerColor = Color(1, 0.52, 0.2, 0.95)
 MaxHp = 6
 MaxActionPoints = 2
-MoveRange = 2
+MoveRange = 4
 MoveActionPointCost = 1
 MaxMoveUsesPerTurn = 1
 AttackDamage = 2
