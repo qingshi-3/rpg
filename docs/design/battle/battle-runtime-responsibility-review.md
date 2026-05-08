@@ -64,7 +64,9 @@ UnitRoot should own unit-associated presentation and runtime hosts:
 - Unit registry or lookup cache.
 - Unit motion presentation.
 - Intent marker host or unit-attached intent marker lifecycle.
-- Unit defeated presentation such as hiding, collision disabling, and movement-blocker removal.
+- Defeated unit node cleanup such as hiding, collision disabling, and
+  movement-blocker removal. Damage reactions such as non-lethal hit playback
+  belong to the unit's `DamageReactionComponent`, not to action-result playback.
 
 Intent rules are system logic, but intent markers are unit presentation.
 

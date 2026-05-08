@@ -32,7 +32,7 @@ Current runtime ownership:
 
 - `WorldSiteRoot` wires the scene and stores shared references.
 - `BattleMapView` owns map-scene initialization, layer references, `BattleGridMap` construction, and coordinate-layer discovery.
-- `UnitRoot` has `BattleUnitRoot` attached and owns unit-associated runtime state: unit node snapshots/lookups, alive-faction enumeration, turn resource restoration, movement blockers, motion presentation, intent markers, and defeated-unit node presentation.
+- `UnitRoot` has `BattleUnitRoot` attached and owns unit-associated runtime state: unit node snapshots/lookups, alive-faction enumeration, turn resource restoration, movement blockers, motion presentation, intent markers, and defeated-unit node cleanup. Unit-local damage reactions are handled by `DamageReactionComponent` on the battle entity.
 - `OverlayRoot` owns runtime previews and highlights through `BattlePreviewController` plus `GridHighlightOverlay`.
 - `InputRoot` owns raw battle input through `BattleInputRouter`.
 - `FlowRoot` owns command business handling through `BattleCommandController`, turn flow through `BattleTurnController`, and enemy intent flow through `BattleIntentController`; HUD and input commands both route through `BattleCommand`.

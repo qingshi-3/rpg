@@ -20,6 +20,9 @@ Capabilities come from components:
 - `GridOccupantComponent`: position on the battle grid and blocking flags.
 - `FactionComponent`: player, enemy, or neutral ownership.
 - `HealthComponent`: HP and death state.
+- `DamageReactionComponent`: unit-local reaction to HP damage events; it plays
+  damage presentation through `UnitAnimationComponent` and fails loudly if its
+  required components are missing.
 - `ActionPointComponent`: AP for controllable actors.
 - `MovementComponent`: movement range for movement preview and pathfinding queries.
 - `SelectableComponent`: whether the entity can be selected by player input.

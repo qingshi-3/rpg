@@ -7,9 +7,12 @@ Strategic World V1 is the foundation for the current product direction: a fantas
 ## Current V1 Routes
 
 - V1 overview and boundaries: `strategic-world-v1.md`
+- V1 initial state authoring: `strategic-world-initial-state-authoring.md`
+- WorldSite state deployment authority: `world-site-state-deployment.md`
 - WorldSite / 场域 naming boundary: `world-site-concept.md`
 - V1 data model: `strategic-world-v1-data-model.md`
 - V1 actions and WorldTick: `strategic-world-v1-actions-and-tick.md`
+- V1 wilderness opportunities: `strategic-world-v1-opportunities.md`
 - V1 battle request/result contract: `strategic-world-v1-battle-contract.md`
 - V1 UI and interaction flow: `strategic-world-v1-ui-flow.md`
 - V1 implementation plan: `strategic-world-v1-implementation.md`

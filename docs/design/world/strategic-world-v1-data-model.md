@@ -461,6 +461,8 @@ StrategicWorldState
   SiteStates: Dictionary<SiteId, WorldSiteState>
   ArmyStates: Dictionary<ArmyId, WorldArmyState>
   ThreatPlans: Dictionary<ThreatId, EnemyThreatPlan>
+  OpportunityStates: Dictionary<OpportunityId, WorldOpportunityState>
+  OpportunityRuleCooldowns: Dictionary<RuleId, TickCount>
   CompletedEventIds[]
   Flags[]
 ```
@@ -509,5 +511,6 @@ graveyard
 - 所有资源变动必须经过交易或 effect。
 - `WorldTick` 只能单调递增。
 - `Resolved` 威胁不能再次推进。
+- 所有 active `WorldOpportunityState.DefinitionId`、`SpawnRuleId` 和 `SpawnPointId` 必须能找到对应 definition。
 - Battle 只能通过 result applier 改世界状态。
 - UI 不能直接修改 `StrategicWorldState`。

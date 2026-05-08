@@ -37,6 +37,8 @@ docs/design/world/strategic-world-rts-navigation-and-armies.md
 - If Godot navigation returns no path, a start/end point is outside the navigation area, or the navigation layer is missing, the command fails explicitly.
 - A returned Godot path is accepted only when every endpoint, path point, and sampled path segment remains on painted `StrategicNavigationTileLayer` cells.
 - `MapAnchors/Sites/<site_id>` is the visual/logical site center. Army movement uses a site navigation point: `MapAnchors/ArmySpawnPoints/<site_id>` when authored, otherwise the nearest painted `StrategicNavigationTileLayer` cell within the configured search radius.
+- When a player right-clicks a `SiteVisualLayer` footprint, the site command resolves an approach point rather than using the non-walkable footprint interior. The runtime intersects the line from the commanding army position toward the site anchor with the site's visual footprint edge, then snaps just outside that edge to the nearest painted `StrategicNavigationTileLayer` point.
+- Site attack and reinforce commands store a runtime-only arrival approach offset so the marker can visually step slightly toward the site after reaching the navigable edge. Non-site movement commands clear that offset.
 - Player right-click movement, site attack/reinforce commands, and expedition creation build the authoritative path before mutating army state or removing garrison units.
 - `WorldArmyState` stores runtime-only cached path points, current path index, destination, and navigation version. These fields are not saved.
 - `WorldArmyMovementService` now builds a path only when the cached path is missing or invalid, then moves along cached waypoints each frame.
@@ -53,6 +55,7 @@ docs/design/world/strategic-world-rts-navigation-and-armies.md
 - Configure TileSet navigation polygons on `StrategicNavigationTileLayer` tiles; old visual layers do not define walkability.
 - Clicking a blank area outside `StrategicNavigationTileLayer` must reject the command and log `WorldArmyCommandNavigationRejected`; it must not create a pending direct move.
 - Site attack, reinforce, expedition, and newly generated moving armies resolve site endpoints to site navigation points before requesting a path. If no navigation point exists near a site, the command fails with a logged reason.
+- Site endpoint resolution should prefer an approach point from the moving army's side when the site has a visual footprint. Authored `MapAnchors/ArmySpawnPoints/<site_id>` still override automatic footprint approach resolution.
 - Collision shapes can be added for physical blockers or future baking input, but collision alone is not the strategic pathfinding authority.
 
 ## Risks
@@ -70,6 +73,8 @@ docs/design/world/strategic-world-rts-navigation-and-armies.md
 - With missing, empty, or disconnected Godot navigation, movement logs `WorldArmyPathFailed` and reports the failure reason.
 - Clicking outside painted navigation cells logs `WorldArmyCommandNavigationRejected` and leaves the selected army's previous state intact.
 - If a site center is not directly on a painted navigation cell, the log contains `SiteNavigationPointResolved` once for that site, and the army starts from or arrives at that resolved navigation point.
+- Right-clicking a large site footprint whose interior is outside `StrategicNavigationTileLayer` still issues attack/reinforce when a navigable edge approach point exists, and logs `SiteApproachNavigationPointResolved`.
+- After a site command with an approach point arrives, the marker visually steps slightly toward the site edge; issuing a normal non-site move afterward removes that arrival approach offset.
 - Visual-only `StrategicMapLayer` and `StrategicBridgeLayer` do not produce strategic army paths.
 - After configuring Godot 2D navigation data, new army commands log `WorldArmyPathBuilt` with `provider=godot_navigation`.
 - Moving armies do not emit path-build logs every frame; the log appears when a command is issued or a cached path is invalidated.

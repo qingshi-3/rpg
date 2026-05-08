@@ -11,13 +11,15 @@ Applies to:
 - [ ] Grid readability: the tutorial battle terrain, height, water, and blocked cells are readable during play.
 - [ ] Cell occupancy: player units, enemies, obstacles, and empty cells are visually distinguishable.
 - [ ] Turn order: the battle advances through player and enemy phases without ambiguous ownership.
+- [ ] Action queue visibility: `TopTurnBar` shows round, active side, current actor, and upcoming player/enemy units.
 - [ ] AP visibility: the player can see current AP before choosing an action.
 - [ ] AP cost clarity: action costs are visible before confirmation.
 - [ ] Intent readability: each enemy shows a high-level Intent marker before it resolves.
 - [ ] Intent hover preview: hovering an enemy in neutral state shows predicted target, path, or affected cells without debug-only wording.
 - [ ] Intent counterplay: the player can move or attack to change at least one enemy predicted outcome within the same high-level Intent.
 - [ ] Basic ability resolution: move and attack produce visible results.
-- [ ] Unit animation hooks: configured units play move, idle, attack, hit, and defeated cues without changing AP, turn, or damage logic.
+- [ ] Unit animation hooks: configured units play move, idle, attack, hit, and defeated cues without changing AP, turn, or damage logic; non-lethal hit is triggered by the unit's damage reaction component when HP changes, not by turn or action-result playback.
+- [ ] Unit animation fallback: units with `VisualRoot` but no authored clips still show lightweight idle, move, attack, hit, and defeated feedback.
 - [ ] Terrain access: ordinary units cannot move through water unless explicitly allowed.
 
 ## Regression Checks
@@ -29,6 +31,7 @@ Applies to:
 - [ ] Enemy actions still resolve from the previously displayed high-level Intent.
 - [ ] Enemy AI uses `IEnemyIntentPlanner` plus `BattleIntentResolver`; no legacy concrete action planner path remains.
 - [ ] Unit animation clips are optional presentation config; missing config does not block battle logic, while missing configured clips produce low-noise warnings.
+- [ ] Action queue UI refreshes after selection, defeat, player phase start, enemy phase start, and each enemy action without changing turn ownership.
 
 ## Unverified Checks
 

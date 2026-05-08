@@ -18,6 +18,7 @@ This directory stores battle runtime, combat interaction, unit, card, intent, an
 - Enemy intent gameplay design: `enemy-intent-design.md`
 - Targeting and preview vocabulary: `targeting-and-preview.md`
 - Unit system: `unit-system.md`
+- Unit authoring: `unit-authoring.md`
 - Unit animation system: `unit-animation-system.md`
 - Card system: `card-system.md`
 - Battle demo simulation: `battle-demo-undead-commander.md`

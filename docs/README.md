@@ -17,7 +17,12 @@ Read progressively: start with the smallest relevant entry, then open deeper doc
 - Emotion and relationship system: `design/character/emotion-system.md`
 - Emotion gameplay query contracts: `design/character/emotion-gameplay-query-contracts.md`
 - Strategic world V1: `design/world/strategic-world-v1.md`
+- Strategic world initial state authoring: `design/world/strategic-world-initial-state-authoring.md`
 - Strategic world RTS navigation and armies: `design/world/strategic-world-rts-navigation-and-armies.md`
+- WorldSite state deployment authority: `design/world/world-site-state-deployment.md`
+- Strategic world wilderness opportunities: `design/world/strategic-world-v1-opportunities.md`
+- World battle progression change: `technical-changes/2026-05-07-world-battle-progression.md`
+- WorldSite state driven deployment: `technical-changes/2026-05-08-world-site-state-deployment.md`
 - World scene structure cleanup: `technical-changes/2026-05-04-scene-structure-cleanup.md`
 - Mechanism battle slice: `design/battle/mechanism-battle-slice.md`
 - Battle architecture: `design/battle/technical-architecture.md`
@@ -26,6 +31,7 @@ Read progressively: start with the smallest relevant entry, then open deeper doc
 - Enemy Intent system: `design/battle/intent-system.md`
 - Enemy Intent gameplay design: `design/battle/enemy-intent-design.md`
 - Battle UI interaction review: `design/battle/battle-ui-interaction-review.md`
+- Battle unit authoring: `design/battle/unit-authoring.md`
 - Unit animation system: `design/battle/unit-animation-system.md`
 - Tutorial battle content: `content/tutorial/tutorial-battle.md`
 - Collaboration rules: `collaboration/ai-collaboration.md`

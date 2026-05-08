@@ -366,7 +366,7 @@ Intent UI 负责把玩家该知道的信息展示出来。
 | `BattleInputRouter`、`BattleCommandController` | Battle Input / Command | 继续拆输入和命令，不回塞 Root |
 | `BattleIntentController`、Intent Resolver | Enemy Plan / Intent | 保留，后续强化计划表达和预览 |
 | `GreedyEnemyIntentPlanner` | Enemy Plan / AI | 作为第一版 Planner，未来可替换为行为树内部实现 |
-| `ActionWheel`、Battle HUD | Battle UI | 保留为战斗 UI，后续接状态 presenter |
+| `BattleActionMenu`、Battle HUD | Battle UI | 保留为战斗 UI，后续接状态 presenter |
 | 旧世界原型入口 | World prototypes | 已从当前主流程清理，后续不再作为实现入口 |
 | `WorldSiteDefinition`、`StrategicWorldDefinition` | World Definition | 作为当前场域和战略大世界定义入口 |
 | `GameLog` | Debug / Infrastructure | 继续使用，但保持低噪声和开关意识 |

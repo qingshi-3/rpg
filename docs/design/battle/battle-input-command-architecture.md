@@ -11,7 +11,7 @@ Battle input should be:
 - Context-aware: the same click can mean select, move confirm, ability confirm, or UI interaction depending on mode.
 - Deterministic: input creates explicit commands, not hidden side effects.
 - Device-agnostic: mouse, keyboard, controller, and UI buttons should converge into the same command vocabulary.
-- UI-safe: UI focus and command wheel interaction must consume input before map interaction sees it.
+- UI-safe: UI focus and action-menu interaction must consume input before map interaction sees it.
 - Debuggable: key transitions are logged, but high-frequency hover and per-frame input are not logged by default.
 - Replaceable: future input rebinding, controller navigation, and accessibility settings should not require rewriting battle rules.
 
@@ -108,7 +108,7 @@ PointerSecondaryPressed
 PointerMiddleDrag
 Confirm
 Cancel
-OpenCommandWheel
+OpenActionMenu
 CameraMove
 CameraZoom
 SelectNextUnit
@@ -124,8 +124,7 @@ Battle needs a stack because commands nest:
 ```text
 Neutral
   -> UnitSelected
-    -> CommandWheelPrimary
-      -> CommandWheelSkillSubmenu
+    -> ActionMenu
     -> MoveTargeting
     -> AbilityTargeting
 ```
@@ -133,7 +132,6 @@ Neutral
 Cancel behavior should pop the stack:
 
 - Right click or `Esc` in `MoveTargeting` returns to `UnitSelected`.
-- Right click or `Esc` in skill submenu returns to primary command wheel.
 - Right click or `Esc` in `UnitSelected` clears selection and returns to `Neutral`.
 
 Only the top context should interpret confirm/cancel. Lower contexts may observe hover updates if they are explicitly allowed.
@@ -143,7 +141,7 @@ Suggested context types:
 ```text
 NeutralContext
 UnitSelectedContext
-CommandWheelContext
+ActionMenuContext
 MoveTargetingContext
 AbilityTargetingContext
 CardTargetingContext
@@ -193,7 +191,7 @@ HoverCell(cell)
 HoverEntity(entity)
 SelectEntity(entity)
 ClearSelection
-OpenCommandWheel(entity)
+OpenActionMenu(entity)
 ChooseCommand(commandId)
 CancelCurrentLayer
 ConfirmMove(destination)
@@ -298,7 +296,7 @@ The gameplay position is still changed through action execution. The motion cont
 HUD input and map input must converge into the same command path.
 
 ```text
-ActionWheel button click
+BattleActionMenu button click
   -> BattleCommand.ChooseCommand("move")
   -> BattleCommandController
 
@@ -350,7 +348,7 @@ No selection state changes.
 PointerPrimaryPressed on player unit
   -> SelectEntity(unit)
   -> UnitSelectedContext pushed
-  -> HUD shows unit status and command wheel
+  -> HUD shows unit status and action menu
   -> Selected overlay appears
 ```
 
@@ -384,16 +382,15 @@ RightClick or Esc
   -> UnitSelectedContext remains
 ```
 
-### Skill Submenu
+### Ability Command
 
 ```text
-ChooseCommand("skill")
-  -> CommandWheelContext transitions to skill layer
-  -> RightClick or Esc
-  -> returns to primary command wheel
+ChooseCommand("ability:push")
+  -> AbilityTargetingContext pushed
+  -> BattlePreviewController.ShowAbilityTargetHighlight(unit, ability)
 ```
 
-The wheel animation is presentation. The command stack is system state.
+The action menu is presentation. The command stack is system state.
 
 ## Logging Policy
 
