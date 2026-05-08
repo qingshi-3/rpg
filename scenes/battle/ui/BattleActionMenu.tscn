@@ -1,0 +1,70 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Battle/UI/BattleActionMenu.cs" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.035, 0.045, 0.06, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.93, 0.74, 0.38, 0.72)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.42)
+shadow_size = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_title_rule"]
+bg_color = Color(0.93, 0.74, 0.38, 0.85)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[node name="BattleActionMenu" type="PanelContainer"]
+custom_minimum_size = Vector2(168, 0)
+mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+script = ExtResource("1_script")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+mouse_filter = 1
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+mouse_filter = 1
+theme_override_constants/separation = 5
+
+[node name="Title" type="Label" parent="Margin/Root"]
+visible = false
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+mouse_filter = 2
+text = "行动"
+theme_override_colors/font_color = Color(1, 0.88, 0.46, 1)
+theme_override_font_sizes/font_size = 15
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TitleRule" type="Panel" parent="Margin/Root"]
+visible = false
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_title_rule")
+
+[node name="CommandList" type="GridContainer" parent="Margin/Root"]
+layout_mode = 2
+mouse_filter = 1
+size_flags_horizontal = 3
+size_flags_vertical = 3
+columns = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 5

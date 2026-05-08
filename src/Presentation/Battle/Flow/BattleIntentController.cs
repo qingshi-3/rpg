@@ -60,7 +60,6 @@ public partial class BattleIntentController : Node
         {
             BattleIntent intent = BuildIntentForEnemy(enemy);
             _enemyIntents[enemy] = intent;
-            _unitRoot?.SetIntentMarker(enemy, intent);
             GameLog.Info(
                 nameof(BattleIntentController),
                 $"Intent generated actor={enemy.EntityId} template={intent.TemplateId} type={intent.Type} policy={intent.TargetPolicy} power={intent.Power} summary={intent.Summary}");

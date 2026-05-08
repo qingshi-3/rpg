@@ -6,13 +6,13 @@ namespace Rpg.Presentation.Battle.Intents;
 public partial class BattleIntentMarker : Node2D
 {
     [Export]
-    public Vector2 MarkerOffset { get; set; } = new(0f, -34f);
+    public Vector2 MarkerOffset { get; set; } = new(10f, -25f);
 
     [Export]
-    public Vector2 MarkerSize { get; set; } = new(34f, 34f);
+    public Vector2 MarkerSize { get; set; } = new(18f, 18f);
 
     [Export]
-    public float IconPadding { get; set; } = 4f;
+    public float IconPadding { get; set; } = 2f;
 
     private Control _root;
     private TextureRect _iconTexture;
@@ -75,6 +75,7 @@ public partial class BattleIntentMarker : Node2D
             return;
         }
 
+        _root.MouseFilter = Control.MouseFilterEnum.Ignore;
         _root.CustomMinimumSize = MarkerSize;
         _root.Size = MarkerSize;
         _root.Position = MarkerOffset - MarkerSize * 0.5f;

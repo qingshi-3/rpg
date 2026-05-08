@@ -1,7 +1,6 @@
 using Godot;
 using Rpg.Presentation.Battle.Abilities;
 using Rpg.Presentation.Common;
-using Rpg.Presentation.UI.ActionWheel;
 
 namespace Rpg.Presentation.Battle.UI;
 
@@ -25,26 +24,12 @@ public partial class CommandInfoPanel : PanelContainer
     public void ShowDefault()
     {
         _title.Text = "战术指令";
-        _cost.Text = "选择下方行动";
-        _description.Text = "从左侧转盘发起行动";
+        _cost.Text = "选择行动菜单中的指令";
+        _description.Text = "移动、攻击、能力可以按任意顺序发起";
         _state.Text = "";
     }
 
-    public void ShowLayer(string layerId)
-    {
-        if (layerId == ActionWheelLayerIds.Skills)
-        {
-            _title.Text = "技能指令";
-            _cost.Text = "右键或 Esc 返回";
-            _description.Text = "选择技能后进入目标选择";
-            _state.Text = "";
-            return;
-        }
-
-        ShowDefault();
-    }
-
-    public void ShowCommand(ActionWheelCommandViewModel command, bool selected)
+    public void ShowCommand(BattleActionMenuCommandViewModel command, bool selected)
     {
         _title.Text = command.Label;
         _cost.Text = command.ApCost.HasValue
@@ -54,27 +39,22 @@ public partial class CommandInfoPanel : PanelContainer
         _state.Text = GetCommandState(command, selected);
     }
 
-    private static string GetCommandDescription(ActionWheelCommandViewModel command)
+    private static string GetCommandDescription(BattleActionMenuCommandViewModel command)
     {
         return command.Id switch
         {
             "move" => "预览范围，选择地块移动",
             "attack" => "预览范围，选择目标攻击",
             _ when BattleAbilityQueries.IsAbilityCommand(command.Id) => "预览范围，选择目标释放能力",
-            "skill-menu" => "展开技能转盘",
             "cards" => "后续接入卡牌指令",
             "corps" => "后续接入兵团指挥",
             "wait" => "放弃继续操作",
             "end" => "结束当前单位行动",
-            "skill_push" => "选择目标造成推击",
-            "skill_guard" => "进入守护或保护目标",
-            "skill_mark" => "标记目标辅助后续行动",
-            "skill_back" => "返回一级行动转盘",
             _ => "查看目标、消耗和状态"
         };
     }
 
-    private static string GetCommandState(ActionWheelCommandViewModel command, bool selected)
+    private static string GetCommandState(BattleActionMenuCommandViewModel command, bool selected)
     {
         if (!command.IsEnabled)
         {

@@ -1,48 +1,42 @@
-using System.Collections.Generic;
 using Godot;
 using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.Battle.UI;
 
-public partial class UnitStatusCard : Control
+public partial class UnitStatusCard : PanelContainer
 {
-    private const int CurveSteps = 22;
-    private const float BottomLeftInsetRatio = 0.68f;
-    private const float LeftEdgeConcavityRatio = 0.025f;
-
     private Label _portrait;
     private Label _name;
     private Label _hp;
+    private ProgressBar _hpBar;
     private Label _ap;
 
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
 
-        _portrait = GameUiSceneFactory.GetRequiredNode<Label>(this, "Portrait", nameof(UnitStatusCard));
-        _name = GameUiSceneFactory.GetRequiredNode<Label>(this, "NameLabel", nameof(UnitStatusCard));
-        _hp = GameUiSceneFactory.GetRequiredNode<Label>(this, "HpLabel", nameof(UnitStatusCard));
-        _ap = GameUiSceneFactory.GetRequiredNode<Label>(this, "ApLabel", nameof(UnitStatusCard));
-        LayoutContent();
+        _portrait = GameUiSceneFactory.GetRequiredNode<Label>(
+            this,
+            "Margin/Root/PortraitPanel/Portrait",
+            nameof(UnitStatusCard));
+        _name = GameUiSceneFactory.GetRequiredNode<Label>(
+            this,
+            "Margin/Root/Info/NameLabel",
+            nameof(UnitStatusCard));
+        _hp = GameUiSceneFactory.GetRequiredNode<Label>(
+            this,
+            "Margin/Root/Info/HpRow/HpLabel",
+            nameof(UnitStatusCard));
+        _hpBar = GameUiSceneFactory.GetRequiredNode<ProgressBar>(
+            this,
+            "Margin/Root/Info/HpRow/HpBar",
+            nameof(UnitStatusCard));
+        _ap = GameUiSceneFactory.GetRequiredNode<Label>(
+            this,
+            "Margin/Root/Info/ApLabel",
+            nameof(UnitStatusCard));
+
         SetUnit("骑士", 24, 24, 3, 3);
-    }
-
-    public override void _Notification(int what)
-    {
-        if (what == NotificationResized)
-        {
-            LayoutContent();
-            QueueRedraw();
-        }
-    }
-
-    public override void _Draw()
-    {
-        Vector2[] points = BuildPanelPoints();
-        DrawColoredPolygon(OffsetPoints(points, new Vector2(0f, 4f)), new Color(0f, 0f, 0f, 0.16f));
-        DrawColoredPolygon(points, new Color(0.02f, 0.02f, 0.02f, 0.4f));
-
-        DrawPolyline(ClosePolygon(points), new Color(1f, 1f, 1f, 0.16f), 1.2f, true);
     }
 
     public void SetUnit(string unitName, int hp, int maxHp, int ap, int maxAp)
@@ -52,10 +46,21 @@ public partial class UnitStatusCard : Control
             return;
         }
 
-        _name.Text = unitName;
+        string displayName = string.IsNullOrWhiteSpace(unitName) ? "未选择" : unitName;
+        _name.Text = displayName;
         _hp.Text = $"生命 {hp}/{maxHp}";
         _ap.Text = $"行动点 {BuildApPips(ap, maxAp)}";
-        QueueRedraw();
+
+        if (_portrait != null)
+        {
+            _portrait.Text = displayName == "未选择" ? "-" : displayName[..1];
+        }
+
+        if (_hpBar != null)
+        {
+            _hpBar.MaxValue = Mathf.Max(maxHp, 1);
+            _hpBar.Value = Mathf.Clamp(hp, 0, Mathf.Max(maxHp, 1));
+        }
     }
 
     private static string BuildApPips(int ap, int maxAp)
@@ -66,7 +71,6 @@ public partial class UnitStatusCard : Control
         }
 
         string pips = "";
-
         for (int index = 0; index < maxAp; index++)
         {
             pips += index < ap ? "●" : "○";
@@ -74,92 +78,4 @@ public partial class UnitStatusCard : Control
 
         return pips;
     }
-
-    private void LayoutContent()
-    {
-        if (_portrait == null || _name == null || _hp == null || _ap == null)
-        {
-            return;
-        }
-
-        float width = Mathf.Max(Size.X, CustomMinimumSize.X);
-        float height = Mathf.Max(Size.Y, CustomMinimumSize.Y);
-        float leftInset = GetBottomLeftInset(width);
-        float portraitSize = Mathf.Clamp(height * 0.28f, 46f, 58f);
-        float contentLeft = Mathf.Clamp(leftInset * 0.58f + 8f, 164f, 236f);
-        float centerY = height * 0.5f;
-        float textLeft = contentLeft + portraitSize + 12f;
-        float textWidth = Mathf.Max(80f, width - textLeft - 18f);
-
-        _portrait.Size = new Vector2(portraitSize, portraitSize);
-        _portrait.Position = new Vector2(contentLeft, centerY - portraitSize * 0.5f);
-
-        _name.Size = new Vector2(textWidth, 24f);
-        _hp.Size = new Vector2(textWidth, 20f);
-        _ap.Size = new Vector2(textWidth, 20f);
-
-        _name.Position = new Vector2(textLeft, centerY - 40f);
-        _hp.Position = new Vector2(textLeft, centerY - 9f);
-        _ap.Position = new Vector2(textLeft, centerY + 17f);
-    }
-
-    private Vector2[] BuildPanelPoints()
-    {
-        float width = Mathf.Max(Size.X, 1f);
-        float height = Mathf.Max(Size.Y, 1f);
-        float bottomLeftInset = GetBottomLeftInset(width);
-
-        var points = new List<Vector2>
-        {
-            Vector2.Zero,
-            new(width, 0f),
-            new(width, height),
-            new(bottomLeftInset, height)
-        };
-
-        Vector2 edgeStart = new(bottomLeftInset, height);
-        Vector2 edgeEnd = Vector2.Zero;
-        float concavity = Mathf.Clamp(width * LeftEdgeConcavityRatio, 12f, 24f);
-
-        for (int step = 1; step <= CurveSteps; step++)
-        {
-            float t = step / (float)CurveSteps;
-            Vector2 point = edgeStart.Lerp(edgeEnd, t);
-            point.X += Mathf.Sin(t * Mathf.Pi) * concavity;
-            points.Add(point);
-        }
-
-        return points.ToArray();
-    }
-
-    private static float GetBottomLeftInset(float width)
-    {
-        return Mathf.Clamp(width * BottomLeftInsetRatio, 240f, 390f);
-    }
-
-    private static Vector2[] OffsetPoints(Vector2[] points, Vector2 offset)
-    {
-        var offsetPoints = new Vector2[points.Length];
-
-        for (int index = 0; index < points.Length; index++)
-        {
-            offsetPoints[index] = points[index] + offset;
-        }
-
-        return offsetPoints;
-    }
-
-    private static Vector2[] ClosePolygon(Vector2[] points)
-    {
-        var closed = new Vector2[points.Length + 1];
-
-        for (int index = 0; index < points.Length; index++)
-        {
-            closed[index] = points[index];
-        }
-
-        closed[^1] = points[0];
-        return closed;
-    }
-
 }

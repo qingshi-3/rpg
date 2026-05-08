@@ -39,23 +39,36 @@ public sealed class BattleIntentResolver
             return CreateNone(intent, actor, $"{actor.DisplayName}：{reason}");
         }
 
-        if (!TryChooseTarget(context, actor, intent.TargetPolicy, out BattleEntity target))
+        BattleEntity[] targets = ChooseTargets(context, actor, intent.TargetPolicy).ToArray();
+        if (targets.Length == 0)
         {
             return CreateNone(intent, actor, $"{actor.DisplayName} 暂无可用目标");
         }
 
         AbilityDefinition ability = intent.PreferredAbility ?? BattleAbilityQueries.GetPrimaryAbility(actor);
-        if (ability != null &&
-            TryBuildAbilityPreview(context, intent, actor, target, ability, out BattleIntentPreview abilityPreview))
-        {
-            return abilityPreview;
-        }
-
         string moveRejectReason = "";
-        if (intent.Type != BattleIntentType.Guard &&
-            TryBuildApproachPreview(context, intent, actor, target, ability, out BattleIntentPreview movePreview, out moveRejectReason))
+        foreach (BattleEntity target in targets)
         {
-            return movePreview;
+            if (ability != null &&
+                TryBuildAbilityPreview(context, intent, actor, target, ability, out BattleIntentPreview abilityPreview))
+            {
+                return abilityPreview;
+            }
+
+            if (intent.Type == BattleIntentType.Guard)
+            {
+                continue;
+            }
+
+            if (TryBuildApproachPreview(context, intent, actor, target, ability, out BattleIntentPreview movePreview, out string targetMoveRejectReason))
+            {
+                return movePreview;
+            }
+
+            if (string.IsNullOrWhiteSpace(moveRejectReason))
+            {
+                moveRejectReason = targetMoveRejectReason;
+            }
         }
 
         string reasonText = string.IsNullOrWhiteSpace(moveRejectReason) ? "当前无法执行" : moveRejectReason;
@@ -144,44 +157,68 @@ public sealed class BattleIntentResolver
         }
 
         int desiredRange = System.Math.Max(ability?.Range ?? 1, 1);
-        HashSet<GridSurfacePosition> attackSurfaces = BuildAttackSurfaces(
+        HashSet<GridSurfacePosition> approachSurfaces = BuildAttackSurfaces(
             context,
             actor,
             targetGrid.SurfacePosition,
             desiredRange,
             blockedSurfaces);
-        if (attackSurfaces.Count == 0)
+        if (approachSurfaces.Count == 0)
+        {
+            approachSurfaces = BuildNearestPursuitSurfaces(
+                context,
+                actor,
+                targetGrid.SurfacePosition,
+                blockedSurfaces);
+        }
+
+        if (approachSurfaces.Count == 0)
         {
             rejectReason = "没有可用接近位置";
             return false;
         }
 
-        int currentApproachCost = FindNearestApproachCost(
+        GridSurfacePosition bestDestination = ChooseBestApproachDestination(
             context,
             actor,
             actorGrid.SurfacePosition,
-            attackSurfaces,
-            blockedSurfaces);
-        int currentDistance = BattleRuleQueries.GetManhattanDistance(actorGrid.Position, targetGrid.Position);
-
-        GridSurfacePosition bestDestination = result.DestinationSurfaces
-            .OrderBy(surface => FindNearestApproachCost(context, actor, surface, attackSurfaces, blockedSurfaces))
-            .ThenBy(surface => BattleRuleQueries.GetManhattanDistance(surface.Position, targetGrid.Position))
-            .ThenBy(surface => result.ReachableSurfaceCosts.TryGetValue(surface, out int cost) ? cost : int.MaxValue)
-            .FirstOrDefault();
-
-        int bestApproachCost = FindNearestApproachCost(
-            context,
-            actor,
-            bestDestination,
-            attackSurfaces,
-            blockedSurfaces);
-        int bestDistance = BattleRuleQueries.GetManhattanDistance(bestDestination.Position, targetGrid.Position);
+            targetGrid.SurfacePosition,
+            result,
+            approachSurfaces,
+            blockedSurfaces,
+            out int currentApproachCost,
+            out int bestApproachCost,
+            out int currentDistance,
+            out int bestDistance);
 
         if (bestApproachCost == int.MaxValue)
         {
-            rejectReason = "没有通往攻击位置的路径";
-            return false;
+            HashSet<GridSurfacePosition> pursuitSurfaces = BuildNearestPursuitSurfaces(
+                context,
+                actor,
+                targetGrid.SurfacePosition,
+                blockedSurfaces);
+            if (pursuitSurfaces.Count > 0)
+            {
+                bestDestination = ChooseBestApproachDestination(
+                    context,
+                    actor,
+                    actorGrid.SurfacePosition,
+                    targetGrid.SurfacePosition,
+                    result,
+                    pursuitSurfaces,
+                    blockedSurfaces,
+                    out currentApproachCost,
+                    out bestApproachCost,
+                    out currentDistance,
+                    out bestDistance);
+            }
+
+            if (bestApproachCost == int.MaxValue)
+            {
+                rejectReason = "没有通往接近位置的路径";
+                return false;
+            }
         }
 
         if (bestApproachCost > currentApproachCost ||
@@ -205,36 +242,67 @@ public sealed class BattleIntentResolver
         return true;
     }
 
-    private static bool TryChooseTarget(
+    private static GridSurfacePosition ChooseBestApproachDestination(
         BattleAiContext context,
         BattleEntity actor,
-        BattleIntentTargetPolicy policy,
-        out BattleEntity target)
+        GridSurfacePosition actorSurface,
+        GridSurfacePosition targetSurface,
+        MovementRangeResult movementRange,
+        ISet<GridSurfacePosition> approachSurfaces,
+        ISet<GridSurfacePosition> blockedSurfaces,
+        out int currentApproachCost,
+        out int bestApproachCost,
+        out int currentDistance,
+        out int bestDistance)
     {
-        target = null;
+        currentApproachCost = FindNearestApproachCost(
+            context,
+            actor,
+            actorSurface,
+            approachSurfaces,
+            blockedSurfaces);
+        currentDistance = BattleRuleQueries.GetManhattanDistance(actorSurface.Position, targetSurface.Position);
+
+        GridSurfacePosition bestDestination = movementRange.DestinationSurfaces
+            .OrderBy(surface => FindNearestApproachCost(context, actor, surface, approachSurfaces, blockedSurfaces))
+            .ThenBy(surface => BattleRuleQueries.GetManhattanDistance(surface.Position, targetSurface.Position))
+            .ThenBy(surface => movementRange.ReachableSurfaceCosts.TryGetValue(surface, out int cost) ? cost : int.MaxValue)
+            .FirstOrDefault();
+
+        bestApproachCost = FindNearestApproachCost(
+            context,
+            actor,
+            bestDestination,
+            approachSurfaces,
+            blockedSurfaces);
+        bestDistance = BattleRuleQueries.GetManhattanDistance(bestDestination.Position, targetSurface.Position);
+        return bestDestination;
+    }
+
+    private static IEnumerable<BattleEntity> ChooseTargets(
+        BattleAiContext context,
+        BattleEntity actor,
+        BattleIntentTargetPolicy policy)
+    {
         GridOccupantComponent actorGrid = actor.GetComponent<GridOccupantComponent>();
         if (actorGrid == null)
         {
-            return false;
+            return System.Array.Empty<BattleEntity>();
         }
 
         IEnumerable<BattleEntity> candidates = context.Entities
             .Where(entity => !BattleRuleQueries.IsDefeated(entity) && BattleRuleQueries.AreHostile(actor, entity))
             .Where(entity => entity.GetComponent<GridOccupantComponent>() != null);
 
-        target = policy switch
+        return policy switch
         {
             BattleIntentTargetPolicy.LowestHealthHostile => candidates
                 .OrderBy(entity => entity.GetComponent<HealthComponent>()?.Hp ?? int.MaxValue)
-                .ThenBy(entity => GetDistance(actorGrid, entity))
-                .FirstOrDefault(),
+                .ThenBy(entity => GetDistance(actorGrid, entity)),
             BattleIntentTargetPolicy.NearestHostile => candidates
-                .OrderBy(entity => GetDistance(actorGrid, entity))
-                .FirstOrDefault(),
-            _ => null
+                .OrderBy(entity => GetDistance(actorGrid, entity)),
+            _ => System.Array.Empty<BattleEntity>()
         };
-
-        return target != null;
     }
 
     private static int GetDistance(GridOccupantComponent actorGrid, BattleEntity entity)
@@ -261,6 +329,55 @@ public sealed class BattleIntentResolver
             .Where(surface => BattleRuleQueries.GetManhattanDistance(surface.Position, targetSurface.Position) <= attackRange)
             .Select(surface => surface.SurfacePosition)
             .ToHashSet();
+    }
+
+    private static HashSet<GridSurfacePosition> BuildNearestPursuitSurfaces(
+        BattleAiContext context,
+        BattleEntity actor,
+        GridSurfacePosition targetSurface,
+        ISet<GridSurfacePosition> blockedSurfaces)
+    {
+        HashSet<GridSurfacePosition> searchBlockedSurfaces = blockedSurfaces?.ToHashSet() ?? new HashSet<GridSurfacePosition>();
+        searchBlockedSurfaces.Remove(targetSurface);
+
+        MovementRangeResult targetReachable = MovementRangeFinder.FindReachableCells(
+            context.GridMap,
+            targetSurface,
+            ApproachSearchMaxCost,
+            searchBlockedSurfaces,
+            surface => BattleRuleQueries.CanEnterSurface(actor, surface));
+
+        HashSet<GridSurfacePosition> pursuitSurfaces = new();
+        int bestCost = int.MaxValue;
+        foreach ((GridSurfacePosition surfacePosition, int cost) in targetReachable.ReachableSurfaceCosts)
+        {
+            if (cost <= 0 ||
+                surfacePosition == targetSurface ||
+                blockedSurfaces?.Contains(surfacePosition) == true ||
+                !context.GridMap.TryGetSurface(surfacePosition, out GridCellSurface surface) ||
+                !context.GridMap.IsTopSurface(surfacePosition) ||
+                !surface.IsWalkable ||
+                surface.MoveCost <= 0 ||
+                !BattleRuleQueries.CanEnterSurface(actor, surface))
+            {
+                continue;
+            }
+
+            if (cost > bestCost)
+            {
+                continue;
+            }
+
+            if (cost < bestCost)
+            {
+                pursuitSurfaces.Clear();
+                bestCost = cost;
+            }
+
+            pursuitSurfaces.Add(surfacePosition);
+        }
+
+        return pursuitSurfaces;
     }
 
     private static int FindNearestApproachCost(

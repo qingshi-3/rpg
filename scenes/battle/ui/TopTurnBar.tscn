@@ -1,21 +1,60 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/Presentation/Battle/UI/TopTurnBar.cs" id="1_script"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_top_bar"]
+bg_color = Color(0.035, 0.044, 0.058, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.88, 0.76, 0.48, 0.64)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.36)
+shadow_size = 4
+
 [node name="TopTurnBar" type="PanelContainer"]
+custom_minimum_size = Vector2(620, 68)
 mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_top_bar")
 script = ExtResource("1_script")
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 14
+theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 14
+theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 6
 
-[node name="Label" type="Label" parent="Margin"]
+[node name="Content" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
 mouse_filter = 2
-text = "第 1 回合     我方行动     回合顺序：●  ●  ●  …"
+theme_override_constants/separation = 4
+
+[node name="StatusLabel" type="Label" parent="Margin/Content"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.88, 0.48, 1)
+theme_override_font_sizes/font_size = 16
+text = "第 1 回合 · 我方行动"
 horizontal_alignment = 1
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="QueueScroll" type="ScrollContainer" parent="Margin/Content"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+vertical_scroll_mode = 0
+
+[node name="QueueRow" type="HBoxContainer" parent="Margin/Content/QueueScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 5

@@ -160,16 +160,15 @@ public sealed class BattleActionExecutor
 
         foreach (BattleEntity entity in context.Entities)
         {
-            if (entity == movingEntity || BattleRuleQueries.IsDefeated(entity))
+            if (!BattleRuleQueries.TryGetMovementBlockSurface(
+                    movingEntity,
+                    entity,
+                    out GridSurfacePosition blockSurface))
             {
                 continue;
             }
 
-            GridOccupantComponent gridOccupant = entity.GetComponent<GridOccupantComponent>();
-            if (gridOccupant is { BlocksMovement: true })
-            {
-                blockedSurfaces.Add(gridOccupant.SurfacePosition);
-            }
+            blockedSurfaces.Add(blockSurface);
         }
 
         return blockedSurfaces;

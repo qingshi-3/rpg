@@ -3,38 +3,38 @@
 [ext_resource type="Script" path="res://src/Presentation/Battle/Intents/BattleIntentMarker.cs" id="1_script"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.02, 0.018, 0.016, 0.58)
+content_margin_left = 2.0
+content_margin_top = 2.0
+content_margin_right = 2.0
+content_margin_bottom = 2.0
+bg_color = Color(0.02, 0.018, 0.016, 0.32)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(1, 0.58, 0.2, 0.58)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-shadow_color = Color(0, 0, 0, 0.42)
-shadow_size = 3
+border_color = Color(1, 0.62, 0.25, 0.42)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.24)
+shadow_size = 1
 
 [node name="BattleIntentMarker" type="Node2D"]
 z_index = 400
 script = ExtResource("1_script")
 
 [node name="Root" type="PanelContainer" parent="."]
-offset_left = -17.0
-offset_top = -51.0
-offset_right = 17.0
-offset_bottom = -17.0
-custom_minimum_size = Vector2(34, 34)
+offset_left = 1.0
+offset_top = -34.0
+offset_right = 19.0
+offset_bottom = -16.0
+custom_minimum_size = Vector2(18, 18)
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="IconTexture" type="TextureRect" parent="Root"]
-custom_minimum_size = Vector2(26, 26)
+custom_minimum_size = Vector2(14, 14)
 layout_mode = 2
 mouse_filter = 2
 texture_filter = 1
@@ -42,11 +42,11 @@ expand_mode = 1
 stretch_mode = 5
 
 [node name="FallbackIconLabel" type="Label" parent="Root"]
-custom_minimum_size = Vector2(26, 26)
+custom_minimum_size = Vector2(14, 14)
 layout_mode = 2
 mouse_filter = 2
 theme_override_colors/font_color = Color(1, 0.54, 0.38, 1)
-theme_override_font_sizes/font_size = 16
+theme_override_font_sizes/font_size = 10
 text = "?"
 horizontal_alignment = 1
 vertical_alignment = 1

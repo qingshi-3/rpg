@@ -54,6 +54,7 @@ public partial class BattleMapView : Node2D
     public TileMapLayer StairLayer { get; private set; }
     public TileMapLayer OverlayLayer { get; private set; }
     public BattleGridMap GridMap { get; private set; }
+    public BattleMapRenderSortCache RenderSortCache { get; private set; } = BattleMapRenderSortCache.Empty;
     public BattleMapLayer CoordinateLayer { get; private set; }
     public bool RuntimeDataReady { get; private set; }
 
@@ -84,6 +85,7 @@ public partial class BattleMapView : Node2D
         }
 
         GridMap = GridMapReader.Read(this);
+        RenderSortCache = BattleMapRenderSortCache.Build(this);
         CoordinateLayer = BattleMapLayerQueries.FindCoordinateLayer(this);
         RuntimeDataReady = GridMap != null && CoordinateLayer != null;
         _runtimeDataInitialized = true;

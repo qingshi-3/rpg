@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Godot;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Intents;
-using Rpg.Presentation.UI.ActionWheel;
+using Rpg.Presentation.Battle.UI;
 
 namespace Rpg.Presentation.Common;
 
@@ -19,8 +19,10 @@ public static class GameUiSceneFactory
     public const string WorldSecondaryActionButtonScenePath = "res://scenes/world/ui/WorldSecondaryActionButton.tscn";
     public const string WorldCompactMarkerButtonScenePath = "res://scenes/world/ui/WorldCompactMarkerButton.tscn";
     public const string WorldExpeditionCountRowScenePath = "res://scenes/world/ui/WorldExpeditionCountRow.tscn";
+    public const string WorldOpportunityDetailPanelScenePath = "res://scenes/world/ui/WorldOpportunityDetailPanel.tscn";
     public const string BattleHudContentScenePath = "res://scenes/battle/ui/BattleHudContent.tscn";
-    public const string ActionWheelSlotScenePath = "res://scenes/battle/ui/ActionWheelSlot.tscn";
+    public const string BattleActionMenuButtonScenePath = "res://scenes/battle/ui/BattleActionMenuButton.tscn";
+    public const string BattleTurnQueueItemScenePath = "res://scenes/battle/ui/BattleTurnQueueItem.tscn";
     public const string BattleIntentMarkerScenePath = "res://scenes/battle/intents/BattleIntentMarker.tscn";
     public const string BattleCellInfoDebugPanelScenePath = "res://scenes/battle/debug/BattleCellInfoDebugPanel.tscn";
 
@@ -78,9 +80,14 @@ public static class GameUiSceneFactory
         return Instantiate<HBoxContainer>(WorldExpeditionCountRowScenePath, ownerName);
     }
 
-    public static ActionWheelSlot CreateActionWheelSlot(string ownerName)
+    public static BattleActionMenuButton CreateBattleActionMenuButton(string ownerName)
     {
-        return Instantiate<ActionWheelSlot>(ActionWheelSlotScenePath, ownerName);
+        return Instantiate<BattleActionMenuButton>(BattleActionMenuButtonScenePath, ownerName);
+    }
+
+    public static BattleTurnQueueItem CreateBattleTurnQueueItem(string ownerName)
+    {
+        return Instantiate<BattleTurnQueueItem>(BattleTurnQueueItemScenePath, ownerName);
     }
 
     public static BattleIntentMarker CreateBattleIntentMarker(string ownerName)

@@ -1,3 +1,4 @@
+using System.Linq;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Presentation.Battle.Entities;
 
@@ -19,6 +20,31 @@ public static class BattleRuleQueries
         return leftFaction != BattleFaction.Neutral &&
                rightFaction != BattleFaction.Neutral &&
                leftFaction != rightFaction;
+    }
+
+    public static bool TryGetMovementBlockSurface(
+        BattleEntity movingEntity,
+        BattleEntity blocker,
+        out GridSurfacePosition blockSurface)
+    {
+        blockSurface = default;
+        if (movingEntity == null ||
+            blocker == null ||
+            blocker == movingEntity ||
+            IsDefeated(blocker) ||
+            !AreHostile(movingEntity, blocker))
+        {
+            return false;
+        }
+
+        GridOccupantComponent gridOccupant = blocker.GetComponent<GridOccupantComponent>();
+        if (gridOccupant is not { BlocksMovement: true })
+        {
+            return false;
+        }
+
+        blockSurface = gridOccupant.SurfacePosition;
+        return true;
     }
 
     public static bool CanSpendActionPoints(BattleEntity entity, int cost)
@@ -76,12 +102,16 @@ public static class BattleRuleQueries
 
     public static bool IsWater(GridCell cell)
     {
-        return string.Equals(cell?.TerrainTag, WaterTerrainTag, System.StringComparison.OrdinalIgnoreCase);
+        return cell != null &&
+               (string.Equals(cell.TerrainTag, WaterTerrainTag, System.StringComparison.OrdinalIgnoreCase) ||
+                cell.TerrainTags.Contains(WaterTerrainTag, System.StringComparer.OrdinalIgnoreCase));
     }
 
     public static bool IsWater(GridCellSurface surface)
     {
-        return string.Equals(surface?.TerrainTag, WaterTerrainTag, System.StringComparison.OrdinalIgnoreCase);
+        return surface != null &&
+               (string.Equals(surface.TerrainTag, WaterTerrainTag, System.StringComparison.OrdinalIgnoreCase) ||
+                surface.TerrainTags.Contains(WaterTerrainTag, System.StringComparer.OrdinalIgnoreCase));
     }
 
     public static int GetManhattanDistance(GridPosition left, GridPosition right)

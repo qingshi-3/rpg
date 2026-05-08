@@ -23,7 +23,7 @@ public partial class DamageAbilityEffect : AbilityEffect
             return AbilityEffectResult.None;
         }
 
-        int damageApplied = health.ApplyDamage(Damage);
+        int damageApplied = health.ApplyDamage(Damage, context.Actor);
         bool defeated = health.IsDead;
         if (defeated)
         {

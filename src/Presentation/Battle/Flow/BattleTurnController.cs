@@ -23,10 +23,16 @@ public partial class BattleTurnController : Node
     private System.Action<string> _showHint;
     private System.Action _clearHudCommand;
     private System.Action<BattleOutcome> _battleEnded;
+    private System.Action<int, BattleFaction, BattleEntity, IReadOnlyList<BattleEntity>> _showTurnQueue;
 
+    private readonly List<BattleEntity> _playerActionOrder = new();
+    private readonly HashSet<string> _completedPlayerEntityIds = new();
     private bool _isEnemyPhaseRunning;
     private int _roundNumber = 1;
+    private BattleEntity _activePlayerEntity;
     private BattleOutcome _finalOutcome = BattleOutcome.None;
+    private BattleOutcome _pendingOutcome = BattleOutcome.None;
+    private bool _battleOutcomeCompletionPending;
 
     public bool IsEnemyPhaseRunning => _isEnemyPhaseRunning;
     public int RoundNumber => _roundNumber;
@@ -42,7 +48,8 @@ public partial class BattleTurnController : Node
         System.Action markBattleStateChanged,
         System.Action<string> showHint,
         System.Action clearHudCommand,
-        System.Action<BattleOutcome> battleEnded)
+        System.Action<BattleOutcome> battleEnded,
+        System.Action<int, BattleFaction, BattleEntity, IReadOnlyList<BattleEntity>> showTurnQueue)
     {
         _unitRoot = unitRoot;
         _commandController = commandController;
@@ -55,6 +62,7 @@ public partial class BattleTurnController : Node
         _showHint = showHint;
         _clearHudCommand = clearHudCommand;
         _battleEnded = battleEnded;
+        _showTurnQueue = showTurnQueue;
 
         GameLog.Info(
             nameof(BattleTurnController),
@@ -78,7 +86,7 @@ public partial class BattleTurnController : Node
             return;
         }
 
-        RunEnemyPhaseThenBeginPlayerPhase();
+        CompleteActivePlayerUnitThenAdvance();
     }
 
     public void HandleEntityDefeated(BattleEntity entity)
@@ -86,12 +94,49 @@ public partial class BattleTurnController : Node
         _clearIntentBookkeeping?.Invoke(entity);
         _unitRoot?.MarkEntityDefeated(entity);
         _markBattleStateChanged?.Invoke();
+        if (entity == _activePlayerEntity)
+        {
+            _activePlayerEntity = null;
+        }
+
+        MarkPlayerEntityCompleted(entity);
+        RefreshTurnQueue();
         GameLog.Info(nameof(BattleTurnController), $"Entity defeated handled id={entity?.EntityId} name={entity?.DisplayName}");
+    }
+
+    public void RefreshTurnQueue(BattleEntity activeEntity = null)
+    {
+        BattleFaction activeFaction = _isEnemyPhaseRunning ? BattleFaction.Enemy : BattleFaction.Player;
+        activeEntity ??= activeFaction == BattleFaction.Player ? _activePlayerEntity : null;
+        IReadOnlyList<BattleEntity> queue = BuildTurnQueue(activeFaction, activeEntity);
+        _showTurnQueue?.Invoke(_roundNumber, activeFaction, activeEntity, queue);
+    }
+
+    public string GetSelectionBlockReason(BattleEntity entity)
+    {
+        if (entity == null || _finalOutcome != BattleOutcome.None || _battleOutcomeCompletionPending)
+        {
+            return "";
+        }
+
+        if (_isEnemyPhaseRunning)
+        {
+            return "敌方行动中";
+        }
+
+        if (_activePlayerEntity == null)
+        {
+            return "当前没有可行动单位";
+        }
+
+        return entity == _activePlayerEntity
+            ? ""
+            : $"当前应由 {_activePlayerEntity.DisplayName} 行动";
     }
 
     public bool EvaluateBattleOutcome()
     {
-        if (_finalOutcome != BattleOutcome.None)
+        if (_finalOutcome != BattleOutcome.None || _battleOutcomeCompletionPending)
         {
             return true;
         }
@@ -125,6 +170,25 @@ public partial class BattleTurnController : Node
         return false;
     }
 
+    private async Task CompleteBattleAfterDefeatedPresentations(BattleOutcome outcome, string hint)
+    {
+        if (_unitRoot != null)
+        {
+            await _unitRoot.WaitForDefeatedPresentationsAsync();
+        }
+
+        if (_finalOutcome != BattleOutcome.None ||
+            !_battleOutcomeCompletionPending ||
+            _pendingOutcome != outcome)
+        {
+            return;
+        }
+
+        _battleOutcomeCompletionPending = false;
+        _pendingOutcome = BattleOutcome.None;
+        CompleteBattle(outcome, hint);
+    }
+
     private void CompleteBattle(BattleOutcome outcome, string hint)
     {
         if (_finalOutcome != BattleOutcome.None)
@@ -132,6 +196,22 @@ public partial class BattleTurnController : Node
             return;
         }
 
+        if (!_battleOutcomeCompletionPending &&
+            _unitRoot?.HasPendingDefeatedPresentations == true)
+        {
+            _pendingOutcome = outcome;
+            _battleOutcomeCompletionPending = true;
+            _commandController?.ClearSelection();
+            _clearHudCommand?.Invoke();
+            ClearActionPreviewHighlights();
+            _showHint?.Invoke(hint);
+            GameLog.Info(nameof(BattleTurnController), $"Battle outcome {outcome} pending defeated presentations.");
+            _ = CompleteBattleAfterDefeatedPresentations(outcome, hint);
+            return;
+        }
+
+        _battleOutcomeCompletionPending = false;
+        _pendingOutcome = BattleOutcome.None;
         _finalOutcome = outcome;
         _showHint?.Invoke(hint);
         GameLog.Info(nameof(BattleTurnController), $"Battle outcome {outcome}.");
@@ -145,9 +225,12 @@ public partial class BattleTurnController : Node
             return;
         }
 
+        _activePlayerEntity = null;
         _isEnemyPhaseRunning = true;
+        _commandController?.ClearSelection();
         ClearActionPreviewHighlights();
         _showHint?.Invoke("敌方行动");
+        RefreshTurnQueue();
         GameLog.Info(nameof(BattleTurnController), $"Enemy phase started round={_roundNumber}");
 
         await WaitSeconds(0.35);
@@ -161,7 +244,9 @@ public partial class BattleTurnController : Node
 
             if (_executeEnemyAction != null)
             {
+                RefreshTurnQueue(enemy);
                 await _executeEnemyAction(enemy);
+                RefreshTurnQueue();
             }
         }
 
@@ -180,30 +265,101 @@ public partial class BattleTurnController : Node
             _roundNumber++;
         }
 
+        _activePlayerEntity = null;
+        _completedPlayerEntityIds.Clear();
         _unitRoot?.RestoreTurnResourcesForFaction(BattleFaction.Player);
         _unitRoot?.RestoreTurnResourcesForFaction(BattleFaction.Enemy);
+        RebuildPlayerActionOrder();
         _generateEnemyIntents?.Invoke();
         ClearActionPreviewHighlights();
         _clearHudCommand?.Invoke();
         _showHint?.Invoke("我方行动");
-        AutoSelectPlayerUnitForTurn();
-        GameLog.Info(nameof(BattleTurnController), $"Player phase started round={_roundNumber}");
-    }
-
-    private void AutoSelectPlayerUnitForTurn()
-    {
-        BattleEntity entity = EnumerateAliveFaction(BattleFaction.Player)
-            .FirstOrDefault(CanAutoSelectForPlayerTurn);
-
-        if (entity == null)
+        if (!SelectNextPlayerUnitOrEndPhase())
         {
-            _commandController?.ClearSelection();
-            GameLog.Warn(nameof(BattleTurnController), "Player phase has no selectable player unit.");
+            if (!EvaluateBattleOutcome())
+            {
+                RunEnemyPhaseThenBeginPlayerPhase();
+            }
+
             return;
         }
 
+        RefreshTurnQueue(_commandController?.SelectedEntity);
+        GameLog.Info(nameof(BattleTurnController), $"Player phase started round={_roundNumber}");
+    }
+
+    private void CompleteActivePlayerUnitThenAdvance()
+    {
+        BattleEntity completedEntity = _commandController?.SelectedEntity ?? _activePlayerEntity;
+        MarkPlayerEntityCompleted(completedEntity);
+        _activePlayerEntity = null;
+        _commandController?.ClearSelection();
+        ClearActionPreviewHighlights();
+        _clearHudCommand?.Invoke();
+        RefreshTurnQueue();
+
+        if (EvaluateBattleOutcome())
+        {
+            return;
+        }
+
+        if (SelectNextPlayerUnitOrEndPhase())
+        {
+            return;
+        }
+
+        RunEnemyPhaseThenBeginPlayerPhase();
+    }
+
+    private bool SelectNextPlayerUnitOrEndPhase()
+    {
+        PrunePlayerActionOrder();
+        BattleEntity entity = _playerActionOrder
+            .FirstOrDefault(entity => !IsPlayerEntityCompleted(entity) && CanAutoSelectForPlayerTurn(entity));
+
+        if (entity == null)
+        {
+            _activePlayerEntity = null;
+            _commandController?.ClearSelection();
+            RefreshTurnQueue();
+            GameLog.Info(nameof(BattleTurnController), "Player phase has no remaining actionable player unit.");
+            return false;
+        }
+
+        _activePlayerEntity = entity;
         _commandController?.SelectEntity(entity);
-        GameLog.Info(nameof(BattleTurnController), $"Auto selected player unit for turn id={entity.EntityId} name={entity.DisplayName}");
+        RefreshTurnQueue(entity);
+        GameLog.Info(nameof(BattleTurnController), $"Selected next player unit id={entity.EntityId} name={entity.DisplayName}");
+        return true;
+    }
+
+    private void RebuildPlayerActionOrder()
+    {
+        _playerActionOrder.Clear();
+        _playerActionOrder.AddRange(EnumerateAliveFaction(BattleFaction.Player)
+            .Where(CanAutoSelectForPlayerTurn));
+        GameLog.Info(nameof(BattleTurnController), $"Player action order rebuilt count={_playerActionOrder.Count}");
+    }
+
+    private void PrunePlayerActionOrder()
+    {
+        _playerActionOrder.RemoveAll(entity =>
+            entity == null ||
+            BattleRuleQueries.IsDefeated(entity) ||
+            entity.GetComponent<FactionComponent>()?.Faction != BattleFaction.Player);
+    }
+
+    private void MarkPlayerEntityCompleted(BattleEntity entity)
+    {
+        if (entity == null ||
+            entity.GetComponent<FactionComponent>()?.Faction != BattleFaction.Player ||
+            string.IsNullOrWhiteSpace(entity.EntityId))
+        {
+            return;
+        }
+
+        _completedPlayerEntityIds.Add(entity.EntityId);
+        GameLog.Info(nameof(BattleTurnController), $"Player unit completed id={entity.EntityId} name={entity.DisplayName}");
     }
 
     private IEnumerable<BattleEntity> EnumerateAliveFaction(BattleFaction faction)
@@ -217,6 +373,56 @@ public partial class BattleTurnController : Node
         {
             yield return entity;
         }
+    }
+
+    private IReadOnlyList<BattleEntity> BuildTurnQueue(BattleFaction activeFaction, BattleEntity activeEntity)
+    {
+        if (activeFaction == BattleFaction.Player)
+        {
+            PrunePlayerActionOrder();
+            var playerQueue = new List<BattleEntity>();
+            if (activeEntity != null &&
+                !BattleRuleQueries.IsDefeated(activeEntity) &&
+                activeEntity.GetComponent<FactionComponent>()?.Faction == BattleFaction.Player)
+            {
+                playerQueue.Add(activeEntity);
+            }
+
+            playerQueue.AddRange(_playerActionOrder.Where(entity =>
+                entity != activeEntity &&
+                !IsPlayerEntityCompleted(entity) &&
+                CanAutoSelectForPlayerTurn(entity)));
+            playerQueue.AddRange(EnumerateAliveFaction(BattleFaction.Enemy));
+            return playerQueue;
+        }
+
+        BattleFaction nextFaction = activeFaction == BattleFaction.Enemy
+            ? BattleFaction.Player
+            : BattleFaction.Enemy;
+        List<BattleEntity> queue = EnumerateAliveFaction(activeFaction)
+            .Concat(EnumerateAliveFaction(nextFaction))
+            .ToList();
+
+        if (activeEntity == null)
+        {
+            return queue;
+        }
+
+        int activeIndex = queue.IndexOf(activeEntity);
+        if (activeIndex > 0)
+        {
+            queue.RemoveAt(activeIndex);
+            queue.Insert(0, activeEntity);
+        }
+
+        return queue;
+    }
+
+    private bool IsPlayerEntityCompleted(BattleEntity entity)
+    {
+        return entity != null &&
+               !string.IsNullOrWhiteSpace(entity.EntityId) &&
+               _completedPlayerEntityIds.Contains(entity.EntityId);
     }
 
     private static bool CanAutoSelectForPlayerTurn(BattleEntity entity)

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Godot;
 using Rpg.Definitions.Battle.Abilities;
 using Rpg.Domain.Battle.Grid;
@@ -24,6 +25,10 @@ public partial class BattleCommandController : Node
     private System.Action<BattleEntity> _showEntity;
     private System.Action<string> _showHint;
     private System.Action _clearHudCommand;
+    private System.Action _hideHudCommand;
+    private System.Func<BattleEntity, string> _getSelectionBlockReason;
+    private System.Func<bool> _hasActiveMovementTweens;
+    private int _restoreActionUiVersion;
 
     private BattleEntity _selectedEntity;
     private readonly List<BattleInteractionFrame> _interactionStack = new();
@@ -62,7 +67,10 @@ public partial class BattleCommandController : Node
         System.Func<bool> evaluateOutcome,
         System.Action<BattleEntity> showEntity,
         System.Action<string> showHint,
-        System.Action clearHudCommand)
+        System.Action clearHudCommand,
+        System.Action hideHudCommand,
+        System.Func<BattleEntity, string> getSelectionBlockReason,
+        System.Func<bool> hasActiveMovementTweens)
     {
         _previewController = previewController;
         _isEnemyPhaseRunning = isEnemyPhaseRunning;
@@ -74,6 +82,9 @@ public partial class BattleCommandController : Node
         _showEntity = showEntity;
         _showHint = showHint;
         _clearHudCommand = clearHudCommand;
+        _hideHudCommand = hideHudCommand;
+        _getSelectionBlockReason = getSelectionBlockReason;
+        _hasActiveMovementTweens = hasActiveMovementTweens;
 
         GameLog.Info(
             nameof(BattleCommandController),
@@ -122,6 +133,15 @@ public partial class BattleCommandController : Node
             return;
         }
 
+        string blockReason = _getSelectionBlockReason?.Invoke(entity) ?? "";
+        if (!string.IsNullOrWhiteSpace(blockReason))
+        {
+            _showHint?.Invoke(blockReason);
+            GameLog.Info(nameof(BattleCommandController), $"Selection blocked id={entity.EntityId} name={entity.DisplayName} reason={blockReason}");
+            return;
+        }
+
+        _restoreActionUiVersion++;
         _selectedEntity = entity;
         GameLog.Info(nameof(BattleCommandController), $"Selected entity id={entity.EntityId} name={entity.DisplayName}");
         ResetInteractionStack(entity);
@@ -133,6 +153,7 @@ public partial class BattleCommandController : Node
     public void ClearSelection()
     {
         BattleEntity previous = _selectedEntity;
+        _restoreActionUiVersion++;
         _selectedEntity = null;
         _interactionStack.Clear();
         _showEntity?.Invoke(null);
@@ -211,12 +232,6 @@ public partial class BattleCommandController : Node
                 {
                     EnterAbilityTargeting(commandId);
                 }
-                else if (commandId.StartsWith("skill_", System.StringComparison.Ordinal))
-                {
-                    PushActionFrame(BattleInteractionFrameKind.SkillTargeting, commandId);
-                    ClearActionPreviewHighlights();
-                    GameLog.Info(nameof(BattleCommandController), $"Skill targeting entered id={_selectedEntity.EntityId} command={commandId}; range preview is not implemented yet.");
-                }
                 else
                 {
                     PushActionFrame(BattleInteractionFrameKind.CommandSelected, commandId);
@@ -251,6 +266,7 @@ public partial class BattleCommandController : Node
         _interactionStack.RemoveAt(_interactionStack.Count - 1);
         ClearActionPreviewHighlights();
         _clearHudCommand?.Invoke();
+        RestoreSelectedActionMenu();
         GameLog.Info(nameof(BattleCommandController), $"Interaction pop kind={top.Kind} command={top.CommandId} stackDepth={_interactionStack.Count}");
     }
 
@@ -319,6 +335,7 @@ public partial class BattleCommandController : Node
         }
 
         PushActionFrame(BattleInteractionFrameKind.MoveTargeting, commandId);
+        HideSelectedActionMenuForTargeting(commandId);
         _previewController?.ShowMovementRange(_selectedEntity);
     }
 
@@ -343,6 +360,7 @@ public partial class BattleCommandController : Node
         }
 
         PushActionFrame(BattleInteractionFrameKind.AbilityTargeting, commandId);
+        HideSelectedActionMenuForTargeting(commandId);
         _previewController?.ShowAbilityTargetHighlight(_selectedEntity, ability);
     }
 
@@ -358,18 +376,22 @@ public partial class BattleCommandController : Node
         GameLog.Info(nameof(BattleCommandController), $"Wait resolved id={entity.EntityId}");
         ClearActionPreviewHighlights();
         _clearHudCommand?.Invoke();
-        ClearSelection();
         _endPlayerTurn?.Invoke($"{entity.DisplayName} 已待机");
     }
 
     private void ResolveEndCommand()
     {
         BattleEntity entity = _selectedEntity;
+        ActionPointComponent actionPoint = _selectedEntity.GetComponent<ActionPointComponent>();
+        if (actionPoint != null)
+        {
+            actionPoint.Ap = 0;
+        }
+
         GameLog.Info(nameof(BattleCommandController), $"End command resolved id={entity.EntityId}");
         ClearActionPreviewHighlights();
         _clearHudCommand?.Invoke();
-        ClearSelection();
-        _endPlayerTurn?.Invoke("行动结束");
+        _endPlayerTurn?.Invoke($"{entity.DisplayName} 行动结束");
     }
 
     private bool TryHandleGridCellClick(GridPosition position)
@@ -439,10 +461,10 @@ public partial class BattleCommandController : Node
 
         ReturnToUnitSelectedFrame();
         _clearHudCommand?.Invoke();
-        _showEntity?.Invoke(_selectedEntity);
         _showHint?.Invoke(result.Message);
         ClearActionPreviewHighlights();
         _previewController?.UpdateSelectedHighlight(_selectedEntity);
+        RestoreSelectedActionMenuAfterPresentation(_selectedEntity, minimumDelaySeconds: 0, waitForMovement: true);
 
         GameLog.Info(
             nameof(BattleCommandController),
@@ -479,14 +501,18 @@ public partial class BattleCommandController : Node
             return true;
         }
 
-        _showEntity?.Invoke(attacker);
+        double presentationDelaySeconds = ResolveActionPresentationSeconds(attacker);
         _showHint?.Invoke(result.Message);
 
         ReturnToUnitSelectedFrame();
         _clearHudCommand?.Invoke();
         ClearActionPreviewHighlights();
         _previewController?.UpdateSelectedHighlight(attacker);
-        _evaluateOutcome?.Invoke();
+        bool battleEnded = _evaluateOutcome?.Invoke() == true;
+        if (!battleEnded)
+        {
+            RestoreSelectedActionMenuAfterPresentation(attacker, presentationDelaySeconds, waitForMovement: false);
+        }
 
         GameLog.Info(
             nameof(BattleCommandController),
@@ -499,6 +525,71 @@ public partial class BattleCommandController : Node
         _previewController?.ClearActionPreviewHighlights();
     }
 
+    private void HideSelectedActionMenuForTargeting(string commandId)
+    {
+        _hideHudCommand?.Invoke();
+        GameLog.Info(nameof(BattleCommandController), $"Action menu hidden for targeting id={_selectedEntity?.EntityId} command={commandId}");
+    }
+
+    private void RestoreSelectedActionMenu()
+    {
+        if (!CanRestoreSelectedActionMenu(_selectedEntity))
+        {
+            return;
+        }
+
+        _showEntity?.Invoke(_selectedEntity);
+    }
+
+    private async void RestoreSelectedActionMenuAfterPresentation(
+        BattleEntity entity,
+        double minimumDelaySeconds,
+        bool waitForMovement)
+    {
+        int restoreVersion = ++_restoreActionUiVersion;
+        await WaitForActionPresentationAsync(minimumDelaySeconds, waitForMovement);
+
+        if (restoreVersion != _restoreActionUiVersion ||
+            !CanRestoreSelectedActionMenu(entity))
+        {
+            return;
+        }
+
+        _showEntity?.Invoke(entity);
+        GameLog.Info(nameof(BattleCommandController), $"Action menu restored after presentation id={entity.EntityId}");
+    }
+
+    private bool CanRestoreSelectedActionMenu(BattleEntity entity)
+    {
+        return entity != null &&
+               entity == _selectedEntity &&
+               GodotObject.IsInstanceValid(entity) &&
+               !IsEnemyPhaseRunning() &&
+               !BattleRuleQueries.IsDefeated(entity) &&
+               _interactionStack.Count > 0 &&
+               PeekInteractionFrame().Kind == BattleInteractionFrameKind.UnitSelected;
+    }
+
+    private async Task WaitForActionPresentationAsync(double minimumDelaySeconds, bool waitForMovement)
+    {
+        if (minimumDelaySeconds > 0 && IsInsideTree())
+        {
+            await ToSignal(GetTree().CreateTimer(minimumDelaySeconds), SceneTreeTimer.SignalName.Timeout);
+        }
+
+        while (waitForMovement &&
+               IsInsideTree() &&
+               _hasActiveMovementTweens?.Invoke() == true)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+    }
+
+    private static double ResolveActionPresentationSeconds(BattleEntity actor)
+    {
+        return actor?.GetComponent<UnitAnimationComponent>()?.ResolveAttackDurationSeconds() ?? 0;
+    }
+
     private bool IsEnemyPhaseRunning()
     {
         return _isEnemyPhaseRunning?.Invoke() == true;
@@ -509,7 +600,6 @@ public partial class BattleCommandController : Node
         UnitSelected,
         MoveTargeting,
         AbilityTargeting,
-        SkillTargeting,
         CommandSelected
     }
 

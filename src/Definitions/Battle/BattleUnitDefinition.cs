@@ -1,4 +1,5 @@
 using Godot;
+using Rpg.Definitions.Battle.Abilities;
 
 namespace Rpg.Definitions.Battle;
 
@@ -12,7 +13,13 @@ public partial class BattleUnitDefinition : Resource
     public string DisplayName { get; set; } = "战斗单位";
 
     [Export]
-    public PackedScene EntityScene { get; set; }
+    public BattleUnitVisualDefinition Visual { get; set; }
+
+    [Export]
+    public Godot.Collections.Array<AbilityDefinition> Abilities { get; set; } = new();
+
+    [Export]
+    public BattleUnitControlMode ControlMode { get; set; } = BattleUnitControlMode.AutoByFaction;
 
     [Export]
     public Color DebugMarkerColor { get; set; } = new(0.35f, 0.9f, 0.75f, 0.9f);

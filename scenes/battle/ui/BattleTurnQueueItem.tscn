@@ -1,0 +1,28 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Battle/UI/BattleTurnQueueItem.cs" id="1_script"]
+
+[node name="BattleTurnQueueItem" type="Control"]
+custom_minimum_size = Vector2(128, 34)
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="NameLabel" type="Label" parent="."]
+offset_left = 8.0
+offset_top = 2.0
+offset_right = 120.0
+offset_bottom = 18.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 12
+text_overrun_behavior = 3
+vertical_alignment = 1
+
+[node name="MetaLabel" type="Label" parent="."]
+offset_left = 8.0
+offset_top = 17.0
+offset_right = 120.0
+offset_bottom = 32.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 10
+text_overrun_behavior = 3
+vertical_alignment = 1

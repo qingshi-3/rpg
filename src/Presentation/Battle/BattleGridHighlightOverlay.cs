@@ -8,6 +8,11 @@ namespace Rpg.Presentation.Battle;
 
 public partial class BattleGridHighlightOverlay : Node2D
 {
+    [ExportGroup("Layering")]
+
+    [Export]
+    public int OverlayZIndex { get; set; } = 600;
+
     [ExportGroup("Hover")]
 
     [Export]
@@ -28,16 +33,16 @@ public partial class BattleGridHighlightOverlay : Node2D
     [ExportGroup("Range Colors")]
 
     [Export]
-    public Color MoveColor { get; set; } = new(0.2f, 0.65f, 1f, 0.24f);
+    public Color MoveColor { get; set; } = new(0.04f, 0.42f, 1f, 0.34f);
 
     [Export]
     public Color PathColor { get; set; } = new(1f, 0.82f, 0.18f, 0.34f);
 
     [Export]
-    public Color ThreatColor { get; set; } = new(1f, 0.36f, 0.12f, 0.18f);
+    public Color ThreatColor { get; set; } = new(1f, 0.26f, 0.08f, 0.38f);
 
     [Export]
-    public Color AttackColor { get; set; } = new(1f, 0.22f, 0.18f, 0.24f);
+    public Color AttackColor { get; set; } = new(1f, 0.08f, 0.04f, 0.42f);
 
     [Export]
     public Color SkillColor { get; set; } = new(0.7f, 0.42f, 1f, 0.22f);
@@ -53,6 +58,26 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     [Export]
     public float RangeBorderWidth { get; set; } = 1.5f;
+
+    [ExportGroup("Dynamic Range Style")]
+
+    [Export]
+    public bool EnableDynamicRangeStyle { get; set; } = true;
+
+    [Export]
+    public bool PulseThreatHighlights { get; set; } = true;
+
+    [Export]
+    public bool PulseAttackHighlights { get; set; } = true;
+
+    [Export]
+    public bool PulseTargetHighlights { get; set; } = true;
+
+    [Export(PropertyHint.Range, "0.2,2.5,0.05")]
+    public double DynamicPulseSeconds { get; set; } = 0.85;
+
+    [Export(PropertyHint.Range, "0.1,1,0.05")]
+    public float DynamicPulseMinAlphaMultiplier { get; set; } = 0.72f;
 
     [ExportGroup("Path Arrows")]
 
@@ -82,7 +107,7 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     public override void _Ready()
     {
-        ZIndex = 100;
+        ZIndex = OverlayZIndex;
         SetProcess(HoverEnabled);
 
         _siteRoot = FindWorldSiteRoot();
@@ -139,7 +164,7 @@ public partial class BattleGridHighlightOverlay : Node2D
         GridPosition[] orderedCells = cells.ToArray();
         _pathCells.Clear();
         _pathCells.AddRange(orderedCells);
-        _cellsByKind[BattleGridHighlightKind.Path] = orderedCells.ToHashSet();
+        _cellsByKind[BattleGridHighlightKind.Path] = orderedCells.Skip(1).ToHashSet();
         Rebuild();
     }
 
@@ -245,6 +270,7 @@ public partial class BattleGridHighlightOverlay : Node2D
             ZIndex = (int)kind * 2
         };
         AddChild(fillNode);
+        ApplyDynamicRangeStyle(fillNode, kind);
 
         var borderNode = new Line2D
         {
@@ -255,6 +281,27 @@ public partial class BattleGridHighlightOverlay : Node2D
             ZIndex = (int)kind * 2 + 1
         };
         AddChild(borderNode);
+        ApplyDynamicRangeStyle(borderNode, kind);
+    }
+
+    private void ApplyDynamicRangeStyle(CanvasItem item, BattleGridHighlightKind kind)
+    {
+        if (!ShouldPulse(kind) || item == null || !IsInsideTree())
+        {
+            return;
+        }
+
+        float minAlpha = Mathf.Clamp(DynamicPulseMinAlphaMultiplier, 0.1f, 1f);
+        double pulseSeconds = System.Math.Max(0.2, DynamicPulseSeconds);
+        item.Modulate = new Color(1f, 1f, 1f, 1f);
+
+        Tween tween = CreateTween();
+        tween.BindNode(item);
+        tween.SetLoops();
+        tween.SetTrans(Tween.TransitionType.Sine);
+        tween.SetEase(Tween.EaseType.InOut);
+        tween.TweenProperty(item, "modulate", new Color(1f, 1f, 1f, minAlpha), pulseSeconds);
+        tween.TweenProperty(item, "modulate", Colors.White, pulseSeconds);
     }
 
     private void AddHoverFrame(Vector2[] polygon)
@@ -403,10 +450,10 @@ public partial class BattleGridHighlightOverlay : Node2D
     {
         return kind switch
         {
-            BattleGridHighlightKind.Move => (MoveColor, WithAlpha(MoveColor, 0.55f), RangeBorderWidth),
+            BattleGridHighlightKind.Move => (MoveColor, WithAlpha(MoveColor, 0.76f), RangeBorderWidth),
             BattleGridHighlightKind.Path => (PathColor, WithAlpha(PathColor, 0.72f), RangeBorderWidth + 0.35f),
-            BattleGridHighlightKind.Threat => (ThreatColor, WithAlpha(ThreatColor, 0.46f), RangeBorderWidth),
-            BattleGridHighlightKind.Attack => (AttackColor, WithAlpha(AttackColor, 0.58f), RangeBorderWidth),
+            BattleGridHighlightKind.Threat => (ThreatColor, WithAlpha(ThreatColor, 0.82f), RangeBorderWidth + 0.2f),
+            BattleGridHighlightKind.Attack => (AttackColor, WithAlpha(AttackColor, 0.88f), RangeBorderWidth + 0.35f),
             BattleGridHighlightKind.Skill => (SkillColor, WithAlpha(SkillColor, 0.56f), RangeBorderWidth),
             BattleGridHighlightKind.Target => (TargetColor, WithAlpha(TargetColor, 0.58f), RangeBorderWidth),
             BattleGridHighlightKind.Selected => (SelectedColor, WithAlpha(SelectedColor, 0.62f), RangeBorderWidth),
@@ -414,6 +461,14 @@ public partial class BattleGridHighlightOverlay : Node2D
             BattleGridHighlightKind.Hover => (HoverFillColor, HoverBorderColor, HoverBorderWidth),
             _ => (HoverFillColor, HoverBorderColor, HoverBorderWidth)
         };
+    }
+
+    private bool ShouldPulse(BattleGridHighlightKind kind)
+    {
+        return EnableDynamicRangeStyle &&
+               ((kind == BattleGridHighlightKind.Threat && PulseThreatHighlights) ||
+                (kind == BattleGridHighlightKind.Attack && PulseAttackHighlights) ||
+                (kind == BattleGridHighlightKind.Target && PulseTargetHighlights));
     }
 
     private static Color WithAlpha(Color color, float alpha)
@@ -429,7 +484,6 @@ public partial class BattleGridHighlightOverlay : Node2D
         yield return BattleGridHighlightKind.Skill;
         yield return BattleGridHighlightKind.Attack;
         yield return BattleGridHighlightKind.Target;
-        yield return BattleGridHighlightKind.Selected;
         yield return BattleGridHighlightKind.Invalid;
     }
 

@@ -6,7 +6,7 @@ using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Common;
 using Rpg.Presentation.Battle.Abilities;
 using Rpg.Presentation.Battle.Entities;
-using Rpg.Presentation.UI.ActionWheel;
+using Rpg.Presentation.Battle.Rules;
 
 namespace Rpg.Presentation.Battle.UI;
 
@@ -17,16 +17,22 @@ public partial class BattleHudRoot : Control
 
     private TopTurnBar _topTurnBar;
     private UnitStatusCard _unitStatusCard;
-    private BattleActionDock _actionDock;
+    private BattleActionMenu _actionMenu;
     private CommandInfoPanel _commandInfoPanel;
     private FloatingActionHint _floatingActionHint;
     private Tween _selectionUiTween;
     private bool _selectionUiVisible;
-    private Vector2 _unitStatusShownPosition;
-    private Vector2 _actionDockShownPosition;
-    private Vector2 _commandInfoShownPosition;
+    private Vector2 _actionMenuShownPosition;
+    private BattleEntity _selectedHudEntity;
+    private BattleFaction _activeFaction = BattleFaction.Player;
 
-    private const float SelectionUiHiddenOffsetY = 132f;
+    private const float ActionMenuWidth = 168f;
+    private const float ActionMenuButtonHeight = 40f;
+    private const float ActionMenuVerticalPadding = 24f;
+    private const float ActionMenuVerticalSeparation = 5f;
+    private const float ActionMenuEntityGap = 34f;
+    private const float HudEdgePadding = 12f;
+    private const float SelectionUiHiddenOffsetY = 42f;
     private const double SelectionUiShowDuration = 0.34;
     private const double SelectionUiHideDuration = 0.24;
 
@@ -46,24 +52,15 @@ public partial class BattleHudRoot : Control
         }
     }
 
+    public override void _Process(double delta)
+    {
+        UpdateSelectionUiFollowPosition();
+    }
+
     public override void _UnhandledInput(InputEvent @event)
     {
         if (!IsCancelEvent(@event))
         {
-            return;
-        }
-
-        bool hadActiveCommand = _actionDock?.HasActiveCommand == true;
-        if (_actionDock?.HandleCancel() == true)
-        {
-            _floatingActionHint?.ShowHint("请选择行动");
-
-            if (hadActiveCommand)
-            {
-                CommandCancelled?.Invoke();
-            }
-
-            GetViewport().SetInputAsHandled();
             return;
         }
 
@@ -90,9 +87,9 @@ public partial class BattleHudRoot : Control
             content,
             "UnitStatusCard",
             nameof(BattleHudRoot));
-        _actionDock = GameUiSceneFactory.GetRequiredNode<BattleActionDock>(
+        _actionMenu = GameUiSceneFactory.GetRequiredNode<BattleActionMenu>(
             content,
-            "BattleActionDock",
+            "BattleActionMenu",
             nameof(BattleHudRoot));
         _commandInfoPanel = GameUiSceneFactory.GetRequiredNode<CommandInfoPanel>(
             content,
@@ -103,12 +100,11 @@ public partial class BattleHudRoot : Control
             "FloatingActionHint",
             nameof(BattleHudRoot));
 
-        if (_actionDock != null)
+        if (_actionMenu != null)
         {
-            _actionDock.CommandHovered += OnCommandHovered;
-            _actionDock.CommandSelected += OnCommandSelected;
-            _actionDock.InvalidCommandSelected += OnInvalidCommandSelected;
-            _actionDock.LayerChanged += OnLayerChanged;
+            _actionMenu.CommandHovered += OnCommandHovered;
+            _actionMenu.CommandSelected += OnCommandSelected;
+            _actionMenu.InvalidCommandSelected += OnInvalidCommandSelected;
         }
 
         LayoutHud();
@@ -119,7 +115,7 @@ public partial class BattleHudRoot : Control
         if (_topTurnBar == null ||
             _commandInfoPanel == null ||
             _unitStatusCard == null ||
-            _actionDock == null ||
+            _actionMenu == null ||
             _floatingActionHint == null)
         {
             return;
@@ -127,104 +123,84 @@ public partial class BattleHudRoot : Control
 
         float viewportWidth = Mathf.Max(Size.X, 1f);
         float viewportHeight = Mathf.Max(Size.Y, 1f);
-        float sidePadding = Mathf.Clamp(viewportWidth * 0.018f, 18f, 34f);
-        float bottomPadding = Mathf.Clamp(viewportHeight * 0.02f, 12f, 28f);
-        float infoGap = Mathf.Clamp(viewportWidth * 0.008f, 8f, 16f);
-
-        _topTurnBar.Size = new Vector2(Mathf.Clamp(viewportWidth * 0.34f, 460f, 680f), 40f);
-        _topTurnBar.Size = new Vector2(Mathf.Min(_topTurnBar.Size.X, viewportWidth - sidePadding * 2f), _topTurnBar.Size.Y);
-        _topTurnBar.Position = new Vector2((viewportWidth - _topTurnBar.Size.X) * 0.5f, 16f);
-
-        float panelHeight = Mathf.Clamp(viewportHeight * 0.18f, 112f, 168f);
-        float actionDockHeight = Mathf.Clamp(viewportHeight * 0.31f, 260f, 360f);
+        float sidePadding = Mathf.Clamp(viewportWidth * 0.016f, 16f, 32f);
         float availableWidth = Mathf.Max(320f, viewportWidth - sidePadding * 2f);
-        bool stackedLayout = viewportWidth < 1040f;
 
-        if (stackedLayout)
-        {
-            float fullWidth = availableWidth;
-            float commandY = viewportHeight - panelHeight - bottomPadding;
-            float actionY = commandY - actionDockHeight - infoGap;
-            float unitY = Mathf.Max(_topTurnBar.Position.Y + _topTurnBar.Size.Y + infoGap, actionY - panelHeight - infoGap);
+        _topTurnBar.Size = new Vector2(Mathf.Clamp(viewportWidth * 0.44f, 620f, 860f), 68f);
+        _topTurnBar.Size = new Vector2(Mathf.Min(_topTurnBar.Size.X, availableWidth), _topTurnBar.Size.Y);
+        _topTurnBar.Position = new Vector2((viewportWidth - _topTurnBar.Size.X) * 0.5f, Mathf.Clamp(viewportHeight * 0.012f, 10f, 18f));
 
-            _commandInfoPanel.Size = new Vector2(fullWidth, panelHeight);
-            _commandInfoPanel.Position = new Vector2(sidePadding, commandY);
+        _actionMenu.Size = new Vector2(ActionMenuWidth, CalculateActionMenuHeight());
+        _actionMenuShownPosition = CalculateActionMenuPosition(_selectedHudEntity, _actionMenu.Size);
 
-            _unitStatusCard.Size = new Vector2(fullWidth, panelHeight);
-            _unitStatusCard.Position = new Vector2(sidePadding, unitY);
+        _unitStatusCard.Visible = false;
+        _commandInfoPanel.Visible = false;
 
-            _actionDock.Size = new Vector2(fullWidth, actionDockHeight);
-            _actionDock.Position = new Vector2(sidePadding, actionY);
-        }
-        else
-        {
-            float commandInfoWidth = Mathf.Clamp(viewportWidth * 0.23f, 300f, 440f);
-            float commandX = viewportWidth - commandInfoWidth - sidePadding;
-            float actionDockWidth = Mathf.Clamp(commandX - sidePadding - infoGap, 720f, 1040f);
-            float actionDockX = sidePadding;
-            float actionDockY = viewportHeight - actionDockHeight - bottomPadding;
-            float panelY = viewportHeight - panelHeight - bottomPadding;
-
-            _commandInfoPanel.Size = new Vector2(commandInfoWidth, panelHeight);
-            _commandInfoPanel.Position = new Vector2(commandX, panelY);
-
-            float actionDockRight = actionDockX + actionDockWidth;
-            float unitInfoRight = _commandInfoPanel.Position.X - infoGap;
-            bool compactBottomBand = unitInfoRight - actionDockRight < 368f || viewportWidth < 1500f;
-
-            if (compactBottomBand)
-            {
-                float unitInfoWidth = Mathf.Clamp(actionDockWidth * 0.52f, 340f, 480f);
-                float unitInfoX = Mathf.Max(sidePadding, actionDockRight - unitInfoWidth);
-                float unitInfoY = Mathf.Max(_topTurnBar.Position.Y + _topTurnBar.Size.Y + infoGap, actionDockY - panelHeight - infoGap);
-
-                _unitStatusCard.Size = new Vector2(unitInfoWidth, panelHeight);
-                _unitStatusCard.Position = new Vector2(unitInfoX, unitInfoY);
-            }
-            else
-            {
-                float unitInfoLeft = actionDockRight + infoGap;
-                float unitInfoWidth = Mathf.Max(360f, unitInfoRight - unitInfoLeft);
-
-                _unitStatusCard.Size = new Vector2(unitInfoWidth, panelHeight);
-                _unitStatusCard.Position = new Vector2(unitInfoRight - _unitStatusCard.Size.X, panelY);
-            }
-
-            _actionDock.Size = new Vector2(actionDockWidth, actionDockHeight);
-            _actionDock.Position = new Vector2(actionDockX, actionDockY);
-        }
-
-        _unitStatusShownPosition = _unitStatusCard.Position;
-        _actionDockShownPosition = _actionDock.Position;
-
-        _floatingActionHint.Size = new Vector2(Mathf.Min(420f, viewportWidth - sidePadding * 2f), 52f);
-        _floatingActionHint.Position = new Vector2((viewportWidth - _floatingActionHint.Size.X) * 0.5f, 86f);
-
-        _commandInfoShownPosition = _commandInfoPanel.Position;
+        _floatingActionHint.Size = new Vector2(Mathf.Min(460f, availableWidth), 46f);
+        _floatingActionHint.Position = new Vector2((viewportWidth - _floatingActionHint.Size.X) * 0.5f, _topTurnBar.Position.Y + _topTurnBar.Size.Y + 10f);
 
         ApplySelectionUiPose(_selectionUiVisible);
     }
 
     private void ConfigureDemoState()
     {
+        _topTurnBar?.SetTurnState(1, BattleFaction.Player, Array.Empty<BattleTurnQueueEntry>());
         _unitStatusCard?.SetUnit("未选择", 0, 0, 0, 0);
-        _actionDock?.SetWheelViewModel(BuildDemoWheelViewModel());
+        _actionMenu?.SetCommands(Array.Empty<BattleActionMenuCommandViewModel>());
         SetSelectionUiVisible(false, false);
+    }
+
+    public void ShowTurnQueue(
+        int roundNumber,
+        BattleFaction activeFaction,
+        BattleEntity activeEntity,
+        IReadOnlyList<BattleEntity> queue)
+    {
+        _activeFaction = activeFaction;
+        var entries = new List<BattleTurnQueueEntry>();
+        if (queue != null)
+        {
+            foreach (BattleEntity entity in queue)
+            {
+                if (entity == null)
+                {
+                    continue;
+                }
+
+                HealthComponent health = entity.GetComponent<HealthComponent>();
+                ActionPointComponent actionPoint = entity.GetComponent<ActionPointComponent>();
+                BattleFaction faction = entity.GetComponent<FactionComponent>()?.Faction ?? BattleFaction.Player;
+                entries.Add(new BattleTurnQueueEntry(
+                    entity.EntityId,
+                    entity.DisplayName,
+                    faction,
+                    health?.Hp ?? 0,
+                    health?.MaxHp ?? 0,
+                    actionPoint?.Ap ?? 0,
+                    actionPoint?.MaxAp ?? 0,
+                    activeEntity == entity,
+                    BattleRuleQueries.IsDefeated(entity)));
+            }
+        }
+
+        _topTurnBar?.SetTurnState(roundNumber, activeFaction, entries);
     }
 
     public void ShowEntity(BattleEntity entity)
     {
         if (entity == null)
         {
+            _selectedHudEntity = null;
             _unitStatusCard?.SetUnit("未选择", 0, 0, 0, 0);
-            _actionDock?.SetWheelViewModel(BuildDemoWheelViewModel());
+            _actionMenu?.SetCommands(Array.Empty<BattleActionMenuCommandViewModel>());
             SetSelectionUiVisible(false);
             GameLog.Info(nameof(BattleHudRoot), "HUD cleared selected entity.");
             return;
         }
 
-        _actionDock?.SetWheelViewModel(BuildUnitWheelViewModel(entity));
-        SetSelectionUiVisible(true);
+        _selectedHudEntity = entity;
+        IReadOnlyList<BattleActionMenuCommandViewModel> commands = BuildUnitMenuCommands(entity, _activeFaction);
+        _actionMenu?.SetCommands(commands);
 
         HealthComponent health = entity.GetComponent<HealthComponent>();
         ActionPointComponent actionPoint = entity.GetComponent<ActionPointComponent>();
@@ -236,15 +212,23 @@ public partial class BattleHudRoot : Control
             actionPoint?.Ap ?? 0,
             actionPoint?.MaxAp ?? 0);
 
-        _floatingActionHint.ShowHint($"已选择 {entity.DisplayName}");
+        LayoutHud();
+        SetSelectionUiVisible(commands.Count > 0);
         GameLog.Info(
             nameof(BattleHudRoot),
-            $"HUD showing entity id={entity.EntityId} name={entity.DisplayName} hp={health?.Hp ?? 0}/{health?.MaxHp ?? 0} ap={actionPoint?.Ap ?? 0}/{actionPoint?.MaxAp ?? 0}");
+            $"HUD showing entity id={entity.EntityId} name={entity.DisplayName} commands={commands.Count} hp={health?.Hp ?? 0}/{health?.MaxHp ?? 0} ap={actionPoint?.Ap ?? 0}/{actionPoint?.MaxAp ?? 0}");
     }
 
     public void ClearActiveCommand()
     {
-        _actionDock?.SetActiveCommand("");
+        _actionMenu?.SetActiveCommand("");
+    }
+
+    public void HideSelectedActionMenu()
+    {
+        _actionMenu?.SetActiveCommand("");
+        SetSelectionUiVisible(false, animate: false);
+        GameLog.Info(nameof(BattleHudRoot), $"Selected action menu hidden entity={_selectedHudEntity?.EntityId}");
     }
 
     public void ShowActionHint(string text)
@@ -283,11 +267,8 @@ public partial class BattleHudRoot : Control
         _selectionUiTween.SetEase(visible ? Tween.EaseType.Out : Tween.EaseType.In);
 
         double duration = visible ? SelectionUiShowDuration : SelectionUiHideDuration;
-        TweenSelectionNode(_actionDock, _actionDockShownPosition, visible, duration);
-        TweenSelectionNode(_unitStatusCard, _unitStatusShownPosition, visible, duration);
-        TweenSelectionNode(_commandInfoPanel, _commandInfoShownPosition, visible, duration);
+        TweenSelectionNode(_actionMenu, _actionMenuShownPosition, visible, duration);
 
-        _floatingActionHint.Visible = visible;
         _selectionUiTween.Finished += () =>
         {
             if (!visible)
@@ -320,14 +301,40 @@ public partial class BattleHudRoot : Control
 
     private void ApplySelectionUiPose(bool visible)
     {
-        ApplySelectionNodePose(_actionDock, _actionDockShownPosition, visible);
-        ApplySelectionNodePose(_unitStatusCard, _unitStatusShownPosition, visible);
-        ApplySelectionNodePose(_commandInfoPanel, _commandInfoShownPosition, visible);
+        ApplySelectionNodePose(_actionMenu, _actionMenuShownPosition, visible);
+        SetSecondarySelectionPanelsVisible(false);
+    }
 
-        if (_floatingActionHint != null)
+    private void UpdateSelectionUiFollowPosition()
+    {
+        if (!_selectionUiVisible || _selectedHudEntity == null || _actionMenu == null)
         {
-            _floatingActionHint.Visible = visible;
+            return;
         }
+
+        if (!GodotObject.IsInstanceValid(_selectedHudEntity))
+        {
+            _selectedHudEntity = null;
+            _actionMenu?.SetCommands(Array.Empty<BattleActionMenuCommandViewModel>());
+            SetSelectionUiVisible(false);
+            return;
+        }
+
+        Vector2 nextPosition = CalculateActionMenuPosition(_selectedHudEntity, _actionMenu.Size);
+        if (_actionMenuShownPosition.DistanceSquaredTo(nextPosition) <= 0.01f)
+        {
+            return;
+        }
+
+        _actionMenuShownPosition = nextPosition;
+        if (_selectionUiTween != null)
+        {
+            _selectionUiTween.Kill();
+            _selectionUiTween = null;
+            SetSelectionUiNodesVisible(true);
+        }
+
+        ApplySelectionNodePose(_actionMenu, _actionMenuShownPosition, true);
     }
 
     private static void ApplySelectionNodePose(Control node, Vector2 shownPosition, bool visible)
@@ -343,24 +350,24 @@ public partial class BattleHudRoot : Control
 
     private void SetSelectionUiNodesVisible(bool visible)
     {
+        if (_actionMenu != null)
+        {
+            _actionMenu.Visible = visible;
+        }
+
+        SetSecondarySelectionPanelsVisible(false);
+    }
+
+    private void SetSecondarySelectionPanelsVisible(bool visible)
+    {
         if (_unitStatusCard != null)
         {
             _unitStatusCard.Visible = visible;
         }
 
-        if (_actionDock != null)
-        {
-            _actionDock.Visible = visible;
-        }
-
         if (_commandInfoPanel != null)
         {
             _commandInfoPanel.Visible = visible;
-        }
-
-        if (_floatingActionHint != null)
-        {
-            _floatingActionHint.Visible = visible;
         }
     }
 
@@ -369,39 +376,50 @@ public partial class BattleHudRoot : Control
         return shownPosition + new Vector2(0f, SelectionUiHiddenOffsetY);
     }
 
-    private static ActionWheelViewModel BuildDemoWheelViewModel()
+    private Vector2 CalculateActionMenuPosition(BattleEntity entity, Vector2 menuSize)
     {
-        var primaryCommands = new List<ActionWheelCommandViewModel>
-        {
-            new("move", "移动", 1, IconText: "移"),
-            new("attack", "攻击", 1, IconText: "攻"),
-            new("skill-menu", "技能", 2, IconText: "技", TargetLayerId: ActionWheelLayerIds.Skills),
-            new("cards", "卡牌", 1, false, "卡牌指令尚未接入", "卡"),
-            new("corps", "兵团", 2, false, "兵团指令尚未接入", "令"),
-            new("wait", "待机", IconText: "待"),
-            new("end", "结束", IconText: "终")
-        };
+        float viewportWidth = Mathf.Max(Size.X, 1f);
+        float viewportHeight = Mathf.Max(Size.Y, 1f);
+        Vector2 anchor = entity == null
+            ? new Vector2(viewportWidth * 0.5f, viewportHeight * 0.5f)
+            : GetViewport().GetCanvasTransform() * entity.GlobalPosition;
 
-        var skillCommands = new List<ActionWheelCommandViewModel>
-        {
-            new("skill_push", "推击", 2, IconText: "推"),
-            new("skill_guard", "守护", 1, false, "行动点不足", "守"),
-            new("skill_mark", "标记", 1, IconText: "标"),
-            new("skill_back", "返回", IconText: "返", IsBackCommand: true)
-        };
+        float rightX = anchor.X + ActionMenuEntityGap;
+        float leftX = anchor.X - menuSize.X - ActionMenuEntityGap;
+        float x = rightX + menuSize.X <= viewportWidth - HudEdgePadding
+            ? rightX
+            : leftX;
+        float minY = _topTurnBar == null
+            ? HudEdgePadding
+            : _topTurnBar.Position.Y + _topTurnBar.Size.Y + HudEdgePadding;
+        float y = anchor.Y - menuSize.Y * 0.5f;
 
-        var layers = new Dictionary<string, ActionWheelLayerViewModel>
-        {
-            [ActionWheelLayerIds.Primary] = new(ActionWheelLayerIds.Primary, "", primaryCommands),
-            [ActionWheelLayerIds.Skills] = new(ActionWheelLayerIds.Skills, ActionWheelLayerIds.Primary, skillCommands)
-        };
-
-        return new ActionWheelViewModel(ActionWheelLayerIds.Primary, "", layers);
+        return new Vector2(
+            Mathf.Clamp(x, HudEdgePadding, Mathf.Max(HudEdgePadding, viewportWidth - menuSize.X - HudEdgePadding)),
+            Mathf.Clamp(y, minY, Mathf.Max(minY, viewportHeight - menuSize.Y - HudEdgePadding)));
     }
 
-    private static ActionWheelViewModel BuildUnitWheelViewModel(BattleEntity entity)
+    private float CalculateActionMenuHeight()
     {
-        var primaryCommands = new List<ActionWheelCommandViewModel>();
+        int commandCount = _actionMenu?.CommandCount ?? 0;
+        if (commandCount <= 0)
+        {
+            return 0f;
+        }
+
+        return ActionMenuVerticalPadding +
+               commandCount * ActionMenuButtonHeight +
+               Mathf.Max(commandCount - 1, 0) * ActionMenuVerticalSeparation;
+    }
+
+    private static IReadOnlyList<BattleActionMenuCommandViewModel> BuildUnitMenuCommands(BattleEntity entity, BattleFaction activeFaction)
+    {
+        var commands = new List<BattleActionMenuCommandViewModel>();
+        if (!CanShowUnitCommands(entity, activeFaction))
+        {
+            return commands;
+        }
+
         MovementComponent movement = entity.GetComponent<MovementComponent>();
         ActionPointComponent actionPoint = entity.GetComponent<ActionPointComponent>();
 
@@ -415,56 +433,69 @@ public partial class BattleHudRoot : Control
                 ? "移动次数不足"
                 : "行动点不足";
 
-        primaryCommands.Add(new ActionWheelCommandViewModel(
-            "move",
-            "移动",
-            movement?.ApCost,
-            moveEnabled,
-            moveEnabled ? "" : moveDisabledReason,
-            "移"));
+        AddEnabledCommand(
+            commands,
+            new BattleActionMenuCommandViewModel(
+                "move",
+                "移动",
+                movement?.ApCost,
+                moveEnabled,
+                moveEnabled ? "" : moveDisabledReason,
+                "移"));
 
         foreach (AbilityDefinition ability in BattleAbilityQueries.GetAbilities(entity))
         {
             bool abilityEnabled = BattleAbilityQueries.CanUseAbility(entity, ability, out string disabledReason);
-            primaryCommands.Add(new ActionWheelCommandViewModel(
-                BattleAbilityQueries.ToCommandId(ability),
-                string.IsNullOrWhiteSpace(ability.DisplayName) ? "能力" : ability.DisplayName,
-                ability.ApCost,
-                abilityEnabled,
-                abilityEnabled ? "" : disabledReason,
-                string.IsNullOrWhiteSpace(ability.IconText) ? "技" : ability.IconText));
+            AddEnabledCommand(
+                commands,
+                new BattleActionMenuCommandViewModel(
+                    BattleAbilityQueries.ToCommandId(ability),
+                    string.IsNullOrWhiteSpace(ability.DisplayName) ? "能力" : ability.DisplayName,
+                    ability.ApCost,
+                    abilityEnabled,
+                    abilityEnabled ? "" : disabledReason,
+                    string.IsNullOrWhiteSpace(ability.IconText) ? "技" : ability.IconText));
         }
 
-        primaryCommands.Add(new("cards", "卡牌", 1, false, "卡牌指令尚未接入", "卡"));
-        primaryCommands.Add(new("corps", "兵团", 2, false, "兵团指令尚未接入", "令"));
-        primaryCommands.Add(new("wait", "待机", IconText: "待"));
-        primaryCommands.Add(new("end", "结束", IconText: "结"));
+        commands.Add(new("wait", "待机", IconText: "待"));
+        commands.Add(new("end", "结束", IconText: "结"));
 
-        var layers = new Dictionary<string, ActionWheelLayerViewModel>
-        {
-            [ActionWheelLayerIds.Primary] = new(ActionWheelLayerIds.Primary, "", primaryCommands),
-            [ActionWheelLayerIds.Skills] = new(ActionWheelLayerIds.Skills, ActionWheelLayerIds.Primary, new List<ActionWheelCommandViewModel>
-            {
-                new("skill_back", "返回", IconText: "返", IsBackCommand: true)
-            })
-        };
-
-        return new ActionWheelViewModel(ActionWheelLayerIds.Primary, "", layers);
+        return commands;
     }
 
-    private void OnCommandHovered(ActionWheelCommandViewModel command)
+    private static bool CanShowUnitCommands(BattleEntity entity, BattleFaction activeFaction)
     {
-        _commandInfoPanel.ShowCommand(command, false);
+        if (entity == null || activeFaction != BattleFaction.Player || BattleRuleQueries.IsDefeated(entity))
+        {
+            return false;
+        }
 
+        BattleFaction faction = entity.GetComponent<FactionComponent>()?.Faction ?? BattleFaction.Neutral;
+        SelectableComponent selectable = entity.GetComponent<SelectableComponent>();
+        return faction == BattleFaction.Player &&
+               selectable is not { IsSelectable: false };
+    }
+
+    private static void AddEnabledCommand(
+        List<BattleActionMenuCommandViewModel> commands,
+        BattleActionMenuCommandViewModel command)
+    {
+        if (command.IsEnabled)
+        {
+            commands.Add(command);
+        }
+    }
+
+    private void OnCommandHovered(BattleActionMenuCommandViewModel command)
+    {
         if (!command.IsEnabled && !string.IsNullOrWhiteSpace(command.DisabledReason))
         {
             _floatingActionHint.ShowHint(command.DisabledReason);
         }
     }
 
-    private void OnCommandSelected(ActionWheelCommandViewModel command)
+    private void OnCommandSelected(BattleActionMenuCommandViewModel command)
     {
-        _commandInfoPanel.ShowCommand(command, true);
         GameLog.Info(nameof(BattleHudRoot), $"Command selected id={command.Id} label={command.Label}");
 
         string hint = command.Id switch
@@ -474,7 +505,6 @@ public partial class BattleHudRoot : Control
             "wait" => "正在待机",
             "end" => "结束行动",
             _ when BattleAbilityQueries.IsAbilityCommand(command.Id) => $"请选择{command.Label}目标",
-            _ when command.Id.StartsWith("skill_") => $"请选择{command.Label}目标",
             _ => command.Label
         };
 
@@ -482,22 +512,12 @@ public partial class BattleHudRoot : Control
         CommandSelected?.Invoke(command.Id);
     }
 
-    private void OnInvalidCommandSelected(ActionWheelCommandViewModel command)
+    private void OnInvalidCommandSelected(BattleActionMenuCommandViewModel command)
     {
-        _commandInfoPanel.ShowCommand(command, false);
         GameLog.Info(nameof(BattleHudRoot), $"Invalid command selected id={command.Id} label={command.Label} reason={command.DisabledReason}");
         _floatingActionHint.ShowHint(string.IsNullOrWhiteSpace(command.DisabledReason)
             ? "当前无法使用"
             : command.DisabledReason);
-    }
-
-    private void OnLayerChanged(string layerId)
-    {
-        _commandInfoPanel.ShowLayer(layerId);
-        GameLog.Info(nameof(BattleHudRoot), $"Action wheel layer changed layer={layerId}");
-        _floatingActionHint.ShowHint(layerId == ActionWheelLayerIds.Skills
-            ? "请选择技能"
-            : "请选择行动");
     }
 
     private static bool IsCancelEvent(InputEvent @event)

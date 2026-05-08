@@ -1,0 +1,71 @@
+[gd_scene load_steps=16 format=3 uid="uid://ok1ty7de481t"]
+
+[ext_resource type="Script" uid="uid://kmyn63t5vy7" path="res://src/Presentation/Battle/Entities/BattleEntity.cs" id="1_entity"]
+[ext_resource type="Script" uid="uid://cxx2u5hct0pql" path="res://src/Presentation/Battle/Entities/FactionComponent.cs" id="2_faction"]
+[ext_resource type="Script" uid="uid://bdprn6tgbgko1" path="res://src/Presentation/Battle/Entities/HealthComponent.cs" id="3_health"]
+[ext_resource type="Script" uid="uid://d0o6qcxv1plod" path="res://src/Presentation/Battle/Entities/ActionPointComponent.cs" id="4_ap"]
+[ext_resource type="Script" uid="uid://cj8n6q1evxm42" path="res://src/Presentation/Battle/Entities/MovementComponent.cs" id="5_move"]
+[ext_resource type="Script" uid="uid://b3vtrqbp58xmv" path="res://src/Presentation/Battle/Entities/AttackComponent.cs" id="6_attack"]
+[ext_resource type="Script" uid="uid://dbh4fik6ivcos" path="res://src/Presentation/Battle/Entities/GridOccupantComponent.cs" id="7_grid"]
+[ext_resource type="Script" uid="uid://cryc3kh1gcuma" path="res://src/Presentation/Battle/Entities/SelectableComponent.cs" id="8_selectable"]
+[ext_resource type="Script" uid="uid://bympifht7cbhp" path="res://src/Presentation/Battle/Entities/TargetableComponent.cs" id="9_targetable"]
+[ext_resource type="Script" uid="uid://b6w4tsfc6myg2" path="res://src/Presentation/Battle/Entities/AbilityComponent.cs" id="10_ability"]
+[ext_resource type="Script" uid="uid://cmam7x2pqw6de" path="res://src/Presentation/Battle/Entities/UnitAnimationComponent.cs" id="11_anim"]
+[ext_resource type="Script" uid="uid://cbk0yc12efgew" path="res://src/Presentation/Battle/Entities/DamageReactionComponent.cs" id="12_damage_reaction"]
+[ext_resource type="Script" uid="uid://dknv6h5yk2r1a" path="res://src/Presentation/Battle/Entities/BattleUnitAffiliationMarker.cs" id="13_affiliation_marker"]
+[ext_resource type="Script" uid="uid://cpsam61iix9sl" path="res://src/Presentation/Battle/Entities/BattleUnitPresentationComponent.cs" id="14_presentation"]
+[ext_resource type="Script" uid="uid://d5u3m9vwi7k2q" path="res://src/Presentation/Battle/Entities/BattleUnitSelectionSpotlight.cs" id="15_selection_spotlight"]
+
+[node name="BattleEntity" type="Area2D"]
+script = ExtResource("1_entity")
+DrawDebugMarker = false
+
+[node name="SelectionSpotlight" type="Node2D" parent="."]
+script = ExtResource("15_selection_spotlight")
+
+[node name="AffiliationMarker" type="Node2D" parent="."]
+z_index = 0
+script = ExtResource("13_affiliation_marker")
+
+[node name="VisualRoot" type="Node2D" parent="."]
+z_index = 0
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="VisualRoot"]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="FactionComponent" type="Node" parent="."]
+script = ExtResource("2_faction")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("3_health")
+
+[node name="ActionPointComponent" type="Node" parent="."]
+script = ExtResource("4_ap")
+
+[node name="MovementComponent" type="Node" parent="."]
+script = ExtResource("5_move")
+
+[node name="AttackComponent" type="Node" parent="."]
+script = ExtResource("6_attack")
+
+[node name="GridOccupantComponent" type="Node" parent="."]
+script = ExtResource("7_grid")
+
+[node name="SelectableComponent" type="Node" parent="."]
+script = ExtResource("8_selectable")
+
+[node name="TargetableComponent" type="Node" parent="."]
+script = ExtResource("9_targetable")
+
+[node name="AbilityComponent" type="Node" parent="."]
+script = ExtResource("10_ability")
+
+[node name="UnitAnimationComponent" type="Node" parent="."]
+script = ExtResource("11_anim")
+
+[node name="DamageReactionComponent" type="Node" parent="."]
+script = ExtResource("12_damage_reaction")
+
+[node name="BattleUnitPresentationComponent" type="Node" parent="."]
+script = ExtResource("14_presentation")
