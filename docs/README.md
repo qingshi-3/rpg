@@ -9,6 +9,8 @@ Read progressively: start with the smallest relevant entry, then open deeper doc
 - Product direction: `design/core/vision.md`
 - Core game direction: `design/core/core-game-direction.md`
 - Core loop: `design/core/core-loop.md`
+- Summoned character relationship model: `design/character/summoned-social-relationship-model.md`
+- Unit talent, rank, and control authority: `design/character/unit-talent-rank-control.md`
 - Sanguo Qunying reference architecture: `design/architecture/sanguo-qunying-reference-architecture.md`
 - Global system decomposition: `design/architecture/global-system-decomposition.md`
 - Project architecture: `design/architecture/project-architecture.md`

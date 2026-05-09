@@ -24,11 +24,16 @@ Project-level dependency direction and layering are defined in `../architecture/
 - Minion: rule-driven.
 - Enemy: Intent-driven.
 
+Long-term control authority is defined outside battle in `../character/unit-talent-rank-control.md`.
+
+Battle should treat direct control as an input authority, not as proof that the unit is important or high rank. Non-direct allied units can still be important characters, officers, elite units, or promoted actors. Their battle behavior should be rule-driven, Intent-driven, or behavior-package-driven and should remain readable to the player.
+
 ## CommandSystem
 
 - Each unit has 2 to 3 rules.
 - Rules execute by priority.
 - Flow: Rule to Decision to Action.
+- Non-direct allied units may accept macro commands such as defend, focus fire, conserve, charge, retreat, or wait for charge, but macro commands must modify rules or intent instead of granting full manual control.
 
 ## IntentSystem
 
@@ -38,6 +43,7 @@ Project-level dependency direction and layering are defined in `../architecture/
 - Current-state preview and final action resolution are derived from the same stored high-level Intent.
 - Intent preview vocabulary is shared with targeting and action preview rules in `targeting-and-preview.md`.
 - Detailed runtime rules live in `intent-system.md`.
+- The same readability principle should apply to important non-direct allied units. Automatic behavior is acceptable only when the player can understand the plan, influence it through supported commands or effects, and understand the result.
 
 ## CardSystem
 

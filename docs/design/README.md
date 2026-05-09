@@ -17,6 +17,8 @@ This directory stores stable design documents. The top-level folders are organiz
 - Strategic world RTS navigation and armies: `world/strategic-world-rts-navigation-and-armies.md`
 - Battle: `battle/README.md`
 - Character and emotion: `character/README.md`
+- Summoned relationship model: `character/summoned-social-relationship-model.md`
+- Unit talent/rank/control: `character/unit-talent-rank-control.md`
 
 ## Rule
 

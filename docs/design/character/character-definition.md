@@ -18,12 +18,14 @@ CharacterRaceDefinition
 CharacterDefinition
   Id
   DisplayName
+  OriginProfileId
   Race
   CultureId
   FactionId
   ProfessionId
   AttributeModifiers
   EmotionModifierIds
+  SocialProfileIds
   IsSpecial
 ```
 
@@ -36,6 +38,8 @@ Character / Unit definitions
 ```
 
 Race is owned by Character / Unit definitions. Emotion profiles reference `CharacterRaceDefinition.Id`; they do not create independent race concepts.
+
+`OriginProfileId` is display and content grouping context only. Runtime gameplay should not branch on origin such as 三国、水浒 or 幕末. If origin needs gameplay meaning, express it through abstract social traits, relationship edges, bond definitions, faction/culture modifiers, rank, talent, or duties.
 
 ## Emotion Inputs
 
@@ -68,3 +72,6 @@ Out of scope for this pass:
 - Recruitment rules.
 - Battle unit spawning.
 - Save/load.
+
+Detailed summoned-character relationship layering lives in `summoned-social-relationship-model.md`.
+Talent, rank, direct-control slots, and promotion boundaries live in `unit-talent-rank-control.md`.

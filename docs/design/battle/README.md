@@ -20,6 +20,7 @@ This directory stores battle runtime, combat interaction, unit, card, intent, an
 - Unit system: `unit-system.md`
 - Unit authoring: `unit-authoring.md`
 - Unit animation system: `unit-animation-system.md`
+- Cross-system unit rank/control design: `../character/unit-talent-rank-control.md`
 - Card system: `card-system.md`
 - Battle demo simulation: `battle-demo-undead-commander.md`
 
