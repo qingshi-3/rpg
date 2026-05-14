@@ -41,6 +41,7 @@ Run("world action non-population shortage uses custom resource display name", Wo
 Run("world action blank resource display name falls back to id", WorldActionBlankResourceDisplayNameFallsBackToId);
 Run("world opportunity reward text uses custom resource display name", WorldOpportunityRewardTextUsesCustomResourceDisplayName);
 Run("world tick production text uses custom resource display names", WorldTickProductionTextUsesCustomDisplayNames);
+Run("world tick threat feed uses configured display names", WorldTickThreatFeedUsesConfiguredDisplayNames);
 Run("battle result applier messages use configured display names", BattleResultApplierMessagesUseConfiguredDisplayNames);
 Run("battle unit factory keeps definition caches shared across scenes", BattleUnitFactoryKeepsDefinitionCachesShared);
 Run("battle result applier uses survivor counts when garrisoning assault army", BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssaultArmy);
@@ -560,8 +561,67 @@ static void WorldTickProductionTextUsesCustomDisplayNames()
         result.Messages.Any(message => message.Contains("Granite +2", StringComparison.Ordinal)),
         "mine production message should use custom stone display name");
     AssertTrue(
-        !result.Messages.Any(message => message.Contains("石材 +2", StringComparison.Ordinal)),
-        "mine production message should not hardcode the default stone label");
+        result.Messages.Any(message => message.Contains("Deep Quarry", StringComparison.Ordinal)),
+        "mine production message should use custom mine display name");
+    AssertTrue(
+        !result.Messages.Any(message => message.Contains("石材 +2", StringComparison.Ordinal) || message.Contains("矿场", StringComparison.Ordinal)),
+        "mine production message should not hardcode default resource or facility labels");
+}
+
+static void WorldTickThreatFeedUsesConfiguredDisplayNames()
+{
+    StrategicWorldDefinition spawnDefinition = BuildResourceDisplayNameTestDefinition();
+    spawnDefinition.ThreatRules.Add(new ThreatRuleDefinition
+    {
+        Id = "test_threat_rule",
+        SourceSiteId = StrategicWorldIds.SiteGraveyard,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        InitialCountdownTicks = 3,
+        ThreatType = ThreatType.Raid,
+        EnemyForces = { new GarrisonDefinition { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 1 } }
+    });
+    StrategicWorldState spawnState = BuildResourceDisplayNameTestState();
+    spawnState.SiteStates[StrategicWorldIds.SiteGraveyard].Garrison.Add(new GarrisonState
+    {
+        UnitTypeId = StrategicWorldIds.UnitMilitia,
+        Count = 1
+    });
+
+    WorldTickResult spawnResult = new WorldTickService().AdvanceWorldTick(spawnState, spawnDefinition);
+
+    AssertTrue(
+        spawnResult.Messages.Any(message =>
+            message.Contains("Ash Gate", StringComparison.Ordinal) &&
+            message.Contains("Ash Court", StringComparison.Ordinal) &&
+            message.Contains("Test Quarry", StringComparison.Ordinal)),
+        "threat spawn message should use configured source site, faction, and target site names");
+    AssertTrue(
+        !spawnResult.Messages.Any(message => message.Contains("敌军", StringComparison.Ordinal)),
+        "threat spawn message should not use generic hardcoded enemy label when a faction display name exists");
+
+    StrategicWorldDefinition arrivalDefinition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldState arrivalState = BuildResourceDisplayNameTestState();
+    arrivalState.ThreatPlans["threat:arrival"] = new EnemyThreatPlan
+    {
+        Id = "threat:arrival",
+        SourceSiteId = StrategicWorldIds.SiteGraveyard,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        Stage = ThreatStage.Marching,
+        InitialCountdownTicks = 1,
+        CountdownTicks = 1,
+        CreatedTick = 0
+    };
+
+    WorldTickResult arrivalResult = new WorldTickService().AdvanceWorldTick(arrivalState, arrivalDefinition);
+
+    AssertTrue(
+        arrivalResult.Messages.Any(message =>
+            message.Contains("Ash Court", StringComparison.Ordinal) &&
+            message.Contains("Test Quarry", StringComparison.Ordinal)),
+        "threat arrival message should use configured faction and target site names");
+    AssertTrue(
+        !arrivalResult.Messages.Any(message => message.Contains("敌方", StringComparison.Ordinal)),
+        "threat arrival message should not use generic hardcoded enemy label when a faction display name exists");
 }
 
 static void BattleResultApplierMessagesUseConfiguredDisplayNames()
@@ -831,6 +891,13 @@ static StrategicWorldDefinition BuildResourceDisplayNameTestDefinition()
                 DisplayName = "Test Quarry",
                 InitialOwnerFactionId = StrategicWorldIds.FactionPlayer,
                 InitialControlState = SiteControlState.PlayerHeld
+            },
+            new WorldSiteDefinition
+            {
+                Id = StrategicWorldIds.SiteGraveyard,
+                DisplayName = "Ash Gate",
+                InitialOwnerFactionId = StrategicWorldIds.FactionUndead,
+                InitialControlState = SiteControlState.Hostile
             }
         },
         ActionDefinitions =
@@ -890,6 +957,13 @@ static StrategicWorldState BuildResourceDisplayNameTestState()
                 SiteId = StrategicWorldIds.SiteBonefield,
                 OwnerFactionId = StrategicWorldIds.FactionPlayer,
                 ControlState = SiteControlState.PlayerHeld,
+                SiteMode = WorldSiteMode.Peacetime
+            },
+            [StrategicWorldIds.SiteGraveyard] = new WorldSiteState
+            {
+                SiteId = StrategicWorldIds.SiteGraveyard,
+                OwnerFactionId = StrategicWorldIds.FactionUndead,
+                ControlState = SiteControlState.Hostile,
                 SiteMode = WorldSiteMode.Peacetime
             }
         }

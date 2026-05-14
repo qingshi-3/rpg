@@ -28,7 +28,7 @@ public sealed class WorldTickService
         ApplyProduction(state, queries, result);
         ApplyAutoGarrisonProduction(state, queries, result);
         GenerateThreats(state, definition, queries, result);
-        ProgressThreats(state, result);
+        ProgressThreats(state, queries, result);
         _worldBattleProgressionService.EnsureBattlesForAttackingThreats(state, definition, result);
         _worldBattleProgressionService.AdvanceWorldBattles(state, definition, result);
         _opportunityService.AdvanceOpportunities(state, definition, result);
@@ -68,7 +68,9 @@ public sealed class WorldTickService
                 }
 
                 state.PlayerResources.Add(StrategicWorldIds.ResourceStone, 2);
-                result.Messages.Add($"{queries.GetSite(site.SiteId)?.DisplayName ?? site.SiteId} 矿场产出{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} +2。");
+                result.Messages.Add(
+                    $"{StrategicWorldDisplayNames.GetSiteLabel(queries, site.SiteId)} " +
+                    $"{StrategicWorldDisplayNames.GetFacilityLabel(queries, facility.FacilityId)}产出{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} +2。");
                 result.Events.Add(new GameEvent
                 {
                     Kind = "ResourceChanged",
@@ -197,7 +199,10 @@ public sealed class WorldTickService
                 WorldSiteModeTransitionService.AddEvent(result, _siteModeTransitions.EnterAlert(targetSite, state.WorldTick, "threat_created", threatId));
             }
 
-            result.Messages.Add($"{queries.GetSite(rule.SourceSiteId)?.DisplayName ?? rule.SourceSiteId} 派出敌军，正向 {queries.GetSite(rule.TargetSiteId)?.DisplayName ?? rule.TargetSiteId} 行军。");
+            string sourceName = StrategicWorldDisplayNames.GetSiteLabel(queries, rule.SourceSiteId);
+            string targetName = StrategicWorldDisplayNames.GetSiteLabel(queries, rule.TargetSiteId);
+            string factionName = StrategicWorldDisplayNames.GetFactionLabel(queries, army.OwnerFactionId, "敌方");
+            result.Messages.Add($"{sourceName} 派出{factionName}部队，正向 {targetName} 行军。");
             result.Events.Add(new GameEvent
             {
                 Kind = "ThreatCreated",
@@ -286,7 +291,7 @@ public sealed class WorldTickService
         return true;
     }
 
-    private static void ProgressThreats(StrategicWorldState state, WorldTickResult result)
+    private static void ProgressThreats(StrategicWorldState state, StrategicWorldDefinitionQueries queries, WorldTickResult result)
     {
         foreach (EnemyThreatPlan threat in state.ThreatPlans.Values)
         {
@@ -318,9 +323,32 @@ public sealed class WorldTickService
 
             threat.Stage = ThreatStage.Attacking;
             result.AttackingThreatIds.Add(threat.Id);
-            result.Messages.Add("敌方 Raid 已到达，必须处理。");
+            string factionName = StrategicWorldDisplayNames.GetFactionLabel(queries, ResolveThreatFactionId(state, threat), "敌方");
+            string targetName = StrategicWorldDisplayNames.GetSiteLabel(queries, threat.TargetSiteId);
+            result.Messages.Add($"{factionName} Raid 已抵达 {targetName}，必须处理。");
             GameLog.Info(nameof(WorldTickService), $"ThreatAttacking id={threat.Id} target={threat.TargetSiteId}");
         }
+    }
+
+    private static string ResolveThreatFactionId(StrategicWorldState state, EnemyThreatPlan threat)
+    {
+        if (state != null &&
+            !string.IsNullOrWhiteSpace(threat?.WorldArmyId) &&
+            state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army) &&
+            !string.IsNullOrWhiteSpace(army.OwnerFactionId))
+        {
+            return army.OwnerFactionId;
+        }
+
+        if (state != null &&
+            !string.IsNullOrWhiteSpace(threat?.SourceSiteId) &&
+            state.SiteStates.TryGetValue(threat.SourceSiteId, out WorldSiteState sourceSite) &&
+            !string.IsNullOrWhiteSpace(sourceSite.OwnerFactionId))
+        {
+            return sourceSite.OwnerFactionId;
+        }
+
+        return StrategicWorldIds.FactionUndead;
     }
 
     private static WorldArmyState CreateThreatArmy(
