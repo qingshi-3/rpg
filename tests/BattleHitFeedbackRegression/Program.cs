@@ -36,6 +36,7 @@ Run("world resource and faction labels resolve through strategic definitions", W
 Run("world site and facility labels resolve through strategic definitions", WorldSiteAndFacilityLabelsResolveThroughDefinitions);
 Run("world action resource text uses custom resource display names", WorldActionResourceTextUsesCustomDisplayNames);
 Run("world action site and facility preview text uses custom display names", WorldActionSiteAndFacilityPreviewTextUsesCustomDisplayNames);
+Run("world threat auto resolve messages use configured display names", WorldThreatAutoResolveMessagesUseConfiguredDisplayNames);
 Run("world action non-population shortage uses custom resource display name", WorldActionNonPopulationShortageUsesCustomDisplayName);
 Run("world action blank resource display name falls back to id", WorldActionBlankResourceDisplayNameFallsBackToId);
 Run("world opportunity reward text uses custom resource display name", WorldOpportunityRewardTextUsesCustomResourceDisplayName);
@@ -414,6 +415,44 @@ static void WorldActionSiteAndFacilityPreviewTextUsesCustomDisplayNames()
     AssertTrue(!autoResolveRaid.WarningLines.Any(line => line.Contains("民兵", StringComparison.Ordinal)), "auto resolve warning should not hardcode default militia name");
 }
 
+static void WorldThreatAutoResolveMessagesUseConfiguredDisplayNames()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    WorldThreatService service = new(unitTypeId =>
+        unitTypeId == StrategicWorldIds.UnitMilitia ? "Guard Recruit" : unitTypeId);
+
+    WorldActionResult strongDefense = service.ResolveRaidAutomatically(
+        BuildThreatAutoResolveState(militia: 4, towers: 0),
+        definition,
+        "threat:auto");
+    AssertTrue(strongDefense.Message.Contains("Test Quarry", StringComparison.Ordinal), "strong defense message should use configured target site name");
+    AssertTrue(strongDefense.Message.Contains("Ash Court", StringComparison.Ordinal), "strong defense message should use configured attacker faction name");
+    AssertTrue(!strongDefense.Message.Contains("埋骨地", StringComparison.Ordinal) && !strongDefense.Message.Contains("亡灵", StringComparison.Ordinal), "strong defense message should not hardcode default site or faction names");
+
+    WorldActionResult costlyDefense = service.ResolveRaidAutomatically(
+        BuildThreatAutoResolveState(militia: 2, towers: 0),
+        definition,
+        "threat:auto");
+    AssertTrue(costlyDefense.Message.Contains("Guard Recruit", StringComparison.Ordinal), "costly defense message should use injected unit display name");
+    AssertTrue(!costlyDefense.Message.Contains("民兵", StringComparison.Ordinal), "costly defense message should not hardcode default militia name");
+
+    WorldActionResult damagedDefense = service.ResolveRaidAutomatically(
+        BuildThreatAutoResolveState(militia: 1, towers: 0),
+        definition,
+        "threat:auto");
+    AssertTrue(damagedDefense.Message.Contains("Test Quarry", StringComparison.Ordinal), "damaged defense message should use configured site name");
+    AssertTrue(damagedDefense.Message.Contains("Deep Quarry", StringComparison.Ordinal), "damaged defense message should use configured mine name");
+    AssertTrue(!damagedDefense.Message.Contains("埋骨地", StringComparison.Ordinal) && !damagedDefense.Message.Contains("矿场", StringComparison.Ordinal), "damaged defense message should not hardcode default site or mine names");
+
+    WorldActionResult lostDefense = service.ResolveRaidAutomatically(
+        BuildThreatAutoResolveState(militia: 0, towers: 0),
+        definition,
+        "threat:auto");
+    AssertTrue(lostDefense.Message.Contains("Test Quarry", StringComparison.Ordinal), "lost defense message should use configured site name");
+    AssertTrue(lostDefense.Message.Contains("Ash Court", StringComparison.Ordinal), "lost defense message should use configured faction name");
+    AssertTrue(!lostDefense.Message.Contains("埋骨地", StringComparison.Ordinal) && !lostDefense.Message.Contains("亡灵", StringComparison.Ordinal), "lost defense message should not hardcode default site or faction names");
+}
+
 static void WorldActionNonPopulationShortageUsesCustomDisplayName()
 {
     StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
@@ -774,6 +813,49 @@ static StrategicWorldState BuildResourceDisplayNameTestState()
             }
         }
     };
+}
+
+static StrategicWorldState BuildThreatAutoResolveState(int militia, int towers)
+{
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
+    site.PendingThreatIds.Add("threat:auto");
+    if (militia > 0)
+    {
+        site.Garrison.Add(new GarrisonState
+        {
+            UnitTypeId = StrategicWorldIds.UnitMilitia,
+            Count = militia
+        });
+    }
+
+    for (int index = 0; index < towers; index++)
+    {
+        site.Facilities.Add(new FacilityInstance
+        {
+            InstanceId = $"tower:auto:{index}",
+            FacilityId = StrategicWorldIds.FacilityDefenseTower,
+            SiteId = StrategicWorldIds.SiteBonefield,
+            State = FacilityState.Active
+        });
+    }
+
+    site.Facilities.Add(new FacilityInstance
+    {
+        InstanceId = "mine:auto",
+        FacilityId = StrategicWorldIds.FacilityMine,
+        SiteId = StrategicWorldIds.SiteBonefield,
+        State = FacilityState.Active
+    });
+
+    state.ThreatPlans["threat:auto"] = new EnemyThreatPlan
+    {
+        Id = "threat:auto",
+        SourceSiteId = StrategicWorldIds.SiteGraveyard,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        Stage = ThreatStage.Attacking
+    };
+    return state;
 }
 
 static WorldSiteDefinition BuildBattleResultApplierTestSite(

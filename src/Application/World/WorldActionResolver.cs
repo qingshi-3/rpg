@@ -12,7 +12,7 @@ public sealed class WorldActionResolver
 {
     private readonly WorldConditionEvaluator _conditionEvaluator = new();
     private readonly WorldTickService _worldTickService = new();
-    private readonly WorldThreatService _threatService = new();
+    private readonly WorldThreatService _threatService;
     private readonly WorldBattleRequestBuilder _battleRequestBuilder = new();
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
     private readonly WorldGarrisonMutationService _garrisonMutations = new();
@@ -21,6 +21,7 @@ public sealed class WorldActionResolver
     public WorldActionResolver(Func<string, string> unitDisplayNameResolver = null)
     {
         _unitDisplayNameResolver = unitDisplayNameResolver;
+        _threatService = new WorldThreatService(unitDisplayNameResolver);
     }
 
     public IReadOnlyList<WorldActionViewModel> GetAvailableActions(
@@ -87,7 +88,7 @@ public sealed class WorldActionResolver
                 return WorldActionResult.Failed(action.Id, "world_battle_in_progress", "战斗正在世界层推演中，可选择介入，或让世界时钟继续推进。");
             }
 
-            return _threatService.ResolveRaidAutomatically(state, request.ThreatId);
+            return _threatService.ResolveRaidAutomatically(state, definition, request.ThreatId);
         }
 
         WorldActionResult result = new()

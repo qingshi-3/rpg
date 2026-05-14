@@ -1,4 +1,6 @@
+using System;
 using System.Linq;
+using Rpg.Definitions.World;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 
@@ -8,8 +10,19 @@ public sealed class WorldThreatService
 {
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
     private readonly WorldGarrisonMutationService _garrisonMutations = new();
+    private readonly Func<string, string> _unitDisplayNameResolver;
+
+    public WorldThreatService(Func<string, string> unitDisplayNameResolver = null)
+    {
+        _unitDisplayNameResolver = unitDisplayNameResolver;
+    }
 
     public WorldActionResult ResolveRaidAutomatically(StrategicWorldState state, string threatId)
+    {
+        return ResolveRaidAutomatically(state, null, threatId);
+    }
+
+    public WorldActionResult ResolveRaidAutomatically(StrategicWorldState state, StrategicWorldDefinition definition, string threatId)
     {
         if (state == null || string.IsNullOrWhiteSpace(threatId) || !state.ThreatPlans.TryGetValue(threatId, out EnemyThreatPlan threat))
         {
@@ -25,6 +38,15 @@ public sealed class WorldThreatService
         {
             return WorldActionResult.Failed(StrategicWorldIds.ActionAutoResolveRaid, "site_missing", "找不到被攻击的场域。");
         }
+
+        StrategicWorldDefinitionQueries queries = definition == null ? null : new StrategicWorldDefinitionQueries(definition);
+        string targetSite = StrategicWorldDisplayNames.GetSiteLabel(queries, site.SiteId, GetLegacySiteFallback(site.SiteId));
+        string attackerFaction = StrategicWorldDisplayNames.GetFactionLabel(
+            queries,
+            ResolveThreatFactionId(state, threat),
+            "亡灵");
+        string militiaLabel = ResolveUnitLabel(StrategicWorldIds.UnitMilitia);
+        string mineLabel = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityMine, "矿场");
 
         int militiaCount = site.Garrison
             .Where(garrison => garrison.UnitTypeId == StrategicWorldIds.UnitMilitia)
@@ -43,14 +65,14 @@ public sealed class WorldThreatService
         {
             threat.Stage = ThreatStage.Resolved;
             ResolveThreatArmy(state, threat);
-            message = "埋骨地完全防住了亡灵袭击。";
+            message = $"{targetSite}完全防住了{attackerFaction}袭击。";
         }
         else if (defenseScore >= attackScore)
         {
             threat.Stage = ThreatStage.Resolved;
             ResolveThreatArmy(state, threat);
             _garrisonMutations.Remove(site, StrategicWorldIds.UnitMilitia, 1);
-            message = "埋骨地勉强防住袭击，但损失了 1 队民兵。";
+            message = $"{targetSite}勉强防住袭击，但损失了 1 队{militiaLabel}。";
         }
         else if (defenseScore <= attackScore - 3)
         {
@@ -68,7 +90,7 @@ public sealed class WorldThreatService
                     facility.State = FacilityState.Damaged;
                 }
             }
-            message = "埋骨地被亡灵夺回，驻军全灭，敌军残部进驻城中。";
+            message = $"{targetSite}被{attackerFaction}夺回，驻军全灭，敌军残部进驻城中。";
         }
         else
         {
@@ -80,7 +102,7 @@ public sealed class WorldThreatService
             {
                 mine.State = FacilityState.Damaged;
             }
-            message = "埋骨地受损，矿场停止产出。";
+            message = $"{targetSite}受损，{mineLabel}停止产出。";
         }
 
         site.PendingThreatIds.Remove(threat.Id);
@@ -104,6 +126,48 @@ public sealed class WorldThreatService
         };
         WorldSiteModeTransitionService.AddEvent(result, _siteModeTransitions.EnterAftermath(site, state.WorldTick, "raid_auto_resolved", threat.Id));
         return result;
+    }
+
+    private string ResolveUnitLabel(string unitTypeId)
+    {
+        if (string.IsNullOrWhiteSpace(unitTypeId))
+        {
+            return "战斗单位";
+        }
+
+        string displayName = _unitDisplayNameResolver?.Invoke(unitTypeId);
+        if (!string.IsNullOrWhiteSpace(displayName))
+        {
+            return displayName;
+        }
+
+        return unitTypeId == StrategicWorldIds.UnitMilitia ? "民兵" : unitTypeId;
+    }
+
+    private static string ResolveThreatFactionId(StrategicWorldState state, EnemyThreatPlan threat)
+    {
+        if (state != null &&
+            !string.IsNullOrWhiteSpace(threat?.WorldArmyId) &&
+            state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army) &&
+            !string.IsNullOrWhiteSpace(army.OwnerFactionId))
+        {
+            return army.OwnerFactionId;
+        }
+
+        if (state != null &&
+            !string.IsNullOrWhiteSpace(threat?.SourceSiteId) &&
+            state.SiteStates.TryGetValue(threat.SourceSiteId, out WorldSiteState sourceSite) &&
+            !string.IsNullOrWhiteSpace(sourceSite.OwnerFactionId))
+        {
+            return sourceSite.OwnerFactionId;
+        }
+
+        return StrategicWorldIds.FactionUndead;
+    }
+
+    private static string GetLegacySiteFallback(string siteId)
+    {
+        return siteId == StrategicWorldIds.SiteBonefield ? "埋骨地" : siteId;
     }
 
     private static void ResolveThreatArmy(StrategicWorldState state, EnemyThreatPlan threat)
