@@ -68,7 +68,7 @@ public sealed class WorldTickService
                 }
 
                 state.PlayerResources.Add(StrategicWorldIds.ResourceStone, 2);
-                result.Messages.Add($"{queries.GetSite(site.SiteId)?.DisplayName ?? site.SiteId} 矿场产出石材 +2。");
+                result.Messages.Add($"{queries.GetSite(site.SiteId)?.DisplayName ?? site.SiteId} 矿场产出{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} +2。");
                 result.Events.Add(new GameEvent
                 {
                     Kind = "ResourceChanged",

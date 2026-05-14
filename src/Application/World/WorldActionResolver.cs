@@ -42,9 +42,9 @@ public sealed class WorldActionResolver
                 DisplayName = action.DisplayName,
                 Description = action.Description,
                 IsEnabled = enabled,
-                DisabledReason = enabled ? "" : FormatFailureReason(failureReason),
-                CostLines = action.Costs.Select(cost => $"{GetResourceDisplayName(queries, cost.ResourceId)} {cost.Amount}").ToList(),
-                EffectLines = BuildEffectLines(action),
+                DisabledReason = enabled ? "" : FormatFailureReason(failureReason, queries),
+                CostLines = action.Costs.Select(cost => $"{StrategicWorldDisplayNames.GetResourceLabel(queries, cost.ResourceId)} {cost.Amount}").ToList(),
+                EffectLines = BuildEffectLines(action, queries),
                 WarningLines = BuildWarningLines(state, action, selectedThreatId),
                 TargetSiteId = request.TargetSiteId,
                 TargetSlotId = request.TargetSlotId,
@@ -71,7 +71,7 @@ public sealed class WorldActionResolver
 
         if (!CanApply(state, definition, action, request, out string failureReason))
         {
-            return WorldActionResult.Failed(action.Id, failureReason, FormatFailureReason(failureReason));
+            return WorldActionResult.Failed(action.Id, failureReason, FormatFailureReason(failureReason, queries));
         }
 
         if (action.Id == StrategicWorldIds.ActionAutoResolveRaid)
@@ -95,7 +95,8 @@ public sealed class WorldActionResolver
         {
             if (!state.PlayerResources.Spend(cost.ResourceId, cost.Amount))
             {
-                return WorldActionResult.Failed(action.Id, "not_enough_resource", FormatFailureReason("not_enough_resource"));
+                string spendFailureReason = BuildResourceShortageReason(cost.ResourceId);
+                return WorldActionResult.Failed(action.Id, spendFailureReason, FormatFailureReason(spendFailureReason, queries));
             }
 
             result.Events.Add(new GameEvent
@@ -161,9 +162,7 @@ public sealed class WorldActionResolver
         {
             if (!state.PlayerResources.CanSpend(cost.ResourceId, cost.Amount))
             {
-                failureReason = cost.ResourceId == StrategicWorldIds.ResourcePopulation
-                    ? "not_enough_population"
-                    : "not_enough_resource";
+                failureReason = BuildResourceShortageReason(cost.ResourceId);
                 return false;
             }
         }
@@ -577,11 +576,16 @@ public sealed class WorldActionResolver
                site.SiteMode == WorldSiteMode.Wartime;
     }
 
-    private static List<string> BuildEffectLines(WorldActionDefinition action)
+    private static List<string> BuildEffectLines(WorldActionDefinition action, StrategicWorldDefinitionQueries queries)
     {
         return action.Id switch
         {
-            StrategicWorldIds.ActionBuildMine => new List<string> { "埋骨地获得矿场", "占用人口 1", "每世界步石材 +2" },
+            StrategicWorldIds.ActionBuildMine => new List<string>
+            {
+                "埋骨地获得矿场",
+                $"占用{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} 1",
+                $"每世界步{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} +2"
+            },
             StrategicWorldIds.ActionBuildDefenseTower => new List<string> { "埋骨地防守 +3", "防守战获得塔支援 1 次" },
             StrategicWorldIds.ActionTrainMilitia => new List<string> { "玩家营地民兵 +1" },
             StrategicWorldIds.ActionDefendRaid => new List<string> { "进入防守战", "胜利后清除 Raid" },
@@ -614,17 +618,25 @@ public sealed class WorldActionResolver
             !WorldBattleProgressionService.HasActiveBattleForThreat(state, threat.Id)) == true;
     }
 
-    private static string GetResourceDisplayName(StrategicWorldDefinitionQueries queries, string resourceId)
+    private static string BuildResourceShortageReason(string resourceId)
     {
-        return queries.GetResource(resourceId)?.DisplayName ?? resourceId;
+        return string.IsNullOrWhiteSpace(resourceId)
+            ? "not_enough_resource"
+            : $"not_enough_resource:{resourceId}";
     }
 
     public static string FormatFailureReason(string reason)
     {
+        return FormatFailureReason(reason, null);
+    }
+
+    public static string FormatFailureReason(string reason, StrategicWorldDefinitionQueries queries)
+    {
         return reason switch
         {
+            string value when TryGetResourceShortageId(value, out string resourceId) => $"{StrategicWorldDisplayNames.GetResourceLabel(queries, resourceId)}不足",
             "not_enough_resource" => "资源不足",
-            "not_enough_population" => "人口不足",
+            "not_enough_population" => $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation, "人口")}不足",
             "site_not_owned" => "场域不属于玩家",
             "missing_facility" => "缺少可用建筑",
             "no_valid_facility_slot" => "没有合法建筑槽位",
@@ -645,5 +657,19 @@ public sealed class WorldActionResolver
             "army_already_en_route" => "已有玩家部队正在执行该目标",
             _ => string.IsNullOrWhiteSpace(reason) ? "无法执行" : reason
         };
+    }
+
+    private static bool TryGetResourceShortageId(string reason, out string resourceId)
+    {
+        const string prefix = "not_enough_resource:";
+        if (!string.IsNullOrWhiteSpace(reason) &&
+            reason.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            resourceId = reason[prefix.Length..];
+            return !string.IsNullOrWhiteSpace(resourceId);
+        }
+
+        resourceId = "";
+        return false;
     }
 }

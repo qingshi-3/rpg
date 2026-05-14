@@ -47,7 +47,7 @@ public sealed class WorldOpportunityService
         }
 
         opportunity.Status = WorldOpportunityStatus.Completed;
-        string rewardText = ApplyRewards(state, opportunityDefinition);
+        string rewardText = ApplyRewards(state, opportunityDefinition, queries);
         string message = string.IsNullOrWhiteSpace(opportunityDefinition.CompletionText)
             ? $"完成{opportunityDefinition.DisplayName}。"
             : opportunityDefinition.CompletionText;
@@ -314,26 +314,19 @@ public sealed class WorldOpportunityService
         return candidate;
     }
 
-    private static string ApplyRewards(StrategicWorldState state, WorldOpportunityDefinition definition)
+    private static string ApplyRewards(
+        StrategicWorldState state,
+        WorldOpportunityDefinition definition,
+        StrategicWorldDefinitionQueries queries)
     {
         List<string> lines = new();
         foreach (ResourceAmountDefinition reward in definition.CompletionRewards.Where(item => item.Amount != 0 && !string.IsNullOrWhiteSpace(item.ResourceId)))
         {
             state.PlayerResources.Add(reward.ResourceId, reward.Amount);
-            lines.Add($"{GetResourceLabel(reward.ResourceId)} {(reward.Amount > 0 ? "+" : "")}{reward.Amount}");
+            lines.Add($"{StrategicWorldDisplayNames.GetResourceLabel(queries, reward.ResourceId)} {(reward.Amount > 0 ? "+" : "")}{reward.Amount}");
         }
 
         return lines.Count == 0 ? "" : $"获得：{string.Join("，", lines)}。";
     }
 
-    private static string GetResourceLabel(string resourceId)
-    {
-        return resourceId switch
-        {
-            StrategicWorldIds.ResourcePopulation => "人口",
-            StrategicWorldIds.ResourceEconomy => "经济",
-            StrategicWorldIds.ResourceStone => "石材",
-            _ => resourceId
-        };
-    }
 }

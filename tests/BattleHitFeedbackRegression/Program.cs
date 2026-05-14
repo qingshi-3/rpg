@@ -32,6 +32,12 @@ Run("starter audio migration is mapped from source visuals", StarterAudioMigrati
 Run("battle unit display names use resource label plus two digit instance index", BattleUnitDisplayNamesUseIndexedResourceLabel);
 Run("starter unit display names use source visual translations", StarterUnitDisplayNamesUseSourceVisualTranslations);
 Run("world unit labels resolve through battle unit definitions", WorldUnitLabelsResolveThroughBattleDefinitions);
+Run("world resource and faction labels resolve through strategic definitions", WorldResourceAndFactionLabelsResolveThroughDefinitions);
+Run("world action resource text uses custom resource display names", WorldActionResourceTextUsesCustomDisplayNames);
+Run("world action non-population shortage uses custom resource display name", WorldActionNonPopulationShortageUsesCustomDisplayName);
+Run("world action blank resource display name falls back to id", WorldActionBlankResourceDisplayNameFallsBackToId);
+Run("world opportunity reward text uses custom resource display name", WorldOpportunityRewardTextUsesCustomResourceDisplayName);
+Run("world tick production text uses custom resource display names", WorldTickProductionTextUsesCustomDisplayNames);
 Run("battle unit factory keeps definition caches shared across scenes", BattleUnitFactoryKeepsDefinitionCachesShared);
 Run("battle result applier uses survivor counts when garrisoning assault army", BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssaultArmy);
 Run("battle result applier keeps surviving defending garrison after defense victory", BattleResultApplierKeepsSurvivingDefendingGarrisonAfterDefenseVictory);
@@ -293,6 +299,154 @@ static void WorldUnitLabelsResolveThroughBattleDefinitions()
         "site placement labels should use the same indexed instance names as battle units");
 }
 
+static void WorldResourceAndFactionLabelsResolveThroughDefinitions()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldDefinitionQueries queries = new(definition);
+
+    AssertEqual("Labor", StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation), "resource label should use custom DisplayName");
+    AssertEqual("Ash Court", StrategicWorldDisplayNames.GetFactionLabel(queries, StrategicWorldIds.FactionUndead), "faction label should use custom DisplayName");
+
+    definition.ResourceDefinitions.Single(item => item.Id == StrategicWorldIds.ResourceEconomy).DisplayName = "";
+    definition.FactionDefinitions.Single(item => item.Id == StrategicWorldIds.FactionUndead).DisplayName = "";
+    queries = new StrategicWorldDefinitionQueries(definition);
+
+    AssertEqual(StrategicWorldIds.ResourceEconomy, StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceEconomy), "blank resource DisplayName should fall back to id");
+    AssertEqual(StrategicWorldIds.FactionUndead, StrategicWorldDisplayNames.GetFactionLabel(queries, StrategicWorldIds.FactionUndead), "blank faction DisplayName should fall back to id");
+    AssertEqual("无", StrategicWorldDisplayNames.GetResourceLabel(queries, ""), "blank resource id should use explicit fallback");
+    AssertEqual("无", StrategicWorldDisplayNames.GetFactionLabel(queries, ""), "blank faction id should use explicit fallback");
+}
+
+static void WorldActionResourceTextUsesCustomDisplayNames()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    state.PlayerResources.Set(StrategicWorldIds.ResourcePopulation, 0);
+
+    WorldActionViewModel action = new WorldActionResolver()
+        .GetAvailableActions(state, definition, StrategicWorldIds.SiteBonefield)
+        .Single(item => item.ActionId == StrategicWorldIds.ActionBuildMine);
+
+    AssertEqual(false, action.IsEnabled, "build mine should be disabled when custom population resource is missing");
+    AssertEqual("Labor不足", action.DisabledReason, "population shortage should use custom resource display name");
+    AssertTrue(
+        action.EffectLines.Contains("占用Labor 1"),
+        "build mine effect text should use custom population display name");
+    AssertTrue(
+        action.EffectLines.Contains("每世界步Granite +2"),
+        "build mine effect text should use custom stone display name");
+}
+
+static void WorldActionNonPopulationShortageUsesCustomDisplayName()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    state.PlayerResources.Set(StrategicWorldIds.ResourceEconomy, 0);
+
+    WorldActionViewModel action = new WorldActionResolver()
+        .GetAvailableActions(state, definition, StrategicWorldIds.SiteBonefield)
+        .Single(item => item.ActionId == "test_economy_cost_action");
+
+    AssertEqual(false, action.IsEnabled, "economy-cost action should be disabled when custom economy resource is missing");
+    AssertEqual("Coin不足", action.DisabledReason, "non-population shortage should use the missing resource display name");
+    AssertTrue(
+        !action.DisabledReason.Contains("资源不足", StringComparison.Ordinal),
+        "non-population shortage should not use the generic resource shortage label");
+    AssertTrue(
+        !action.DisabledReason.Contains(StrategicWorldIds.ResourceEconomy, StringComparison.Ordinal),
+        "non-population shortage should not expose the resource id when a display name exists");
+
+    WorldActionResult result = new WorldActionResolver().Apply(
+        state,
+        definition,
+        new WorldActionRequest
+        {
+            ActionId = "test_economy_cost_action",
+            SourceSiteId = StrategicWorldIds.SiteBonefield,
+            TargetSiteId = StrategicWorldIds.SiteBonefield
+        },
+        "",
+        "");
+
+    AssertEqual(false, result.Success, "economy-cost action should fail when applied without enough custom economy resource");
+    AssertEqual("Coin不足", result.Message, "failed action result should use the missing resource display name");
+    AssertTrue(
+        result.FailureReason.Contains(StrategicWorldIds.ResourceEconomy, StringComparison.Ordinal),
+        "failure reason should carry the concrete missing resource id for formatting");
+}
+
+static void WorldActionBlankResourceDisplayNameFallsBackToId()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    definition.ResourceDefinitions.Single(item => item.Id == StrategicWorldIds.ResourceEconomy).DisplayName = "";
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    state.PlayerResources.Set(StrategicWorldIds.ResourceEconomy, 0);
+
+    WorldActionViewModel action = new WorldActionResolver()
+        .GetAvailableActions(state, definition, StrategicWorldIds.SiteBonefield)
+        .Single(item => item.ActionId == "test_economy_cost_action");
+
+    AssertEqual(
+        $"{StrategicWorldIds.ResourceEconomy}不足",
+        action.DisabledReason,
+        "blank resource DisplayName should fall back to the resource id instead of an empty label");
+}
+
+static void WorldOpportunityRewardTextUsesCustomResourceDisplayName()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    definition.OpportunityDefinitions.Add(new WorldOpportunityDefinition
+    {
+        Id = "test_opportunity",
+        DisplayName = "Test Cache",
+        CompletionRewards = { new ResourceAmountDefinition(StrategicWorldIds.ResourceStone, 3) }
+    });
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    state.OpportunityStates["opportunity:test"] = new WorldOpportunityState
+    {
+        OpportunityId = "opportunity:test",
+        DefinitionId = "test_opportunity",
+        Status = WorldOpportunityStatus.Active,
+        SpawnPointId = "spawn:test"
+    };
+
+    WorldActionResult result = new WorldOpportunityService().CompleteOpportunity(
+        state,
+        definition,
+        "opportunity:test");
+
+    AssertEqual(true, result.Success, "opportunity completion should succeed");
+    AssertTrue(
+        result.Message.Contains("Granite +3", StringComparison.Ordinal),
+        "opportunity reward text should use custom resource display name");
+    AssertTrue(
+        !result.Message.Contains("石材 +3", StringComparison.Ordinal),
+        "opportunity reward text should not hardcode the default stone label");
+}
+
+static void WorldTickProductionTextUsesCustomDisplayNames()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    state.SiteStates[StrategicWorldIds.SiteBonefield].Facilities.Add(new FacilityInstance
+    {
+        InstanceId = "mine:test",
+        FacilityId = StrategicWorldIds.FacilityMine,
+        SiteId = StrategicWorldIds.SiteBonefield,
+        State = FacilityState.Active,
+        AssignedPopulation = 1
+    });
+
+    WorldTickResult result = new WorldTickService().AdvanceWorldTick(state, definition);
+
+    AssertTrue(
+        result.Messages.Any(message => message.Contains("Granite +2", StringComparison.Ordinal)),
+        "mine production message should use custom stone display name");
+    AssertTrue(
+        !result.Messages.Any(message => message.Contains("石材 +2", StringComparison.Ordinal)),
+        "mine production message should not hardcode the default stone label");
+}
+
 static void BattleUnitFactoryKeepsDefinitionCachesShared()
 {
     string factory = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"));
@@ -439,6 +593,71 @@ static StrategicWorldDefinition BuildBattleResultApplierTestDefinition()
         {
             BuildBattleResultApplierTestSite(StrategicWorldIds.SitePlayerCamp, StrategicWorldIds.FactionPlayer, SiteControlState.PlayerHeld),
             BuildBattleResultApplierTestSite(StrategicWorldIds.SiteBonefield, StrategicWorldIds.FactionUndead, SiteControlState.Hostile)
+        }
+    };
+}
+
+static StrategicWorldDefinition BuildResourceDisplayNameTestDefinition()
+{
+    return new StrategicWorldDefinition
+    {
+        Id = "resource-display-name-test",
+        PlayerFactionId = StrategicWorldIds.FactionPlayer,
+        FactionDefinitions =
+        {
+            new FactionDefinition { Id = StrategicWorldIds.FactionPlayer, DisplayName = "Guild" },
+            new FactionDefinition { Id = StrategicWorldIds.FactionUndead, DisplayName = "Ash Court" }
+        },
+        ResourceDefinitions =
+        {
+            new ResourceDefinition { Id = StrategicWorldIds.ResourcePopulation, DisplayName = "Labor" },
+            new ResourceDefinition { Id = StrategicWorldIds.ResourceStone, DisplayName = "Granite" },
+            new ResourceDefinition { Id = StrategicWorldIds.ResourceEconomy, DisplayName = "Coin" }
+        },
+        SiteDefinitions =
+        {
+            new WorldSiteDefinition
+            {
+                Id = StrategicWorldIds.SiteBonefield,
+                DisplayName = "Test Quarry",
+                InitialOwnerFactionId = StrategicWorldIds.FactionPlayer,
+                InitialControlState = SiteControlState.PlayerHeld
+            }
+        },
+        ActionDefinitions =
+        {
+            new WorldActionDefinition
+            {
+                Id = StrategicWorldIds.ActionBuildMine,
+                DisplayName = "Build Test Mine",
+                Scope = WorldActionScope.Site,
+                Costs = { new ResourceAmountDefinition(StrategicWorldIds.ResourcePopulation, 1) }
+            },
+            new WorldActionDefinition
+            {
+                Id = "test_economy_cost_action",
+                DisplayName = "Spend Coin",
+                Scope = WorldActionScope.Site,
+                Costs = { new ResourceAmountDefinition(StrategicWorldIds.ResourceEconomy, 5) }
+            }
+        }
+    };
+}
+
+static StrategicWorldState BuildResourceDisplayNameTestState()
+{
+    return new StrategicWorldState
+    {
+        PlayerFactionId = StrategicWorldIds.FactionPlayer,
+        SiteStates =
+        {
+            [StrategicWorldIds.SiteBonefield] = new WorldSiteState
+            {
+                SiteId = StrategicWorldIds.SiteBonefield,
+                OwnerFactionId = StrategicWorldIds.FactionPlayer,
+                ControlState = SiteControlState.PlayerHeld,
+                SiteMode = WorldSiteMode.Peacetime
+            }
         }
     };
 }

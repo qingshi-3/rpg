@@ -2006,10 +2006,11 @@ public partial class StrategicWorldRoot : Control
     private void RefreshResources()
     {
         ResourceStore resources = State.PlayerResources;
+        StrategicWorldDefinitionQueries queries = new(Definition);
         _resourceLabel.Text =
-            $"人口 {resources.GetAvailable(StrategicWorldIds.ResourcePopulation)}/{resources.GetAmount(StrategicWorldIds.ResourcePopulation)}    " +
-            $"经济 {resources.GetAmount(StrategicWorldIds.ResourceEconomy)}    " +
-            $"石材 {resources.GetAmount(StrategicWorldIds.ResourceStone)}    " +
+            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} {resources.GetAvailable(StrategicWorldIds.ResourcePopulation)}/{resources.GetAmount(StrategicWorldIds.ResourcePopulation)}    " +
+            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceEconomy)} {resources.GetAmount(StrategicWorldIds.ResourceEconomy)}    " +
+            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} {resources.GetAmount(StrategicWorldIds.ResourceStone)}    " +
             $"世界步 {State.WorldTick}";
     }
 
@@ -2075,7 +2076,7 @@ public partial class StrategicWorldRoot : Control
             $"{definition.Description}\n\n" +
             $"状态：{GetControlStateLabel(site.ControlState)}\n" +
             $"模式：{GetSiteModeLabel(site.SiteMode)}\n" +
-            $"归属：{GetFactionLabel(site.OwnerFactionId)}\n" +
+            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}\n" +
             $"受损：{site.DamageLevel}";
 
         ClearChildren(_facilityList);
@@ -2089,7 +2090,7 @@ public partial class StrategicWorldRoot : Control
             {
                 FacilityDefinition facilityDefinition = queries.GetFacility(facility.FacilityId);
                 string extra = facility.FacilityId == StrategicWorldIds.FacilityMine
-                    ? $"  占用人口 {facility.AssignedPopulation}  产出 石材 +2/世界步"
+                    ? $"  占用{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} {facility.AssignedPopulation}  产出 {StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} +2/世界步"
                     : facility.FacilityId == StrategicWorldIds.FacilityDefenseTower
                         ? "  防守 +3  塔支援 1 次"
                         : "";
@@ -2137,7 +2138,7 @@ public partial class StrategicWorldRoot : Control
             StatusText = GetOpportunityStatusLabel(opportunity.Status),
             SpawnPointText = spawnPoint?.DisplayName ?? opportunity.SpawnPointId,
             RemainingText = $"{remainingTicks} 世界步",
-            RewardText = BuildOpportunityRewardText(definition)
+            RewardText = BuildOpportunityRewardText(queries, definition)
         });
         return true;
     }
@@ -2203,9 +2204,18 @@ public partial class StrategicWorldRoot : Control
         {
             string source = queries.GetSite(threat.SourceSiteId)?.DisplayName ?? threat.SourceSiteId;
             string target = queries.GetSite(threat.TargetSiteId)?.DisplayName ?? threat.TargetSiteId;
-            string movingText = !string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
-                                State.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army)
-                ? BuildThreatArmyProgressText(army, threat)
+            WorldArmyState threatArmy = !string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
+                                        State.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army)
+                ? army
+                : null;
+            string threatFactionId = !string.IsNullOrWhiteSpace(threatArmy?.OwnerFactionId)
+                ? threatArmy.OwnerFactionId
+                : State.SiteStates.TryGetValue(threat.SourceSiteId, out WorldSiteState sourceSite)
+                    ? sourceSite.OwnerFactionId
+                    : StrategicWorldIds.FactionUndead;
+            string threatLabel = $"{StrategicWorldDisplayNames.GetFactionLabel(queries, threatFactionId)}袭击";
+            string movingText = threatArmy != null
+                ? BuildThreatArmyProgressText(threatArmy, threat)
                 : $"{threat.CountdownTicks} 步后到达";
             WorldBattleState worldBattle = WorldBattleProgressionService.FindActiveBattleForThreat(State, threat.Id);
             Button button = GameUiSceneFactory.CreateWorldSecondaryActionButton(nameof(StrategicWorldRoot));
@@ -2217,8 +2227,8 @@ public partial class StrategicWorldRoot : Control
             button.Text = worldBattle != null
                 ? $"世界战斗：{source} -> {target}  {WorldBattleProgressionService.GetPhaseLabel(worldBattle.CurrentPhase)}  剩余 {WorldBattleProgressionService.GetRemainingTicks(State, worldBattle)} 步"
                 : threat.Stage == ThreatStage.Attacking
-                ? $"亡灵袭击：{source} -> {target}  正在攻击"
-                : $"亡灵袭击：{source} -> {target}  {movingText}";
+                ? $"{threatLabel}：{source} -> {target}  正在攻击"
+                : $"{threatLabel}：{source} -> {target}  {movingText}";
             button.Disabled = false;
             button.Pressed += () => SelectThreat(threat.Id);
             _threatList.AddChild(button);
@@ -2542,7 +2552,7 @@ public partial class StrategicWorldRoot : Control
         return false;
     }
 
-    private static string BuildOpportunityRewardText(WorldOpportunityDefinition definition)
+    private static string BuildOpportunityRewardText(StrategicWorldDefinitionQueries queries, WorldOpportunityDefinition definition)
     {
         if (definition == null || definition.CompletionRewards.Count == 0)
         {
@@ -2551,7 +2561,7 @@ public partial class StrategicWorldRoot : Control
 
         string[] rewards = definition.CompletionRewards
             .Where(reward => reward.Amount != 0 && !string.IsNullOrWhiteSpace(reward.ResourceId))
-            .Select(reward => $"{GetResourceLabel(reward.ResourceId)} {(reward.Amount > 0 ? "+" : "")}{reward.Amount}")
+            .Select(reward => $"{StrategicWorldDisplayNames.GetResourceLabel(queries, reward.ResourceId)} {(reward.Amount > 0 ? "+" : "")}{reward.Amount}")
             .ToArray();
         return rewards.Length == 0 ? "无固定奖励" : string.Join("，", rewards);
     }
@@ -2564,17 +2574,6 @@ public partial class StrategicWorldRoot : Control
             WorldOpportunityStatus.Completed => "已完成",
             WorldOpportunityStatus.Expired => "已消失",
             _ => status.ToString()
-        };
-    }
-
-    private static string GetResourceLabel(string resourceId)
-    {
-        return resourceId switch
-        {
-            StrategicWorldIds.ResourcePopulation => "人口",
-            StrategicWorldIds.ResourceEconomy => "经济",
-            StrategicWorldIds.ResourceStone => "石材",
-            _ => resourceId
         };
     }
 
@@ -3217,7 +3216,8 @@ public partial class StrategicWorldRoot : Control
 
             if (unitLines.Count == 0)
             {
-                return $"{GetFactionLabel(army.OwnerFactionId)}部队（未配置单位明细）";
+                StrategicWorldDefinitionQueries queries = new(Definition);
+                return $"{StrategicWorldDisplayNames.GetFactionLabel(queries, army.OwnerFactionId)}部队（未配置单位明细）";
             }
         }
 
@@ -3268,7 +3268,7 @@ public partial class StrategicWorldRoot : Control
         return
             $"场域：{definition?.DisplayName ?? site.SiteId}\n" +
             $"状态：{GetControlStateLabel(site.ControlState)}\n" +
-            $"归属：{GetFactionLabel(site.OwnerFactionId)}\n" +
+            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}\n" +
             $"受损：{site.DamageLevel}\n" +
             $"建筑：运行 {activeFacilities}，受损 {damagedFacilities}\n" +
             $"驻军：{garrison}";
@@ -4269,17 +4269,6 @@ public partial class StrategicWorldRoot : Control
             WorldSiteMode.Wartime => "战时",
             WorldSiteMode.Aftermath => "战后",
             _ => "未知"
-        };
-    }
-
-    private static string GetFactionLabel(string factionId)
-    {
-        return factionId switch
-        {
-            StrategicWorldIds.FactionPlayer => "玩家",
-            StrategicWorldIds.FactionUndead => "亡灵",
-            "" => "无",
-            _ => factionId
         };
     }
 

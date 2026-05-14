@@ -2799,10 +2799,11 @@ public partial class WorldSiteRoot : Node2D
     private string BuildResourceLine()
     {
         ResourceStore resources = StrategicWorldRuntime.State.PlayerResources;
+        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
         return
-            $"人口 {resources.GetAvailable(StrategicWorldIds.ResourcePopulation)}/{resources.GetAmount(StrategicWorldIds.ResourcePopulation)}    " +
-            $"经济 {resources.GetAmount(StrategicWorldIds.ResourceEconomy)}    " +
-            $"石材 {resources.GetAmount(StrategicWorldIds.ResourceStone)}    " +
+            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} {resources.GetAvailable(StrategicWorldIds.ResourcePopulation)}/{resources.GetAmount(StrategicWorldIds.ResourcePopulation)}    " +
+            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceEconomy)} {resources.GetAmount(StrategicWorldIds.ResourceEconomy)}    " +
+            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} {resources.GetAmount(StrategicWorldIds.ResourceStone)}    " +
             $"世界步 {StrategicWorldRuntime.State.WorldTick}";
     }
 
@@ -2810,6 +2811,7 @@ public partial class WorldSiteRoot : Node2D
     {
         WorldSiteState site = ResolveSiteState(siteId);
         WorldSiteDefinition definition = ResolveSiteDefinition(siteId);
+        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
         if (site == null)
         {
             return "当前场域状态缺失。";
@@ -2824,7 +2826,7 @@ public partial class WorldSiteRoot : Node2D
         return
             $"{definition?.Description ?? ResolveSiteName(siteId)}\n" +
             $"控制：{GetControlStateLabel(site.ControlState)}    模式：{GetSiteModeLabel(site.SiteMode)}\n" +
-            $"归属：{GetFactionLabel(site.OwnerFactionId)}    受损：{site.DamageLevel}\n" +
+            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}    受损：{site.DamageLevel}\n" +
             $"建筑：{facilityCount}    驻军：{garrisonCount}    威胁：{activeThreatCount}";
     }
 
@@ -4364,17 +4366,6 @@ public partial class WorldSiteRoot : Node2D
             WorldSiteMode.Wartime => "战时",
             WorldSiteMode.Aftermath => "战后",
             _ => "未知"
-        };
-    }
-
-    private static string GetFactionLabel(string factionId)
-    {
-        return factionId switch
-        {
-            StrategicWorldIds.FactionPlayer => "玩家",
-            StrategicWorldIds.FactionUndead => "亡灵",
-            "" => "无",
-            _ => factionId
         };
     }
 
