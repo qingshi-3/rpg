@@ -12,6 +12,7 @@ public sealed class WorldBattleResultApplier
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
     private readonly WorldSiteDeploymentService _deploymentService = new();
     private readonly WorldBattleProgressionService _worldBattleProgressionService = new();
+    private readonly WorldGarrisonMutationService _garrisonMutations = new();
 
     public WorldActionResult Apply(
         StrategicWorldState state,
@@ -70,7 +71,7 @@ public sealed class WorldBattleResultApplier
         WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
         if (result.Outcome == BattleOutcome.Victory && ObjectiveSucceeded(result, "occupy_bonefield"))
         {
-            RemoveBattleForcesFromSite(site, request.EnemyForces);
+            RemoveBattleForcesFromSite(site, request.EnemyForces, result);
             site.OwnerFactionId = state.PlayerFactionId;
             site.ControlState = SiteControlState.PlayerHeld;
             site.LastVisitedTick = state.WorldTick;
@@ -90,7 +91,7 @@ public sealed class WorldBattleResultApplier
                     }
                 }
             };
-            ResolveAssaultArmy(state, definition, request, actionResult, WorldArmyStatus.Garrisoned, site);
+            ResolveAssaultArmy(state, definition, request, result, actionResult, WorldArmyStatus.Garrisoned, site);
             WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(site.SiteId);
             _deploymentService.EnsureGarrisonPlacements(site, siteDefinition);
             WorldSiteModeTransitionService.AddEvent(actionResult, _siteModeTransitions.EnterAftermath(site, state.WorldTick, "assault_victory", request.RequestId));
@@ -113,7 +114,7 @@ public sealed class WorldBattleResultApplier
                 }
             }
         };
-        ResolveAssaultArmy(state, definition, request, failedAssaultResult, WorldArmyStatus.Defeated, site);
+        ResolveAssaultArmy(state, definition, request, result, failedAssaultResult, WorldArmyStatus.Defeated, site);
         WorldSiteModeTransitionService.AddEvent(failedAssaultResult, _siteModeTransitions.EnterAftermath(site, state.WorldTick, "assault_failed", request.RequestId));
         return failedAssaultResult;
     }
@@ -122,6 +123,7 @@ public sealed class WorldBattleResultApplier
         StrategicWorldState state,
         StrategicWorldDefinition definition,
         BattleStartRequest request,
+        BattleResult battleResult,
         WorldActionResult result,
         WorldArmyStatus status,
         WorldSiteState targetSite)
@@ -134,9 +136,13 @@ public sealed class WorldBattleResultApplier
 
         if (status == WorldArmyStatus.Garrisoned && targetSite != null)
         {
+            bool hasForceResults = HasForceResults(battleResult);
             foreach (GarrisonState unit in army.GarrisonUnits.Where(item => item.Count > 0))
             {
-                AddGarrison(targetSite, unit.UnitTypeId, unit.Count);
+                int transferred = hasForceResults
+                    ? GetSurvivedCountForArmyUnit(request, battleResult, army.ArmyId, unit.UnitTypeId)
+                    : unit.Count;
+                _garrisonMutations.Add(targetSite, unit.UnitTypeId, transferred);
             }
 
             WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(targetSite.SiteId);
@@ -168,6 +174,7 @@ public sealed class WorldBattleResultApplier
 
         if (result.Outcome == BattleOutcome.Victory && ObjectiveSucceeded(result, "defend_bonefield"))
         {
+            ApplyDefendingGarrisonCasualties(site, request, result);
             if (threat != null)
             {
                 threat.Stage = ThreatStage.Resolved;
@@ -196,6 +203,8 @@ public sealed class WorldBattleResultApplier
                     }
                 }
             };
+            WorldSiteDefinition defenseSiteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(site.SiteId);
+            _deploymentService.EnsureGarrisonPlacements(site, defenseSiteDefinition);
             WorldSiteModeTransitionService.AddEvent(actionResult, _siteModeTransitions.EnterAftermath(site, state.WorldTick, "defense_victory", request.RequestId));
             return actionResult;
         }
@@ -367,54 +376,133 @@ public sealed class WorldBattleResultApplier
             item.State == BattleObjectiveState.Succeeded);
     }
 
-    private static void RemoveGarrison(WorldSiteState site, string unitTypeId, int count)
+    private void ApplyDefendingGarrisonCasualties(
+        WorldSiteState site,
+        BattleStartRequest request,
+        BattleResult result)
     {
-        int remaining = count;
-        foreach (GarrisonState garrison in site.Garrison.Where(item => item.UnitTypeId == unitTypeId).ToArray())
+        if (site == null || request == null || !HasForceResults(result))
         {
-            int removed = System.Math.Min(remaining, garrison.Count);
-            garrison.Count -= removed;
-            remaining -= removed;
-            if (garrison.Count <= 0)
-            {
-                site.Garrison.Remove(garrison);
-            }
+            return;
+        }
 
-            if (remaining <= 0)
-            {
-                return;
-            }
+        foreach (BattleForceRequest force in EnumerateForces(request)
+                     .Where(force => IsSiteGarrisonForce(force, site.SiteId)))
+        {
+            int defeated = GetDefeatedCount(result, force, 0);
+            _garrisonMutations.Remove(site, force.UnitDefinitionId, defeated);
         }
     }
 
-    private static void RemoveBattleForcesFromSite(WorldSiteState site, System.Collections.Generic.IEnumerable<BattleForceRequest> forces)
+    private void RemoveBattleForcesFromSite(
+        WorldSiteState site,
+        System.Collections.Generic.IEnumerable<BattleForceRequest> forces,
+        BattleResult result)
     {
         if (site == null || forces == null)
         {
             return;
         }
 
+        bool hasForceResults = HasForceResults(result);
         foreach (BattleForceRequest force in forces.Where(item => item.Count > 0 && !string.IsNullOrWhiteSpace(item.UnitDefinitionId)))
         {
-            RemoveGarrison(site, force.UnitDefinitionId, force.Count);
+            int removeCount = hasForceResults
+                ? GetDefeatedCount(result, force, 0)
+                : force.Count;
+            _garrisonMutations.Remove(site, force.UnitDefinitionId, removeCount);
         }
     }
 
-    private static void AddGarrison(WorldSiteState site, string unitTypeId, int count)
+    private static bool HasForceResults(BattleResult result)
     {
-        if (site == null || count <= 0 || string.IsNullOrWhiteSpace(unitTypeId))
+        return result?.ForceResults != null && result.ForceResults.Count > 0;
+    }
+
+    private static int GetSurvivedCountForArmyUnit(
+        BattleStartRequest request,
+        BattleResult result,
+        string armyId,
+        string unitDefinitionId)
+    {
+        BattleForceRequest force = request?.PlayerForces?
+            .FirstOrDefault(item =>
+                string.Equals(item.SourceId, armyId, System.StringComparison.Ordinal) &&
+                string.Equals(item.UnitDefinitionId, unitDefinitionId, System.StringComparison.Ordinal));
+        if (force == null)
         {
-            return;
+            return 0;
         }
 
-        GarrisonState garrison = site.Garrison.FirstOrDefault(item => item.UnitTypeId == unitTypeId);
-        if (garrison == null)
+        BattleForceResult forceResult = FindForceResult(result, force);
+        return forceResult == null ? 0 : System.Math.Max(0, forceResult.SurvivedCount);
+    }
+
+    private static int GetDefeatedCount(BattleResult result, BattleForceRequest force, int fallback)
+    {
+        BattleForceResult forceResult = FindForceResult(result, force);
+        if (forceResult == null)
         {
-            site.Garrison.Add(new GarrisonState { UnitTypeId = unitTypeId, Count = count });
-            return;
+            return fallback;
         }
 
-        garrison.Count += count;
+        if (forceResult.DefeatedCount > 0)
+        {
+            return forceResult.DefeatedCount;
+        }
+
+        return System.Math.Max(0, forceResult.InitialCount - forceResult.SurvivedCount);
+    }
+
+    private static BattleForceResult FindForceResult(BattleResult result, BattleForceRequest force)
+    {
+        if (result?.ForceResults == null || force == null)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(force.ForceId))
+        {
+            BattleForceResult byForceId = result.ForceResults.FirstOrDefault(item =>
+                string.Equals(item.ForceId, force.ForceId, System.StringComparison.Ordinal));
+            if (byForceId != null)
+            {
+                return byForceId;
+            }
+        }
+
+        return result.ForceResults.FirstOrDefault(item =>
+            string.Equals(item.SourceKind, force.SourceKind, System.StringComparison.Ordinal) &&
+            string.Equals(item.SourceId, force.SourceId, System.StringComparison.Ordinal) &&
+            string.Equals(item.UnitDefinitionId, force.UnitDefinitionId, System.StringComparison.Ordinal));
+    }
+
+    private static bool IsSiteGarrisonForce(BattleForceRequest force, string siteId)
+    {
+        return force != null &&
+               !string.IsNullOrWhiteSpace(force.UnitDefinitionId) &&
+               string.Equals(force.SourceId, siteId, System.StringComparison.Ordinal) &&
+               (string.Equals(force.SourceKind, "Garrison", System.StringComparison.Ordinal) ||
+                string.Equals(force.SourceKind, "DefenderSite", System.StringComparison.Ordinal));
+    }
+
+    private static System.Collections.Generic.IEnumerable<BattleForceRequest> EnumerateForces(BattleStartRequest request)
+    {
+        if (request?.PlayerForces != null)
+        {
+            foreach (BattleForceRequest force in request.PlayerForces)
+            {
+                yield return force;
+            }
+        }
+
+        if (request?.EnemyForces != null)
+        {
+            foreach (BattleForceRequest force in request.EnemyForces)
+            {
+                yield return force;
+            }
+        }
     }
 }
 

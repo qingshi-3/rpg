@@ -7,7 +7,13 @@ using Rpg.Presentation.Battle.Feedback;
 using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Preview;
 using Rpg.Definitions.Battle.Audio;
+using Rpg.Application.Battle;
+using Rpg.Application.World;
+using Rpg.Definitions.World;
+using Rpg.Domain.World;
 using System.Text.Json;
+
+Environment.SetEnvironmentVariable("RPG_GAMELOG_DIR", Path.Combine(Path.GetTempPath(), "rpg-test-logs"));
 
 Run("multi-target hit feedback outlines every target and formats damage numbers", MultiTargetHitFeedback);
 Run("damage number starts close to target and drifts lightly right upward", DamageNumberMotionDefaults);
@@ -25,6 +31,10 @@ Run("starter battle unit definitions reference audio profiles", StarterUnitDefin
 Run("starter audio migration is mapped from source visuals", StarterAudioMigrationUsesSourceVisuals);
 Run("battle unit display names use resource label plus two digit instance index", BattleUnitDisplayNamesUseIndexedResourceLabel);
 Run("starter unit display names use source visual translations", StarterUnitDisplayNamesUseSourceVisualTranslations);
+Run("world unit labels resolve through battle unit definitions", WorldUnitLabelsResolveThroughBattleDefinitions);
+Run("battle unit factory keeps definition caches shared across scenes", BattleUnitFactoryKeepsDefinitionCachesShared);
+Run("battle result applier uses survivor counts when garrisoning assault army", BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssaultArmy);
+Run("battle result applier keeps surviving defending garrison after defense victory", BattleResultApplierKeepsSurvivingDefendingGarrisonAfterDefenseVictory);
 Run("unit display name translation report keeps low confidence review queue bounded", UnitDisplayNameTranslationReportQuality);
 
 static void MultiTargetHitFeedback()
@@ -265,6 +275,215 @@ static void StarterUnitDisplayNamesUseSourceVisualTranslations()
             text.Contains($"DisplayName = \"{expectedName}\"", StringComparison.Ordinal),
             $"{unitId} should use source visual translation {expectedName}");
     }
+}
+
+static void WorldUnitLabelsResolveThroughBattleDefinitions()
+{
+    string strategicRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "StrategicWorldRoot.cs"));
+    string siteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+
+    AssertTrue(
+        strategicRoot.Contains("_battleUnitFactory.ResolveUnitDisplayName(unitTypeId)", StringComparison.Ordinal),
+        "strategic world UI should resolve unit group labels from battle unit definitions");
+    AssertTrue(
+        siteRoot.Contains("_battleUnitFactory.ResolveUnitDisplayName(unitTypeId)", StringComparison.Ordinal),
+        "site detail UI should resolve garrison labels from battle unit definitions");
+    AssertTrue(
+        siteRoot.Contains("_battleUnitFactory.ResolveUnitInstanceDisplayName(placement.UnitTypeId", StringComparison.Ordinal),
+        "site placement labels should use the same indexed instance names as battle units");
+}
+
+static void BattleUnitFactoryKeepsDefinitionCachesShared()
+{
+    string factory = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"));
+
+    AssertTrue(
+        factory.Contains("SharedDefinitions", StringComparison.Ordinal),
+        "battle unit definitions should be cached in a shared resident metadata cache");
+    AssertTrue(
+        factory.Contains("SharedDefinitionPathIndex", StringComparison.Ordinal),
+        "nested unit definition path index should be shared instead of rebuilt per scene");
+    AssertTrue(
+        !factory.Contains("private readonly Dictionary<string, BattleUnitDefinition> _definitions", StringComparison.Ordinal),
+        "per-scene unit definition cache rebuilds cause world detail clicks to rescan unit resources");
+}
+
+static void BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssaultArmy()
+{
+    StrategicWorldDefinition definition = BuildBattleResultApplierTestDefinition();
+    StrategicWorldState state = new StrategicWorldService().CreateInitialState(definition);
+    WorldSiteState targetSite = state.SiteStates[StrategicWorldIds.SiteBonefield];
+    targetSite.Garrison.Clear();
+    targetSite.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1 });
+
+    WorldArmyState army = new()
+    {
+        ArmyId = "assault:survivor-test",
+        OwnerFactionId = state.PlayerFactionId,
+        SourceSiteId = StrategicWorldIds.SitePlayerCamp,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        Status = WorldArmyStatus.Attacking,
+        Intent = WorldArmyIntent.AssaultSite
+    };
+    army.GarrisonUnits.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 3 });
+    state.ArmyStates[army.ArmyId] = army;
+
+    BattleStartRequest request = new()
+    {
+        RequestId = "assault-survivor-request",
+        BattleKind = BattleKind.AssaultSite,
+        SourceArmyId = army.ArmyId,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        AttackerFactionId = state.PlayerFactionId,
+        DefenderFactionId = StrategicWorldIds.FactionUndead
+    };
+    request.ObjectiveIds.Add("occupy_bonefield");
+    request.PlayerForces.Add(new BattleForceRequest
+    {
+        ForceId = "player:militia",
+        SourceKind = "PlayerArmy",
+        SourceId = army.ArmyId,
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 3,
+        FactionId = state.PlayerFactionId
+    });
+    request.EnemyForces.Add(new BattleForceRequest
+    {
+        ForceId = "defender:skeleton",
+        SourceKind = "DefenderSite",
+        SourceId = StrategicWorldIds.SiteBonefield,
+        UnitDefinitionId = StrategicWorldIds.UnitSkeletonWarrior,
+        Count = 1,
+        FactionId = StrategicWorldIds.FactionUndead
+    });
+
+    BattleResult result = BuildVictoryResult(request, "occupy_bonefield");
+    result.ForceResults.Add(new BattleForceResult
+    {
+        SourceKind = "PlayerArmy",
+        SourceId = army.ArmyId,
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        InitialCount = 3,
+        SurvivedCount = 1,
+        DefeatedCount = 2
+    });
+    result.ForceResults.Add(new BattleForceResult
+    {
+        SourceKind = "DefenderSite",
+        SourceId = StrategicWorldIds.SiteBonefield,
+        UnitDefinitionId = StrategicWorldIds.UnitSkeletonWarrior,
+        InitialCount = 1,
+        SurvivedCount = 0,
+        DefeatedCount = 1
+    });
+
+    new WorldBattleResultApplier().Apply(state, definition, request, result);
+
+    AssertEqual(1, targetSite.Garrison.Where(item => item.UnitTypeId == StrategicWorldIds.UnitMilitia).Sum(item => item.Count), "only surviving attacker units should garrison captured site");
+    AssertEqual(0, army.GarrisonUnits.Sum(item => item.Count), "assault army should be emptied after survivor transfer");
+}
+
+static void BattleResultApplierKeepsSurvivingDefendingGarrisonAfterDefenseVictory()
+{
+    StrategicWorldDefinition definition = BuildBattleResultApplierTestDefinition();
+    StrategicWorldState state = new StrategicWorldService().CreateInitialState(definition);
+    WorldSiteState targetSite = state.SiteStates[StrategicWorldIds.SiteBonefield];
+    targetSite.OwnerFactionId = state.PlayerFactionId;
+    targetSite.ControlState = SiteControlState.PlayerHeld;
+    targetSite.Garrison.Clear();
+    targetSite.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 4 });
+
+    BattleStartRequest request = new()
+    {
+        RequestId = "defense-garrison-survivor-request",
+        BattleKind = BattleKind.DefenseRaid,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        AttackerFactionId = StrategicWorldIds.FactionUndead,
+        DefenderFactionId = state.PlayerFactionId
+    };
+    request.ObjectiveIds.Add("defend_bonefield");
+    request.PlayerForces.Add(new BattleForceRequest
+    {
+        ForceId = "garrison:militia",
+        SourceKind = "Garrison",
+        SourceId = StrategicWorldIds.SiteBonefield,
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 4,
+        FactionId = state.PlayerFactionId
+    });
+
+    BattleResult result = BuildVictoryResult(request, "defend_bonefield");
+    result.ForceResults.Add(new BattleForceResult
+    {
+        ForceId = "garrison:militia",
+        SourceKind = "Garrison",
+        SourceId = StrategicWorldIds.SiteBonefield,
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        InitialCount = 4,
+        SurvivedCount = 2,
+        DefeatedCount = 2
+    });
+
+    new WorldBattleResultApplier().Apply(state, definition, request, result);
+
+    AssertEqual(2, targetSite.Garrison.Where(item => item.UnitTypeId == StrategicWorldIds.UnitMilitia).Sum(item => item.Count), "defending site garrison should lose only defeated units");
+}
+
+static StrategicWorldDefinition BuildBattleResultApplierTestDefinition()
+{
+    return new StrategicWorldDefinition
+    {
+        Id = "battle-result-applier-test",
+        PlayerFactionId = StrategicWorldIds.FactionPlayer,
+        SiteDefinitions =
+        {
+            BuildBattleResultApplierTestSite(StrategicWorldIds.SitePlayerCamp, StrategicWorldIds.FactionPlayer, SiteControlState.PlayerHeld),
+            BuildBattleResultApplierTestSite(StrategicWorldIds.SiteBonefield, StrategicWorldIds.FactionUndead, SiteControlState.Hostile)
+        }
+    };
+}
+
+static WorldSiteDefinition BuildBattleResultApplierTestSite(
+    string siteId,
+    string factionId,
+    SiteControlState controlState)
+{
+    SiteDeploymentZoneDefinition zone = new()
+    {
+        ZoneId = WorldSiteDeploymentService.DefaultGarrisonZoneId,
+        ZoneKind = SiteDeploymentZoneKind.DefaultGarrison,
+        Capacity = 12
+    };
+    for (int i = 0; i < zone.Capacity; i++)
+    {
+        zone.Cells.Add(new Godot.Vector2I(i, 0));
+    }
+
+    return new WorldSiteDefinition
+    {
+        Id = siteId,
+        InitialOwnerFactionId = factionId,
+        InitialControlState = controlState,
+        DefaultGarrisonZoneId = zone.ZoneId,
+        DeploymentZones = { zone }
+    };
+}
+
+static BattleResult BuildVictoryResult(BattleStartRequest request, string objectiveId)
+{
+    BattleResult result = new()
+    {
+        RequestId = request.RequestId,
+        ContextId = request.ContextId,
+        BattleKind = request.BattleKind,
+        Outcome = BattleOutcome.Victory
+    };
+    result.ObjectiveResults.Add(new BattleObjectiveResult
+    {
+        ObjectiveId = objectiveId,
+        State = BattleObjectiveState.Succeeded
+    });
+    return result;
 }
 
 static void UnitDisplayNameTranslationReportQuality()

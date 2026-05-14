@@ -10,6 +10,7 @@ namespace Rpg.Application.World;
 public sealed class WorldExpeditionService
 {
     private readonly WorldSiteDeploymentService _deploymentService = new();
+    private readonly WorldGarrisonMutationService _garrisonMutations = new();
 
     public bool TryCreateExpedition(
         StrategicWorldState state,
@@ -115,7 +116,7 @@ public sealed class WorldExpeditionService
 
         foreach ((string unitTypeId, int count) in requestedUnits)
         {
-            RemoveGarrison(sourceSite, unitTypeId, count);
+            _garrisonMutations.Remove(sourceSite, unitTypeId, count);
         }
 
         army = new WorldArmyState
@@ -169,26 +170,6 @@ public sealed class WorldExpeditionService
         }
 
         return normalized;
-    }
-
-    private static void RemoveGarrison(WorldSiteState site, string unitTypeId, int count)
-    {
-        int remaining = count;
-        foreach (GarrisonState garrison in site.Garrison.Where(item => item.UnitTypeId == unitTypeId).ToArray())
-        {
-            int removed = System.Math.Min(remaining, garrison.Count);
-            garrison.Count -= removed;
-            remaining -= removed;
-            if (garrison.Count <= 0)
-            {
-                site.Garrison.Remove(garrison);
-            }
-
-            if (remaining <= 0)
-            {
-                return;
-            }
-        }
     }
 
     private static string BuildWorldArmyId(StrategicWorldState state, string sourceSiteId)

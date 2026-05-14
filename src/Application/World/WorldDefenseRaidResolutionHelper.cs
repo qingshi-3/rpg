@@ -4,6 +4,8 @@ namespace Rpg.Application.World;
 
 internal static class WorldDefenseRaidResolutionHelper
 {
+    private static readonly WorldGarrisonMutationService GarrisonMutations = new();
+
     internal static void ResolveThreatArmy(WorldArmyState army)
     {
         if (army == null)
@@ -36,7 +38,7 @@ internal static class WorldDefenseRaidResolutionHelper
 
         foreach (GarrisonState unit in army.GarrisonUnits)
         {
-            AddGarrison(site, unit.UnitTypeId, unit.Count);
+            GarrisonMutations.Add(site, unit.UnitTypeId, unit.Count);
         }
 
         army.GarrisonUnits.Clear();
@@ -48,20 +50,4 @@ internal static class WorldDefenseRaidResolutionHelper
         army.ClearTargetApproachDirection();
     }
 
-    private static void AddGarrison(WorldSiteState site, string unitTypeId, int count)
-    {
-        if (site == null || count <= 0 || string.IsNullOrWhiteSpace(unitTypeId))
-        {
-            return;
-        }
-
-        GarrisonState garrison = site.Garrison.Find(item => item.UnitTypeId == unitTypeId);
-        if (garrison == null)
-        {
-            site.Garrison.Add(new GarrisonState { UnitTypeId = unitTypeId, Count = count });
-            return;
-        }
-
-        garrison.Count += count;
-    }
 }

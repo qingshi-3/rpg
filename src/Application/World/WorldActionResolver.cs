@@ -15,6 +15,7 @@ public sealed class WorldActionResolver
     private readonly WorldThreatService _threatService = new();
     private readonly WorldBattleRequestBuilder _battleRequestBuilder = new();
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
+    private readonly WorldGarrisonMutationService _garrisonMutations = new();
 
     public IReadOnlyList<WorldActionViewModel> GetAvailableActions(
         StrategicWorldState state,
@@ -353,14 +354,14 @@ public sealed class WorldActionResolver
             case WorldEffectKind.AddGarrison:
                 if (site != null)
                 {
-                    AddGarrison(site, effect.UnitTypeId, effect.Amount);
+                    _garrisonMutations.Add(site, effect.UnitTypeId, effect.Amount);
                     AddEvent(result, state, "GarrisonChanged", site.SiteId, ("unit", effect.UnitTypeId), ("amount", effect.Amount.ToString()));
                 }
                 break;
             case WorldEffectKind.RemoveGarrison:
                 if (site != null)
                 {
-                    RemoveGarrison(site, effect.UnitTypeId, effect.Amount);
+                    _garrisonMutations.Remove(site, effect.UnitTypeId, effect.Amount);
                     AddEvent(result, state, "GarrisonChanged", site.SiteId, ("unit", effect.UnitTypeId), ("amount", (-effect.Amount).ToString()));
                 }
                 break;
@@ -478,43 +479,6 @@ public sealed class WorldActionResolver
         }
 
         return site.Facilities.FirstOrDefault(item => item.FacilityId == effect.FacilityId);
-    }
-
-    private static void AddGarrison(WorldSiteState site, string unitTypeId, int count)
-    {
-        if (count <= 0)
-        {
-            return;
-        }
-
-        GarrisonState garrison = site.Garrison.FirstOrDefault(item => item.UnitTypeId == unitTypeId);
-        if (garrison == null)
-        {
-            site.Garrison.Add(new GarrisonState { UnitTypeId = unitTypeId, Count = count });
-            return;
-        }
-
-        garrison.Count += count;
-    }
-
-    private static void RemoveGarrison(WorldSiteState site, string unitTypeId, int count)
-    {
-        int remaining = count;
-        foreach (GarrisonState garrison in site.Garrison.Where(item => item.UnitTypeId == unitTypeId).ToArray())
-        {
-            int removed = Math.Min(remaining, garrison.Count);
-            garrison.Count -= removed;
-            remaining -= removed;
-            if (garrison.Count <= 0)
-            {
-                site.Garrison.Remove(garrison);
-            }
-
-            if (remaining <= 0)
-            {
-                return;
-            }
-        }
     }
 
     private static WorldArmyState CreateWorldArmy(

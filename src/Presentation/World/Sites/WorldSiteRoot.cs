@@ -1977,6 +1977,7 @@ public partial class WorldSiteRoot : Node2D
             request = consumedRequest;
             battleResult = consumedResult;
             livePlacementSnapshots = CaptureLivePlacementSnapshots(request);
+            PopulateLiveBattleForceResults(request, battleResult);
             applyResult = ApplyBattleResultToWorld(request, battleResult);
             ReconcileWorldSitePlacementsAfterBattle(request, livePlacementSnapshots, outcome);
         }
@@ -2062,6 +2063,47 @@ public partial class WorldSiteRoot : Node2D
 
         GameLog.Info(nameof(WorldSiteRoot), $"Live battle placement snapshots captured request={request.RequestId} count={snapshots.Count}");
         return snapshots;
+    }
+
+    private void PopulateLiveBattleForceResults(BattleStartRequest request, BattleResult result)
+    {
+        if (request == null || result == null)
+        {
+            return;
+        }
+
+        result.ForceResults.Clear();
+        IReadOnlyList<BattleEntity> entities = GetBattleEntitiesSnapshot();
+        foreach (BattleForceRequest force in EnumerateBattleForces(request))
+        {
+            if (force == null || force.Count <= 0 || string.IsNullOrWhiteSpace(force.UnitDefinitionId))
+            {
+                continue;
+            }
+
+            int survived = 0;
+            for (int index = 0; index < force.Count; index++)
+            {
+                BattleEntity entity = FindBattleForceEntity(entities, force, index);
+                if (entity != null && !BattleRuleQueries.IsDefeated(entity))
+                {
+                    survived++;
+                }
+            }
+
+            result.ForceResults.Add(new BattleForceResult
+            {
+                ForceId = force.ForceId,
+                SourceKind = force.SourceKind,
+                SourceId = force.SourceId,
+                UnitDefinitionId = force.UnitDefinitionId,
+                InitialCount = force.Count,
+                SurvivedCount = survived,
+                DefeatedCount = System.Math.Max(0, force.Count - survived)
+            });
+        }
+
+        GameLog.Info(nameof(WorldSiteRoot), $"Live battle force results captured request={request.RequestId} count={result.ForceResults.Count}");
     }
 
     private void PersistLivePlacementSnapshots(
@@ -4193,7 +4235,7 @@ public partial class WorldSiteRoot : Node2D
 
     private string BuildPlacementDisplayName(WorldSiteUnitPlacement placement)
     {
-        return $"{GetUnitLabel(placement.UnitTypeId)} #{placement.UnitIndex}";
+        return _battleUnitFactory.ResolveUnitInstanceDisplayName(placement.UnitTypeId, placement.UnitIndex - 1);
     }
 
     private static string FormatPlacementFailure(string failureReason)
@@ -4363,15 +4405,8 @@ public partial class WorldSiteRoot : Node2D
         };
     }
 
-    private static string GetUnitLabel(string unitTypeId)
+    private string GetUnitLabel(string unitTypeId)
     {
-        return unitTypeId switch
-        {
-            StrategicWorldIds.UnitMilitia => "民兵",
-            StrategicWorldIds.UnitPlayerKnight => "骑士",
-            StrategicWorldIds.UnitSkeletonWarrior => "骸骨斥候",
-            StrategicWorldIds.UnitSkeletonArcher => "腐骨射手",
-            _ => unitTypeId
-        };
+        return _battleUnitFactory.ResolveUnitDisplayName(unitTypeId);
     }
 }

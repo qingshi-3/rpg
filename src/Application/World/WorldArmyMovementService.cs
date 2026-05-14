@@ -14,6 +14,7 @@ public sealed class WorldArmyMovementService
     // Scene returns can expose a Godot navigation iteration before path queries are stable.
     private const float TransientNavigationPathWarmupSeconds = 0.5f;
     private readonly WorldSiteDeploymentService _deploymentService = new();
+    private readonly WorldGarrisonMutationService _garrisonMutations = new();
 
     public WorldArmyMovementResult AdvanceArmies(
         StrategicWorldState state,
@@ -381,7 +382,7 @@ public sealed class WorldArmyMovementService
                 continue;
             }
 
-            AddGarrison(site, unit.UnitTypeId, unit.Count);
+            _garrisonMutations.Add(site, unit.UnitTypeId, unit.Count);
             transferred += unit.Count;
             result.Events.Add(new GameEvent
             {
@@ -405,18 +406,6 @@ public sealed class WorldArmyMovementService
             result.Messages.Add($"\u73a9\u5bb6\u90e8\u961f\u5df2\u62b5\u8fbe {site.SiteId}\uff0c{transferred} \u961f\u5355\u4f4d\u52a0\u5165\u9a7b\u519b\u3002");
             GameLog.Info(nameof(WorldArmyMovementService), $"WorldArmyGarrisoned army={army.ArmyId} target={site.SiteId} units={transferred}");
         }
-    }
-
-    private static void AddGarrison(WorldSiteState site, string unitTypeId, int count)
-    {
-        GarrisonState garrison = site.Garrison.Find(item => item.UnitTypeId == unitTypeId);
-        if (garrison == null)
-        {
-            site.Garrison.Add(new GarrisonState { UnitTypeId = unitTypeId, Count = count });
-            return;
-        }
-
-        garrison.Count += count;
     }
 
     private static void DetectFieldIntercepts(StrategicWorldState state, WorldArmyMovementResult result)

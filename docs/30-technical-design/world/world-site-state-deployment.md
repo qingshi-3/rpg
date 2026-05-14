@@ -53,10 +53,28 @@ shown. A peacetime or aftermath site should not keep stale `Attacker`,
 ## Battle-End Writeback
 
 Before applying a battle result, the runtime captures surviving battle entities'
-grid positions. After world result writeback, those snapshots update matching
-garrison placements and can seed newly created owner garrison placements, such as
-an assault army that becomes resident after capturing a site. Temporary battle
+grid positions and force survival counts. `BattleResult.ForceResults` is the
+unit-count writeback contract: world systems should use it to remove defeated
+site garrison units and transfer only surviving army units into a captured
+site. If an older result has no force results, the legacy full-force fallback is
+allowed only for compatibility.
+
+After world result writeback, live placement snapshots update matching garrison
+placements and can seed newly created owner garrison placements, such as an
+assault army that becomes resident after capturing a site. Temporary battle
 placements are then removed from the resolved site state.
+
+## Runtime State Boundary
+
+World-site state should stay resident in memory while the strategic run is
+active. This includes mutable garrison counts, facilities, control state,
+pending threats, and placement state. These values are save-serializable
+authoritative state, not disposable UI cache and not data that should be
+reloaded from authored definitions after every scene transition.
+
+Use `WorldGarrisonMutationService` for garrison count changes in application
+services. Presentation code may project or inspect garrison state, but should
+not become a second owner for count mutation rules.
 
 ## Acceptance Checks
 
@@ -64,3 +82,4 @@ placements are then removed from the resolved site state.
 - Resident garrison positions come from `WorldSiteState.UnitPlacements`.
 - Request-side dynamic coordinate guessing is not used as the authoritative deployment path.
 - Returning to a site after battle rebuilds animated units from `WorldSiteState.UnitPlacements` without extra default placement markers.
+- Battle result application preserves surviving garrison and assault-army unit counts from `BattleResult.ForceResults`.

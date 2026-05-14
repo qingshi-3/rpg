@@ -7,6 +7,7 @@ namespace Rpg.Application.World;
 public sealed class WorldThreatService
 {
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
+    private readonly WorldGarrisonMutationService _garrisonMutations = new();
 
     public WorldActionResult ResolveRaidAutomatically(StrategicWorldState state, string threatId)
     {
@@ -48,7 +49,7 @@ public sealed class WorldThreatService
         {
             threat.Stage = ThreatStage.Resolved;
             ResolveThreatArmy(state, threat);
-            RemoveGarrison(site, StrategicWorldIds.UnitMilitia, 1);
+            _garrisonMutations.Remove(site, StrategicWorldIds.UnitMilitia, 1);
             message = "埋骨地勉强防住袭击，但损失了 1 队民兵。";
         }
         else if (defenseScore <= attackScore - 3)
@@ -134,23 +135,4 @@ public sealed class WorldThreatService
         }
     }
 
-    private static void RemoveGarrison(WorldSiteState site, string unitTypeId, int count)
-    {
-        int remaining = count;
-        foreach (GarrisonState garrison in site.Garrison.Where(item => item.UnitTypeId == unitTypeId).ToArray())
-        {
-            int removed = System.Math.Min(remaining, garrison.Count);
-            garrison.Count -= removed;
-            remaining -= removed;
-            if (garrison.Count <= 0)
-            {
-                site.Garrison.Remove(garrison);
-            }
-
-            if (remaining <= 0)
-            {
-                return;
-            }
-        }
-    }
 }
