@@ -6,6 +6,7 @@ using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
+using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.World;
@@ -77,6 +78,7 @@ public partial class StrategicWorldRoot : Control
     private readonly StrategicWorldSaveService _saveService = new();
     private readonly WorldTickService _worldTickService = new();
     private readonly WorldBattleProgressionService _worldBattleProgressionService = new();
+    private readonly BattleUnitFactory _battleUnitFactory = new();
 
     private readonly Dictionary<string, Button> _siteButtons = new();
     private readonly Dictionary<string, Label> _siteLabels = new();
@@ -4295,19 +4297,9 @@ public partial class StrategicWorldRoot : Control
         };
     }
 
-    private static string GetUnitLabel(string unitTypeId)
+    private string GetUnitLabel(string unitTypeId)
     {
-        return unitTypeId switch
-        {
-            StrategicWorldIds.UnitMilitia => "民兵",
-            StrategicWorldIds.UnitPlayerKnight => "骑士",
-            StrategicWorldIds.UnitSkeletonWarrior => "骸骨斥候",
-            StrategicWorldIds.UnitSkeletonArcher => "腐骨射手",
-            StrategicWorldIds.UnitGraveShadow => "坟场暗影",
-            StrategicWorldIds.UnitGraveMarksman => "暗影射手",
-            StrategicWorldIds.UnitDeathBlighter => "死亡枯萎者",
-            _ => unitTypeId
-        };
+        return _battleUnitFactory.ResolveUnitDisplayName(unitTypeId);
     }
 
     private static string GetBattleKindLabel(BattleKind kind)

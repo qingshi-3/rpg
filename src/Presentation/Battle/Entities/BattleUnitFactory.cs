@@ -14,10 +14,10 @@ public sealed class BattleUnitFactory
 {
     private const string DefaultUnitEntityScenePath = "res://scenes/battle/entities/units/BattleUnitBase.tscn";
     private const string UnitDefinitionRootPath = "res://assets/battle/units";
-    private readonly Dictionary<string, BattleUnitDefinition> _definitions = new();
-    private readonly Dictionary<string, string> _definitionPathIndex = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _loggedWarningKeys = new();
-    private bool _definitionPathIndexBuilt;
+    private static readonly Dictionary<string, BattleUnitDefinition> SharedDefinitions = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, string> SharedDefinitionPathIndex = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> SharedLoggedWarningKeys = new(StringComparer.Ordinal);
+    private static bool SharedDefinitionPathIndexBuilt;
 
     public BattleEntity Create(
         BattleForceRequest force,
@@ -76,6 +76,25 @@ public sealed class BattleUnitFactory
         return TryGetDefinition(unitDefinitionId, out definition);
     }
 
+    public string ResolveUnitDisplayName(string unitDefinitionId)
+    {
+        if (TryGetDefinition(unitDefinitionId, out BattleUnitDefinition definition))
+        {
+            return string.IsNullOrWhiteSpace(definition.DisplayName)
+                ? unitDefinitionId
+                : definition.DisplayName.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(unitDefinitionId) ? "战斗单位" : unitDefinitionId;
+    }
+
+    public string ResolveUnitInstanceDisplayName(string unitDefinitionId, int zeroBasedIndex)
+    {
+        return BattleUnitDisplayNameFormatter.FormatInstanceName(
+            ResolveUnitDisplayName(unitDefinitionId),
+            zeroBasedIndex);
+    }
+
     private PackedScene ResolveEntityScene(BattleUnitDefinition definition)
     {
         PackedScene defaultScene = GD.Load<PackedScene>(DefaultUnitEntityScenePath);
@@ -98,7 +117,7 @@ public sealed class BattleUnitFactory
             return false;
         }
 
-        if (_definitions.TryGetValue(unitDefinitionId, out definition))
+        if (SharedDefinitions.TryGetValue(unitDefinitionId, out definition))
         {
             return definition != null;
         }
@@ -110,7 +129,7 @@ public sealed class BattleUnitFactory
         }
 
         EnsureDefinitionPathIndex();
-        if (_definitionPathIndex.TryGetValue(unitDefinitionId, out string indexedPath) &&
+        if (SharedDefinitionPathIndex.TryGetValue(unitDefinitionId, out string indexedPath) &&
             TryLoadDefinitionAtPath(unitDefinitionId, indexedPath, out definition))
         {
             return true;
@@ -118,7 +137,7 @@ public sealed class BattleUnitFactory
 
         GameLog.Warn(
             nameof(BattleUnitFactory),
-            $"Missing battle unit definition id={unitDefinitionId} legacyPath={legacyPath} indexed={_definitionPathIndex.Count}");
+            $"Missing battle unit definition id={unitDefinitionId} legacyPath={legacyPath} indexed={SharedDefinitionPathIndex.Count}");
         return false;
     }
 
@@ -151,22 +170,22 @@ public sealed class BattleUnitFactory
                 $"Battle unit definition id mismatch requested={requestedUnitDefinitionId} actual={definition.Id} path={path}");
         }
 
-        _definitions[requestedUnitDefinitionId] = definition;
+        SharedDefinitions[requestedUnitDefinitionId] = definition;
         return true;
     }
 
     private void EnsureDefinitionPathIndex()
     {
-        if (_definitionPathIndexBuilt)
+        if (SharedDefinitionPathIndexBuilt)
         {
             return;
         }
 
-        _definitionPathIndexBuilt = true;
+        SharedDefinitionPathIndexBuilt = true;
         IndexUnitDefinitionDirectory(UnitDefinitionRootPath);
         GameLog.Info(
             nameof(BattleUnitFactory),
-            $"Indexed nested battle unit definitions root={UnitDefinitionRootPath} count={_definitionPathIndex.Count}");
+            $"Indexed nested battle unit definitions root={UnitDefinitionRootPath} count={SharedDefinitionPathIndex.Count}");
     }
 
     private void IndexUnitDefinitionDirectory(string directoryPath)
@@ -196,16 +215,16 @@ public sealed class BattleUnitFactory
             return;
         }
 
-        if (_definitionPathIndex.ContainsKey(definitionId))
+        if (SharedDefinitionPathIndex.ContainsKey(definitionId))
         {
             WarnOnce(
                 $"duplicate-indexed-definition:{definitionId}",
                 nameof(BattleUnitFactory),
-                $"Duplicate nested battle unit definition id={definitionId} ignoredPath={path} keptPath={_definitionPathIndex[definitionId]}");
+                $"Duplicate nested battle unit definition id={definitionId} ignoredPath={path} keptPath={SharedDefinitionPathIndex[definitionId]}");
             return;
         }
 
-        _definitionPathIndex[definitionId] = path;
+        SharedDefinitionPathIndex[definitionId] = path;
     }
 
     private static bool TryReadDefinitionId(string path, out string definitionId)
@@ -651,7 +670,7 @@ public sealed class BattleUnitFactory
 
     private void WarnOnce(string key, string owner, string message)
     {
-        if (_loggedWarningKeys.Add(key))
+        if (SharedLoggedWarningKeys.Add(key))
         {
             GameLog.Warn(owner, message);
         }

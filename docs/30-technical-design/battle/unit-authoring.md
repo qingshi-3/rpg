@@ -12,6 +12,13 @@ Chinese semantic label, with `异界<原词>` as the fallback when no better sem
 translation is known. Legacy flat definitions under
 `assets/battle/units/*.tres` remain loadable for compatibility.
 
+`BattleUnitDefinition` resources and the nested unit-definition path index are
+resident metadata. They are shared by the battle scene, strategic-world UI, and
+site-operation UI so a world detail click does not rescan unit packages after
+scene changes. Runtime scene nodes, instantiated `BattleEntity` objects, and
+site-specific placement/render caches are not resident and should still be
+rebuilt from current state when their scene is entered.
+
 ## Display Names
 
 `BattleUnitDefinition.DisplayName` is the Chinese semantic label for the source

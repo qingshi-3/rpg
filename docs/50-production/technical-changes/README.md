@@ -4,6 +4,7 @@ This directory stores lightweight planning notes for changes that can affect arc
 
 ## Recent Notes
 
+- 2026-05-14: `2026-05-14-resident-unit-definition-cache.md`
 - 2026-05-13: `2026-05-13-battle-audio-slice.md`
 
 Do not use this directory for ordinary todos, temporary progress logs, or module implementation details.
