@@ -38,6 +38,10 @@ public partial class BattlePreviewController : Node
     private readonly BattleIntentResolver _intentResolver = new();
     private BattleEntity _selectedVisualEntity;
     private BattleEntity _previewFocusEntity;
+    private BattleEntity _activeTargetingActor;
+    private AbilityDefinition _activeTargetingAbility;
+    private GridPosition? _activeTargetHoverCell;
+    private readonly HashSet<BattleEntity> _targetPreviewEntities = new();
 
     public bool HasActiveMovementRange => _activeMovementRangeResult != null;
 
@@ -245,7 +249,7 @@ public partial class BattlePreviewController : Node
         BattleEntity entity = _tryResolvePointerGridPosition != null && _tryResolvePointerGridPosition(out GridPosition hoverPosition)
             ? _findEntityAt?.Invoke(hoverPosition)
             : null;
-        if (!IsEnemyIntentPreviewTarget(entity))
+        if (!IsHoverPreviewTarget(entity))
         {
             ClearHoverIntentPreview();
             return;
@@ -260,7 +264,14 @@ public partial class BattlePreviewController : Node
 
         _hoverIntentEntity = entity;
         _hoverIntentPreviewVersion = battleStateVersion;
-        ShowIntentPreview(entity, isNewHoverTarget || isStateChanged);
+        if (IsEnemyIntentPreviewTarget(entity))
+        {
+            ShowIntentPreview(entity, isNewHoverTarget || isStateChanged);
+        }
+        else
+        {
+            ShowFriendlyHoverPreview(entity, isNewHoverTarget || isStateChanged);
+        }
     }
 
     public void InvalidateHoverIntentPreview()
@@ -295,6 +306,7 @@ public partial class BattlePreviewController : Node
         _hoverIntentPreviewVersion = -1;
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Path);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Target);
+        ClearAttackTargetPresentation();
 
         if (preview == null)
         {
@@ -304,6 +316,12 @@ public partial class BattlePreviewController : Node
         if (preview.PathCells.Count > 1)
         {
             _highlightOverlay?.SetPath(preview.PathCells);
+        }
+
+        if (preview.Kind == BattleActionKind.Ability || preview.Kind == BattleActionKind.Attack)
+        {
+            ShowAttackTargetEntities(preview.Target == null ? System.Array.Empty<BattleEntity>() : new[] { preview.Target });
+            return;
         }
 
         GridPosition[] targetCells = preview.AffectedCells
@@ -316,15 +334,19 @@ public partial class BattlePreviewController : Node
     public void ShowAbilityTargetHighlight(BattleEntity attacker, AbilityDefinition ability)
     {
         ActivateOverlayMode(BattleOverlayMode.Execution);
-        SetPreviewFocusPresentation(attacker);
+        ClearPreviewFocusPresentation();
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Move);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Path);
         ClearHoverIntentPreview();
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Attack);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Target);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Invalid);
+        ClearAttackTargetPresentation();
         _activeMovementRangeResult = null;
         _activeMovementPathTarget = null;
+        _activeTargetingActor = attacker;
+        _activeTargetingAbility = ability;
+        _activeTargetHoverCell = null;
 
         BattleGridMap gridMap = _getGridMap?.Invoke();
         GridOccupantComponent gridOccupant = attacker?.GetComponent<GridOccupantComponent>();
@@ -341,7 +363,7 @@ public partial class BattlePreviewController : Node
             .ToHashSet();
 
         IReadOnlyList<BattleEntity> entities = _getEntitiesSnapshot?.Invoke() ?? System.Array.Empty<BattleEntity>();
-        GridPosition[] targetCells = entities
+        BattleEntity[] validTargets = entities
             .Where(target => BattleAbilityQueries.IsValidTarget(
                 gridMap,
                 entities,
@@ -351,17 +373,62 @@ public partial class BattlePreviewController : Node
                 ability,
                 _markEntityDefeated,
                 out _))
-            .Select(target => target.GetComponent<GridOccupantComponent>().Position)
             .Distinct()
             .ToArray();
 
         _highlightOverlay?.SetCells(BattleGridHighlightKind.Attack, rangeCells);
-        ShowTargetCells(targetCells);
-        _showActionHint?.Invoke(targetCells.Length > 0 ? $"请选择{ability.DisplayName}目标" : "范围内没有有效目标");
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.Target);
+        _showActionHint?.Invoke(validTargets.Length > 0 ? $"请选择{ability.DisplayName}目标" : "范围内没有有效目标");
 
         GameLog.Info(
             nameof(BattlePreviewController),
-            $"Ability range shown attacker={attacker.EntityId} ability={ability.Id} start={gridOccupant.Position} range={ability.Range} cells={rangeCells.Count} targets={targetCells.Length}");
+            $"Ability range shown attacker={attacker.EntityId} ability={ability.Id} start={gridOccupant.Position} range={ability.Range} cells={rangeCells.Count} targets={validTargets.Length}");
+    }
+
+    public void UpdateAbilityTargetPreview(bool isAbilityTargeting)
+    {
+        if (!isAbilityTargeting ||
+            _activeTargetingActor == null ||
+            _activeTargetingAbility == null ||
+            _tryResolvePointerGridPosition == null ||
+            _getGridMap?.Invoke() == null)
+        {
+            _activeTargetHoverCell = null;
+            ClearAttackTargetPresentation();
+            return;
+        }
+
+        if (!_tryResolvePointerGridPosition(out GridPosition hoverPosition))
+        {
+            _activeTargetHoverCell = null;
+            ClearAttackTargetPresentation();
+            return;
+        }
+
+        if (_activeTargetHoverCell == hoverPosition)
+        {
+            return;
+        }
+
+        _activeTargetHoverCell = hoverPosition;
+        BattleEntity target = _findEntityAt?.Invoke(hoverPosition);
+        IReadOnlyList<BattleEntity> entities = _getEntitiesSnapshot?.Invoke() ?? System.Array.Empty<BattleEntity>();
+        if (target == null ||
+            !BattleAbilityQueries.IsValidTarget(
+                _getGridMap.Invoke(),
+                entities,
+                _activeTargetingActor,
+                target,
+                target.GetComponent<GridOccupantComponent>()?.Position ?? default,
+                _activeTargetingAbility,
+                _markEntityDefeated,
+                out _))
+        {
+            ClearAttackTargetPresentation();
+            return;
+        }
+
+        ShowAttackTargetEntities(new[] { target });
     }
 
     public void ShowInvalidCell(GridPosition position)
@@ -377,6 +444,32 @@ public partial class BattlePreviewController : Node
             _highlightOverlay?.SetCells(BattleGridHighlightKind.Target, targetCells);
         }
         else
+        {
+            _highlightOverlay?.ClearCells(BattleGridHighlightKind.Target);
+        }
+    }
+
+    public void ShowAttackTargetEntities(IEnumerable<BattleEntity> targets)
+    {
+        BattleEntity[] nextTargets = targets?
+            .Where(target => target != null && GodotObject.IsInstanceValid(target))
+            .Distinct()
+            .ToArray() ?? System.Array.Empty<BattleEntity>();
+        BattleTargetPresentationPlan plan = BattleTargetPresentationPlan.Build(nextTargets.Select(target => target.EntityId));
+
+        foreach (BattleEntity entity in _targetPreviewEntities.Except(nextTargets).ToArray())
+        {
+            SetAttackTargetPresentation(entity, false);
+            _targetPreviewEntities.Remove(entity);
+        }
+
+        foreach (BattleEntity entity in nextTargets)
+        {
+            SetAttackTargetPresentation(entity, true);
+            _targetPreviewEntities.Add(entity);
+        }
+
+        if (!plan.ShowTargetGridCells)
         {
             _highlightOverlay?.ClearCells(BattleGridHighlightKind.Target);
         }
@@ -411,16 +504,17 @@ public partial class BattlePreviewController : Node
         }
 
         ActivateOverlayMode(BattleOverlayMode.Threat);
+        ClearThreatOverlay();
         SetPreviewFocusPresentation(entity);
+        BattleHoverPreviewStyle style = BattleHoverPreviewStyle.ForFaction(BattleFaction.Enemy);
         BattleIntentPreview preview = _intentResolver.Preview(_createAiContext?.Invoke(), intent);
         BattleThreatProjection threat = BattleThreatProjectionBuilder.Build(
             _createAiContext?.Invoke(),
             entity,
-            _buildBlockedMovementSurfaces?.Invoke(entity) ?? new HashSet<GridSurfacePosition>());
+            _buildBlockedMovementSurfaces?.Invoke(entity) ?? new HashSet<GridSurfacePosition>(),
+            includeSources: false);
 
-        _highlightOverlay?.SetCells(BattleGridHighlightKind.Move, threat.MovementCells);
-        _highlightOverlay?.SetCells(BattleGridHighlightKind.Threat, threat.ThreatCells);
-        ShowTargetCells(threat.TargetCells);
+        SetHoverPreviewCells(style, threat.MovementCells, threat.ThreatCells, threat.TargetCells);
         _showActionHint?.Invoke(DescribeIntentThreatSummary(intent, preview, threat));
         if (shouldLog)
         {
@@ -428,6 +522,45 @@ public partial class BattlePreviewController : Node
                 nameof(BattlePreviewController),
                 $"Intent threat shown enemy={entity.EntityId} intent={intent.TemplateId} moveCells={threat.MovementCells.Count} threatCells={threat.ThreatCells.Count} targets={threat.ThreatenedTargets.Count} resolvedKind={preview.Kind}");
         }
+    }
+
+    private void ShowFriendlyHoverPreview(BattleEntity entity, bool shouldLog)
+    {
+        ActivateOverlayMode(BattleOverlayMode.Threat);
+        ClearThreatOverlay();
+        SetPreviewFocusPresentation(entity);
+
+        BattleHoverPreviewStyle style = BattleHoverPreviewStyle.ForFaction(BattleFaction.Player);
+        BattleThreatProjection threat = BattleThreatProjectionBuilder.Build(
+            _createAiContext?.Invoke(),
+            entity,
+            _buildBlockedMovementSurfaces?.Invoke(entity) ?? new HashSet<GridSurfacePosition>(),
+            includeSources: false);
+
+        SetHoverPreviewCells(style, threat.MovementCells, threat.ThreatCells, threat.TargetCells);
+        _showActionHint?.Invoke(DescribeFriendlyHoverSummary(entity, threat));
+
+        if (shouldLog)
+        {
+            GameLog.Info(
+                nameof(BattlePreviewController),
+                $"Friendly hover preview shown entity={entity.EntityId} moveCells={threat.MovementCells.Count} attackCells={threat.ThreatCells.Count} targets={threat.ThreatenedTargets.Count}");
+        }
+    }
+
+    private void SetHoverPreviewCells(
+        BattleHoverPreviewStyle style,
+        IEnumerable<GridPosition> movementCells,
+        IEnumerable<GridPosition> attackCells,
+        IEnumerable<GridPosition> targetCells)
+    {
+        BattleHoverCellPresentation presentation = BattleHoverCellPresentation.Build(attackCells, targetCells);
+
+        _highlightOverlay?.SetCellsBatch(
+            (style.MoveKind, movementCells ?? System.Array.Empty<GridPosition>()),
+            (style.AttackKind, presentation.AttackCells),
+            (BattleGridHighlightKind.Target, presentation.TargetCells));
+        _highlightOverlay?.SetTargetPointers(presentation.TargetPointerCells);
     }
 
     private void ActivateOverlayMode(BattleOverlayMode mode)
@@ -453,7 +586,10 @@ public partial class BattlePreviewController : Node
     {
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Move);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Threat);
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.FriendlyMove);
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.FriendlyAttack);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Target);
+        ClearAttackTargetPresentation();
         ClearPreviewFocusPresentation();
     }
 
@@ -464,7 +600,13 @@ public partial class BattlePreviewController : Node
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Attack);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Skill);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Target);
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.FriendlyMove);
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.FriendlyAttack);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Invalid);
+        _activeTargetingActor = null;
+        _activeTargetingAbility = null;
+        _activeTargetHoverCell = null;
+        ClearAttackTargetPresentation();
         ClearPreviewFocusPresentation();
     }
 
@@ -504,6 +646,32 @@ public partial class BattlePreviewController : Node
                !BattleRuleQueries.IsDefeated(entity) &&
                entity.GetComponent<FactionComponent>()?.Faction == BattleFaction.Enemy &&
                entity.GetComponent<GridOccupantComponent>() != null;
+    }
+
+    private static bool IsFriendlyHoverPreviewTarget(BattleEntity entity)
+    {
+        return entity != null &&
+               !BattleRuleQueries.IsDefeated(entity) &&
+               entity.GetComponent<FactionComponent>()?.Faction == BattleFaction.Player &&
+               entity.GetComponent<GridOccupantComponent>() != null;
+    }
+
+    private static bool IsHoverPreviewTarget(BattleEntity entity)
+    {
+        return IsEnemyIntentPreviewTarget(entity) || IsFriendlyHoverPreviewTarget(entity);
+    }
+
+    private static string DescribeFriendlyHoverSummary(BattleEntity entity, BattleThreatProjection threat)
+    {
+        if (entity == null)
+        {
+            return "";
+        }
+
+        string hitText = threat?.ThreatenedTargets.Count > 0
+            ? $"，可攻击 {string.Join("、", threat.ThreatenedTargets.Select(target => target.DisplayName))}"
+            : "";
+        return $"{entity.DisplayName}：移动 {threat?.MovementCells.Count ?? 0} 格，攻击范围 {threat?.ThreatCells.Count ?? 0} 格{hitText}";
     }
 
     private static GridPosition? GetIntentTargetCell(BattleIntentPreview preview)
@@ -558,6 +726,27 @@ public partial class BattlePreviewController : Node
         }
 
         entity.GetComponent<BattleUnitPresentationComponent>()?.SetPreviewFocus(focused);
+    }
+
+    private void ClearAttackTargetPresentation()
+    {
+        foreach (BattleEntity entity in _targetPreviewEntities.ToArray())
+        {
+            SetAttackTargetPresentation(entity, false);
+        }
+
+        _targetPreviewEntities.Clear();
+    }
+
+    private static void SetAttackTargetPresentation(BattleEntity entity, bool previewed)
+    {
+        if (entity == null || !GodotObject.IsInstanceValid(entity))
+        {
+            return;
+        }
+
+        // Attack target preview uses the same red outline visual as hit feedback; hit feedback owns clearing after execution starts.
+        entity.GetComponent<BattleUnitPresentationComponent>()?.SetAttackTargetPreview(previewed);
     }
 
     private static IEnumerable<GridPosition> BuildCellsInManhattanRange(GridPosition origin, int range)

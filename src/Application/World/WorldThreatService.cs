@@ -41,11 +41,13 @@ public sealed class WorldThreatService
         if (defenseScore >= attackScore + 2)
         {
             threat.Stage = ThreatStage.Resolved;
+            ResolveThreatArmy(state, threat);
             message = "埋骨地完全防住了亡灵袭击。";
         }
         else if (defenseScore >= attackScore)
         {
             threat.Stage = ThreatStage.Resolved;
+            ResolveThreatArmy(state, threat);
             RemoveGarrison(site, StrategicWorldIds.UnitMilitia, 1);
             message = "埋骨地勉强防住袭击，但损失了 1 队民兵。";
         }
@@ -55,6 +57,7 @@ public sealed class WorldThreatService
             site.ControlState = SiteControlState.Lost;
             site.OwnerFactionId = StrategicWorldIds.FactionUndead;
             site.Garrison.Clear();
+            TransferThreatArmyToCapturedSite(state, threat, site);
             state.PlayerResources.ReleaseReservationsBySite(site.SiteId);
             foreach (FacilityInstance facility in site.Facilities)
             {
@@ -64,11 +67,12 @@ public sealed class WorldThreatService
                     facility.State = FacilityState.Damaged;
                 }
             }
-            message = "埋骨地被亡灵夺回，驻军全灭。";
+            message = "埋骨地被亡灵夺回，驻军全灭，敌军残部进驻城中。";
         }
         else
         {
             threat.Stage = ThreatStage.Resolved;
+            ResolveThreatArmy(state, threat);
             site.ControlState = SiteControlState.Damaged;
             site.DamageLevel = System.Math.Min(2, site.DamageLevel + 1);
             foreach (FacilityInstance mine in site.Facilities.Where(facility => facility.FacilityId == StrategicWorldIds.FacilityMine))
@@ -99,6 +103,35 @@ public sealed class WorldThreatService
         };
         WorldSiteModeTransitionService.AddEvent(result, _siteModeTransitions.EnterAftermath(site, state.WorldTick, "raid_auto_resolved", threat.Id));
         return result;
+    }
+
+    private static void ResolveThreatArmy(StrategicWorldState state, EnemyThreatPlan threat)
+    {
+        if (state == null || threat == null || string.IsNullOrWhiteSpace(threat.WorldArmyId))
+        {
+            return;
+        }
+
+        if (state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army))
+        {
+            WorldDefenseRaidResolutionHelper.ResolveThreatArmy(army);
+        }
+    }
+
+    private static void TransferThreatArmyToCapturedSite(
+        StrategicWorldState state,
+        EnemyThreatPlan threat,
+        WorldSiteState site)
+    {
+        if (state == null || threat == null || site == null || string.IsNullOrWhiteSpace(threat.WorldArmyId))
+        {
+            return;
+        }
+
+        if (state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army))
+        {
+            WorldDefenseRaidResolutionHelper.TransferThreatArmyToCapturedSite(army, site);
+        }
     }
 
     private static void RemoveGarrison(WorldSiteState site, string unitTypeId, int count)

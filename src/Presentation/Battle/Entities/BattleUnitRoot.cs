@@ -2,9 +2,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using Rpg.Definitions.Battle.Audio;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Actions;
+using Rpg.Presentation.Battle.Feedback;
+using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Intents;
 using Rpg.Presentation.Battle.Rules;
 using Rpg.Presentation.Common;
@@ -19,10 +22,28 @@ public partial class BattleUnitRoot : Node2D
     [ExportGroup("单位移动表现")]
 
     [Export]
+    // Default is 0.28s; battle site scenes may lower this during prototype tuning to keep turn flow readable.
     public double UnitMoveDuration { get; set; } = 0.28;
+
+    [ExportGroup("Hit Feedback")]
+
+    [Export]
+    // Damage numbers start close to the unit body; the label tween supplies the upward drift.
+    public Vector2 DamageNumberGlobalOffset { get; set; } = BattleDamageNumberMotionSpec.Default.SpawnOffset;
+
+    [ExportGroup("Action Cue")]
+
+    [Export]
+    // A short pre-action cue lowers information density without changing battle rules.
+    public double ActionCueDurationSeconds { get; set; } = BattleActionCueSequencer.DefaultDurationSeconds;
+
+    [Export]
+    public PackedScene ActionCueScene { get; set; }
 
     private readonly Dictionary<BattleEntity, Tween> _movementTweens = new();
     private readonly Dictionary<BattleEntity, BattleIntentMarker> _intentMarkers = new();
+    private readonly Dictionary<BattleEntity, BattleActionCue> _actionCues = new();
+    private readonly HashSet<BattleEntity> _hitOutlinedEntities = new();
     private readonly HashSet<BattleEntity> _defeatedEntities = new();
     private readonly HashSet<BattleEntity> _pendingDefeatedPresentations = new();
     private readonly List<TaskCompletionSource<bool>> _defeatedPresentationWaiters = new();
@@ -34,11 +55,14 @@ public partial class BattleUnitRoot : Node2D
 
     public override void _Ready()
     {
+        ActionCueScene ??= GD.Load<PackedScene>("res://scenes/battle/feedback/BattleActionCue.tscn");
         GameLog.Info(nameof(BattleUnitRoot), $"Ready path={GetPath()} entities={GetEntitiesSnapshot().Count}");
     }
 
     public override void _ExitTree()
     {
+        ClearAllActionCues();
+        SetHitOutlines(_hitOutlinedEntities.ToArray(), visible: false);
         _pendingDefeatedPresentations.Clear();
         CompleteDefeatedPresentationWaiters();
     }
@@ -132,6 +156,7 @@ public partial class BattleUnitRoot : Node2D
             UnitAnimationComponent animation = entity.GetComponent<UnitAnimationComponent>();
             FaceAlongSegment(animation, globalPath[0], globalPath[1]);
             animation?.PlayMove();
+            entity.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Move);
             AnimateEntityMove(entity, globalPath, surfacePath);
             GameLog.Info(
                 nameof(BattleUnitRoot),
@@ -163,6 +188,9 @@ public partial class BattleUnitRoot : Node2D
             return;
         }
 
+        BattleDamageEvent[] damageEvents = result.DamageEvents?.ToArray() ?? System.Array.Empty<BattleDamageEvent>();
+        BattleHitFeedbackPlan feedbackPlan = BattleHitFeedbackPlanner.Build(damageEvents);
+        BattleEntity[] hitTargets = ResolveHitFeedbackTargets(damageEvents, feedbackPlan).ToArray();
         UnitAnimationComponent actorAnimation = result.Actor?.GetComponent<UnitAnimationComponent>();
         if (result.Target != null)
         {
@@ -170,6 +198,166 @@ public partial class BattleUnitRoot : Node2D
         }
 
         actorAnimation?.PlayAttack();
+        result.Actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Attack);
+        // Hit outline covers the whole attack animation so actual impact feedback belongs to units, not grid cells.
+        SetHitOutlines(hitTargets, visible: true);
+        _ = PlayHitFeedbackAsync(result.Actor, damageEvents, hitTargets);
+    }
+
+    public Task ShowActionCueAsync(BattleEntity entity, BattleFaction faction, double durationSeconds)
+    {
+        if (entity == null || !GodotObject.IsInstanceValid(entity) || ActionCueScene == null)
+        {
+            return Task.CompletedTask;
+        }
+
+        HideActionCue(entity);
+        if (ActionCueScene.Instantiate() is not BattleActionCue cue)
+        {
+            GameLog.Warn(nameof(BattleUnitRoot), "Action cue scene does not instantiate BattleActionCue");
+            return Task.CompletedTask;
+        }
+
+        entity.AddChild(cue);
+        cue.Position = Vector2.Zero;
+        cue.Play(faction, durationSeconds);
+        _actionCues[entity] = cue;
+        entity.GetComponent<BattleUnitPresentationComponent>()?.SetPreviewFocus(true);
+        GameLog.Info(nameof(BattleUnitRoot), $"Action cue shown entity={entity.EntityId} faction={faction} duration={durationSeconds:0.00}");
+        return Task.CompletedTask;
+    }
+
+    public Task HideActionCueAsync(BattleEntity entity)
+    {
+        HideActionCue(entity);
+        return Task.CompletedTask;
+    }
+
+    private void HideActionCue(BattleEntity entity)
+    {
+        if (entity == null)
+        {
+            return;
+        }
+
+        entity.GetComponent<BattleUnitPresentationComponent>()?.SetPreviewFocus(false);
+        if (!_actionCues.Remove(entity, out BattleActionCue cue) ||
+            cue == null ||
+            !GodotObject.IsInstanceValid(cue))
+        {
+            return;
+        }
+
+        cue.Finish();
+    }
+
+    private void ClearAllActionCues()
+    {
+        foreach (BattleEntity entity in _actionCues.Keys.ToArray())
+        {
+            HideActionCue(entity);
+        }
+    }
+
+    private async Task PlayHitFeedbackAsync(
+        BattleEntity actor,
+        IReadOnlyList<BattleDamageEvent> damageEvents,
+        IReadOnlyList<BattleEntity> outlinedTargets)
+    {
+        UnitAnimationComponent actorAnimation = actor?.GetComponent<UnitAnimationComponent>();
+        double impactDelaySeconds = actorAnimation?.ResolveAttackImpactDelaySeconds() ?? 0;
+        double attackDurationSeconds = actorAnimation?.ResolveAttackDurationSeconds() ?? 0.45;
+
+        await WaitSeconds(impactDelaySeconds);
+        actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.AttackImpact);
+        SpawnDamageNumbers(damageEvents);
+
+        double remainingSeconds = System.Math.Max(0.05, attackDurationSeconds - System.Math.Max(0, impactDelaySeconds));
+        await WaitSeconds(remainingSeconds);
+        SetHitOutlines(outlinedTargets, visible: false);
+    }
+
+    private IEnumerable<BattleEntity> ResolveHitFeedbackTargets(
+        IReadOnlyList<BattleDamageEvent> damageEvents,
+        BattleHitFeedbackPlan plan)
+    {
+        if (damageEvents == null || plan == null)
+        {
+            yield break;
+        }
+
+        foreach (string targetId in plan.OutlinedTargetIds)
+        {
+            BattleEntity target = damageEvents
+                .FirstOrDefault(damage => damage != null && damage.TargetId == targetId)
+                ?.Target;
+            if (target != null && GodotObject.IsInstanceValid(target))
+            {
+                yield return target;
+            }
+        }
+    }
+
+    private void SetHitOutlines(IReadOnlyList<BattleEntity> targets, bool visible)
+    {
+        if (targets == null)
+        {
+            return;
+        }
+
+        foreach (BattleEntity target in targets)
+        {
+            if (target == null || !GodotObject.IsInstanceValid(target))
+            {
+                continue;
+            }
+
+            target.GetComponent<BattleUnitPresentationComponent>()?.SetHitOutlineVisible(visible);
+            if (visible)
+            {
+                _hitOutlinedEntities.Add(target);
+            }
+            else
+            {
+                _hitOutlinedEntities.Remove(target);
+            }
+        }
+    }
+
+    private void SpawnDamageNumbers(IReadOnlyList<BattleDamageEvent> damageEvents)
+    {
+        if (damageEvents == null)
+        {
+            return;
+        }
+
+        foreach (BattleDamageEvent damage in damageEvents.Where(damage => damage?.DamageApplied > 0))
+        {
+            if (damage.Target == null || !GodotObject.IsInstanceValid(damage.Target))
+            {
+                continue;
+            }
+
+            BattleDamageNumber number = GameUiSceneFactory.CreateBattleDamageNumber(nameof(BattleUnitRoot));
+            if (number == null)
+            {
+                continue;
+            }
+
+            AddChild(number);
+            number.GlobalPosition = damage.Target.GlobalPosition + DamageNumberGlobalOffset;
+            number.Play($"-{damage.DamageApplied}");
+        }
+    }
+
+    private async Task WaitSeconds(double seconds)
+    {
+        if (!IsInsideTree() || seconds <= 0)
+        {
+            return;
+        }
+
+        await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
     }
 
     public void SetIntentMarker(BattleEntity entity, BattleIntent intent)
@@ -292,6 +480,7 @@ public partial class BattleUnitRoot : Node2D
         damageReaction?.TryConsumeDefeatedPresentationTiming(
             out defeatedDelaySeconds,
             out defeatedMinimumDurationSeconds);
+        entity.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Defeated);
 
         if (animation != null)
         {
@@ -377,25 +566,28 @@ public partial class BattleUnitRoot : Node2D
 
         entity.GlobalPosition = globalPath[0];
         Tween tween = CreateTween();
-        tween.SetTrans(Tween.TransitionType.Cubic);
-        tween.SetEase(Tween.EaseType.Out);
+        tween.SetTrans(Tween.TransitionType.Linear);
+        tween.SetEase(Tween.EaseType.In);
 
-        for (int index = 1; index < globalPath.Count; index++)
+        int lastSegmentIndex = -1;
+        int stepCount = System.Math.Max(1, globalPath.Count - 1);
+        double totalDuration = UnitMoveDuration * stepCount;
+        tween.TweenMethod(Callable.From<float>(progress =>
         {
-            Vector2 from = globalPath[index - 1];
-            Vector2 to = globalPath[index];
-            GridSurfacePosition segmentSurface = surfacePath != null && index < surfacePath.Count
-                ? surfacePath[index]
-                : surfacePath is { Count: > 0 }
-                    ? surfacePath[^1]
-                    : entity.GetComponent<GridOccupantComponent>()?.SurfacePosition ?? default;
-            tween.TweenCallback(Callable.From(() =>
+            ResolveMovementSegment(globalPath, progress, out int segmentIndex, out float segmentProgress);
+            Vector2 from = globalPath[segmentIndex - 1];
+            Vector2 to = globalPath[segmentIndex];
+            entity.GlobalPosition = from.Lerp(to, segmentProgress);
+
+            if (segmentIndex == lastSegmentIndex)
             {
-                ApplyRenderSort(entity, segmentSurface);
-                FaceAlongSegment(entity.GetComponent<UnitAnimationComponent>(), from, to);
-            }));
-            tween.TweenProperty(entity, "global_position", to, UnitMoveDuration);
-        }
+                return;
+            }
+
+            lastSegmentIndex = segmentIndex;
+            ApplyRenderSort(entity, ResolveSurfaceAt(surfacePath, segmentIndex));
+            FaceAlongSegment(entity.GetComponent<UnitAnimationComponent>(), from, to);
+        }), 0f, 1f, totalDuration);
 
         tween.Finished += () =>
         {
@@ -409,6 +601,39 @@ public partial class BattleUnitRoot : Node2D
         };
 
         _movementTweens[entity] = tween;
+    }
+
+    private static void ResolveMovementSegment(
+        IReadOnlyList<Vector2> globalPath,
+        float progress,
+        out int segmentIndex,
+        out float segmentProgress)
+    {
+        int stepCount = System.Math.Max(1, (globalPath?.Count ?? 0) - 1);
+        float clampedProgress = Mathf.Clamp(progress, 0f, 1f);
+        if (clampedProgress >= 1f)
+        {
+            segmentIndex = stepCount;
+            segmentProgress = 1f;
+            return;
+        }
+
+        float pathProgress = clampedProgress * stepCount;
+        int segmentOffset = System.Math.Clamp((int)System.Math.Floor(pathProgress), 0, stepCount - 1);
+        segmentIndex = segmentOffset + 1;
+        segmentProgress = Mathf.Clamp(pathProgress - segmentOffset, 0f, 1f);
+    }
+
+    private static GridSurfacePosition ResolveSurfaceAt(
+        IReadOnlyList<GridSurfacePosition> surfacePath,
+        int index)
+    {
+        if (surfacePath == null || surfacePath.Count == 0)
+        {
+            return default;
+        }
+
+        return surfacePath[System.Math.Clamp(index, 0, surfacePath.Count - 1)];
     }
 
     private static void HideDefeatedEntity(BattleEntity entity)

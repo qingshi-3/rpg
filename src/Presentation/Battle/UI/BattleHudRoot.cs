@@ -25,6 +25,8 @@ public partial class BattleHudRoot : Control
     private Vector2 _actionMenuShownPosition;
     private BattleEntity _selectedHudEntity;
     private BattleFaction _activeFaction = BattleFaction.Player;
+    private Func<BattleEntity, string> _resolveCorpsLabel;
+    private Func<BattleEntity, string> _resolveCorpsCommandLabel;
 
     private const float ActionMenuWidth = 168f;
     private const float ActionMenuButtonHeight = 40f;
@@ -150,6 +152,14 @@ public partial class BattleHudRoot : Control
         SetSelectionUiVisible(false, false);
     }
 
+    public void ConfigureCorpsResolvers(
+        Func<BattleEntity, string> resolveCorpsLabel,
+        Func<BattleEntity, string> resolveCorpsCommandLabel)
+    {
+        _resolveCorpsLabel = resolveCorpsLabel;
+        _resolveCorpsCommandLabel = resolveCorpsCommandLabel;
+    }
+
     public void ShowTurnQueue(
         int roundNumber,
         BattleFaction activeFaction,
@@ -206,7 +216,7 @@ public partial class BattleHudRoot : Control
         ActionPointComponent actionPoint = entity.GetComponent<ActionPointComponent>();
 
         _unitStatusCard?.SetUnit(
-            entity.DisplayName,
+            ResolveHudUnitDisplayName(entity),
             health?.Hp ?? 0,
             health?.MaxHp ?? 0,
             actionPoint?.Ap ?? 0,
@@ -412,7 +422,20 @@ public partial class BattleHudRoot : Control
                Mathf.Max(commandCount - 1, 0) * ActionMenuVerticalSeparation;
     }
 
-    private static IReadOnlyList<BattleActionMenuCommandViewModel> BuildUnitMenuCommands(BattleEntity entity, BattleFaction activeFaction)
+    private string ResolveHudUnitDisplayName(BattleEntity entity)
+    {
+        if (entity == null)
+        {
+            return "未选择";
+        }
+
+        string corpsLabel = _resolveCorpsLabel?.Invoke(entity) ?? "";
+        return string.IsNullOrWhiteSpace(corpsLabel)
+            ? entity.DisplayName
+            : $"{entity.DisplayName} [{corpsLabel}]";
+    }
+
+    private IReadOnlyList<BattleActionMenuCommandViewModel> BuildUnitMenuCommands(BattleEntity entity, BattleFaction activeFaction)
     {
         var commands = new List<BattleActionMenuCommandViewModel>();
         if (!CanShowUnitCommands(entity, activeFaction))
@@ -457,8 +480,20 @@ public partial class BattleHudRoot : Control
                     string.IsNullOrWhiteSpace(ability.IconText) ? "技" : ability.IconText));
         }
 
-        commands.Add(new("wait", "待机", IconText: "待"));
-        commands.Add(new("end", "结束", IconText: "结"));
+        string corpsCommandLabel = _resolveCorpsCommandLabel?.Invoke(entity) ?? "";
+        if (!string.IsNullOrWhiteSpace(corpsCommandLabel))
+        {
+            commands.Add(new BattleActionMenuCommandViewModel(
+                "corps_order",
+                $"兵团:{corpsCommandLabel}",
+                ApCost: null,
+                IsEnabled: true,
+                DisabledReason: "",
+                IconText: "团"));
+        }
+
+        commands.Add(new BattleActionMenuCommandViewModel("wait", "待机", IconText: "待"));
+        commands.Add(new BattleActionMenuCommandViewModel("end", "结束", IconText: "终"));
 
         return commands;
     }
@@ -502,6 +537,7 @@ public partial class BattleHudRoot : Control
         {
             "move" => "请选择移动目标",
             "attack" => "请选择攻击目标",
+            "corps_order" => "已切换兵团指令",
             "wait" => "正在待机",
             "end" => "结束行动",
             _ when BattleAbilityQueries.IsAbilityCommand(command.Id) => $"请选择{command.Label}目标",
@@ -532,3 +568,5 @@ public partial class BattleHudRoot : Control
                mouseButton.ButtonIndex == MouseButton.Right;
     }
 }
+
+

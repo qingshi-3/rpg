@@ -24,6 +24,7 @@ namespace Rpg.Presentation.World.Sites;
 public partial class WorldSiteRoot : Node2D
 {
     private const float SitePlacementPickRadiusPixels = 42.0f;
+    private const string FacilitySlotsRootName = "FacilitySlots";
 
     private sealed class WorldSiteRuntimeDeploymentCache
     {
@@ -63,6 +64,34 @@ public partial class WorldSiteRoot : Node2D
         public int CellHeight { get; set; }
     }
 
+    private sealed class WorldFacilitySlotRuntimeLayout
+    {
+        public string SlotId { get; set; } = "";
+        public GridPosition SortCell { get; set; }
+        public GridSurfacePosition SortSurface { get; set; }
+        public int FootprintWidth { get; set; } = 1;
+        public int FootprintHeight { get; set; } = 1;
+        public int ZIndex { get; set; }
+        public List<GridPosition> FootprintCells { get; } = new();
+    }
+
+    private sealed class BattleCorpsRuntimeState
+    {
+        public string CorpsId { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public BattleFaction Faction { get; set; } = BattleFaction.Neutral;
+        public BattleCorpsCommand Command { get; set; } = BattleCorpsCommand.Assault;
+        public string CommanderEntityId { get; set; } = "";
+        public List<string> MemberEntityIds { get; } = new();
+    }
+
+    private sealed class SiteBattleLaunchRollback
+    {
+        public string SiteId { get; set; } = "";
+        public bool HasPreviousSiteMode { get; set; }
+        public WorldSiteMode PreviousSiteMode { get; set; } = WorldSiteMode.Peacetime;
+    }
+
     [Signal]
     public delegate void SiteMapLoadedEventHandler(Node activeSiteMap);
 
@@ -83,6 +112,9 @@ public partial class WorldSiteRoot : Node2D
 
     [Export]
     public NodePath HudRootPath { get; set; } = new("CanvasLayer/BattleHudRoot");
+
+    [Export]
+    public NodePath BattleCameraPath { get; set; } = new("Camera2D");
 
     [Export]
     public NodePath InputRouterPath { get; set; } = new("InputRoot/BattleInputRouter");
@@ -110,20 +142,28 @@ public partial class WorldSiteRoot : Node2D
     private BattleGridHighlightOverlay _highlightOverlay;
     private BattlePreviewController _previewController;
     private BattleSelectionVignetteOverlay _selectionVignetteOverlay;
+    private BattleCameraController _battleCamera;
     private BattleHudRoot _hudRoot;
     private Control _siteHudRoot;
+    private Control _siteHudTopBar;
+    private Control _sitePeacetimePanel;
     private Node2D _sitePlacementEntityRoot;
     private Label _siteHudTitle;
     private Label _siteHudBody;
     private Label _siteResourceLabel;
     private Label _siteNoticeLabel;
     private Label _siteSelectionLabel;
+    private Control _siteFacilityBuildCard;
+    private Label _siteFacilityBuildTitle;
+    private VBoxContainer _siteFacilityBuildList;
     private Button _returnMapButton;
     private VBoxContainer _siteFacilityList;
     private VBoxContainer _siteGarrisonList;
     private VBoxContainer _siteThreatList;
     private VBoxContainer _siteActionList;
     private readonly Dictionary<string, Node2D> _sitePlacementEntities = new();
+    private readonly Dictionary<string, WorldFacilitySlotEntity> _siteFacilitySlotEntities = new();
+    private readonly Dictionary<string, WorldFacilitySlotRuntimeLayout> _siteFacilitySlotLayouts = new();
     private WorldSiteRuntimeDeploymentCache _deploymentCache;
     private BattleInputRouter _inputRouter;
     private BattleCommandController _commandController;
@@ -136,6 +176,7 @@ public partial class WorldSiteRoot : Node2D
     private string _siteHudReturnScenePath = "";
     private string _siteHudSiteId = "";
     private string _selectedPlacementId = "";
+    private string _selectedFacilitySlotId = "";
     private string _draggedPlacementId = "";
     private Vector2 _draggedPlacementOriginGlobalPosition;
     private readonly BattleActionExecutor _actionExecutor = new();
@@ -143,6 +184,9 @@ public partial class WorldSiteRoot : Node2D
     private readonly WorldBattleResultApplier _worldBattleResultApplier = new();
     private readonly WorldActionResolver _worldActionResolver = new();
     private readonly WorldSiteDeploymentService _deploymentService = new();
+    private readonly Dictionary<string, BattleCorpsRuntimeState> _battleCorpsStates = new(System.StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _battleEntityToCorpsId = new(System.StringComparer.Ordinal);
+    private readonly Dictionary<string, BattleUnitControlMode> _battleEntityControlModes = new(System.StringComparer.Ordinal);
 
     public Node ActiveSiteMap => _activeSiteMap;
     public BattleGridMap ActiveGridMap => _activeGridMap;
@@ -159,11 +203,13 @@ public partial class WorldSiteRoot : Node2D
         _highlightOverlay = GetNodeOrNull<BattleGridHighlightOverlay>(HighlightOverlayPath);
         _previewController = GetNodeOrNull<BattlePreviewController>(PreviewControllerPath);
         _selectionVignetteOverlay = GetNodeOrNull<BattleSelectionVignetteOverlay>(SelectionVignetteOverlayPath);
+        _battleCamera = GetNodeOrNull<BattleCameraController>(BattleCameraPath);
         _hudRoot = GetNodeOrNull<BattleHudRoot>(HudRootPath);
         _inputRouter = GetNodeOrNull<BattleInputRouter>(InputRouterPath);
         _commandController = GetNodeOrNull<BattleCommandController>(CommandControllerPath);
         _turnController = GetNodeOrNull<BattleTurnController>(TurnControllerPath);
         _intentController = GetNodeOrNull<BattleIntentController>(IntentControllerPath);
+        GetViewport().SizeChanged += OnViewportSizeChanged;
         BuildSiteHud();
         EnsureBattleRenderSortDomain();
 
@@ -192,6 +238,9 @@ public partial class WorldSiteRoot : Node2D
             {
                 _commandController?.OnBattleCommandRequested(BattleCommand.HudCommandCancelled());
             };
+            _hudRoot.ConfigureCorpsResolvers(
+                ResolveCorpsLabelForEntity,
+                ResolveCorpsCommandLabelForEntity);
         }
 
         if (_intentController != null)
@@ -239,14 +288,18 @@ public partial class WorldSiteRoot : Node2D
                 _commandController,
                 _previewController,
                 GetBattleEntitiesSnapshot,
+                GetAlliedAutoActionOrder,
                 _intentController == null ? null : _intentController.GenerateEnemyIntents,
                 _intentController == null ? null : _intentController.ExecuteEnemyAction,
+                ExecuteAlliedAutoAction,
                 _intentController == null ? null : _intentController.ClearEnemyIntentBookkeeping,
                 MarkBattleStateChanged,
                 text => _hudRoot?.ShowActionHint(text),
                 () => _hudRoot?.ClearActiveCommand(),
                 OnBattleEnded,
-                (round, activeFaction, activeEntity, queue) => _hudRoot?.ShowTurnQueue(round, activeFaction, activeEntity, queue));
+                OnTurnQueueUpdated,
+                (entity, faction, duration) => _unitRoot?.ShowActionCueAsync(entity, faction, duration) ?? System.Threading.Tasks.Task.CompletedTask,
+                entity => _unitRoot?.HideActionCueAsync(entity) ?? System.Threading.Tasks.Task.CompletedTask);
         }
         else
         {
@@ -262,6 +315,7 @@ public partial class WorldSiteRoot : Node2D
                 FindEntityAt,
                 ExecuteActionRequest,
                 hint => _turnController?.EndPlayerTurn(hint),
+                CycleCorpsCommandForEntity,
                 () => _turnController?.EvaluateBattleOutcome() == true,
                 ShowBattleEntityInHud,
                 text => _hudRoot?.ShowActionHint(text),
@@ -286,13 +340,10 @@ public partial class WorldSiteRoot : Node2D
 
         LoadConfiguredSiteMap();
         ApplyBattleStartRequest();
-        PlaceBattleEntitiesOnGrid();
-        RegisterBattleEntities();
 
         if (hasActiveBattleLaunch && string.IsNullOrWhiteSpace(_battleStartBlockedReason))
         {
-            SetBattleRuntimeEnabled(true);
-            _turnController?.StartBattle();
+            ActivateBattleRuntime();
         }
         else if (hasActiveBattleLaunch)
         {
@@ -315,11 +366,22 @@ public partial class WorldSiteRoot : Node2D
         }
 
         _previewController?.UpdateMovementPathPreview(_commandController?.IsMoveTargeting == true);
+        _previewController?.UpdateAbilityTargetPreview(_commandController?.IsAbilityTargeting == true);
         _previewController?.UpdateHoverIntentPreview(_commandController?.CanShowHoverIntentPreview == true, _battleStateVersion);
     }
 
     public override void _Input(InputEvent @event)
     {
+        if (TryHandleFacilitySlotInput(@event))
+        {
+            return;
+        }
+
+        if (TryHandleSiteContextClearInput(@event))
+        {
+            return;
+        }
+
         HandleSiteDeploymentDragInput(@event);
     }
 
@@ -375,6 +437,7 @@ public partial class WorldSiteRoot : Node2D
         }
 
         RebuildSiteDeploymentRuntimeCache(ResolveActiveWorldSiteId());
+        SetFacilitySlotsVisible(true);
         EmitSignal(SignalName.SiteMapLoaded, _activeSiteMap);
 
         PlaceBattleEntitiesOnGrid();
@@ -481,8 +544,10 @@ public partial class WorldSiteRoot : Node2D
 
     private void ApplyBattleStartRequest()
     {
+        _battleStartBlockedReason = "";
         if (_unitRoot == null || !BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request))
         {
+            ClearBattleCorpsRuntime();
             return;
         }
 
@@ -496,9 +561,11 @@ public partial class WorldSiteRoot : Node2D
             }
 
             ClearBattleEntities();
+            ClearBattleCorpsRuntime();
             var reservedDeploymentSurfaces = new HashSet<GridSurfacePosition>();
             AddRequestedForces(request.PlayerForces, BattleFaction.Player, request, reservedDeploymentSurfaces);
             AddRequestedForces(request.EnemyForces, BattleFaction.Enemy, request, reservedDeploymentSurfaces);
+            FinalizeBattleCorpsControlOwnership();
         }
 
         if (request.BattleKind == BattleKind.DefenseRaid)
@@ -509,6 +576,22 @@ public partial class WorldSiteRoot : Node2D
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"Battle request consumed kind={request.BattleKind} target={request.TargetSiteId} playerForces={request.PlayerForces.Count} enemyForces={request.EnemyForces.Count} modifiers={request.BattleModifiers.Count}");
+    }
+
+    private bool ActivateBattleRuntime()
+    {
+        if (!string.IsNullOrWhiteSpace(_battleStartBlockedReason))
+        {
+            GameLog.Warn(nameof(WorldSiteRoot), $"Battle runtime activation blocked reason={_battleStartBlockedReason}");
+            SetBattleRuntimeEnabled(false);
+            return false;
+        }
+
+        PlaceBattleEntitiesOnGrid();
+        RegisterBattleEntities();
+        SetBattleRuntimeEnabled(true);
+        _turnController?.StartBattle();
+        return true;
     }
 
     private bool EnsureBattleRequestSiteDeployments(BattleStartRequest request)
@@ -1076,13 +1159,16 @@ public partial class WorldSiteRoot : Node2D
         BattleStartRequest request,
         ISet<GridSurfacePosition> reservedDeploymentSurfaces)
     {
-        int index = 0;
         foreach (BattleForceRequest force in forces ?? System.Array.Empty<BattleForceRequest>())
         {
             if (force.Count <= 0)
             {
                 continue;
             }
+
+            string corpsId = BuildCorpsId(force, fallbackFaction);
+            string corpsDisplayName = BuildCorpsDisplayName(force, fallbackFaction);
+            BattleUnitControlMode defaultControlMode = ResolveForceControlMode(force, fallbackFaction);
 
             for (int i = 0; i < force.Count; i++)
             {
@@ -1107,9 +1193,284 @@ public partial class WorldSiteRoot : Node2D
 
                 ApplyBattleRequestDeployment(entity, force, i, fallbackFaction, request, reservedDeploymentSurfaces);
                 _unitRoot.AddChild(entity);
-                index++;
+                RegisterBattleCorpsEntity(entity, corpsId, corpsDisplayName, fallbackFaction, defaultControlMode);
             }
         }
+    }
+
+    private void ClearBattleCorpsRuntime()
+    {
+        _battleCorpsStates.Clear();
+        _battleEntityToCorpsId.Clear();
+        _battleEntityControlModes.Clear();
+    }
+
+    private BattleUnitControlMode ResolveForceControlMode(BattleForceRequest force, BattleFaction fallbackFaction)
+    {
+        if (_battleUnitFactory.TryGetUnitDefinition(force?.UnitDefinitionId, out BattleUnitDefinition definition))
+        {
+            return definition.ControlMode;
+        }
+
+        return fallbackFaction == BattleFaction.Player
+            ? BattleUnitControlMode.AutoByFaction
+            : BattleUnitControlMode.Ai;
+    }
+
+    private void RegisterBattleCorpsEntity(
+        BattleEntity entity,
+        string corpsId,
+        string corpsDisplayName,
+        BattleFaction fallbackFaction,
+        BattleUnitControlMode defaultControlMode)
+    {
+        if (entity == null || string.IsNullOrWhiteSpace(entity.EntityId))
+        {
+            return;
+        }
+
+        if (!_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState))
+        {
+            corpsState = new BattleCorpsRuntimeState
+            {
+                CorpsId = corpsId,
+                DisplayName = corpsDisplayName,
+                Faction = fallbackFaction,
+                Command = fallbackFaction == BattleFaction.Player
+                    ? BattleCorpsCommand.Assault
+                    : BattleCorpsCommand.HoldLine
+            };
+            _battleCorpsStates[corpsId] = corpsState;
+        }
+
+        if (!corpsState.MemberEntityIds.Contains(entity.EntityId))
+        {
+            corpsState.MemberEntityIds.Add(entity.EntityId);
+        }
+
+        _battleEntityToCorpsId[entity.EntityId] = corpsId;
+        _battleEntityControlModes[entity.EntityId] = defaultControlMode;
+    }
+
+    private static string BuildCorpsId(BattleForceRequest force, BattleFaction fallbackFaction)
+    {
+        string side = fallbackFaction.ToString().ToLowerInvariant();
+        string sourceKind = ResolveForceSourceKind(force);
+        string sourceId = ResolveForceSourceId(force);
+        if (string.IsNullOrWhiteSpace(sourceId))
+        {
+            sourceId = force?.ForceId;
+        }
+
+        if (string.IsNullOrWhiteSpace(sourceId))
+        {
+            sourceId = force?.UnitDefinitionId;
+        }
+
+        return $"{side}:{sourceKind}:{sourceId}";
+    }
+
+    private static string BuildCorpsDisplayName(BattleForceRequest force, BattleFaction fallbackFaction)
+    {
+        string sideLabel = fallbackFaction == BattleFaction.Player ? "我方" : "敌方";
+        string sourceKind = ResolveForceSourceKind(force);
+        string roleLabel = sourceKind switch
+        {
+            "PlayerArmy" => "主力",
+            "SourceSite" => "驻地",
+            "DefenderSite" or "Garrison" => "守备",
+            "ThreatArmy" or "EnemyArmy" or "ThreatRule" => "袭击",
+            _ => sourceKind
+        };
+        return $"{sideLabel}{roleLabel}";
+    }
+
+    private void FinalizeBattleCorpsControlOwnership()
+    {
+        IReadOnlyList<BattleEntity> snapshot = _unitRoot?.GetEntitiesSnapshot() ?? System.Array.Empty<BattleEntity>();
+        Dictionary<string, BattleEntity> entitiesById = snapshot
+            .Where(entity => entity != null && !string.IsNullOrWhiteSpace(entity.EntityId))
+            .GroupBy(entity => entity.EntityId)
+            .ToDictionary(group => group.Key, group => group.First(), System.StringComparer.Ordinal);
+
+        foreach (BattleCorpsRuntimeState corpsState in _battleCorpsStates.Values.Where(state => state.Faction == BattleFaction.Player))
+        {
+            corpsState.CommanderEntityId = "";
+            bool commanderAssigned = false;
+            foreach (string memberEntityId in corpsState.MemberEntityIds)
+            {
+                if (!entitiesById.TryGetValue(memberEntityId, out BattleEntity entity))
+                {
+                    continue;
+                }
+
+                BattleUnitControlMode controlMode = _battleEntityControlModes.TryGetValue(memberEntityId, out BattleUnitControlMode configuredControlMode)
+                    ? configuredControlMode
+                    : BattleUnitControlMode.AutoByFaction;
+
+                bool selectable = controlMode switch
+                {
+                    BattleUnitControlMode.Player => true,
+                    BattleUnitControlMode.Ai => false,
+                    BattleUnitControlMode.Passive => false,
+                    _ => !commanderAssigned
+                };
+
+                if (selectable && !commanderAssigned)
+                {
+                    commanderAssigned = true;
+                    corpsState.CommanderEntityId = memberEntityId;
+                }
+
+                SetEntitySelectable(entity, selectable);
+            }
+        }
+    }
+
+    private static void SetEntitySelectable(BattleEntity entity, bool selectable)
+    {
+        SelectableComponent selectableComponent = entity?.GetComponent<SelectableComponent>();
+        if (selectableComponent != null)
+        {
+            selectableComponent.IsSelectable = selectable;
+        }
+    }
+
+    private IReadOnlyList<BattleEntity> GetAlliedAutoActionOrder()
+    {
+        IReadOnlyList<BattleEntity> snapshot = GetBattleEntitiesSnapshot();
+        var entitiesById = snapshot
+            .Where(entity => entity != null && !string.IsNullOrWhiteSpace(entity.EntityId))
+            .GroupBy(entity => entity.EntityId)
+            .ToDictionary(group => group.Key, group => group.First(), System.StringComparer.Ordinal);
+        var result = new List<BattleEntity>();
+        var includedEntityIds = new HashSet<string>(System.StringComparer.Ordinal);
+
+        foreach (BattleCorpsRuntimeState corpsState in _battleCorpsStates.Values
+                     .Where(state => state.Faction == BattleFaction.Player)
+                     .OrderBy(state => state.CorpsId))
+        {
+            foreach (string memberEntityId in corpsState.MemberEntityIds)
+            {
+                if (!entitiesById.TryGetValue(memberEntityId, out BattleEntity entity) ||
+                    !IsAutoControlledPlayerEntity(entity) ||
+                    !includedEntityIds.Add(memberEntityId))
+                {
+                    continue;
+                }
+
+                result.Add(entity);
+            }
+        }
+
+        foreach (BattleEntity entity in snapshot.Where(IsAutoControlledPlayerEntity))
+        {
+            if (string.IsNullOrWhiteSpace(entity.EntityId) ||
+                !includedEntityIds.Add(entity.EntityId))
+            {
+                continue;
+            }
+
+            result.Add(entity);
+        }
+
+        return result;
+    }
+
+    private bool IsAutoControlledPlayerEntity(BattleEntity entity)
+    {
+        if (entity == null ||
+            BattleRuleQueries.IsDefeated(entity) ||
+            entity.GetComponent<FactionComponent>()?.Faction != BattleFaction.Player ||
+            entity.GetComponent<SelectableComponent>() is not { IsSelectable: false })
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(entity.EntityId))
+        {
+            return true;
+        }
+
+        BattleUnitControlMode controlMode = _battleEntityControlModes.TryGetValue(entity.EntityId, out BattleUnitControlMode configuredControlMode)
+            ? configuredControlMode
+            : BattleUnitControlMode.AutoByFaction;
+        return controlMode != BattleUnitControlMode.Passive;
+    }
+
+    private string ResolveCorpsLabelForEntity(BattleEntity entity)
+    {
+        if (entity == null ||
+            string.IsNullOrWhiteSpace(entity.EntityId) ||
+            !_battleEntityToCorpsId.TryGetValue(entity.EntityId, out string corpsId) ||
+            !_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState))
+        {
+            return "";
+        }
+
+        return corpsState.DisplayName ?? "";
+    }
+
+    private string ResolveCorpsCommandLabelForEntity(BattleEntity entity)
+    {
+        if (entity == null ||
+            entity.GetComponent<FactionComponent>()?.Faction != BattleFaction.Player ||
+            entity.GetComponent<SelectableComponent>() is not { IsSelectable: true } ||
+            string.IsNullOrWhiteSpace(entity.EntityId) ||
+            !_battleEntityToCorpsId.TryGetValue(entity.EntityId, out string corpsId) ||
+            !_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState) ||
+            corpsState.Faction != BattleFaction.Player)
+        {
+            return "";
+        }
+
+        return BattleCorpsCommandLabels.ToDisplayText(corpsState.Command);
+    }
+
+    private string CycleCorpsCommandForEntity(BattleEntity entity)
+    {
+        if (entity == null ||
+            string.IsNullOrWhiteSpace(entity.EntityId) ||
+            !_battleEntityToCorpsId.TryGetValue(entity.EntityId, out string corpsId) ||
+            !_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState) ||
+            corpsState.Faction != BattleFaction.Player)
+        {
+            return "该单位没有可用兵团指令";
+        }
+
+        corpsState.Command = BattleCorpsCommandLabels.Next(corpsState.Command);
+        string commandLabel = BattleCorpsCommandLabels.ToDisplayText(corpsState.Command);
+        return $"{corpsState.DisplayName} 指令 -> {commandLabel}";
+    }
+
+    private BattleCorpsCommand ResolveCorpsCommandForEntity(BattleEntity entity)
+    {
+        if (entity == null ||
+            string.IsNullOrWhiteSpace(entity.EntityId) ||
+            !_battleEntityToCorpsId.TryGetValue(entity.EntityId, out string corpsId) ||
+            !_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState))
+        {
+            return BattleCorpsCommand.Assault;
+        }
+
+        return corpsState.Command;
+    }
+
+    private System.Threading.Tasks.Task ExecuteAlliedAutoAction(BattleEntity entity)
+    {
+        if (_intentController == null || entity == null)
+        {
+            return System.Threading.Tasks.Task.CompletedTask;
+        }
+
+        BattleCorpsCommand command = ResolveCorpsCommandForEntity(entity);
+        string corpsLabel = ResolveCorpsLabelForEntity(entity);
+        if (string.IsNullOrWhiteSpace(corpsLabel))
+        {
+            corpsLabel = "我方兵团";
+        }
+
+        return _intentController.ExecuteAlliedAutoAction(entity, command, corpsLabel);
     }
 
     private void ApplyBattleRequestDeployment(
@@ -1158,6 +1519,7 @@ public partial class WorldSiteRoot : Node2D
     {
         if (_unitRoot == null)
         {
+            ClearBattleCorpsRuntime();
             return;
         }
 
@@ -1166,6 +1528,8 @@ public partial class WorldSiteRoot : Node2D
             entity.GetParent()?.RemoveChild(entity);
             entity.QueueFree();
         }
+
+        ClearBattleCorpsRuntime();
     }
 
     private static WorldSiteAttackDirection ResolveForceDeploymentDirection(
@@ -1564,6 +1928,19 @@ public partial class WorldSiteRoot : Node2D
         _hudRoot?.ShowEntity(entity);
     }
 
+    private void OnTurnQueueUpdated(
+        int round,
+        BattleFaction activeFaction,
+        BattleEntity activeEntity,
+        IReadOnlyList<BattleEntity> queue)
+    {
+        _hudRoot?.ShowTurnQueue(round, activeFaction, activeEntity, queue);
+        if (activeEntity != null)
+        {
+            _battleCamera?.FollowActionEntityIfNeeded(activeEntity);
+        }
+    }
+
     private BattleActionExecutionContext CreateActionExecutionContext()
     {
         System.Action<BattleEntity, IReadOnlyList<GridSurfacePosition>> moveEntityTo =
@@ -1600,9 +1977,8 @@ public partial class WorldSiteRoot : Node2D
             request = consumedRequest;
             battleResult = consumedResult;
             livePlacementSnapshots = CaptureLivePlacementSnapshots(request);
-            PersistLivePlacementSnapshots(request, livePlacementSnapshots);
             applyResult = ApplyBattleResultToWorld(request, battleResult);
-            ReconcileWorldSitePlacementsAfterBattle(request, livePlacementSnapshots);
+            ReconcileWorldSitePlacementsAfterBattle(request, livePlacementSnapshots, outcome);
         }
 
         string returnScenePath = sessionResult?.ReturnScenePath ?? request?.ReturnScenePath ?? "";
@@ -1617,6 +1993,7 @@ public partial class WorldSiteRoot : Node2D
             return;
         }
 
+        StrategicWorldRuntime.MarkWorldResumeAfterSiteReturn();
         Error error = GetTree().ChangeSceneToFile(scenePath);
         if (error != Error.Ok)
         {
@@ -1713,7 +2090,8 @@ public partial class WorldSiteRoot : Node2D
 
     private void ReconcileWorldSitePlacementsAfterBattle(
         BattleStartRequest request,
-        IReadOnlyList<WorldSiteLivePlacementSnapshot> snapshots)
+        IReadOnlyList<WorldSiteLivePlacementSnapshot> snapshots,
+        BattleOutcome outcome)
     {
         if (request == null)
         {
@@ -1736,8 +2114,10 @@ public partial class WorldSiteRoot : Node2D
 
         _deploymentService.EnsureGarrisonPlacements(site, definition);
         var usedSnapshotPlacementIds = new HashSet<string>();
-        int matched = ApplyLiveSnapshotsToMatchingPlacements(site, snapshots, usedSnapshotPlacementIds);
-        int converted = ApplyLiveSnapshotsToOwnerGarrisons(site, snapshots, usedSnapshotPlacementIds);
+        int matched = 0;
+        int converted = 0;
+        matched = ApplyLiveSnapshotsToMatchingPlacements(site, snapshots, usedSnapshotPlacementIds);
+        converted = ApplyLiveSnapshotsToOwnerGarrisons(site, snapshots, usedSnapshotPlacementIds);
         int beforeCleanup = site.UnitPlacements.Count;
         _deploymentService.ClearBattlePlacementsForForces(site, EnumerateBattleForces(request));
         EnsureSitePlacementsRespectTerrain(site, definition);
@@ -1947,9 +2327,20 @@ public partial class WorldSiteRoot : Node2D
         }
 
         _siteHudRoot.Visible = false;
+        _siteHudRoot.MouseFilter = Control.MouseFilterEnum.Ignore;
         canvasLayer.AddChild(_siteHudRoot);
+        ApplySiteHudFullRect("build");
         EnsureSitePlacementEntityRoot();
 
+        _siteHudTopBar = GameUiSceneFactory.GetRequiredNode<Control>(
+            _siteHudRoot,
+            "SiteTopBar",
+            nameof(WorldSiteRoot));
+        _sitePeacetimePanel = GameUiSceneFactory.GetRequiredNode<Control>(
+            _siteHudRoot,
+            "SitePeacetimePanel",
+            nameof(WorldSiteRoot));
+        ApplySiteHudFullRect("bound");
         _siteHudTitle = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
             "SiteTopBar/TopMargin/TopBox/SiteHudTitle",
@@ -1964,32 +2355,103 @@ public partial class WorldSiteRoot : Node2D
             nameof(WorldSiteRoot));
         _siteHudBody = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
-            "SitePeacetimePanel/Margin/Scroll/Content/SiteHudBody",
+            "SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin/OverviewStack/SiteHudBody",
             nameof(WorldSiteRoot));
         _siteSelectionLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
-            "SitePeacetimePanel/Margin/Scroll/Content/SiteSelectionLabel",
+            "SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin/OverviewStack/SiteSelectionLabel",
+            nameof(WorldSiteRoot));
+        _siteFacilityBuildCard = GameUiSceneFactory.GetRequiredNode<Control>(
+            _siteHudRoot,
+            "SitePeacetimePanel/Margin/Scroll/Content/BuildCard",
+            nameof(WorldSiteRoot));
+        _siteFacilityBuildTitle = GameUiSceneFactory.GetRequiredNode<Label>(
+            _siteHudRoot,
+            "SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin/BuildStack/BuildTitle",
+            nameof(WorldSiteRoot));
+        _siteFacilityBuildList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
+            _siteHudRoot,
+            "SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin/BuildStack/SiteFacilityBuildList",
             nameof(WorldSiteRoot));
         _siteFacilityList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             _siteHudRoot,
-            "SitePeacetimePanel/Margin/Scroll/Content/SiteFacilityList",
+            "SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin/FacilityStack/SiteFacilityList",
             nameof(WorldSiteRoot));
         _siteGarrisonList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             _siteHudRoot,
-            "SitePeacetimePanel/Margin/Scroll/Content/SiteGarrisonList",
+            "SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/SiteGarrisonList",
             nameof(WorldSiteRoot));
         _siteThreatList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             _siteHudRoot,
-            "SitePeacetimePanel/Margin/Scroll/Content/SiteThreatList",
+            "SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/SiteThreatList",
             nameof(WorldSiteRoot));
         _siteActionList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             _siteHudRoot,
-            "SitePeacetimePanel/Margin/Scroll/Content/SiteActionList",
+            "SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/SiteActionList",
             nameof(WorldSiteRoot));
         _siteNoticeLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
-            "SitePeacetimePanel/Margin/Scroll/Content/SiteNoticeLabel",
+            "SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/SiteNoticeLabel",
             nameof(WorldSiteRoot));
+        Label operationHintLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+            _siteHudRoot,
+            "SiteTopBar/TopMargin/TopBox/SiteOperationHintLabel",
+            nameof(WorldSiteRoot));
+        Label facilityTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+            _siteHudRoot,
+            "SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin/FacilityStack/FacilityTitle",
+            nameof(WorldSiteRoot));
+        Label garrisonTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+            _siteHudRoot,
+            "SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/GarrisonTitle",
+            nameof(WorldSiteRoot));
+        Label threatTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+            _siteHudRoot,
+            "SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/ThreatTitle",
+            nameof(WorldSiteRoot));
+        Label actionTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+            _siteHudRoot,
+            "SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionTitle",
+            nameof(WorldSiteRoot));
+        Label noticeTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+            _siteHudRoot,
+            "SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/NoticeTitle",
+            nameof(WorldSiteRoot));
+
+        if (operationHintLabel != null)
+        {
+            operationHintLabel.Text = "场域经营：点击建筑点，右侧查看信息与建造。";
+        }
+
+        if (_returnMapButton != null)
+        {
+            _returnMapButton.Text = "返回大地图";
+        }
+
+        if (facilityTitleLabel != null)
+        {
+            facilityTitleLabel.Text = "建筑总览";
+        }
+
+        if (garrisonTitleLabel != null)
+        {
+            garrisonTitleLabel.Text = "驻防兵力";
+        }
+
+        if (threatTitleLabel != null)
+        {
+            threatTitleLabel.Text = "敌情追踪";
+        }
+
+        if (actionTitleLabel != null)
+        {
+            actionTitleLabel.Text = "可执行行动";
+        }
+
+        if (noticeTitleLabel != null)
+        {
+            noticeTitleLabel.Text = "最近反馈";
+        }
 
         if (_returnMapButton != null)
         {
@@ -2007,9 +2469,10 @@ public partial class WorldSiteRoot : Node2D
         _sitePlacementEntityRoot = new Node2D
         {
             Name = "SitePlacementEntityRoot",
-            Visible = false
+            Visible = false,
+            YSortEnabled = true
         };
-        AddChild(_sitePlacementEntityRoot);
+        (_unitRoot ?? (Node)this).AddChild(_sitePlacementEntityRoot);
     }
 
     private void SwitchToNonBattleUi(
@@ -2036,6 +2499,8 @@ public partial class WorldSiteRoot : Node2D
         _siteHudReturnScenePath = string.IsNullOrWhiteSpace(returnScenePath)
             ? "res://scenes/world/StrategicWorldRoot.tscn"
             : returnScenePath;
+        _selectedPlacementId = "";
+        _selectedFacilitySlotId = "";
 
         if (_returnMapButton != null)
         {
@@ -2046,10 +2511,98 @@ public partial class WorldSiteRoot : Node2D
         if (_siteHudRoot != null)
         {
             _siteHudRoot.Visible = true;
+            ApplySiteHudFullRect("show");
         }
 
         RefreshSiteManagementUi(applyResult?.Message, outcome);
-        GameLog.Info(nameof(WorldSiteRoot), $"Switched to site management UI site={siteId}");
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"SwitchedToSiteManagementUi site={siteId} hudVisible={_siteHudRoot?.Visible == true} topBarVisible={_siteHudTopBar?.Visible == true} panelVisible={_sitePeacetimePanel?.Visible == true} hudRect={DescribeControlRect(_siteHudRoot)} panelRect={DescribeControlRect(_sitePeacetimePanel)} viewport={GetViewportRect().Size} returnScene={_siteHudReturnScenePath}");
+    }
+
+    private void OnViewportSizeChanged()
+    {
+        if (_siteHudRoot?.Visible == true)
+        {
+            ApplySiteHudFullRect("viewport_resized");
+        }
+    }
+
+    private void ApplySiteHudFullRect(string reason)
+    {
+        if (_siteHudRoot == null)
+        {
+            return;
+        }
+
+        _siteHudRoot.AnchorLeft = 0.0f;
+        _siteHudRoot.AnchorTop = 0.0f;
+        _siteHudRoot.AnchorRight = 1.0f;
+        _siteHudRoot.AnchorBottom = 1.0f;
+        _siteHudRoot.OffsetLeft = 0.0f;
+        _siteHudRoot.OffsetTop = 0.0f;
+        _siteHudRoot.OffsetRight = 0.0f;
+        _siteHudRoot.OffsetBottom = 0.0f;
+        _siteHudRoot.Position = Vector2.Zero;
+        _siteHudRoot.Size = GetViewportRect().Size;
+        ApplySitePeacetimePanelLayout();
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"SiteHudFullRectApplied reason={reason} hudRect={DescribeControlRect(_siteHudRoot)} panelRect={DescribeControlRect(_sitePeacetimePanel)} viewport={GetViewportRect().Size} parent={_siteHudRoot.GetParent()?.GetPath()}");
+    }
+
+    private void ApplySitePeacetimePanelLayout()
+    {
+        if (_sitePeacetimePanel == null)
+        {
+            return;
+        }
+
+        _sitePeacetimePanel.AnchorLeft = 1.0f;
+        _sitePeacetimePanel.AnchorTop = 0.0f;
+        _sitePeacetimePanel.AnchorRight = 1.0f;
+        _sitePeacetimePanel.AnchorBottom = 1.0f;
+        _sitePeacetimePanel.OffsetLeft = -544.0f;
+        _sitePeacetimePanel.OffsetTop = 82.0f;
+        _sitePeacetimePanel.OffsetRight = -24.0f;
+        _sitePeacetimePanel.OffsetBottom = -24.0f;
+        _sitePeacetimePanel.CustomMinimumSize = new Vector2(520.0f, 0.0f);
+    }
+
+    private void UpdateSitePeacetimePanelVisibility(string reason)
+    {
+        if (_sitePeacetimePanel == null)
+        {
+            return;
+        }
+
+        bool shouldShow = _siteHudRoot?.Visible == true && !string.IsNullOrWhiteSpace(_selectedFacilitySlotId);
+        if (shouldShow)
+        {
+            ApplySitePeacetimePanelLayout();
+        }
+
+        if (_sitePeacetimePanel.Visible == shouldShow)
+        {
+            return;
+        }
+
+        _sitePeacetimePanel.Visible = shouldShow;
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"SitePeacetimePanelVisibilityChanged visible={shouldShow} reason={reason} selectedSlot={_selectedFacilitySlotId} panelRect={DescribeControlRect(_sitePeacetimePanel)}");
+    }
+
+    private static string DescribeControlRect(Control control)
+    {
+        if (control == null)
+        {
+            return "<null>";
+        }
+
+        Rect2 rect = control.GetGlobalRect();
+        return $"pos={rect.Position} size={rect.Size} anchors=({control.AnchorLeft:0.##},{control.AnchorTop:0.##},{control.AnchorRight:0.##},{control.AnchorBottom:0.##}) offsets=({control.OffsetLeft:0.#},{control.OffsetTop:0.#},{control.OffsetRight:0.#},{control.OffsetBottom:0.#})";
     }
 
     private void SetBattleRuntimeEnabled(bool enabled, bool keepBattlePresentation = false)
@@ -2085,8 +2638,10 @@ public partial class WorldSiteRoot : Node2D
 
         if (_sitePlacementEntityRoot != null)
         {
-            _sitePlacementEntityRoot.Visible = !enabled && !keepBattlePresentation;
+            _sitePlacementEntityRoot.Visible = !enabled || keepBattlePresentation;
         }
+
+        SetFacilitySlotsVisible(true);
 
         _inputRouter?.SetProcessUnhandledInput(enabled);
         _commandController?.SetProcess(enabled);
@@ -2100,6 +2655,14 @@ public partial class WorldSiteRoot : Node2D
             _hudRoot?.ClearActiveCommand();
             _previewController?.ClearActionPreviewHighlights();
             _previewController?.ClearSelectedHighlight();
+        }
+    }
+
+    private void SetFacilitySlotsVisible(bool visible)
+    {
+        if (_activeSiteMap?.GetNodeOrNull<CanvasItem>(FacilitySlotsRootName) is { } slotsRoot)
+        {
+            slotsRoot.Visible = visible;
         }
     }
 
@@ -2165,11 +2728,13 @@ public partial class WorldSiteRoot : Node2D
         _siteHudBody.Text = BuildSiteOverview(_siteHudSiteId);
         _siteNoticeLabel.Text = string.IsNullOrWhiteSpace(notice) ? StrategicWorldRuntime.LastNotice : notice.Trim();
 
+        RefreshSiteMapEntities(site, definition);
         RefreshFacilityList(site, definition);
+        RefreshFacilityBuildList(site, definition);
         RefreshGarrisonList(site);
         RefreshThreatList(site);
         RefreshActionList(site);
-        RefreshSiteMapEntities(site, definition);
+        UpdateSitePeacetimePanelVisibility("refresh");
     }
 
     private void ClearResolvedBattlePlacements(WorldSiteState site)
@@ -2232,16 +2797,134 @@ public partial class WorldSiteRoot : Node2D
         }
 
         StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-        foreach (FacilitySlotDefinition slot in definition.FacilitySlots)
+        IEnumerable<FacilitySlotDefinition> visibleSlots = definition.FacilitySlots
+            .OrderByDescending(slot => slot.SlotId == _selectedFacilitySlotId)
+            .ThenBy(slot => slot.DisplayName);
+        foreach (FacilitySlotDefinition slot in visibleSlots)
         {
             FacilityInstance facility = site.Facilities.FirstOrDefault(item => item.SlotId == slot.SlotId && item.State != FacilityState.Destroyed);
             string facilityText = facility == null
                 ? $"空置，可建：{BuildAllowedFacilityNames(slot, queries)}"
                 : $"{queries.GetFacility(facility.FacilityId)?.DisplayName ?? facility.FacilityId} · {GetFacilityStateLabel(facility.State)}";
-            AddMutedLine(_siteFacilityList, $"{slot.DisplayName}\n{facilityText}");
+            string slotTitle = slot.SlotId == _selectedFacilitySlotId
+                ? $"已选 · {slot.DisplayName}"
+                : slot.DisplayName;
+            AddMutedLine(_siteFacilityList, $"{slotTitle}\n{facilityText}");
         }
 
         RefreshSelectedSlotLabel(site);
+    }
+
+    private void RefreshFacilityBuildList(WorldSiteState site, WorldSiteDefinition definition)
+    {
+        ClearChildren(_siteFacilityBuildList);
+
+        if (_siteFacilityBuildTitle == null || _siteFacilityBuildList == null)
+        {
+            return;
+        }
+
+        if (site == null || definition == null || definition.FacilitySlots.Count == 0)
+        {
+            if (_siteFacilityBuildCard != null)
+            {
+                _siteFacilityBuildCard.Visible = false;
+            }
+            _siteFacilityBuildTitle.Visible = false;
+            _siteFacilityBuildList.Visible = false;
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"SiteFacilityBuildPanelRefreshed site={site?.SiteId ?? _siteHudSiteId} visible=false reason=no_site_or_slots hasSite={site != null} hasDefinition={definition != null} definedSlots={definition?.FacilitySlots.Count ?? 0}");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_selectedFacilitySlotId))
+        {
+            if (_siteFacilityBuildCard != null)
+            {
+                _siteFacilityBuildCard.Visible = false;
+            }
+            _siteFacilityBuildTitle.Visible = false;
+            _siteFacilityBuildList.Visible = false;
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=false reason=no_selected_slot definedSlots={definition.FacilitySlots.Count} registeredSlots={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count}");
+            return;
+        }
+
+        FacilitySlotDefinition selectedSlot = definition.FacilitySlots.FirstOrDefault(item => item.SlotId == _selectedFacilitySlotId);
+        if (selectedSlot == null)
+        {
+            if (_siteFacilityBuildCard != null)
+            {
+                _siteFacilityBuildCard.Visible = false;
+            }
+            _siteFacilityBuildTitle.Visible = false;
+            _siteFacilityBuildList.Visible = false;
+            GameLog.Warn(
+                nameof(WorldSiteRoot),
+                $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=false reason=selected_slot_missing selectedSlot={_selectedFacilitySlotId} definedSlots={definition.FacilitySlots.Count}");
+            return;
+        }
+
+        if (_siteFacilityBuildCard != null)
+        {
+            _siteFacilityBuildCard.Visible = true;
+        }
+        _siteFacilityBuildTitle.Visible = true;
+        _siteFacilityBuildList.Visible = true;
+
+        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
+        FacilityInstance existingFacility = ResolveFacilityInSlot(site, selectedSlot.SlotId);
+        if (existingFacility != null)
+        {
+            string facilityName = queries.GetFacility(existingFacility.FacilityId)?.DisplayName ?? existingFacility.FacilityId;
+            _siteFacilityBuildTitle.Text = $"建筑信息 · {selectedSlot.DisplayName}";
+            AddMutedLine(_siteFacilityBuildList, $"{facilityName}\n状态：{GetFacilityStateLabel(existingFacility.State)}");
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=true reason=occupied selectedSlot={_selectedFacilitySlotId} facility={existingFacility.FacilityId} definedSlots={definition.FacilitySlots.Count} registeredSlots={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count} buttons=0");
+            return;
+        }
+
+        _siteFacilityBuildTitle.Text = $"可建建筑 · {selectedSlot.DisplayName}";
+        IReadOnlyList<WorldActionViewModel> buildActions = ResolveBuildActionsForSlot(site, selectedSlot);
+        if (buildActions.Count == 0)
+        {
+            AddMutedLine(_siteFacilityBuildList, "暂无可建建筑。");
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=true reason=no_build_actions selectedSlot={_selectedFacilitySlotId} definedSlots={definition.FacilitySlots.Count} registeredSlots={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count} buttons=0");
+            return;
+        }
+
+        int buildButtonCount = 0;
+        int enabledBuildButtonCount = 0;
+        foreach (WorldActionViewModel action in buildActions)
+        {
+            Button button = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(WorldSiteRoot));
+            if (button == null)
+            {
+                continue;
+            }
+
+            button.Text = BuildFacilityBuildButtonText(action);
+            button.Disabled = !action.IsEnabled;
+            button.TooltipText = BuildActionTooltip(action);
+            if (action.IsEnabled)
+            {
+                enabledBuildButtonCount++;
+                string targetSlotId = selectedSlot.SlotId;
+                button.Pressed += () => ExecuteSiteAction(action, targetSlotId);
+            }
+
+            _siteFacilityBuildList.AddChild(button);
+            buildButtonCount++;
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=true selectedSlot={_selectedFacilitySlotId} buildSlots=1 buttons={buildButtonCount} enabled={enabledBuildButtonCount} definedSlots={definition.FacilitySlots.Count} registeredSlots={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count}");
     }
 
     private void RefreshGarrisonList(WorldSiteState site)
@@ -2301,6 +2984,11 @@ public partial class WorldSiteRoot : Node2D
 
         foreach (WorldActionViewModel action in actions)
         {
+            if (IsFacilityBuildAction(action.ActionId))
+            {
+                continue;
+            }
+
             Button button = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(WorldSiteRoot));
             if (button == null)
             {
@@ -2328,6 +3016,8 @@ public partial class WorldSiteRoot : Node2D
     {
         ClearChildren(_sitePlacementEntityRoot);
         _sitePlacementEntities.Clear();
+        _siteFacilitySlotEntities.Clear();
+        _siteFacilitySlotLayouts.Clear();
         ClearBattleEntities();
 
         if (site == null || definition == null)
@@ -2335,9 +3025,14 @@ public partial class WorldSiteRoot : Node2D
             return;
         }
 
+        RefreshFacilitySlotEntities(site, definition);
+
         if (_unitRoot == null)
         {
             GameLog.Warn(nameof(WorldSiteRoot), $"Cannot rebuild site management units because UnitRoot is missing site={site.SiteId}");
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"SiteManagementInteractionsRebuilt site={site.SiteId} facility_slots={_siteFacilitySlotEntities.Count} placements={site.UnitPlacements.Count} animated=0 canInteract={CanOpenSiteDetail(site)}");
             return;
         }
 
@@ -2367,7 +3062,106 @@ public partial class WorldSiteRoot : Node2D
         UpdateSiteMapEntities();
         GameLog.Info(
             nameof(WorldSiteRoot),
-            $"SiteManagementUnitsRebuilt site={site.SiteId} placements={site.UnitPlacements.Count} animated={animatedCount} canDrag={CanOpenSiteDetail(site)}");
+            $"SiteManagementInteractionsRebuilt site={site.SiteId} facility_slots={_siteFacilitySlotEntities.Count} placements={site.UnitPlacements.Count} animated={animatedCount} canInteract={CanOpenSiteDetail(site)}");
+    }
+
+    private void RefreshFacilitySlotEntities(WorldSiteState site, WorldSiteDefinition definition)
+    {
+        if (_sitePlacementEntityRoot == null || site == null || definition == null)
+        {
+            return;
+        }
+
+        Node slotsRoot = _activeSiteMap?.GetNodeOrNull<Node>(FacilitySlotsRootName);
+        if (slotsRoot == null)
+        {
+            if (definition.FacilitySlots.Count > 0)
+            {
+                GameLog.Warn(nameof(WorldSiteRoot), $"Missing facility slot scene root site={site.SiteId} root={FacilitySlotsRootName}");
+            }
+
+            return;
+        }
+
+        var occupiedCells = new Dictionary<GridPosition, string>();
+        foreach (WorldFacilitySlotEntity entity in slotsRoot.GetChildren().OfType<WorldFacilitySlotEntity>())
+        {
+            entity.SetFootprintPolygons(System.Array.Empty<Vector2[]>());
+            string slotId = string.IsNullOrWhiteSpace(entity.SlotId) ? entity.Name : entity.SlotId;
+            FacilitySlotDefinition slot = definition.FacilitySlots.FirstOrDefault(item => item.SlotId == slotId);
+            if (slot == null)
+            {
+                entity.BindState(slotId, false, false, false, false, false, "slot_definition_missing");
+                GameLog.Warn(nameof(WorldSiteRoot), $"Facility slot scene node has no definition site={site.SiteId} slot={slotId}");
+                continue;
+            }
+
+            string configurationError = "";
+            if (!TrySnapFacilitySlotEntity(entity, slot, occupiedCells, out WorldFacilitySlotRuntimeLayout layout, out string layoutFailureReason))
+            {
+                configurationError = layoutFailureReason;
+                GameLog.Warn(nameof(WorldSiteRoot), $"Facility slot layout invalid site={site.SiteId} slot={slot.SlotId} reason={layoutFailureReason}");
+            }
+            else
+            {
+                _siteFacilitySlotLayouts[slot.SlotId] = layout;
+            }
+
+            FacilityInstance facility = ResolveFacilityInSlot(site, slot.SlotId);
+            IReadOnlyList<WorldActionViewModel> buildActions = facility == null
+                ? ResolveBuildActionsForSlot(site, slot)
+                : System.Array.Empty<WorldActionViewModel>();
+            int enabledBuildActionCount = buildActions.Count(action => action.IsEnabled);
+            bool canInteract = string.IsNullOrWhiteSpace(configurationError) &&
+                               (facility != null || buildActions.Count > 0);
+
+            entity.BindState(
+                slot.SlotId,
+                facility != null,
+                facility?.State == FacilityState.Building,
+                enabledBuildActionCount > 0,
+                canInteract,
+                _selectedFacilitySlotId == slot.SlotId,
+                configurationError,
+                BuildFacilitySlotMapHint(facility, buildActions.Count, enabledBuildActionCount, configurationError));
+            _siteFacilitySlotEntities[slot.SlotId] = entity;
+        }
+
+        foreach (FacilitySlotDefinition slot in definition.FacilitySlots)
+        {
+            if (!_siteFacilitySlotEntities.ContainsKey(slot.SlotId))
+            {
+                GameLog.Warn(nameof(WorldSiteRoot), $"Facility slot definition has no scene entity site={site.SiteId} slot={slot.SlotId}");
+            }
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"FacilitySlotsRegistered site={site.SiteId} rootVisible={(slotsRoot is CanvasItem item ? item.Visible : null)} definitions={definition.FacilitySlots.Count} sceneEntities={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count} footprints={BuildFacilitySlotFootprintLogSummary()} selectedSlot={_selectedFacilitySlotId}");
+    }
+
+    private static string BuildFacilitySlotMapHint(
+        FacilityInstance facility,
+        int buildActionCount,
+        int enabledBuildActionCount,
+        string configurationError)
+    {
+        if (!string.IsNullOrWhiteSpace(configurationError))
+        {
+            return "配置错误";
+        }
+
+        if (facility != null)
+        {
+            return facility.State == FacilityState.Building ? "建造中" : "已建";
+        }
+
+        if (enabledBuildActionCount > 0)
+        {
+            return $"可建 {enabledBuildActionCount}";
+        }
+
+        return buildActionCount > 0 ? "条件不足" : "";
     }
 
     private void UpdateSiteMapEntities()
@@ -2397,9 +3191,66 @@ public partial class WorldSiteRoot : Node2D
         }
     }
 
+    private void OnFacilitySlotEntityPressed(string slotId)
+    {
+        WorldSiteState site = ResolveSiteState(_siteHudSiteId);
+        WorldSiteDefinition definition = ResolveSiteDefinition(_siteHudSiteId);
+        FacilitySlotDefinition slot = definition?.FacilitySlots.FirstOrDefault(item => item.SlotId == slotId);
+        if (site == null || slot == null)
+        {
+            StrategicWorldRuntime.LastNotice = "建筑点状态已失效。";
+            RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
+            return;
+        }
+
+        _selectedPlacementId = "";
+        _selectedFacilitySlotId = slot.SlotId;
+
+        if (_siteFacilitySlotEntities.TryGetValue(slot.SlotId, out WorldFacilitySlotEntity slotEntity) &&
+            slotEntity.HasConfigurationError)
+        {
+            string notice = $"{slot.DisplayName}配置错误：{slotEntity.ConfigurationError}";
+            RefreshSiteManagementUi(notice);
+            GameLog.Warn(nameof(WorldSiteRoot), $"Facility slot selection blocked by configuration site={site.SiteId} slot={slot.SlotId} reason={slotEntity.ConfigurationError}");
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        FacilityInstance existingFacility = ResolveFacilityInSlot(site, slot.SlotId);
+        if (existingFacility != null)
+        {
+            StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
+            string facilityName = queries.GetFacility(existingFacility.FacilityId)?.DisplayName ?? existingFacility.FacilityId;
+            string notice = $"{slot.DisplayName}已有{facilityName}，状态：{GetFacilityStateLabel(existingFacility.State)}。";
+            RefreshSiteManagementUi(notice);
+            GameLog.Info(nameof(WorldSiteRoot), $"Facility slot selected site={site.SiteId} slot={slot.SlotId} facility={existingFacility.FacilityId} state={existingFacility.State}");
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        IReadOnlyList<WorldActionViewModel> buildActions = ResolveBuildActionsForSlot(site, slot);
+        if (buildActions.Count == 0)
+        {
+            string notice = $"{slot.DisplayName}暂时没有可建建筑。";
+            RefreshSiteManagementUi(notice);
+            GameLog.Info(nameof(WorldSiteRoot), $"Facility slot selected without action site={site.SiteId} slot={slot.SlotId}");
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+
+        bool hasEnabledBuildAction = buildActions.Any(action => action.IsEnabled);
+        string selectedNotice = hasEnabledBuildAction
+            ? $"{slot.DisplayName}已选中。请在右侧选择要建造的建筑。"
+            : $"{slot.DisplayName}已选中，但当前资源或条件不足。可在右侧查看不可建原因。";
+        RefreshSiteManagementUi(selectedNotice);
+        GameLog.Info(nameof(WorldSiteRoot), $"Facility slot selected for build site={site.SiteId} slot={slot.SlotId} actions={buildActions.Count} enabled={hasEnabledBuildAction}");
+        GetViewport().SetInputAsHandled();
+    }
+
     private void SelectPlacement(string placementId)
     {
         _selectedPlacementId = placementId ?? "";
+        _selectedFacilitySlotId = "";
         RefreshSiteManagementUi();
         GameLog.Info(nameof(WorldSiteRoot), $"Site placement selected site={_siteHudSiteId} placement={_selectedPlacementId}");
     }
@@ -2407,6 +3258,8 @@ public partial class WorldSiteRoot : Node2D
     private void OnPlacementEntityPressed(string placementId)
     {
         _selectedPlacementId = placementId ?? "";
+        _selectedFacilitySlotId = "";
+        UpdateSitePeacetimePanelVisibility("placement_selected");
         _draggedPlacementId = _selectedPlacementId;
         if (_sitePlacementEntities.TryGetValue(_draggedPlacementId, out Node2D entity))
         {
@@ -2418,6 +3271,46 @@ public partial class WorldSiteRoot : Node2D
 
         _siteSelectionLabel.Text = $"正在调整：{BuildPlacementDisplayName(_selectedPlacementId)}";
         GetViewport().SetInputAsHandled();
+    }
+
+    private bool TryHandleFacilitySlotInput(InputEvent @event)
+    {
+        if (_battleRuntimeEnabled ||
+            !string.IsNullOrWhiteSpace(_draggedPlacementId) ||
+            @event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } ||
+            IsPointerOverSiteHud(@event))
+        {
+            return false;
+        }
+
+        if (!TryResolveFacilitySlotUnderPointer(out string slotId))
+        {
+            return false;
+        }
+
+        OnFacilitySlotEntityPressed(slotId);
+        return true;
+    }
+
+    private bool TryHandleSiteContextClearInput(InputEvent @event)
+    {
+        if (_battleRuntimeEnabled ||
+            !string.IsNullOrWhiteSpace(_draggedPlacementId) ||
+            string.IsNullOrWhiteSpace(_selectedFacilitySlotId) ||
+            @event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } ||
+            IsPointerOverSiteHud(@event) ||
+            TryResolvePlacementUnderPointer(out _))
+        {
+            return false;
+        }
+
+        string previousSlotId = _selectedFacilitySlotId;
+        _selectedPlacementId = "";
+        _selectedFacilitySlotId = "";
+        RefreshSiteManagementUi();
+        GameLog.Info(nameof(WorldSiteRoot), $"Site facility slot selection cleared site={_siteHudSiteId} previousSlot={previousSlotId}");
+        GetViewport().SetInputAsHandled();
+        return true;
     }
 
     private void HandleSiteDeploymentDragInput(InputEvent @event)
@@ -2601,7 +3494,7 @@ public partial class WorldSiteRoot : Node2D
         SetSitePlacementSelected(entity, false);
     }
 
-    private void ExecuteSiteAction(WorldActionViewModel action)
+    private void ExecuteSiteAction(WorldActionViewModel action, string targetSlotId = "")
     {
         if (action == null)
         {
@@ -2614,13 +3507,14 @@ public partial class WorldSiteRoot : Node2D
             ActorFactionId = StrategicWorldRuntime.State.PlayerFactionId,
             SourceSiteId = _siteHudSiteId,
             TargetSiteId = action.TargetSiteId,
-            TargetSlotId = "",
+            TargetSlotId = targetSlotId ?? "",
             ThreatId = action.ThreatId
         };
 
         string returnScenePath = string.IsNullOrWhiteSpace(_siteHudReturnScenePath)
             ? "res://scenes/world/StrategicWorldRoot.tscn"
             : _siteHudReturnScenePath;
+        SiteBattleLaunchRollback rollback = CaptureSiteBattleLaunchRollback(_siteHudSiteId);
         WorldActionResult result = _worldActionResolver.Apply(
             StrategicWorldRuntime.State,
             StrategicWorldRuntime.Definition,
@@ -2629,6 +3523,7 @@ public partial class WorldSiteRoot : Node2D
             string.IsNullOrWhiteSpace(SceneFilePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : SceneFilePath);
 
         StrategicWorldRuntime.LastNotice = result.Message;
+        ApplyModeTransitionRollbackEvent(rollback, result.Events);
         if (!result.Success)
         {
             RefreshSiteManagementUi(result.Message);
@@ -2638,19 +3533,92 @@ public partial class WorldSiteRoot : Node2D
         if (result.BattleStartRequest != null)
         {
             BattleSessionHandoff.BeginBattle(result.BattleStartRequest);
-            Error error = GetTree().ChangeSceneToFile(result.BattleStartRequest.SiteScenePath);
-            if (error != Error.Ok)
+            ApplyBattleStartRequest();
+            if (!ActivateBattleRuntime())
             {
                 BattleSessionHandoff.CancelBattle();
+                RollbackSiteBattleLaunch(rollback, result.BattleStartRequest, _battleStartBlockedReason);
                 StrategicWorldRuntime.LastNotice = "无法进入战棋战斗。";
                 RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
-                GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter site battle path={result.BattleStartRequest.SiteScenePath} error={error}");
+                GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter site battle request={result.BattleStartRequest.RequestId} target={result.BattleStartRequest.TargetSiteId} reason={_battleStartBlockedReason}");
             }
 
             return;
         }
 
         RefreshSiteManagementUi(result.Message);
+    }
+
+    private SiteBattleLaunchRollback CaptureSiteBattleLaunchRollback(string siteId)
+    {
+        SiteBattleLaunchRollback rollback = new()
+        {
+            SiteId = siteId ?? ""
+        };
+
+        WorldSiteState site = ResolveSiteState(rollback.SiteId);
+        if (site != null)
+        {
+            rollback.HasPreviousSiteMode = true;
+            rollback.PreviousSiteMode = site.SiteMode;
+        }
+
+        return rollback;
+    }
+
+    private static void ApplyModeTransitionRollbackEvent(
+        SiteBattleLaunchRollback rollback,
+        IReadOnlyCollection<GameEvent> transitionEvents)
+    {
+        if (rollback == null || transitionEvents == null)
+        {
+            return;
+        }
+
+        GameEvent modeEvent = transitionEvents.LastOrDefault(gameEvent =>
+            gameEvent.Kind == "SiteModeChanged" &&
+            gameEvent.TargetIds.Contains(rollback.SiteId) &&
+            gameEvent.Payload.TryGetValue("to", out string toMode) &&
+            toMode == WorldSiteMode.Wartime.ToString() &&
+            gameEvent.Payload.TryGetValue("from", out _));
+        if (modeEvent == null ||
+            !modeEvent.Payload.TryGetValue("from", out string fromMode) ||
+            !System.Enum.TryParse(fromMode, out WorldSiteMode previousMode))
+        {
+            return;
+        }
+
+        rollback.HasPreviousSiteMode = true;
+        rollback.PreviousSiteMode = previousMode;
+    }
+
+    private void RollbackSiteBattleLaunch(
+        SiteBattleLaunchRollback rollback,
+        BattleStartRequest request,
+        string reason)
+    {
+        string siteId = !string.IsNullOrWhiteSpace(request?.TargetSiteId)
+            ? request.TargetSiteId
+            : rollback?.SiteId ?? "";
+        WorldSiteState site = ResolveSiteState(siteId);
+        if (site == null)
+        {
+            return;
+        }
+
+        WorldSiteMode currentMode = site.SiteMode;
+        if (rollback?.HasPreviousSiteMode == true)
+        {
+            site.SiteMode = rollback.PreviousSiteMode;
+        }
+
+        int removed = site.UnitPlacements.RemoveAll(placement => !WorldSiteDeploymentService.IsGarrisonPlacement(placement));
+        ClearBattleEntities();
+        ClearBattleCorpsRuntime();
+        SetBattleRuntimeEnabled(false);
+        GameLog.Warn(
+            nameof(WorldSiteRoot),
+            $"Site battle launch rolled back site={site.SiteId} fromMode={currentMode} toMode={site.SiteMode} removedPlacements={removed} reason={reason}");
     }
 
     private string ResolveSelectedThreatId(WorldSiteState site)
@@ -2669,6 +3637,47 @@ public partial class WorldSiteRoot : Node2D
             _siteSelectionLabel.Text = placement == null
                 ? ""
                 : $"已选择：{BuildPlacementDisplayName(placement)}\n位置：{placement.CellX}, {placement.CellY}";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_selectedFacilitySlotId))
+        {
+            WorldSiteDefinition definition = ResolveSiteDefinition(site?.SiteId ?? _siteHudSiteId);
+            FacilitySlotDefinition slot = definition?.FacilitySlots.FirstOrDefault(item => item.SlotId == _selectedFacilitySlotId);
+            if (slot == null)
+            {
+                _siteSelectionLabel.Text = "";
+                return;
+            }
+
+            if (_siteFacilitySlotEntities.TryGetValue(slot.SlotId, out WorldFacilitySlotEntity slotEntity) &&
+                slotEntity.HasConfigurationError)
+            {
+                _siteSelectionLabel.Text = $"已选择建筑点：{slot.DisplayName}\n配置错误：{slotEntity.ConfigurationError}";
+                return;
+            }
+
+            StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
+            FacilityInstance facility = ResolveFacilityInSlot(site, slot.SlotId);
+            if (facility != null)
+            {
+                string facilityName = queries.GetFacility(facility.FacilityId)?.DisplayName ?? facility.FacilityId;
+                _siteSelectionLabel.Text = $"已选择建筑点：{slot.DisplayName}\n{facilityName} · {GetFacilityStateLabel(facility.State)}";
+                return;
+            }
+
+            IReadOnlyList<WorldActionViewModel> buildActions = ResolveBuildActionsForSlot(site, slot);
+            if (buildActions.Count == 0)
+            {
+                _siteSelectionLabel.Text = $"已选择建筑点：{slot.DisplayName}\n暂无可建建筑。";
+                return;
+            }
+
+            int enabledCount = buildActions.Count(action => action.IsEnabled);
+            string state = enabledCount > 0
+                ? $"可建 {enabledCount}/{buildActions.Count} 项。请在“可建建筑”中选择。"
+                : $"当前 {buildActions.Count} 项建筑都不可建，请查看按钮原因。";
+            _siteSelectionLabel.Text = $"已选择建筑点：{slot.DisplayName}\n{state}";
             return;
         }
 
@@ -2764,6 +3773,33 @@ public partial class WorldSiteRoot : Node2D
         }
     }
 
+    private bool TryResolveFacilitySlotUnderPointer(out string slotId)
+    {
+        slotId = "";
+        if (_siteFacilitySlotEntities.Count == 0 ||
+            _activeSiteMap?.GetNodeOrNull<CanvasItem>(FacilitySlotsRootName)?.Visible == false)
+        {
+            return false;
+        }
+
+        if (TryGetMouseGridPosition(out GridPosition gridPosition))
+        {
+            KeyValuePair<string, WorldFacilitySlotRuntimeLayout>? layoutHit = _siteFacilitySlotLayouts
+                .Where(item => item.Value.FootprintCells.Contains(gridPosition) &&
+                               _siteFacilitySlotEntities.ContainsKey(item.Key))
+                .OrderByDescending(item => item.Value.ZIndex)
+                .Select(item => (KeyValuePair<string, WorldFacilitySlotRuntimeLayout>?)item)
+                .FirstOrDefault();
+            if (layoutHit.HasValue)
+            {
+                slotId = layoutHit.Value.Key;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private bool TryResolvePlacementUnderPointer(out string placementId)
     {
         placementId = "";
@@ -2815,7 +3851,14 @@ public partial class WorldSiteRoot : Node2D
             InputEventMouseMotion mouseMotion => mouseMotion.Position,
             _ => new Vector2(float.NaN, float.NaN)
         };
-        return !float.IsNaN(screenPosition.X) && _siteHudRoot.GetGlobalRect().HasPoint(screenPosition);
+        return !float.IsNaN(screenPosition.X) &&
+               (IsScreenPointInsideControl(_siteHudTopBar, screenPosition) ||
+                IsScreenPointInsideControl(_sitePeacetimePanel, screenPosition));
+    }
+
+    private static bool IsScreenPointInsideControl(Control control, Vector2 screenPosition)
+    {
+        return control?.Visible == true && control.GetGlobalRect().HasPoint(screenPosition);
     }
 
     private BattleFaction ResolveBattleFaction(string factionId)
@@ -2840,6 +3883,305 @@ public partial class WorldSiteRoot : Node2D
         }
 
         return GlobalPosition + new Vector2(96.0f, 128.0f + _sitePlacementEntities.Count * 32.0f);
+    }
+
+    private bool TrySnapFacilitySlotEntity(
+        WorldFacilitySlotEntity entity,
+        FacilitySlotDefinition slot,
+        Dictionary<GridPosition, string> occupiedCells,
+        out WorldFacilitySlotRuntimeLayout layout,
+        out string failureReason)
+    {
+        layout = null;
+        failureReason = "";
+        if (entity == null || slot == null)
+        {
+            failureReason = "slot_entity_missing";
+            return false;
+        }
+
+        if (_coordinateLayer == null || _activeGridMap == null)
+        {
+            failureReason = "grid_missing";
+            return false;
+        }
+
+        if (!TryResolveGridCellAtGlobalPosition(entity.GlobalPosition, out GridPosition anchorCell))
+        {
+            failureReason = "slot_anchor_cell_invalid";
+            return false;
+        }
+
+        Vector2I footprintSize = ResolveFacilitySlotFootprintSize(entity);
+        var footprintCells = new List<GridPosition>(footprintSize.X * footprintSize.Y);
+        for (int y = 0; y < footprintSize.Y; y++)
+        {
+            for (int x = 0; x < footprintSize.X; x++)
+            {
+                GridPosition cell = new(anchorCell.X + x, anchorCell.Y + y);
+                if (!_activeGridMap.TryGetCell(cell, out _))
+                {
+                    failureReason = $"footprint_cell_missing anchor={anchorCell} size={footprintSize.X}x{footprintSize.Y} cell={cell}";
+                    return false;
+                }
+
+                footprintCells.Add(cell);
+            }
+        }
+
+        foreach (GridPosition cell in footprintCells)
+        {
+            if (occupiedCells.TryGetValue(cell, out string occupiedSlotId))
+            {
+                failureReason = $"footprint_overlap other={occupiedSlotId} cell={cell}";
+                return false;
+            }
+        }
+
+        GridPosition sortCell = ResolveFacilitySlotSortCell(entity, footprintCells);
+        GridSurfacePosition sortSurface = ResolveFacilitySlotSortSurface(sortCell);
+        if (!TryGetCellGlobalPosition(anchorCell, out Vector2 rootGlobalPosition))
+        {
+            failureReason = $"anchor_cell_invalid cell={anchorCell}";
+            return false;
+        }
+
+        entity.ApplySnappedLayout(rootGlobalPosition);
+        entity.SetFootprintPolygons(footprintCells.Select(BuildCellPolygonGlobal).ToArray());
+        int zIndex = ApplyFacilitySlotRenderSort(entity, sortSurface);
+
+        layout = new WorldFacilitySlotRuntimeLayout
+        {
+            SlotId = slot.SlotId,
+            SortCell = sortCell,
+            SortSurface = sortSurface,
+            FootprintWidth = footprintSize.X,
+            FootprintHeight = footprintSize.Y,
+            ZIndex = zIndex
+        };
+        layout.FootprintCells.AddRange(footprintCells);
+
+        foreach (GridPosition cell in footprintCells)
+        {
+            occupiedCells[cell] = slot.SlotId;
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"Facility slot footprint snapped slot={slot.SlotId} anchor={anchorCell} size={footprintSize.X}x{footprintSize.Y} cells={footprintCells.Count} sort={sortSurface}");
+        return true;
+    }
+
+    private static Vector2I ResolveFacilitySlotFootprintSize(WorldFacilitySlotEntity entity)
+    {
+        return new Vector2I(
+            System.Math.Clamp(entity?.FootprintWidth ?? 1, 1, 12),
+            System.Math.Clamp(entity?.FootprintHeight ?? 1, 1, 12));
+    }
+
+    private string BuildFacilitySlotFootprintLogSummary()
+    {
+        if (_siteFacilitySlotLayouts.Count == 0)
+        {
+            return "";
+        }
+
+        return string.Join(
+            ",",
+            _siteFacilitySlotLayouts.Values
+                .OrderBy(layout => layout.SlotId)
+                .Select(layout => $"{layout.SlotId}:{layout.FootprintWidth}x{layout.FootprintHeight}"));
+    }
+
+    private Vector2[] BuildCellPolygonGlobal(GridPosition cell)
+    {
+        var origin = new Vector2I(cell.X, cell.Y);
+        Vector2 center = _coordinateLayer.MapToLocal(origin);
+        Vector2 stepX = _coordinateLayer.MapToLocal(new Vector2I(cell.X + 1, cell.Y)) - center;
+        Vector2 stepY = _coordinateLayer.MapToLocal(new Vector2I(cell.X, cell.Y + 1)) - center;
+
+        Vector2[] localPoints =
+        {
+            center - (stepX + stepY) * 0.5f,
+            center + (stepX - stepY) * 0.5f,
+            center + (stepX + stepY) * 0.5f,
+            center + (-stepX + stepY) * 0.5f
+        };
+
+        return localPoints
+            .Select(point => _coordinateLayer.ToGlobal(point))
+            .ToArray();
+    }
+
+    private bool TryResolveGridCellAtGlobalPosition(Vector2 globalPosition, out GridPosition gridPosition)
+    {
+        gridPosition = default;
+        if (_coordinateLayer == null || _activeGridMap == null)
+        {
+            return false;
+        }
+
+        Vector2I tilePosition = _coordinateLayer.LocalToMap(_coordinateLayer.ToLocal(globalPosition));
+        gridPosition = new GridPosition(tilePosition.X, tilePosition.Y);
+        return _activeGridMap.TryGetCell(gridPosition, out _);
+    }
+
+    private GridPosition ResolveFacilitySlotSortCell(WorldFacilitySlotEntity entity, IReadOnlyList<GridPosition> footprintCells)
+    {
+        if (entity?.UseLowestFootprintCellAsSortAnchor != false || !TryResolveGridCellAtGlobalPosition(entity.GlobalPosition, out GridPosition rootCell))
+        {
+            return footprintCells
+                .OrderByDescending(cell => cell.Y)
+                .ThenBy(cell => cell.X)
+                .First();
+        }
+
+        return rootCell;
+    }
+
+    private GridSurfacePosition ResolveFacilitySlotSortSurface(GridPosition sortCell)
+    {
+        if (_activeGridMap?.TryGetTopSurfacePosition(sortCell, out GridSurfacePosition topSurface) == true)
+        {
+            return topSurface;
+        }
+
+        if (_activeGridMap?.TryGetCell(sortCell, out GridCell cell) == true)
+        {
+            return new GridSurfacePosition(sortCell, cell.Height);
+        }
+
+        return new GridSurfacePosition(sortCell, 0);
+    }
+
+    private int ApplyFacilitySlotRenderSort(WorldFacilitySlotEntity entity, GridSurfacePosition sortSurface)
+    {
+        int zIndex = ResolveFacilitySlotZIndex(sortSurface);
+        if (entity == null)
+        {
+            return zIndex;
+        }
+
+        entity.ZAsRelative = false;
+        entity.ZIndex = zIndex;
+        return zIndex;
+    }
+
+    private int ResolveFacilitySlotZIndex(GridSurfacePosition sortSurface)
+    {
+        int zIndex = BattleRenderSortPolicy.GetUnitZIndex(sortSurface.Height);
+        if (_activeSiteMap is not BattleMapView battleMapView)
+        {
+            return zIndex;
+        }
+
+        if (battleMapView.RenderSortCache?.TryGetYSortOriginUnitZIndex(sortSurface, out int ySortOriginZIndex) == true)
+        {
+            return ySortOriginZIndex;
+        }
+
+        return TryResolveObjectLayerZIndex(battleMapView, sortSurface, out int objectLayerZIndex)
+            ? objectLayerZIndex
+            : zIndex;
+    }
+
+    private static bool TryResolveObjectLayerZIndex(BattleMapView mapView, GridSurfacePosition sortSurface, out int zIndex)
+    {
+        zIndex = 0;
+        if (mapView == null)
+        {
+            return false;
+        }
+
+        Vector2I tilePosition = new(sortSurface.X, sortSurface.Y);
+        bool foundExactObjectTile = false;
+        foreach (BattleMapLayer layer in BattleMapLayerQueries.EnumerateBattleMapLayers(mapView)
+                     .Where(layer => layer.Role == LayerRole.Object && layer.Height == sortSurface.Height))
+        {
+            TileData tileData = layer.GetCellTileData(tilePosition);
+            if (tileData == null)
+            {
+                continue;
+            }
+
+            int candidateZIndex = layer.ZIndex + tileData.ZIndex;
+            zIndex = foundExactObjectTile ? Mathf.Max(zIndex, candidateZIndex) : candidateZIndex;
+            foundExactObjectTile = true;
+        }
+
+        if (foundExactObjectTile)
+        {
+            return true;
+        }
+
+        bool foundObjectLayer = false;
+        foreach (BattleMapLayer layer in BattleMapLayerQueries.EnumerateBattleMapLayers(mapView)
+                     .Where(layer => layer.Role == LayerRole.Object && layer.Height == sortSurface.Height))
+        {
+            zIndex = foundObjectLayer ? Mathf.Max(zIndex, layer.ZIndex) : layer.ZIndex;
+            foundObjectLayer = true;
+        }
+
+        return foundObjectLayer;
+    }
+
+    private FacilityInstance ResolveFacilityInSlot(WorldSiteState site, string slotId)
+    {
+        return string.IsNullOrWhiteSpace(slotId)
+            ? null
+            : site?.Facilities.FirstOrDefault(item => item.SlotId == slotId && item.State != FacilityState.Destroyed);
+    }
+
+    private IReadOnlyList<WorldActionViewModel> ResolveBuildActionsForSlot(WorldSiteState site, FacilitySlotDefinition slot)
+    {
+        if (site == null ||
+            slot == null)
+        {
+            return System.Array.Empty<WorldActionViewModel>();
+        }
+
+        HashSet<string> actionIds = ResolveBuildActionIdsForSlot(slot).ToHashSet();
+        if (actionIds.Count == 0)
+        {
+            return System.Array.Empty<WorldActionViewModel>();
+        }
+
+        IReadOnlyList<WorldActionViewModel> actions = _worldActionResolver.GetAvailableActions(
+            StrategicWorldRuntime.State,
+            StrategicWorldRuntime.Definition,
+            _siteHudSiteId,
+            ResolveSelectedThreatId(site),
+            slot.SlotId);
+        return actions
+            .Where(action => actionIds.Contains(action.ActionId))
+            .ToArray();
+    }
+
+    private IReadOnlyList<string> ResolveBuildActionIdsForSlot(FacilitySlotDefinition slot)
+    {
+        if (slot == null)
+        {
+            return System.Array.Empty<string>();
+        }
+
+        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
+        return queries.Actions.Values
+            .Where(action =>
+            {
+                string facilityId = ResolveAddedFacilityId(action);
+                return !string.IsNullOrWhiteSpace(facilityId) &&
+                       slot.AllowedFacilityIds.Contains(facilityId);
+            })
+            .Select(action => action.Id)
+            .ToArray();
+    }
+
+    private static string ResolveAddedFacilityId(WorldActionDefinition action)
+    {
+        return action?.Effects
+            .FirstOrDefault(effect => effect.Kind == WorldEffectKind.AddFacility &&
+                                      !string.IsNullOrWhiteSpace(effect.FacilityId))
+            ?.FacilityId ?? "";
     }
 
     private string BuildPlacementDisplayName(string placementId)
@@ -2879,6 +4221,42 @@ public partial class WorldSiteRoot : Node2D
         string costs = action.CostLines.Count == 0 ? "无消耗" : string.Join("，", action.CostLines);
         string suffix = action.IsEnabled ? costs : action.DisabledReason;
         return $"{action.DisplayName}\n{suffix}";
+    }
+
+    private static string BuildFacilityBuildButtonText(WorldActionViewModel action)
+    {
+        string costs = action.CostLines.Count == 0 ? "无消耗" : string.Join("，", action.CostLines);
+        string suffix = action.IsEnabled ? costs : action.DisabledReason;
+        return $"{action.DisplayName}\n{suffix}";
+    }
+
+    private static string BuildActionTooltip(WorldActionViewModel action)
+    {
+        if (action == null)
+        {
+            return "";
+        }
+
+        var lines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(action.Description))
+        {
+            lines.Add(action.Description);
+        }
+
+        lines.AddRange(action.EffectLines);
+        lines.AddRange(action.WarningLines);
+        if (!action.IsEnabled && !string.IsNullOrWhiteSpace(action.DisabledReason))
+        {
+            lines.Add(action.DisabledReason);
+        }
+
+        return string.Join("\n", lines.Where(line => !string.IsNullOrWhiteSpace(line)));
+    }
+
+    private bool IsFacilityBuildAction(string actionId)
+    {
+        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
+        return !string.IsNullOrWhiteSpace(ResolveAddedFacilityId(queries.GetAction(actionId)));
     }
 
     private static void AddMutedLine(Container parent, string text)

@@ -24,6 +24,7 @@ SiteMapScene = ExtResource("2_bonefield_site")
 
 [node name="UnitRoot" type="Node2D" parent="."]
 script = ExtResource("19_battle_unit_root")
+UnitMoveDuration = 0.07
 
 [node name="InputRoot" type="Node" parent="."]
 

@@ -1,0 +1,24 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Battle/Feedback/BattleActionCue.cs" id="1_script"]
+
+[node name="BattleActionCue" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="PulseRing" type="Line2D" parent="."]
+position = Vector2(0, -2)
+points = PackedVector2Array(24, 0, 22.1731, 9.1844, 16.9706, 16.9706, 9.1844, 22.1731, 0, 24, -9.1844, 22.1731, -16.9706, 16.9706, -22.1731, 9.1844, -24, 0, -22.1731, -9.1844, -16.9706, -16.9706, -9.1844, -22.1731, 0, -24, 9.1844, -22.1731, 16.9706, -16.9706, 22.1731, -9.1844, 24, 0)
+width = 3.0
+default_color = Color(0.2, 1, 0.48, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="Chevron" type="Line2D" parent="."]
+position = Vector2(0, -58)
+points = PackedVector2Array(-10, -5, 0, 7, 10, -5)
+width = 4.0
+default_color = Color(0.2, 1, 0.48, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2

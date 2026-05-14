@@ -1,12 +1,35 @@
 using Godot;
 using Rpg.Presentation.Common;
+using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.World.Sites;
 
 namespace Rpg.Presentation.Battle;
 
 public partial class BattleCameraController : MapCameraController
 {
+    [ExportGroup("Action Follow")]
+
+    [Export]
+    public bool AutoFollowActionEntity { get; set; } = true;
+
+    [Export(PropertyHint.Range, "0.15,0.4,0.01")]
+    public float FollowDurationMinSeconds { get; set; } = 0.18f;
+
+    [Export(PropertyHint.Range, "0.2,0.6,0.01")]
+    public float FollowDurationMaxSeconds { get; set; } = 0.35f;
+
+    [Export(PropertyHint.Range, "180,1200,10")]
+    public float FollowDistanceForMaxDuration { get; set; } = 720f;
+
+    [Export(PropertyHint.Range, "0.45,0.95,0.01")]
+    public float FollowSafeAreaViewportRatio { get; set; } = 0.68f;
+
+    [Export(PropertyHint.Range, "8,120,1")]
+    public float FollowMinimumDistancePixels { get; set; } = 18f;
+
     private WorldSiteRoot _siteRoot;
+    private Tween _followTween;
+    private string _lastFollowEntityId = "";
 
     public override void _Ready()
     {
@@ -27,6 +50,71 @@ public partial class BattleCameraController : MapCameraController
         }
     }
 
+    public override void _Process(double delta)
+    {
+        base._Process(delta);
+
+        if (IsUserNavigationActive)
+        {
+            CancelFollowTween();
+        }
+    }
+
+    public void FollowActionEntityIfNeeded(BattleEntity entity, bool force = false)
+    {
+        if (!AutoFollowActionEntity ||
+            entity == null ||
+            !GodotObject.IsInstanceValid(entity) ||
+            !IsInsideTree() ||
+            IsUserNavigationActive)
+        {
+            return;
+        }
+
+        string entityId = string.IsNullOrWhiteSpace(entity.EntityId) ? entity.GetInstanceId().ToString() : entity.EntityId;
+        Vector2 entityWorldPosition = entity.GlobalPosition;
+        Vector2 clampedTarget = ResolveClampedFocusPosition(entityWorldPosition);
+        float distance = GlobalPosition.DistanceTo(clampedTarget);
+        if (distance < FollowMinimumDistancePixels)
+        {
+            _lastFollowEntityId = entityId;
+            return;
+        }
+
+        bool insideSafeArea = IsInsideFollowSafeArea(entityWorldPosition);
+        if (_followTween != null && !force && entityId == _lastFollowEntityId)
+        {
+            return;
+        }
+
+        if (!force && entityId == _lastFollowEntityId && insideSafeArea)
+        {
+            return;
+        }
+
+        if (!force && insideSafeArea)
+        {
+            _lastFollowEntityId = entityId;
+            return;
+        }
+
+        float duration = Mathf.Lerp(
+            FollowDurationMinSeconds,
+            FollowDurationMaxSeconds,
+            Mathf.Clamp(distance / Mathf.Max(FollowDistanceForMaxDuration, 1f), 0f, 1f));
+
+        CancelFollowTween();
+        _lastFollowEntityId = entityId;
+        _followTween = CreateTween();
+        _followTween.SetTrans(Tween.TransitionType.Cubic);
+        _followTween.SetEase(Tween.EaseType.Out);
+        _followTween.TweenProperty(this, "global_position", clampedTarget, duration);
+        _followTween.Finished += () =>
+        {
+            _followTween = null;
+        };
+    }
+
     private void OnSiteMapLoaded(Node activeSiteMap)
     {
         if (activeSiteMap is not BattleMapView battleMapView ||
@@ -37,6 +125,28 @@ public partial class BattleCameraController : MapCameraController
         }
 
         SetMapBounds(mapBounds);
+    }
+
+    private bool IsInsideFollowSafeArea(Vector2 worldPosition)
+    {
+        Vector2 viewportPoint = GetViewport().GetCanvasTransform() * worldPosition;
+        Vector2 viewportSize = GetViewportRect().Size;
+        float ratio = Mathf.Clamp(FollowSafeAreaViewportRatio, 0.1f, 1f);
+        Vector2 safeSize = viewportSize * ratio;
+        Vector2 safeOffset = (viewportSize - safeSize) * 0.5f;
+        Rect2 safeRect = new(safeOffset, safeSize);
+        return safeRect.HasPoint(viewportPoint);
+    }
+
+    private void CancelFollowTween()
+    {
+        if (_followTween == null)
+        {
+            return;
+        }
+
+        _followTween.Kill();
+        _followTween = null;
     }
 
     private static bool TryCalculateMapBounds(BattleMapView battleMapView, out Rect2 bounds)

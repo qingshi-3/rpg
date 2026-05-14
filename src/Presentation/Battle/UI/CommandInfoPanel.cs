@@ -47,7 +47,7 @@ public partial class CommandInfoPanel : PanelContainer
             "attack" => "预览范围，选择目标攻击",
             _ when BattleAbilityQueries.IsAbilityCommand(command.Id) => "预览范围，选择目标释放能力",
             "cards" => "后续接入卡牌指令",
-            "corps" => "后续接入兵团指挥",
+            "corps" or "corps_order" => "切换兵团指令（突击 / 集火 / 坚守）",
             "wait" => "放弃继续操作",
             "end" => "结束当前单位行动",
             _ => "查看目标、消耗和状态"

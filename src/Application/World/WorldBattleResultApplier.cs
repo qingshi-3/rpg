@@ -39,7 +39,7 @@ public sealed class WorldBattleResultApplier
             actionResult = request.BattleKind switch
         {
             BattleKind.AssaultSite => ApplyAssaultBonefield(state, definition, request, result),
-            BattleKind.DefenseRaid => ApplyDefenseRaid(state, request, result),
+            BattleKind.DefenseRaid => ApplyDefenseRaid(state, definition, request, result),
             BattleKind.FieldIntercept => ApplyFieldIntercept(state, request, result),
             _ => WorldActionResult.Failed("battle_result", "unsupported_battle_kind", "暂不支持该战斗类型回写。")
             };
@@ -155,7 +155,11 @@ public sealed class WorldBattleResultApplier
         });
     }
 
-    private WorldActionResult ApplyDefenseRaid(StrategicWorldState state, BattleStartRequest request, BattleResult result)
+    private WorldActionResult ApplyDefenseRaid(
+        StrategicWorldState state,
+        StrategicWorldDefinition definition,
+        BattleStartRequest request,
+        BattleResult result)
     {
         WorldSiteState site = state.SiteStates[request.TargetSiteId];
         EnemyThreatPlan threat = !string.IsNullOrWhiteSpace(request.ThreatId) && state.ThreatPlans.TryGetValue(request.ThreatId, out EnemyThreatPlan value)
@@ -168,6 +172,11 @@ public sealed class WorldBattleResultApplier
             {
                 threat.Stage = ThreatStage.Resolved;
                 site.PendingThreatIds.Remove(threat.Id);
+                if (!string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
+                    state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState threatArmy))
+                {
+                    WorldDefenseRaidResolutionHelper.ResolveThreatArmy(threatArmy);
+                }
             }
 
             site.ControlState = SiteControlState.PlayerHeld;
@@ -191,25 +200,42 @@ public sealed class WorldBattleResultApplier
             return actionResult;
         }
 
+        WorldArmyState occupyingArmy = null;
         if (threat != null)
         {
             threat.Stage = ThreatStage.Resolved;
             site.PendingThreatIds.Remove(threat.Id);
+            if (!string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
+                state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState threatArmy))
+            {
+                occupyingArmy = threatArmy;
+            }
         }
 
-        site.ControlState = SiteControlState.Damaged;
+        site.OwnerFactionId = request.AttackerFactionId;
+        site.ControlState = SiteControlState.Lost;
         site.DamageLevel = System.Math.Min(2, site.DamageLevel + 1);
-        RemoveGarrison(site, StrategicWorldIds.UnitMilitia, 1);
+        WorldDefenseRaidResolutionHelper.ClearDefendingGarrison(site);
+        if (occupyingArmy != null)
+        {
+            WorldDefenseRaidResolutionHelper.TransferThreatArmyToCapturedSite(occupyingArmy, site);
+        }
+
+        state.PlayerResources.ReleaseReservationsBySite(site.SiteId);
         foreach (FacilityInstance mine in site.Facilities.Where(facility => facility.FacilityId == StrategicWorldIds.FacilityMine))
         {
+            mine.AssignedPopulation = 0;
             mine.State = FacilityState.Damaged;
         }
+
+        WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(site.SiteId);
+        _deploymentService.EnsureGarrisonPlacements(site, siteDefinition);
 
         WorldActionResult failedDefenseResult = new()
         {
             Success = true,
             ActionId = "battle_result",
-            Message = "埋骨地防守失败，场域受损，矿场停产，驻军损失。",
+            Message = "埋骨地防守失败，场域被亡灵夺回，敌军残部进驻城中。",
             Events =
             {
                 new GameEvent
@@ -217,10 +243,21 @@ public sealed class WorldBattleResultApplier
                     Kind = "SiteControlChanged",
                     Tick = state.WorldTick,
                     TargetIds = { site.SiteId },
-                    Payload = { ["state"] = nameof(SiteControlState.Damaged) }
+                    Payload = { ["owner"] = site.OwnerFactionId, ["state"] = nameof(SiteControlState.Lost) }
                 }
             }
         };
+        if (occupyingArmy != null)
+        {
+            failedDefenseResult.Events.Add(new GameEvent
+            {
+                Kind = "WorldArmyStateChanged",
+                Tick = state.WorldTick,
+                TargetIds = { occupyingArmy.ArmyId, site.SiteId },
+                Payload = { ["status"] = occupyingArmy.Status.ToString(), ["reason"] = "captured_site" }
+            });
+        }
+
         WorldSiteModeTransitionService.AddEvent(failedDefenseResult, _siteModeTransitions.EnterAftermath(site, state.WorldTick, "defense_failed", request.RequestId));
         return failedDefenseResult;
     }
@@ -380,3 +417,4 @@ public sealed class WorldBattleResultApplier
         garrison.Count += count;
     }
 }
+

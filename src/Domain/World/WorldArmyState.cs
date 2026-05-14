@@ -40,6 +40,12 @@ public sealed class WorldArmyState
     public bool HasNavigationPath { get; private set; }
 
     [JsonIgnore]
+    public int TransientNavigationPathFailureCount { get; private set; }
+
+    [JsonIgnore]
+    public float TransientNavigationPathFailureSeconds { get; private set; }
+
+    [JsonIgnore]
     public bool HasArrivalApproachOffset { get; private set; }
 
     [JsonIgnore]
@@ -92,6 +98,7 @@ public sealed class WorldArmyState
         NavigationSurfaceVersion = surfaceVersion;
         HasNavigationPath = NavigationPathPoints.Count > 0;
         NavigationPathPointIndex = NavigationPathPoints.Count > 1 ? 1 : 0;
+        ClearTransientNavigationPathFailures();
     }
 
     public void ClearNavigationPath()
@@ -101,6 +108,19 @@ public sealed class WorldArmyState
         NavigationSurfaceVersion = -1;
         NavigationPathDestination = default;
         HasNavigationPath = false;
+        ClearTransientNavigationPathFailures();
+    }
+
+    public void RecordTransientNavigationPathFailure(double elapsedSeconds)
+    {
+        TransientNavigationPathFailureCount++;
+        TransientNavigationPathFailureSeconds += Mathf.Max(0.0f, (float)elapsedSeconds);
+    }
+
+    public void ClearTransientNavigationPathFailures()
+    {
+        TransientNavigationPathFailureCount = 0;
+        TransientNavigationPathFailureSeconds = 0.0f;
     }
 
     public void SetTargetApproachDirection(WorldSiteAttackDirection direction)

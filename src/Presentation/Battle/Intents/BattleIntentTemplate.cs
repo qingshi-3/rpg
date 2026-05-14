@@ -1,4 +1,4 @@
-using Rpg.Definitions.Battle.Abilities;
+﻿using Rpg.Definitions.Battle.Abilities;
 using Rpg.Presentation.Battle.Entities;
 
 namespace Rpg.Presentation.Battle.Intents;
@@ -62,7 +62,23 @@ public static class BattleIntentTemplates
         BattleIntentType.Snipe,
         BattleIntentTargetPolicy.NearestHostile,
         "远程压制",
-        "射",
+        "狙",
+        true);
+
+    public static readonly BattleIntentTemplate FocusPressure = new(
+        "focus_pressure",
+        BattleIntentType.Pressure,
+        BattleIntentTargetPolicy.LowestHealthHostile,
+        "推进集火",
+        "集",
+        true);
+
+    public static readonly BattleIntentTemplate FocusStrike = new(
+        "focus_strike",
+        BattleIntentType.Strike,
+        BattleIntentTargetPolicy.LowestHealthHostile,
+        "集火打击",
+        "集",
         true);
 
     public static readonly BattleIntentTemplate Hold = new(

@@ -12,6 +12,7 @@ public static class StrategicWorldRuntime
     public static string LastNotice { get; set; } = "";
     private static string PendingSiteVisitSiteId { get; set; } = "";
     private static string PendingSiteVisitReturnScenePath { get; set; } = "";
+    private static bool PendingWorldResumeAfterSiteReturn { get; set; }
 
     public static void EnsureInitialized()
     {
@@ -24,6 +25,7 @@ public static class StrategicWorldRuntime
         Definition = StrategicWorldV1DefinitionFactory.Create();
         State = WorldService.CreateInitialState(Definition);
         ClearPendingSiteVisit();
+        PendingWorldResumeAfterSiteReturn = false;
         LastNotice = "战略世界已重置。";
     }
 
@@ -37,6 +39,7 @@ public static class StrategicWorldRuntime
     {
         PendingSiteVisitSiteId = siteId ?? "";
         PendingSiteVisitReturnScenePath = returnScenePath ?? "";
+        PendingWorldResumeAfterSiteReturn = false;
     }
 
     public static bool TryConsumePendingSiteVisit(out string siteId, out string returnScenePath)
@@ -51,5 +54,17 @@ public static class StrategicWorldRuntime
     {
         PendingSiteVisitSiteId = "";
         PendingSiteVisitReturnScenePath = "";
+    }
+
+    public static void MarkWorldResumeAfterSiteReturn()
+    {
+        PendingWorldResumeAfterSiteReturn = true;
+    }
+
+    public static bool TryConsumeWorldResumeAfterSiteReturn()
+    {
+        bool pending = PendingWorldResumeAfterSiteReturn;
+        PendingWorldResumeAfterSiteReturn = false;
+        return pending;
     }
 }

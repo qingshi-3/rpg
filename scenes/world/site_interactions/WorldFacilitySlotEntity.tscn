@@ -1,0 +1,27 @@
+[gd_scene load_steps=2 format=3 uid="uid://7k4ebnqn4wm7"]
+
+[ext_resource type="Script" uid="uid://dt7qwc7c08u6s" path="res://src/Presentation/World/Sites/WorldFacilitySlotEntity.cs" id="1_script"]
+
+[node name="WorldFacilitySlotEntity" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_script")
+
+[node name="EmptyVisual" type="Node2D" parent="."]
+
+[node name="BuildingVisual" type="Node2D" parent="."]
+visible = false
+
+[node name="BuiltVisualRoot" type="Node2D" parent="."]
+visible = false
+
+[node name="HintLabel" type="Label" parent="."]
+visible = false
+z_index = 20
+offset_left = -52.0
+offset_top = -48.0
+offset_right = 52.0
+offset_bottom = -24.0
+text = "可建"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true

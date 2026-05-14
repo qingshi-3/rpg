@@ -21,6 +21,7 @@ public partial class BattleCommandController : Node
     private System.Func<GridPosition, BattleEntity> _findEntityAt;
     private System.Func<BattleActionRequest, BattleActionResult> _executeActionRequest;
     private System.Action<string> _endPlayerTurn;
+    private System.Func<BattleEntity, string> _cycleCorpsCommand;
     private System.Func<bool> _evaluateOutcome;
     private System.Action<BattleEntity> _showEntity;
     private System.Action<string> _showHint;
@@ -41,6 +42,11 @@ public partial class BattleCommandController : Node
         !IsEnemyPhaseRunning() &&
         _interactionStack.Count > 0 &&
         PeekInteractionFrame().Kind == BattleInteractionFrameKind.MoveTargeting;
+
+    public bool IsAbilityTargeting =>
+        !IsEnemyPhaseRunning() &&
+        _interactionStack.Count > 0 &&
+        PeekInteractionFrame().Kind == BattleInteractionFrameKind.AbilityTargeting;
 
     public bool CanShowHoverIntentPreview
     {
@@ -64,6 +70,7 @@ public partial class BattleCommandController : Node
         System.Func<GridPosition, BattleEntity> findEntityAt,
         System.Func<BattleActionRequest, BattleActionResult> executeActionRequest,
         System.Action<string> endPlayerTurn,
+        System.Func<BattleEntity, string> cycleCorpsCommand,
         System.Func<bool> evaluateOutcome,
         System.Action<BattleEntity> showEntity,
         System.Action<string> showHint,
@@ -78,6 +85,7 @@ public partial class BattleCommandController : Node
         _findEntityAt = findEntityAt;
         _executeActionRequest = executeActionRequest;
         _endPlayerTurn = endPlayerTurn;
+        _cycleCorpsCommand = cycleCorpsCommand;
         _evaluateOutcome = evaluateOutcome;
         _showEntity = showEntity;
         _showHint = showHint;
@@ -227,6 +235,10 @@ public partial class BattleCommandController : Node
                 ResolveEndCommand();
                 break;
 
+            case "corps_order":
+                ResolveCorpsOrderCommand();
+                break;
+
             default:
                 if (BattleAbilityQueries.IsAbilityCommand(commandId))
                 {
@@ -241,6 +253,20 @@ public partial class BattleCommandController : Node
 
                 break;
         }
+    }
+
+    private void ResolveCorpsOrderCommand()
+    {
+        if (_selectedEntity == null)
+        {
+            return;
+        }
+
+        string hint = _cycleCorpsCommand?.Invoke(_selectedEntity);
+        _clearHudCommand?.Invoke();
+        _showEntity?.Invoke(_selectedEntity);
+        _showHint?.Invoke(string.IsNullOrWhiteSpace(hint) ? "已切换兵团指令" : hint);
+        GameLog.Info(nameof(BattleCommandController), $"Corps command cycled entity={_selectedEntity.EntityId} hint={hint}");
     }
 
     private void OnHudCommandCancelled()
@@ -361,6 +387,8 @@ public partial class BattleCommandController : Node
 
         PushActionFrame(BattleInteractionFrameKind.AbilityTargeting, commandId);
         HideSelectedActionMenuForTargeting(commandId);
+        _previewController?.ClearSelectedHighlight();
+        GameLog.Info(nameof(BattleCommandController), $"Selected highlight suppressed for ability targeting id={_selectedEntity.EntityId} command={commandId}");
         _previewController?.ShowAbilityTargetHighlight(_selectedEntity, ability);
     }
 
@@ -538,6 +566,7 @@ public partial class BattleCommandController : Node
             return;
         }
 
+        _previewController?.UpdateSelectedHighlight(_selectedEntity);
         _showEntity?.Invoke(_selectedEntity);
     }
 

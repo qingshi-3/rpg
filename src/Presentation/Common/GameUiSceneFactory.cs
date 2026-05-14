@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using Rpg.Infrastructure.Logging;
+using Rpg.Presentation.Battle.Feedback;
 using Rpg.Presentation.Battle.Intents;
 using Rpg.Presentation.Battle.UI;
 
@@ -24,6 +25,7 @@ public static class GameUiSceneFactory
     public const string BattleActionMenuButtonScenePath = "res://scenes/battle/ui/BattleActionMenuButton.tscn";
     public const string BattleTurnQueueItemScenePath = "res://scenes/battle/ui/BattleTurnQueueItem.tscn";
     public const string BattleIntentMarkerScenePath = "res://scenes/battle/intents/BattleIntentMarker.tscn";
+    public const string BattleDamageNumberScenePath = "res://scenes/battle/feedback/BattleDamageNumber.tscn";
     public const string BattleCellInfoDebugPanelScenePath = "res://scenes/battle/debug/BattleCellInfoDebugPanel.tscn";
 
     private static readonly Dictionary<string, PackedScene> SceneCache = new();
@@ -93,6 +95,11 @@ public static class GameUiSceneFactory
     public static BattleIntentMarker CreateBattleIntentMarker(string ownerName)
     {
         return Instantiate<BattleIntentMarker>(BattleIntentMarkerScenePath, ownerName);
+    }
+
+    public static BattleDamageNumber CreateBattleDamageNumber(string ownerName)
+    {
+        return Instantiate<BattleDamageNumber>(BattleDamageNumberScenePath, ownerName);
     }
 
     public static T GetRequiredNode<T>(Node root, NodePath path, string ownerName) where T : Node

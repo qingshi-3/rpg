@@ -21,7 +21,11 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
     [ExportGroup("Hover 信息")]
 
     [Export]
-    public Vector2 PanelOffset { get; set; } = new(18, 18);
+    // Hover details are docked away from the cursor so range highlights stay readable.
+    public Vector2 FixedPanelMargin { get; set; } = new(18, 96);
+
+    [Export]
+    public Vector2 FixedPanelSize { get; set; } = new(320, 220);
 
     [Export]
     public bool ShowLayerDetails { get; set; }
@@ -71,7 +75,7 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
         if (hoveredEntity != null)
         {
             _label.Text = FormatEntity(hoveredEntity, cell);
-            MovePanelToMouse();
+            MovePanelToFixedInspectorSlot();
             SetPanelVisible(true);
             return;
         }
@@ -83,7 +87,7 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
         }
 
         _label.Text = FormatCell(cell);
-        MovePanelToMouse();
+        MovePanelToFixedInspectorSlot();
         SetPanelVisible(true);
     }
 
@@ -116,11 +120,48 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
             _canvasLayer,
             "Panel/Margin/Label",
             nameof(BattleCellInfoDebug));
+        ApplyFixedPanelSizing();
     }
 
-    private void MovePanelToMouse()
+    private void MovePanelToFixedInspectorSlot()
     {
-        _panel.GlobalPosition = GetViewport().GetMousePosition() + PanelOffset;
+        if (_panel == null)
+        {
+            return;
+        }
+
+        ApplyFixedPanelSizing();
+        Vector2 viewportSize = GetViewport().GetVisibleRect().Size;
+        _panel.GlobalPosition = BattleHoverInfoPanelLayout.CalculateRightDockedPosition(
+            viewportSize,
+            ResolvePanelSize(),
+            FixedPanelMargin);
+    }
+
+    private void ApplyFixedPanelSizing()
+    {
+        if (_panel != null)
+        {
+            _panel.CustomMinimumSize = FixedPanelSize;
+            _panel.Size = FixedPanelSize;
+        }
+
+        if (_label != null)
+        {
+            _label.CustomMinimumSize = new Vector2(Mathf.Max(120f, FixedPanelSize.X - 18f), 0f);
+        }
+    }
+
+    private Vector2 ResolvePanelSize()
+    {
+        if (_panel == null)
+        {
+            return FixedPanelSize;
+        }
+
+        return new Vector2(
+            Mathf.Max(FixedPanelSize.X, _panel.Size.X),
+            Mathf.Max(FixedPanelSize.Y, _panel.Size.Y));
     }
 
     private void SetPanelVisible(bool visible)

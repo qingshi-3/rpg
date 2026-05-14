@@ -10,6 +10,6 @@ public sealed class WorldArmyMovementResult
     public List<string> BattleReadyArmyIds { get; set; } = new();
     public List<WorldArmyInterceptResult> FieldIntercepts { get; set; } = new();
     public List<string> AttackingThreatIds { get; set; } = new();
-    public List<string> PathFailedArmyIds { get; set; } = new();
+    public List<string> NavigationBlockedArmyIds { get; set; } = new();
     public List<string> GarrisonRejectedArmyIds { get; set; } = new();
 }

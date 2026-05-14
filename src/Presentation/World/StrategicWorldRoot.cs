@@ -12,6 +12,8 @@ namespace Rpg.Presentation.World;
 
 public partial class StrategicWorldRoot : Control
 {
+    public static StrategicWorldRoot Current { get; private set; }
+
     private const float OuterMargin = 26.0f;
     private const float TopBarHeight = 70.0f;
     private const float DetailWidth = 520.0f;
@@ -24,6 +26,7 @@ public partial class StrategicWorldRoot : Control
     private const float SiteNavigationPointSnapDistance = 96.0f;
     private const int SiteNavigationPointSearchCellRadius = 8;
     private const double DefaultWorldTickIntervalSeconds = 8.0;
+    // 战略行军只允许查询这一层；视觉层不能作为寻路兜底，否则会重新产生多权威路径问题。
     private const string StrategicNavigationTileLayerName = "StrategicNavigationTileLayer";
     private static readonly Vector2 SiteButtonSize = new(132.0f, 106.0f);
     private static readonly Vector2 SiteLabelFallbackSize = new(SiteButtonSize.X + 28.0f, 44.0f);
@@ -81,7 +84,6 @@ public partial class StrategicWorldRoot : Control
     private readonly HashSet<string> _reportedThreatNavigationFailures = new();
     private readonly HashSet<string> _reportedSiteVisualFootprintFailures = new();
     private readonly HashSet<string> _reportedSiteNavigationPointResolutions = new();
-    private readonly HashSet<string> _recoveredStalledThreatArmies = new();
     private Node2D _worldMapRoot;
     private MapCameraController _worldCamera;
     private Node2D _siteAnchorRoot;
@@ -99,13 +101,18 @@ public partial class StrategicWorldRoot : Control
     private VBoxContainer _garrisonList;
     private VBoxContainer _threatList;
     private VBoxContainer _actionList;
-    private VBoxContainer _siteDetailContent;
+    private Control _siteSummaryCard;
+    private Control _facilityCard;
+    private Control _defenseCard;
+    private Control _actionCard;
+    private Control _opportunityCard;
+    private VBoxContainer _opportunityDetailContent;
     private Label _facilityTitleLabel;
     private Label _garrisonTitleLabel;
     private Label _actionTitleLabel;
     private WorldOpportunityDetailPanel _opportunityDetailPanel;
 
-    private string _selectedSiteId = StrategicWorldIds.SitePlayerCamp;
+    private string _selectedSiteId = "";
     private string _selectedThreatId = "";
     private string _selectedOpportunityId = "";
     private readonly HashSet<string> _selectedArmyIds = new();
@@ -119,7 +126,9 @@ public partial class StrategicWorldRoot : Control
     private bool _worldClockPaused;
     private int _worldClockSpeedIndex = 2;
     private double _worldClockAccumulator;
+    private bool _reportedStrategicNavigationNotSynchronized;
     private BattleStartRequest _pendingBattleRequest;
+    private PendingBattleLaunchRollback _pendingBattleRollback;
     private AcceptDialog _battleAlertDialog;
     private AcceptDialog _preBattleDialog;
     private string _activeBattleGateDialog = "";
@@ -140,11 +149,28 @@ public partial class StrategicWorldRoot : Control
         public Rect2 MapBounds { get; }
     }
 
+    private sealed class PendingBattleLaunchRollback
+    {
+        public string SiteId { get; set; } = "";
+        public bool HasPreviousSiteMode { get; set; }
+        public WorldSiteMode PreviousSiteMode { get; set; } = WorldSiteMode.Peacetime;
+        public bool PreviousWorldClockPaused { get; set; }
+    }
+
+    private enum StrategicRuntimeStage
+    {
+        Bootstrapping,
+        WaitingForNavigation,
+        Active
+    }
+
     private StrategicWorldDefinition Definition => StrategicWorldRuntime.Definition;
     private StrategicWorldState State => StrategicWorldRuntime.State;
+    private StrategicRuntimeStage _runtimeStage = StrategicRuntimeStage.Bootstrapping;
 
     public override void _Ready()
     {
+        Current = this;
         GameLog.StartSession(nameof(StrategicWorldRoot));
         MouseFilter = MouseFilterEnum.Stop;
         SetFullRect(this);
@@ -155,23 +181,34 @@ public partial class StrategicWorldRoot : Control
         ConfigureStrategicNavigationContext();
         SyncDefinitionMapPositionsFromAnchors();
         RebuildSiteVisualFootprints();
-        RecoverUnsupportedPlayerAssaultArmies();
+        bool hasUnsupportedAssaultState = ReportUnsupportedPlayerAssaultArmies();
         ConfigureWorldCamera();
         UpdateWorldCameraView(true);
-        _worldClockPaused = HasAttackingThreat();
+        _worldClockPaused = hasUnsupportedAssaultState || HasAttackingThreat() || HasNavigationBlockedArmy();
         BuildUi();
         ConsumeBattleResult();
-        _worldClockPaused = HasAttackingThreat();
-        EnsureWorldBattlesForAttackingThreats();
-        _worldClockPaused = HasAttackingThreat();
-        SelectSite(string.IsNullOrWhiteSpace(_selectedSiteId) ? Definition.StartingSiteId : _selectedSiteId);
+        _worldClockPaused = hasUnsupportedAssaultState || HasAttackingThreat() || HasNavigationBlockedArmy();
         RefreshAll();
-        TryEnterFirstDefenseRaidBattle();
-        GameLog.Info(nameof(StrategicWorldRoot), "Strategic world root ready.");
+        _runtimeStage = StrategicRuntimeStage.WaitingForNavigation;
+        GameLog.Info(nameof(StrategicWorldRoot), "Strategic world static initialization complete; waiting for runtime readiness.");
+    }
+
+    public override void _ExitTree()
+    {
+        if (Current == this)
+        {
+            Current = null;
+        }
     }
 
     public override void _Process(double delta)
     {
+        if (!EnsureStrategicRuntimeReady())
+        {
+            UpdateWorldCameraView();
+            return;
+        }
+
         UpdateWorldArmyMovement(delta);
         UpdateWorldClock(delta);
         UpdateWorldCameraView();
@@ -371,6 +408,12 @@ public partial class StrategicWorldRoot : Control
         {
             DrawArc(position, radius + 11.0f, 0, Mathf.Tau, 40, new Color(1.0f, 0.23f, 0.15f, 0.92f), 4.0f, true);
         }
+        else if (army.Status == WorldArmyStatus.NavigationBlocked)
+        {
+            DrawArc(position, radius + 11.0f, 0, Mathf.Tau, 40, new Color(1.0f, 0.78f, 0.12f, 0.96f), 4.0f, true);
+            DrawLine(position + new Vector2(-radius * 0.45f, -radius * 0.45f), position + new Vector2(radius * 0.45f, radius * 0.45f), new Color(0.12f, 0.035f, 0.03f, 1.0f), 3.0f, true);
+            DrawLine(position + new Vector2(radius * 0.45f, -radius * 0.45f), position + new Vector2(-radius * 0.45f, radius * 0.45f), new Color(0.12f, 0.035f, 0.03f, 1.0f), 3.0f, true);
+        }
 
         if (_selectedArmyIds.Contains(army.ArmyId))
         {
@@ -525,54 +568,96 @@ public partial class StrategicWorldRoot : Control
             nameof(StrategicWorldRoot));
         _siteTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content/SiteTitleLabel",
+            "SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack/SiteTitleLabel",
             nameof(StrategicWorldRoot));
         _siteBodyLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content/SiteBodyLabel",
+            "SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack/SiteBodyLabel",
             nameof(StrategicWorldRoot));
-        _siteDetailContent = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
+        _siteSummaryCard = GameUiSceneFactory.GetRequiredNode<Control>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content",
+            "SiteDetailPanel/Margin/Scroll/Content/SummaryCard",
+            nameof(StrategicWorldRoot));
+        _opportunityCard = GameUiSceneFactory.GetRequiredNode<Control>(
+            hud,
+            "SiteDetailPanel/Margin/Scroll/Content/OpportunityCard",
+            nameof(StrategicWorldRoot));
+        _opportunityDetailContent = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
+            hud,
+            "SiteDetailPanel/Margin/Scroll/Content/OpportunityCard/OpportunityMargin/OpportunitySlot",
+            nameof(StrategicWorldRoot));
+        _facilityCard = GameUiSceneFactory.GetRequiredNode<Control>(
+            hud,
+            "SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard",
             nameof(StrategicWorldRoot));
         _facilityTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content/FacilityTitle",
+            "SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack/FacilityTitle",
             nameof(StrategicWorldRoot));
         _facilityList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content/FacilityList",
+            "SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack/FacilityList",
+            nameof(StrategicWorldRoot));
+        _defenseCard = GameUiSceneFactory.GetRequiredNode<Control>(
+            hud,
+            "SiteDetailPanel/Margin/Scroll/Content/DefenseCard",
             nameof(StrategicWorldRoot));
         _garrisonTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content/GarrisonTitle",
+            "SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/GarrisonTitle",
             nameof(StrategicWorldRoot));
         _garrisonList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content/GarrisonList",
+            "SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/GarrisonList",
             nameof(StrategicWorldRoot));
         _threatList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content/ThreatList",
+            "SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/ThreatList",
+            nameof(StrategicWorldRoot));
+        Label threatTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+            hud,
+            "SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/ThreatTitle",
+            nameof(StrategicWorldRoot));
+        _actionCard = GameUiSceneFactory.GetRequiredNode<Control>(
+            hud,
+            "SiteDetailPanel/Margin/Scroll/Content/ActionCard",
             nameof(StrategicWorldRoot));
         _actionList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content/ActionList",
+            "SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionList",
             nameof(StrategicWorldRoot));
         _actionTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "SiteDetailPanel/Margin/Scroll/Content/ActionTitle",
+            "SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionTitle",
             nameof(StrategicWorldRoot));
         _opportunityDetailPanel = GameUiSceneFactory.Instantiate<WorldOpportunityDetailPanel>(
             GameUiSceneFactory.WorldOpportunityDetailPanelScenePath,
             nameof(StrategicWorldRoot));
-        if (_opportunityDetailPanel != null && _siteDetailContent != null)
+        if (_opportunityDetailPanel != null && _opportunityDetailContent != null)
         {
             _opportunityDetailPanel.Visible = false;
             _opportunityDetailPanel.CompletePressed += CompleteSelectedOpportunity;
-            int insertIndex = _siteBodyLabel?.GetIndex() + 1 ?? 2;
-            _siteDetailContent.AddChild(_opportunityDetailPanel);
-            _siteDetailContent.MoveChild(_opportunityDetailPanel, insertIndex);
+            _opportunityDetailContent.AddChild(_opportunityDetailPanel);
+        }
+
+        if (_facilityTitleLabel != null)
+        {
+            _facilityTitleLabel.Text = "建筑配置";
+        }
+
+        if (_garrisonTitleLabel != null)
+        {
+            _garrisonTitleLabel.Text = "驻防兵力";
+        }
+
+        if (threatTitleLabel != null)
+        {
+            threatTitleLabel.Text = "敌情追踪";
+        }
+
+        if (_actionTitleLabel != null)
+        {
+            _actionTitleLabel.Text = "行动面板";
         }
 
         if (_worldClockToggleButton != null)
@@ -600,16 +685,19 @@ public partial class StrategicWorldRoot : Control
 
         if (saveButton != null)
         {
+            saveButton.Text = "保存";
             saveButton.Pressed += SaveWorld;
         }
 
         if (loadButton != null)
         {
+            loadButton.Text = "读取";
             loadButton.Pressed += LoadWorld;
         }
 
         if (resetButton != null)
         {
+            resetButton.Text = "重置";
             resetButton.Pressed += ResetWorld;
         }
     }
@@ -657,7 +745,7 @@ public partial class StrategicWorldRoot : Control
 
         WorldActionResult applyResult = _battleResultApplier.Apply(State, Definition, request, result);
         StrategicWorldRuntime.LastNotice = applyResult.Message;
-        _selectedSiteId = string.IsNullOrWhiteSpace(request.TargetSiteId) ? StrategicWorldIds.SiteBonefield : request.TargetSiteId;
+        _selectedSiteId = "";
         _selectedThreatId = "";
         _selectedOpportunityId = "";
     }
@@ -676,6 +764,17 @@ public partial class StrategicWorldRoot : Control
             .FirstOrDefault(threat => threat?.Stage == ThreatStage.Attacking)
             ?.Id ?? "";
         RefreshAll();
+    }
+
+    private void ClearSelectedWorldDetail(bool clearNotice = false)
+    {
+        _selectedSiteId = "";
+        _selectedThreatId = "";
+        _selectedOpportunityId = "";
+        if (clearNotice)
+        {
+            StrategicWorldRuntime.LastNotice = "";
+        }
     }
 
     private void SelectThreat(string threatId)
@@ -715,6 +814,7 @@ public partial class StrategicWorldRoot : Control
         StrategicWorldDefinitionQueries queries = new(Definition);
         WorldOpportunityDefinition definition = queries.GetOpportunity(opportunity.DefinitionId);
         _selectedOpportunityId = opportunityId;
+        _selectedSiteId = "";
         _selectedThreatId = "";
         _selectedArmyIds.Clear();
         StrategicWorldRuntime.LastNotice = $"发现野外小场域：{definition?.DisplayName ?? opportunity.DefinitionId}。";
@@ -798,6 +898,12 @@ public partial class StrategicWorldRoot : Control
                 return;
             }
 
+            if (TrySelectSiteAt(_armySelectionCurrentScreen))
+            {
+                AcceptEvent();
+                return;
+            }
+
             SelectSingleArmyAt(_armySelectionCurrentScreen, append);
         }
         else
@@ -819,12 +925,26 @@ public partial class StrategicWorldRoot : Control
 
         if (army == null)
         {
+            ClearSelectedWorldDetail();
             StrategicWorldRuntime.LastNotice = "未选中小队。";
             return;
         }
 
+        ClearSelectedWorldDetail();
         _selectedArmyIds.Add(army.ArmyId);
         StrategicWorldRuntime.LastNotice = $"已选中小队：{BuildArmyDisplayName(army)}。";
+    }
+
+    private bool TrySelectSiteAt(Vector2 screenPosition)
+    {
+        WorldSiteDefinition site = FindSiteAt(screenPosition);
+        if (site == null)
+        {
+            return false;
+        }
+
+        SelectSite(site.Id);
+        return true;
     }
 
     private void SelectArmiesInRect(Rect2 rect, bool append)
@@ -1941,11 +2061,9 @@ public partial class StrategicWorldRoot : Control
 
         if (string.IsNullOrWhiteSpace(_selectedSiteId) || !State.SiteStates.TryGetValue(_selectedSiteId, out WorldSiteState site))
         {
-            _selectedSiteId = Definition.StartingSiteId;
-            if (!State.SiteStates.TryGetValue(_selectedSiteId, out site))
-            {
-                return;
-            }
+            _selectedSiteId = "";
+            HideWorldDetailSections();
+            return;
         }
 
         SetSiteDetailSectionsVisible(true);
@@ -2024,49 +2142,43 @@ public partial class StrategicWorldRoot : Control
 
     private void SetSiteDetailSectionsVisible(bool visible)
     {
-        if (_siteTitleLabel != null)
+        if (_siteSummaryCard != null)
         {
-            _siteTitleLabel.Visible = visible;
+            _siteSummaryCard.Visible = visible;
         }
 
-        if (_siteBodyLabel != null)
+        if (_facilityCard != null)
         {
-            _siteBodyLabel.Visible = visible;
+            _facilityCard.Visible = visible;
         }
 
-        if (_facilityTitleLabel != null)
+        if (_defenseCard != null)
         {
-            _facilityTitleLabel.Visible = visible;
+            _defenseCard.Visible = visible;
         }
 
-        if (_facilityList != null)
+        if (_actionCard != null)
         {
-            _facilityList.Visible = visible;
+            _actionCard.Visible = visible;
         }
 
-        if (_garrisonTitleLabel != null)
+        if (_opportunityCard != null)
         {
-            _garrisonTitleLabel.Visible = visible;
-        }
-
-        if (_garrisonList != null)
-        {
-            _garrisonList.Visible = visible;
-        }
-
-        if (_actionTitleLabel != null)
-        {
-            _actionTitleLabel.Visible = visible;
-        }
-
-        if (_actionList != null)
-        {
-            _actionList.Visible = visible;
+            _opportunityCard.Visible = !visible;
         }
 
         if (_opportunityDetailPanel != null)
         {
             _opportunityDetailPanel.Visible = !visible;
+        }
+    }
+
+    private void HideWorldDetailSections()
+    {
+        SetSiteDetailSectionsVisible(false);
+        if (_opportunityDetailPanel != null)
+        {
+            _opportunityDetailPanel.Visible = false;
         }
     }
 
@@ -2090,9 +2202,8 @@ public partial class StrategicWorldRoot : Control
             string source = queries.GetSite(threat.SourceSiteId)?.DisplayName ?? threat.SourceSiteId;
             string target = queries.GetSite(threat.TargetSiteId)?.DisplayName ?? threat.TargetSiteId;
             string movingText = !string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
-                                State.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army) &&
-                                army.Status == WorldArmyStatus.Moving
-                ? BuildArmyArrivalText(army)
+                                State.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army)
+                ? BuildThreatArmyProgressText(army, threat)
                 : $"{threat.CountdownTicks} 步后到达";
             WorldBattleState worldBattle = WorldBattleProgressionService.FindActiveBattleForThreat(State, threat.Id);
             Button button = GameUiSceneFactory.CreateWorldSecondaryActionButton(nameof(StrategicWorldRoot));
@@ -2145,9 +2256,32 @@ public partial class StrategicWorldRoot : Control
         return $"敌军行军中  预计 {etaSeconds:0}s 抵达";
     }
 
+    private string BuildThreatArmyProgressText(WorldArmyState army, EnemyThreatPlan threat)
+    {
+        if (army == null)
+        {
+            return $"{threat?.CountdownTicks ?? 0} 步后到达";
+        }
+
+        return army.Status switch
+        {
+            WorldArmyStatus.Moving => BuildArmyArrivalText(army),
+            WorldArmyStatus.NavigationBlocked => "战略导航阻塞",
+            WorldArmyStatus.Attacking => "正在攻击",
+            _ => $"状态：{army.Status}"
+        };
+    }
+
     private void RefreshActions()
     {
         ClearChildren(_actionList);
+        if (string.IsNullOrWhiteSpace(_selectedSiteId) &&
+            !_isExpeditionDrafting &&
+            !TryGetSelectedActiveOpportunity(out _))
+        {
+            return;
+        }
+
         if (RefreshExpeditionControls())
         {
             return;
@@ -2158,9 +2292,16 @@ public partial class StrategicWorldRoot : Control
             return;
         }
 
-        IReadOnlyList<WorldActionViewModel> actions = _actionResolver.GetAvailableActions(State, Definition, _selectedSiteId, _selectedThreatId);
+        IReadOnlyList<WorldActionViewModel> actions = string.IsNullOrWhiteSpace(_selectedSiteId)
+            ? System.Array.Empty<WorldActionViewModel>()
+            : _actionResolver.GetAvailableActions(State, Definition, _selectedSiteId, _selectedThreatId);
         foreach (WorldActionViewModel action in actions)
         {
+            if (!ShouldShowStrategicAction(action))
+            {
+                continue;
+            }
+
             Button button = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
             if (button == null)
             {
@@ -2182,6 +2323,18 @@ public partial class StrategicWorldRoot : Control
         {
             AddMutedLine(_actionList, "暂无可执行行动");
         }
+    }
+
+    private bool ShouldShowStrategicAction(WorldActionViewModel action)
+    {
+        if (action == null)
+        {
+            return false;
+        }
+
+        WorldActionDefinition definition = new StrategicWorldDefinitionQueries(Definition).GetAction(action.ActionId);
+        return definition == null ||
+               definition.Scope is not WorldActionScope.Site and not WorldActionScope.Facility;
     }
 
     private void CompleteSelectedOpportunity()
@@ -2509,7 +2662,7 @@ public partial class StrategicWorldRoot : Control
 
         if (result.BattleStartRequest != null)
         {
-            TryEnterBattle(result.BattleStartRequest);
+            TryEnterBattle(result.BattleStartRequest, result.Events);
             return;
         }
 
@@ -2543,6 +2696,7 @@ public partial class StrategicWorldRoot : Control
             return true;
         }
 
+        PendingBattleLaunchRollback rollback = CaptureBattleLaunchRollbackForSite(army.TargetSiteId);
         if (State.SiteStates.TryGetValue(army.TargetSiteId, out WorldSiteState site))
         {
             _siteModeTransitions.EnterWartime(site, State.WorldTick, "assault_army_arrived", army.ArmyId);
@@ -2558,7 +2712,7 @@ public partial class StrategicWorldRoot : Control
             SiteScenePath,
             army.ArmyId);
         StrategicWorldRuntime.LastNotice = "玩家进攻部队已抵达，进入攻占战。";
-        if (!TryEnterBattle(request))
+        if (!TryEnterBattle(request, rollback))
         {
             RefreshAll();
         }
@@ -2592,6 +2746,7 @@ public partial class StrategicWorldRoot : Control
             return true;
         }
 
+        PendingBattleLaunchRollback rollback = CaptureBattleLaunchRollbackForSite(threat.TargetSiteId);
         _siteModeTransitions.EnterWartime(site, State.WorldTick, "raid_army_arrived", threat.Id);
 
         string returnScenePath = string.IsNullOrWhiteSpace(SceneFilePath)
@@ -2604,7 +2759,7 @@ public partial class StrategicWorldRoot : Control
             returnScenePath,
             SiteScenePath);
         StrategicWorldRuntime.LastNotice = "敌方部队已抵达，进入守城战。";
-        if (!TryEnterBattle(request))
+        if (!TryEnterBattle(request, rollback))
         {
             RefreshAll();
         }
@@ -2700,15 +2855,119 @@ public partial class StrategicWorldRoot : Control
         return true;
     }
 
-    private bool TryEnterBattle(BattleStartRequest request)
+    private bool TryEnterBattle(BattleStartRequest request, IReadOnlyCollection<GameEvent> transitionEvents = null)
     {
         if (request == null)
         {
             return false;
         }
 
+        _pendingBattleRollback = CaptureBattleLaunchRollback(request, transitionEvents);
         BeginBattleAnnouncement(request);
         return true;
+    }
+
+    private bool TryEnterBattle(BattleStartRequest request, PendingBattleLaunchRollback rollback)
+    {
+        if (request == null)
+        {
+            return false;
+        }
+
+        _pendingBattleRollback = rollback ?? CaptureBattleLaunchRollback(request, null);
+        BeginBattleAnnouncement(request);
+        return true;
+    }
+
+    private PendingBattleLaunchRollback CaptureBattleLaunchRollback(
+        BattleStartRequest request,
+        IReadOnlyCollection<GameEvent> transitionEvents)
+    {
+        PendingBattleLaunchRollback rollback = CaptureBattleLaunchRollbackForSite(ResolveBattleRollbackSiteId(request));
+        ApplyModeTransitionRollbackEvent(rollback, transitionEvents);
+        return rollback;
+    }
+
+    private PendingBattleLaunchRollback CaptureBattleLaunchRollbackForSite(string siteId)
+    {
+        PendingBattleLaunchRollback rollback = new()
+        {
+            SiteId = siteId ?? "",
+            PreviousWorldClockPaused = _worldClockPaused
+        };
+
+        if (!string.IsNullOrWhiteSpace(rollback.SiteId) &&
+            State.SiteStates.TryGetValue(rollback.SiteId, out WorldSiteState site))
+        {
+            rollback.HasPreviousSiteMode = true;
+            rollback.PreviousSiteMode = site.SiteMode;
+        }
+
+        return rollback;
+    }
+
+    private static void ApplyModeTransitionRollbackEvent(
+        PendingBattleLaunchRollback rollback,
+        IReadOnlyCollection<GameEvent> transitionEvents)
+    {
+        if (rollback == null || transitionEvents == null)
+        {
+            return;
+        }
+
+        GameEvent modeEvent = transitionEvents.LastOrDefault(gameEvent =>
+            gameEvent.Kind == "SiteModeChanged" &&
+            gameEvent.TargetIds.Contains(rollback.SiteId) &&
+            gameEvent.Payload.TryGetValue("to", out string toMode) &&
+            toMode == WorldSiteMode.Wartime.ToString() &&
+            gameEvent.Payload.TryGetValue("from", out _));
+        if (modeEvent == null ||
+            !modeEvent.Payload.TryGetValue("from", out string fromMode) ||
+            !System.Enum.TryParse(fromMode, out WorldSiteMode previousMode))
+        {
+            return;
+        }
+
+        rollback.HasPreviousSiteMode = true;
+        rollback.PreviousSiteMode = previousMode;
+    }
+
+    private static string ResolveBattleRollbackSiteId(BattleStartRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request?.TargetSiteId))
+        {
+            return request.TargetSiteId;
+        }
+
+        return request?.SourceSiteId ?? "";
+    }
+
+    private void RollbackPendingBattleLaunch(string reason)
+    {
+        if (_pendingBattleRollback == null)
+        {
+            return;
+        }
+
+        if (_pendingBattleRollback.HasPreviousSiteMode &&
+            State.SiteStates.TryGetValue(_pendingBattleRollback.SiteId, out WorldSiteState site))
+        {
+            WorldSiteMode currentMode = site.SiteMode;
+            site.SiteMode = _pendingBattleRollback.PreviousSiteMode;
+            site.UnitPlacements.RemoveAll(placement => !WorldSiteDeploymentService.IsGarrisonPlacement(placement));
+            GameLog.Warn(
+                nameof(StrategicWorldRoot),
+                $"Battle launch rolled back site={site.SiteId} fromMode={currentMode} toMode={site.SiteMode} reason={reason}");
+        }
+
+        _worldClockPaused = _pendingBattleRollback.PreviousWorldClockPaused;
+        _worldClockAccumulator = 0.0;
+        _pendingBattleRollback = null;
+    }
+
+    private void ClearPendingBattleLaunchRollback()
+    {
+        _pendingBattleRollback = null;
     }
 
     private static bool CanBuildAssaultBattleForSite(string siteId)
@@ -2724,14 +2983,14 @@ public partial class StrategicWorldRoot : Control
         return $"{siteName}暂未配置攻占战，不能进攻。";
     }
 
-    private void RecoverUnsupportedPlayerAssaultArmies()
+    private bool ReportUnsupportedPlayerAssaultArmies()
     {
         if (State?.ArmyStates == null)
         {
-            return;
+            return false;
         }
 
-        int recovered = 0;
+        List<string> blockedArmyIds = new();
         foreach (WorldArmyState army in State.ArmyStates.Values)
         {
             if (army.OwnerFactionId != State.PlayerFactionId ||
@@ -2742,16 +3001,18 @@ public partial class StrategicWorldRoot : Control
                 continue;
             }
 
-            army.Status = WorldArmyStatus.Idle;
-            army.Intent = WorldArmyIntent.None;
-            army.ClearNavigationPath();
-            recovered++;
+            blockedArmyIds.Add(army.ArmyId);
         }
 
-        if (recovered > 0)
+        if (blockedArmyIds.Count == 0)
         {
-            GameLog.Warn(nameof(StrategicWorldRoot), $"RecoveredUnsupportedPlayerAssaultArmies count={recovered}");
+            return false;
         }
+
+        string joinedArmyIds = string.Join(",", blockedArmyIds);
+        StrategicWorldRuntime.LastNotice = $"发现未配置攻占战的进攻状态，世界推进已暂停：{joinedArmyIds}";
+        GameLog.Error(nameof(StrategicWorldRoot), $"UnsupportedPlayerAssaultArmiesBlocked armies={joinedArmyIds}");
+        return true;
     }
 
     private void BeginBattleAnnouncement(BattleStartRequest request)
@@ -2894,10 +3155,12 @@ public partial class StrategicWorldRoot : Control
         Error error = GetTree().ChangeSceneToFile(request.SiteScenePath);
         if (error == Error.Ok)
         {
+            ClearPendingBattleLaunchRollback();
             return;
         }
 
         BattleSessionHandoff.CancelBattle();
+        RollbackPendingBattleLaunch($"scene_change_failed:{error}");
         StrategicWorldRuntime.LastNotice = "无法进入战棋战斗。";
         GameLog.Warn(nameof(StrategicWorldRoot), $"Cannot enter site path={request.SiteScenePath} error={error}");
         RefreshAll();
@@ -3065,7 +3328,6 @@ public partial class StrategicWorldRoot : Control
         _saveService.Save(State, out string message);
         StrategicWorldRuntime.LastNotice = message;
         RefreshAll();
-        TryEnterFirstDefenseRaidBattle();
     }
 
     private void LoadWorld()
@@ -3073,12 +3335,12 @@ public partial class StrategicWorldRoot : Control
         if (_saveService.TryLoad(out StrategicWorldState state, out string message))
         {
             StrategicWorldRuntime.ReplaceState(state);
-            _selectedSiteId = Definition.StartingSiteId;
+            _selectedSiteId = "";
             _selectedThreatId = "";
             _selectedOpportunityId = "";
-            EnsureWorldBattlesForAttackingThreats();
             _worldClockPaused = HasAttackingThreat();
             _worldClockAccumulator = 0.0;
+            ResetStrategicRuntimeGate();
         }
 
         StrategicWorldRuntime.LastNotice = message;
@@ -3090,12 +3352,19 @@ public partial class StrategicWorldRoot : Control
         StrategicWorldRuntime.Reset();
         SyncDefinitionMapPositionsFromAnchors();
         RebuildSiteVisualFootprints();
-        _selectedSiteId = Definition.StartingSiteId;
+        _selectedSiteId = "";
         _selectedThreatId = "";
         _selectedOpportunityId = "";
         _worldClockPaused = false;
         _worldClockAccumulator = 0.0;
+        ResetStrategicRuntimeGate();
         RefreshAll();
+    }
+
+    private void ResetStrategicRuntimeGate()
+    {
+        _runtimeStage = StrategicRuntimeStage.WaitingForNavigation;
+        _reportedStrategicNavigationNotSynchronized = false;
     }
 
     private void ResolveWorldMapNodes()
@@ -3440,6 +3709,7 @@ public partial class StrategicWorldRoot : Control
             _worldMapRoot.GetWorld2D().NavigationMap,
             navigationTileLayer,
             _worldMapRoot);
+        _reportedStrategicNavigationNotSynchronized = false;
         GameLog.Info(
             nameof(StrategicWorldRoot),
             $"StrategicNavigationConfigured provider={_strategicNavigationContext.PrimaryProviderId} version={_strategicNavigationContext.Version} layer={StrategicNavigationTileLayerName} cells={navigationCellCount}");
@@ -3504,10 +3774,69 @@ public partial class StrategicWorldRoot : Control
         return true;
     }
 
+    private bool EnsureStrategicRuntimeReady()
+    {
+        if (_runtimeStage == StrategicRuntimeStage.Active)
+        {
+            return true;
+        }
+
+        if (_runtimeStage == StrategicRuntimeStage.Bootstrapping)
+        {
+            return false;
+        }
+
+        if (Definition == null || State == null || _worldMapRoot == null)
+        {
+            return false;
+        }
+
+        string navigationSyncFailureReason = "";
+        if (_strategicNavigationContext?.IsSynchronized(out navigationSyncFailureReason) != true)
+        {
+            if (!_reportedStrategicNavigationNotSynchronized)
+            {
+                _reportedStrategicNavigationNotSynchronized = true;
+                GameLog.Warn(
+                    nameof(StrategicWorldRoot),
+                    $"StrategicRuntimeActivationDelayed reason={navigationSyncFailureReason}");
+            }
+
+            return false;
+        }
+
+        _runtimeStage = StrategicRuntimeStage.Active;
+        _reportedStrategicNavigationNotSynchronized = false;
+        EnsureWorldBattlesForAttackingThreats();
+        _worldClockPaused = HasAttackingThreat() || HasNavigationBlockedArmy();
+        RestoreWorldClockAfterSiteReturn();
+        _worldClockPaused = HasAttackingThreat() || HasNavigationBlockedArmy() || _worldClockPaused;
+        _worldClockAccumulator = 0.0;
+        RefreshAll();
+        GameLog.Info(
+            nameof(StrategicWorldRoot),
+            $"StrategicRuntimeActivated tick={State.WorldTick} paused={_worldClockPaused} navigationVersion={_strategicNavigationContext.Version}");
+
+        if (_pendingBattleRequest == null)
+        {
+            TryEnterFirstDefenseRaidBattle();
+        }
+
+        return true;
+    }
+
     private void UpdateWorldClock(double delta)
     {
         if (!AutoWorldClockEnabled || Definition == null || State == null)
         {
+            return;
+        }
+
+        if (HasNavigationBlockedArmy())
+        {
+            _worldClockPaused = true;
+            _worldClockAccumulator = 0.0;
+            RefreshWorldClockLabel();
             return;
         }
 
@@ -3588,7 +3917,20 @@ public partial class StrategicWorldRoot : Control
             return;
         }
 
-        RecoverStalledMarchingThreatArmies();
+        string navigationSyncFailureReason = "";
+        if (_strategicNavigationContext?.IsSynchronized(out navigationSyncFailureReason) != true)
+        {
+            if (!_reportedStrategicNavigationNotSynchronized)
+            {
+                _reportedStrategicNavigationNotSynchronized = true;
+                GameLog.Warn(
+                    nameof(StrategicWorldRoot),
+                    $"WorldArmyMovementDelayed reason={navigationSyncFailureReason}");
+            }
+
+            return;
+        }
+
         if (!State.ArmyStates.Values.Any(army => army.Status == WorldArmyStatus.Moving))
         {
             return;
@@ -3599,7 +3941,29 @@ public partial class StrategicWorldRoot : Control
             State,
             Definition,
             delta * WorldClockSpeedMultipliers[_worldClockSpeedIndex],
-            _strategicNavigationContext);
+            _strategicNavigationContext,
+            delta);
+        if (result.NavigationBlockedArmyIds.Count > 0)
+        {
+            // 导航阻塞表示地图制作或状态契约不成立；暂停世界并暴露第一支问题部队，不自动改道或修复。
+            _worldClockPaused = true;
+            string blockedArmyId = result.NavigationBlockedArmyIds[0];
+            WorldArmyState blockedArmy = State.ArmyStates.TryGetValue(blockedArmyId, out WorldArmyState army)
+                ? army
+                : null;
+            _selectedThreatId = State.ThreatPlans.Values
+                .FirstOrDefault(threat => threat.WorldArmyId == blockedArmyId)?.Id ?? "";
+            _selectedSiteId = blockedArmy?.TargetSiteId ?? "";
+            StrategicWorldRuntime.LastNotice = result.Messages.Count > 0
+                ? string.Join("\n", result.Messages)
+                : $"战略导航失败，世界推进已暂停：{blockedArmyId}";
+            GameLog.Error(
+                nameof(StrategicWorldRoot),
+                $"StrategicWorldPausedByNavigationBlocked armies={string.Join(",", result.NavigationBlockedArmyIds)}");
+            RefreshAll();
+            return;
+        }
+
         if (result.ArrivedArmyIds.Count > 0 || result.Messages.Count > 0)
         {
             if (result.AttackingThreatIds.Count > 0)
@@ -3651,43 +4015,28 @@ public partial class StrategicWorldRoot : Control
         QueueRedraw();
     }
 
-    private void RecoverStalledMarchingThreatArmies()
+    private void RestoreWorldClockAfterSiteReturn()
     {
-        if (State == null || Definition == null)
+        if (!StrategicWorldRuntime.TryConsumeWorldResumeAfterSiteReturn())
         {
             return;
         }
 
-        StrategicWorldDefinitionQueries queries = new(Definition);
-        foreach (EnemyThreatPlan threat in State.ThreatPlans.Values)
+        if (HasAttackingThreat())
         {
-            if (threat.Stage != ThreatStage.Marching ||
-                string.IsNullOrWhiteSpace(threat.WorldArmyId) ||
-                !State.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army) ||
-                army.Status != WorldArmyStatus.Idle ||
-                !_recoveredStalledThreatArmies.Add(army.ArmyId))
-            {
-                continue;
-            }
-
-            WorldSiteDefinition targetSite = queries.GetSite(threat.TargetSiteId);
-            army.Status = WorldArmyStatus.Moving;
-            army.Intent = WorldArmyIntent.Raid;
-            army.SourceSiteId = threat.SourceSiteId;
-            army.TargetSiteId = threat.TargetSiteId;
-            army.RelatedThreatId = threat.Id;
-            if (targetSite != null)
-            {
-                army.Destination = GetSiteMapPosition(targetSite);
-            }
-
-            army.ClearNavigationPath();
-            army.ClearArrivalApproachOffset();
-            army.ClearTargetApproachDirection();
-            GameLog.Warn(
-                nameof(StrategicWorldRoot),
-                $"ThreatArmyRecovered threat={threat.Id} army={army.ArmyId} source={army.SourceSiteId} target={army.TargetSiteId} position={army.WorldPosition} destination={army.Destination}");
+            GameLog.Info(nameof(StrategicWorldRoot), "World clock resume requested after site return, but an attacking threat is still pending.");
+            return;
         }
+
+        if (HasNavigationBlockedArmy())
+        {
+            GameLog.Info(nameof(StrategicWorldRoot), "World clock resume requested after site return, but navigation is blocked.");
+            return;
+        }
+
+        _worldClockPaused = false;
+        _worldClockAccumulator = 0.0;
+        GameLog.Info(nameof(StrategicWorldRoot), "World clock resumed after site return.");
     }
 
     private void ToggleWorldClock()
@@ -3696,6 +4045,11 @@ public partial class StrategicWorldRoot : Control
         {
             _worldClockPaused = true;
             StrategicWorldRuntime.LastNotice = "敌方正在进攻，必须先处理威胁。";
+        }
+        else if (HasNavigationBlockedArmy())
+        {
+            _worldClockPaused = true;
+            StrategicWorldRuntime.LastNotice = "战略导航阻塞，必须先修复行军路径。";
         }
         else
         {
@@ -3721,6 +4075,11 @@ public partial class StrategicWorldRoot : Control
             !WorldBattleProgressionService.HasActiveBattleForThreat(State, threat.Id)) == true;
     }
 
+    private bool HasNavigationBlockedArmy()
+    {
+        return State?.ArmyStates.Values.Any(army => army.Status == WorldArmyStatus.NavigationBlocked) == true;
+    }
+
     private void RefreshWorldClockLabel()
     {
         if (_worldClockLabel == null)
@@ -3732,6 +4091,8 @@ public partial class StrategicWorldRoot : Control
         double remaining = _worldClockPaused ? interval : System.Math.Max(0.0, interval - _worldClockAccumulator);
         string status = !AutoWorldClockEnabled
             ? "关闭"
+            : HasNavigationBlockedArmy()
+                ? "导航阻塞"
             : _worldClockPaused
                 ? "暂停"
                 : $"运行 {WorldClockSpeedMultipliers[_worldClockSpeedIndex]:0}x";

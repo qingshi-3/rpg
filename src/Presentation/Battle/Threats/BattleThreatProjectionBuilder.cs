@@ -14,7 +14,8 @@ public static class BattleThreatProjectionBuilder
     public static BattleThreatProjection Build(
         BattleAiContext context,
         BattleEntity actor,
-        ISet<GridSurfacePosition> blockedMovementSurfaces)
+        ISet<GridSurfacePosition> blockedMovementSurfaces,
+        bool includeSources = true)
     {
         if (context?.GridMap == null || actor == null || BattleRuleQueries.IsDefeated(actor))
         {
@@ -37,7 +38,8 @@ public static class BattleThreatProjectionBuilder
             .Select(surface => surface.Position)
             .ToHashSet();
 
-        List<BattleThreatSource> sources = new();
+        List<BattleThreatSource> sources = includeSources ? new List<BattleThreatSource>() : null;
+        HashSet<GridPosition> threatCells = includeSources ? null : new HashSet<GridPosition>();
         foreach (GridSurfacePosition origin in origins)
         {
             foreach (AbilityDefinition ability in BattleAbilityQueries.GetAbilities(actor).Where(CanProjectThreat))
@@ -47,15 +49,24 @@ public static class BattleThreatProjectionBuilder
 
                 foreach (GridPosition cell in pattern.ProjectThreatCells(patternContext))
                 {
-                    sources.Add(new BattleThreatSource(origin, cell, ability));
+                    if (includeSources)
+                    {
+                        sources.Add(new BattleThreatSource(origin, cell, ability));
+                    }
+                    else
+                    {
+                        threatCells.Add(cell);
+                    }
                 }
             }
         }
 
-        HashSet<GridPosition> threatCells = sources
+        threatCells ??= sources
             .Select(source => source.ThreatCell)
             .Where(position => position != actorGrid.Position)
             .ToHashSet();
+
+        threatCells.Remove(actorGrid.Position);
 
         BattleEntity[] threatenedTargets = (context.Entities ?? System.Array.Empty<BattleEntity>())
             .Where(entity => IsThreatenedTarget(actor, entity, threatCells))
@@ -66,12 +77,15 @@ public static class BattleThreatProjectionBuilder
             .Distinct()
             .ToArray();
 
+        IReadOnlyCollection<BattleThreatSource> sourceView =
+            sources ?? (IReadOnlyCollection<BattleThreatSource>)System.Array.Empty<BattleThreatSource>();
+
         return new BattleThreatProjection(
             movementCells,
             threatCells,
             targetCells,
             threatenedTargets,
-            sources);
+            sourceView);
     }
 
     private static HashSet<GridSurfacePosition> BuildMovementOrigins(

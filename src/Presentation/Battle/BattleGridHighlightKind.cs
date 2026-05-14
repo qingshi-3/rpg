@@ -8,6 +8,8 @@ public enum BattleGridHighlightKind
     Attack,
     Skill,
     Target,
+    FriendlyMove,
+    FriendlyAttack,
     Selected,
     Invalid,
     Hover

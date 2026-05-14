@@ -1,4 +1,4 @@
-[gd_scene load_steps=120 format=4 uid="uid://c2oee8rh6qi6"]
+[gd_scene load_steps=121 format=4 uid="uid://c2oee8rh6qi6"]
 
 [ext_resource type="Script" uid="uid://dfevlaghvwjr5" path="res://src/Presentation/Battle/BattleMapView.cs" id="1_battle_map_view"]
 [ext_resource type="Script" uid="uid://c4x18hxm1w8qv" path="res://src/Presentation/Battle/BattleMapLayer.cs" id="2_battle_map_layer"]
@@ -12,6 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://bjjmpgfrsrofw" path="res://assets/textures/tiles/亡灵_undead-tileset/Objects.png" id="10_7ggnt"]
 [ext_resource type="Script" uid="uid://b51m638fbhadw" path="res://src/Definitions/Maps/BattleMapConnectionPoint.cs" id="10_connection_point"]
 [ext_resource type="Texture2D" uid="uid://fl5cdm4q4th8" path="res://assets/textures/tiles/亡灵_undead-tileset/Objects_animated2.png" id="11_o0x6w"]
+[ext_resource type="PackedScene" uid="uid://7k4ebnqn4wm7" path="res://scenes/world/site_interactions/WorldFacilitySlotEntity.tscn" id="12_facility_slot"]
 
 [sub_resource type="Resource" id="BattleMapConnectionPoint_north_low_l"]
 script = ExtResource("10_connection_point")
@@ -2918,3 +2919,16 @@ tile_set = ExtResource("2_txpeh")
 script = ExtResource("2_battle_map_layer")
 Role = 4
 IsVisualOnly = true
+
+[node name="FacilitySlots" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="mine_slot_01" parent="FacilitySlots" instance=ExtResource("12_facility_slot")]
+position = Vector2(690, 358)
+FootprintWidth = 3
+FootprintHeight = 2
+
+[node name="tower_slot_01" parent="FacilitySlots" instance=ExtResource("12_facility_slot")]
+position = Vector2(231, 570)
+FootprintWidth = 2
+FootprintHeight = 2

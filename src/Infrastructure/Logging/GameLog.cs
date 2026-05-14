@@ -8,6 +8,7 @@ namespace Rpg.Infrastructure.Logging;
 public static class GameLog
 {
     private const string LogDirectory = "user://logs";
+    private const string LogDirectoryOverrideEnvironmentVariable = "RPG_GAMELOG_DIR";
 
     private static readonly object Sync = new();
     private static bool _sessionStarted;
@@ -65,7 +66,7 @@ public static class GameLog
         WriteLine("");
         WriteLine("============================================================");
         WriteLine($"{Timestamp()} [SESSION] Start source={source}");
-        WriteLine($"{Timestamp()} [SESSION] Engine={Engine.GetVersionInfo()} LogPath={CurrentLogPath}");
+        WriteLine($"{Timestamp()} [SESSION] Engine={GetEngineInfo()} LogPath={CurrentLogPath}");
     }
 
     private static void EnsureLogPath()
@@ -75,9 +76,24 @@ public static class GameLog
             return;
         }
 
-        string directory = ProjectSettings.GlobalizePath(LogDirectory);
+        string directory = System.Environment.GetEnvironmentVariable(LogDirectoryOverrideEnvironmentVariable);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            directory = ProjectSettings.GlobalizePath(LogDirectory);
+        }
+
         Directory.CreateDirectory(directory);
         CurrentLogPath = Path.Combine(directory, $"rpg-{DateTime.Now:yyyyMMdd}.log");
+    }
+
+    private static object GetEngineInfo()
+    {
+        if (!string.IsNullOrWhiteSpace(System.Environment.GetEnvironmentVariable(LogDirectoryOverrideEnvironmentVariable)))
+        {
+            return "outside_godot";
+        }
+
+        return Engine.GetVersionInfo();
     }
 
     private static void WriteLine(string line)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://ok1ty7de481t"]
+[gd_scene load_steps=17 format=3 uid="uid://ok1ty7de481t"]
 
 [ext_resource type="Script" uid="uid://kmyn63t5vy7" path="res://src/Presentation/Battle/Entities/BattleEntity.cs" id="1_entity"]
 [ext_resource type="Script" uid="uid://cxx2u5hct0pql" path="res://src/Presentation/Battle/Entities/FactionComponent.cs" id="2_faction"]
@@ -15,6 +15,7 @@
 [ext_resource type="Script" uid="uid://dknv6h5yk2r1a" path="res://src/Presentation/Battle/Entities/BattleUnitAffiliationMarker.cs" id="13_affiliation_marker"]
 [ext_resource type="Script" uid="uid://cpsam61iix9sl" path="res://src/Presentation/Battle/Entities/BattleUnitPresentationComponent.cs" id="14_presentation"]
 [ext_resource type="Script" uid="uid://d5u3m9vwi7k2q" path="res://src/Presentation/Battle/Entities/BattleUnitSelectionSpotlight.cs" id="15_selection_spotlight"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleUnitAudioComponent.cs" id="16_audio"]
 
 [node name="BattleEntity" type="Area2D"]
 script = ExtResource("1_entity")
@@ -66,6 +67,11 @@ script = ExtResource("11_anim")
 
 [node name="DamageReactionComponent" type="Node" parent="."]
 script = ExtResource("12_damage_reaction")
+
+[node name="BattleUnitAudioComponent" type="Node" parent="."]
+script = ExtResource("16_audio")
+
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="BattleUnitAudioComponent"]
 
 [node name="BattleUnitPresentationComponent" type="Node" parent="."]
 script = ExtResource("14_presentation")

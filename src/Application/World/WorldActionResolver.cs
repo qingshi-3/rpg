@@ -20,7 +20,8 @@ public sealed class WorldActionResolver
         StrategicWorldState state,
         StrategicWorldDefinition definition,
         string selectedSiteId,
-        string selectedThreatId = "")
+        string selectedThreatId = "",
+        string selectedSlotId = "")
     {
         StrategicWorldDefinitionQueries queries = new(definition);
         var viewModels = new List<WorldActionViewModel>();
@@ -32,7 +33,7 @@ public sealed class WorldActionResolver
                 continue;
             }
 
-            WorldActionRequest request = BuildRequestForViewModel(action, selectedSiteId, selectedThreatId);
+            WorldActionRequest request = BuildRequestForViewModel(action, selectedSiteId, selectedThreatId, selectedSlotId);
             bool enabled = CanApply(state, definition, action, request, out string failureReason);
             viewModels.Add(new WorldActionViewModel
             {
@@ -166,7 +167,12 @@ public sealed class WorldActionResolver
             }
         }
 
-        return _conditionEvaluator.AreConditionsMet(state, queries, request, action.Conditions, out failureReason);
+        if (!_conditionEvaluator.AreConditionsMet(state, queries, request, action.Conditions, out failureReason))
+        {
+            return false;
+        }
+
+        return CanApplyRequestedFacilitySlot(state, queries, action, request, out failureReason);
     }
 
     private static bool ShouldShowAction(StrategicWorldState state, WorldActionDefinition action, string selectedSiteId, string selectedThreatId)
@@ -203,7 +209,11 @@ public sealed class WorldActionResolver
         };
     }
 
-    private static WorldActionRequest BuildRequestForViewModel(WorldActionDefinition action, string selectedSiteId, string selectedThreatId)
+    private static WorldActionRequest BuildRequestForViewModel(
+        WorldActionDefinition action,
+        string selectedSiteId,
+        string selectedThreatId,
+        string selectedSlotId)
     {
         string targetSiteId = action.Id switch
         {
@@ -219,8 +229,53 @@ public sealed class WorldActionResolver
             ActorFactionId = StrategicWorldIds.FactionPlayer,
             SourceSiteId = selectedSiteId,
             TargetSiteId = targetSiteId,
+            TargetSlotId = ActionAddsFacility(action) ? selectedSlotId ?? "" : "",
             ThreatId = selectedThreatId
         };
+    }
+
+    private static bool ActionAddsFacility(WorldActionDefinition action)
+    {
+        return action?.Effects.Any(effect =>
+            effect.Kind == WorldEffectKind.AddFacility &&
+            !string.IsNullOrWhiteSpace(effect.FacilityId)) == true;
+    }
+
+    private static bool CanApplyRequestedFacilitySlot(
+        StrategicWorldState state,
+        StrategicWorldDefinitionQueries queries,
+        WorldActionDefinition action,
+        WorldActionRequest request,
+        out string failureReason)
+    {
+        failureReason = "";
+        if (string.IsNullOrWhiteSpace(request.TargetSlotId))
+        {
+            return true;
+        }
+
+        WorldEffectDefinition addFacilityEffect = action.Effects.FirstOrDefault(effect => effect.Kind == WorldEffectKind.AddFacility);
+        if (addFacilityEffect == null)
+        {
+            return true;
+        }
+
+        string siteId = WorldConditionEvaluator.ResolveSiteId(addFacilityEffect.SiteId, request);
+        WorldSiteState site = !string.IsNullOrWhiteSpace(siteId) && state.SiteStates.TryGetValue(siteId, out WorldSiteState value)
+            ? value
+            : null;
+        WorldSiteDefinition siteDefinition = queries.GetSite(siteId);
+        FacilitySlotDefinition slot = siteDefinition?.FacilitySlots.FirstOrDefault(item => item.SlotId == request.TargetSlotId);
+        if (site == null ||
+            slot == null ||
+            !slot.AllowedFacilityIds.Contains(addFacilityEffect.FacilityId) ||
+            site.Facilities.Any(facility => facility.SlotId == slot.SlotId && facility.State != FacilityState.Destroyed))
+        {
+            failureReason = "no_valid_facility_slot";
+            return false;
+        }
+
+        return true;
     }
 
     private void ApplyEffect(

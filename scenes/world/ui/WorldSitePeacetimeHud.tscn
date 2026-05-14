@@ -1,20 +1,65 @@
-[gd_scene format=3]
+[gd_scene load_steps=5 format=3]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_site_panel"]
+bg_color = Color(0.075, 0.09, 0.085, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.78, 0.65, 0.38, 0.92)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_top_bar"]
+bg_color = Color(0.055, 0.07, 0.068, 0.98)
+border_width_bottom = 2
+border_color = Color(0.78, 0.65, 0.38, 0.92)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_section_card"]
+bg_color = Color(0.115, 0.135, 0.126, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.34, 0.39, 0.33, 0.9)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_overview_card"]
+bg_color = Color(0.125, 0.148, 0.136, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.78, 0.65, 0.38, 0.6)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="SitePeacetimeHudRoot" type="Control"]
+z_index = 500
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 1
+mouse_filter = 2
 
 [node name="SiteTopBar" type="PanelContainer" parent="."]
+z_index = 520
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 66.0
 grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_top_bar")
 
 [node name="TopMargin" type="MarginContainer" parent="SiteTopBar"]
 layout_mode = 2
@@ -30,12 +75,22 @@ theme_override_constants/separation = 12
 [node name="SiteHudTitle" type="Label" parent="SiteTopBar/TopMargin/TopBox"]
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 vertical_alignment = 1
 clip_text = true
 
 [node name="SiteResourceLabel" type="Label" parent="SiteTopBar/TopMargin/TopBox"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+vertical_alignment = 1
+clip_text = true
+
+[node name="SiteOperationHintLabel" type="Label" parent="SiteTopBar/TopMargin/TopBox"]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.88, 0.55, 1)
+text = "场域经营：点击建筑点，或在右侧建造"
 vertical_alignment = 1
 clip_text = true
 
@@ -46,10 +101,13 @@ text = "返回大地图"
 focus_mode = 2
 
 [node name="SitePeacetimePanel" type="PanelContainer" parent="."]
+visible = false
+z_index = 520
 custom_minimum_size = Vector2(520, 0)
 layout_mode = 1
-anchors_preset = 3
+anchors_preset = 11
 anchor_left = 1.0
+anchor_top = 0.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -544.0
@@ -58,13 +116,15 @@ offset_right = -24.0
 offset_bottom = -24.0
 grow_horizontal = 0
 grow_vertical = 2
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_site_panel")
 
 [node name="Margin" type="MarginContainer" parent="SitePeacetimePanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
 
 [node name="Scroll" type="ScrollContainer" parent="SitePeacetimePanel/Margin"]
 layout_mode = 2
@@ -75,59 +135,183 @@ horizontal_scroll_mode = 0
 [node name="Content" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 10
+theme_override_constants/separation = 12
 
-[node name="SiteHudBody" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+[node name="OverviewCard" type="PanelContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
-autowrap_mode = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_overview_card")
 
-[node name="SiteSelectionLabel" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+[node name="OverviewMargin" type="MarginContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/OverviewCard"]
 layout_mode = 2
-size_flags_horizontal = 3
-autowrap_mode = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
 
-[node name="FacilityTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "建筑点"
-
-[node name="SiteFacilityList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 5
-
-[node name="GarrisonTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "驻军"
-
-[node name="SiteGarrisonList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 5
-
-[node name="ThreatTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "威胁"
-
-[node name="SiteThreatList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 5
-
-[node name="ActionTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "行动"
-
-[node name="SiteActionList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+[node name="OverviewStack" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="SiteNoticeLabel" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+[node name="BuildCard" type="PanelContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+
+[node name="BuildMargin" type="MarginContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/BuildCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="BuildStack" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="FacilityCard" type="PanelContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+
+[node name="FacilityMargin" type="MarginContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/FacilityCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="FacilityStack" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="DefenseCard" type="PanelContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+
+[node name="DefenseMargin" type="MarginContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/DefenseCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="DefenseStack" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="ThreatDivider" type="HSeparator" parent="SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+layout_mode = 2
+
+[node name="ActionCard" type="PanelContainer" parent="SitePeacetimePanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+
+[node name="ActionMargin" type="MarginContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/ActionCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="ActionStack" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="NoticeDivider" type="HSeparator" parent="SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+layout_mode = 2
+
+[node name="NoticeTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 16
+text = "最近反馈"
+
+[node name="SiteHudBody" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin/OverviewStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+autowrap_mode = 3
+
+[node name="SiteSelectionLabel" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin/OverviewStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.88, 0.55, 1)
+autowrap_mode = 3
+
+[node name="BuildTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin/BuildStack"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 17
+text = "可建建筑"
+
+[node name="SiteFacilityBuildList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin/BuildStack"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="FacilityTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin/FacilityStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 17
+text = "建筑点"
+
+[node name="SiteFacilityList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin/FacilityStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="GarrisonTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 17
+text = "驻军"
+
+[node name="SiteGarrisonList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ThreatTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 17
+text = "威胁"
+
+[node name="SiteThreatList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="ActionTitle" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 17
+text = "行动"
+
+[node name="SiteActionList" type="VBoxContainer" parent="SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="SiteNoticeLabel" type="Label" parent="SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.82, 0.9, 1, 1)
 autowrap_mode = 3

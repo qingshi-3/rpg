@@ -16,6 +16,7 @@ corner_radius_bottom_left = 4
 
 [node name="Panel" type="PanelContainer" parent="."]
 mouse_filter = 2
+custom_minimum_size = Vector2(320, 220)
 theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
 
 [node name="Margin" type="MarginContainer" parent="Panel"]

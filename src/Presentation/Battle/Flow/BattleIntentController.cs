@@ -9,6 +9,7 @@ using Rpg.Presentation.Battle.AI;
 using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Battle.Intents;
 using Rpg.Presentation.Battle.Preview;
+using Rpg.Presentation.Battle.Rules;
 
 namespace Rpg.Presentation.Battle.Flow;
 
@@ -24,6 +25,7 @@ public partial class BattleIntentController : Node
     private Func<double> _getUnitMoveDuration;
 
     private readonly IEnemyIntentPlanner _enemyIntentPlanner = new GreedyEnemyIntentPlanner();
+    private readonly GreedyAlliedIntentPlanner _alliedIntentPlanner = new();
     private readonly BattleIntentResolver _intentResolver = new();
     private readonly Dictionary<BattleEntity, BattleIntent> _enemyIntents = new();
 
@@ -98,50 +100,55 @@ public partial class BattleIntentController : Node
         _showHint?.Invoke(BattlePreviewController.DescribeIntentForCurrentState(preview));
         await WaitSeconds(0.25);
 
-        BattleActionResult result = _executeActionRequest?.Invoke(preview.Request) ??
-            BattleActionResult.Failed(
-                preview.Request.Kind,
-                preview.Request.Actor,
-                preview.Request.Target,
-                preview.Request.Destination,
-                "敌方意图执行入口未初始化");
+        BattleActionResult result = ExecutePreviewAction(preview, "敌方意图执行入口未初始化");
         _enemyIntents.Remove(enemy);
         _unitRoot?.SetIntentMarker(enemy, null);
-        if (!result.Success)
+        await HandleActionResult(
+            result,
+            enemy,
+            intent.TemplateId,
+            failurePrefix: $"{enemy.DisplayName} 的意图未能执行：",
+            moveLogPrefix: "Enemy intent move resolved",
+            attackLogPrefix: "Enemy intent ability resolved");
+    }
+
+    public async Task ExecuteAlliedAutoAction(
+        BattleEntity ally,
+        BattleCorpsCommand corpsCommand,
+        string corpsLabel)
+    {
+        if (ally == null || BattleRuleQueries.IsDefeated(ally))
         {
-            _showHint?.Invoke($"{enemy.DisplayName} 的意图未能执行：{result.Message}");
-            GameLog.Info(nameof(BattleIntentController), $"Enemy intent failed enemy={enemy.EntityId} template={intent.TemplateId} resolvedKind={preview.Kind} reason={result.Message}");
-            await WaitSeconds(0.35);
-            ClearActionPreviewHighlights();
             return;
         }
 
-        if (result.Kind == BattleActionKind.Move)
+        BattleIntent intent = _alliedIntentPlanner.ChooseIntent(
+            _createAiContext?.Invoke(),
+            ally,
+            corpsCommand);
+        BattleIntentPreview preview = _intentResolver.Preview(_createAiContext?.Invoke(), intent);
+
+        if (intent == null || !preview.HasAction)
         {
-            _previewController?.ShowTargetCells(new[] { result.Destination });
-            _showHint?.Invoke(result.Message);
-            GameLog.Info(nameof(BattleIntentController), $"Enemy intent move resolved id={enemy.EntityId} to={result.Destination}");
-            await WaitSeconds(GetUnitMoveDuration() * Math.Max(1, result.MovementStepCount) + 0.12);
-            ClearActionPreviewHighlights();
+            string label = string.IsNullOrWhiteSpace(corpsLabel) ? "友军" : corpsLabel;
+            _showHint?.Invoke($"{label}：{ally.DisplayName} 待命");
+            await WaitSeconds(0.2);
             return;
         }
 
-        if (result.Kind == BattleActionKind.Ability || result.Kind == BattleActionKind.Attack)
-        {
-            GridOccupantComponent targetGrid = result.Target?.GetComponent<GridOccupantComponent>();
-            if (targetGrid != null)
-            {
-                _previewController?.ShowTargetCells(new[] { targetGrid.Position });
-            }
+        _previewController?.ApplyIntentHighlights(preview);
+        string orderLabel = BattleCorpsCommandLabels.ToDisplayText(corpsCommand);
+        _showHint?.Invoke($"{corpsLabel}·{orderLabel}：{ally.DisplayName}");
+        await WaitSeconds(0.2);
 
-            _showHint?.Invoke(result.Message);
-            _evaluateBattleOutcome?.Invoke();
-            GameLog.Info(
-                nameof(BattleIntentController),
-                $"Enemy intent ability resolved attacker={enemy.EntityId} template={intent.TemplateId} target={result.Target?.EntityId} ability={result.Ability?.Id} damage={result.DamageApplied} defeated={result.TargetDefeated}");
-            await WaitSeconds(0.5);
-            ClearActionPreviewHighlights();
-        }
+        BattleActionResult result = ExecutePreviewAction(preview, "友军自动行动入口未初始化");
+        await HandleActionResult(
+            result,
+            ally,
+            intent.TemplateId,
+            failurePrefix: $"{ally.DisplayName} 自动行动失败：",
+            moveLogPrefix: "Allied auto move resolved",
+            attackLogPrefix: "Allied auto attack resolved");
     }
 
     public void ClearEnemyIntentBookkeeping(BattleEntity entity)
@@ -152,6 +159,57 @@ public partial class BattleIntentController : Node
     private BattleIntent BuildIntentForEnemy(BattleEntity enemy)
     {
         return _enemyIntentPlanner.ChooseIntent(_createAiContext?.Invoke(), enemy);
+    }
+
+    private BattleActionResult ExecutePreviewAction(BattleIntentPreview preview, string missingExecutorReason)
+    {
+        return _executeActionRequest?.Invoke(preview.Request) ??
+               BattleActionResult.Failed(
+                   preview.Request.Kind,
+                   preview.Request.Actor,
+                   preview.Request.Target,
+                   preview.Request.Destination,
+                   missingExecutorReason);
+    }
+
+    private async Task HandleActionResult(
+        BattleActionResult result,
+        BattleEntity actor,
+        string templateId,
+        string failurePrefix,
+        string moveLogPrefix,
+        string attackLogPrefix)
+    {
+        if (!result.Success)
+        {
+            _showHint?.Invoke($"{failurePrefix}{result.Message}");
+            GameLog.Info(nameof(BattleIntentController), $"Intent failed actor={actor?.EntityId} template={templateId} reason={result.Message}");
+            await WaitSeconds(0.35);
+            ClearActionPreviewHighlights();
+            return;
+        }
+
+        if (result.Kind == BattleActionKind.Move)
+        {
+            _previewController?.ShowTargetCells(new[] { result.Destination });
+            _showHint?.Invoke(result.Message);
+            GameLog.Info(nameof(BattleIntentController), $"{moveLogPrefix} id={actor?.EntityId} to={result.Destination}");
+            await WaitSeconds(GetUnitMoveDuration() * Math.Max(1, result.MovementStepCount) + 0.12);
+            ClearActionPreviewHighlights();
+            return;
+        }
+
+        if (result.Kind == BattleActionKind.Ability || result.Kind == BattleActionKind.Attack)
+        {
+            // Actual hit feedback is owned by BattleUnitRoot; grid target cells are preview-only and would read as yellow impact tiles.
+            ClearActionPreviewHighlights();
+            _showHint?.Invoke(result.Message);
+            _evaluateBattleOutcome?.Invoke();
+            GameLog.Info(
+                nameof(BattleIntentController),
+                $"{attackLogPrefix} attacker={actor?.EntityId} template={templateId} target={result.Target?.EntityId} ability={result.Ability?.Id} damage={result.DamageApplied} defeated={result.TargetDefeated}");
+            await WaitSeconds(0.5);
+        }
     }
 
     private IEnumerable<BattleEntity> EnumerateAliveEnemies()

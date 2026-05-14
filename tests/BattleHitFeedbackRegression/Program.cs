@@ -1,0 +1,339 @@
+using Rpg.Presentation.Battle.Actions;
+using Rpg.Domain.Battle.Grid;
+using Rpg.Presentation.Battle;
+using Rpg.Presentation.Battle.Entities;
+using Rpg.Presentation.Battle.Debug;
+using Rpg.Presentation.Battle.Feedback;
+using Rpg.Presentation.Battle.Flow;
+using Rpg.Presentation.Battle.Preview;
+using Rpg.Definitions.Battle.Audio;
+using System.Text.Json;
+
+Run("multi-target hit feedback outlines every target and formats damage numbers", MultiTargetHitFeedback);
+Run("damage number starts close to target and drifts lightly right upward", DamageNumberMotionDefaults);
+Run("friendly hover uses green movement and yellow attack preview kinds", FriendlyHoverStyle);
+Run("friendly hover keeps combined post-move attack preview", FriendlyHoverWorkload);
+Run("friendly hover suppresses yellow attack cells under target units", FriendlyHoverSuppressesAttackCellsUnderTargets);
+Run("highlight tile layer updates only changed cells", HighlightTileLayerDiff);
+Run("attack target presentation outlines units instead of target cells", AttackTargetPresentation);
+Run("movement path arrows are disabled by default", MovementPathArrowsDisabled);
+Run("unit visual scale uses global 0.8 multiplier", UnitVisualScaleMultiplier);
+Run("action cue waits before action and hides afterward", ActionCueSequencerOrder);
+Run("hover info panel anchors to screen edge instead of mouse", HoverInfoPanelAnchorsToScreenEdge);
+Run("unit audio definition resolves cue variants deterministically", UnitAudioDefinitionResolvesCueVariants);
+Run("starter battle unit definitions reference audio profiles", StarterUnitDefinitionsReferenceAudioProfiles);
+Run("starter audio migration is mapped from source visuals", StarterAudioMigrationUsesSourceVisuals);
+Run("battle unit display names use resource label plus two digit instance index", BattleUnitDisplayNamesUseIndexedResourceLabel);
+Run("starter unit display names use source visual translations", StarterUnitDisplayNamesUseSourceVisualTranslations);
+Run("unit display name translation report keeps low confidence review queue bounded", UnitDisplayNameTranslationReportQuality);
+
+static void MultiTargetHitFeedback()
+{
+    BattleDamageEvent[] events =
+    {
+        new(null, "enemy_a", 6, false),
+        new(null, "enemy_b", 12, true),
+        new(null, "enemy_a", 0, false)
+    };
+
+    BattleHitFeedbackPlan plan = BattleHitFeedbackPlanner.Build(events);
+
+    AssertSequence(new[] { "enemy_a", "enemy_b" }, plan.OutlinedTargetIds, "all impacted targets should be outlined once");
+    AssertEqual(2, plan.DamageNumbers.Count, "only positive damage should create floating damage numbers");
+    AssertEqual("enemy_a", plan.DamageNumbers[0].TargetId, "first damage target");
+    AssertEqual("-6", plan.DamageNumbers[0].Text, "first damage text");
+    AssertEqual("enemy_b", plan.DamageNumbers[1].TargetId, "second damage target");
+    AssertEqual("-12", plan.DamageNumbers[1].Text, "second damage text");
+}
+
+static void DamageNumberMotionDefaults()
+{
+    BattleDamageNumberMotionSpec spec = BattleDamageNumberMotionSpec.Default;
+
+    AssertTrue(spec.SpawnOffset.Y > -40f, "damage number should start closer to the unit than the old high offset");
+    AssertTrue(spec.FloatOffset.X > 0f, "damage number should drift slightly right");
+    AssertTrue(spec.FloatOffset.Y < 0f, "damage number should drift upward");
+}
+
+static void FriendlyHoverStyle()
+{
+    BattleHoverPreviewStyle style = BattleHoverPreviewStyle.ForFaction(BattleFaction.Player);
+
+    AssertEqual(BattleGridHighlightKind.FriendlyMove, style.MoveKind, "friendly hover movement should use green movement kind");
+    AssertEqual(BattleGridHighlightKind.FriendlyAttack, style.AttackKind, "friendly hover attack should use yellow attack kind");
+}
+
+static void FriendlyHoverWorkload()
+{
+    BattleHoverPreviewStyle friendly = BattleHoverPreviewStyle.ForFaction(BattleFaction.Player);
+    BattleHoverPreviewStyle enemy = BattleHoverPreviewStyle.ForFaction(BattleFaction.Enemy);
+
+    AssertEqual(true, friendly.ProjectAttackFromReachableMoveOrigins, "friendly hover should keep combined movement plus attack preview semantics");
+    AssertEqual(true, enemy.ProjectAttackFromReachableMoveOrigins, "enemy hover should keep full threat projection");
+}
+
+static void FriendlyHoverSuppressesAttackCellsUnderTargets()
+{
+    BattleHoverCellPresentation presentation = BattleHoverCellPresentation.Build(
+        attackCells: new[] { new GridPosition(1, 1), new GridPosition(2, 1), new GridPosition(3, 1) },
+        targetCells: new[] { new GridPosition(2, 1) });
+
+    AssertSequence(
+        new[] { new GridPosition(1, 1), new GridPosition(3, 1) },
+        presentation.AttackCells,
+        "friendly hover should not paint yellow attack cells under target units");
+    AssertSequence(
+        Array.Empty<GridPosition>(),
+        presentation.TargetCells,
+        "friendly hover should not paint yellow target cells under target units");
+    AssertSequence(
+        new[] { new GridPosition(2, 1) },
+        presentation.TargetPointerCells,
+        "target cells should remain available for arrow presentation");
+}
+
+static void HighlightTileLayerDiff()
+{
+    HashSet<GridPosition> current = new()
+    {
+        new(1, 1),
+        new(2, 1),
+        new(3, 1)
+    };
+    GridPosition[] next =
+    {
+        new(2, 1),
+        new(3, 1),
+        new(4, 1)
+    };
+
+    BattleGridHighlightCellDiff diff = BattleGridHighlightCellDiff.Build(current, next);
+
+    AssertSequence(new[] { new GridPosition(1, 1) }, diff.CellsToErase.ToArray(), "tile highlight diff should erase only missing cells");
+    AssertSequence(new[] { new GridPosition(4, 1) }, diff.CellsToPaint.ToArray(), "tile highlight diff should paint only new cells");
+}
+
+static void AttackTargetPresentation()
+{
+    BattleTargetPresentationPlan plan = BattleTargetPresentationPlan.Build(new[] { "enemy_a", "enemy_b", "enemy_a", "" });
+
+    AssertEqual(false, plan.ShowTargetGridCells, "attack target presentation should not use yellow target cells");
+    AssertSequence(new[] { "enemy_a", "enemy_b" }, plan.TargetEntityIds, "attack target presentation should outline each target once");
+}
+
+static void MovementPathArrowsDisabled()
+{
+    AssertEqual(false, BattlePathArrowPresentation.Default.ShowMovementPathArrows, "movement preview should not draw path arrows");
+}
+
+static void UnitVisualScaleMultiplier()
+{
+    AssertFloatEqual(0.8f, BattleUnitVisualScale.Default.SpriteScaleMultiplier, 0.0001f, "unit visuals should be reduced by one fifth");
+}
+
+static void ActionCueSequencerOrder()
+{
+    List<string> events = new();
+    BattleActionCueSequencer sequencer = new();
+
+    sequencer.RunAsync(
+            entityId: "unit_a",
+            faction: BattleFaction.Enemy,
+            showCue: cue =>
+            {
+                events.Add($"show:{cue.EntityId}:{cue.Faction}:{cue.DurationSeconds:0.0}");
+                return Task.CompletedTask;
+            },
+            wait: seconds =>
+            {
+                events.Add($"wait:{seconds:0.0}");
+                return Task.CompletedTask;
+            },
+            action: () =>
+            {
+                events.Add("action");
+                return Task.CompletedTask;
+            },
+            hideCue: entityId =>
+            {
+                events.Add($"hide:{entityId}");
+                return Task.CompletedTask;
+            })
+        .GetAwaiter()
+        .GetResult();
+
+    AssertSequence(
+        new[] { "show:unit_a:Enemy:0.5", "wait:0.5", "action", "hide:unit_a" },
+        events,
+        "action cue should finish its visible hold before the unit action runs");
+}
+
+static void HoverInfoPanelAnchorsToScreenEdge()
+{
+    var viewport = new Godot.Vector2(1280f, 720f);
+    var panelSize = new Godot.Vector2(320f, 220f);
+    var margin = new Godot.Vector2(18f, 96f);
+
+    Godot.Vector2 position = BattleHoverInfoPanelLayout.CalculateRightDockedPosition(viewport, panelSize, margin);
+
+    AssertFloatEqual(942f, position.X, 0.001f, "hover info should dock to the right edge");
+    AssertFloatEqual(96f, position.Y, 0.001f, "hover info should reserve the top HUD area");
+
+    Godot.Vector2 smallPosition = BattleHoverInfoPanelLayout.CalculateRightDockedPosition(
+        new Godot.Vector2(280f, 160f),
+        panelSize,
+        margin);
+
+    AssertFloatEqual(18f, smallPosition.X, 0.001f, "hover info should stay inside narrow viewports");
+    AssertFloatEqual(18f, smallPosition.Y, 0.001f, "hover info should fall back to edge padding in short viewports");
+}
+
+static void UnitAudioDefinitionResolvesCueVariants()
+{
+    AssertEqual(0, BattleUnitAudioDefinition.ResolveVariantIndex(0, 2), "first variant index should resolve directly");
+    AssertEqual(1, BattleUnitAudioDefinition.ResolveVariantIndex(1, 2), "second variant index should resolve directly");
+    AssertEqual(0, BattleUnitAudioDefinition.ResolveVariantIndex(2, 2), "variant index should wrap forward");
+    AssertEqual(1, BattleUnitAudioDefinition.ResolveVariantIndex(-1, 2), "variant index should wrap backward");
+    AssertEqual(0, BattleUnitAudioDefinition.ResolveVariantIndex(5, 1), "single variant should always resolve to zero");
+    AssertEqual(-1, BattleUnitAudioDefinition.ResolveVariantIndex(0, 0), "empty variants should return sentinel");
+}
+
+static void StarterUnitDefinitionsReferenceAudioProfiles()
+{
+    string[] unitIds = { "player_knight", "militia", "skeleton_warrior", "skeleton_archer" };
+
+    foreach (string unitId in unitIds)
+    {
+        string unitPath = Path.Combine("assets", "battle", "units", $"{unitId}.tres");
+        string audioPath = $"res://assets/battle/units/{unitId}/audio/audio.tres";
+        string text = File.ReadAllText(unitPath);
+        AssertTrue(text.Contains(audioPath, StringComparison.Ordinal), $"{unitId} should reference its audio profile");
+
+        string audioText = File.ReadAllText(Path.Combine("assets", "battle", "units", unitId, "audio", "audio.tres"));
+        foreach (string cue in new[] { "deploy", "move", "attack", "attack_impact", "hit", "defeated" })
+        {
+            AssertTrue(
+                audioText.Contains($"res://assets/battle/units/{unitId}/audio/{cue}.ogg", StringComparison.Ordinal),
+                $"{unitId} audio profile should include {cue}");
+        }
+    }
+}
+
+static void StarterAudioMigrationUsesSourceVisuals()
+{
+    string report = File.ReadAllText(Path.Combine("assets", "audio", "sfx", "duelyst_audio_migration_a.json"));
+
+    AssertTrue(
+        report.Contains("actual SpriteFrames source visual", StringComparison.Ordinal),
+        "migration report should document source-visual mapping rule");
+    AssertTrue(
+        report.Contains("f1_shieldforger.png / RSX.f1Surgeforger*", StringComparison.Ordinal),
+        "shieldforger-backed units should map from f1Surgeforger visual identity");
+    AssertTrue(
+        report.Contains("f1_scintilla.png / RSX.f1Scintilla*", StringComparison.Ordinal),
+        "scintilla-backed units should map from f1Scintilla visual identity");
+    AssertTrue(
+        report.Contains("app/sdk/cards/factory/wartech/faction1.coffee:291-307", StringComparison.Ordinal),
+        "surgeforger mapping should cite original Duelyst card factory sound block");
+    AssertTrue(
+        report.Contains("app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116", StringComparison.Ordinal),
+        "scintilla mapping should cite original Duelyst card factory sound block");
+}
+
+static void BattleUnitDisplayNamesUseIndexedResourceLabel()
+{
+    AssertEqual("盾牌铸造者01", BattleUnitDisplayNameFormatter.FormatInstanceName("盾牌铸造者", 0), "first visible unit should use 01 suffix");
+    AssertEqual("盾牌铸造者02", BattleUnitDisplayNameFormatter.FormatInstanceName("盾牌铸造者", 1), "second visible unit should use 02 suffix");
+    AssertEqual("战斗单位03", BattleUnitDisplayNameFormatter.FormatInstanceName("", 2), "missing display names should use a readable fallback");
+}
+
+static void StarterUnitDisplayNamesUseSourceVisualTranslations()
+{
+    Dictionary<string, string> expectedNames = new()
+    {
+        ["player_knight"] = "盾牌铸造者",
+        ["militia"] = "盾牌铸造者",
+        ["skeleton_warrior"] = "盾牌铸造者",
+        ["skeleton_archer"] = "闪烁术士"
+    };
+
+    foreach ((string unitId, string expectedName) in expectedNames)
+    {
+        string unitPath = Path.Combine("assets", "battle", "units", $"{unitId}.tres");
+        string text = File.ReadAllText(unitPath);
+        AssertTrue(
+            text.Contains($"DisplayName = \"{expectedName}\"", StringComparison.Ordinal),
+            $"{unitId} should use source visual translation {expectedName}");
+    }
+}
+
+static void UnitDisplayNameTranslationReportQuality()
+{
+    string reportPath = Path.Combine("assets", "battle", "units", "_display_name_translation_report.json");
+    using JsonDocument report = JsonDocument.Parse(File.ReadAllText(reportPath));
+    JsonElement summary = report.RootElement.GetProperty("summary");
+
+    int lowConfidenceCount = summary.GetProperty("lowConfidenceCount").GetInt32();
+    int duelystSourceNameCount = summary.GetProperty("duelystSourceNameCount").GetInt32();
+
+    AssertTrue(
+        lowConfidenceCount <= 120,
+        $"translation report should leave only a bounded manual review queue, actual={lowConfidenceCount}");
+    AssertTrue(
+        duelystSourceNameCount >= 400,
+        $"translation report should use Duelyst source names for most assets, actual={duelystSourceNameCount}");
+}
+
+static void Run(string name, Action test)
+{
+    try
+    {
+        test();
+        Console.WriteLine($"PASS {name}");
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"FAIL {name}: {ex.Message}");
+        Environment.ExitCode = 1;
+    }
+}
+
+static void AssertEqual<T>(T expected, T actual, string message)
+{
+    if (!EqualityComparer<T>.Default.Equals(expected, actual))
+    {
+        throw new InvalidOperationException($"{message}: expected={expected} actual={actual}");
+    }
+}
+
+static void AssertTrue(bool condition, string message)
+{
+    if (!condition)
+    {
+        throw new InvalidOperationException(message);
+    }
+}
+
+static void AssertFloatEqual(float expected, float actual, float tolerance, string message)
+{
+    if (MathF.Abs(expected - actual) > tolerance)
+    {
+        throw new InvalidOperationException($"{message}: expected={expected} actual={actual}");
+    }
+}
+
+static void AssertSequence<T>(IReadOnlyList<T> expected, IReadOnlyList<T> actual, string message)
+{
+    if (expected.Count != actual.Count)
+    {
+        throw new InvalidOperationException($"{message}: expectedCount={expected.Count} actualCount={actual.Count}");
+    }
+
+    for (int index = 0; index < expected.Count; index++)
+    {
+        if (!EqualityComparer<T>.Default.Equals(expected[index], actual[index]))
+        {
+            throw new InvalidOperationException($"{message}: index={index} expected={expected[index]} actual={actual[index]}");
+        }
+    }
+}

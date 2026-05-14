@@ -7,5 +7,6 @@ public enum WorldArmyStatus
     Moving = 2,
     Attacking = 3,
     Retreating = 4,
-    Defeated = 5
+    Defeated = 5,
+    NavigationBlocked = 6
 }

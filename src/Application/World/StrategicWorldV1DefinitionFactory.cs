@@ -298,6 +298,31 @@ public static class StrategicWorldV1DefinitionFactory
                 MapPosition = new Vector2(1076, 413),
                 InitialOwnerFactionId = StrategicWorldIds.FactionUndead,
                 InitialControlState = SiteControlState.Hostile,
+                InitialGarrison = new List<GarrisonDefinition>
+                {
+                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1, Morale = 35 },
+                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonArcher, Count = 1, Morale = 35 },
+                    new() { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1, Morale = 40 },
+                    new() { UnitTypeId = StrategicWorldIds.UnitGraveMarksman, Count = 1, Morale = 40 },
+                    new() { UnitTypeId = StrategicWorldIds.UnitDeathBlighter, Count = 1, Morale = 45 }
+                },
+                AutoGarrisonProductions = new List<SiteAutoGarrisonProductionDefinition>
+                {
+                    new()
+                    {
+                        FactionId = StrategicWorldIds.FactionUndead,
+                        IntervalTicks = 3,
+                        MaxStoredUnits = 10,
+                        BatchUnits = new List<GarrisonDefinition>
+                        {
+                            new() { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1, Morale = 35 },
+                            new() { UnitTypeId = StrategicWorldIds.UnitSkeletonArcher, Count = 1, Morale = 35 },
+                            new() { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1, Morale = 40 },
+                            new() { UnitTypeId = StrategicWorldIds.UnitGraveMarksman, Count = 1, Morale = 40 },
+                            new() { UnitTypeId = StrategicWorldIds.UnitDeathBlighter, Count = 1, Morale = 45 }
+                        }
+                    }
+                },
                 DefaultGarrisonZoneId = WorldSiteDeploymentService.DefaultGarrisonZoneId,
                 DeploymentZones = new List<SiteDeploymentZoneDefinition>
                 {

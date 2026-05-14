@@ -59,7 +59,7 @@ public sealed class BattleUnitFactory
 
         entity.Name = BuildNodeName(force, forceIndex);
         entity.EntityId = BuildEntityId(force, forceIndex);
-        entity.DisplayName = definition.DisplayName;
+        entity.DisplayName = BattleUnitDisplayNameFormatter.FormatInstanceName(definition.DisplayName, forceIndex);
         entity.DebugMarkerColor = definition.DebugMarkerColor;
         if (!ApplyVisualDefinition(entity, definition))
         {
@@ -323,6 +323,11 @@ public sealed class BattleUnitFactory
         {
             animationComponent.AnimationSet = definition.Visual?.AnimationSet;
         }
+
+        if (TryGetComponent(entity, definition, out BattleUnitAudioComponent audioComponent))
+        {
+            audioComponent.Audio = definition.Audio;
+        }
     }
 
     private bool TryGetComponent<T>(
@@ -432,7 +437,7 @@ public sealed class BattleUnitFactory
         if (!visual.AutoLayoutFromSpriteFrames ||
             !TryCalculateSpriteAutoLayout(
                 visual.SpriteFrames,
-                visual.TargetMaxSpriteSizePixels,
+                visual.TargetMaxSpriteSizePixels * BattleUnitVisualScale.Default.SpriteScaleMultiplier,
                 visual.GroundAnchorOffsetPixels,
                 visual.VisibleAlphaThreshold,
                 out Vector2 scale,
@@ -443,7 +448,8 @@ public sealed class BattleUnitFactory
         {
             animatedSprite.Position = Vector2.Zero;
             animatedSprite.Offset = visual.Offset;
-            animatedSprite.Scale = visual.Scale;
+            // Keep authored per-unit proportions but apply the current battle-wide readability multiplier.
+            animatedSprite.Scale = visual.Scale * BattleUnitVisualScale.Default.SpriteScaleMultiplier;
             return;
         }
 
@@ -452,7 +458,7 @@ public sealed class BattleUnitFactory
         animatedSprite.Scale = scale;
         GameLog.Info(
             nameof(BattleUnitFactory),
-            $"Battle unit visual auto layout id={definitionId} visibleSize={visibleSize} visibleCenterOffset={visibleCenterOffset} targetMax={visual.TargetMaxSpriteSizePixels:0.##} scale={scale.X:0.###} scaledHeight={scaledHeight:0.##} position={position}");
+            $"Battle unit visual auto layout id={definitionId} visibleSize={visibleSize} visibleCenterOffset={visibleCenterOffset} targetMax={visual.TargetMaxSpriteSizePixels:0.##} scaleMultiplier={BattleUnitVisualScale.Default.SpriteScaleMultiplier:0.##} scale={scale.X:0.###} scaledHeight={scaledHeight:0.##} position={position}");
     }
 
     private static bool TryCalculateSpriteAutoLayout(

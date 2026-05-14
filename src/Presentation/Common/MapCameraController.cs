@@ -56,6 +56,7 @@ public partial class MapCameraController : Camera2D
     private bool _isMiddleMouseDragging;
 
     public bool HasMapBounds => _hasMapBounds;
+    public bool IsUserNavigationActive => _isMiddleMouseDragging || GetMoveDirection() != Vector2.Zero;
 
     public override void _Ready()
     {
@@ -151,13 +152,17 @@ public partial class MapCameraController : Camera2D
 
     public void FocusOn(Vector2 worldPosition)
     {
+        GlobalPosition = ResolveClampedFocusPosition(worldPosition);
+    }
+
+    public Vector2 ResolveClampedFocusPosition(Vector2 worldPosition)
+    {
         if (!float.IsFinite(worldPosition.X) || !float.IsFinite(worldPosition.Y))
         {
-            return;
+            return GlobalPosition;
         }
 
-        GlobalPosition = worldPosition;
-        ClampToMapBounds();
+        return ClampPositionToMapBounds(worldPosition);
     }
 
     public void SetZoomScalar(float zoomScalar)
@@ -313,20 +318,7 @@ public partial class MapCameraController : Camera2D
 
     private void ClampToMapBounds()
     {
-        if (!_hasMapBounds)
-        {
-            return;
-        }
-
-        Vector2 halfVisibleSize = GetVisibleWorldSize() * 0.5f;
-        float minX = _mapBounds.Position.X + halfVisibleSize.X;
-        float maxX = _mapBounds.End.X - halfVisibleSize.X;
-        float minY = _mapBounds.Position.Y + halfVisibleSize.Y;
-        float maxY = _mapBounds.End.Y - halfVisibleSize.Y;
-
-        GlobalPosition = new Vector2(
-            ClampAxis(GlobalPosition.X, minX, maxX, _mapBounds.GetCenter().X),
-            ClampAxis(GlobalPosition.Y, minY, maxY, _mapBounds.GetCenter().Y));
+        GlobalPosition = ClampPositionToMapBounds(GlobalPosition);
     }
 
     private Vector2 GetVisibleWorldSize()
@@ -337,6 +329,24 @@ public partial class MapCameraController : Camera2D
         return new Vector2(
             viewportSize.X / Mathf.Max(zoom.X, 0.001f),
             viewportSize.Y / Mathf.Max(zoom.Y, 0.001f));
+    }
+
+    private Vector2 ClampPositionToMapBounds(Vector2 position)
+    {
+        if (!_hasMapBounds)
+        {
+            return position;
+        }
+
+        Vector2 halfVisibleSize = GetVisibleWorldSize() * 0.5f;
+        float minX = _mapBounds.Position.X + halfVisibleSize.X;
+        float maxX = _mapBounds.End.X - halfVisibleSize.X;
+        float minY = _mapBounds.Position.Y + halfVisibleSize.Y;
+        float maxY = _mapBounds.End.Y - halfVisibleSize.Y;
+
+        return new Vector2(
+            ClampAxis(position.X, minX, maxX, _mapBounds.GetCenter().X),
+            ClampAxis(position.Y, minY, maxY, _mapBounds.GetCenter().Y));
     }
 
     private static float ClampAxis(float value, float min, float max, float fallback)

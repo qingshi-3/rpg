@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Godot;
+using Rpg.Definitions.Battle.Audio;
 using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Presentation.Battle.Entities;
@@ -175,6 +176,7 @@ public partial class DamageReactionComponent : BattleEntityComponent
         }
 
         _animation.PlayHit(ResolveMinimumHitDurationSeconds(damage));
+        Entity.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Hit);
         GameLog.Info(
             nameof(DamageReactionComponent),
             $"Damage reaction played target={Entity?.EntityId} source={damage.Source?.EntityId} damage={damage.DamageApplied} hp={damage.HpBefore}->{damage.HpAfter} delay={delaySeconds:0.00}");

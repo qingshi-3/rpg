@@ -10,14 +10,17 @@ public sealed class WorldArmyMovementService
     private const float ArrivalReachDistance = 1.0f;
     private const float FieldInterceptThreshold = 24.0f;
     private const float WaypointReachDistance = 4.0f;
-    private const int NavigationRepairSearchCellRadius = 8;
+    private const int MaxTransientNavigationPathFailures = 3;
+    // Scene returns can expose a Godot navigation iteration before path queries are stable.
+    private const float TransientNavigationPathWarmupSeconds = 0.5f;
     private readonly WorldSiteDeploymentService _deploymentService = new();
 
     public WorldArmyMovementResult AdvanceArmies(
         StrategicWorldState state,
         StrategicWorldDefinition definition,
         double delta,
-        StrategicNavigationContext navigationContext = null)
+        IStrategicNavigationContext navigationContext = null,
+        double navigationRetryDeltaSeconds = -1.0)
     {
         WorldArmyMovementResult result = new();
         if (state == null || delta <= 0.0)
@@ -25,6 +28,9 @@ public sealed class WorldArmyMovementService
             return result;
         }
 
+        double retryDeltaSeconds = navigationRetryDeltaSeconds >= 0.0
+            ? navigationRetryDeltaSeconds
+            : delta;
         foreach (WorldArmyState army in state.ArmyStates.Values)
         {
             if (army.Status != WorldArmyStatus.Moving)
@@ -44,7 +50,7 @@ public sealed class WorldArmyMovementService
                 continue;
             }
 
-            if (!EnsureNavigationPath(state, army, current, destination, navigationContext, result))
+            if (!EnsureNavigationPath(state, army, current, destination, navigationContext, result, retryDeltaSeconds))
             {
                 continue;
             }
@@ -158,12 +164,13 @@ public sealed class WorldArmyMovementService
         WorldArmyState army,
         Vector2 current,
         Vector2 destination,
-        StrategicNavigationContext navigationContext,
-        WorldArmyMovementResult result)
+        IStrategicNavigationContext navigationContext,
+        WorldArmyMovementResult result,
+        double retryDeltaSeconds)
     {
         if (navigationContext == null)
         {
-            FailNavigationPath(state, army, result, "strategic_navigation_context_missing");
+            BlockNavigationPath(state, army, result, "strategic_navigation_context_missing");
             return false;
         }
 
@@ -172,11 +179,26 @@ public sealed class WorldArmyMovementService
             return true;
         }
 
-        current = RepairNavigationPointIfNeeded(army, navigationContext, current, isDestination: false);
-        destination = RepairNavigationPointIfNeeded(army, navigationContext, destination, isDestination: true);
         if (!navigationContext.TryBuildPath(current, destination, out StrategicNavigationPath path, out string failureReason))
         {
-            FailNavigationPath(state, army, result, failureReason);
+            if (IsTransientNavigationFailure(failureReason))
+            {
+                army.RecordTransientNavigationPathFailure(retryDeltaSeconds);
+                bool stillWarmingUp =
+                    army.TransientNavigationPathFailureCount <= MaxTransientNavigationPathFailures ||
+                    army.TransientNavigationPathFailureSeconds < TransientNavigationPathWarmupSeconds;
+                if (stillWarmingUp)
+                {
+                    // Godot can expose a navigation iteration before MapGetPath can answer after scene return.
+                    // Keep empty paths pending for a small real-time window before treating them as authoring failures.
+                    GameLog.Warn(
+                        nameof(WorldArmyMovementService),
+                        $"WorldArmyNavigationPending army={army.ArmyId} reason={failureReason} attempt={army.TransientNavigationPathFailureCount}/{MaxTransientNavigationPathFailures} elapsed={army.TransientNavigationPathFailureSeconds:0.000}/{TransientNavigationPathWarmupSeconds:0.000}s current={current} destination={destination} provider={navigationContext.PrimaryProviderId} version={navigationContext.Version}");
+                    return false;
+                }
+            }
+
+            BlockNavigationPath(state, army, result, failureReason);
             return false;
         }
 
@@ -187,65 +209,40 @@ public sealed class WorldArmyMovementService
         return true;
     }
 
-    private static Vector2 RepairNavigationPointIfNeeded(
-        WorldArmyState army,
-        StrategicNavigationContext navigationContext,
-        Vector2 point,
-        bool isDestination)
+    private static bool IsTransientNavigationFailure(string failureReason)
     {
-        if (navigationContext.IsPointNavigable(point, out _))
-        {
-            return point;
-        }
-
-        if (!navigationContext.TryGetNearestNavigablePoint(
-                point,
-                NavigationRepairSearchCellRadius,
-                out Vector2 repairedPoint,
-                out string failureReason))
-        {
-            GameLog.Warn(
-                nameof(WorldArmyMovementService),
-                $"WorldArmyNavigationPointRepairFailed army={army.ArmyId} kind={(isDestination ? "destination" : "start")} point={point} reason={failureReason}");
-            return point;
-        }
-
-        if (isDestination)
-        {
-            army.Destination = repairedPoint;
-        }
-        else
-        {
-            army.WorldPosition = repairedPoint;
-        }
-
-        army.ClearNavigationPath();
-        GameLog.Info(
-            nameof(WorldArmyMovementService),
-            $"WorldArmyNavigationPointRepaired army={army.ArmyId} kind={(isDestination ? "destination" : "start")} from={point} to={repairedPoint}");
-        return repairedPoint;
+        return string.Equals(failureReason, "godot_navigation_path_empty", System.StringComparison.Ordinal);
     }
 
-    private static void FailNavigationPath(
+    private static void BlockNavigationPath(
         StrategicWorldState state,
         WorldArmyState army,
         WorldArmyMovementResult result,
         string failureReason)
     {
+        int transientAttempts = army.TransientNavigationPathFailureCount;
+        float transientSeconds = army.TransientNavigationPathFailureSeconds;
+        // NavigationBlocked is the authoritative failure state for broken strategic path contracts.
+        // The world layer pauses and exposes the problem instead of using presentation fallbacks.
         army.ClearNavigationPath();
         army.ClearArrivalApproachOffset();
         army.ClearTargetApproachDirection();
-        army.Status = WorldArmyStatus.Idle;
-        result.PathFailedArmyIds.Add(army.ArmyId);
-        result.Messages.Add($"部队 {army.ArmyId} 无法找到行军路径。");
+        army.Status = WorldArmyStatus.NavigationBlocked;
+        result.NavigationBlockedArmyIds.Add(army.ArmyId);
+        result.Messages.Add($"\u90e8\u961f {army.ArmyId} \u6218\u7565\u5bfc\u822a\u5931\u8d25\uff0c\u4e16\u754c\u63a8\u8fdb\u5df2\u6682\u505c\u3002\u539f\u56e0\uff1a{failureReason}");
         result.Events.Add(new GameEvent
         {
-            Kind = "WorldArmyPathFailed",
+            Kind = "WorldArmyNavigationBlocked",
             Tick = state.WorldTick,
             TargetIds = { army.ArmyId, army.TargetSiteId },
-            Payload = { ["reason"] = failureReason }
+            Payload =
+            {
+                ["reason"] = failureReason,
+                ["transient_attempts"] = transientAttempts.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["transient_seconds"] = transientSeconds.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)
+            }
         });
-        GameLog.Error(nameof(WorldArmyMovementService), $"WorldArmyPathFailed army={army.ArmyId} reason={failureReason}");
+        GameLog.Error(nameof(WorldArmyMovementService), $"WorldArmyNavigationBlocked army={army.ArmyId} reason={failureReason} transientAttempts={transientAttempts} transientSeconds={transientSeconds:0.000}");
     }
 
     private static Vector2 GetNextPathPoint(WorldArmyState army, Vector2 current, float waypointReachDistance)
@@ -296,7 +293,7 @@ public sealed class WorldArmyMovementService
         {
             army.Status = WorldArmyStatus.Idle;
             result.GarrisonRejectedArmyIds.Add(army.ArmyId);
-            result.Messages.Add("驻军区已满，无法进驻。");
+            result.Messages.Add("\u9a7b\u519b\u533a\u5df2\u6ee1\uff0c\u65e0\u6cd5\u8fdb\u9a7b\u3002");
             result.Events.Add(new GameEvent
             {
                 Kind = "WorldArmyGarrisonRejected",
@@ -340,7 +337,7 @@ public sealed class WorldArmyMovementService
                  army.OwnerFactionId == state.PlayerFactionId)
         {
             result.BattleReadyArmyIds.Add(army.ArmyId);
-            result.Messages.Add("玩家进攻部队已抵达，准备进入攻占战。");
+            result.Messages.Add("\u73a9\u5bb6\u8fdb\u653b\u90e8\u961f\u5df2\u62b5\u8fbe\uff0c\u51c6\u5907\u8fdb\u5165\u653b\u5360\u6218\u3002");
         }
 
         if (!string.IsNullOrWhiteSpace(army.RelatedThreatId) &&
@@ -350,7 +347,7 @@ public sealed class WorldArmyMovementService
             threat.Stage = ThreatStage.Attacking;
             threat.CountdownTicks = 0;
             result.AttackingThreatIds.Add(threat.Id);
-            result.Messages.Add("敌方部队已抵达，必须处理。");
+            result.Messages.Add("\u654c\u65b9\u90e8\u961f\u5df2\u62b5\u8fbe\uff0c\u5fc5\u987b\u5904\u7406\u3002");
             result.Events.Add(new GameEvent
             {
                 Kind = "ThreatStageChanged",
@@ -371,7 +368,7 @@ public sealed class WorldArmyMovementService
     {
         if (!state.SiteStates.TryGetValue(army.TargetSiteId, out WorldSiteState site))
         {
-            result.Messages.Add($"玩家部队已抵达目标，但找不到驻守场域：{army.TargetSiteId}。");
+            result.Messages.Add($"\u73a9\u5bb6\u90e8\u961f\u5df2\u62b5\u8fbe\u76ee\u6807\uff0c\u4f46\u627e\u4e0d\u5230\u9a7b\u5b88\u573a\u57df\uff1a{army.TargetSiteId}\u3002");
             GameLog.Warn(nameof(WorldArmyMovementService), $"WorldArmyGarrisonTransferFailed army={army.ArmyId} target={army.TargetSiteId}");
             return;
         }
@@ -405,7 +402,7 @@ public sealed class WorldArmyMovementService
         {
             WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(site.SiteId);
             _deploymentService.EnsureGarrisonPlacements(site, siteDefinition);
-            result.Messages.Add($"玩家部队已抵达 {site.SiteId}，{transferred} 队单位加入驻军。");
+            result.Messages.Add($"\u73a9\u5bb6\u90e8\u961f\u5df2\u62b5\u8fbe {site.SiteId}\uff0c{transferred} \u961f\u5355\u4f4d\u52a0\u5165\u9a7b\u519b\u3002");
             GameLog.Info(nameof(WorldArmyMovementService), $"WorldArmyGarrisoned army={army.ArmyId} target={site.SiteId} units={transferred}");
         }
     }
@@ -457,7 +454,7 @@ public sealed class WorldArmyMovementService
                     PlayerArmyId = playerArmy.ArmyId,
                     EnemyArmyId = enemyArmy.ArmyId
                 });
-                result.Messages.Add("玩家部队与敌军接触，准备进入野外遭遇战。");
+                result.Messages.Add("\u73a9\u5bb6\u90e8\u961f\u4e0e\u654c\u519b\u63a5\u89e6\uff0c\u51c6\u5907\u8fdb\u5165\u91ce\u5916\u906d\u9047\u6218\u3002");
                 result.Events.Add(new GameEvent
                 {
                     Kind = "WorldArmyFieldInterceptTriggered",

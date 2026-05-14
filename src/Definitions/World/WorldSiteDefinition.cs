@@ -18,6 +18,7 @@ public sealed class WorldSiteDefinition
     public List<SiteDeploymentZoneDefinition> DeploymentZones { get; set; } = new();
     public List<string> InitialFacilities { get; set; } = new();
     public List<GarrisonDefinition> InitialGarrison { get; set; } = new();
+    public List<SiteAutoGarrisonProductionDefinition> AutoGarrisonProductions { get; set; } = new();
     public List<string> BattleAnchors { get; set; } = new();
     public List<BattleEntranceDefinition> EntranceDefinitions { get; set; } = new();
     public List<string> Tags { get; set; } = new();
