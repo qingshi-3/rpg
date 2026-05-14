@@ -41,6 +41,7 @@ Run("world action non-population shortage uses custom resource display name", Wo
 Run("world action blank resource display name falls back to id", WorldActionBlankResourceDisplayNameFallsBackToId);
 Run("world opportunity reward text uses custom resource display name", WorldOpportunityRewardTextUsesCustomResourceDisplayName);
 Run("world tick production text uses custom resource display names", WorldTickProductionTextUsesCustomDisplayNames);
+Run("battle result applier messages use configured display names", BattleResultApplierMessagesUseConfiguredDisplayNames);
 Run("battle unit factory keeps definition caches shared across scenes", BattleUnitFactoryKeepsDefinitionCachesShared);
 Run("battle result applier uses survivor counts when garrisoning assault army", BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssaultArmy);
 Run("battle result applier keeps surviving defending garrison after defense victory", BattleResultApplierKeepsSurvivingDefendingGarrisonAfterDefenseVictory);
@@ -563,6 +564,62 @@ static void WorldTickProductionTextUsesCustomDisplayNames()
         "mine production message should not hardcode the default stone label");
 }
 
+static void BattleResultApplierMessagesUseConfiguredDisplayNames()
+{
+    StrategicWorldDefinition definition = BuildBattleResultApplierTestDefinition();
+    WorldBattleResultApplier applier = new();
+
+    BattleStartRequest assaultVictoryRequest = BuildBattleResultMessageRequest(BattleKind.AssaultSite, BattleOutcome.Victory);
+    WorldActionResult assaultVictory = applier.Apply(
+        new StrategicWorldService().CreateInitialState(definition),
+        definition,
+        assaultVictoryRequest,
+        BuildVictoryResult(assaultVictoryRequest, "occupy_bonefield"));
+    AssertTrue(assaultVictory.Message.Contains("Test Quarry", StringComparison.Ordinal), "assault victory message should use configured site name");
+    AssertTrue(assaultVictory.Message.Contains("Deep Quarry", StringComparison.Ordinal), "assault victory message should use configured mine name");
+    AssertTrue(assaultVictory.Message.Contains("Signal Spire", StringComparison.Ordinal), "assault victory message should use configured tower name");
+    AssertTrue(!assaultVictory.Message.Contains("埋骨地", StringComparison.Ordinal) && !assaultVictory.Message.Contains("矿场", StringComparison.Ordinal) && !assaultVictory.Message.Contains("防御塔", StringComparison.Ordinal), "assault victory message should not hardcode default entity names");
+
+    BattleStartRequest assaultFailureRequest = BuildBattleResultMessageRequest(BattleKind.AssaultSite, BattleOutcome.Defeat);
+    WorldActionResult assaultFailure = applier.Apply(
+        new StrategicWorldService().CreateInitialState(definition),
+        definition,
+        assaultFailureRequest,
+        new BattleResult
+        {
+            RequestId = assaultFailureRequest.RequestId,
+            BattleKind = assaultFailureRequest.BattleKind,
+            Outcome = BattleOutcome.Defeat
+        });
+    AssertTrue(assaultFailure.Message.Contains("Test Quarry", StringComparison.Ordinal), "assault failure message should use configured site name");
+    AssertTrue(!assaultFailure.Message.Contains("埋骨地", StringComparison.Ordinal), "assault failure message should not hardcode default site name");
+
+    BattleStartRequest defenseVictoryRequest = BuildBattleResultMessageRequest(BattleKind.DefenseRaid, BattleOutcome.Victory);
+    WorldActionResult defenseVictory = applier.Apply(
+        new StrategicWorldService().CreateInitialState(definition),
+        definition,
+        defenseVictoryRequest,
+        BuildVictoryResult(defenseVictoryRequest, "defend_bonefield"));
+    AssertTrue(defenseVictory.Message.Contains("Test Quarry", StringComparison.Ordinal), "defense victory message should use configured site name");
+    AssertTrue(defenseVictory.Message.Contains("Ash Court", StringComparison.Ordinal), "defense victory message should use configured attacker faction name");
+    AssertTrue(!defenseVictory.Message.Contains("埋骨地", StringComparison.Ordinal) && !defenseVictory.Message.Contains("亡灵", StringComparison.Ordinal), "defense victory message should not hardcode default site or faction names");
+
+    BattleStartRequest defenseFailureRequest = BuildBattleResultMessageRequest(BattleKind.DefenseRaid, BattleOutcome.Defeat);
+    WorldActionResult defenseFailure = applier.Apply(
+        new StrategicWorldService().CreateInitialState(definition),
+        definition,
+        defenseFailureRequest,
+        new BattleResult
+        {
+            RequestId = defenseFailureRequest.RequestId,
+            BattleKind = defenseFailureRequest.BattleKind,
+            Outcome = BattleOutcome.Defeat
+        });
+    AssertTrue(defenseFailure.Message.Contains("Test Quarry", StringComparison.Ordinal), "defense failure message should use configured site name");
+    AssertTrue(defenseFailure.Message.Contains("Ash Court", StringComparison.Ordinal), "defense failure message should use configured attacker faction name");
+    AssertTrue(!defenseFailure.Message.Contains("埋骨地", StringComparison.Ordinal) && !defenseFailure.Message.Contains("亡灵", StringComparison.Ordinal), "defense failure message should not hardcode default site or faction names");
+}
+
 static void BattleUnitFactoryKeepsDefinitionCachesShared()
 {
     string factory = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"));
@@ -705,12 +762,36 @@ static StrategicWorldDefinition BuildBattleResultApplierTestDefinition()
     {
         Id = "battle-result-applier-test",
         PlayerFactionId = StrategicWorldIds.FactionPlayer,
+        FactionDefinitions =
+        {
+            new FactionDefinition { Id = StrategicWorldIds.FactionPlayer, DisplayName = "Guild" },
+            new FactionDefinition { Id = StrategicWorldIds.FactionUndead, DisplayName = "Ash Court" }
+        },
+        FacilityDefinitions =
+        {
+            new FacilityDefinition { Id = StrategicWorldIds.FacilityMine, DisplayName = "Deep Quarry" },
+            new FacilityDefinition { Id = StrategicWorldIds.FacilityDefenseTower, DisplayName = "Signal Spire" }
+        },
         SiteDefinitions =
         {
             BuildBattleResultApplierTestSite(StrategicWorldIds.SitePlayerCamp, StrategicWorldIds.FactionPlayer, SiteControlState.PlayerHeld),
             BuildBattleResultApplierTestSite(StrategicWorldIds.SiteBonefield, StrategicWorldIds.FactionUndead, SiteControlState.Hostile)
         }
     };
+}
+
+static BattleStartRequest BuildBattleResultMessageRequest(BattleKind kind, BattleOutcome outcome)
+{
+    BattleStartRequest request = new()
+    {
+        RequestId = $"message:{kind}:{outcome}",
+        BattleKind = kind,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        AttackerFactionId = kind == BattleKind.DefenseRaid ? StrategicWorldIds.FactionUndead : StrategicWorldIds.FactionPlayer,
+        DefenderFactionId = kind == BattleKind.DefenseRaid ? StrategicWorldIds.FactionPlayer : StrategicWorldIds.FactionUndead
+    };
+    request.ObjectiveIds.Add(kind == BattleKind.DefenseRaid ? "defend_bonefield" : "occupy_bonefield");
+    return request;
 }
 
 static StrategicWorldDefinition BuildResourceDisplayNameTestDefinition()
@@ -877,6 +958,7 @@ static WorldSiteDefinition BuildBattleResultApplierTestSite(
     return new WorldSiteDefinition
     {
         Id = siteId,
+        DisplayName = siteId == StrategicWorldIds.SiteBonefield ? "Test Quarry" : "Forward Camp",
         InitialOwnerFactionId = factionId,
         InitialControlState = controlState,
         DefaultGarrisonZoneId = zone.ZoneId,

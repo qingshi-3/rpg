@@ -69,6 +69,10 @@ public sealed class WorldBattleResultApplier
         BattleResult result)
     {
         WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
+        StrategicWorldDefinitionQueries queries = new(definition);
+        string targetSite = StrategicWorldDisplayNames.GetSiteLabel(queries, site.SiteId, "埋骨地");
+        string mine = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityMine, "矿场");
+        string defenseTower = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityDefenseTower, "防御塔");
         if (result.Outcome == BattleOutcome.Victory && ObjectiveSucceeded(result, "occupy_bonefield"))
         {
             RemoveBattleForcesFromSite(site, request.EnemyForces, result);
@@ -79,7 +83,7 @@ public sealed class WorldBattleResultApplier
             {
                 Success = true,
                 ActionId = "battle_result",
-                Message = "埋骨地已被占领，矿场和防御塔槽位已解锁。",
+                Message = $"{targetSite}已被占领，{mine}和{defenseTower}槽位已解锁。",
                 Events =
                 {
                     new GameEvent
@@ -102,7 +106,7 @@ public sealed class WorldBattleResultApplier
         {
             Success = true,
             ActionId = "battle_result",
-            Message = "攻占失败，埋骨地仍被敌方控制，出征部队被击溃。",
+            Message = $"攻占失败，{targetSite}仍被敌方控制，出征部队被击溃。",
             Events =
             {
                 new GameEvent
@@ -168,6 +172,9 @@ public sealed class WorldBattleResultApplier
         BattleResult result)
     {
         WorldSiteState site = state.SiteStates[request.TargetSiteId];
+        StrategicWorldDefinitionQueries queries = new(definition);
+        string targetSite = StrategicWorldDisplayNames.GetSiteLabel(queries, site.SiteId, "埋骨地");
+        string attackerFaction = StrategicWorldDisplayNames.GetFactionLabel(queries, request.AttackerFactionId, "亡灵");
         EnemyThreatPlan threat = !string.IsNullOrWhiteSpace(request.ThreatId) && state.ThreatPlans.TryGetValue(request.ThreatId, out EnemyThreatPlan value)
             ? value
             : null;
@@ -191,7 +198,7 @@ public sealed class WorldBattleResultApplier
             {
                 Success = true,
                 ActionId = "battle_result",
-                Message = "埋骨地防守成功，亡灵 Raid 已清除。",
+                Message = $"{targetSite}防守成功，{attackerFaction} Raid 已清除。",
                 Events =
                 {
                     new GameEvent
@@ -244,7 +251,7 @@ public sealed class WorldBattleResultApplier
         {
             Success = true,
             ActionId = "battle_result",
-            Message = "埋骨地防守失败，场域被亡灵夺回，敌军残部进驻城中。",
+            Message = $"{targetSite}防守失败，场域被{attackerFaction}夺回，敌军残部进驻城中。",
             Events =
             {
                 new GameEvent
