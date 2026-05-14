@@ -29,4 +29,30 @@ public static class StrategicWorldDisplayNames
             ? string.IsNullOrWhiteSpace(fallback) ? factionId : fallback
             : displayName;
     }
+
+    public static string GetSiteLabel(StrategicWorldDefinitionQueries queries, string siteId, string fallback = "")
+    {
+        if (string.IsNullOrWhiteSpace(siteId))
+        {
+            return string.IsNullOrWhiteSpace(fallback) ? "无" : fallback;
+        }
+
+        string displayName = queries?.GetSite(siteId)?.DisplayName;
+        return string.IsNullOrWhiteSpace(displayName)
+            ? string.IsNullOrWhiteSpace(fallback) ? siteId : fallback
+            : displayName;
+    }
+
+    public static string GetFacilityLabel(StrategicWorldDefinitionQueries queries, string facilityId, string fallback = "")
+    {
+        if (string.IsNullOrWhiteSpace(facilityId))
+        {
+            return string.IsNullOrWhiteSpace(fallback) ? "无" : fallback;
+        }
+
+        string displayName = queries?.GetFacility(facilityId)?.DisplayName;
+        return string.IsNullOrWhiteSpace(displayName)
+            ? string.IsNullOrWhiteSpace(fallback) ? facilityId : fallback
+            : displayName;
+    }
 }

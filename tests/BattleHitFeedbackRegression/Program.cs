@@ -33,7 +33,9 @@ Run("battle unit display names use resource label plus two digit instance index"
 Run("starter unit display names use source visual translations", StarterUnitDisplayNamesUseSourceVisualTranslations);
 Run("world unit labels resolve through battle unit definitions", WorldUnitLabelsResolveThroughBattleDefinitions);
 Run("world resource and faction labels resolve through strategic definitions", WorldResourceAndFactionLabelsResolveThroughDefinitions);
+Run("world site and facility labels resolve through strategic definitions", WorldSiteAndFacilityLabelsResolveThroughDefinitions);
 Run("world action resource text uses custom resource display names", WorldActionResourceTextUsesCustomDisplayNames);
+Run("world action site and facility preview text uses custom display names", WorldActionSiteAndFacilityPreviewTextUsesCustomDisplayNames);
 Run("world action non-population shortage uses custom resource display name", WorldActionNonPopulationShortageUsesCustomDisplayName);
 Run("world action blank resource display name falls back to id", WorldActionBlankResourceDisplayNameFallsBackToId);
 Run("world opportunity reward text uses custom resource display name", WorldOpportunityRewardTextUsesCustomResourceDisplayName);
@@ -317,6 +319,28 @@ static void WorldResourceAndFactionLabelsResolveThroughDefinitions()
     AssertEqual("无", StrategicWorldDisplayNames.GetFactionLabel(queries, ""), "blank faction id should use explicit fallback");
 }
 
+static void WorldSiteAndFacilityLabelsResolveThroughDefinitions()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldDefinitionQueries queries = new(definition);
+
+    AssertEqual("Test Quarry", StrategicWorldDisplayNames.GetSiteLabel(queries, StrategicWorldIds.SiteBonefield), "site label should use custom DisplayName");
+    AssertEqual("Deep Quarry", StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityMine), "facility label should use custom DisplayName");
+
+    definition.SiteDefinitions.Single(item => item.Id == StrategicWorldIds.SiteBonefield).DisplayName = "";
+    definition.FacilityDefinitions.Single(item => item.Id == StrategicWorldIds.FacilityMine).DisplayName = "";
+    queries = new StrategicWorldDefinitionQueries(definition);
+
+    AssertEqual(StrategicWorldIds.SiteBonefield, StrategicWorldDisplayNames.GetSiteLabel(queries, StrategicWorldIds.SiteBonefield), "blank site DisplayName should fall back to id");
+    AssertEqual(StrategicWorldIds.FacilityMine, StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityMine), "blank facility DisplayName should fall back to id");
+    AssertEqual("missing_site", StrategicWorldDisplayNames.GetSiteLabel(queries, "missing_site"), "missing site definition should fall back to id");
+    AssertEqual("missing_facility", StrategicWorldDisplayNames.GetFacilityLabel(queries, "missing_facility"), "missing facility definition should fall back to id");
+    AssertEqual("无", StrategicWorldDisplayNames.GetSiteLabel(queries, ""), "blank site id should use default fallback");
+    AssertEqual("无", StrategicWorldDisplayNames.GetFacilityLabel(queries, ""), "blank facility id should use default fallback");
+    AssertEqual("Fallback Site", StrategicWorldDisplayNames.GetSiteLabel(queries, "missing_site", "Fallback Site"), "missing site should use explicit fallback when provided");
+    AssertEqual("Fallback Facility", StrategicWorldDisplayNames.GetFacilityLabel(queries, "", "Fallback Facility"), "blank facility id should use explicit fallback when provided");
+}
+
 static void WorldActionResourceTextUsesCustomDisplayNames()
 {
     StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
@@ -335,6 +359,59 @@ static void WorldActionResourceTextUsesCustomDisplayNames()
     AssertTrue(
         action.EffectLines.Contains("每世界步Granite +2"),
         "build mine effect text should use custom stone display name");
+}
+
+static void WorldActionSiteAndFacilityPreviewTextUsesCustomDisplayNames()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    state.SiteStates[StrategicWorldIds.SiteBonefield].Facilities.Add(new FacilityInstance
+    {
+        InstanceId = "tower:test",
+        FacilityId = StrategicWorldIds.FacilityDefenseTower,
+        SiteId = StrategicWorldIds.SiteBonefield,
+        State = FacilityState.Active
+    });
+    state.ThreatPlans["threat:preview"] = new EnemyThreatPlan
+    {
+        Id = "threat:preview",
+        SourceSiteId = StrategicWorldIds.SiteGraveyard,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        Stage = ThreatStage.Attacking
+    };
+
+    WorldActionResolver resolver = new(unitTypeId =>
+        unitTypeId == StrategicWorldIds.UnitMilitia ? "Guard Recruit" : unitTypeId);
+    WorldActionViewModel buildMine = resolver
+        .GetAvailableActions(state, definition, StrategicWorldIds.SiteBonefield)
+        .Single(item => item.ActionId == StrategicWorldIds.ActionBuildMine);
+    WorldActionViewModel buildDefenseTower = resolver
+        .GetAvailableActions(state, definition, StrategicWorldIds.SiteBonefield)
+        .Single(item => item.ActionId == StrategicWorldIds.ActionBuildDefenseTower);
+    WorldActionViewModel trainMilitia = resolver
+        .GetAvailableActions(state, definition, StrategicWorldIds.SitePlayerCamp)
+        .Single(item => item.ActionId == StrategicWorldIds.ActionTrainMilitia);
+    WorldActionViewModel autoResolveRaid = resolver
+        .GetAvailableActions(state, definition, "", "threat:preview")
+        .Single(item => item.ActionId == StrategicWorldIds.ActionAutoResolveRaid);
+
+    AssertTrue(buildMine.EffectLines.Any(line => line.Contains("Test Quarry", StringComparison.Ordinal) && line.Contains("Deep Quarry", StringComparison.Ordinal)), "build mine preview should use custom site and mine names");
+    AssertTrue(!buildMine.EffectLines.Any(line => line.Contains("埋骨地", StringComparison.Ordinal) || line.Contains("矿场", StringComparison.Ordinal)), "build mine preview should not hardcode default site or mine names");
+
+    AssertTrue(buildDefenseTower.EffectLines.Any(line => line.Contains("Test Quarry", StringComparison.Ordinal)), "build defense tower preview should use custom site name");
+    AssertTrue(buildDefenseTower.EffectLines.Any(line => line.Contains("Signal Spire", StringComparison.Ordinal)), "build defense tower preview should use custom tower name");
+    AssertTrue(!buildDefenseTower.EffectLines.Any(line => line.Contains("埋骨地", StringComparison.Ordinal) || line.Contains("防御塔", StringComparison.Ordinal)), "build defense tower preview should not hardcode default site or tower names");
+
+    AssertTrue(trainMilitia.EffectLines.Any(line => line.Contains("Forward Camp", StringComparison.Ordinal)), "train militia preview should use custom player camp name");
+    AssertTrue(!trainMilitia.EffectLines.Any(line => line.Contains("玩家营地", StringComparison.Ordinal)), "train militia preview should not hardcode default player camp name");
+    AssertTrue(trainMilitia.EffectLines.Any(line => line.Contains("Guard Recruit", StringComparison.Ordinal)), "train militia preview should use injected unit display name");
+    AssertTrue(!trainMilitia.EffectLines.Any(line => line.Contains("民兵", StringComparison.Ordinal)), "train militia preview should not hardcode default militia name");
+
+    AssertTrue(autoResolveRaid.EffectLines.Any(line => line.Contains("Signal Spire", StringComparison.Ordinal)), "auto resolve preview should use custom tower name");
+    AssertTrue(autoResolveRaid.WarningLines.Any(line => line.Contains("Signal Spire", StringComparison.Ordinal)), "auto resolve warning should use custom tower name");
+    AssertTrue(!autoResolveRaid.EffectLines.Concat(autoResolveRaid.WarningLines).Any(line => line.Contains("防御塔", StringComparison.Ordinal)), "auto resolve text should not hardcode default tower name");
+    AssertTrue(autoResolveRaid.WarningLines.Any(line => line.Contains("Guard Recruit", StringComparison.Ordinal)), "auto resolve warning should use injected militia display name");
+    AssertTrue(!autoResolveRaid.WarningLines.Any(line => line.Contains("民兵", StringComparison.Ordinal)), "auto resolve warning should not hardcode default militia name");
 }
 
 static void WorldActionNonPopulationShortageUsesCustomDisplayName()
@@ -614,8 +691,20 @@ static StrategicWorldDefinition BuildResourceDisplayNameTestDefinition()
             new ResourceDefinition { Id = StrategicWorldIds.ResourceStone, DisplayName = "Granite" },
             new ResourceDefinition { Id = StrategicWorldIds.ResourceEconomy, DisplayName = "Coin" }
         },
+        FacilityDefinitions =
+        {
+            new FacilityDefinition { Id = StrategicWorldIds.FacilityMine, DisplayName = "Deep Quarry" },
+            new FacilityDefinition { Id = StrategicWorldIds.FacilityDefenseTower, DisplayName = "Signal Spire" }
+        },
         SiteDefinitions =
         {
+            new WorldSiteDefinition
+            {
+                Id = StrategicWorldIds.SitePlayerCamp,
+                DisplayName = "Forward Camp",
+                InitialOwnerFactionId = StrategicWorldIds.FactionPlayer,
+                InitialControlState = SiteControlState.PlayerHeld
+            },
             new WorldSiteDefinition
             {
                 Id = StrategicWorldIds.SiteBonefield,
@@ -635,6 +724,24 @@ static StrategicWorldDefinition BuildResourceDisplayNameTestDefinition()
             },
             new WorldActionDefinition
             {
+                Id = StrategicWorldIds.ActionBuildDefenseTower,
+                DisplayName = "Build Test Tower",
+                Scope = WorldActionScope.Site
+            },
+            new WorldActionDefinition
+            {
+                Id = StrategicWorldIds.ActionTrainMilitia,
+                DisplayName = "Train Test Militia",
+                Scope = WorldActionScope.Site
+            },
+            new WorldActionDefinition
+            {
+                Id = StrategicWorldIds.ActionAutoResolveRaid,
+                DisplayName = "Auto Resolve Test Raid",
+                Scope = WorldActionScope.Threat
+            },
+            new WorldActionDefinition
+            {
                 Id = "test_economy_cost_action",
                 DisplayName = "Spend Coin",
                 Scope = WorldActionScope.Site,
@@ -651,6 +758,13 @@ static StrategicWorldState BuildResourceDisplayNameTestState()
         PlayerFactionId = StrategicWorldIds.FactionPlayer,
         SiteStates =
         {
+            [StrategicWorldIds.SitePlayerCamp] = new WorldSiteState
+            {
+                SiteId = StrategicWorldIds.SitePlayerCamp,
+                OwnerFactionId = StrategicWorldIds.FactionPlayer,
+                ControlState = SiteControlState.PlayerHeld,
+                SiteMode = WorldSiteMode.Peacetime
+            },
             [StrategicWorldIds.SiteBonefield] = new WorldSiteState
             {
                 SiteId = StrategicWorldIds.SiteBonefield,

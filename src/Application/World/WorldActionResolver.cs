@@ -16,6 +16,12 @@ public sealed class WorldActionResolver
     private readonly WorldBattleRequestBuilder _battleRequestBuilder = new();
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
     private readonly WorldGarrisonMutationService _garrisonMutations = new();
+    private readonly Func<string, string> _unitDisplayNameResolver;
+
+    public WorldActionResolver(Func<string, string> unitDisplayNameResolver = null)
+    {
+        _unitDisplayNameResolver = unitDisplayNameResolver;
+    }
 
     public IReadOnlyList<WorldActionViewModel> GetAvailableActions(
         StrategicWorldState state,
@@ -45,7 +51,7 @@ public sealed class WorldActionResolver
                 DisabledReason = enabled ? "" : FormatFailureReason(failureReason, queries),
                 CostLines = action.Costs.Select(cost => $"{StrategicWorldDisplayNames.GetResourceLabel(queries, cost.ResourceId)} {cost.Amount}").ToList(),
                 EffectLines = BuildEffectLines(action, queries),
-                WarningLines = BuildWarningLines(state, action, selectedThreatId),
+                WarningLines = BuildWarningLines(state, action, selectedThreatId, queries),
                 TargetSiteId = request.TargetSiteId,
                 TargetSlotId = request.TargetSlotId,
                 ThreatId = request.ThreatId
@@ -576,26 +582,32 @@ public sealed class WorldActionResolver
                site.SiteMode == WorldSiteMode.Wartime;
     }
 
-    private static List<string> BuildEffectLines(WorldActionDefinition action, StrategicWorldDefinitionQueries queries)
+    private List<string> BuildEffectLines(WorldActionDefinition action, StrategicWorldDefinitionQueries queries)
     {
+        string bonefield = StrategicWorldDisplayNames.GetSiteLabel(queries, StrategicWorldIds.SiteBonefield, "埋骨地");
+        string playerCamp = StrategicWorldDisplayNames.GetSiteLabel(queries, StrategicWorldIds.SitePlayerCamp, "玩家营地");
+        string mine = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityMine, "矿场");
+        string defenseTower = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityDefenseTower, "防御塔");
+        string militia = ResolveUnitLabel(StrategicWorldIds.UnitMilitia);
+
         return action.Id switch
         {
             StrategicWorldIds.ActionBuildMine => new List<string>
             {
-                "埋骨地获得矿场",
+                $"{bonefield}获得{mine}",
                 $"占用{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} 1",
                 $"每世界步{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} +2"
             },
-            StrategicWorldIds.ActionBuildDefenseTower => new List<string> { "埋骨地防守 +3", "防守战获得塔支援 1 次" },
-            StrategicWorldIds.ActionTrainMilitia => new List<string> { "玩家营地民兵 +1" },
+            StrategicWorldIds.ActionBuildDefenseTower => new List<string> { $"{bonefield}防守 +3", $"防守战获得{defenseTower}支援 1 次" },
+            StrategicWorldIds.ActionTrainMilitia => new List<string> { $"{playerCamp}{militia} +1" },
             StrategicWorldIds.ActionDefendRaid => new List<string> { "进入防守战", "胜利后清除 Raid" },
-            StrategicWorldIds.ActionAutoResolveRaid => new List<string> { "按驻军和防御塔计算防守结果" },
+            StrategicWorldIds.ActionAutoResolveRaid => new List<string> { $"按驻军和{defenseTower}计算防守结果" },
             StrategicWorldIds.ActionWaitTick => new List<string> { "推进世界步", "结算生产和威胁" },
             _ => action.Effects.Select(effect => effect.Kind.ToString()).ToList()
         };
     }
 
-    private static List<string> BuildWarningLines(StrategicWorldState state, WorldActionDefinition action, string selectedThreatId)
+    private List<string> BuildWarningLines(StrategicWorldState state, WorldActionDefinition action, string selectedThreatId, StrategicWorldDefinitionQueries queries)
     {
         if (action.Id != StrategicWorldIds.ActionAutoResolveRaid ||
             string.IsNullOrWhiteSpace(selectedThreatId) ||
@@ -607,7 +619,24 @@ public sealed class WorldActionResolver
 
         int militia = site.Garrison.Where(item => item.UnitTypeId == StrategicWorldIds.UnitMilitia).Sum(item => item.Count);
         int towers = site.Facilities.Count(item => item.FacilityId == StrategicWorldIds.FacilityDefenseTower && item.State == FacilityState.Active);
-        return new List<string> { $"当前防守：民兵 {militia}，防御塔 {towers}" };
+        string defenseTower = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityDefenseTower, "防御塔");
+        return new List<string> { $"当前防守：{ResolveUnitLabel(StrategicWorldIds.UnitMilitia)} {militia}，{defenseTower} {towers}" };
+    }
+
+    private string ResolveUnitLabel(string unitTypeId)
+    {
+        if (string.IsNullOrWhiteSpace(unitTypeId))
+        {
+            return "战斗单位";
+        }
+
+        string displayName = _unitDisplayNameResolver?.Invoke(unitTypeId);
+        if (!string.IsNullOrWhiteSpace(displayName))
+        {
+            return displayName;
+        }
+
+        return unitTypeId == StrategicWorldIds.UnitMilitia ? "民兵" : unitTypeId;
     }
 
     private static bool HasBlockingAttackingThreat(StrategicWorldState state, StrategicWorldDefinition definition)

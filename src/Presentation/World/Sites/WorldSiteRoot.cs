@@ -182,7 +182,7 @@ public partial class WorldSiteRoot : Node2D
     private readonly BattleActionExecutor _actionExecutor = new();
     private readonly BattleUnitFactory _battleUnitFactory = new();
     private readonly WorldBattleResultApplier _worldBattleResultApplier = new();
-    private readonly WorldActionResolver _worldActionResolver = new();
+    private readonly WorldActionResolver _worldActionResolver;
     private readonly WorldSiteDeploymentService _deploymentService = new();
     private readonly Dictionary<string, BattleCorpsRuntimeState> _battleCorpsStates = new(System.StringComparer.Ordinal);
     private readonly Dictionary<string, string> _battleEntityToCorpsId = new(System.StringComparer.Ordinal);
@@ -193,6 +193,11 @@ public partial class WorldSiteRoot : Node2D
     public BattleEntity SelectedEntity => _commandController?.SelectedEntity;
     public bool AllowsDebugHoverInfo => _commandController?.AllowsDebugHoverInfo == true;
     public bool IsEnemyPhaseRunning => _turnController?.IsEnemyPhaseRunning == true;
+
+    public WorldSiteRoot()
+    {
+        _worldActionResolver = new WorldActionResolver(_battleUnitFactory.ResolveUnitDisplayName);
+    }
 
     public override void _Ready()
     {

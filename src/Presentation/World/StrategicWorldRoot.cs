@@ -67,7 +67,7 @@ public partial class StrategicWorldRoot : Control
     [Export]
     public double WorldTickIntervalSeconds { get; set; } = DefaultWorldTickIntervalSeconds;
 
-    private readonly WorldActionResolver _actionResolver = new();
+    private readonly WorldActionResolver _actionResolver;
     private readonly WorldBattleResultApplier _battleResultApplier = new();
     private readonly WorldBattleRequestBuilder _battleRequestBuilder = new();
     private readonly WorldArmyMovementService _armyMovementService = new();
@@ -169,6 +169,11 @@ public partial class StrategicWorldRoot : Control
     private StrategicWorldDefinition Definition => StrategicWorldRuntime.Definition;
     private StrategicWorldState State => StrategicWorldRuntime.State;
     private StrategicRuntimeStage _runtimeStage = StrategicRuntimeStage.Bootstrapping;
+
+    public StrategicWorldRoot()
+    {
+        _actionResolver = new WorldActionResolver(_battleUnitFactory.ResolveUnitDisplayName);
+    }
 
     public override void _Ready()
     {
