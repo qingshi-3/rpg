@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "boss_cindera"
-DisplayName = "首领辛德拉"
+DisplayName = "辛德拉"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.9, 0.28, 0.22, 0.95)
 MaxHp = 36

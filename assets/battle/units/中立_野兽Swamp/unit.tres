@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_beastswamp"
-DisplayName = "中立野兽Swamp"
+DisplayName = "沼泽缠结者"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

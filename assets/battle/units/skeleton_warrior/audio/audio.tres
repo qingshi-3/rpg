@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BattleUnitAudioDefinition" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://src/Definitions/Battle/Audio/BattleUnitAudioDefinition.cs" id="1_definition"]
+[ext_resource type="AudioStream" path="res://assets/battle/units/skeleton_warrior/audio/deploy.ogg" id="2_deploy"]
+[ext_resource type="AudioStream" path="res://assets/battle/units/skeleton_warrior/audio/move.ogg" id="3_move"]
+[ext_resource type="AudioStream" path="res://assets/battle/units/skeleton_warrior/audio/attack.ogg" id="4_attack"]
+[ext_resource type="AudioStream" path="res://assets/battle/units/skeleton_warrior/audio/attack_impact.ogg" id="5_attack_impact"]
+[ext_resource type="AudioStream" path="res://assets/battle/units/skeleton_warrior/audio/hit.ogg" id="6_hit"]
+[ext_resource type="AudioStream" path="res://assets/battle/units/skeleton_warrior/audio/defeated.ogg" id="7_defeated"]
+
+[resource]
+script = ExtResource("1_definition")
+DeploySounds = Array[AudioStream]([ExtResource("2_deploy")])
+MoveSounds = Array[AudioStream]([ExtResource("3_move")])
+AttackSounds = Array[AudioStream]([ExtResource("4_attack")])
+AttackImpactSounds = Array[AudioStream]([ExtResource("5_attack_impact")])
+HitSounds = Array[AudioStream]([ExtResource("6_hit")])
+DefeatedSounds = Array[AudioStream]([ExtResource("7_defeated")])

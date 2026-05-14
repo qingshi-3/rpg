@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_gauntletmaster"
-DisplayName = "中立Gauntlet大师"
+DisplayName = "元初拳"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

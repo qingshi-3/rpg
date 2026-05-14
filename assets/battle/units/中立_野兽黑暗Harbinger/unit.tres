@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_beastdarkharbinger"
-DisplayName = "中立野兽黑暗Harbinger"
+DisplayName = "烈焰猎犬"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

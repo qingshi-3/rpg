@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "boss_chaosknight"
-DisplayName = "首领混沌骑士"
+DisplayName = "凯德毁灭者"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.9, 0.28, 0.22, 0.95)
 MaxHp = 36

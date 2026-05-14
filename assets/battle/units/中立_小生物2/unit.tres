@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "critter_2"
-DisplayName = "小生物2"
+DisplayName = "宾奇"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.58, 0.72, 0.56, 0.95)
 MaxHp = 6

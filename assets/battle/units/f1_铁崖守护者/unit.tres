@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f1_ironcliffeguardian"
-DisplayName = "阵营1铁崖守护者"
+DisplayName = "铁崖守护者"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.72, 0.72, 0.78, 0.95)
 MaxHp = 18

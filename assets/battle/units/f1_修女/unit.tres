@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f1_sister"
-DisplayName = "阵营1修女"
+DisplayName = "太阳修女斯忒洛佩"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

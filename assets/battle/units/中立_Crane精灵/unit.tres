@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "prop_cranewisp"
-DisplayName = "场景物件Crane精灵"
+DisplayName = "机关鹤形精灵"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.58, 0.72, 0.56, 0.95)
 MaxHp = 6

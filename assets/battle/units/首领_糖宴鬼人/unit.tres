@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "boss_treatoni"
-DisplayName = "首领糖宴鬼人"
+DisplayName = "附魔魂影"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.9, 0.28, 0.22, 0.95)
 MaxHp = 36

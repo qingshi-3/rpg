@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_mercarchonspellbinder"
-DisplayName = "中立佣兵Archon法术Binder"
+DisplayName = "中立佣兵执政官缚法者"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

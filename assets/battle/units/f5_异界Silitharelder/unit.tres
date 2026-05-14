@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f5_silitharelder"
-DisplayName = "阵营5Silitharelder"
+DisplayName = "原兽老年希利萨"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

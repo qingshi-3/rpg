@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f4_reaperninemoons"
-DisplayName = "阵营4Reapernine月S"
+DisplayName = "九诸月之收割者"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

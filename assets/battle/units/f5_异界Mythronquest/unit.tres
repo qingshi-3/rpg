@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f5_mythronquest"
-DisplayName = "阵营5Mythronquest"
+DisplayName = "原兽神话任务体"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

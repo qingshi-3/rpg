@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f2_caster"
-DisplayName = "阵营2施法者"
+DisplayName = "追心者"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.48, 0.72, 1, 0.95)
 MaxHp = 10

@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "boss_skyfalltyrant"
-DisplayName = "首领天坠暴君"
+DisplayName = "天坠暴君"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.9, 0.28, 0.22, 0.95)
 MaxHp = 36

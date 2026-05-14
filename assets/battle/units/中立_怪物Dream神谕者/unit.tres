@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_monsterdreamoracle"
-DisplayName = "中立怪物Dream神谕者"
+DisplayName = "中立异兽梦境神谕者"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.48, 0.72, 1, 0.95)
 MaxHp = 10

@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f5_grimrock"
-DisplayName = "阵营5Grimrock"
+DisplayName = "格里姆洛克"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

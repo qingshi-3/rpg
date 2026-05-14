@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_moltengolem"
-DisplayName = "中立Molten魔像"
+DisplayName = "世界核心魔像"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.72, 0.72, 0.78, 0.95)
 MaxHp = 18

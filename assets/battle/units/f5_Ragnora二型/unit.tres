@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f5_ragnoramk2"
-DisplayName = "阵营5Ragnora二型"
+DisplayName = "原兽拉格诺拉二型"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

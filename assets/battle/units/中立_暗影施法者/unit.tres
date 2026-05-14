@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_shadowcaster"
-DisplayName = "中立暗影施法者"
+DisplayName = "劳役仆从"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.48, 0.72, 1, 0.95)
 MaxHp = 10

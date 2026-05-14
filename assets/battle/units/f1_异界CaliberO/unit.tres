@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f1_caliber-o"
-DisplayName = "阵营1CaliberO"
+DisplayName = "卡利贝罗二型"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

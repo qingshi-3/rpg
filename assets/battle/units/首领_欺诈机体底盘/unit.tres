@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "boss_decepticlechassis"
-DisplayName = "首领欺诈机体底盘"
+DisplayName = "欺诈机体之核心"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.9, 0.28, 0.22, 0.95)
 MaxHp = 36

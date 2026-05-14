@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f3_altgeneral"
-DisplayName = "阵营3替补将军"
+DisplayName = "女后裔萨姬"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

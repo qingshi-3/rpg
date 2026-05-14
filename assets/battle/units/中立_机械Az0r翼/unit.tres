@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_mechaz0rwing"
-DisplayName = "中立机械Az0r翼"
+DisplayName = "中立机甲佐尔之翼"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

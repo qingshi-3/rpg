@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_golemice"
-DisplayName = "中立魔像冰"
+DisplayName = "冰雹石魔像"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.72, 0.72, 0.78, 0.95)
 MaxHp = 18

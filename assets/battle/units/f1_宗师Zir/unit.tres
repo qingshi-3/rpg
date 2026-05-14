@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f1_grandmasterzir"
-DisplayName = "阵营1宗师Zir"
+DisplayName = "宗师兹伊尔"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

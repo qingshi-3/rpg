@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f6_evilcrystalwisp"
-DisplayName = "阵营6Evil水晶精灵"
+DisplayName = "霜晶邪水晶精灵"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

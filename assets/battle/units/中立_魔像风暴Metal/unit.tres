@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_golemstormmetal"
-DisplayName = "中立魔像风暴Metal"
+DisplayName = "风暴金属魔像"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.72, 0.72, 0.78, 0.95)
 MaxHp = 18

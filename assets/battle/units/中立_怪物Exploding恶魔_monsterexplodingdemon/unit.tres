@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_monsterexplodingdemon"
-DisplayName = "中立怪物Exploding恶魔"
+DisplayName = "中立异兽爆裂恶魔"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

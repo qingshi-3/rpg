@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f4_daemonvoid"
-DisplayName = "阵营4Daemon虚空"
+DisplayName = "深渊虚空恶魔"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

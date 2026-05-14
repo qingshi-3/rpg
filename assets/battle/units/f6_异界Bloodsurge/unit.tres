@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f6_bloodsurge"
-DisplayName = "阵营6Bloodsurge"
+DisplayName = "霜晶血涌体"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

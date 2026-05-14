@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f4_creepydemon"
-DisplayName = "阵营4Creepy恶魔"
+DisplayName = "深渊骇人恶魔"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

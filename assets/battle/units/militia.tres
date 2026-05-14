@@ -1,15 +1,17 @@
-[gd_resource type="Resource" script_class="BattleUnitDefinition" load_steps=5 format=3 uid="uid://oqp1l11x2ntp"]
+[gd_resource type="Resource" script_class="BattleUnitDefinition" load_steps=6 format=3 uid="uid://oqp1l11x2ntp"]
 
 [ext_resource type="Script" uid="uid://8cgtvlv57kfn" path="res://src/Definitions/Battle/BattleUnitDefinition.cs" id="1_definition"]
 [ext_resource type="Resource" uid="uid://suwjhqh8d22r" path="res://assets/battle/unit_visuals/visual/militia_visual.tres" id="3_5hqmd"]
 [ext_resource type="Script" uid="uid://bhil7m1my4jvo" path="res://src/Definitions/Battle/Abilities/AbilityDefinition.cs" id="4_ability_definition"]
 [ext_resource type="Resource" uid="uid://curhohgcmtxvr" path="res://assets/battle/abilities/militia_basic_attack.tres" id="5_basic_attack"]
+[ext_resource type="Resource" path="res://assets/battle/units/militia/audio/audio.tres" id="6_audio"]
 
 [resource]
 script = ExtResource("1_definition")
 Id = "militia"
-DisplayName = "驻备民兵"
+DisplayName = "盾牌铸造者"
 Visual = ExtResource("3_5hqmd")
+Audio = ExtResource("6_audio")
 Abilities = Array[ExtResource("4_ability_definition")]([ExtResource("5_basic_attack")])
 DebugMarkerColor = Color(0.38, 0.78, 0.46, 0.95)
 MaxHp = 10

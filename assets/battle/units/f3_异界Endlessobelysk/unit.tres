@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f3_endlessobelysk"
-DisplayName = "阵营3Endlessobelysk"
+DisplayName = "沙域无尽方尖碑"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

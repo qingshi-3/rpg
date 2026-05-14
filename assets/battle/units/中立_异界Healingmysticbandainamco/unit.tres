@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "neutral_healingmysticbandainamco"
-DisplayName = "中立Healingmysticbandainamco"
+DisplayName = "中立疗愈秘术师联动版"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 12

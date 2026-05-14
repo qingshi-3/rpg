@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f3_dunecaster"
-DisplayName = "阵营3Dune施法者"
+DisplayName = "法球织者"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.48, 0.72, 1, 0.95)
 MaxHp = 10
