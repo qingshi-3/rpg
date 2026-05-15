@@ -1,0 +1,110 @@
+[gd_scene load_steps=3 format=3 uid="uid://bgoa2vtbskw4r"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.025, 0.032, 0.03, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.5, 0.72, 0.46, 0.92)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 10
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_alert_panel"]
+bg_color = Color(0.18, 0.07, 0.035, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 0.62, 0.28, 0.95)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[node name="SiteExplorationHud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -230.0
+offset_top = -166.0
+offset_right = 230.0
+offset_bottom = -28.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="Stack" type="VBoxContainer" parent="Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Panel/Margin/Stack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 1, 0.82, 1)
+theme_override_font_sizes/font_size = 17
+text = "探索行动"
+horizontal_alignment = 1
+
+[node name="HintLabel" type="Label" parent="Panel/Margin/Stack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.82, 0.72, 1)
+text = "点击目的地预览路径，再次点击确认。"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="AlertLabel" type="Label" parent="Panel/Margin/Stack"]
+visible = false
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_alert_panel")
+theme_override_colors/font_color = Color(1, 0.84, 0.58, 1)
+theme_override_font_sizes/font_size = 16
+text = "已进入警惕范围"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="WaitButton" type="Button" parent="Panel/Margin/Stack"]
+layout_mode = 2
+mouse_filter = 0
+text = "等待一拍"
+
+[node name="AlertActions" type="HBoxContainer" parent="Panel/Margin/Stack"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="EngageButton" type="Button" parent="Panel/Margin/Stack/AlertActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 0
+text = "进入遭遇战"
+
+[node name="RetreatButton" type="Button" parent="Panel/Margin/Stack/AlertActions"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 0
+text = "撤退并保持警戒"
