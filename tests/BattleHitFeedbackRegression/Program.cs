@@ -6,6 +6,8 @@ using Rpg.Presentation.Battle.Debug;
 using Rpg.Presentation.Battle.Feedback;
 using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Preview;
+using Rpg.Presentation.Common;
+using Rpg.Presentation.World;
 using Rpg.Definitions.Battle.Audio;
 using Rpg.Application.Battle;
 using Rpg.Application.World;
@@ -26,6 +28,7 @@ Run("movement path arrows are disabled by default", MovementPathArrowsDisabled);
 Run("unit visual scale uses global 0.8 multiplier", UnitVisualScaleMultiplier);
 Run("action cue waits before action and hides afterward", ActionCueSequencerOrder);
 Run("hover info panel anchors to screen edge instead of mouse", HoverInfoPanelAnchorsToScreenEdge);
+Run("map camera middle drag pans opposite to mouse motion", MapCameraMiddleDragPansOppositeToMouseMotion);
 Run("unit audio definition resolves cue variants deterministically", UnitAudioDefinitionResolvesCueVariants);
 Run("starter battle unit definitions reference audio profiles", StarterUnitDefinitionsReferenceAudioProfiles);
 Run("starter audio migration is mapped from source visuals", StarterAudioMigrationUsesSourceVisuals);
@@ -42,6 +45,25 @@ Run("world action blank resource display name falls back to id", WorldActionBlan
 Run("world opportunity reward text uses custom resource display name", WorldOpportunityRewardTextUsesCustomResourceDisplayName);
 Run("world tick production text uses custom resource display names", WorldTickProductionTextUsesCustomDisplayNames);
 Run("world tick threat feed uses configured display names", WorldTickThreatFeedUsesConfiguredDisplayNames);
+Run("strategic fog stamps pixel circle independent of tile cells", StrategicFogStampsPixelCircleIndependentOfTileCells);
+Run("strategic fog default texel stays below tile sized chunks", StrategicFogDefaultTexelStaysBelowTileSizedChunks);
+Run("strategic fog persists explored cells while visible is derived", StrategicFogPersistsExploredCellsWhileVisibleIsDerived);
+Run("strategic fog keeps stale site intel after leaving vision", StrategicFogKeepsStaleSiteIntelAfterLeavingVision);
+Run("strategic navigation target lookup ignores fog visibility", StrategicNavigationTargetLookupIgnoresFogVisibility);
+Run("strategic navigation command flow stays independent from fog", StrategicNavigationCommandFlowStaysIndependentFromFog);
+Run("strategic navigation layer is isolated from camera transform", StrategicNavigationLayerIsIsolatedFromCameraTransform);
+Run("strategic fog overlay uses circular visibility mask", StrategicFogOverlayUsesCircularVisibilityMask);
+Run("world site grid exploration state persists position and memory", WorldSiteGridExplorationStatePersistsPositionAndMemory);
+Run("world site grid exploration uses battle grid pathing outside battle turns", WorldSiteGridExplorationUsesBattleGridPathingOutsideBattleTurns);
+Run("site exploration tick moves party by exploration AP", SiteExplorationTickMovesPartyByExplorationAp);
+Run("site exploration tick moves patrol by route AP", SiteExplorationTickMovesPatrolByRouteAp);
+Run("site exploration alert radius pauses simulation", SiteExplorationAlertRadiusPausesSimulation);
+Run("world site exploration battle request carries exploration context", WorldSiteExplorationBattleRequestCarriesExplorationContext);
+Run("exploration battle request carries patrol trigger", ExplorationBattleRequestCarriesPatrolTrigger);
+Run("exploration battle victory removes triggering patrol", ExplorationBattleVictoryRemovesTriggeringPatrol);
+Run("world site hover summary uses local resources and force counts", WorldSiteHoverSummaryUsesLocalResourcesAndForceCounts);
+Run("world site hover summary stays inside viewport", WorldSiteHoverSummaryStaysInsideViewport);
+Run("strategic world forwards middle mouse camera navigation", StrategicWorldForwardsMiddleMouseCameraNavigation);
 Run("battle result applier messages use configured display names", BattleResultApplierMessagesUseConfiguredDisplayNames);
 Run("battle unit factory keeps definition caches shared across scenes", BattleUnitFactoryKeepsDefinitionCachesShared);
 Run("battle result applier uses survivor counts when garrisoning assault army", BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssaultArmy);
@@ -207,6 +229,17 @@ static void HoverInfoPanelAnchorsToScreenEdge()
 
     AssertFloatEqual(18f, smallPosition.X, 0.001f, "hover info should stay inside narrow viewports");
     AssertFloatEqual(18f, smallPosition.Y, 0.001f, "hover info should fall back to edge padding in short viewports");
+}
+
+static void MapCameraMiddleDragPansOppositeToMouseMotion()
+{
+    Godot.Vector2 position = MapCameraController.CalculateMiddleMouseDragPanPosition(
+        currentPosition: new Godot.Vector2(500f, 320f),
+        mouseRelative: new Godot.Vector2(40f, -20f),
+        zoomScalar: 2f);
+
+    AssertFloatEqual(480f, position.X, 0.001f, "middle drag should pan opposite to horizontal mouse motion at current zoom");
+    AssertFloatEqual(330f, position.Y, 0.001f, "middle drag should pan opposite to vertical mouse motion at current zoom");
 }
 
 static void UnitAudioDefinitionResolvesCueVariants()
@@ -622,6 +655,465 @@ static void WorldTickThreatFeedUsesConfiguredDisplayNames()
     AssertTrue(
         !arrivalResult.Messages.Any(message => message.Contains("敌方", StringComparison.Ordinal)),
         "threat arrival message should not use generic hardcoded enemy label when a faction display name exists");
+}
+
+static void StrategicFogStampsPixelCircleIndependentOfTileCells()
+{
+    StrategicFogOfWarSettings settings = new()
+    {
+        FogTexelWorldSize = 10f,
+        SiteVisionRadius = 20f,
+        ArmyVisionRadius = 20f
+    };
+
+    HashSet<string> visible = StrategicFogOfWarService.BuildVisibleCellKeys(
+        new[] { new StrategicFogVisionSource(new Godot.Vector2(0f, 0f), 20f) },
+        settings);
+
+    AssertTrue(visible.Contains("0:0"), "fog circle should include the source cell");
+    AssertTrue(visible.Contains("1:1"), "fog circle should include diagonal cells inside the pixel radius");
+    AssertTrue(visible.Contains("-1:0"), "fog circle should include negative x cells around the source");
+    AssertTrue(!visible.Contains("2:2"), "fog circle should exclude diagonal cells outside the pixel radius");
+}
+
+static void StrategicFogDefaultTexelStaysBelowTileSizedChunks()
+{
+    AssertFloatEqual(16f, StrategicFogOfWarService.DefaultFogTexelWorldSize, 0.001f, "default fog texel should be fine enough to avoid cell-sized chunky edges");
+    StrategicFogOfWarSettings settings = new();
+
+    AssertFloatEqual(16f, settings.FogTexelWorldSize, 0.001f, "new fog settings should use the shared default texel size");
+}
+
+static void StrategicFogPersistsExploredCellsWhileVisibleIsDerived()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    state.PlayerFactionId = StrategicWorldIds.FactionPlayer;
+    definition.SiteDefinitions.Single(site => site.Id == StrategicWorldIds.SitePlayerCamp).MapPosition = new Godot.Vector2(0f, 0f);
+    definition.SiteDefinitions.Single(site => site.Id == StrategicWorldIds.SiteBonefield).MapPosition = new Godot.Vector2(12f, 0f);
+    definition.SiteDefinitions.Single(site => site.Id == StrategicWorldIds.SiteGraveyard).MapPosition = new Godot.Vector2(80f, 0f);
+    state.SiteStates[StrategicWorldIds.SitePlayerCamp].OwnerFactionId = StrategicWorldIds.FactionPlayer;
+    state.SiteStates[StrategicWorldIds.SiteBonefield].OwnerFactionId = StrategicWorldIds.FactionUndead;
+
+    StrategicFogOfWarSettings settings = new()
+    {
+        FogTexelWorldSize = 10f,
+        SiteVisionRadius = 15f,
+        ArmyVisionRadius = 15f
+    };
+
+    StrategicFogOfWarService.RefreshVisibility(state, definition, settings);
+
+    AssertEqual(WorldIntelVisibility.Visible, StrategicFogOfWarService.GetSiteVisibility(state.Intel, definition.SiteDefinitions.Single(site => site.Id == StrategicWorldIds.SiteBonefield), settings), "nearby site should be visible");
+    AssertEqual(WorldIntelVisibility.Unknown, StrategicFogOfWarService.GetSiteVisibility(state.Intel, definition.SiteDefinitions.Single(site => site.Id == StrategicWorldIds.SiteGraveyard), settings), "far site should remain unknown");
+    AssertTrue(state.Intel.ExploredCells.Contains("1:0"), "visible cells should be merged into explored cells");
+
+    state.SiteStates[StrategicWorldIds.SitePlayerCamp].OwnerFactionId = StrategicWorldIds.FactionUndead;
+    StrategicFogOfWarService.RefreshVisibility(state, definition, settings);
+
+    AssertTrue(state.Intel.VisibleCells.Count == 0, "visible cells should be derived fresh each refresh");
+    AssertTrue(state.Intel.ExploredCells.Contains("1:0"), "explored cells should persist after vision source is gone");
+}
+
+static void StrategicFogKeepsStaleSiteIntelAfterLeavingVision()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    state.PlayerFactionId = StrategicWorldIds.FactionPlayer;
+    WorldSiteDefinition camp = definition.SiteDefinitions.Single(site => site.Id == StrategicWorldIds.SitePlayerCamp);
+    WorldSiteDefinition target = definition.SiteDefinitions.Single(site => site.Id == StrategicWorldIds.SiteBonefield);
+    camp.MapPosition = new Godot.Vector2(0f, 0f);
+    target.MapPosition = new Godot.Vector2(12f, 0f);
+    state.SiteStates[StrategicWorldIds.SitePlayerCamp].OwnerFactionId = StrategicWorldIds.FactionPlayer;
+    WorldSiteState targetState = state.SiteStates[StrategicWorldIds.SiteBonefield];
+    targetState.OwnerFactionId = StrategicWorldIds.FactionPlayer;
+    targetState.LocalResources.Set(StrategicWorldIds.ResourceStone, 7);
+
+    StrategicFogOfWarSettings settings = new()
+    {
+        FogTexelWorldSize = 10f,
+        SiteVisionRadius = 15f,
+        ArmyVisionRadius = 15f
+    };
+
+    state.WorldTick = 3;
+    StrategicFogOfWarService.RefreshVisibility(state, definition, settings);
+    targetState.LocalResources.Set(StrategicWorldIds.ResourceStone, 12);
+    state.SiteStates[StrategicWorldIds.SitePlayerCamp].OwnerFactionId = StrategicWorldIds.FactionUndead;
+    targetState.OwnerFactionId = StrategicWorldIds.FactionUndead;
+    state.WorldTick = 4;
+    StrategicFogOfWarService.RefreshVisibility(state, definition, settings);
+
+    AssertEqual(WorldIntelVisibility.Revealed, StrategicFogOfWarService.GetSiteVisibility(state.Intel, target, settings), "known site should become revealed stale intel after leaving vision");
+    AssertEqual(3, state.Intel.KnownSites[StrategicWorldIds.SiteBonefield].LastSeenWorldTick, "stale site intel should preserve last visible tick");
+    AssertEqual(7, state.Intel.KnownSites[StrategicWorldIds.SiteBonefield].KnownLocalResources.GetAmount(StrategicWorldIds.ResourceStone), "stale site intel should not refresh while outside vision");
+}
+
+static void StrategicNavigationTargetLookupIgnoresFogVisibility()
+{
+    string strategicRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "StrategicWorldRoot.cs"));
+    string findSiteAtBody = ExtractMethodBlock(strategicRoot, "private WorldSiteDefinition FindSiteAt");
+    AssertTrue(
+        !findSiteAtBody.Contains("GetSiteIntelVisibility", StringComparison.Ordinal),
+        "site target lookup is used by navigation commands and must not depend on fog visibility");
+}
+
+static void StrategicNavigationCommandFlowStaysIndependentFromFog()
+{
+    string strategicRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "StrategicWorldRoot.cs"));
+    foreach (string methodSignature in new[]
+             {
+                 "private bool TryCommandSelectedArmies",
+                 "private bool TryCommandSelectedArmiesToSite",
+                 "private bool TryIssueExpeditionToTarget",
+                 "private bool TryIssueExpeditionToSite",
+                 "private bool TryCreateExpedition",
+                 "private bool TryResolveExpeditionNavigation",
+                 "private bool TryBuildCommandPaths"
+             })
+    {
+        string methodBody = ExtractMethodBlock(strategicRoot, methodSignature);
+        AssertTrue(!methodBody.Contains("GetSiteIntelVisibility", StringComparison.Ordinal), $"{methodSignature} must not read site fog visibility");
+        AssertTrue(!methodBody.Contains("IsMapPositionVisible", StringComparison.Ordinal), $"{methodSignature} must not read map fog visibility");
+        AssertTrue(!methodBody.Contains("IsScreenPositionVisible", StringComparison.Ordinal), $"{methodSignature} must not read screen fog visibility");
+    }
+}
+
+static void StrategicNavigationLayerIsIsolatedFromCameraTransform()
+{
+    string strategicRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "StrategicWorldRoot.cs"));
+    string navigationContext = File.ReadAllText(Path.Combine("src", "Application", "World", "StrategicNavigationContext.cs"));
+    AssertTrue(
+        strategicRoot.Contains("EnsureStrategicNavigationLayerIsStable", StringComparison.Ordinal),
+        "strategic root should move navigation data under a stable root before camera transforms WorldMapRoot");
+    AssertTrue(
+        strategicRoot.Contains("_strategicNavigationRoot", StringComparison.Ordinal),
+        "navigation context should use a root that is not panned or scaled as the visual map camera");
+
+    string updateCameraBody = ExtractMethodBlock(strategicRoot, "private bool UpdateWorldCameraView");
+    AssertTrue(
+        !updateCameraBody.Contains("_strategicNavigationRoot.Global", StringComparison.Ordinal),
+        "camera view updates must not transform the stable navigation root");
+    AssertTrue(
+        !navigationContext.Contains("NavigationServer2D", StringComparison.Ordinal),
+        "strategic map navigation should not depend on Godot NavigationServer2D synchronization");
+    AssertTrue(
+        navigationContext.Contains("StrategicNavigationGrid", StringComparison.Ordinal),
+        "strategic map navigation should use the project-owned grid provider");
+}
+
+static void StrategicFogOverlayUsesCircularVisibilityMask()
+{
+    string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "World", "StrategicWorldFogOverlay.cs"));
+    string strategicRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "StrategicWorldRoot.cs"));
+    string shader = File.ReadAllText(Path.Combine("assets", "world", "shaders", "strategic_fog_of_war.gdshader"));
+    string refreshFogBody = ExtractMethodBlock(strategicRoot, "private void RefreshStrategicFogOverlay");
+    AssertTrue(overlay.Contains("StrategicWorldFogOverlayCircle", StringComparison.Ordinal), "fog overlay should receive circular visible masks");
+    AssertTrue(overlay.Contains("ShaderMaterial", StringComparison.Ordinal), "fog overlay should use a shader material for smooth fog movement");
+    AssertTrue(shader.Contains("distance(sample_pixel, circle.xy)", StringComparison.Ordinal), "fog shader should draw circular visibility by pixel distance");
+    AssertTrue(!shader.Contains("step(0.5, explored)", StringComparison.Ordinal), "explored fog should not use a hard cell-mask threshold");
+    AssertTrue(shader.Contains("explored_amount", StringComparison.Ordinal), "explored fog should blend through a soft mask amount");
+    AssertTrue(!shader.Contains("return;", StringComparison.Ordinal), "Godot canvas fragment shaders must not use return statements");
+    AssertTrue(overlay.Contains("Visible = false", StringComparison.Ordinal), "fog overlay should stay hidden if the shader cannot be applied");
+    AssertTrue(!overlay.Contains("DrawRect(cell.ScreenRect", StringComparison.Ordinal), "fog overlay should not render the full fog edge as raw cell rectangles");
+    AssertTrue(overlay.Contains("FillMaskSoftCircle", StringComparison.Ordinal), "explored fog mask should stamp soft circular cells instead of hard rectangles");
+    AssertTrue(!refreshFogBody.Contains("visible.Contains(cellKey)", StringComparison.Ordinal), "explored fog mask should keep current visible cells so circular edge feather does not expose unknown-color holes");
+}
+
+static void WorldSiteGridExplorationStatePersistsPositionAndMemory()
+{
+    WorldSiteState site = new()
+    {
+        SiteId = "test_site",
+        Exploration = new WorldSiteExplorationState
+        {
+            CurrentCellX = 2,
+            CurrentCellY = 3,
+            CurrentCellHeight = 1,
+            AlertLevel = 2
+        }
+    };
+    site.Exploration.RevealedCellKeys.Add("2:3:1");
+    site.Exploration.VisitedCellKeys.Add("1:3:1");
+    site.Exploration.RevealedPointIds.Add("broken_cart");
+    site.Exploration.ResolvedPointIds.Add("drain_entry");
+
+    AssertEqual(2, site.Exploration.CurrentCellX, "exploration should persist current grid x");
+    AssertEqual(3, site.Exploration.CurrentCellY, "exploration should persist current grid y");
+    AssertEqual(1, site.Exploration.CurrentCellHeight, "exploration should persist current grid height");
+    AssertTrue(site.Exploration.RevealedCellKeys.Contains("2:3:1"), "exploration should persist revealed cells");
+    AssertTrue(site.Exploration.VisitedCellKeys.Contains("1:3:1"), "exploration should persist visited cells");
+    AssertTrue(site.Exploration.RevealedPointIds.Contains("broken_cart"), "exploration should persist revealed point ids");
+    AssertTrue(site.Exploration.ResolvedPointIds.Contains("drain_entry"), "exploration should persist resolved point ids");
+}
+
+static void WorldSiteGridExplorationUsesBattleGridPathingOutsideBattleTurns()
+{
+    BattleGridMap gridMap = new();
+    for (int x = 0; x <= 2; x++)
+    {
+        GridCellSurface surface = gridMap.GetOrCreateSurface(new GridPosition(x, 0), 0);
+        surface.AddLayer(new GridCellLayerData("test", LayerRole.Foundation, 0, true, false, false, false, true, 1, true, false, "", 0, 0, 0, 0));
+    }
+
+    gridMap.RebuildTopSurfaceIndex();
+    WorldSiteExplorationState exploration = new() { CurrentCellX = 0, CurrentCellY = 0, CurrentCellHeight = 0 };
+
+    bool moved = WorldSiteExplorationService.TryMoveParty(
+        exploration,
+        gridMap,
+        new GridPosition(2, 0),
+        out IReadOnlyList<GridSurfacePosition> path,
+        out string failureReason);
+
+    AssertTrue(moved, $"exploration should move through walkable BattleGridMap cells failure={failureReason}");
+    AssertEqual(3, path.Count, "exploration path should include start, middle, and destination");
+    AssertEqual(2, exploration.CurrentCellX, "exploration should update current x after movement");
+    AssertEqual(0, exploration.CurrentCellY, "exploration should update current y after movement");
+    AssertTrue(exploration.VisitedCellKeys.Contains("2:0:0"), "exploration should mark destination as visited");
+
+    string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    AssertTrue(worldSiteRoot.Contains("WorldSiteRuntimeMode.Exploration", StringComparison.Ordinal), "WorldSiteRoot should expose a site exploration runtime mode");
+    AssertTrue(worldSiteRoot.Contains("TryHandleSiteExplorationInput", StringComparison.Ordinal), "WorldSiteRoot should route non-battle input through exploration before management drag behavior");
+    AssertTrue(!ExtractMethodBlock(worldSiteRoot, "private bool TryHandleSiteExplorationInput").Contains("_turnController", StringComparison.Ordinal), "exploration input must not use battle turn controller or AP");
+}
+
+static void WorldSiteExplorationBattleRequestCarriesExplorationContext()
+{
+    BattleStartRequest request = WorldSiteExplorationService.BuildExplorationBattleRequest(
+        "bonefield",
+        "warehouse",
+        "",
+        new GridSurfacePosition(4, 5, 1),
+        alertLevel: 3,
+        "res://return.tscn",
+        "res://site.tscn");
+
+    AssertEqual(BattleKind.AssaultSite, request.BattleKind, "exploration battle request should enter tactical battle through an existing battle kind for first slice");
+    AssertEqual("bonefield", request.TargetSiteId, "exploration battle request should carry target site");
+    AssertEqual("site_exploration:warehouse", request.EncounterId, "exploration battle request should carry point encounter id");
+    AssertEqual("exploration_cell=4:5:1", request.ObjectiveIds.FirstOrDefault(), "exploration battle request should carry entry cell as stable context");
+    AssertTrue(request.ObjectiveIds.Contains("exploration_alert=3"), "exploration battle request should carry alert level");
+}
+
+static void SiteExplorationTickMovesPartyByExplorationAp()
+{
+    BattleGridMap gridMap = BuildLineGridMap(0, 2);
+    WorldSiteExplorationState exploration = new() { CurrentCellX = 0, CurrentCellY = 0, CurrentCellHeight = 0 };
+
+    bool intentSet = WorldSiteExplorationService.TrySetPartyMoveIntent(
+        exploration,
+        gridMap,
+        new GridPosition(2, 0),
+        out IReadOnlyList<GridSurfacePosition> path,
+        out string failureReason);
+
+    AssertTrue(intentSet, $"exploration should accept a reachable movement intent failure={failureReason}");
+    AssertEqual(3, path.Count, "intent path should include start, middle, and destination");
+
+    SiteExplorationTickResult result = WorldSiteExplorationService.AdvanceTick(
+        exploration,
+        new WorldSiteDefinition(),
+        gridMap,
+        partyActionPointRegenPerTick: 1,
+        partyMoveCostPerCell: 1);
+
+    AssertTrue(result.PartyMoved, "exploration tick should move party when exploration AP covers one cell");
+    AssertEqual(1, exploration.CurrentCellX, "exploration tick should move one cell, not teleport to destination");
+    AssertEqual(0, exploration.CurrentCellY, "exploration tick should keep y on line path");
+    AssertTrue(exploration.VisitedCellKeys.Contains("1:0:0"), "exploration tick should mark the stepped cell visited");
+}
+
+static void SiteExplorationTickMovesPatrolByRouteAp()
+{
+    BattleGridMap gridMap = BuildLineGridMap(3, 4);
+    WorldSiteDefinition definition = new()
+    {
+        ExplorationPatrols =
+        {
+            new SiteExplorationPatrolDefinition
+            {
+                Id = "patrol_a",
+                DisplayName = "Patrol A",
+                AlertRadiusCells = 0,
+                ActionPointRegenPerTick = 1,
+                MoveCostPerCell = 1,
+                RouteCells =
+                {
+                    new SiteExplorationRouteCellDefinition { CellX = 3, CellY = 0, CellHeight = 0 },
+                    new SiteExplorationRouteCellDefinition { CellX = 4, CellY = 0, CellHeight = 0 }
+                }
+            }
+        }
+    };
+    WorldSiteExplorationState exploration = new() { CurrentCellX = 0, CurrentCellY = 0, CurrentCellHeight = 0, IsSimulationPaused = false };
+
+    WorldSiteExplorationService.EnsurePatrolStates(exploration, definition);
+    SiteExplorationTickResult result = WorldSiteExplorationService.AdvanceTick(exploration, definition, gridMap);
+
+    AssertTrue(result.PatrolMoved, "exploration tick should move patrol when route AP covers one cell");
+    AssertEqual(4, exploration.PatrolUnits[0].CellX, "patrol should advance to next route cell");
+    AssertEqual(1, exploration.PatrolUnits[0].RouteIndex, "patrol route index should advance");
+}
+
+static void SiteExplorationAlertRadiusPausesSimulation()
+{
+    BattleGridMap gridMap = BuildLineGridMap(0, 4);
+    WorldSiteDefinition definition = new()
+    {
+        ExplorationPatrols =
+        {
+            new SiteExplorationPatrolDefinition
+            {
+                Id = "patrol_alert",
+                DisplayName = "Alert Patrol",
+                AlertRadiusCells = 2,
+                ActionPointRegenPerTick = 0,
+                MoveCostPerCell = 1,
+                RouteCells =
+                {
+                    new SiteExplorationRouteCellDefinition { CellX = 4, CellY = 0, CellHeight = 0 }
+                }
+            }
+        }
+    };
+    WorldSiteExplorationState exploration = new() { CurrentCellX = 2, CurrentCellY = 0, CurrentCellHeight = 0, IsSimulationPaused = false };
+    WorldSiteExplorationService.EnsurePatrolStates(exploration, definition);
+
+    SiteExplorationTickResult result = WorldSiteExplorationService.AdvanceTick(exploration, definition, gridMap);
+
+    AssertTrue(result.Paused, "alert radius should pause exploration simulation");
+    AssertEqual("patrol_alert", result.AlertPatrolId, "alert result should identify triggering patrol");
+    AssertEqual(true, exploration.IsSimulationPaused, "exploration state should persist paused state");
+    AssertEqual("exploration_alert_radius", exploration.PauseReason, "pause reason should be stable");
+}
+
+static void ExplorationBattleRequestCarriesPatrolTrigger()
+{
+    BattleStartRequest request = WorldSiteExplorationService.BuildExplorationBattleRequest(
+        "bonefield",
+        "warehouse",
+        "bonefield_patrol_01",
+        new GridSurfacePosition(4, 5, 1),
+        alertLevel: 4,
+        "res://return.tscn",
+        "res://site.tscn");
+
+    AssertEqual("warehouse", request.ExplorationPointId, "exploration request should carry point id explicitly");
+    AssertEqual("bonefield_patrol_01", request.ExplorationTriggerPatrolId, "exploration request should carry patrol trigger explicitly");
+    AssertEqual(4, request.ExplorationEntryCellX, "exploration request should carry entry x");
+    AssertEqual(5, request.ExplorationEntryCellY, "exploration request should carry entry y");
+    AssertEqual(1, request.ExplorationEntryCellHeight, "exploration request should carry entry height");
+    AssertEqual(4, request.ExplorationAlertLevel, "exploration request should carry alert level explicitly");
+    AssertTrue(request.ObjectiveIds.Contains("exploration_patrol=bonefield_patrol_01"), "exploration request should keep patrol objective compatibility");
+}
+
+static void ExplorationBattleVictoryRemovesTriggeringPatrol()
+{
+    StrategicWorldState state = new()
+    {
+        PlayerFactionId = StrategicWorldIds.FactionPlayer
+    };
+    WorldSiteState site = new()
+    {
+        SiteId = StrategicWorldIds.SiteBonefield,
+        Exploration = new WorldSiteExplorationState
+        {
+            IsSimulationPaused = true,
+            PauseReason = "exploration_alert_radius",
+            ActiveAlertPatrolId = "bonefield_patrol_01"
+        }
+    };
+    site.Exploration.PatrolUnits.Add(new SiteExplorationPatrolState { PatrolId = "bonefield_patrol_01", CellX = 1, CellY = 0, CellHeight = 0 });
+    state.SiteStates[StrategicWorldIds.SiteBonefield] = site;
+
+    BattleStartRequest request = WorldSiteExplorationService.BuildExplorationBattleRequest(
+        StrategicWorldIds.SiteBonefield,
+        "",
+        "bonefield_patrol_01",
+        new GridSurfacePosition(1, 0, 0),
+        alertLevel: 2,
+        "res://return.tscn",
+        "res://site.tscn");
+    BattleResult result = BuildVictoryResult(request, "site_exploration");
+
+    WorldActionResult actionResult = new WorldBattleResultApplier().Apply(
+        state,
+        new StrategicWorldDefinition { Id = "test_world" },
+        request,
+        result);
+
+    AssertTrue(actionResult.Success, $"exploration encounter result should apply success message={actionResult.Message}");
+    AssertTrue(site.Exploration.PatrolUnits[0].IsRemoved, "victory should remove triggering patrol from exploration state");
+    AssertTrue(site.Exploration.ResolvedPointIds.Contains("patrol:bonefield_patrol_01"), "victory should record resolved patrol encounter");
+    AssertEqual("exploration_encounter_resolved", site.Exploration.PauseReason, "victory should leave stable exploration pause reason");
+}
+
+static BattleGridMap BuildLineGridMap(int minX, int maxX)
+{
+    BattleGridMap gridMap = new();
+    for (int x = minX; x <= maxX; x++)
+    {
+        GridCellSurface surface = gridMap.GetOrCreateSurface(new GridPosition(x, 0), 0);
+        surface.AddLayer(new GridCellLayerData("test", LayerRole.Foundation, 0, true, false, false, false, true, 1, true, false, "", 0, 0, 0, 0));
+    }
+
+    gridMap.RebuildTopSurfaceIndex();
+    return gridMap;
+}
+
+static void WorldSiteHoverSummaryUsesLocalResourcesAndForceCounts()
+{
+    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
+    StrategicWorldDefinitionQueries queries = new(definition);
+    StrategicWorldState state = BuildResourceDisplayNameTestState();
+    WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
+    site.LocalResources.Set(StrategicWorldIds.ResourcePopulation, 5);
+    site.LocalResources.Reserve(StrategicWorldIds.ResourcePopulation, 2, "bonefield:test", "test");
+    site.LocalResources.Set(StrategicWorldIds.ResourceEconomy, 8);
+    site.LocalResources.Set(StrategicWorldIds.ResourceStone, 12);
+    site.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 4 });
+    site.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitPlayerKnight, Count = 1 });
+
+    WorldSiteDefinition siteDefinition = queries.GetSite(StrategicWorldIds.SiteBonefield);
+    WorldSiteHoverSummaryData summary = WorldSiteHoverSummaryPresenter.Build(queries, siteDefinition, site);
+
+    AssertEqual("Test Quarry", summary.Title, "hover summary title should use configured site display name");
+    AssertEqual("Labor 3/5　Coin 8　Granite 12", summary.ResourceText, "hover summary should use local resources and configured resource labels");
+    AssertEqual("兵团 4　英雄 1", summary.ForceText, "hover summary should count non-hero troops separately from heroes");
+}
+
+static void WorldSiteHoverSummaryStaysInsideViewport()
+{
+    var viewport = new Godot.Vector2(1280f, 720f);
+    var panelSize = new Godot.Vector2(190f, 78f);
+    var rightEdgeAnchor = new Godot.Rect2(new Godot.Vector2(1240f, 240f), new Godot.Vector2(50f, 70f));
+
+    Godot.Vector2 position = WorldSiteHoverSummaryPresenter.CalculatePanelPosition(
+        rightEdgeAnchor,
+        panelSize,
+        viewport);
+
+    AssertFloatEqual(1078f, position.X, 0.001f, "hover summary should clamp to the right viewport edge");
+    AssertFloatEqual(154f, position.Y, 0.001f, "hover summary should prefer above the site visual");
+
+    Godot.Vector2 topPosition = WorldSiteHoverSummaryPresenter.CalculatePanelPosition(
+        new Godot.Rect2(new Godot.Vector2(60f, 24f), new Godot.Vector2(80f, 48f)),
+        panelSize,
+        viewport);
+
+    AssertFloatEqual(80f, topPosition.Y, 0.001f, "hover summary should move below the site when there is no space above");
+}
+
+static void StrategicWorldForwardsMiddleMouseCameraNavigation()
+{
+    string strategicRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "StrategicWorldRoot.cs"));
+    AssertTrue(
+        strategicRoot.Contains("TryHandleWorldCameraPointerInput(@event)", StringComparison.Ordinal),
+        "strategic world root should forward pointer camera navigation before world army input");
+    AssertTrue(
+        strategicRoot.Contains("_worldCamera.TryHandlePointerNavigationInput(@event)", StringComparison.Ordinal),
+        "strategic world root should delegate middle mouse navigation to MapCameraController");
 }
 
 static void BattleResultApplierMessagesUseConfiguredDisplayNames()
@@ -1110,6 +1602,40 @@ static void AssertFloatEqual(float expected, float actual, float tolerance, stri
     {
         throw new InvalidOperationException($"{message}: expected={expected} actual={actual}");
     }
+}
+
+static string ExtractMethodBlock(string source, string methodSignature)
+{
+    int signatureIndex = source.IndexOf(methodSignature, StringComparison.Ordinal);
+    if (signatureIndex < 0)
+    {
+        throw new InvalidOperationException($"missing method signature: {methodSignature}");
+    }
+
+    int braceIndex = source.IndexOf('{', signatureIndex);
+    if (braceIndex < 0)
+    {
+        throw new InvalidOperationException($"missing method body: {methodSignature}");
+    }
+
+    int depth = 0;
+    for (int i = braceIndex; i < source.Length; i++)
+    {
+        if (source[i] == '{')
+        {
+            depth++;
+        }
+        else if (source[i] == '}')
+        {
+            depth--;
+            if (depth == 0)
+            {
+                return source[braceIndex..(i + 1)];
+            }
+        }
+    }
+
+    throw new InvalidOperationException($"unterminated method body: {methodSignature}");
 }
 
 static void AssertSequence<T>(IReadOnlyList<T> expected, IReadOnlyList<T> actual, string message)

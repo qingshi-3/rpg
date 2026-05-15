@@ -61,6 +61,8 @@ public partial class BattleUnitRoot : Node2D
 
     public override void _ExitTree()
     {
+        // Movement tweens own frame callbacks that close over BattleEntity; stop them before entities are freed.
+        KillAllMovementTweens();
         ClearAllActionCues();
         SetHitOutlines(_hitOutlinedEntities.ToArray(), visible: false);
         _pendingDefeatedPresentations.Clear();
@@ -136,7 +138,11 @@ public partial class BattleUnitRoot : Node2D
         return blockedSurfaces;
     }
 
-    public void MoveEntityTo(BattleEntity entity, IReadOnlyList<GridSurfacePosition> path)
+    public void MoveEntityTo(
+        BattleEntity entity,
+        IReadOnlyList<GridSurfacePosition> path,
+        bool restartMoveAnimation = true,
+        bool returnToIdleOnComplete = true)
     {
         GridOccupantComponent gridOccupant = entity?.GetComponent<GridOccupantComponent>();
         if (gridOccupant == null)
@@ -155,9 +161,9 @@ public partial class BattleUnitRoot : Node2D
         {
             UnitAnimationComponent animation = entity.GetComponent<UnitAnimationComponent>();
             FaceAlongSegment(animation, globalPath[0], globalPath[1]);
-            animation?.PlayMove();
+            animation?.PlayMove(restartMoveAnimation);
             entity.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Move);
-            AnimateEntityMove(entity, globalPath, surfacePath);
+            AnimateEntityMove(entity, globalPath, surfacePath, returnToIdleOnComplete);
             GameLog.Info(
                 nameof(BattleUnitRoot),
                 $"Entity visual move id={entity.EntityId} fromCell={previousPosition} toCell={targetPosition} steps={System.Math.Max(0, globalPath.Length - 1)} fromGlobal={previousGlobal} toGlobal={globalPath[^1]} stepDuration={UnitMoveDuration:0.00}");
@@ -547,11 +553,17 @@ public partial class BattleUnitRoot : Node2D
     private void AnimateEntityMove(
         BattleEntity entity,
         IReadOnlyList<Vector2> globalPath,
-        IReadOnlyList<GridSurfacePosition> surfacePath)
+        IReadOnlyList<GridSurfacePosition> surfacePath,
+        bool returnToIdleOnComplete)
     {
         if (_movementTweens.Remove(entity, out Tween previousTween))
         {
-            previousTween.Kill();
+            KillMovementTween(previousTween);
+        }
+
+        if (!IsEntityAlive(entity))
+        {
+            return;
         }
 
         if (!IsInsideTree() || UnitMoveDuration <= 0)
@@ -574,6 +586,12 @@ public partial class BattleUnitRoot : Node2D
         double totalDuration = UnitMoveDuration * stepCount;
         tween.TweenMethod(Callable.From<float>(progress =>
         {
+            if (!IsInsideTree() || !IsEntityAlive(entity))
+            {
+                KillTrackedMovementTween(entity);
+                return;
+            }
+
             ResolveMovementSegment(globalPath, progress, out int segmentIndex, out float segmentProgress);
             Vector2 from = globalPath[segmentIndex - 1];
             Vector2 to = globalPath[segmentIndex];
@@ -591,16 +609,56 @@ public partial class BattleUnitRoot : Node2D
 
         tween.Finished += () =>
         {
+            if (!IsInsideTree() || !IsEntityAlive(entity))
+            {
+                _movementTweens.Remove(entity);
+                return;
+            }
+
             entity.GlobalPosition = globalPath[^1];
             if (surfacePath?.Count > 0)
             {
                 ApplyRenderSort(entity, surfacePath[^1]);
             }
             _movementTweens.Remove(entity);
-            entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
+            if (returnToIdleOnComplete)
+            {
+                entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
+            }
         };
 
         _movementTweens[entity] = tween;
+    }
+
+    private void KillAllMovementTweens()
+    {
+        foreach (Tween tween in _movementTweens.Values.ToArray())
+        {
+            KillMovementTween(tween);
+        }
+
+        _movementTweens.Clear();
+    }
+
+    private void KillTrackedMovementTween(BattleEntity entity)
+    {
+        if (_movementTweens.Remove(entity, out Tween tween))
+        {
+            KillMovementTween(tween);
+        }
+    }
+
+    private static void KillMovementTween(Tween tween)
+    {
+        if (tween != null && GodotObject.IsInstanceValid(tween))
+        {
+            tween.Kill();
+        }
+    }
+
+    private static bool IsEntityAlive(BattleEntity entity)
+    {
+        return entity != null && GodotObject.IsInstanceValid(entity);
     }
 
     private static void ResolveMovementSegment(

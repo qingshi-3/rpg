@@ -103,9 +103,9 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         return TryPlay(AnimationSet?.IdleAnimation, "idle", restart: false);
     }
 
-    public bool PlayMove()
+    public bool PlayMove(bool restart = true)
     {
-        return TryPlay(AnimationSet?.MoveAnimation, "move", restart: true);
+        return TryPlay(AnimationSet?.MoveAnimation, "move", restart);
     }
 
     public bool PlayAttack()
@@ -290,6 +290,10 @@ public partial class UnitAnimationComponent : BattleEntityComponent
     private bool TryPlay(string animationName, string cue, bool restart, double minimumTargetSeconds = 0)
     {
         string resolvedAnimationName = ResolveAnimationName(animationName, cue);
+        if (!restart && IsCueAlreadyPlaying(cue, resolvedAnimationName))
+        {
+            return true;
+        }
 
         bool preferAnimatedSprite = AnimationSet?.PreferAnimatedSprite != false;
         if (preferAnimatedSprite)
@@ -758,6 +762,18 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         return _animationPlayer != null &&
                GodotObject.IsInstanceValid(_animationPlayer) &&
                string.Equals(_animationPlayer.CurrentAnimation, animationName, System.StringComparison.Ordinal);
+    }
+
+    private bool IsCueAlreadyPlaying(string cue, string animationName)
+    {
+        if (!string.IsNullOrWhiteSpace(_proceduralCue) &&
+            _proceduralTween != null &&
+            string.Equals(_proceduralCue, cue, System.StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return IsCurrentAnimation(animationName);
     }
 
     private double ResolveAnimationPlayerAnimationSeconds(string animationName)
