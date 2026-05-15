@@ -43,6 +43,33 @@ reference and narrowed to this project.
 - New content behavior prefers definitions/effects/conditions over hardcoded
   action branches.
 
+## Post-change Godot Knowledge Check
+
+After a Godot runtime, UI, input, scene, resource, animation, or performance
+change, identify the concrete Godot technical points touched by the change, then
+run targeted keyword searches against the local Godot knowledge base before
+claiming the work is complete.
+
+- Use focused `rg` queries; do not scan or summarize the full documentation.
+- Search curated notes under `docs/70-collaboration/local-knowledge/godot/`.
+- Search official docs under `.codex/external/godot-docs-4.5/` when curated
+  notes are insufficient.
+- Do not place large external documentation clones under `res://`; Godot will
+  scan/import them as project resources.
+- Prefer 2-5 keywords tied to the actual change, such as `CanvasLayer`,
+  `Control`, `mouse_filter`, `_gui_input`, `Node2D`, `_Process`, `Tween`, or
+  `AnimationPlayer`.
+- Check the curated note first when it exists, then the official docs path if
+  the note is insufficient.
+- If the search reveals a missed rule, fix the change or explicitly report the
+  remaining risk.
+
+Example:
+
+```powershell
+rg -n "CanvasLayer|Control|mouse_filter" docs/70-collaboration/local-knowledge/godot .codex/external/godot-docs-4.5
+```
+
 ## Review Output
 
 For a code review, report findings first:
@@ -52,4 +79,3 @@ For a code review, report findings first:
 - Minimal fix direction.
 
 If no issues are found, say so and list remaining test gaps.
-

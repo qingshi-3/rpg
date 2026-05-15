@@ -156,6 +156,8 @@ StrategicWorldRoot
 
 代码优先读取 `MapAnchors/Sites/<site_id>` 作为场域中心。没有锚点时才回退到 definition 的 `MapPosition`。`SiteVisualLayer` 只负责场域大地图素材，`Sites/<site_id>` 的锚点必须落在对应素材内部。运行时从锚点所在 cell 做 4 向连通扫描，得到该场域的视觉 footprint，并用它驱动场域点击热区、选中描边和标签位置；没有 footprint 时才回退到旧圆形图标。不同场域素材不能在 `SiteVisualLayer` 上边相连，否则会被识别成同一片素材。蓝黄临时角标已移除；英雄数量和兵团数量角标等待正式 UI / 图标资源后再接入。敌方 Raid marker 由敌方 `WorldArmyState` 的位置绘制，移动路径来自 `StrategicNavigation`，不再配置隐藏移动锚点。
 
+大世界相机使用通用 `MapCameraController`。WASD、鼠标滚轮缩放和鼠标中键拖拽都属于相机导航输入；中键拖拽不得改变场域选择、小队选择、出征目标或行动状态。
+
 ### SiteDetailPanel
 
 选中场域后显示：

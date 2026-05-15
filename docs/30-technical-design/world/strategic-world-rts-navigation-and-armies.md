@@ -123,24 +123,24 @@ StrategicWorldRoot
 正式寻路优先考虑 Godot 2D 导航能力：
 
 ```text
-TileSet navigation polygon
-NavigationServer2D
+StrategicNavigationTileLayer authored cells
+StrategicNavigationGrid A*
 ```
 
 TileMapLayer 可以继续承担视觉地表；是否直接从 TileMap 导出导航区域，取决于 Godot 工程配置和地图制作效率。
 
 当前接入方式：
 
-- `StrategicNavigationContext` 请求 Godot `NavigationServer2D`，路径点在 `WorldMapRoot` 本地坐标和 Godot 全局坐标之间转换。
-- `StrategicNavigationTileLayer` 是大地图唯一权威导航绘制层；它通过 TileSet navigation polygon 注册到 Godot 导航系统。
-- 如果 Godot 导航没有配置、尚未同步或返回空路径，系统必须把对应部队置为 `NavigationBlocked`，发出 `WorldArmyNavigationBlocked`，由世界层暂停推进并暴露原因；不允许回退到旧 TileMap A*、视觉层或直线路径。
+- `StrategicNavigationContext` 从 `StrategicNavigationTileLayer` 已绘制 cell 构建内存 `StrategicNavigationGrid`，用同步 A* 计算战略路径。
+- `StrategicNavigationTileLayer` 是大地图唯一权威导航绘制层；TileSet navigation polygon 不再作为战略行军运行时依赖。
+- 如果导航层缺失、为空、起终点不在导航格或网格不连通，系统必须把对应部队置为 `NavigationBlocked`，发出 `WorldArmyNavigationBlocked`，由世界层暂停推进并暴露原因；不允许回退到视觉层或直线路径。
 - 部队路径缓存在 `WorldArmyState` 的运行态字段中；只有目标改变、导航版本变化、战斗/到达/失败等状态切换时才清空或重算。
-- 碰撞配置不直接等同于寻路数据。碰撞负责物理阻挡、点击命中或烘焙来源；大地图行军路径以 Godot 2D navigation 和 `StrategicNavigationTileLayer` 为准。
+- 碰撞配置不直接等同于寻路数据。碰撞负责物理阻挡或点击命中；大地图行军路径只以 `StrategicNavigationTileLayer` 导出的 `StrategicNavigationGrid` 为准。
 
 当前导航层规则：
 
 - `StrategicNavigationTileLayer` 上有导航 tile 的 cell 表示可走；无 tile 表示不可走。
-- 导航 tile 的 TileSet 必须配置 navigation layer 和 full-cell navigation polygon。
+- 导航 tile 只需要作为已绘制 cell 标记可走面；运行时不依赖 Godot navigation layer 同步。
 - `StrategicMapLayer`、`StrategicBridgeLayer` 和 `SiteVisualLayer` 只负责视觉，不再作为寻路权威。
 - 桥、陆地、场域视觉可以重叠；实际可走范围只由 `StrategicNavigationTileLayer` 决定。
 - `MapAnchors/Sites/<site_id>` 是场域在大地图上的权威锚点，运行时会同步到 `WorldSiteDefinition.MapPosition` 供军队生成使用。
@@ -213,7 +213,7 @@ WorldTick
 - 大地图第一屏像世界地表，不像流程图。
 - 场域只是地表上的节点。
 - 非场域地表具备后续移动和遭遇扩展空间。
-- 行军可走范围只由 `StrategicNavigationTileLayer` 和 Godot 2D navigation 决定。
+- 行军可走范围只由 `StrategicNavigationTileLayer` 导出的战略导航网格决定。
 
 ### 阶段 2：新增 WorldArmy 运行态
 
@@ -385,7 +385,7 @@ EventHooks
 
 如果旧运行态中仍存在没有 `WorldArmyId` 的威胁，表现层只允许用 `StrategicNavigation` 计算一次临时路径；不再配置或读取手工移动锚点。
 
-大地图当前只使用 Godot Navigation。`StrategicNavigationTileLayer` 是正式导航数据入口；如果导航层缺失、为空、TileSet navigation polygon 未生效，或者目标点不在导航区域内，系统必须把对应部队置为 `NavigationBlocked`，记录 `WorldArmyNavigationBlocked`，并由世界层暂停推进。
+大地图当前只使用项目内 `StrategicNavigationGrid`。`StrategicNavigationTileLayer` 是正式导航数据入口；如果导航层缺失、为空、目标点不在导航格内，或者起终点所在网格不连通，系统必须把对应部队置为 `NavigationBlocked`，记录 `WorldArmyNavigationBlocked`，并由世界层暂停推进。
 
 ## 完成定义
 
@@ -398,3 +398,8 @@ EventHooks
 - 双方接触能产生野外遭遇或拦截。
 - 战斗结果能回写部队和威胁状态。
 - 所有关键运行态可保存和读取。
+## Navigation Transform Contract
+
+`StrategicNavigationTileLayer` is the authored navigation source, and `StrategicNavigationGrid` is the runtime path authority. Runtime may keep authored scene data under `WorldMapRoot`, but `StrategicWorldRoot` isolates the navigation TileMapLayer under a stable `StrategicNavigationRoot` before camera pan/zoom changes `WorldMapRoot`. `StrategicNavigationContext` converts strategic map coordinates to navigation cells through that stable root and must not call Godot `NavigationServer2D`.
+
+Camera movement, fog, UI visibility, and site labels must not change navigation region transforms or path query coordinates.

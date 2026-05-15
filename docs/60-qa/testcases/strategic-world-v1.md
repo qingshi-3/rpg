@@ -149,7 +149,7 @@
 
 - 存在 Marching 状态的 Graveyard Raid。
 - `WorldMapRoot/MapAnchors/Sites` 已配置墓园和埋骨地锚点。
-- `WorldMapRoot/StrategicNavigationTileLayer` 已绘制从墓园到埋骨地的可导航区域，且对应 TileSet navigation polygon 生效。
+- `WorldMapRoot/StrategicNavigationTileLayer` 已绘制从墓园到埋骨地的可导航区域。
 - `StrategicMapLayer`、`StrategicBridgeLayer` 和 `SiteVisualLayer` 只作为视觉层，不作为战略行军寻路权威。
 
 操作：
@@ -159,7 +159,7 @@
 期望：
 
 - 地图上能看到敌方军队 marker。
-- marker 沿 Godot 2D navigation 返回的路径连续移动靠近埋骨地；地图上不绘制场域连线。
+- marker 沿 `StrategicNavigationGrid` 返回的路径连续移动靠近埋骨地；地图上不绘制场域连线。
 - marker 不会因为视觉陆地或桥面 tile 存在就穿过未绘制 `StrategicNavigationTileLayer` 的区域。
 - Raid 到达后 marker 停在目标附近，世界时钟暂停，并自动触发战斗提示弹窗。
 
@@ -168,7 +168,7 @@
 前置：
 
 - `StrategicNavigationTileLayer` 是唯一战略行军导航绘制层。
-- `StrategicNavigationTileLayer` 的导航 tile 配有可用 TileSet navigation polygon。
+- `StrategicNavigationTileLayer` 的导航 tile 已绘制为可走 cell。
 - `StrategicMapLayer` 只放大地图地貌视觉，`StrategicBridgeLayer` 只放桥面视觉；两者不产生战略行军路径。
 - 玩家营地、埋骨地、墓园锚点都放在导航区域上，或在配置的搜索半径内能解析到最近导航点。
 
@@ -181,8 +181,8 @@
 
 期望：
 
-- 可达指令成功时日志出现 `WorldArmyPathBuilt`，且 `provider=godot_navigation`。
-- 军队不会穿过未绘制 `StrategicNavigationTileLayer` 或 navigation polygon 未生效的区域。
+- 可达指令成功时日志出现 `WorldArmyPathBuilt`，且 `provider=strategic_grid`。
+- 军队不会穿过未绘制 `StrategicNavigationTileLayer` 的区域。
 - 视觉层桥面和陆地可以重叠，但是否可走只取决于 `StrategicNavigationTileLayer`。
 - 右键空白区域时指令被拒绝，日志出现 `WorldArmyCommandNavigationRejected`，已选小队保持原状态。
 - 导航层缺失、为空、断开或目标不可达时日志出现 `WorldArmyNavigationBlocked`，对应军队进入 `NavigationBlocked`，世界推进暂停；系统不创建直线 fallback 路径。
@@ -214,7 +214,7 @@
 前置：
 
 - 大地图上存在至少 1 支玩家小队。
-- `StrategicNavigationTileLayer` 已绘制可走表面并配置 TileSet navigation polygon。
+- `StrategicNavigationTileLayer` 已绘制可走表面。
 
 操作：
 
@@ -357,6 +357,29 @@
 - 相机不会移动到 authored map bounds 之外。
 - 战斗触发时相机对焦到触发点，而不是移动 `WorldMapRoot` 本身来伪装镜头。
 - `WorldSiteRoot` 内的 site/battle 相机仍保留相同的移动、缩放和拖拽体验。
+- 鼠标中键拖拽只移动相机，不改变当前场域选择、小队选择、出征目标或行动状态。
+
+### 大地图战争迷雾
+
+前置：
+
+- 进入 `StrategicWorldRoot`。
+- 玩家拥有至少一个己方 `WorldSite` 或可移动小队作为视野源。
+
+操作：
+
+- 观察初始大地图。
+- 将己方小队移动到未知区域附近。
+- 再让该区域离开当前视野。
+- 悬停或点击已探索但不可见的场域。
+
+期望：
+
+- 未探索区域显示深色迷雾，不显示具体场域、野外机会、敌军或资源详情。
+- 当前视野范围以像素风圆形区域揭示，不要求边缘完全顺滑。
+- 已探索但不可见区域显示较浅暗雾和旧情报。
+- 旧情报显示上次侦察世界步，且不刷新为当前场域资源、驻军、建筑或威胁状态。
+- 迷雾不依赖 TileMap cell；调整地图素材或地图随机槽位不应改变已保存的情报语义。
 
 ### Raid 自动结算
 
@@ -553,5 +576,5 @@
 - `WorldArmyState` 恢复部队位置、目标、状态、意图、来源、目标和成员。
 - 墓园 Raid 的 threat 与敌军关联仍然存在，读档后不会退回旧 countdown marker 表现。
 - 读档不会保存或依赖旧的运行时缓存路径；导航系统在继续移动时按当前 `StrategicNavigationTileLayer` 重建路径。
-- 路径重建成功时日志出现 `WorldArmyPathBuilt provider=godot_navigation`。
+- 路径重建成功时日志出现 `WorldArmyPathBuilt provider=strategic_grid`。
 - 如果读档后导航层缺失、为空或断开，日志出现 `WorldArmyNavigationBlocked`，部队进入 `NavigationBlocked`，世界推进暂停，不会静默走直线 fallback。

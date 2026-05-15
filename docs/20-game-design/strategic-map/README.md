@@ -9,6 +9,8 @@ This pillar provides the 三国群英传-style strategic surface: forces, operab
 ## Routes
 
 - Strategic World V1 overview: `strategic-world-v1.md`
+- Strategic world fog of war: `strategic-world-fog-of-war.md`
+- Strategic world site grid exploration: `strategic-world-site-grid-exploration.md`
 - World actions and tick: `strategic-world-v1-actions-and-tick.md`
 - Wilderness opportunities: `strategic-world-v1-opportunities.md`
 - Strategic map UI flow: `strategic-world-v1-ui-flow.md`

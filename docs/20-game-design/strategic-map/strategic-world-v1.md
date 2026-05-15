@@ -411,6 +411,8 @@ EnemyThreatPlan
   Consequence
 ```
 
+`VisibleIntelLevel` is governed by the strategic fog-of-war rules in `strategic-world-fog-of-war.md`. It should be treated as player knowledge, not as threat ownership or behavior authority.
+
 第一版威胁：
 
 ```text

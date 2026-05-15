@@ -180,6 +180,7 @@ V1 资源位置规则：
 
 - 玩家可花费资源主要存在 `StrategicWorldState.PlayerResources`。
 - 场域 `LocalResources` 预留给仓库、可抢资源、战斗撤离物资。
+- 大地图场域 hover 摘要读取 `WorldSiteState.LocalResources`、`Garrison` 和 `ActiveTags`，只做表现投影；点击详情面板继续承接建筑、威胁和行动信息。
 - V1 矿场产出可以先直接进入玩家资源库，避免第一版增加运输系统。
 
 ### 场域模式
@@ -424,6 +425,8 @@ EnemyThreatPlan
   CreatedTick
 ```
 
+Threat visibility and stale intelligence are owned by `strategic-world-fog-of-war.md`. `VisibleIntelLevel` must not become a parallel authority for threat behavior; it is only a presentation-facing knowledge level.
+
 V1 威胁：
 
 ```text
@@ -458,6 +461,7 @@ StrategicWorldState
   WorldTick
   PlayerFactionId
   PlayerResources: ResourceStore
+  Intel: StrategicWorldIntelState
   SiteStates: Dictionary<SiteId, WorldSiteState>
   ArmyStates: Dictionary<ArmyId, WorldArmyState>
   ThreatPlans: Dictionary<ThreatId, EnemyThreatPlan>
