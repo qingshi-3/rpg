@@ -2929,6 +2929,6 @@ FootprintWidth = 3
 FootprintHeight = 2
 
 [node name="tower_slot_01" parent="FacilitySlots" instance=ExtResource("12_facility_slot")]
-position = Vector2(231, 570)
+position = Vector2(204, 575)
 FootprintWidth = 2
 FootprintHeight = 2

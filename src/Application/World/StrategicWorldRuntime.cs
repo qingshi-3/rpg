@@ -12,6 +12,7 @@ public static class StrategicWorldRuntime
     public static string LastNotice { get; set; } = "";
     private static string PendingSiteVisitSiteId { get; set; } = "";
     private static string PendingSiteVisitReturnScenePath { get; set; } = "";
+    private static string PendingSiteVisitArmyId { get; set; } = "";
     private static bool PendingWorldResumeAfterSiteReturn { get; set; }
 
     public static void EnsureInitialized()
@@ -37,15 +38,27 @@ public static class StrategicWorldRuntime
 
     public static void BeginSiteVisit(string siteId, string returnScenePath)
     {
+        BeginSiteVisit(siteId, returnScenePath, "");
+    }
+
+    public static void BeginSiteVisit(string siteId, string returnScenePath, string armyId)
+    {
         PendingSiteVisitSiteId = siteId ?? "";
         PendingSiteVisitReturnScenePath = returnScenePath ?? "";
+        PendingSiteVisitArmyId = armyId ?? "";
         PendingWorldResumeAfterSiteReturn = false;
     }
 
     public static bool TryConsumePendingSiteVisit(out string siteId, out string returnScenePath)
     {
+        return TryConsumePendingSiteVisit(out siteId, out returnScenePath, out _);
+    }
+
+    public static bool TryConsumePendingSiteVisit(out string siteId, out string returnScenePath, out string armyId)
+    {
         siteId = PendingSiteVisitSiteId;
         returnScenePath = PendingSiteVisitReturnScenePath;
+        armyId = PendingSiteVisitArmyId;
         ClearPendingSiteVisit();
         return !string.IsNullOrWhiteSpace(siteId);
     }
@@ -54,6 +67,7 @@ public static class StrategicWorldRuntime
     {
         PendingSiteVisitSiteId = "";
         PendingSiteVisitReturnScenePath = "";
+        PendingSiteVisitArmyId = "";
     }
 
     public static void MarkWorldResumeAfterSiteReturn()

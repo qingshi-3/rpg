@@ -159,28 +159,9 @@ public sealed class WorldSiteDeploymentService
 
     public void ClearBattlePlacementsForForces(WorldSiteState site, IEnumerable<BattleForceRequest> forces)
     {
-        if (site == null || forces == null)
-        {
-            return;
-        }
-
-        HashSet<string> sourceKeys = forces
-            .Where(force => force != null && force.Count > 0)
-            .Select(force => BuildSourceKey(ResolveForceSourceKind(force), ResolveForceSourceId(force)))
-            .Where(key => !string.IsNullOrWhiteSpace(key))
-            .ToHashSet();
-        if (sourceKeys.Count == 0)
-        {
-            return;
-        }
-
-        int removed = site.UnitPlacements.RemoveAll(placement =>
-            !IsGarrisonPlacement(placement) &&
-            sourceKeys.Contains(BuildSourceKey(placement.SourceKind, placement.SourceId)));
-        if (removed > 0)
-        {
-            GameLog.Info(nameof(WorldSiteDeploymentService), $"BattlePlacementsCleared site={site.SiteId} sources={sourceKeys.Count} removed={removed}");
-        }
+        // Unit placement rows are site-local authoritative data. Deployment code may create or update
+        // placement rows, but removal must be driven by explicit domain events such as death, retreat,
+        // transfer, or disband. Do not bulk-delete by force source during UI refresh or battle handoff.
     }
 
     public bool EnsureBattlePlacementsForForce(

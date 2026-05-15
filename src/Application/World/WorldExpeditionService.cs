@@ -145,8 +145,17 @@ public sealed class WorldExpeditionService
         }
 
         state.ArmyStates[army.ArmyId] = army;
-        GameLog.Info(nameof(WorldExpeditionService), $"WorldExpeditionCreated army={army.ArmyId} source={sourceSiteId} target={army.TargetSiteId} intent={intent} units={unitCount}");
+        GameLog.Info(
+            nameof(WorldExpeditionService),
+            $"WorldExpeditionCreated army={army.ArmyId} source={sourceSiteId} target={army.TargetSiteId} intent={intent} status={army.Status} units={FormatUnits(army.GarrisonUnits)} sourceGarrisonAfter={FormatUnits(sourceSite.Garrison)}");
         return true;
+    }
+
+    private static string FormatUnits(IEnumerable<GarrisonState> units)
+    {
+        return units == null
+            ? "none"
+            : string.Join(",", units.Where(unit => unit != null).Select(unit => $"{unit.UnitTypeId}:{unit.Count}"));
     }
 
     private static Dictionary<string, int> NormalizeUnits(IReadOnlyDictionary<string, int> units)

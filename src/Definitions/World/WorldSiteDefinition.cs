@@ -14,6 +14,8 @@ public sealed class WorldSiteDefinition
     public string InitialOwnerFactionId { get; set; } = "";
     public SiteControlState InitialControlState { get; set; } = SiteControlState.Unknown;
     public List<FacilitySlotDefinition> FacilitySlots { get; set; } = new();
+    public List<SiteExplorationPointDefinition> ExplorationPoints { get; set; } = new();
+    public List<SiteExplorationPatrolDefinition> ExplorationPatrols { get; set; } = new();
     public string DefaultGarrisonZoneId { get; set; } = "";
     public List<SiteDeploymentZoneDefinition> DeploymentZones { get; set; } = new();
     public List<string> InitialFacilities { get; set; } = new();

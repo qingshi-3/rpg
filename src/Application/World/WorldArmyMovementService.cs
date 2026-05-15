@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
@@ -10,9 +12,6 @@ public sealed class WorldArmyMovementService
     private const float ArrivalReachDistance = 1.0f;
     private const float FieldInterceptThreshold = 24.0f;
     private const float WaypointReachDistance = 4.0f;
-    private const int MaxTransientNavigationPathFailures = 3;
-    // Scene returns can expose a Godot navigation iteration before path queries are stable.
-    private const float TransientNavigationPathWarmupSeconds = 0.5f;
     private readonly WorldSiteDeploymentService _deploymentService = new();
     private readonly WorldGarrisonMutationService _garrisonMutations = new();
 
@@ -182,23 +181,6 @@ public sealed class WorldArmyMovementService
 
         if (!navigationContext.TryBuildPath(current, destination, out StrategicNavigationPath path, out string failureReason))
         {
-            if (IsTransientNavigationFailure(failureReason))
-            {
-                army.RecordTransientNavigationPathFailure(retryDeltaSeconds);
-                bool stillWarmingUp =
-                    army.TransientNavigationPathFailureCount <= MaxTransientNavigationPathFailures ||
-                    army.TransientNavigationPathFailureSeconds < TransientNavigationPathWarmupSeconds;
-                if (stillWarmingUp)
-                {
-                    // Godot can expose a navigation iteration before MapGetPath can answer after scene return.
-                    // Keep empty paths pending for a small real-time window before treating them as authoring failures.
-                    GameLog.Warn(
-                        nameof(WorldArmyMovementService),
-                        $"WorldArmyNavigationPending army={army.ArmyId} reason={failureReason} attempt={army.TransientNavigationPathFailureCount}/{MaxTransientNavigationPathFailures} elapsed={army.TransientNavigationPathFailureSeconds:0.000}/{TransientNavigationPathWarmupSeconds:0.000}s current={current} destination={destination} provider={navigationContext.PrimaryProviderId} version={navigationContext.Version}");
-                    return false;
-                }
-            }
-
             BlockNavigationPath(state, army, result, failureReason);
             return false;
         }
@@ -208,11 +190,6 @@ public sealed class WorldArmyMovementService
             nameof(WorldArmyMovementService),
             $"WorldArmyPathBuilt army={army.ArmyId} provider={path.ProviderId} points={army.NavigationPathPoints.Count} version={navigationContext.Version} destination={destination}");
         return true;
-    }
-
-    private static bool IsTransientNavigationFailure(string failureReason)
-    {
-        return string.Equals(failureReason, "godot_navigation_path_empty", System.StringComparison.Ordinal);
     }
 
     private static void BlockNavigationPath(
@@ -358,7 +335,16 @@ public sealed class WorldArmyMovementService
             });
         }
 
-        GameLog.Info(nameof(WorldArmyMovementService), $"WorldArmyArrived army={army.ArmyId} target={army.TargetSiteId} intent={army.Intent}");
+        GameLog.Info(
+            nameof(WorldArmyMovementService),
+            $"WorldArmyArrived army={army.ArmyId} owner={army.OwnerFactionId} target={army.TargetSiteId} intent={army.Intent} status={army.Status} units={FormatUnits(army.GarrisonUnits)} battleReady={result.BattleReadyArmyIds.Contains(army.ArmyId)}");
+    }
+
+    private static string FormatUnits(IEnumerable<GarrisonState> units)
+    {
+        return units == null
+            ? "none"
+            : string.Join(",", units.Where(unit => unit != null).Select(unit => $"{unit.UnitTypeId}:{unit.Count}"));
     }
 
     private void TransferArrivedGarrison(

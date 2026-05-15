@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -286,6 +286,41 @@ public static class StrategicWorldV1DefinitionFactory
                     new() { EntranceId = "main_entrance", DisplayName = "埋骨地入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.West, BattleAnchorId = "bonefield_main_entrance" },
                     new() { EntranceId = "main_entrance_east", DisplayName = "埋骨地东侧入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.East, BattleAnchorId = "bonefield_east_entrance" },
                     new() { EntranceId = "defense_post", DisplayName = "防守据点", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.Any, BattleAnchorId = "bonefield_defense_post", Source = "Garrison" }
+                },
+                ExplorationPatrols = new List<SiteExplorationPatrolDefinition>
+                {
+                    new()
+                    {
+                        Id = "bonefield_patrol_01",
+                        DisplayName = "骸骨巡逻队",
+                        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
+                        SourcePlacementId = "garrison:skeleton_warrior:1",
+                        AlertRadiusCells = 2,
+                        ActionPointRegenPerTick = 1,
+                        MoveCostPerCell = 2,
+                        InitiallyActive = true,
+                        RouteCells = new List<SiteExplorationRouteCellDefinition>
+                        {
+                            new() { CellX = 18, CellY = 17, CellHeight = 0 },
+                            new() { CellX = 19, CellY = 17, CellHeight = 0 }
+                        }
+                    },
+                    new()
+                    {
+                        Id = "bonefield_patrol_02",
+                        DisplayName = "骸骨射手巡逻队",
+                        UnitTypeId = StrategicWorldIds.UnitSkeletonArcher,
+                        SourcePlacementId = "garrison:skeleton_archer:1",
+                        AlertRadiusCells = 2,
+                        ActionPointRegenPerTick = 1,
+                        MoveCostPerCell = 2,
+                        InitiallyActive = true,
+                        RouteCells = new List<SiteExplorationRouteCellDefinition>
+                        {
+                            new() { CellX = 18, CellY = 16, CellHeight = 0 },
+                            new() { CellX = 19, CellY = 16, CellHeight = 0 }
+                        }
+                    }
                 },
                 Tags = new List<string> { "resource_site" }
             },
@@ -644,3 +679,4 @@ public static class StrategicWorldV1DefinitionFactory
         };
     }
 }
+

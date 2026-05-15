@@ -21,6 +21,12 @@ public sealed class BattleStartRequest
     public string DefenderFactionId { get; set; } = "";
     public WorldSiteAttackDirection AttackDirection { get; set; } = WorldSiteAttackDirection.Any;
     public string MapDefinitionId { get; set; } = "";
+    public string ExplorationPointId { get; set; } = "";
+    public string ExplorationTriggerPatrolId { get; set; } = "";
+    public int ExplorationEntryCellX { get; set; }
+    public int ExplorationEntryCellY { get; set; }
+    public int ExplorationEntryCellHeight { get; set; }
+    public int ExplorationAlertLevel { get; set; }
     public List<string> ObjectiveIds { get; set; } = new();
     public List<BattleEntranceRequest> AvailableEntrances { get; set; } = new();
     public List<BattleForceRequest> PlayerForces { get; set; } = new();
