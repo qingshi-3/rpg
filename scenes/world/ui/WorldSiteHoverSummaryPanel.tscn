@@ -1,0 +1,66 @@
+[gd_scene load_steps=5 format=3 uid="uid://be8o2v2qkn51v"]
+
+[ext_resource type="Script" uid="uid://c1m5ot6re8xh2" path="res://src/Presentation/World/WorldSiteHoverSummaryPanel.cs" id="1_panel"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hover_panel"]
+bg_color = Color(0.035, 0.033, 0.029, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.62, 0.52, 0.28, 0.95)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 8
+shadow_offset = Vector2(0, 3)
+
+[sub_resource type="LabelSettings" id="LabelSettings_hover_title"]
+font_size = 16
+font_color = Color(1, 0.91, 0.62, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_hover_body"]
+font_size = 14
+font_color = Color(0.91, 0.89, 0.82, 1)
+
+[node name="WorldSiteHoverSummaryPanel" type="PanelContainer"]
+visible = false
+z_index = 130
+custom_minimum_size = Vector2(190, 78)
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_hover_panel")
+script = ExtResource("1_panel")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 9
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 9
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="Margin/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "场域"
+label_settings = SubResource("LabelSettings_hover_title")
+text_overrun_behavior = 3
+
+[node name="ResourceLabel" type="Label" parent="Margin/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "人口 0/0　经济 0　石材 0"
+label_settings = SubResource("LabelSettings_hover_body")
+text_overrun_behavior = 3
+
+[node name="ForceLabel" type="Label" parent="Margin/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "兵团 0　英雄 0"
+label_settings = SubResource("LabelSettings_hover_body")
+text_overrun_behavior = 3

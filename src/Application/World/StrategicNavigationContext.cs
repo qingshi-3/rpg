@@ -6,68 +6,60 @@ namespace Rpg.Application.World;
 public sealed class StrategicNavigationContext : IStrategicNavigationContext
 {
     private const float PointMergeDistanceSquared = 0.001f;
-    private const float EndpointTolerance = 8.0f;
-    private const float PathValidationSampleDistance = 8.0f;
     private readonly bool _isAvailable;
-    private readonly Rid _navigationMap;
     private readonly TileMapLayer _navigationTileLayer;
     private readonly Node2D _mapRoot;
+    private readonly StrategicNavigationGrid _grid;
     private readonly string _unavailableReason;
 
     private StrategicNavigationContext(
         bool isAvailable,
-        Rid navigationMap,
         TileMapLayer navigationTileLayer,
         Node2D mapRoot,
+        StrategicNavigationGrid grid,
         string unavailableReason,
         int version)
     {
         _isAvailable = isAvailable;
-        _navigationMap = navigationMap;
         _navigationTileLayer = navigationTileLayer;
         _mapRoot = mapRoot;
+        _grid = grid ?? new StrategicNavigationGrid(null);
         _unavailableReason = unavailableReason ?? "";
         Version = version;
     }
 
     public int Version { get; }
-    public string PrimaryProviderId => _isAvailable ? "godot_navigation" : "unavailable";
+    public string PrimaryProviderId => _isAvailable ? "strategic_grid" : "unavailable";
 
     public bool IsSynchronized(out string failureReason)
     {
         failureReason = "";
-        if (!_isAvailable)
+        if (_isAvailable)
         {
-            failureReason = string.IsNullOrWhiteSpace(_unavailableReason)
-                ? "strategic_navigation_unavailable"
-                : _unavailableReason;
-            return false;
+            return true;
         }
 
-        if (NavigationServer2D.MapGetIterationId(_navigationMap) <= 0)
-        {
-            failureReason = "godot_navigation_map_not_synchronized";
-            return false;
-        }
-
-        return true;
+        failureReason = string.IsNullOrWhiteSpace(_unavailableReason)
+            ? "strategic_navigation_unavailable"
+            : _unavailableReason;
+        return false;
     }
 
     public static StrategicNavigationContext CreateUnavailable(string reason)
     {
-        return new StrategicNavigationContext(false, default, null, null, reason, 0);
+        return new StrategicNavigationContext(false, null, null, null, reason, 0);
     }
 
-    public static StrategicNavigationContext CreateGodotNavigation(
-        Rid navigationMap,
+    public static StrategicNavigationContext CreateStrategicGrid(
         TileMapLayer navigationTileLayer,
         Node2D mapRoot)
     {
+        StrategicNavigationGrid grid = BuildGrid(navigationTileLayer);
         return new StrategicNavigationContext(
             true,
-            navigationMap,
             navigationTileLayer,
             mapRoot,
+            grid,
             "",
             ComputeNavigationDataVersion(navigationTileLayer));
     }
@@ -75,11 +67,8 @@ public sealed class StrategicNavigationContext : IStrategicNavigationContext
     public bool IsPointNavigable(Vector2 mapPoint, out string failureReason)
     {
         failureReason = "";
-        if (!_isAvailable)
+        if (!IsAvailable(out failureReason))
         {
-            failureReason = string.IsNullOrWhiteSpace(_unavailableReason)
-                ? "strategic_navigation_unavailable"
-                : _unavailableReason;
             return false;
         }
 
@@ -95,7 +84,7 @@ public sealed class StrategicNavigationContext : IStrategicNavigationContext
             return false;
         }
 
-        if (!IsNavigationCellPainted(cell))
+        if (!_grid.Contains(cell))
         {
             failureReason = $"point_outside_strategic_navigation_tile_layer cell={cell}";
             return false;
@@ -117,11 +106,8 @@ public sealed class StrategicNavigationContext : IStrategicNavigationContext
             return true;
         }
 
-        if (!_isAvailable)
+        if (!IsAvailable(out failureReason))
         {
-            failureReason = string.IsNullOrWhiteSpace(_unavailableReason)
-                ? "strategic_navigation_unavailable"
-                : _unavailableReason;
             return false;
         }
 
@@ -131,17 +117,164 @@ public sealed class StrategicNavigationContext : IStrategicNavigationContext
             return false;
         }
 
+        if (!TryFindNearestPaintedCell(originCell, mapPoint, maxCellRadius, out Vector2I bestCell, out navigablePoint))
+        {
+            failureReason = $"nearest_navigable_point_missing origin_cell={originCell} radius={Mathf.Max(0, maxCellRadius)}";
+            return false;
+        }
+
+        return TryGetNavigationCellMapPoint(bestCell, out navigablePoint);
+    }
+
+    public bool TryGetNearestReachableNavigablePoint(
+        Vector2 start,
+        Vector2 preferredPoint,
+        int maxCellRadius,
+        out Vector2 navigablePoint,
+        out StrategicNavigationPath path,
+        out string failureReason)
+    {
+        navigablePoint = preferredPoint;
+        path = null;
+        failureReason = "";
+        if (!IsPointNavigable(start, out failureReason))
+        {
+            failureReason = $"start_{failureReason}";
+            return false;
+        }
+
+        if (!IsAvailable(out failureReason))
+        {
+            return false;
+        }
+
+        if (!TryGetNavigationCell(preferredPoint, out Vector2I originCell))
+        {
+            failureReason = "strategic_navigation_tile_layer_missing";
+            return false;
+        }
+
+        List<(Vector2I Cell, Vector2 Point, float DistanceSquared)> candidates = new();
         int searchRadius = Mathf.Max(0, maxCellRadius);
-        bool hasCandidate = false;
-        float bestDistanceSquared = float.PositiveInfinity;
-        Vector2 bestPoint = mapPoint;
         for (int y = originCell.Y - searchRadius; y <= originCell.Y + searchRadius; y++)
         {
             for (int x = originCell.X - searchRadius; x <= originCell.X + searchRadius; x++)
             {
                 Vector2I cell = new(x, y);
-                if (!IsNavigationCellPainted(cell) ||
-                    !TryGetNavigationCellMapPoint(cell, out Vector2 candidate))
+                if (!_grid.Contains(cell) || !TryGetNavigationCellMapPoint(cell, out Vector2 point))
+                {
+                    continue;
+                }
+
+                candidates.Add((cell, point, point.DistanceSquaredTo(preferredPoint)));
+            }
+        }
+
+        candidates.Sort((left, right) =>
+        {
+            int distance = left.DistanceSquared.CompareTo(right.DistanceSquared);
+            if (distance != 0)
+            {
+                return distance;
+            }
+
+            int y = left.Cell.Y.CompareTo(right.Cell.Y);
+            return y != 0 ? y : left.Cell.X.CompareTo(right.Cell.X);
+        });
+
+        foreach ((_, Vector2 candidate, _) in candidates)
+        {
+            if (!TryBuildPath(start, candidate, out path, out _))
+            {
+                continue;
+            }
+
+            navigablePoint = candidate;
+            return true;
+        }
+
+        failureReason = $"nearest_reachable_navigable_point_missing origin_cell={originCell} radius={searchRadius}";
+        return false;
+    }
+
+    public bool TryBuildPath(Vector2 start, Vector2 destination, out StrategicNavigationPath path, out string failureReason)
+    {
+        path = new StrategicNavigationPath { ProviderId = PrimaryProviderId };
+        failureReason = "";
+        if (!IsAvailable(out failureReason))
+        {
+            return false;
+        }
+
+        if (!IsFinite(start) || !IsFinite(destination))
+        {
+            failureReason = "invalid_world_position";
+            return false;
+        }
+
+        if (!TryGetNavigationCell(start, out Vector2I startCell) ||
+            !TryGetNavigationCell(destination, out Vector2I destinationCell))
+        {
+            failureReason = "strategic_navigation_tile_layer_missing";
+            return false;
+        }
+
+        if (!_grid.TryBuildCellPath(startCell, destinationCell, out IReadOnlyList<Vector2I> cells, out failureReason))
+        {
+            return false;
+        }
+
+        AddPointIfDistinct(path, start);
+        if (cells.Count == 1)
+        {
+            AddPointIfDistinct(path, destination);
+            return true;
+        }
+
+        for (int index = 1; index < cells.Count - 1; index++)
+        {
+            if (TryGetNavigationCellMapPoint(cells[index], out Vector2 point))
+            {
+                AddPointIfDistinct(path, point);
+            }
+        }
+
+        AddPointIfDistinct(path, destination);
+        return true;
+    }
+
+    private bool IsAvailable(out string failureReason)
+    {
+        failureReason = "";
+        if (_isAvailable && _navigationTileLayer != null && _mapRoot != null && _grid.CellCount > 0)
+        {
+            return true;
+        }
+
+        failureReason = string.IsNullOrWhiteSpace(_unavailableReason)
+            ? "strategic_navigation_unavailable"
+            : _unavailableReason;
+        return false;
+    }
+
+    private bool TryFindNearestPaintedCell(
+        Vector2I originCell,
+        Vector2 mapPoint,
+        int maxCellRadius,
+        out Vector2I bestCell,
+        out Vector2 bestPoint)
+    {
+        bestCell = default;
+        bestPoint = mapPoint;
+        int searchRadius = Mathf.Max(0, maxCellRadius);
+        bool hasCandidate = false;
+        float bestDistanceSquared = float.PositiveInfinity;
+        for (int y = originCell.Y - searchRadius; y <= originCell.Y + searchRadius; y++)
+        {
+            for (int x = originCell.X - searchRadius; x <= originCell.X + searchRadius; x++)
+            {
+                Vector2I cell = new(x, y);
+                if (!_grid.Contains(cell) || !TryGetNavigationCellMapPoint(cell, out Vector2 candidate))
                 {
                     continue;
                 }
@@ -153,165 +286,13 @@ public sealed class StrategicNavigationContext : IStrategicNavigationContext
                 }
 
                 bestDistanceSquared = distanceSquared;
+                bestCell = cell;
                 bestPoint = candidate;
                 hasCandidate = true;
             }
         }
 
-        if (!hasCandidate)
-        {
-            failureReason = $"nearest_navigable_point_missing origin_cell={originCell} radius={searchRadius}";
-            return false;
-        }
-
-        navigablePoint = bestPoint;
-        return true;
-    }
-
-    public bool TryBuildPath(Vector2 start, Vector2 destination, out StrategicNavigationPath path, out string failureReason)
-    {
-        path = new StrategicNavigationPath { ProviderId = PrimaryProviderId };
-        failureReason = "";
-
-        if (!IsSynchronized(out failureReason))
-        {
-            return false;
-        }
-
-        if (!_isAvailable)
-        {
-            failureReason = string.IsNullOrWhiteSpace(_unavailableReason)
-                ? "strategic_navigation_unavailable"
-                : _unavailableReason;
-            return false;
-        }
-
-        if (!IsFinite(start) || !IsFinite(destination))
-        {
-            failureReason = "invalid_world_position";
-            return false;
-        }
-
-        if (!IsPointNavigable(start, out failureReason))
-        {
-            failureReason = $"start_{failureReason}";
-            return false;
-        }
-
-        if (!IsPointNavigable(destination, out failureReason))
-        {
-            failureReason = $"destination_{failureReason}";
-            return false;
-        }
-
-        if (_mapRoot == null)
-        {
-            failureReason = "strategic_navigation_map_root_missing";
-            return false;
-        }
-
-        Vector2 globalStart = _mapRoot.ToGlobal(start);
-        Vector2 globalDestination = _mapRoot.ToGlobal(destination);
-        var globalPath = NavigationServer2D.MapGetPath(_navigationMap, globalStart, globalDestination, true);
-
-        foreach (Vector2 globalPoint in globalPath)
-        {
-            AddPointIfDistinct(path, _mapRoot.ToLocal(globalPoint));
-        }
-
-        if (path.Points.Count == 0)
-        {
-            failureReason = "godot_navigation_path_empty";
-            return false;
-        }
-
-        if (path.Points[0].DistanceTo(start) > EndpointTolerance)
-        {
-            path.Points.Clear();
-            failureReason = "godot_navigation_start_outside_navigation";
-            return false;
-        }
-
-        if (path.Points[^1].DistanceTo(destination) > EndpointTolerance)
-        {
-            path.Points.Clear();
-            failureReason = "godot_navigation_destination_outside_navigation";
-            return false;
-        }
-
-        if (path.Points.Count <= 1 && start.DistanceSquaredTo(destination) > PointMergeDistanceSquared)
-        {
-            path.Points.Clear();
-            failureReason = "godot_navigation_path_empty";
-            return false;
-        }
-
-        if (!IsPathInsideNavigationLayer(path.Points, out failureReason))
-        {
-            path.Points.Clear();
-            return false;
-        }
-
-        return true;
-    }
-
-    private bool IsPathInsideNavigationLayer(IReadOnlyList<Vector2> points, out string failureReason)
-    {
-        failureReason = "";
-        if (points == null || points.Count == 0)
-        {
-            failureReason = "godot_navigation_path_empty";
-            return false;
-        }
-
-        for (int i = 0; i < points.Count; i++)
-        {
-            if (!IsPointNavigable(points[i], out failureReason))
-            {
-                failureReason = $"path_point_{i}_{failureReason}";
-                return false;
-            }
-        }
-
-        for (int i = 0; i < points.Count - 1; i++)
-        {
-            if (!IsPathSegmentInsideNavigationLayer(points[i], points[i + 1], i, out failureReason))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private bool IsPathSegmentInsideNavigationLayer(Vector2 start, Vector2 end, int segmentIndex, out string failureReason)
-    {
-        failureReason = "";
-        float distance = start.DistanceTo(end);
-        int steps = Mathf.Max(1, Mathf.CeilToInt(distance / PathValidationSampleDistance));
-        for (int step = 0; step <= steps; step++)
-        {
-            float ratio = step / (float)steps;
-            Vector2 point = start.Lerp(end, ratio);
-            if (IsPointNavigable(point, out _))
-            {
-                continue;
-            }
-
-            TryGetNavigationCell(point, out Vector2I cell);
-            failureReason = $"path_segment_left_strategic_navigation_tile_layer segment={segmentIndex} cell={cell} point={point}";
-            return false;
-        }
-
-        return true;
-    }
-
-    private static void AddPointIfDistinct(StrategicNavigationPath path, Vector2 point)
-    {
-        if (path.Points.Count == 0 || path.Points[^1].DistanceSquaredTo(point) > PointMergeDistanceSquared)
-        {
-            path.Points.Add(point);
-        }
+        return hasCandidate;
     }
 
     private bool TryGetNavigationCell(Vector2 mapPoint, out Vector2I cell)
@@ -342,10 +323,31 @@ public sealed class StrategicNavigationContext : IStrategicNavigationContext
         return IsFinite(mapPoint);
     }
 
-    private bool IsNavigationCellPainted(Vector2I cell)
+    private static void AddPointIfDistinct(StrategicNavigationPath path, Vector2 point)
     {
-        return _navigationTileLayer != null &&
-               _navigationTileLayer.GetCellSourceId(cell) >= 0;
+        if (path.Points.Count == 0 || path.Points[^1].DistanceSquaredTo(point) > PointMergeDistanceSquared)
+        {
+            path.Points.Add(point);
+        }
+    }
+
+    private static StrategicNavigationGrid BuildGrid(TileMapLayer navigationTileLayer)
+    {
+        List<Vector2I> cells = new();
+        if (navigationTileLayer == null)
+        {
+            return new StrategicNavigationGrid(cells);
+        }
+
+        foreach (Vector2I cell in navigationTileLayer.GetUsedCells())
+        {
+            if (navigationTileLayer.GetCellSourceId(cell) >= 0)
+            {
+                cells.Add(cell);
+            }
+        }
+
+        return new StrategicNavigationGrid(cells);
     }
 
     private static int ComputeNavigationDataVersion(TileMapLayer navigationTileLayer)

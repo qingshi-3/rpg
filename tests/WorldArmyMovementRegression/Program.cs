@@ -5,13 +5,74 @@ using Rpg.Domain.World;
 
 System.Environment.SetEnvironmentVariable("RPG_GAMELOG_DIR", Path.Combine(Path.GetTempPath(), "rpg-world-army-tests"));
 
-Run("transient empty Godot path keeps moving and retries", TransientEmptyPathKeepsMovingAndRetries);
-Run("short navigation warmup empty paths stay pending", ShortNavigationWarmupEmptyPathsStayPending);
-Run("repeated empty Godot path eventually blocks navigation", RepeatedEmptyPathEventuallyBlocksNavigation);
+Run("strategic grid navigation builds path without Godot synchronization", StrategicGridNavigationBuildsPathWithoutGodotSynchronization);
+Run("strategic grid navigation avoids diagonal corner cutting", StrategicGridNavigationAvoidsDiagonalCornerCutting);
+Run("strategic grid navigation rejects disconnected cells", StrategicGridNavigationRejectsDisconnectedCells);
+Run("provider path failure blocks movement immediately", ProviderPathFailureBlocksMovementImmediately);
 Run("permanent path failure blocks navigation", PermanentPathFailureBlocksNavigation);
 Run("cached path remains valid for equivalent navigation data version", CachedPathRemainsValidForEquivalentNavigationDataVersion);
+Run("command navigation rejects provider path failure without deferral", CommandNavigationRejectsProviderPathFailureWithoutDeferral);
+Run("command navigation rejects permanent destination failure", CommandNavigationRejectsPermanentDestinationFailure);
 
-static void TransientEmptyPathKeepsMovingAndRetries()
+static void StrategicGridNavigationBuildsPathWithoutGodotSynchronization()
+{
+    StrategicNavigationGrid grid = new(new[]
+    {
+        new Vector2I(0, 0),
+        new Vector2I(1, 0),
+        new Vector2I(0, 1),
+        new Vector2I(1, 1)
+    });
+
+    bool found = grid.TryBuildCellPath(
+        new Vector2I(0, 0),
+        new Vector2I(1, 1),
+        out IReadOnlyList<Vector2I> cells,
+        out string failureReason);
+
+    AssertTrue(found, $"strategic grid should find an authored map path without Godot NavigationServer, got {failureReason}");
+    AssertEqual(new Vector2I(0, 0), cells[0], "path should start at requested cell");
+    AssertEqual(new Vector2I(1, 1), cells[^1], "path should end at requested cell");
+}
+
+static void StrategicGridNavigationAvoidsDiagonalCornerCutting()
+{
+    StrategicNavigationGrid grid = new(new[]
+    {
+        new Vector2I(0, 0),
+        new Vector2I(1, 0),
+        new Vector2I(1, 1)
+    });
+
+    bool found = grid.TryBuildCellPath(
+        new Vector2I(0, 0),
+        new Vector2I(1, 1),
+        out IReadOnlyList<Vector2I> cells,
+        out string failureReason);
+
+    AssertTrue(found, $"strategic grid should route around an authored corner instead of diagonal cutting, got {failureReason}");
+    AssertSequence(new[] { new Vector2I(0, 0), new Vector2I(1, 0), new Vector2I(1, 1) }, cells, "diagonal movement must not cut through a missing orthogonal neighbor");
+}
+
+static void StrategicGridNavigationRejectsDisconnectedCells()
+{
+    StrategicNavigationGrid grid = new(new[]
+    {
+        new Vector2I(0, 0),
+        new Vector2I(5, 5)
+    });
+
+    bool found = grid.TryBuildCellPath(
+        new Vector2I(0, 0),
+        new Vector2I(5, 5),
+        out _,
+        out string failureReason);
+
+    AssertTrue(!found, "strategic grid should reject disconnected painted cells");
+    AssertEqual("strategic_grid_path_missing", failureReason, "disconnected cells should report a deterministic missing-path reason");
+}
+
+static void ProviderPathFailureBlocksMovementImmediately()
 {
     WorldArmyMovementService service = new();
     StrategicWorldState state = BuildState();
@@ -19,20 +80,15 @@ static void TransientEmptyPathKeepsMovingAndRetries()
     state.ArmyStates[army.ArmyId] = army;
     FakeNavigationContext navigation = new(version: 101)
     {
-        FailureReason = "godot_navigation_path_empty",
-        FailuresBeforeSuccess = 1
+        FailureReason = "strategic_grid_path_missing",
+        FailuresBeforeSuccess = int.MaxValue
     };
 
-    WorldArmyMovementResult first = service.AdvanceArmies(state, new StrategicWorldDefinition(), 0.25, navigation);
-    AssertEqual(WorldArmyStatus.Moving, army.Status, "transient failure must not block the army");
-    AssertEqual(0, first.NavigationBlockedArmyIds.Count, "transient failure must not report NavigationBlocked");
-    AssertEqual(1, navigation.TryBuildPathCalls, "first advance should try to build a path");
+    WorldArmyMovementResult result = service.AdvanceArmies(state, new StrategicWorldDefinition(), 0.25, navigation);
 
-    WorldArmyMovementResult second = service.AdvanceArmies(state, new StrategicWorldDefinition(), 0.25, navigation);
-    AssertEqual(WorldArmyStatus.Moving, army.Status, "army should still be moving after retry succeeds");
-    AssertEqual(0, second.NavigationBlockedArmyIds.Count, "successful retry must not report NavigationBlocked");
-    AssertTrue(army.HasNavigationPath, "successful retry should cache the path");
-    AssertTrue(army.WorldPosition.X > 0.0f, "army should advance after path is cached");
+    AssertEqual(WorldArmyStatus.NavigationBlocked, army.Status, "provider path failure should block immediately under the custom strategic grid contract");
+    AssertEqual(1, result.NavigationBlockedArmyIds.Count, "provider path failure should report NavigationBlocked immediately");
+    AssertEqual(1, navigation.TryBuildPathCalls, "movement should ask the provider once before reporting a deterministic failure");
 }
 
 static void PermanentPathFailureBlocksNavigation()
@@ -54,51 +110,6 @@ static void PermanentPathFailureBlocksNavigation()
     AssertEqual(army.ArmyId, result.NavigationBlockedArmyIds[0], "blocked army id should be reported");
 }
 
-static void ShortNavigationWarmupEmptyPathsStayPending()
-{
-    WorldArmyMovementService service = new();
-    StrategicWorldState state = BuildState();
-    WorldArmyState army = BuildMovingArmy();
-    state.ArmyStates[army.ArmyId] = army;
-    FakeNavigationContext navigation = new(version: 303)
-    {
-        FailureReason = "godot_navigation_path_empty",
-        FailuresBeforeSuccess = int.MaxValue
-    };
-
-    WorldArmyMovementResult result = new();
-    for (int i = 0; i < 4; i++)
-    {
-        result = service.AdvanceArmies(state, new StrategicWorldDefinition(), 0.004, navigation);
-    }
-
-    AssertEqual(WorldArmyStatus.Moving, army.Status, "short navigation warmup failures should keep the army moving");
-    AssertEqual(0, result.NavigationBlockedArmyIds.Count, "short navigation warmup failures should not report NavigationBlocked");
-    AssertEqual(4, navigation.TryBuildPathCalls, "each warmup frame should retry path building");
-}
-
-static void RepeatedEmptyPathEventuallyBlocksNavigation()
-{
-    WorldArmyMovementService service = new();
-    StrategicWorldState state = BuildState();
-    WorldArmyState army = BuildMovingArmy();
-    state.ArmyStates[army.ArmyId] = army;
-    FakeNavigationContext navigation = new(version: 404)
-    {
-        FailureReason = "godot_navigation_path_empty",
-        FailuresBeforeSuccess = int.MaxValue
-    };
-
-    WorldArmyMovementResult result = new();
-    for (int i = 0; i < 4; i++)
-    {
-        result = service.AdvanceArmies(state, new StrategicWorldDefinition(), 0.25, navigation);
-    }
-
-    AssertEqual(WorldArmyStatus.NavigationBlocked, army.Status, "repeated transient failures should become a hard navigation block");
-    AssertEqual(1, result.NavigationBlockedArmyIds.Count, "repeated transient failures should report NavigationBlocked");
-}
-
 static void CachedPathRemainsValidForEquivalentNavigationDataVersion()
 {
     WorldArmyMovementService service = new();
@@ -108,15 +119,56 @@ static void CachedPathRemainsValidForEquivalentNavigationDataVersion()
     state.ArmyStates[army.ArmyId] = army;
     FakeNavigationContext navigation = new(version: 303)
     {
-        FailureReason = "godot_navigation_path_empty",
+        FailureReason = "strategic_grid_path_missing",
         FailuresBeforeSuccess = int.MaxValue
     };
 
     WorldArmyMovementResult result = service.AdvanceArmies(state, new StrategicWorldDefinition(), 0.25, navigation);
 
-    AssertEqual(0, navigation.TryBuildPathCalls, "valid cached path should not ask Godot for a new path");
+    AssertEqual(0, navigation.TryBuildPathCalls, "valid cached path should not ask the navigation provider for a new path");
     AssertEqual(0, result.NavigationBlockedArmyIds.Count, "valid cached path should not block");
     AssertTrue(army.WorldPosition.X > 0.0f, "army should advance on the cached path");
+}
+
+static void CommandNavigationRejectsProviderPathFailureWithoutDeferral()
+{
+    WorldArmyState army = BuildMovingArmy();
+    FakeNavigationContext navigation = new(version: 505)
+    {
+        FailureReason = "strategic_grid_path_missing",
+        FailuresBeforeSuccess = int.MaxValue
+    };
+
+    bool accepted = StrategicCommandNavigationService.TryBuildOrDeferPaths(
+        new[] { army },
+        new Vector2(100, 0),
+        navigation,
+        out StrategicCommandNavigationResult result,
+        out string failureReason);
+
+    AssertTrue(!accepted, "custom strategic navigation should reject missing command paths immediately");
+    AssertTrue(!result.HasDeferredPaths, "custom strategic navigation should not keep Godot-style deferred path state");
+    AssertTrue(failureReason.Contains("strategic_grid_path_missing", StringComparison.Ordinal), "failure reason should preserve provider path cause");
+}
+
+static void CommandNavigationRejectsPermanentDestinationFailure()
+{
+    WorldArmyState army = BuildMovingArmy();
+    FakeNavigationContext navigation = new(version: 707)
+    {
+        FailureReason = "destination_point_outside_strategic_navigation_tile_layer",
+        FailuresBeforeSuccess = int.MaxValue
+    };
+
+    bool accepted = StrategicCommandNavigationService.TryBuildOrDeferPaths(
+        new[] { army },
+        new Vector2(100, 0),
+        navigation,
+        out _,
+        out string failureReason);
+
+    AssertTrue(!accepted, "permanent command path failure should still reject the command");
+    AssertTrue(failureReason.Contains("destination_point_outside_strategic_navigation_tile_layer", StringComparison.Ordinal), "failure reason should preserve the permanent navigation cause");
 }
 
 static StrategicWorldState BuildState()
@@ -176,6 +228,22 @@ static void AssertEqual<T>(T expected, T actual, string message)
     }
 }
 
+static void AssertSequence<T>(IReadOnlyList<T> expected, IReadOnlyList<T> actual, string message)
+{
+    if (expected.Count != actual.Count)
+    {
+        throw new InvalidOperationException($"{message}. ExpectedCount={expected.Count} ActualCount={actual.Count}");
+    }
+
+    for (int index = 0; index < expected.Count; index++)
+    {
+        if (!EqualityComparer<T>.Default.Equals(expected[index], actual[index]))
+        {
+            throw new InvalidOperationException($"{message}. Index={index} Expected={expected[index]} Actual={actual[index]}");
+        }
+    }
+}
+
 sealed class FakeNavigationContext : IStrategicNavigationContext
 {
     public FakeNavigationContext(int version)
@@ -204,6 +272,22 @@ sealed class FakeNavigationContext : IStrategicNavigationContext
     public bool TryGetNearestNavigablePoint(Vector2 mapPoint, int maxCellRadius, out Vector2 navigablePoint, out string failureReason)
     {
         navigablePoint = mapPoint;
+        failureReason = "";
+        return true;
+    }
+
+    public bool TryGetNearestReachableNavigablePoint(
+        Vector2 start,
+        Vector2 preferredPoint,
+        int maxCellRadius,
+        out Vector2 navigablePoint,
+        out StrategicNavigationPath path,
+        out string failureReason)
+    {
+        navigablePoint = preferredPoint;
+        path = new StrategicNavigationPath { ProviderId = PrimaryProviderId };
+        path.Points.Add(start);
+        path.Points.Add(preferredPoint);
         failureReason = "";
         return true;
     }

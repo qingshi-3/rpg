@@ -110,16 +110,30 @@ public partial class MapCameraController : Camera2D
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (TryHandlePointerNavigationInput(@event))
+        {
+            return;
+        }
+
         if (@event is InputEventMouseButton mouseButton)
         {
-            HandleMouseButtonInput(mouseButton);
-            return;
+            HandleMouseWheelInput(mouseButton);
+        }
+    }
+
+    public bool TryHandlePointerNavigationInput(InputEvent @event)
+    {
+        if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Middle } mouseButton)
+        {
+            return HandleMiddleMouseDragButton(mouseButton);
         }
 
         if (@event is InputEventMouseMotion mouseMotion)
         {
-            HandleMouseMotionInput(mouseMotion);
+            return HandleMouseMotionInput(mouseMotion);
         }
+
+        return false;
     }
 
     public void SetMapBounds(Rect2 mapBounds)
@@ -181,14 +195,8 @@ public partial class MapCameraController : Camera2D
         return Mathf.Max(Zoom.X, 0.001f);
     }
 
-    private void HandleMouseButtonInput(InputEventMouseButton mouseButton)
+    private void HandleMouseWheelInput(InputEventMouseButton mouseButton)
     {
-        if (mouseButton.ButtonIndex == MouseButton.Middle)
-        {
-            HandleMiddleMouseDragButton(mouseButton);
-            return;
-        }
-
         if (!MouseWheelZoomEnabled || !mouseButton.Pressed)
         {
             return;
@@ -206,11 +214,11 @@ public partial class MapCameraController : Camera2D
         }
     }
 
-    private void HandleMiddleMouseDragButton(InputEventMouseButton mouseButton)
+    private bool HandleMiddleMouseDragButton(InputEventMouseButton mouseButton)
     {
         if (!MiddleMouseDragPanEnabled)
         {
-            return;
+            return false;
         }
 
         if (mouseButton.Pressed && !_isMiddleMouseDragging)
@@ -225,19 +233,25 @@ public partial class MapCameraController : Camera2D
         }
 
         GetViewport().SetInputAsHandled();
+        return true;
     }
 
-    private void HandleMouseMotionInput(InputEventMouseMotion mouseMotion)
+    private bool HandleMouseMotionInput(InputEventMouseMotion mouseMotion)
     {
         if (!MiddleMouseDragPanEnabled || !_isMiddleMouseDragging)
         {
-            return;
+            return false;
         }
 
-        Vector2 worldDelta = mouseMotion.Relative / GetZoomScalar();
-        GlobalPosition -= worldDelta;
+        GlobalPosition = CalculateMiddleMouseDragPanPosition(GlobalPosition, mouseMotion.Relative, GetZoomScalar());
         ClampToMapBounds();
         GetViewport().SetInputAsHandled();
+        return true;
+    }
+
+    public static Vector2 CalculateMiddleMouseDragPanPosition(Vector2 currentPosition, Vector2 mouseRelative, float zoomScalar)
+    {
+        return currentPosition - mouseRelative / Mathf.Max(zoomScalar, 0.001f);
     }
 
     private void ApplyViewportSizeConstraintsIfChanged()

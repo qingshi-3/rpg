@@ -13,7 +13,12 @@ config_version=5
 config/name="rpg"
 run/main_scene="res://scenes/world/StrategicWorldRoot.tscn"
 config/features=PackedStringArray("4.5", "C#", "GL Compatibility")
+run/max_fps=60
 config/icon="res://icon.svg"
+
+[autoload]
+
+PerformanceDebugOverlay="*res://scenes/debug/PerformanceDebugOverlay.tscn"
 
 [display]
 

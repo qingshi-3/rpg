@@ -10,5 +10,12 @@ public interface IStrategicNavigationContext
     bool IsSynchronized(out string failureReason);
     bool IsPointNavigable(Vector2 mapPoint, out string failureReason);
     bool TryGetNearestNavigablePoint(Vector2 mapPoint, int maxCellRadius, out Vector2 navigablePoint, out string failureReason);
+    bool TryGetNearestReachableNavigablePoint(
+        Vector2 start,
+        Vector2 preferredPoint,
+        int maxCellRadius,
+        out Vector2 navigablePoint,
+        out StrategicNavigationPath path,
+        out string failureReason);
     bool TryBuildPath(Vector2 start, Vector2 destination, out StrategicNavigationPath path, out string failureReason);
 }

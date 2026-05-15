@@ -17,18 +17,6 @@ corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_world_card"]
-bg_color = Color(0.115, 0.135, 0.126, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.34, 0.39, 0.33, 0.9)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_world_summary_card"]
 bg_color = Color(0.125, 0.148, 0.136, 0.98)
 border_width_left = 1
@@ -36,6 +24,18 @@ border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(0.78, 0.65, 0.38, 0.6)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_world_card"]
+bg_color = Color(0.115, 0.135, 0.126, 0.95)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.34, 0.39, 0.33, 0.9)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -136,14 +136,12 @@ alignment = 2
 [node name="PauseButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
 custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
-focus_mode = 2
 mouse_default_cursor_shape = 2
 text = "暂停"
 
 [node name="QuickButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
 custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
-focus_mode = 2
 mouse_default_cursor_shape = 2
 text = "1x"
 
@@ -213,6 +211,19 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
+[node name="SiteTitleLabel" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 19
+autowrap_mode = 3
+
+[node name="SiteBodyLabel" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+autowrap_mode = 3
+
 [node name="OpportunityCard" type="PanelContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
 visible = false
 layout_mode = 2
@@ -248,6 +259,18 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
+[node name="FacilityTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 17
+text = "建筑"
+
+[node name="FacilityList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
 [node name="DefenseCard" type="PanelContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -267,48 +290,6 @@ theme_override_constants/separation = 8
 
 [node name="ThreatDivider" type="HSeparator" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
 layout_mode = 2
-
-[node name="ActionCard" type="PanelContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_world_card")
-
-[node name="ActionMargin" type="MarginContainer" parent="SiteDetailPanel/Margin/Scroll/Content/ActionCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="ActionStack" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="SiteTitleLabel" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 19
-autowrap_mode = 3
-
-[node name="SiteBodyLabel" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-autowrap_mode = 3
-
-[node name="FacilityTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 17
-text = "建筑"
-
-[node name="FacilityList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
 
 [node name="GarrisonTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
 layout_mode = 2
@@ -330,6 +311,23 @@ theme_override_font_sizes/font_size = 17
 text = "威胁"
 
 [node name="ThreatList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="ActionCard" type="PanelContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_world_card")
+
+[node name="ActionMargin" type="MarginContainer" parent="SiteDetailPanel/Margin/Scroll/Content/ActionCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="ActionStack" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
