@@ -94,6 +94,11 @@ public partial class WorldSiteRoot : Node2D
         public string SiteId { get; set; } = "";
         public bool HasPreviousSiteMode { get; set; }
         public WorldSiteMode PreviousSiteMode { get; set; } = WorldSiteMode.Peacetime;
+        public bool HasPreviousExplorationState { get; set; }
+        public bool PreviousExplorationPaused { get; set; }
+        public string PreviousExplorationPauseReason { get; set; } = "";
+        public string PreviousActiveAlertPatrolId { get; set; } = "";
+        public List<string> PreviousPendingPathCellKeys { get; } = new();
     }
 
     [Signal]
@@ -200,6 +205,7 @@ public partial class WorldSiteRoot : Node2D
     private readonly WorldBattleResultApplier _worldBattleResultApplier = new();
     private readonly WorldActionResolver _worldActionResolver;
     private readonly WorldSiteDeploymentService _deploymentService = new();
+    private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
     private readonly Dictionary<string, BattleCorpsRuntimeState> _battleCorpsStates = new(System.StringComparer.Ordinal);
     private readonly Dictionary<string, string> _battleEntityToCorpsId = new(System.StringComparer.Ordinal);
     private readonly Dictionary<string, BattleUnitControlMode> _battleEntityControlModes = new(System.StringComparer.Ordinal);
@@ -3481,17 +3487,19 @@ public partial class WorldSiteRoot : Node2D
         }
     }
 
-    private static void EnterSiteAlertModeForVisit(WorldSiteState site, string armyId)
+    private void EnterSiteAlertModeForVisit(WorldSiteState site, string armyId)
     {
-        if (site == null || site.SiteMode == WorldSiteMode.Alert)
+        if (site == null)
         {
             return;
         }
 
-        WorldSiteMode previousMode = site.SiteMode;
-        site.SiteMode = WorldSiteMode.Alert;
-        site.LastModeChangedTick = StrategicWorldRuntime.State?.WorldTick ?? site.LastModeChangedTick;
-        GameLog.Info(nameof(WorldSiteRoot), $"SiteModeChanged site={site.SiteId} from={previousMode} to={site.SiteMode} reason=infiltration_visit trigger={armyId}");
+        // Scene entry projects an already-arrived army into the site; the application service owns the mode transition.
+        _siteModeTransitions.EnterExploration(
+            site,
+            StrategicWorldRuntime.State?.WorldTick ?? site.LastModeChangedTick,
+            "infiltration_visit",
+            armyId);
     }
 
     private static void LogSiteUnitState(string phase, WorldSiteState site, string armyId = "")
@@ -4465,12 +4473,19 @@ public partial class WorldSiteRoot : Node2D
             nameof(WorldSiteRoot),
             $"ExplorationBattleRequested site={site.SiteId} army={army.ArmyId} armyUnits={FormatArmyUnitsForLog(army)} patrol={patrolId} patrolPlacement={patrolDefinition.SourcePlacementId} playerForces={FormatForcesForLog(request.PlayerForces)} enemyForces={FormatForcesForLog(request.EnemyForces)} sitePlacements={FormatSitePlacementsForLog(site)}");
 
-        // Exploration confirmation is still outside battle authority; TurnSystem starts only after this request is accepted.
+        SiteBattleLaunchRollback rollback = CaptureSiteBattleLaunchRollback(site.SiteId);
+        // Exploration confirmation only changes the site runtime mode; TurnSystem starts after the battle request is accepted.
+        _siteModeTransitions.EnterBattleFromExploration(
+            site,
+            StrategicWorldRuntime.State?.WorldTick ?? site.LastModeChangedTick,
+            "exploration_battle_requested",
+            request.RequestId);
         BattleSessionHandoff.BeginBattle(request);
         ApplyBattleStartRequest();
         if (!ActivateBattleRuntime())
         {
             BattleSessionHandoff.CancelBattle();
+            RollbackSiteBattleLaunch(rollback, request, _battleStartBlockedReason);
             StrategicWorldRuntime.LastNotice = "无法进入探索遭遇战。";
             RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
             GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter exploration battle site={site.SiteId} patrol={patrolId} reason={_battleStartBlockedReason}");
@@ -4484,11 +4499,11 @@ public partial class WorldSiteRoot : Node2D
             return;
         }
 
-        site.Exploration.PendingPathCellKeys.Clear();
         ClearSiteExplorationPathPreview();
-        site.Exploration.IsSimulationPaused = true;
-        site.Exploration.PauseReason = "exploration_retreat";
-        site.Exploration.ActiveAlertPatrolId = "";
+        _siteModeTransitions.RetreatFromExplorationAlert(
+            site,
+            StrategicWorldRuntime.State?.WorldTick ?? site.LastModeChangedTick,
+            site.Exploration.ActiveAlertPatrolId);
         StrategicWorldRuntime.LastNotice = "探索队伍撤退并保持警戒。";
         SetSiteNoticeText(StrategicWorldRuntime.LastNotice);
         RefreshSiteExplorationHud(site, ResolveSiteDefinition(site.SiteId));
@@ -5011,6 +5026,15 @@ public partial class WorldSiteRoot : Node2D
         {
             rollback.HasPreviousSiteMode = true;
             rollback.PreviousSiteMode = site.SiteMode;
+            if (site.Exploration != null)
+            {
+                rollback.HasPreviousExplorationState = true;
+                rollback.PreviousExplorationPaused = site.Exploration.IsSimulationPaused;
+                rollback.PreviousExplorationPauseReason = site.Exploration.PauseReason ?? "";
+                rollback.PreviousActiveAlertPatrolId = site.Exploration.ActiveAlertPatrolId ?? "";
+                rollback.PreviousPendingPathCellKeys.Clear();
+                rollback.PreviousPendingPathCellKeys.AddRange(site.Exploration.PendingPathCellKeys);
+            }
         }
 
         return rollback;
@@ -5059,7 +5083,21 @@ public partial class WorldSiteRoot : Node2D
         WorldSiteMode currentMode = site.SiteMode;
         if (rollback?.HasPreviousSiteMode == true)
         {
-            site.SiteMode = rollback.PreviousSiteMode;
+            _siteModeTransitions.RestoreMode(
+                site,
+                rollback.PreviousSiteMode,
+                StrategicWorldRuntime.State?.WorldTick ?? site.LastModeChangedTick,
+                "battle_launch_rollback",
+                request?.RequestId ?? "");
+        }
+
+        if (rollback?.HasPreviousExplorationState == true && site.Exploration != null)
+        {
+            site.Exploration.IsSimulationPaused = rollback.PreviousExplorationPaused;
+            site.Exploration.PauseReason = rollback.PreviousExplorationPauseReason;
+            site.Exploration.ActiveAlertPatrolId = rollback.PreviousActiveAlertPatrolId;
+            site.Exploration.PendingPathCellKeys.Clear();
+            site.Exploration.PendingPathCellKeys.AddRange(rollback.PreviousPendingPathCellKeys);
         }
 
         ClearBattleEntities();
@@ -5824,4 +5862,3 @@ public partial class WorldSiteRoot : Node2D
         return _battleUnitFactory.ResolveUnitDisplayName(unitTypeId);
     }
 }
-

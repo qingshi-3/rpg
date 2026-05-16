@@ -84,7 +84,21 @@ public sealed class WorldBattleResultApplier
             return WorldActionResult.Failed("battle_result", "site_missing", "找不到探索战斗对应的场域。");
         }
 
+        if (site.Exploration == null)
+        {
+            GameLog.Error(nameof(WorldBattleResultApplier), $"ExplorationEncounterApplyFailed site={site.SiteId} reason=site_exploration_missing request={request.RequestId}");
+            return WorldActionResult.Failed("battle_result", "site_exploration_missing", "探索战斗对应的场域缺少探索状态。");
+        }
+
+        WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(site.SiteId);
+        if (siteDefinition == null)
+        {
+            GameLog.Error(nameof(WorldBattleResultApplier), $"ExplorationEncounterApplyFailed site={site.SiteId} reason=site_definition_missing request={request.RequestId}");
+            return WorldActionResult.Failed("battle_result", "site_definition_missing", "探索战斗对应的场域定义缺失。");
+        }
+
         bool victory = result.Outcome == BattleOutcome.Victory;
+        GameEvent modeTransitionEvent = null;
         GameLog.Info(
             nameof(WorldBattleResultApplier),
             $"ExplorationEncounterApplyBefore site={site.SiteId} outcome={result.Outcome} patrol={request.ExplorationTriggerPatrolId} point={request.ExplorationPointId} playerForces={FormatForcesForLog(request.PlayerForces)} enemyForces={FormatForcesForLog(request.EnemyForces)} forceResults={FormatForceResultsForLog(result.ForceResults)} placements={FormatSitePlacementsForLog(site)}");
@@ -93,7 +107,6 @@ public sealed class WorldBattleResultApplier
             // Exploration encounters resolve local exploration actors only. They must not
             // reuse the normal AssaultSite ownership writeback path unless a core point
             // explicitly requests that transition later.
-            WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(site.SiteId);
             RemoveDefeatedExplorationPatrolUnits(site, siteDefinition, request, result);
 
             if (!string.IsNullOrWhiteSpace(request.ExplorationPointId))
@@ -101,24 +114,22 @@ public sealed class WorldBattleResultApplier
                 AddUnique(site.Exploration.ResolvedPointIds, request.ExplorationPointId);
             }
 
-            site.Exploration.ActiveAlertPatrolId = "";
-            site.Exploration.PendingPathCellKeys.Clear();
-            site.Exploration.IsSimulationPaused = true;
-            site.Exploration.PauseReason = "exploration_encounter_resolved";
-            TryCaptureSiteAfterExplorationClear(state, definition, site, request, result);
+            if (!TryCaptureSiteAfterExplorationClear(state, definition, site, siteDefinition, request, result, out modeTransitionEvent))
+            {
+                modeTransitionEvent = _siteModeTransitions.ReturnToExplorationAfterEncounter(site, state.WorldTick, victory: true, request.RequestId);
+            }
         }
         else
         {
             site.Exploration.AlertLevel = System.Math.Clamp(site.Exploration.AlertLevel + 1, 0, 5);
-            site.Exploration.IsSimulationPaused = true;
-            site.Exploration.PauseReason = "exploration_encounter_failed";
+            modeTransitionEvent = _siteModeTransitions.ReturnToExplorationAfterEncounter(site, state.WorldTick, victory: false, request.RequestId);
         }
 
         GameLog.Info(
             nameof(WorldBattleResultApplier),
             $"ExplorationEncounterApplyAfter site={site.SiteId} outcome={result.Outcome} patrol={request.ExplorationTriggerPatrolId} placements={FormatSitePlacementsForLog(site)} explorationPause={site.Exploration.PauseReason} alert={site.Exploration.AlertLevel}");
 
-        return new WorldActionResult
+        WorldActionResult actionResult = new()
         {
             Success = true,
             ActionId = "battle_result",
@@ -139,6 +150,8 @@ public sealed class WorldBattleResultApplier
                 }
             }
         };
+        WorldSiteModeTransitionService.AddEvent(actionResult, modeTransitionEvent);
+        return actionResult;
     }
 
     private void RemoveDefeatedExplorationPatrolUnits(
@@ -226,10 +239,18 @@ public sealed class WorldBattleResultApplier
         StrategicWorldState state,
         StrategicWorldDefinition definition,
         WorldSiteState site,
+        WorldSiteDefinition siteDefinition,
         BattleStartRequest request,
-        BattleResult result)
+        BattleResult result,
+        out GameEvent modeTransitionEvent)
     {
-        WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(site.SiteId);
+        modeTransitionEvent = null;
+        if (siteDefinition == null)
+        {
+            GameLog.Error(nameof(WorldBattleResultApplier), $"ExplorationSiteCaptureSkipped site={site?.SiteId ?? ""} reason=site_definition_missing request={request?.RequestId ?? ""}");
+            return false;
+        }
+
         bool hasAliveExplorationEnemy = siteDefinition?.ExplorationPatrols?.Any(patrol =>
             patrol != null &&
             WorldSiteExplorationService.HasAlivePatrolPlacement(site, patrol)) == true;
@@ -241,22 +262,13 @@ public sealed class WorldBattleResultApplier
         site.OwnerFactionId = state.PlayerFactionId;
         site.ControlState = SiteControlState.PlayerHeld;
         site.LastVisitedTick = state.WorldTick;
-        if (site.Exploration != null)
-        {
-            site.Exploration.PatrolUnits.Clear();
-            site.Exploration.ActiveAlertPatrolId = "";
-            site.Exploration.PendingPathCellKeys.Clear();
-            site.Exploration.IsSimulationPaused = true;
-            site.Exploration.PauseReason = "exploration_site_cleared";
-        }
-
         ResolveAssaultArmy(state, definition, request, result, new WorldActionResult(), WorldArmyStatus.Garrisoned, site);
         int transferredPlacements = site.UnitPlacements.RemoveAll(placement =>
             placement.SourceKind == "PlayerArmy" &&
             placement.SourceId == request.SourceArmyId &&
             placement.PlacementKind == WorldSiteUnitPlacementKind.VisitingArmy);
         _deploymentService.EnsureGarrisonPlacements(site, siteDefinition);
-        _siteModeTransitions.EnterAftermath(site, state.WorldTick, "exploration_site_cleared", request.RequestId);
+        modeTransitionEvent = _siteModeTransitions.CaptureFromExploration(site, state.WorldTick, request.RequestId);
         GameLog.Info(
             nameof(WorldBattleResultApplier),
             $"ExplorationSiteCaptured site={site.SiteId} owner={site.OwnerFactionId} control={site.ControlState} transferredPlacements={transferredPlacements} placements={FormatSitePlacementsForLog(site)}");

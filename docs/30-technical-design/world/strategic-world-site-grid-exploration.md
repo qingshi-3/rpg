@@ -44,6 +44,14 @@ Management
 Battle
 ```
 
+模式转换由 `WorldSiteModeTransitionService` 统一处理。表现层可以请求
+“进入探索”“探索转战斗”或“战斗结果回到探索/经营”，但不得直接手写
+`WorldSiteState.SiteMode`；与模式转换绑定的探索暂停字段也由该服务写入。
+战斗结果回写只通过该服务结算探索遭遇胜利、失败和清场占领后的模式变化，
+并写出 `SiteModeChanged` 事件。
+如果模式未变化但探索暂停原因、警戒触发或待行路径被转换逻辑修改，服务应写出
+`SiteExplorationStateChanged`，避免出现状态已变但事件链不可审计的情况。
+
 ### Exploration
 
 用于陌生、敌对、未完全控制的场域。

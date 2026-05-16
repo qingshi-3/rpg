@@ -3518,7 +3518,11 @@ public partial class StrategicWorldRoot : Control
             State.SiteStates.TryGetValue(_pendingBattleRollback.SiteId, out WorldSiteState site))
         {
             WorldSiteMode currentMode = site.SiteMode;
-            site.SiteMode = _pendingBattleRollback.PreviousSiteMode;
+            _siteModeTransitions.RestoreMode(
+                site,
+                _pendingBattleRollback.PreviousSiteMode,
+                State.WorldTick,
+                "battle_launch_rollback");
             site.UnitPlacements.RemoveAll(placement => !WorldSiteDeploymentService.IsGarrisonPlacement(placement));
             GameLog.Warn(
                 nameof(StrategicWorldRoot),
