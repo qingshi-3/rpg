@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>英雄带兵轻 RTS 系统架构蓝图</title>
+  <style>
+    :root {
+      --paper: #f7f8f5;
+      --ink: #151a1d;
+      --muted: #586166;
+      --grid: #d9dfda;
+      --grid-strong: #b7c2bb;
+      --line: #20282c;
+      --domain: #205f78;
+      --app: #7a4f15;
+      --runtime: #7a2730;
+      --ui: #4f5f22;
+      --content: #5b4d76;
+      --infra: #4d5960;
+      --settle: #21614f;
+      --legacy: #8a8a8a;
+      --warn: #b65b25;
+      --ok: #1d6b4f;
+      --bg-line: rgba(32, 40, 44, 0.09);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(var(--bg-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--bg-line) 1px, transparent 1px),
+        var(--paper);
+      background-size: 28px 28px;
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", Arial, sans-serif;
+      line-height: 1.45;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      min-height: 3.4rem;
+      padding: 0.65rem clamp(1rem, 3vw, 2rem);
+      background: rgba(247, 248, 245, 0.94);
+      border-bottom: 2px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+
+    .mark {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .mark::before {
+      content: "";
+      width: 0.95rem;
+      height: 0.95rem;
+      border: 3px solid var(--line);
+      background: repeating-linear-gradient(
+        45deg,
+        transparent 0 4px,
+        rgba(32, 40, 44, 0.18) 4px 8px
+      );
+    }
+
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 0.35rem;
+      font-size: 0.86rem;
+    }
+
+    nav a {
+      display: inline-flex;
+      min-height: 2rem;
+      align-items: center;
+      padding: 0.28rem 0.55rem;
+      border: 1px solid var(--grid-strong);
+      background: #fff;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .page {
+      max-width: 1640px;
+      margin: 0 auto;
+      padding: clamp(1rem, 2vw, 2rem);
+    }
+
+    .sheet {
+      min-height: calc(100vh - 3.4rem);
+      display: grid;
+      grid-template-columns: minmax(18rem, 0.36fr) minmax(48rem, 0.64fr);
+      gap: clamp(1rem, 2.6vw, 2.4rem);
+      align-items: stretch;
+      padding: clamp(1rem, 2vw, 2rem) 0;
+      border-bottom: 2px solid var(--line);
+    }
+
+    .title-block {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 2rem;
+      min-height: 34rem;
+      border: 3px solid var(--line);
+      background: rgba(255, 255, 255, 0.72);
+      padding: clamp(1rem, 2vw, 1.6rem);
+    }
+
+    .label {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      min-height: 1.7rem;
+      padding: 0.18rem 0.45rem;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 0.78rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      margin: 1.2rem 0 1rem;
+      font-size: clamp(2.8rem, 6vw, 6.5rem);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 34rem;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .doc-links {
+      display: grid;
+      gap: 0.55rem;
+    }
+
+    .doc-links a {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.75rem;
+      border: 2px solid var(--line);
+      background: #fff;
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .doc-links span {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .blueprint {
+      border: 3px solid var(--line);
+      background:
+        linear-gradient(rgba(32, 40, 44, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(32, 40, 44, 0.06) 1px, transparent 1px),
+        #fff;
+      background-size: 18px 18px;
+      overflow: hidden;
+    }
+
+    section {
+      padding: clamp(1.2rem, 2.4vw, 2.2rem) 0;
+      border-bottom: 2px solid var(--line);
+    }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(16rem, 0.35fr) minmax(24rem, 0.65fr);
+      gap: 1.2rem;
+      align-items: end;
+      margin-bottom: 1rem;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2.8vw, 3.2rem);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      max-width: 56rem;
+    }
+
+    .diagram {
+      border: 3px solid var(--line);
+      background: #fff;
+      overflow: auto;
+    }
+
+    svg {
+      display: block;
+      min-width: 980px;
+      width: 100%;
+      height: auto;
+    }
+
+    .tight svg {
+      min-width: 760px;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(8rem, 1fr));
+      border: 2px solid var(--line);
+      border-top: 0;
+      background: #fff;
+    }
+
+    .legend div {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      min-height: 2.5rem;
+      padding: 0.45rem 0.65rem;
+      border-right: 1px solid var(--grid-strong);
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .legend div:last-child {
+      border-right: 0;
+    }
+
+    .swatch {
+      width: 0.9rem;
+      height: 0.9rem;
+      display: inline-block;
+      border: 1px solid var(--line);
+      background: currentColor;
+    }
+
+    .matrix {
+      border: 3px solid var(--line);
+      background: #fff;
+      overflow-x: auto;
+    }
+
+    .matrix-grid {
+      min-width: 1220px;
+      display: grid;
+      grid-template-columns: 14rem repeat(6, minmax(9.5rem, 1fr));
+    }
+
+    .matrix-grid > div {
+      min-height: 4.7rem;
+      padding: 0.65rem;
+      border-right: 1px solid var(--grid-strong);
+      border-bottom: 1px solid var(--grid-strong);
+      font-size: 0.84rem;
+    }
+
+    .matrix-grid .head {
+      min-height: 3rem;
+      background: #e9ece8;
+      font-weight: 900;
+    }
+
+    .matrix-grid .sys {
+      color: #fff;
+      background: var(--line);
+      font-weight: 900;
+    }
+
+    .cell-domain { box-shadow: inset 0 5px 0 var(--domain); }
+    .cell-app { box-shadow: inset 0 5px 0 var(--app); }
+    .cell-runtime { box-shadow: inset 0 5px 0 var(--runtime); }
+    .cell-ui { box-shadow: inset 0 5px 0 var(--ui); }
+    .cell-content { box-shadow: inset 0 5px 0 var(--content); }
+    .cell-infra { box-shadow: inset 0 5px 0 var(--infra); }
+
+    .notes {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border: 2px solid var(--line);
+      border-top: 0;
+      background: #fff;
+    }
+
+    .notes div {
+      min-height: 5rem;
+      padding: 0.8rem;
+      border-right: 1px solid var(--grid-strong);
+    }
+
+    .notes div:last-child {
+      border-right: 0;
+    }
+
+    .notes strong {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-size: 0.95rem;
+    }
+
+    .notes span {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .rules {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .rule {
+      border: 2px solid var(--line);
+      background: #fff;
+      padding: 0.9rem;
+    }
+
+    .rule h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1.05rem;
+    }
+
+    .rule ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: var(--muted);
+    }
+
+    .rule li {
+      margin: 0.25rem 0;
+    }
+
+    footer {
+      padding: 1.2rem 0 2.4rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 1100px) {
+      .topbar {
+        position: static;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      nav {
+        justify-content: flex-start;
+      }
+
+      .sheet,
+      .section-head,
+      .rules,
+      .notes {
+        grid-template-columns: 1fr;
+      }
+
+      .legend {
+        grid-template-columns: repeat(2, minmax(8rem, 1fr));
+      }
+
+      .title-block {
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="mark">系统架构蓝图</div>
+    <nav aria-label="页面导航">
+      <a href="#context">Context</a>
+      <a href="#layers">Layers</a>
+      <a href="#battle-group">BattleGroup</a>
+      <a href="#command-ai">Command/AI</a>
+      <a href="#ability">Ability</a>
+      <a href="#resource">Resource</a>
+      <a href="#migration">Migration</a>
+    </nav>
+  </div>
+
+  <div class="page">
+    <div class="sheet">
+      <div class="title-block">
+        <div>
+          <span class="label">Proposal Expected</span>
+          <h1>英雄带兵轻 RTS 架构蓝图</h1>
+          <p class="subtitle">
+            这不是宣传页。它把目标系统拆分、依赖方向、数据流、读写权威、运行时命令、AI、自定义能力、资源闭环和旧实现迁移边界画成评审用架构图。
+          </p>
+        </div>
+        <div class="doc-links">
+          <a href="../expected/system-design/hero-led-light-rts-system-architecture.md">架构文档 <span>expected/system-design</span></a>
+          <a href="../proposal.md">Proposal <span>Status: Draft</span></a>
+        </div>
+      </div>
+
+      <div class="blueprint">
+        <svg viewBox="0 0 1060 720" role="img" aria-label="架构总览蓝图">
+          <defs>
+            <marker id="introArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#20282c"></path>
+            </marker>
+            <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="8" stroke="#20282c" stroke-width="1" opacity="0.18"></line>
+            </pattern>
+          </defs>
+
+          <rect x="22" y="22" width="1016" height="676" fill="none" stroke="#20282c" stroke-width="3"></rect>
+          <text x="48" y="66" font-size="28" font-weight="900" fill="#151a1d">目标架构读法</text>
+          <text x="48" y="96" font-size="16" fill="#586166">战略经营准备战斗，Runtime 只消费快照，Settlement 才能写长期状态。</text>
+
+          <g font-family="Microsoft YaHei, Arial">
+            <rect x="70" y="150" width="210" height="92" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="96" y="190" font-size="22" font-weight="900" fill="#4f5f22">Presentation / UI</text>
+            <text x="96" y="218" font-size="15" fill="#586166">显示状态 / 发命令</text>
+
+            <rect x="418" y="126" width="230" height="140" fill="#fff" stroke="#20282c" stroke-width="3"></rect>
+            <rect x="438" y="146" width="190" height="54" fill="#f4eff8" stroke="#5b4d76" stroke-width="2"></rect>
+            <text x="477" y="181" font-size="22" font-weight="900" fill="#5b4d76">BattleGroup</text>
+            <text x="444" y="229" font-size="17" font-weight="900" fill="#151a1d">1 英雄 + 1 主兵团</text>
+            <text x="456" y="250" font-size="14" fill="#586166">战略层与战斗层桥接</text>
+
+            <rect x="784" y="150" width="210" height="92" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="818" y="190" font-size="22" font-weight="900" fill="#7a2730">Runtime</text>
+            <text x="818" y="218" font-size="15" fill="#586166">实时战斗 / 事件流</text>
+
+            <rect x="72" y="390" width="220" height="112" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="96" y="432" font-size="22" font-weight="900" fill="#7a4f15">Application</text>
+            <text x="96" y="461" font-size="15" fill="#586166">组装快照 / 校验用例</text>
+            <text x="96" y="483" font-size="15" fill="#586166">结算回写入口</text>
+
+            <rect x="420" y="386" width="230" height="120" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="458" y="429" font-size="22" font-weight="900" fill="#205f78">Domain / State</text>
+            <text x="455" y="459" font-size="15" fill="#586166">长期权威状态</text>
+            <text x="455" y="481" font-size="15" fill="#586166">Hero / Corps / City / Equipment</text>
+
+            <rect x="780" y="386" width="220" height="120" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="811" y="429" font-size="22" font-weight="900" fill="#21614f">Settlement</text>
+            <text x="811" y="459" font-size="15" fill="#586166">StateDeltaSet</text>
+            <text x="811" y="481" font-size="15" fill="#586166">ReportRecord</text>
+
+            <rect x="74" y="584" width="280" height="70" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="98" y="626" font-size="20" font-weight="900" fill="#5b4d76">Definitions / Content</text>
+
+            <rect x="422" y="584" width="250" height="70" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="466" y="626" font-size="20" font-weight="900" fill="#4d5960">Infrastructure</text>
+
+            <rect x="744" y="584" width="250" height="70" fill="url(#hatch)" stroke="#20282c" stroke-width="2"></rect>
+            <text x="792" y="626" font-size="20" font-weight="900" fill="#8a8a8a">Legacy Adapter</text>
+
+            <g fill="none" stroke="#20282c" stroke-width="3" marker-end="url(#introArrow)">
+              <path d="M280 196 H418"></path>
+              <path d="M648 196 H784"></path>
+              <path d="M890 242 C884 303 884 337 884 386"></path>
+              <path d="M780 446 H650"></path>
+              <path d="M420 446 H292"></path>
+              <path d="M182 390 C212 318 304 272 418 232"></path>
+              <path d="M214 584 C244 540 276 509 420 468"></path>
+              <path d="M546 584 V506"></path>
+              <path d="M744 620 H672"></path>
+            </g>
+
+            <line x1="680" y1="338" x2="746" y2="338" stroke="#b65b25" stroke-width="5"></line>
+            <line x1="690" y1="316" x2="736" y2="360" stroke="#b65b25" stroke-width="5"></line>
+            <line x1="736" y1="316" x2="690" y2="360" stroke="#b65b25" stroke-width="5"></line>
+            <text x="612" y="302" font-size="15" fill="#b65b25" font-weight="900">Runtime 禁止直接写 Domain</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <section id="context">
+      <div class="section-head">
+        <h2>C4 Context：系统上下文</h2>
+        <p>先看上下文：玩家、UI、战略经营、战斗运行时、结算战报、内容定义、存档资源各自是什么关系。</p>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 1360 760" role="img" aria-label="C4 Context 系统上下文图">
+          <defs>
+            <marker id="ctxArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#20282c"></path>
+            </marker>
+            <marker id="readArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#205f78"></path>
+            </marker>
+          </defs>
+          <rect x="30" y="30" width="1300" height="700" fill="none" stroke="#20282c" stroke-width="3"></rect>
+          <text x="58" y="74" font-size="28" font-weight="900">System Context</text>
+
+          <g font-family="Microsoft YaHei, Arial">
+            <rect x="75" y="292" width="170" height="100" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="123" y="336" font-size="22" font-weight="900">玩家</text>
+            <text x="106" y="365" font-size="15" fill="#586166">选择 / 指挥 / 阅读</text>
+
+            <rect x="330" y="92" width="230" height="110" fill="#fff" stroke="#4f5f22" stroke-width="3"></rect>
+            <text x="372" y="137" font-size="22" font-weight="900" fill="#4f5f22">Presentation / UI</text>
+            <text x="370" y="166" font-size="15" fill="#586166">城池界面 / 战场 HUD / 战报</text>
+
+            <rect x="330" y="286" width="230" height="120" fill="#fff" stroke="#7a4f15" stroke-width="3"></rect>
+            <text x="368" y="333" font-size="22" font-weight="900" fill="#7a4f15">Application</text>
+            <text x="366" y="363" font-size="15" fill="#586166">用例编排 / 快照 / 结算入口</text>
+
+            <rect x="330" y="520" width="230" height="112" fill="#fff" stroke="#205f78" stroke-width="3"></rect>
+            <text x="368" y="563" font-size="22" font-weight="900" fill="#205f78">Domain / State</text>
+            <text x="366" y="593" font-size="15" fill="#586166">长期权威状态</text>
+
+            <rect x="720" y="94" width="250" height="112" fill="#fff" stroke="#7a2730" stroke-width="3"></rect>
+            <text x="758" y="138" font-size="22" font-weight="900" fill="#7a2730">Combat Runtime</text>
+            <text x="756" y="168" font-size="15" fill="#586166">命令执行 / AI / EventStream</text>
+
+            <rect x="720" y="520" width="250" height="112" fill="#fff" stroke="#21614f" stroke-width="3"></rect>
+            <text x="762" y="563" font-size="22" font-weight="900" fill="#21614f">Report & Settlement</text>
+            <text x="756" y="593" font-size="15" fill="#586166">StateDeltaSet / BattleReport</text>
+
+            <rect x="1070" y="94" width="200" height="112" fill="#fff" stroke="#5b4d76" stroke-width="3"></rect>
+            <text x="1102" y="138" font-size="22" font-weight="900" fill="#5b4d76">Content</text>
+            <text x="1096" y="168" font-size="15" fill="#586166">Resource 定义 / 文本 / 标签</text>
+
+            <rect x="1070" y="520" width="200" height="112" fill="#fff" stroke="#4d5960" stroke-width="3"></rect>
+            <text x="1100" y="563" font-size="22" font-weight="900" fill="#4d5960">Infrastructure</text>
+            <text x="1096" y="593" font-size="15" fill="#586166">存档 / 加载 / 日志 / ID</text>
+
+            <g fill="none" stroke="#20282c" stroke-width="3" marker-end="url(#ctxArrow)">
+              <path d="M245 342 H330"></path>
+              <path d="M445 202 V286"></path>
+              <path d="M560 346 C620 300 662 220 720 164"></path>
+              <path d="M845 206 V520"></path>
+              <path d="M720 578 H560"></path>
+              <path d="M445 520 V406"></path>
+              <path d="M970 576 H1070"></path>
+            </g>
+            <g fill="none" stroke="#205f78" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#readArrow)">
+              <path d="M560 558 C654 508 676 438 720 206"></path>
+              <path d="M1070 150 H970"></path>
+              <path d="M1070 576 H970"></path>
+              <path d="M560 150 H1070"></path>
+            </g>
+            <text x="604" y="248" font-size="14" fill="#205f78" font-weight="900">Snapshot read</text>
+            <text x="616" y="610" font-size="14" fill="#20282c" font-weight="900">Settlement write</text>
+          </g>
+        </svg>
+      </div>
+      <div class="legend">
+        <div style="color: var(--ui)"><i class="swatch"></i>UI 发命令</div>
+        <div style="color: var(--app)"><i class="swatch"></i>Application 编排</div>
+        <div style="color: var(--domain)"><i class="swatch"></i>Domain 长期权威</div>
+        <div style="color: var(--runtime)"><i class="swatch"></i>Runtime 执行</div>
+        <div style="color: var(--settle)"><i class="swatch"></i>Settlement 回写</div>
+        <div style="color: var(--content)"><i class="swatch"></i>Content 只读定义</div>
+      </div>
+    </section>
+
+    <section id="layers">
+      <div class="section-head">
+        <h2>Layered Containers：层与依赖方向</h2>
+        <p>这张图明确“能做什么”和“不能做什么”。Runtime 不写 Domain，UI 不结算，Definitions 不保存玩家进度。</p>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 1360 920" role="img" aria-label="分层容器和依赖方向">
+          <defs>
+            <marker id="layerArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#20282c"></path>
+            </marker>
+          </defs>
+          <rect x="30" y="30" width="1300" height="860" fill="none" stroke="#20282c" stroke-width="3"></rect>
+          <text x="58" y="72" font-size="28" font-weight="900">Layered Containers</text>
+          <g font-family="Microsoft YaHei, Arial">
+            <rect x="80" y="110" width="1200" height="90" fill="#f5f7f2" stroke="#4f5f22" stroke-width="3"></rect>
+            <text x="106" y="146" font-size="23" font-weight="900" fill="#4f5f22">Presentation / UI</text>
+            <text x="330" y="146" font-size="16" fill="#586166">城池界面、战场 HUD、命令面板、战报界面。只展示和发命令。</text>
+            <text x="330" y="176" font-size="15" fill="#b65b25" font-weight="900">禁止：直接改长期状态、补算结算、伪造战报事实。</text>
+
+            <rect x="80" y="225" width="1200" height="100" fill="#fff9ee" stroke="#7a4f15" stroke-width="3"></rect>
+            <text x="106" y="263" font-size="23" font-weight="900" fill="#7a4f15">Application / Services</text>
+            <text x="330" y="263" font-size="16" fill="#586166">创建编组、驻扎出征、组装快照、命令入口校验、SettlementPlan、StateDeltaSet。</text>
+            <text x="330" y="294" font-size="15" fill="#586166">长期写入必须经由这里，不能从 Runtime 或 UI 绕过。</text>
+
+            <rect x="80" y="350" width="1200" height="100" fill="#eef7fa" stroke="#205f78" stroke-width="3"></rect>
+            <text x="106" y="388" font-size="23" font-weight="900" fill="#205f78">Domain / State</text>
+            <text x="330" y="388" font-size="16" fill="#586166">HeroState、CorpsState、BattleGroupState、CityState、EquipmentState、ReportHistory。</text>
+            <text x="330" y="419" font-size="15" fill="#b65b25" font-weight="900">禁止：保存 Runtime actor、坐标路径、动画目标锁定、帧级冷却。</text>
+
+            <rect x="80" y="475" width="1200" height="100" fill="#fff0f1" stroke="#7a2730" stroke-width="3"></rect>
+            <text x="106" y="513" font-size="23" font-weight="900" fill="#7a2730">Runtime / StateMachine</text>
+            <text x="330" y="513" font-size="16" fill="#586166">战斗 Actor、兵团 group、AI、命令执行、技能状态、EventStream、OutcomeResult。</text>
+            <text x="330" y="544" font-size="15" fill="#b65b25" font-weight="900">禁止：直接读取或写入 Domain 长期权威状态。</text>
+
+            <rect x="80" y="600" width="1200" height="100" fill="#f5f1fa" stroke="#5b4d76" stroke-width="3"></rect>
+            <text x="106" y="638" font-size="23" font-weight="900" fill="#5b4d76">Definitions / Content</text>
+            <text x="330" y="638" font-size="16" fill="#586166">Hero、Corps、Skill、Cost、Cooldown、Targeting、Effect、Tag、Modifier、Location、Facility。</text>
+            <text x="330" y="669" font-size="15" fill="#586166">用 Godot Resource 表达配置；实例保存 ID 和状态。</text>
+
+            <rect x="80" y="725" width="1200" height="100" fill="#f0f2f3" stroke="#4d5960" stroke-width="3"></rect>
+            <text x="106" y="763" font-size="23" font-weight="900" fill="#4d5960">Infrastructure</text>
+            <text x="330" y="763" font-size="16" fill="#586166">存档、资源加载、日志、ID、随机种子、时间、场景切换、诊断、测试辅助。</text>
+            <text x="330" y="794" font-size="15" fill="#b65b25" font-weight="900">禁止：承载业务规则或决定玩法结果。</text>
+
+            <g fill="none" stroke="#20282c" stroke-width="3" marker-end="url(#layerArrow)">
+              <path d="M1240 200 V225"></path>
+              <path d="M1240 325 V350"></path>
+              <path d="M1240 450 V475"></path>
+              <path d="M1240 575 V600"></path>
+              <path d="M1240 700 V725"></path>
+            </g>
+
+            <path d="M940 548 C1010 500 1020 435 950 398" fill="none" stroke="#b65b25" stroke-width="5"></path>
+            <line x1="942" y1="394" x2="976" y2="430" stroke="#b65b25" stroke-width="5"></line>
+            <line x1="976" y1="394" x2="942" y2="430" stroke="#b65b25" stroke-width="5"></line>
+            <text x="1026" y="476" font-size="16" fill="#b65b25" font-weight="900">No Runtime -> Domain write</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>二维职责矩阵</h2>
+        <p>这是横向系统与纵向层的落点表。它用于避免“英雄系统”“战斗编组系统”只停留在名词。</p>
+      </div>
+      <div class="matrix" aria-label="横向系统和纵向层职责矩阵">
+        <div class="matrix-grid">
+          <div class="head">系统 / 层</div>
+          <div class="head">Definitions</div>
+          <div class="head">Domain</div>
+          <div class="head">Application</div>
+          <div class="head">Runtime</div>
+          <div class="head">UI</div>
+          <div class="head">Infrastructure</div>
+
+          <div class="sys">英雄</div>
+          <div class="cell-content">英雄模板、技能池、成长引用</div>
+          <div class="cell-domain">拥有、等级、装备槽、可用状态</div>
+          <div class="cell-app">查询、出征校验、快照组装</div>
+          <div class="cell-runtime">英雄 actor 输入</div>
+          <div class="cell-ui">英雄面板、技能按钮</div>
+          <div class="cell-infra">定义加载、存档</div>
+
+          <div class="sys">兵团</div>
+          <div class="cell-content">职业、形态、标签、成长模板</div>
+          <div class="cell-domain">等级、装备等级、CorpsStrength</div>
+          <div class="cell-app">训练、恢复、快照组装</div>
+          <div class="cell-runtime">兵团 group 行为输入</div>
+          <div class="cell-ui">兵团状态展示</div>
+          <div class="cell-infra">定义加载、存档</div>
+
+          <div class="sys">战斗编组</div>
+          <div class="cell-content">绑定规则、适性引用</div>
+          <div class="cell-domain">英雄+兵团绑定、驻扎/出征</div>
+          <div class="cell-app">创建、驻扎、出征、锁定、释放</div>
+          <div class="cell-runtime">运行时根对象</div>
+          <div class="cell-ui">编组选择、状态</div>
+          <div class="cell-infra">ID、存档</div>
+
+          <div class="sys">城池/地点</div>
+          <div class="cell-content">地点、设施、地图入口</div>
+          <div class="cell-domain">控制、驻扎、资源、设施能力</div>
+          <div class="cell-app">资源结算、战斗上下文</div>
+          <div class="cell-runtime">防御条件输入</div>
+          <div class="cell-ui">管理界面</div>
+          <div class="cell-infra">场景切换、存档</div>
+
+          <div class="sys">指挥</div>
+          <div class="cell-content">命令定义、可用条件</div>
+          <div class="cell-domain">不保存运行时命令</div>
+          <div class="cell-app">权限与频道校验</div>
+          <div class="cell-runtime">订单执行、事件</div>
+          <div class="cell-ui">命令面板、目标选择</div>
+          <div class="cell-infra">输入映射</div>
+
+          <div class="sys">战报结算</div>
+          <div class="cell-content">文本、奖励、分类</div>
+          <div class="cell-domain">战报历史、已应用变化</div>
+          <div class="cell-app">SettlementPlan、StateDeltaSet</div>
+          <div class="cell-runtime">事件/结果提供者</div>
+          <div class="cell-ui">战报界面</div>
+          <div class="cell-infra">存档、日志</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="battle-group">
+      <div class="section-head">
+        <h2>BattleGroup 数据流和权威边界</h2>
+        <p>这张图是核心。长期状态进战斗前被冻结成快照；Runtime 不知道存档对象；结算从事件和结果回写。</p>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 1460 820" role="img" aria-label="BattleGroup 数据流和权威边界">
+          <defs>
+            <marker id="bgArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#20282c"></path>
+            </marker>
+            <marker id="bgReadArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#205f78"></path>
+            </marker>
+          </defs>
+          <rect x="30" y="30" width="1400" height="760" fill="none" stroke="#20282c" stroke-width="3"></rect>
+          <text x="58" y="76" font-size="28" font-weight="900">BattleGroup Data Flow</text>
+
+          <g font-family="Microsoft YaHei, Arial">
+            <rect x="70" y="130" width="300" height="430" fill="#eef7fa" stroke="#205f78" stroke-width="3"></rect>
+            <text x="102" y="172" font-size="24" font-weight="900" fill="#205f78">Domain Persistent State</text>
+            <rect x="105" y="210" width="230" height="58" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="132" y="247" font-size="18" font-weight="900">HeroState</text>
+            <rect x="105" y="292" width="230" height="58" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="132" y="329" font-size="18" font-weight="900">CorpsState</text>
+            <text x="224" y="329" font-size="14" fill="#586166">Strength 0-100</text>
+            <rect x="105" y="374" width="230" height="58" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="132" y="411" font-size="18" font-weight="900">BattleGroupState</text>
+            <rect x="105" y="456" width="230" height="58" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="132" y="493" font-size="18" font-weight="900">City / Location State</text>
+
+            <rect x="500" y="166" width="260" height="130" fill="#fff9ee" stroke="#7a4f15" stroke-width="3"></rect>
+            <text x="548" y="210" font-size="22" font-weight="900" fill="#7a4f15">Snapshot Builder</text>
+            <text x="548" y="241" font-size="15" fill="#586166">冻结长期状态</text>
+            <text x="548" y="263" font-size="15" fill="#586166">加入 Definition 引用</text>
+
+            <rect x="500" y="390" width="260" height="130" fill="#fff" stroke="#20282c" stroke-width="3"></rect>
+            <text x="538" y="435" font-size="22" font-weight="900">BattleStartSnapshot</text>
+            <text x="548" y="466" font-size="15" fill="#586166">BattleGroupSnapshot</text>
+            <text x="548" y="488" font-size="15" fill="#586166">LocationBattleContext</text>
+
+            <rect x="890" y="140" width="270" height="420" fill="#fff0f1" stroke="#7a2730" stroke-width="3"></rect>
+            <text x="930" y="184" font-size="24" font-weight="900" fill="#7a2730">Runtime State</text>
+            <rect x="930" y="225" width="190" height="54" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="972" y="260" font-size="17" font-weight="900">Hero Actor</text>
+            <rect x="930" y="306" width="190" height="54" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="970" y="341" font-size="17" font-weight="900">Corps Group</text>
+            <rect x="930" y="387" width="190" height="54" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="954" y="422" font-size="17" font-weight="900">Command State</text>
+            <rect x="930" y="468" width="190" height="54" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="973" y="503" font-size="17" font-weight="900">Tactical AI</text>
+
+            <rect x="890" y="630" width="270" height="90" fill="#fff" stroke="#21614f" stroke-width="3"></rect>
+            <text x="942" y="672" font-size="22" font-weight="900" fill="#21614f">EventStream + Outcome</text>
+            <text x="956" y="699" font-size="15" fill="#586166">归因事实源</text>
+
+            <rect x="1230" y="250" width="150" height="230" fill="#fff" stroke="#21614f" stroke-width="3"></rect>
+            <text x="1257" y="294" font-size="22" font-weight="900" fill="#21614f">Settlement</text>
+            <text x="1263" y="326" font-size="15" fill="#586166">Plan</text>
+            <text x="1263" y="352" font-size="15" fill="#586166">StateDeltaSet</text>
+            <text x="1263" y="378" font-size="15" fill="#586166">ReportRecord</text>
+
+            <g fill="none" stroke="#20282c" stroke-width="3" marker-end="url(#bgArrow)">
+              <path d="M370 242 H500"></path>
+              <path d="M630 296 V390"></path>
+              <path d="M760 455 H890"></path>
+              <path d="M1025 560 V630"></path>
+              <path d="M1160 675 C1232 650 1270 552 1302 480"></path>
+              <path d="M1230 370 C1120 610 900 748 370 516"></path>
+            </g>
+            <g fill="none" stroke="#205f78" stroke-width="3" stroke-dasharray="8 8" marker-end="url(#bgReadArrow)">
+              <path d="M760 230 C820 210 845 196 890 188"></path>
+            </g>
+
+            <line x1="760" y1="320" x2="872" y2="320" stroke="#b65b25" stroke-width="5"></line>
+            <line x1="805" y1="290" x2="842" y2="350" stroke="#b65b25" stroke-width="5"></line>
+            <line x1="842" y1="290" x2="805" y2="350" stroke="#b65b25" stroke-width="5"></line>
+            <text x="774" y="280" font-size="15" fill="#b65b25" font-weight="900">No Domain access</text>
+          </g>
+        </svg>
+      </div>
+      <div class="notes">
+        <div><strong>长期状态</strong><span>Hero、Corps、BattleGroup、City、Equipment 是存档权威。</span></div>
+        <div><strong>运行时状态</strong><span>HP、坐标、目标、命令、AI、冷却只存在于 Runtime。</span></div>
+        <div><strong>结算边界</strong><span>只有完整 Outcome + 一致 EventStream 才能进入 Settlement。</span></div>
+      </div>
+    </section>
+
+    <section id="command-ai">
+      <div class="section-head">
+        <h2>Command + Tactical AI 时序图</h2>
+        <p>这张图把玩家指挥、Application 校验、Runtime 接收、AI 降级、事件归因和 UI 反馈串起来。</p>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 1460 900" role="img" aria-label="命令和 AI 时序图">
+          <defs>
+            <marker id="seqArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#20282c"></path>
+            </marker>
+          </defs>
+          <rect x="30" y="30" width="1400" height="840" fill="none" stroke="#20282c" stroke-width="3"></rect>
+          <text x="58" y="76" font-size="28" font-weight="900">Command Lifecycle + Tactical AI</text>
+
+          <g font-family="Microsoft YaHei, Arial">
+            <g>
+              <rect x="80" y="120" width="170" height="54" fill="#f5f7f2" stroke="#4f5f22" stroke-width="3"></rect>
+              <text x="132" y="155" font-size="20" font-weight="900" fill="#4f5f22">UI</text>
+              <line x1="165" y1="174" x2="165" y2="810" stroke="#4f5f22" stroke-width="2" stroke-dasharray="8 8"></line>
+            </g>
+            <g>
+              <rect x="330" y="120" width="190" height="54" fill="#fff9ee" stroke="#7a4f15" stroke-width="3"></rect>
+              <text x="357" y="155" font-size="20" font-weight="900" fill="#7a4f15">Application</text>
+              <line x1="425" y1="174" x2="425" y2="810" stroke="#7a4f15" stroke-width="2" stroke-dasharray="8 8"></line>
+            </g>
+            <g>
+              <rect x="600" y="120" width="190" height="54" fill="#fff0f1" stroke="#7a2730" stroke-width="3"></rect>
+              <text x="641" y="155" font-size="20" font-weight="900" fill="#7a2730">Runtime</text>
+              <line x1="695" y1="174" x2="695" y2="810" stroke="#7a2730" stroke-width="2" stroke-dasharray="8 8"></line>
+            </g>
+            <g>
+              <rect x="870" y="120" width="190" height="54" fill="#fff0f1" stroke="#7a2730" stroke-width="3"></rect>
+              <text x="910" y="155" font-size="20" font-weight="900" fill="#7a2730">Tactical AI</text>
+              <line x1="965" y1="174" x2="965" y2="810" stroke="#7a2730" stroke-width="2" stroke-dasharray="8 8"></line>
+            </g>
+            <g>
+              <rect x="1140" y="120" width="190" height="54" fill="#eff8f4" stroke="#21614f" stroke-width="3"></rect>
+              <text x="1175" y="155" font-size="20" font-weight="900" fill="#21614f">EventStream</text>
+              <line x1="1235" y1="174" x2="1235" y2="810" stroke="#21614f" stroke-width="2" stroke-dasharray="8 8"></line>
+            </g>
+
+            <g fill="none" stroke="#20282c" stroke-width="3" marker-end="url(#seqArrow)">
+              <path d="M165 230 H425"></path>
+              <path d="M425 295 H695"></path>
+              <path d="M695 360 H965"></path>
+              <path d="M965 425 H695"></path>
+              <path d="M695 490 H1235"></path>
+              <path d="M1235 555 H165"></path>
+              <path d="M695 640 H1235"></path>
+              <path d="M1235 705 H425"></path>
+            </g>
+
+            <text x="190" y="220" font-size="16" font-weight="900">CommandRequest</text>
+            <text x="460" y="285" font-size="16" font-weight="900">Validation accepted/rejected</text>
+            <text x="730" y="350" font-size="16" font-weight="900">RuntimeOrder</text>
+            <text x="744" y="415" font-size="16" font-weight="900">path / target / fallback</text>
+            <text x="850" y="480" font-size="16" font-weight="900">accepted / rejected / failed</text>
+            <text x="610" y="545" font-size="16" font-weight="900">UI feedback from event facts</text>
+            <text x="824" y="630" font-size="16" font-weight="900">completed / interrupted / superseded</text>
+            <text x="610" y="695" font-size="16" font-weight="900">Settlement-ready event source</text>
+
+            <rect x="80" y="760" width="1250" height="56" fill="#fff8ee" stroke="#b65b25" stroke-width="2"></rect>
+            <text x="106" y="796" font-size="18" font-weight="900" fill="#b65b25">规则：UI 本地无效输入不进 EventStream；Runtime 拒绝/接受/打断/完成/失败必须进入 EventStream。</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section id="ability">
+      <div class="section-head">
+        <h2>Ability / Effect 资源化管线</h2>
+        <p>技能、消耗、冷却、目标、效果、标签、Modifier 是定义。Runtime 只持有执行态；结算和战报共享事件事实。</p>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 1360 760" role="img" aria-label="能力和效果资源化管线">
+          <defs>
+            <marker id="abArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#20282c"></path>
+            </marker>
+          </defs>
+          <rect x="30" y="30" width="1300" height="700" fill="none" stroke="#20282c" stroke-width="3"></rect>
+          <text x="58" y="76" font-size="28" font-weight="900">Ability And Effect Definition Pipeline</text>
+          <g font-family="Microsoft YaHei, Arial">
+            <rect x="80" y="135" width="285" height="430" fill="#f5f1fa" stroke="#5b4d76" stroke-width="3"></rect>
+            <text x="118" y="178" font-size="24" font-weight="900" fill="#5b4d76">Godot Resource</text>
+            <rect x="112" y="215" width="220" height="42" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="138" y="242" font-size="17" font-weight="900">Skill</text>
+            <rect x="112" y="273" width="220" height="42" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="138" y="300" font-size="17" font-weight="900">Cost</text>
+            <rect x="112" y="331" width="220" height="42" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="138" y="358" font-size="17" font-weight="900">Cooldown</text>
+            <rect x="112" y="389" width="220" height="42" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="138" y="416" font-size="17" font-weight="900">Targeting</text>
+            <rect x="112" y="447" width="220" height="42" fill="#fff" stroke="#20282c" stroke-width="2"></rect>
+            <text x="138" y="474" font-size="17" font-weight="900">Effect / Tag / Modifier</text>
+
+            <rect x="510" y="155" width="285" height="170" fill="#fff9ee" stroke="#7a4f15" stroke-width="3"></rect>
+            <text x="560" y="198" font-size="24" font-weight="900" fill="#7a4f15">Application</text>
+            <text x="552" y="235" font-size="16" fill="#586166">校验解锁、装备、等级、资源</text>
+            <text x="552" y="262" font-size="16" fill="#586166">写入 BattleStartSnapshot</text>
+
+            <rect x="510" y="405" width="285" height="170" fill="#fff0f1" stroke="#7a2730" stroke-width="3"></rect>
+            <text x="572" y="448" font-size="24" font-weight="900" fill="#7a2730">Runtime Instance</text>
+            <text x="552" y="485" font-size="16" fill="#586166">冷却、消耗、命中、效果应用</text>
+            <text x="552" y="512" font-size="16" fill="#586166">产出 ability/effect events</text>
+
+            <rect x="945" y="155" width="285" height="170" fill="#eff8f4" stroke="#21614f" stroke-width="3"></rect>
+            <text x="1004" y="198" font-size="24" font-weight="900" fill="#21614f">Report</text>
+            <text x="988" y="235" font-size="16" fill="#586166">技能贡献、失败原因</text>
+            <text x="988" y="262" font-size="16" fill="#586166">不重新计算事实</text>
+
+            <rect x="945" y="405" width="285" height="170" fill="#eff8f4" stroke="#21614f" stroke-width="3"></rect>
+            <text x="1004" y="448" font-size="24" font-weight="900" fill="#21614f">Settlement</text>
+            <text x="988" y="485" font-size="16" fill="#586166">资源变化、成长、回写</text>
+            <text x="988" y="512" font-size="16" fill="#586166">来源必须可追踪</text>
+
+            <g fill="none" stroke="#20282c" stroke-width="3" marker-end="url(#abArrow)">
+              <path d="M365 260 H510"></path>
+              <path d="M652 325 V405"></path>
+              <path d="M795 478 H945"></path>
+              <path d="M795 488 C875 450 878 272 945 238"></path>
+            </g>
+            <text x="392" y="242" font-size="15" fill="#586166" font-weight="900">Definition ID + refs</text>
+            <text x="812" y="459" font-size="15" fill="#586166" font-weight="900">Event facts</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section id="resource">
+      <div class="section-head">
+        <h2>Machinations 风格资源与成长闭环</h2>
+        <p>城市资源、训练、装备等级、战损、恢复和奖励回写必须能画成闭环，不能各系统独立造账。</p>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 1460 900" role="img" aria-label="资源成长闭环">
+          <defs>
+            <marker id="resArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#20282c"></path>
+            </marker>
+          </defs>
+          <rect x="30" y="30" width="1400" height="840" fill="none" stroke="#20282c" stroke-width="3"></rect>
+          <text x="58" y="76" font-size="28" font-weight="900">Resource And Progression Loop</text>
+          <g font-family="Microsoft YaHei, Arial">
+            <rect x="70" y="160" width="220" height="150" fill="#fff" stroke="#98621c" stroke-width="3"></rect>
+            <text x="124" y="206" font-size="24" font-weight="900" fill="#98621c">Sources</text>
+            <text x="102" y="242" font-size="15" fill="#586166">城市生产、资源点</text>
+            <text x="102" y="268" font-size="15" fill="#586166">遗迹、地牢、战斗奖励</text>
+
+            <rect x="405" y="160" width="240" height="150" fill="#fff" stroke="#205f78" stroke-width="3"></rect>
+            <text x="460" y="206" font-size="24" font-weight="900" fill="#205f78">Converters</text>
+            <text x="442" y="242" font-size="15" fill="#586166">TrainingCapacity</text>
+            <text x="442" y="268" font-size="15" fill="#586166">WorkshopCapacity</text>
+
+            <rect x="760" y="160" width="220" height="150" fill="#fff" stroke="#5b4d76" stroke-width="3"></rect>
+            <text x="825" y="206" font-size="24" font-weight="900" fill="#5b4d76">Caps</text>
+            <text x="796" y="242" font-size="15" fill="#586166">驻军、训练、工坊</text>
+            <text x="796" y="268" font-size="15" fill="#586166">资源上限、防御容量</text>
+
+            <rect x="1110" y="160" width="220" height="150" fill="#fff" stroke="#7a2730" stroke-width="3"></rect>
+            <text x="1168" y="206" font-size="24" font-weight="900" fill="#7a2730">Sinks</text>
+            <text x="1140" y="242" font-size="15" fill="#586166">训练、装备升级</text>
+            <text x="1140" y="268" font-size="15" fill="#586166">恢复、城防、设施</text>
+
+            <rect x="760" y="510" width="220" height="150" fill="#fff" stroke="#7a2730" stroke-width="3"></rect>
+            <text x="810" y="556" font-size="24" font-weight="900" fill="#7a2730">Battle Loss</text>
+            <text x="794" y="592" font-size="15" fill="#586166">CorpsStrength 下降</text>
+            <text x="794" y="618" font-size="15" fill="#586166">撤退、战败、损耗</text>
+
+            <rect x="405" y="510" width="240" height="150" fill="#fff" stroke="#21614f" stroke-width="3"></rect>
+            <text x="462" y="556" font-size="24" font-weight="900" fill="#21614f">Recovery</text>
+            <text x="442" y="592" font-size="15" fill="#586166">城市支持 + 资源</text>
+            <text x="442" y="618" font-size="15" fill="#586166">不足则保留未恢复</text>
+
+            <rect x="70" y="510" width="220" height="150" fill="#fff" stroke="#21614f" stroke-width="3"></rect>
+            <text x="112" y="556" font-size="24" font-weight="900" fill="#21614f">Settlement</text>
+            <text x="102" y="592" font-size="15" fill="#586166">奖励、经验、回写</text>
+            <text x="102" y="618" font-size="15" fill="#586166">StateDeltaSet</text>
+
+            <g fill="none" stroke="#20282c" stroke-width="3" marker-end="url(#resArrow)">
+              <path d="M290 235 H405"></path>
+              <path d="M645 235 H760"></path>
+              <path d="M980 235 H1110"></path>
+              <path d="M1220 310 C1198 456 1052 578 980 585"></path>
+              <path d="M760 585 H645"></path>
+              <path d="M405 585 H290"></path>
+              <path d="M180 510 C134 424 134 340 180 310"></path>
+            </g>
+            <rect x="1110" y="510" width="220" height="150" fill="#fff8ee" stroke="#b65b25" stroke-width="3"></rect>
+            <text x="1140" y="556" font-size="21" font-weight="900" fill="#b65b25">Negative Feedback</text>
+            <text x="1140" y="592" font-size="15" fill="#586166">容量、维护、恢复成本</text>
+            <text x="1140" y="618" font-size="15" fill="#586166">训练/工坊效率、城防压力</text>
+            <path d="M1110 584 H980" fill="none" stroke="#b65b25" stroke-width="3" marker-end="url(#resArrow)"></path>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>战报归因：同一事件源</h2>
+        <p>战报和结算不能各算各的。Runtime 的 EventStream 是共同事实源，Settlement 和 Report 各自消费。</p>
+      </div>
+      <div class="diagram tight">
+        <svg viewBox="0 0 1180 620" role="img" aria-label="战报归因图">
+          <defs>
+            <marker id="reportArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#20282c"></path>
+            </marker>
+          </defs>
+          <rect x="30" y="30" width="1120" height="560" fill="none" stroke="#20282c" stroke-width="3"></rect>
+          <text x="58" y="76" font-size="28" font-weight="900">Battle Report Attribution</text>
+          <g font-family="Microsoft YaHei, Arial">
+            <rect x="85" y="190" width="250" height="190" fill="#fff0f1" stroke="#7a2730" stroke-width="3"></rect>
+            <text x="143" y="236" font-size="24" font-weight="900" fill="#7a2730">Runtime</text>
+            <text x="128" y="274" font-size="15" fill="#586166">actor</text>
+            <text x="128" y="300" font-size="15" fill="#586166">source command</text>
+            <text x="128" y="326" font-size="15" fill="#586166">target / effect type</text>
+            <text x="128" y="352" font-size="15" fill="#586166">failure candidate</text>
+
+            <rect x="465" y="120" width="250" height="150" fill="#fff" stroke="#20282c" stroke-width="3"></rect>
+            <text x="512" y="166" font-size="24" font-weight="900">EventStream</text>
+            <text x="502" y="204" font-size="15" fill="#586166">共同事实源</text>
+            <text x="502" y="230" font-size="15" fill="#586166">resource delta 可为空</text>
+
+            <rect x="845" y="85" width="230" height="150" fill="#eff8f4" stroke="#21614f" stroke-width="3"></rect>
+            <text x="895" y="132" font-size="24" font-weight="900" fill="#21614f">Settlement</text>
+            <text x="890" y="170" font-size="15" fill="#586166">StateDeltaSet</text>
+            <text x="890" y="196" font-size="15" fill="#586166">长期回写</text>
+
+            <rect x="845" y="350" width="230" height="150" fill="#eff8f4" stroke="#21614f" stroke-width="3"></rect>
+            <text x="918" y="397" font-size="24" font-weight="900" fill="#21614f">Report</text>
+            <text x="890" y="435" font-size="15" fill="#586166">失败原因排序</text>
+            <text x="890" y="461" font-size="15" fill="#586166">可读解释</text>
+
+            <g fill="none" stroke="#20282c" stroke-width="3" marker-end="url(#reportArrow)">
+              <path d="M335 285 C395 250 420 205 465 185"></path>
+              <path d="M715 185 H845"></path>
+              <path d="M715 210 C782 264 800 360 845 410"></path>
+            </g>
+
+            <line x1="735" y1="302" x2="805" y2="302" stroke="#b65b25" stroke-width="5"></line>
+            <line x1="753" y1="278" x2="789" y2="326" stroke="#b65b25" stroke-width="5"></line>
+            <line x1="789" y1="278" x2="753" y2="326" stroke="#b65b25" stroke-width="5"></line>
+            <text x="690" y="345" font-size="15" fill="#b65b25" font-weight="900">Report 不补算事实</text>
+          </g>
+        </svg>
+      </div>
+    </section>
+
+    <section id="migration">
+      <div class="section-head">
+        <h2>迁移边界：旧实现只能适配，不能污染核心合同</h2>
+        <p>旧 Force/Garrison/AutoBattle 可以作为迁移输入，但不能成为新 Domain 或 Runtime 的基础抽象。</p>
+      </div>
+      <div class="diagram">
+        <svg viewBox="0 0 1360 700" role="img" aria-label="旧实现迁移边界">
+          <defs>
+            <marker id="migArrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#20282c"></path>
+            </marker>
+            <pattern id="legacyHatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="10" stroke="#8a8a8a" stroke-width="2" opacity="0.5"></line>
+            </pattern>
+          </defs>
+          <rect x="30" y="30" width="1300" height="640" fill="none" stroke="#20282c" stroke-width="3"></rect>
+          <text x="58" y="76" font-size="28" font-weight="900">Migration Boundary</text>
+          <g font-family="Microsoft YaHei, Arial">
+            <rect x="80" y="145" width="260" height="360" fill="url(#legacyHatch)" stroke="#8a8a8a" stroke-width="3"></rect>
+            <text x="124" y="190" font-size="24" font-weight="900" fill="#4d5960">Legacy Inputs</text>
+            <rect x="116" y="230" width="190" height="54" fill="#fff" stroke="#8a8a8a" stroke-width="2"></rect>
+            <text x="145" y="264" font-size="17" font-weight="900">BattleForce</text>
+            <rect x="116" y="310" width="190" height="54" fill="#fff" stroke="#8a8a8a" stroke-width="2"></rect>
+            <text x="145" y="344" font-size="17" font-weight="900">Garrison</text>
+            <rect x="116" y="390" width="190" height="54" fill="#fff" stroke="#8a8a8a" stroke-width="2"></rect>
+            <text x="145" y="424" font-size="17" font-weight="900">AutoBattle</text>
+
+            <rect x="500" y="210" width="260" height="220" fill="#fff8ee" stroke="#b65b25" stroke-width="3"></rect>
+            <text x="558" y="256" font-size="24" font-weight="900" fill="#b65b25">Adapter</text>
+            <text x="542" y="296" font-size="16" fill="#586166">临时转换层</text>
+            <text x="542" y="326" font-size="16" fill="#586166">可删除</text>
+            <text x="542" y="356" font-size="16" fill="#586166">失败显式化</text>
+
+            <rect x="920" y="145" width="300" height="360" fill="#fff" stroke="#20282c" stroke-width="3"></rect>
+            <text x="962" y="190" font-size="24" font-weight="900" fill="#151a1d">New Core Contracts</text>
+            <rect x="958" y="230" width="220" height="54" fill="#f5f1fa" stroke="#5b4d76" stroke-width="2"></rect>
+            <text x="984" y="264" font-size="17" font-weight="900">BattleGroupState</text>
+            <rect x="958" y="310" width="220" height="54" fill="#fff9ee" stroke="#7a4f15" stroke-width="2"></rect>
+            <text x="984" y="344" font-size="17" font-weight="900">BattleStartSnapshot</text>
+            <rect x="958" y="390" width="220" height="54" fill="#eff8f4" stroke="#21614f" stroke-width="2"></rect>
+            <text x="984" y="424" font-size="17" font-weight="900">Event / Settlement</text>
+
+            <g fill="none" stroke="#20282c" stroke-width="3" marker-end="url(#migArrow)">
+              <path d="M340 325 H500"></path>
+              <path d="M760 325 H920"></path>
+            </g>
+            <line x1="375" y1="548" x2="886" y2="548" stroke="#b65b25" stroke-width="5"></line>
+            <line x1="612" y1="514" x2="652" y2="582" stroke="#b65b25" stroke-width="5"></line>
+            <line x1="652" y1="514" x2="612" y2="582" stroke="#b65b25" stroke-width="5"></line>
+            <text x="410" y="610" font-size="18" fill="#b65b25" font-weight="900">禁止旧概念直接进入核心合同；只能通过 Adapter 转换。</text>
+          </g>
+        </svg>
+      </div>
+      <div class="rules">
+        <div class="rule">
+          <h3>核心规则</h3>
+          <ul>
+            <li>新架构不迁就旧概念。</li>
+            <li>旧数据只能转换成新快照或新状态。</li>
+            <li>同一职责不能保留双权威。</li>
+          </ul>
+        </div>
+        <div class="rule">
+          <h3>失败规则</h3>
+          <ul>
+            <li>映射缺失必须显式失败。</li>
+            <li>不能用隐藏 fallback 维持表面可运行。</li>
+            <li>Adapter 必须可整体移除。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Source: design-proposals/active/2026-05-17-hero-led-light-rts-system-architecture/expected/system-design/hero-led-light-rts-system-architecture.md
+    </footer>
+  </div>
+</body>
+</html>
