@@ -4,6 +4,7 @@ This directory stores lightweight planning notes for changes that can affect arc
 
 ## Recent Notes
 
+- 2026-05-16: `2026-05-16-auto-tactics-migration.md`
 - 2026-05-14: `2026-05-14-world-runtime-state-mutation.md`
 - 2026-05-14: `2026-05-14-resident-unit-definition-cache.md`
 - 2026-05-13: `2026-05-13-battle-audio-slice.md`
@@ -14,7 +15,7 @@ Do not use this directory for ordinary todos, temporary progress logs, or module
 
 Create a technical change note before implementation when a task may:
 
-- Modify Battle flow, AP, or TurnSystem behavior.
+- Modify battle runtime ownership, auto battle report/writeback, or retired manual-runtime boundaries.
 - Change shared concepts such as `BattleAction`, `Effect`, `Condition`, `TargetRule`, or Intent.
 - Affect multiple systems, scenes, or documents.
 - Require a staged migration of data, scenes, or resources.

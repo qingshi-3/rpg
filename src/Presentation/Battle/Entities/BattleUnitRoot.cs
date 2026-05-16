@@ -109,15 +109,6 @@ public partial class BattleUnitRoot : Node2D
         }
     }
 
-    public void RestoreTurnResourcesForFaction(BattleFaction faction)
-    {
-        foreach (BattleEntity entity in EnumerateAliveFaction(faction))
-        {
-            entity.GetComponent<ActionPointComponent>()?.RestoreToMax();
-            entity.GetComponent<MovementComponent>()?.RestoreMoveUses();
-        }
-    }
-
     public ISet<GridSurfacePosition> BuildBlockedMovementSurfaces(BattleEntity movingEntity)
     {
         var blockedSurfaces = new HashSet<GridSurfacePosition>();

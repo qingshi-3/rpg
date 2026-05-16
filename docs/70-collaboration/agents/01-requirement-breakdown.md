@@ -19,7 +19,7 @@ or review code.
   Combat, AI, Save, Content Pipeline, Runtime State, or another clear owner.
 - Split the request into functional points.
 - Identify data-driven authoring needs versus runtime framework work.
-- Check whether the work touches Battle flow, AP, TurnSystem, or cross-system
+- Check whether the work touches battle runtime ownership, retired manual battle systems, or cross-system
   contracts.
 - Identify required documentation routes and potential technical change notes.
 - Produce acceptance criteria that Agent5 can verify without claiming manual

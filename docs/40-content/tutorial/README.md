@@ -1,8 +1,8 @@
 # Tutorial Content Index
 
-The tutorial battle is the first vertical slice for teaching the core combat loop.
+Tutorial content should teach preparation, deployment, hero-led company commands, readable automatic soldier behavior, and report interpretation. It must not route future work through AP spending, player-phase turns, old manual action menus, or pure no-command auto battle as the product target.
 
 ## Routes
 
-- Overview and scope: `tutorial-battle.md`
-- Detailed encounter specification: `tutorial-battle-spec.md`
+- Battle tutorial specification: `tutorial-battle-spec.md`
+- Current gameplay authority: `../../../gameplay-design/content-systems-long-term-design.md`

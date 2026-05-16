@@ -13,7 +13,8 @@ public static class StrategicWorldV1DefinitionFactory
 {
     private const string InitialStateResourcePath = "res://assets/definitions/world/strategic_world_v1_initial_state.tres";
 
-    public static StrategicWorldDefinition Create()
+    // Headless regressions can bypass Godot resource loading; runtime default still loads it.
+    public static StrategicWorldDefinition Create(bool loadInitialStateResource = true)
     {
         return new StrategicWorldDefinition
         {
@@ -25,7 +26,7 @@ public static class StrategicWorldV1DefinitionFactory
             FactionDefinitions = CreateFactions(),
             ResourceDefinitions = CreateResources(),
             FacilityDefinitions = CreateFacilities(),
-            SiteDefinitions = CreateSites(),
+            SiteDefinitions = CreateSites(loadInitialStateResource),
             OpportunityDefinitions = CreateOpportunities(),
             OpportunitySpawnPoints = CreateOpportunitySpawnPoints(),
             OpportunitySpawnRules = CreateOpportunitySpawnRules(),
@@ -185,7 +186,7 @@ public static class StrategicWorldV1DefinitionFactory
         };
     }
 
-    private static List<WorldSiteDefinition> CreateSites()
+    private static List<WorldSiteDefinition> CreateSites(bool loadInitialStateResource)
     {
         List<WorldSiteDefinition> sites = new()
         {
@@ -198,6 +199,10 @@ public static class StrategicWorldV1DefinitionFactory
                 MapPosition = new Vector2(236, 413),
                 InitialOwnerFactionId = StrategicWorldIds.FactionPlayer,
                 InitialControlState = SiteControlState.PlayerHeld,
+                Intel = new WorldSiteIntelDefinition
+                {
+                    Policy = WorldSiteIntelPolicy.Transparent
+                },
                 FacilitySlots = new List<FacilitySlotDefinition>
                 {
                     new()
@@ -243,6 +248,25 @@ public static class StrategicWorldV1DefinitionFactory
                 MapPosition = new Vector2(796, 413),
                 InitialOwnerFactionId = StrategicWorldIds.FactionUndead,
                 InitialControlState = SiteControlState.Hostile,
+                Intel = new WorldSiteIntelDefinition
+                {
+                    Policy = WorldSiteIntelPolicy.Partial,
+                    StrategicSummary = "亡灵控制的资源场域，确认有可利用矿道和外层守军。",
+                    TacticalSummary = "正门可进攻，外层有骸骨巡逻。",
+                    HiddenTacticalSummary = "内侧营地布阵、侧路和伏兵尚未确认。",
+                    PublicEntranceIds = new List<string> { "main_entrance" },
+                    ObscurationSources = new List<WorldSiteObscurationDefinition>
+                    {
+                        new()
+                        {
+                            Id = "bonefield_outer_watch",
+                            DisplayName = "外层哨岗",
+                            Description = "哨岗仍在巡逻，内侧布阵只显示为粗略情报。",
+                            HidesTacticalLayout = true,
+                            DisabledByResolvedPointIds = new List<string> { "bonefield_watch_post" }
+                        }
+                    }
+                },
                 FacilitySlots = new List<FacilitySlotDefinition>
                 {
                     new()
@@ -286,6 +310,89 @@ public static class StrategicWorldV1DefinitionFactory
                     new() { EntranceId = "main_entrance", DisplayName = "埋骨地入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.West, BattleAnchorId = "bonefield_main_entrance" },
                     new() { EntranceId = "main_entrance_east", DisplayName = "埋骨地东侧入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.East, BattleAnchorId = "bonefield_east_entrance" },
                     new() { EntranceId = "defense_post", DisplayName = "防守据点", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.Any, BattleAnchorId = "bonefield_defense_post", Source = "Garrison" }
+                },
+                ExplorationPoints = new List<SiteExplorationPointDefinition>
+                {
+                    new()
+                    {
+                        Id = "bonefield_broken_cart",
+                        DisplayName = "破损矿车",
+                        Description = "散落的矿车还留有可用石料。",
+                        CellX = 17,
+                        CellY = 17,
+                        CellHeight = 0,
+                        InteractionRange = 1,
+                        InitiallyRevealed = true,
+                        Actions = new List<SiteExplorationActionDefinition>
+                        {
+                            new()
+                            {
+                                Id = "inspect_broken_cart",
+                                DisplayName = "调查矿车",
+                                Description = "获得少量石材，并确认矿道方向。",
+                                ResolvesPoint = true,
+                                RevealsPointIds = new[] { "bonefield_collapsed_mine" },
+                                AddsKnownTacticalTags = new[] { "mine_trace_confirmed" }
+                            }
+                        }
+                    },
+                    new()
+                    {
+                        Id = "bonefield_watch_post",
+                        DisplayName = "外层哨岗",
+                        Description = "骸骨巡逻队从这里观察入口。",
+                        CellX = 18,
+                        CellY = 16,
+                        CellHeight = 0,
+                        InteractionRange = 1,
+                        InitiallyRevealed = true,
+                        Actions = new List<SiteExplorationActionDefinition>
+                        {
+                            new()
+                            {
+                                Id = "observe_watch_post",
+                                DisplayName = "观察哨岗",
+                                Description = "揭示内侧入口，降低盲目强攻风险。",
+                                ResolvesPoint = true,
+                                RevealsEntranceIds = new[] { "main_entrance_east" },
+                                AddsKnownTacticalTags = new[] { "watch_post_scouted" },
+                                AddsExplorationAdvantageTags = new[] { "outer_watch_scouted" }
+                            },
+                            new()
+                            {
+                                Id = "assault_watch_post",
+                                DisplayName = "强攻哨岗",
+                                Description = "立即触发局部遭遇战。",
+                                StartsBattle = true,
+                                BattleEncounterId = "bonefield_watch_post",
+                                AlertDelta = 2
+                            }
+                        }
+                    },
+                    new()
+                    {
+                        Id = "bonefield_collapsed_mine",
+                        DisplayName = "塌方矿道",
+                        Description = "清理后可转化为矿场槽位。",
+                        CellX = 19,
+                        CellY = 17,
+                        CellHeight = 0,
+                        InteractionRange = 1,
+                        InitiallyRevealed = false,
+                        Actions = new List<SiteExplorationActionDefinition>
+                        {
+                            new()
+                            {
+                                Id = "clear_collapsed_mine",
+                                DisplayName = "清理矿道",
+                                Description = "消耗一次世界步，解锁埋骨地采石点。",
+                                ConsumesWorldTick = true,
+                                ResolvesPoint = true,
+                                UnlocksFacilitySlotIds = new[] { "mine_slot_01" },
+                                ClearsHazardIds = new[] { "collapsed_mine" }
+                            }
+                        }
+                    }
                 },
                 ExplorationPatrols = new List<SiteExplorationPatrolDefinition>
                 {
@@ -333,6 +440,10 @@ public static class StrategicWorldV1DefinitionFactory
                 MapPosition = new Vector2(1076, 413),
                 InitialOwnerFactionId = StrategicWorldIds.FactionUndead,
                 InitialControlState = SiteControlState.Hostile,
+                Intel = new WorldSiteIntelDefinition
+                {
+                    Policy = WorldSiteIntelPolicy.Transparent
+                },
                 InitialGarrison = new List<GarrisonDefinition>
                 {
                     new() { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1, Morale = 35 },
@@ -373,7 +484,11 @@ public static class StrategicWorldV1DefinitionFactory
             }
         };
 
-        ApplyInitialStateResource(sites);
+        if (loadInitialStateResource)
+        {
+            ApplyInitialStateResource(sites);
+        }
+
         return sites;
     }
 
@@ -512,7 +627,7 @@ public static class StrategicWorldV1DefinitionFactory
             {
                 Id = StrategicWorldIds.ActionDefendRaid,
                 DisplayName = "进入防守战",
-                Description = "带领埋骨地驻军进入战棋防守战。",
+                Description = "带领埋骨地驻军进入自动防守战。",
                 Scope = WorldActionScope.Threat,
                 Conditions = new List<WorldConditionDefinition>
                 {

@@ -14,8 +14,8 @@ It is not an automated test suite. Its purpose is to keep verification points ou
 
 ## Current Documents
 
-- `phase1-core-prototype.md`: Phase 1 combat prototype checks.
 - `strategic-world-v1.md`: Strategic world V1 logic, battle writeback, raid, UI, and persistence checks.
 - `strategic-world-site-grid-exploration.md`: Grid-based WorldSite exploration checks.
 - `world-site-state-deployment.md`: WorldSite state driven battle deployment checks.
+- `auto-tactics-migration.md`: Historical migration guardrails for keeping the retired AP/manual battle runtime deleted.
 - `smoke-check-template.md`: Reusable template for focused manual smoke checks.

@@ -42,16 +42,6 @@ public sealed class BattleActionExecutor
             return BattleActionResult.Failed(request.Kind, actor, null, request.Destination, "该单位不能移动");
         }
 
-        if (!movement.CanUseMove())
-        {
-            return BattleActionResult.Failed(request.Kind, actor, null, request.Destination, "移动次数不足");
-        }
-
-        if (!BattleRuleQueries.CanSpendActionPoints(actor, movement.ApCost))
-        {
-            return BattleActionResult.Failed(request.Kind, actor, null, request.Destination, "行动点不足");
-        }
-
         MovementRangeResult result = MovementRangeFinder.FindReachableCells(
             context.GridMap,
             gridOccupant.SurfacePosition,
@@ -68,16 +58,6 @@ public sealed class BattleActionExecutor
         if (!result.TryBuildPathTo(destinationSurface, out IReadOnlyList<GridSurfacePosition> movementPath))
         {
             return BattleActionResult.Failed(request.Kind, actor, null, request.Destination, "移动路径无效");
-        }
-
-        if (!TrySpendActionPoints(actor, movement.ApCost))
-        {
-            return BattleActionResult.Failed(request.Kind, actor, null, request.Destination, "行动点不足");
-        }
-
-        if (!movement.TryUseMove())
-        {
-            return BattleActionResult.Failed(request.Kind, actor, null, request.Destination, "移动次数不足");
         }
 
         context.MoveEntityTo?.Invoke(actor, movementPath);
@@ -117,11 +97,6 @@ public sealed class BattleActionExecutor
                 out string reason))
         {
             return BattleActionResult.Failed(request.Kind, actor, target, default, reason);
-        }
-
-        if (!TrySpendActionPoints(actor, ability.ApCost))
-        {
-            return BattleActionResult.Failed(request.Kind, actor, target, default, "行动点不足");
         }
 
         var abilityContext = new AbilityUseContext(
@@ -174,14 +149,4 @@ public sealed class BattleActionExecutor
         return blockedSurfaces;
     }
 
-    private static bool TrySpendActionPoints(BattleEntity entity, int cost)
-    {
-        if (cost <= 0)
-        {
-            return true;
-        }
-
-        ActionPointComponent actionPoint = entity?.GetComponent<ActionPointComponent>();
-        return actionPoint != null && actionPoint.TrySpend(cost);
-    }
 }

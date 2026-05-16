@@ -5,6 +5,7 @@ using Rpg.Application.Battle;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
+using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Application.World;
 
@@ -131,11 +132,6 @@ public static class WorldSiteExplorationService
             result.PartyMoved = true;
             result.PartyPathStep.Add(previous);
             result.PartyPathStep.Add(next);
-        }
-
-        if (!result.PartyMoved && !waitAction)
-        {
-            return result;
         }
 
         foreach (SiteExplorationPatrolState patrol in exploration.PatrolUnits)
@@ -291,18 +287,43 @@ public static class WorldSiteExplorationService
         string siteId,
         string pointId,
         string triggerPatrolId,
-        WorldArmyState playerArmy,
-        IEnumerable<SiteExplorationPatrolDefinition> encounterPatrols,
         GridSurfacePosition entryCell,
         int alertLevel,
         string returnScenePath,
         string siteScenePath)
     {
+        return BuildExplorationBattleRequest(
+            siteId,
+            pointId,
+            triggerPatrolId,
+            null,
+            System.Array.Empty<SiteExplorationPatrolDefinition>(),
+            entryCell,
+            alertLevel,
+            returnScenePath,
+            siteScenePath);
+    }
+
+    public static BattleStartRequest BuildExplorationBattleRequest(
+        string siteId,
+        string pointId,
+        string triggerPatrolId,
+        WorldArmyState playerArmy,
+        IEnumerable<SiteExplorationPatrolDefinition> encounterPatrols,
+        GridSurfacePosition entryCell,
+        int alertLevel,
+        string returnScenePath,
+        string siteScenePath,
+        string encounterId = "")
+    {
+        string resolvedEncounterId = string.IsNullOrWhiteSpace(encounterId)
+            ? pointId ?? "unknown"
+            : encounterId;
         BattleStartRequest request = new()
         {
             ContextId = siteId ?? "",
             BattleKind = BattleKind.AssaultSite,
-            EncounterId = $"site_exploration:{pointId ?? "unknown"}",
+            EncounterId = $"site_exploration:{resolvedEncounterId}",
             SourceArmyId = playerArmy?.ArmyId ?? "",
             SourceSiteId = playerArmy?.SourceSiteId ?? "",
             TargetSiteId = siteId ?? "",
@@ -419,6 +440,107 @@ public static class WorldSiteExplorationService
         {
             AddUnique(exploration.ResolvedPointIds, pointId);
         }
+    }
+
+    public static void ApplyActionResult(
+        WorldSiteState site,
+        string pointId,
+        SiteExplorationActionDefinition action)
+    {
+        if (site?.Exploration == null || site.Memory == null || action == null)
+        {
+            return;
+        }
+
+        ApplyAction(
+            site.Exploration,
+            pointId,
+            action.RevealsPointIds,
+            action.AlertDelta,
+            action.ResolvesPoint);
+
+        if (action.ResolvesPoint)
+        {
+            AddUnique(site.Memory.ResolvedPointIds, pointId);
+        }
+
+        foreach (string id in action.RevealsPointIds ?? System.Array.Empty<string>())
+        {
+            AddUnique(site.Memory.RevealedExplorationPointIds, id);
+        }
+
+        foreach (string id in action.RevealsEntranceIds ?? System.Array.Empty<string>())
+        {
+            AddUnique(site.Memory.RevealedEntranceIds, id);
+        }
+
+        foreach (string id in action.UnlocksFacilitySlotIds ?? System.Array.Empty<string>())
+        {
+            AddUnique(site.Memory.UnlockedFacilitySlotIds, id);
+        }
+
+        foreach (string id in action.ClearsHazardIds ?? System.Array.Empty<string>())
+        {
+            AddUnique(site.Memory.ClearedHazardIds, id);
+        }
+
+        foreach (string tag in action.AddsKnownTacticalTags ?? System.Array.Empty<string>())
+        {
+            AddUnique(site.Memory.KnownTacticalTags, tag);
+        }
+
+        foreach (string tag in action.AddsExplorationAdvantageTags ?? System.Array.Empty<string>())
+        {
+            AddUnique(site.Memory.ExplorationAdvantageTags, tag);
+        }
+    }
+
+    public static WorldActionResult ApplyActionResult(
+        StrategicWorldState state,
+        StrategicWorldDefinition definition,
+        WorldSiteState site,
+        string pointId,
+        SiteExplorationActionDefinition action)
+    {
+        if (state == null || definition == null || site?.Exploration == null || site.Memory == null || action == null)
+        {
+            return WorldActionResult.Failed(action?.Id ?? "site_exploration_action", "missing_site_exploration_action_context", "探索行动状态已失效。");
+        }
+
+        ApplyActionResult(site, pointId, action);
+
+        string actionLabel = string.IsNullOrWhiteSpace(action.DisplayName) ? action.Id : action.DisplayName;
+        WorldActionResult result = new()
+        {
+            Success = true,
+            ActionId = action.Id,
+            Message = $"已执行：{actionLabel}。"
+        };
+        result.Events.Add(new GameEvent
+        {
+            Kind = "SiteExplorationActionApplied",
+            Tick = state.WorldTick,
+            TargetIds = { site.SiteId, pointId },
+            Payload =
+            {
+                ["actionId"] = action.Id,
+                ["consumesWorldTick"] = action.ConsumesWorldTick.ToString()
+            }
+        });
+
+        if (action.ConsumesWorldTick)
+        {
+            WorldTickResult tickResult = new WorldTickService().AdvanceWorldTick(state, definition);
+            result.Events.AddRange(tickResult.Events);
+            result.Message = tickResult.Messages.Count > 0
+                ? $"{result.Message}\n{string.Join("\n", tickResult.Messages)}"
+                : $"{result.Message}\n世界时间推进至第 {tickResult.WorldTick} 刻。";
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteExplorationService),
+            $"SiteExplorationActionApplied site={site.SiteId} point={pointId} action={action.Id} consumesWorldTick={action.ConsumesWorldTick} tick={state.WorldTick}");
+        return result;
     }
 
     public static string ToCellKey(GridSurfacePosition cell)

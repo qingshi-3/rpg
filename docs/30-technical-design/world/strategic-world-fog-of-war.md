@@ -6,7 +6,7 @@ This document defines the implementation-facing contract for strategic-map fog o
 
 Fog of war belongs to the strategic world presentation and intel layer.
 
-It may read strategic map positions, player-owned WorldSites, player-controlled WorldArmies, and WorldSite state snapshots. It must not own or gate map generation, navigation, battle flow, AP, TurnSystem, or WorldSite runtime internals.
+It may read strategic map positions, player-owned WorldSites, player-controlled WorldArmies, and WorldSite state snapshots. It must not own or gate map generation, navigation, auto battle runtime ownership, retired manual battle systems, or WorldSite runtime internals.
 
 ## State Model
 

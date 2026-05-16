@@ -10,6 +10,4 @@ public partial class AttackComponent : BattleEntityComponent
     [Export]
     public int Range { get; set; } = 1;
 
-    [Export]
-    public int ApCost { get; set; } = 1;
 }

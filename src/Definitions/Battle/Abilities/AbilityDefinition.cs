@@ -15,9 +15,6 @@ public partial class AbilityDefinition : Resource
     public string IconText { get; set; } = "";
 
     [Export]
-    public int ApCost { get; set; } = 1;
-
-    [Export]
     public int Range { get; set; } = 1;
 
     [Export]

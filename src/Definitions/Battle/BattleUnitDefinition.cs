@@ -36,16 +36,7 @@ public partial class BattleUnitDefinition : Resource
     [ExportGroup("行动")]
 
     [Export]
-    public int MaxActionPoints { get; set; } = 0;
-
-    [Export]
     public int MoveRange { get; set; } = 4;
-
-    [Export]
-    public int MoveActionPointCost { get; set; } = 1;
-
-    [Export]
-    public int MaxMoveUsesPerTurn { get; set; } = 1;
 
     [Export]
     public bool CanEnterWater { get; set; }
@@ -58,10 +49,7 @@ public partial class BattleUnitDefinition : Resource
     [Export]
     public int AttackRange { get; set; } = 1;
 
-    [Export]
-    public int AttackActionPointCost { get; set; } = 1;
-
-    [ExportGroup("战棋占位")]
+    [ExportGroup("战斗占位")]
 
     [Export]
     public bool BlocksMovement { get; set; } = true;

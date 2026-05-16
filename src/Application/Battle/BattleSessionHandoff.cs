@@ -58,6 +58,40 @@ public static class BattleSessionHandoff
         return _lastResult;
     }
 
+    public static BattleSessionResult CompleteBattle(BattleResult battleResult)
+    {
+        if (_activeRequest == null || battleResult == null)
+        {
+            return null;
+        }
+
+        BattleStartRequest request = _activeRequest;
+        if (string.IsNullOrWhiteSpace(battleResult.RequestId))
+        {
+            battleResult.RequestId = request.RequestId;
+        }
+
+        if (string.IsNullOrWhiteSpace(battleResult.ContextId))
+        {
+            battleResult.ContextId = request.ContextId;
+        }
+
+        if (battleResult.BattleKind == BattleKind.Unknown)
+        {
+            battleResult.BattleKind = request.BattleKind;
+        }
+
+        _lastRequest = request;
+        _lastResult = new BattleSessionResult(
+            request.ContextId,
+            request.EncounterId,
+            request.ReturnScenePath,
+            battleResult.Outcome);
+        _lastBattleResult = battleResult;
+        _activeRequest = null;
+        return _lastResult;
+    }
+
     public static bool TryConsumeLastResult(out BattleSessionResult result)
     {
         result = _lastResult;

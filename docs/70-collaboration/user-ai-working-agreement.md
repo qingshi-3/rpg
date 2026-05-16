@@ -80,11 +80,10 @@ Use this default loop:
 
 The AI should stop and ask or clearly present options when work touches:
 
-- Core battle flow, AP, or TurnSystem.
+- Battle runtime ownership, retired manual battle systems, or world/battle writeback.
 - Project identity or genre framing.
 - First-chapter story direction.
 - Aesthetic direction or asset style.
 - Major world structure changes.
 - Large content commitments.
 - Any change that makes existing docs or architecture boundaries obsolete.
-

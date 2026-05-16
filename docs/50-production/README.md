@@ -6,6 +6,7 @@ This directory stores production state: roadmap, priorities, technical change no
 
 - Roadmap and current priorities: `roadmap/README.md`
 - Technical change notes: `technical-changes/README.md`
+- Historical auto battle migration: `technical-changes/2026-05-16-auto-tactics-migration.md`
 - Open questions: `open-questions/README.md`
 
 ## Production Layer Rule

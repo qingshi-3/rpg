@@ -28,8 +28,7 @@ WorldSite Runtime State
 
 它不得拥有或修改：
 
-- `TurnSystem`。
-- 战斗 AP。
+- 旧战斗回合/行动点系统。
 - 战斗单位行动规则。
 - 战斗网格寻路规则本身。
 - 大地图 RTS 部队移动权威。
@@ -68,8 +67,8 @@ Battle
 禁止：
 
 - 启动战斗 HUD。
-- 启动 `BattleTurnController`。
-- 消耗战斗 AP。
+- 启动旧手动战斗控制器。
+- 消耗战斗行动点。
 - 让战斗单位实体承担探索移动权威。
 
 ### Management
@@ -85,16 +84,16 @@ Battle
 
 ### Battle
 
-用于战棋战斗。
+用于战略地点经营、部署、探索和未来轻 RTS 战斗规则。
 
 职责：
 
-- 战斗单位实例化。
-- TurnSystem / AP。
-- 技能、移动、敌人意图、战斗 HUD。
+- 战斗单位实例化或后台自动结算数据构建。
+- 英雄、兵团、自动行为、技能/事件和结果判定。
+- 命令反馈、播放、事件流、暂停/倍速/跳过和战报呈现。
 - 结束后通过 `BattleResult` 回写世界状态。
 
-战斗回合不得推进探索时间、施工、产出、警戒倒计时或 `WorldTick`，除非 `BattleResult` 的世界回写明确要求一次世界结算。
+战斗运行时不得推进探索时间、施工、产出、警戒倒计时或 `WorldTick`，除非 `BattleResult` 的世界回写明确要求一次世界结算。
 
 ## 持久状态
 
@@ -270,8 +269,8 @@ click target cell
 
 探索移动不使用：
 
-- 战斗 AP。
-- 回合结束。
+- 战斗行动点。
+- 旧回合结束流程。
 - 多单位选择。
 - 碰撞体。
 - 实时队形。
@@ -311,7 +310,7 @@ Action result: inspect / infiltrate / clear / loot / assault / withdraw
 | 强攻 | 主动进入战斗 | 不耗 WorldTick | 创建战斗请求 |
 | 撤离 | 回到大地图或入口 | 不耗 WorldTick | 保留探索记忆 |
 
-行动解析应该输出结构化结果，而不是 UI 直接改状态。
+行动解析应该输出结构化结果，而不是 UI 直接改状态。`WorldSiteExplorationService` 是探索点行动结果权威；需要推进世界时间的行动必须使用带 `StrategicWorldState` / `StrategicWorldDefinition` 的结果应用路径，由该服务先写探索记忆，再调用 `WorldTickService` 推进一次 `WorldTick` 并返回 `WorldActionResult`。
 
 ## 警戒度
 
@@ -475,12 +474,12 @@ exploration_action_missing
 
 - 场域探索能在无碰撞体的人工 TileMap 上移动。
 - 移动权威来自 `BattleGridMap` 可走 top surface。
-- 探索态不显示战斗 HUD、AP、回合顺序。
+- 探索态不显示旧战斗 HUD、行动点或回合顺序。
 - 玩家和巡逻单位由 `SiteExplorationTick` 推进。
-- 探索行动力不复用战斗 AP。
+- 探索行动力不复用旧战斗行动点。
 - 玩家进入巡逻单位固定警戒半径后暂停探索推进并给出明确原因。
 - 走路不推进 `WorldTick`。
 - 明确耗时行动才推进 `WorldTick`。
 - 潜入或强攻触发的战斗携带探索上下文。
-- 战斗回合不推进施工、产出、探索计时或警戒倒计时。
+- 战斗运行时不推进施工、产出、探索计时或警戒倒计时。
 - 战斗结果能回写探索点和场域经营状态。

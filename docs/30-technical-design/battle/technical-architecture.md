@@ -1,97 +1,48 @@
-# TechnicalArchitecture
+# Battle Technical Architecture
 
-## Core System Architecture
+## Authority
 
-The battle architecture is built from stable, decoupled systems. Feature work should extend system data and extension points before changing core flow.
+The battle architecture is being realigned from the first auto battle migration toward the accepted hero-led light RTS direction.
 
-Project-level dependency direction and layering are defined in `../architecture/project-architecture.md`.
+Authoritative routes:
 
-## CombatSystem
+- Current gameplay authority: `../../../gameplay-design/content-systems-long-term-design.md`
+- System design route: `../../../system-design/README.md`
+- Gap tracking: `../../../gameplay-alignment/gap-register.md`
+- World battle contract: `../world/strategic-world-v1-battle-contract.md`
+- Historical auto battle migration: `../../50-production/technical-changes/2026-05-16-auto-tactics-migration.md`
 
-- Turn-based.
-- Uses three execution phases: player, troops, enemies.
-- Intent must not change mid-flow unless modified by an Effect.
+## Runtime Contract
 
-## ResourceSystem
+The stable boundary remains:
 
-- AP is shared by the whole team.
-- All actions consume the same AP resource.
-- Repeated actions have increasing cost.
+```text
+BattleStartRequest
+-> battle runtime or backend auto-resolve
+-> BattleResult
+-> WorldBattleResultApplier
+```
 
-## UnitSystem
+Rules:
 
-- Hero: directly controlled.
-- Minion: rule-driven.
-- Enemy: Intent-driven.
+- `WorldSiteState.UnitPlacements` is the site-local deployment authority.
+- Battle runtime must not mutate `StrategicWorldState` or persist `WorldSiteState` directly.
+- `BattleResult.ForceResults` is required for survivor and loss writeback.
+- Presentation may show command feedback, playback, event feed, speed/skip controls, and report views, but it must not infer final casualties from scene nodes.
 
-Long-term control authority is defined outside battle in `../../20-game-design/officer-social/unit-talent-rank-control.md`.
+## Retired Manual Runtime
 
-Battle should treat direct control as an input authority, not as proof that the unit is important or high rank. Non-direct allied units can still be important characters, officers, elite units, or promoted actors. Their battle behavior should be rule-driven, Intent-driven, or behavior-package-driven and should remain readable to the player.
+The manual battle runtime is no longer a compatibility path. Player-phase turn controllers, battle AP spending, command routers, action menus, turn queues, and preview controllers have been deleted or detached from active scenes.
 
-## CommandSystem
+If a feature needs battle execution, do not recreate the retired manual runtime as a shortcut. Either keep the backend auto-resolve path isolated or implement the feature through an accepted hero-led light RTS architecture proposal.
 
-- Each unit has 2 to 3 rules.
-- Rules execute by priority.
-- Flow: Rule to Decision to Action.
-- Non-direct allied units may accept macro commands such as defend, focus fire, conserve, charge, retreat, or wait for charge, but macro commands must modify rules or intent instead of granting full manual control.
+## Scene And Content
 
-## IntentSystem
+Reusable scene and unit references can remain while they serve the future combat architecture:
 
-- Intent is generated in advance.
-- Intent must be visualized.
-- Stored high-level Intent is not dynamically modified during normal flow unless modified by an Effect.
-- Current-state preview and final action resolution are derived from the same stored high-level Intent.
-- Intent preview vocabulary is shared with targeting and action preview rules in `targeting-and-preview.md`.
-- Detailed runtime rules live in `intent-system.md`.
-- The same readability principle should apply to important non-direct allied units. Automatic behavior is acceptable only when the player can understand the plan, influence it through supported commands or effects, and understand the result.
+- Battle scene and map runtime: `battle-scene-architecture.md`
+- Unit system: `unit-system.md`
+- Unit authoring: `unit-authoring.md`
+- Unit animation system: `unit-animation-system.md`
 
-## CardSystem
-
-- Cards consume AP.
-- Cards modify rules, behavior, or battlefield state.
-- Cards are not the main damage source.
-
-## GridSystem
-
-- Tile-based battle maps.
-- Runtime grid state is derived from battle map layers and connection data.
-- Supports terrain, height, obstacles, and future traps.
-
-## Battle Scene Architecture
-
-Detailed battle scene and map-layer rules live in `battle-scene-architecture.md`.
-Runtime responsibility split after the first closed loop lives in `battle-runtime-responsibility-review.md`.
-Battle input and command routing rules live in `battle-input-command-architecture.md`.
-
-Stable summary:
-
-- `WorldSiteRoot` is the generic runtime shell.
-- Concrete battle maps are swappable content scenes.
-- Presentation may use many `TileMapLayer` nodes.
-- Combat logic should collapse map data into one `GridState`.
-- Future map loading should prefer `BattleMapDefinition` as the data-driven entry point.
-
-## StatusSystem
-
-Status categories:
-
-- Control.
-- Numeric.
-- Behavior.
-- Command.
-
-## DamageSystem
-
-- Damage uses DamageType plus Tag.
-- Damage relationships should avoid cyclic counters.
-
-## Extension Architecture
-
-Detailed action, extension point, and `BattleContext` rules live in `battle-action-architecture.md`.
-
-Stable summary:
-
-- `BattleAction` is composed from Cost, TargetRule, Conditions, and Effects.
-- Actions can come from Ability, Card, Rule, or Intent.
-- Effects are the main gameplay extension point.
-- Effects may use `BattleContext`, but must not directly mutate core system internals.
+These documents should be corrected or deleted if they start routing new work toward AP, player phases, or manual action menus.

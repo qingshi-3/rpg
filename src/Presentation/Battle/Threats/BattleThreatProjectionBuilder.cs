@@ -98,9 +98,7 @@ public static class BattleThreatProjectionBuilder
 
         MovementComponent movement = actor.GetComponent<MovementComponent>();
         if (movement == null ||
-            movement.MoveRange <= 0 ||
-            !movement.CanUseMove() ||
-            !BattleRuleQueries.CanSpendActionPoints(actor, movement.ApCost))
+            movement.MoveRange <= 0)
         {
             return origins;
         }

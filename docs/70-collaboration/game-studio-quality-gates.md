@@ -36,7 +36,7 @@ Before implementation, clarify:
 - Whether the work stays inside existing extension points.
 - Whether a technical change note or testcase update is needed.
 
-Stop and document the risk if the change touches Battle flow, AP, TurnSystem, or
+Stop and document the risk if the change touches battle runtime ownership, retired manual battle systems, world/battle writeback, or
 cross-system contracts.
 
 ## Gate 2: Architecture

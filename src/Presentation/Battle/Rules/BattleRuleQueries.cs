@@ -1,4 +1,3 @@
-using System.Linq;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Presentation.Battle.Entities;
 
@@ -6,8 +5,6 @@ namespace Rpg.Presentation.Battle.Rules;
 
 public static class BattleRuleQueries
 {
-    private const string WaterTerrainTag = "water";
-
     public static bool IsDefeated(BattleEntity entity)
     {
         return entity?.GetComponent<HealthComponent>()?.IsDead == true;
@@ -45,17 +42,6 @@ public static class BattleRuleQueries
 
         blockSurface = gridOccupant.SurfacePosition;
         return true;
-    }
-
-    public static bool CanSpendActionPoints(BattleEntity entity, int cost)
-    {
-        if (cost <= 0)
-        {
-            return true;
-        }
-
-        ActionPointComponent actionPoint = entity?.GetComponent<ActionPointComponent>();
-        return actionPoint != null && actionPoint.CanSpend(cost);
     }
 
     public static bool CanEnterCell(BattleEntity entity, GridCell cell)
@@ -102,16 +88,12 @@ public static class BattleRuleQueries
 
     public static bool IsWater(GridCell cell)
     {
-        return cell != null &&
-               (string.Equals(cell.TerrainTag, WaterTerrainTag, System.StringComparison.OrdinalIgnoreCase) ||
-                cell.TerrainTags.Contains(WaterTerrainTag, System.StringComparer.OrdinalIgnoreCase));
+        return BattleGridTerrainQueries.IsWater(cell);
     }
 
     public static bool IsWater(GridCellSurface surface)
     {
-        return surface != null &&
-               (string.Equals(surface.TerrainTag, WaterTerrainTag, System.StringComparison.OrdinalIgnoreCase) ||
-                surface.TerrainTags.Contains(WaterTerrainTag, System.StringComparer.OrdinalIgnoreCase));
+        return BattleGridTerrainQueries.IsWater(surface);
     }
 
     public static int GetManhattanDistance(GridPosition left, GridPosition right)

@@ -7,7 +7,8 @@ humans in Godot scenes/resources.
 ## Goal
 
 Battle units can react visually to common battle presentation cues without
-changing Battle flow, AP, TurnSystem, ability resolution, or grid rules.
+changing battle runtime ownership, ability resolution, outcome writeback, or
+grid rules.
 
 Runtime code requests animation cues. Unit scenes and resources decide what those
 cues look like.
@@ -59,7 +60,6 @@ BattleEntity
   AnimationPlayer
   FactionComponent
   HealthComponent
-  ActionPointComponent
   MovementComponent
   AttackComponent
   GridOccupantComponent
@@ -147,8 +147,8 @@ through `AnimatedSprite2D.FlipH`, not by mutating the configured `Scale`.
 ## Boundaries
 
 - Do not make animation clips authoritative for gameplay timing.
-- Do not spend AP, apply damage, move grid occupants, or end turns from animation
-  tracks.
+- Do not apply damage, move grid occupants, or control runtime state from
+  animation tracks.
 - Do not add unit-specific animation branches to action resolution.
 - Do not hardcode concrete sprite sheets, clips, or visual nodes in battle logic.
 - Animation resources may be added per unit without changing combat code.

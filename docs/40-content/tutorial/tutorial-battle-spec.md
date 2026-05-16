@@ -1,16 +1,14 @@
 # Tutorial Battle Spec
 
-This is the implementation-facing design target for the tutorial battle.
+This legacy tutorial spec must not define the future combat identity. Current combat direction comes from `../../../gameplay-design/content-systems-long-term-design.md` and the combat-command detail docs.
 
-Current prototype note: the minimal loop currently validates direct hero control, terrain-aware movement, attack resolution, and enemy high-level Intent. Push, Block, and automatic Archer behavior remain future RuleSystem/content work.
+The encounter should teach deployment, hero-led company selection, separate hero/corps/combined commands, readable automatic soldier behavior, and final report interpretation. It should not teach individual soldier micro, AP spending, player turns, or manual action menus.
 
-For high-level goals and scope, read `tutorial-battle.md` first.
-
-## Battlefield Coordinates
+## Battlefield
 
 - Grid size: 6x6.
 - Columns use `x = 0..5` from left to right.
-- Rows use `y = 0..5` from player side to enemy side.
+- Rows use `y = 0..5` from the player entrance toward the enemy side.
 - Coordinates are written as `(x, y)`.
 
 Suggested layout:
@@ -22,140 +20,40 @@ y3  .  .  X  X  .  .
 y2  .  .  X  X  .  .
 y1  .  W  .  A  .  .
 y0  .  .  .  .  .  .
-	x0 x1 x2 x3 x4 x5
+    x0 x1 x2 x3 x4 x5
 ```
 
 Legend:
 
-- `W`: Warrior hero start.
-- `A`: Archer minion start.
-- `S`: Skeleton enemy start.
-- `T`: Thrower enemy start.
+- `W`: frontline player unit.
+- `A`: ranged player unit.
+- `S`: melee enemy.
+- `T`: ranged enemy.
 - `X`: blocking obstacle.
 - `.`: walkable cell.
 
-Design notes:
+## Teaching Goals
 
-- The central `2x2` obstacle creates a clear line-of-sight and pathing lesson.
-- The skeleton starts close enough to threaten after movement, but far enough that push or block can matter.
-- The thrower starts where ranged Intent is visible before it resolves.
-- Do not add traps, height, cards, or alternate objectives in this battle.
+- Show that deployment cells and obstacles matter before battle starts.
+- Show that the player commands hero companies rather than individual soldiers.
+- Show that soldiers fight automatically after commands are issued.
+- Show that attack, movement, defeat, command, and outcome events are readable.
+- Show that the final report explains survivors, losses, contribution, command impact, and failure reason.
 
-## Player Units
+## Unit Behavior Targets
 
-### Warrior
+- Frontline player unit moves toward the nearest hostile and attacks in melee range.
+- Ranged player unit prefers a target it can already reach; otherwise it repositions conservatively.
+- Melee enemy closes distance and attacks adjacent targets.
+- Ranged enemy attacks from range when line of sight and range allow it.
 
-Role:
+These are behavior targets for authored content and future combat architecture. Do not add AP, player turns, or the old action menu to force these outcomes.
 
-- Demonstrates direct control and battlefield intervention.
+## Required Checks
 
-Phase 1 abilities:
+- Deployment validity is visible before battle start.
+- Battle can run to victory or defeat with medium-frequency company commands and automatic soldier behavior.
+- Important command, attack, movement, skill, defeat, and outcome events are present in playback or event feed.
+- Final report includes survivor/loss counts, concise contribution facts, and command-relevant failure reasons.
 
-- Move: reposition within basic movement range.
-- Push: move an adjacent enemy by one cell if the destination is valid.
-- Block: reduce or cancel one incoming enemy attack if positioned correctly.
-- Strike: simple melee attack for confirming damage feedback.
-
-### Archer
-
-Role:
-
-- Demonstrates predictable automatic minion behavior.
-
-Phase 1 rule priority:
-
-1. Attack the nearest enemy in range.
-2. Prefer the enemy currently threatening the Warrior if tied.
-3. Hold position if no target is in range.
-
-## Enemies
-
-### Skeleton
-
-Role:
-
-- Teaches melee Intent and push counterplay.
-
-Intent examples:
-
-- Move toward the Warrior if not in range.
-- Attack the Warrior if adjacent.
-- Retarget the Archer only if the Warrior is unreachable.
-
-### Thrower
-
-Role:
-
-- Teaches ranged Intent and positioning.
-
-Intent examples:
-
-- Target the Warrior if line of sight exists.
-- Target the Archer if the Warrior is blocked by the central obstacle.
-- Reposition only when no valid target exists.
-
-## Tutorial Beat Script
-
-This script is a design target, not a hard requirement for exact AI implementation.
-
-### Round 1
-
-Intent setup:
-
-- Skeleton intends to move toward the Warrior.
-- Thrower intends a ranged attack if line of sight exists.
-
-Expected player lesson:
-
-- Select the Warrior.
-- See available movement and AP cost.
-- Move or block to reduce the next enemy outcome.
-
-Expected system result:
-
-- Archer either attacks the nearest valid enemy or holds if no target is valid.
-- Enemies resolve the Intent that was already displayed.
-
-### Round 2
-
-Intent setup:
-
-- Skeleton threatens melee if it reached adjacency.
-- Thrower continues showing a clear ranged target.
-
-Expected player lesson:
-
-- Use Push or Block to change the Skeleton outcome.
-- Notice that AP spent on prevention limits other actions.
-
-Expected system result:
-
-- If Push makes the Skeleton unable to attack, the shown outcome changes only after the Push Effect resolves.
-- Archer behavior remains explainable from its rule priority.
-
-### Round 3
-
-Intent setup:
-
-- At least one enemy should be damaged enough that focus fire matters.
-
-Expected player lesson:
-
-- Combine Warrior positioning with Archer automatic damage.
-- Confirm that Intent, AP, and minion rules form one readable loop.
-
-Expected system result:
-
-- The battle can conclude soon after this point without introducing new mechanics.
-
-## Required Previews
-
-- Current AP and action cost before confirmation.
-- Warrior movement range.
-- Push target and destination validity.
-- Block target or protected direction.
-- Archer selected target before automatic action resolves, if practical.
-- Skeleton melee Intent target.
-- Thrower ranged Intent target and affected cell or unit.
-
-Preview vocabulary should follow `docs/30-technical-design/battle/targeting-and-preview.md`.
+Historical auto battle playback/report notes live in `docs/50-production/technical-changes/2026-05-16-auto-tactics-migration/05-playback-ui-and-report.md`, but they are reference material only.

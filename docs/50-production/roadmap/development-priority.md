@@ -1,24 +1,27 @@
 # Development Priority
 
-Current product target:
+## Current Product Target
 
 ```text
-大地图战略 + 人物社交经营 + 回合制战棋的战略 RPG。
-三群式势力生态提供战略地图骨架。
-三国志 / 三国立志传式人物关系与任命提供人物经营骨架。
+大地图战略 + 人物社交经营 + 城池 / 战略地点经营与英雄带兵轻 RTS 战斗的战略 RPG。
 ```
+
+三群式势力生态提供战略地图骨架。三国志 / 三国立志传式人物关系与任务提供人物经营骨架。城池 / 战略地点经营、英雄/兵团养成、部署、轻 RTS 指挥和战斗报告提供局部冲突骨架。
 
 ## Current Priority
 
-Continue hardening Strategic World V1 before expanding more battle content or emotion features.
+Harden Strategic World V1 and WorldSite operation before expanding more battle content or emotion features.
 
-V1 的目标不是完成全部产品形态，而是先把大地图生态、可进入场域、部队移动、战斗入口和结果回写稳定下来，为后续人物社交经营和战棋深化提供骨架。
+V1 的目标不是完成全部产品形态，而是先把大地图生态、可进入地点、部队移动、战斗入口和结果回写稳定下来，为后续人物社交经营、战略地点经营和英雄带兵轻 RTS 战斗提供骨架。
 
 Primary target:
 
 - `docs/20-game-design/strategic-map/strategic-world-v1.md`
 - `docs/30-technical-design/world/strategic-world-v1-implementation.md`
 - `docs/30-technical-design/world/strategic-world-rts-navigation-and-armies.md`
+- `gameplay-design/content-systems-long-term-design.md`
+- `gameplay-alignment/gap-register.md`
+- `docs/50-production/technical-changes/2026-05-16-auto-tactics-migration.md`
 - `docs/50-production/technical-changes/2026-05-02-strategic-world-v1.md`
 - `docs/50-production/technical-changes/2026-05-03-world-progression-map-surface.md`
 
@@ -30,88 +33,24 @@ The first implementation pass now exists:
 - V1 strategic map and action UI.
 - Battle handoff/result writeback.
 - Bonefield occupation and Graveyard Raid pressure.
-- `WorldSiteRoot` mode switch from tactical battle to non-battle site operation.
+- `WorldSiteRoot` mode switch from battle runtime to non-battle site operation.
 - In-site operation UI with resource bar, facility status list, garrison/threat/action lists, and return-to-map.
 - `WorldClock` first pass: strategic world can auto-advance `WorldTick` while unpaused.
 - Strategic map supports `WorldMapRoot` TileMap surface anchors and moving enemy Raid markers.
 - Current scene structure is cleaned: the generic site runtime shell lives at `scenes/world/sites/WorldSiteRoot.tscn`, authored site implementations live under `scenes/world/sites/impl/`, and site interaction placeholders live in `scenes/world/site_interactions/`.
 
-Next priority is to replace the fallback painted strategic map with an authored TileMap, deepen RTS-style `WorldArmy` movement, and prepare the first interception / wild opportunity slice so the big map becomes an active world surface rather than a site menu.
+## Next Priority
 
-## Phase 1: Strategic World State
+1. Keep the retired manual battle runtime deleted while the future hero-led light RTS architecture is proposed and accepted.
+2. Split remaining `WorldSiteRoot` responsibilities only behind focused owners for deployment, management, exploration, and battle runtime.
+3. Preserve strategic world, `WorldSiteState.UnitPlacements`, battle request/result handoff, and result writeback.
+4. Build the smallest hero-led battle slice: one authored location map, one hero/corps company, one enemy group, basic hero/corps/combined commands, automatic soldier behavior, and structured report/writeback.
 
-1. Done: add generic resource, facility, scene, garrison, threat, and world tick state.
-2. Done: add V1 definitions for population, economy, stone, barracks, mine, defense tower, player camp, bonefield, and graveyard.
-3. Done: add generic action resolution for build, train, occupy, and wait.
+The completed first migration remains a historical cleanup record under `docs/50-production/technical-changes/2026-05-16-auto-tactics-migration/`.
 
-## Phase 2: Strategic UI
+## Not Current Priority
 
-4. Done: add a strategic map UI for the three V1 site nodes.
-5. Done: show resources, selected scene state, buildings, garrison, threats, and available actions.
-6. Done: generate action buttons from action view models, including disabled reasons.
-
-## Phase 3: Battle Handoff And Writeback
-
-7. Done: add or extend `BattleStartRequest`.
-8. Done: add structured `BattleResult`.
-9. Done: make bonefield assault victory change bonefield into `PlayerHeld`.
-10. Done: make defeat change world state without ending the game.
-
-## Phase 4: Buildings Affect Battle
-
-11. Done first pass: defense tower and militia enter defense battle request as modifiers or forces.
-12. Done first pass: apply battle results back to facility, garrison, and scene state.
-
-## Phase 5: Enemy Raid
-
-13. Done: generate a graveyard raid after bonefield is held.
-14. Done: advance raid by WorldTick.
-15. Done: let the player defend or auto-resolve.
-16. Done first pass: defense tower and garrison improve raid outcome.
-
-## Phase 6: Persistence
-
-17. Done first pass: save and load `StrategicWorldState`.
-18. Pending manual QA: verify resources, buildings, ownership, garrison, threats, and WorldTick restore correctly.
-
-## Next Phase: RTS Strategic Map Movement
-
-19. Configure authored `StrategicWorldRoot` TileMap under `WorldMapRoot`.
-20. Add the `StrategicNavigation` scene contract using RTS-style continuous-space navigation, not battle-grid A*.
-21. Add `WorldArmyState` / expedition runtime state and save/load coverage.
-22. Upgrade Graveyard Raid from a threat marker into an enemy `WorldArmy`.
-23. Upgrade player assignment and assault flow from instant transfer into player expedition movement.
-24. Add first interception / wild encounter trigger when player and enemy armies meet on the map.
-25. Deepen `BattleStartRequest` / `BattleResult` so battle can write back army, threat, and site changes.
-
-## Following Phase: Site Operation
-
-26. Add authored site interaction entities for facilities under `scenes/world/site_interactions/`, bound to stable slot ids.
-27. Add explicit build / demolish / upgrade / repair flows on site tiles.
-28. Keep peacetime site interaction on the map surface, not behind full-screen modal UI.
-29. Add persistent site memory for NPC/object deaths and facility/map-state deltas.
-30. Run manual QA for `StrategicWorldRoot -> WorldSiteRoot wartime -> WorldSiteRoot peacetime -> StrategicWorldRoot`.
-
-## Deferred
-
-- More emotion features.
-- Full card deck construction.
-- Full open-world exploration.
-- Pure faction-ruler conquest as the default player path.
-- Large resource chains.
-- Full site economy.
-- Full multi-faction AI.
-- Large content production.
-- Audio asset migration by actual Duelyst sprite/RSX source, not temporary local unit names; see `audio-asset-migration-backlog.md`.
-
-## Success Criteria
-
-- The player can operate population, economy, and stone.
-- Barracks, mine, and defense tower are implemented through generic definitions and actions.
-- Bonefield can be occupied and persist as a player-held scene.
-- Mine production changes player resources.
-- Graveyard raid creates pressure without real-time stress.
-- Defense tower and militia change defense outcomes.
-- Battle result changes world state.
-- WorldSites remain enterable operable maps, not only management panels.
-- The strategic map can support moving parties, interception, and later wild opportunities.
+- Restoring the legacy manual battle action menu.
+- Restoring battle AP/TurnSystem as the combat identity.
+- Building TFT-like shop rolls or fair-board autobattler economy.
+- Adding unrelated content before the strategic-location + hero-led battle loop is readable.

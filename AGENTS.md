@@ -1,108 +1,112 @@
 # Project Agent Rules
 
-This file defines stable project-level rules for AI-assisted work on this Godot RPG.
+This file stores stable project-level rules for AI-assisted work on this Godot RPG. Keep it short: route to focused documents instead of copying design, architecture, roadmap, or implementation details here.
 
-## Documentation Routing
+## Authority Routing
 
-- Start documentation lookup from `docs/README.md` unless a more specific route is already known.
-- Treat project documentation as long-term AI working memory. It is written to guide future agents' execution, not to narrate progress for the user.
-- When information density is high, use progressive disclosure like Codex skills: keep top-level docs concise and route readers to focused documents.
-- Do not copy detailed plans, inventories, progress, or implementation notes into `AGENTS.md`.
-- Prefer a short principle plus a document path over exhaustive explanation.
-- Keep documentation separated by responsibility, not by implementation convenience:
-  - `docs/10-product/`: product positioning, audience, labels, and market-facing pillars.
-  - `docs/20-game-design/`: player-facing gameplay design and core loops.
-  - `docs/30-technical-design/`: implementation architecture, contracts, and data models.
-  - `docs/40-content/`: authored content specs.
-  - `docs/50-production/`: roadmap, priorities, technical change notes, and open questions.
-  - `docs/60-qa/`: test cases and acceptance checks.
-  - `docs/70-collaboration/`: AI workflow, quality gates, and review rules.
-- Do not mix product, gameplay, expression, technical, production, and QA layers in one document; split dense documents and leave routed links.
+- `gameplay-design/`: accepted player-facing gameplay and content-system rules.
+- `system-design/`: accepted implementation architecture, system ownership, data flow, and contracts.
+- `design-proposals/`: local proposal copies used before changing accepted design or architecture.
+- `gameplay-alignment/`: gap tracking and steady repair work against the new direction.
+- `docs/`: existing project documentation and historical implementation material; use it as reference, but do not let it override `gameplay-design/` or `system-design/`.
+
+When documents conflict, follow `gameplay-alignment/authority-map.md`.
+
+## Session Bootstrap
+
+When a session starts in this repository:
+
+1. Read `AGENTS.md`.
+2. Read `gameplay-alignment/authority-map.md`.
+3. Read `gameplay-design/README.md` and the relevant gameplay authority document for the task.
+4. Read `system-design/README.md` only when the task touches implementation architecture.
+5. Check `design-proposals/active/` for active proposals related to the task.
+6. Treat `docs/` as legacy/reference material after current authority is clear.
+7. Do not read archived proposal bodies unless the user explicitly requests them.
+
+## Design Proposal Gate
+
+For changes that affect product/gameplay rules, system architecture, persistent state, runtime ownership, cross-system contracts, resource/scene taxonomy, or future-agent behavior:
+
+1. Read the current authority documents.
+2. Present the current design or architecture to the user.
+3. Present the expected design or architecture to the user.
+4. Wait for user acceptance.
+5. Create a `design-proposals/active/<date>-<slug>/` proposal with `current/` and `expected/` copies.
+6. Implement against the accepted `expected/` copy.
+7. If the expected design changes during implementation, pause and get acceptance again.
+8. After implementation acceptance, merge `expected/` into the authority documents and archive the proposal.
+
+Do not directly edit accepted design or architecture documents for proposal-scoped changes.
+
+## Archive Rule
+
+Archived proposals are historical records, not active authority.
+
+- `design-proposals/archived/README.md` may be read for orientation.
+- Do not read archived proposal bodies unless the user explicitly requests a specific archived proposal or archive investigation.
+- Archived content must not override current `gameplay-design/` or `system-design/`.
 
 ## Documentation Governance
 
-- Before any code, scene, resource, or documentation edit, explicitly classify the documentation/comment impact as Small, Medium, or Large, then update the affected comments or routed docs in the same change set.
-- When code, scenes, and docs disagree, govern the docs first: identify the current authoritative contract, delete or archive misleading old material, then update code/comments against that contract.
-- Prefer deleting obsolete documents over adding supersession notes. Use `docs/90-archive/` only when historical context still has clear future value.
-- Keep top-level documents short and executable. Detailed architecture belongs in `docs/30-technical-design/`, change notes in `docs/50-production/technical-changes/`, and acceptance checks in `docs/60-qa/`.
-- Project documents should capture intent, responsibility boundaries, architecture contracts, implementation approach, and acceptance criteria. Do not mirror concrete code implementation details that are better understood from the code itself.
-- Before executing a change after discussion, classify its documentation impact:
-  - Small: local code/resource edits only; update nearby comments for changed intent or tunables.
-  - Medium: behavior or cross-file implementation changes; update the focused design/technical document with the approach and contract, then align code comments.
-  - Large: new module, new system, or documentation taxonomy change; update docs routing/directory structure, authoritative documents, code comments, and QA routes together.
-- After docs and code are aligned, add comments only where they preserve intent future agents need: ownership boundaries, state transitions, failure semantics, and tuning rationale.
-- Tunable values must carry intent near the value or exported property when the reason is not obvious, especially temporary test tuning such as movement speed multipliers and visual emphasis values such as highlight alpha.
-- Treat stale comments as bugs. When changing behavior or constants, update the related comment in the same edit.
-- Do not document hidden fallbacks as acceptable core behavior. If a fallback is only non-authoritative presentation, say so explicitly; otherwise fail, log, and fix the authoritative path.
+- Treat project documents as long-term AI working memory, not user-facing progress narration.
+- Do not put temporary notes, inventories, implementation logs, or ordinary todos into authority documents.
+- Prefer deleting or correcting stale material over adding layers of supersession notes.
+- Keep `AGENTS.md` limited to stable rules and route entries.
+- When code, resources, and docs disagree, identify the current authority first, then repair old docs and implementation through `gameplay-alignment/`.
+- Before edits, classify impact as Small, Medium, or Large:
+  - Small: local code/resource edit; update nearby comments when intent or tunables change.
+  - Medium: behavior or cross-file flow change; update focused design or system docs through proposal flow when authority changes.
+  - Large: new module/system, persistence model, architecture boundary, or documentation taxonomy change; use proposal flow and update acceptance routes.
 
-## Design Collaboration
+## Implementation Comments
 
-- Treat design discussion through six dimensions: Gameplay, System, Technical, Content, UX, and Risk.
-- Archive design decisions under the taxonomy defined in `docs/70-collaboration/ai-collaboration.md`.
-- Do not change core battle architecture ad hoc.
-- Do not add systems that break existing system boundaries.
-- Do not solve design problems by adding avoidable complexity.
+Comments are part of the implementation-level memory for future AI readers.
 
-## Long-Term Implementation Rule
+- Non-trivial code changes must leave concise comments near the relevant code explaining why the behavior exists, the design background, or the authority boundary.
+- Comments should preserve intent, state transitions, failure semantics, tuning rationale, architecture ownership, or temporary workaround reasons.
+- Do not add mechanical comments that only restate what the next line of code does.
+- Treat stale comments as bugs. When behavior, constants, exported tunables, or authority boundaries change, update nearby comments in the same change.
 
-- Default to the target long-term architecture and persistent state model.
-- Do not introduce short-term hacks, duplicated authorities, or scene/runtime workarounds that weaken the intended architecture just to make a feature land faster.
-- If a temporary workaround is unavoidable, isolate it, document the reason, and keep it out of the main implementation path.
+## Current Gameplay Direction
 
-## Multi-Agent Workflow
+The accepted direction is hero-led light RTS with strategic-city and content-system management. Use `gameplay-design/content-systems-long-term-design.md` as the player-facing content-system authority.
 
-- For implementation, architecture, scene, UI, resource, and substantial documentation tasks, follow the persistent workflow in `docs/70-collaboration/multi-agent-workflow.md`.
-- The main agent acts as workflow orchestrator: it owns state transitions, handoffs, conflict handling, and final user communication, but should not replace specialist agents for requirement decomposition, implementation, review, acceptance, or documentation consolidation.
-- Role specifications are stored independently under `docs/70-collaboration/agents/`.
-- Simple status checks, direct questions, command outputs, and small non-behavioral edits may bypass the full workflow unless the user explicitly requests it.
+Do not revive old manual tactical chess, pure post-deployment autobattler playback, or AP/TurnSystem growth as the future battle identity unless a new accepted proposal changes the authority documents.
 
-## Reference Architecture Guardrail
+## Terminology
 
-- When a world, settlement, expedition, battle-entry, campaign-loop, or cross-system feature is underspecified, default to the 三国群英传-style strategic campaign skeleton defined in `docs/20-game-design/strategic-map/sanguo-qunying-reference-architecture.md`.
-- The minimum acceptable direction is: persistent `WorldSite` state and actions -> party/expedition/threat movement or decision -> `BattleStartRequest` -> `BattleResult` -> world, character, resource, facility, or threat writeback.
-- Use 三国群英传 as a gameplay and architecture reference for strategic-map structure; do not copy its IP, content, assets, old Unity singleton style, hardcoded arrays, or one-off skill scripts.
-
-## Game Text Language
-
-- All player-visible in-game text defaults to Chinese unless a task explicitly requires another language.
-
-## Content Authoring
-
-- Story, campaign, dialogue, reward, relationship, and encounter content should be data-driven: use small generic runtime code plus large authored definitions/configuration, not hardcoded one-off plot logic. See `docs/30-technical-design/content-pipeline/content-authoring-architecture.md`.
-
-## World Terminology
-
-- Persistent operable world locations are `WorldSite` / 场域. Do not call them battle scenes, cities, or generic scenes in design docs or code. See `docs/20-game-design/strategic-map/world-site-concept.md`.
-- Keep Godot scene naming for engine concepts such as `.tscn`, `SceneFilePath`, `SiteScenePath`, `ReturnScenePath`, and `ChangeSceneToFile`.
-
-## Runtime Diagnostics
-
-- Runtime logic changes should add low-noise persistent logs for key state transitions, failures, and user-facing actions; avoid per-frame or high-frequency logging.
+- Use **strategic location** as the umbrella design term for large-map locations.
+- Use **city / stronghold** for core managed locations.
+- Use **resource site**, **gate/pass**, **ruin**, **dungeon**, and **opportunity** for lighter or specialized location types.
+- `WorldSite` may remain a technical abstraction in code and legacy docs. Do not force all design language back to "场域" when "city", "ruin", or another concrete term is more accurate.
+- Keep Godot scene terminology for engine concepts such as `.tscn`, `SiteScenePath`, `ReturnScenePath`, and `ChangeSceneToFile`.
 
 ## Implementation Authority
 
-- Do not keep multiple authoritative implementations for the same runtime responsibility; choose one clear owner and remove obsolete parallel logic.
+- Do not keep multiple authoritative implementations for the same runtime responsibility.
 - Do not hide broken core logic behind layered fallbacks. Fail explicitly, log the reason, and fix the authoritative path.
+- Default to the accepted long-term architecture and persistent state model.
+- If a temporary workaround is unavoidable, isolate it, comment the reason, and keep it out of the main implementation path.
 
 ## Godot Resource Authoring
 
 - Do not hardcode UI, themes, shaders, or scene structures with `new` unless there is no practical resource-based alternative.
-- Prefer authored `.tscn`, `.tres`, `.gdshader`, `Theme`, `StyleBoxTexture`, and reusable packed scenes; runtime code should load resources, bind nodes, and update state.
-- For dynamic repeated UI, prefer instancing reusable row/button/item scenes over constructing controls directly in gameplay code.
-- For UI creation or refactor with Codex, follow `docs/70-collaboration/codex-godot-ui-guidance.md` and consult the local GodotPrompter UI skills before changing scene trees, themes, HUDs, or responsive behavior.
+- Prefer authored `.tscn`, `.tres`, `.gdshader`, `Theme`, `StyleBoxTexture`, and reusable packed scenes.
+- Runtime code should load resources, bind nodes, and refresh state.
+- Dynamic repeated UI should instantiate reusable row/button/item scenes instead of constructing full control trees in gameplay code.
 
-## Extension Boundary
+## Content Authoring
 
-New gameplay extensions must not modify the Battle flow, AP system, or TurnSystem.
+Story, campaign, dialogue, reward, relationship, encounter, unit, and city content should be data-driven through definitions/configuration. Avoid hardcoded one-off plot, unit, or location logic unless a proposal explicitly accepts that cost.
 
-Allowed extension points are:
+## Runtime Diagnostics
 
-- Effect
-- Condition
-- TargetRule
-- Definition: Card, Ability, or Rule
+Runtime logic changes should add low-noise logs for important state transitions, failures, and user-facing actions. Avoid per-frame or high-frequency logging.
 
-If a proposed feature requires changing anything outside these extension points, treat it as an architecture risk and document the reason before implementation.
+## Game Text Language
+
+All player-visible in-game text defaults to Chinese unless a task explicitly requires another language.
 
 ## External Asset Library
 
@@ -110,4 +114,4 @@ The external asset library is read-only.
 
 - Do not rename, move, delete, rewrite, or otherwise modify files under `C:\Users\qs\asset`.
 - Asset work may copy files from the external library into this project.
-- Any cleanup, deletion, renaming, or import-side changes must happen only inside this project directory.
+- Cleanup, deletion, renaming, and import-side changes must happen only inside this project directory.

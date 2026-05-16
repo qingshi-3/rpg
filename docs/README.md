@@ -31,7 +31,7 @@ The gameplay pillars are:
 ```text
 三国群英传式大地图战略
 + 三国志 / 三国立志传式人物社交经营
-+ 回合制战棋战斗
++ 城池 / 战略地点经营与英雄带兵轻 RTS 战斗
 ```
 
 异世界召唤、历史人物/传说人物/原创人物同台、裂隙等内容是表达层和内容扩展方式，不是 Steam 品类或玩法核心。 Do not treat summoning flavor as the primary gameplay genre.
@@ -40,12 +40,15 @@ The gameplay pillars are:
 
 - Product positioning: `10-product/positioning.md`
 - Game design overview: `20-game-design/README.md`
+- Current clean gameplay authority: `../gameplay-design/content-systems-long-term-design.md`
+- Current system-design route: `../system-design/README.md`
 - Strategic map gameplay: `20-game-design/strategic-map/README.md`
 - Officer social gameplay: `20-game-design/officer-social/README.md`
 - Tactical battle gameplay: `20-game-design/tactical-battle/README.md`
 - Technical architecture: `30-technical-design/README.md`
 - Content specs: `40-content/README.md`
 - Current priorities: `50-production/roadmap/development-priority.md`
+- Historical auto battle migration: `50-production/technical-changes/2026-05-16-auto-tactics-migration.md`
 - Test cases: `60-qa/testcases/README.md`
 - Collaboration workflow: `70-collaboration/multi-agent-workflow.md`
 

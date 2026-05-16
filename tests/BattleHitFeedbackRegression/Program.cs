@@ -55,6 +55,9 @@ Run("strategic navigation layer is isolated from camera transform", StrategicNav
 Run("strategic fog overlay uses circular visibility mask", StrategicFogOverlayUsesCircularVisibilityMask);
 Run("world site grid exploration state persists position and memory", WorldSiteGridExplorationStatePersistsPositionAndMemory);
 Run("world site grid exploration uses battle grid pathing outside battle turns", WorldSiteGridExplorationUsesBattleGridPathingOutsideBattleTurns);
+Run("world site root routes authored exploration point actions", WorldSiteRootRoutesAuthoredExplorationPointActions);
+Run("world site root gates hostile garrison text by site intel", WorldSiteRootGatesHostileGarrisonTextBySiteIntel);
+Run("world site deployment uses known entrances before desired approach direction", WorldSiteDeploymentUsesKnownEntrancesBeforeDesiredApproachDirection);
 Run("site exploration tick moves party by exploration AP", SiteExplorationTickMovesPartyByExplorationAp);
 Run("site exploration tick moves patrol by route AP", SiteExplorationTickMovesPatrolByRouteAp);
 Run("site exploration alert radius pauses simulation", SiteExplorationAlertRadiusPausesSimulation);
@@ -878,6 +881,66 @@ static void WorldSiteGridExplorationUsesBattleGridPathingOutsideBattleTurns()
     AssertTrue(!ExtractMethodBlock(worldSiteRoot, "private bool TryHandleSiteExplorationInput").Contains("_turnController", StringComparison.Ordinal), "exploration input must not use battle turn controller or AP");
 }
 
+static void WorldSiteRootRoutesAuthoredExplorationPointActions()
+{
+    string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+
+    AssertTrue(
+        worldSiteRoot.Contains("TryAppendSiteExplorationPointActions", StringComparison.Ordinal),
+        "WorldSiteRoot should append authored exploration point actions during active site exploration");
+    AssertTrue(
+        worldSiteRoot.Contains("ExecuteSiteExplorationPointAction", StringComparison.Ordinal),
+        "WorldSiteRoot should route point action button presses through a dedicated executor");
+
+    string executeMethod = ExtractMethodBlock(worldSiteRoot, "private void ExecuteSiteExplorationPointAction");
+    AssertTrue(
+        executeMethod.Contains("WorldSiteExplorationService.ApplyActionResult", StringComparison.Ordinal),
+        "point action execution should apply authored memory and reveal effects at runtime");
+}
+
+static void WorldSiteRootGatesHostileGarrisonTextBySiteIntel()
+{
+    string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    string overviewMethod = ExtractMethodBlock(worldSiteRoot, "private string BuildSiteOverview");
+    string garrisonMethod = ExtractMethodBlock(worldSiteRoot, "private void RefreshGarrisonList");
+
+    AssertTrue(
+        overviewMethod.Contains("WorldSiteIntelService.BuildCurrentView", StringComparison.Ordinal),
+        "site overview should build a site intel view before displaying garrison text");
+    AssertTrue(
+        overviewMethod.Contains("BuildSiteGarrisonOverviewText(site, intelView)", StringComparison.Ordinal),
+        "site overview should route displayed garrison count through the intel-gated helper");
+    AssertTrue(
+        !overviewMethod.Contains("site.Garrison.Sum", StringComparison.Ordinal),
+        "site overview should not directly sum exact hostile garrison counts for display");
+    AssertTrue(
+        garrisonMethod.Contains("WorldSiteIntelService.BuildCurrentView", StringComparison.Ordinal),
+        "site garrison panel should build a site intel view");
+    AssertTrue(
+        garrisonMethod.Contains("AddSiteGarrisonLines(_siteGarrisonList, site, intelView)", StringComparison.Ordinal),
+        "site garrison panel should route rows through the intel-gated helper");
+    AssertTrue(
+        !garrisonMethod.Contains("foreach (GarrisonState garrison in site.Garrison)", StringComparison.Ordinal),
+        "site garrison panel should not unconditionally iterate exact hostile garrison details");
+}
+
+static void WorldSiteDeploymentUsesKnownEntrancesBeforeDesiredApproachDirection()
+{
+    string preparerSource = File.ReadAllText(Path.Combine("src", "Application", "World", "WorldSiteBattleDeploymentPreparer.cs"));
+    string resolveForceEntrance = ExtractMethodBlock(preparerSource, "private static BattleEntranceRequest ResolveForceEntrance");
+    string preparer = NormalizeWhitespace(preparerSource);
+
+    AssertTrue(
+        !resolveForceEntrance.Contains("return desiredDirection == WorldSiteAttackDirection.Any", StringComparison.Ordinal),
+        "ResolveForceEntrance should return a known force entrance candidate instead of nulling non-Any hidden desired directions");
+    AssertTrue(
+        resolveForceEntrance.Contains("return candidates.FirstOrDefault();", StringComparison.Ordinal),
+        "ResolveForceEntrance should fall back to a known AvailableEntrances candidate when preferred/exact/Any resolution misses");
+    AssertTrue(
+        !preparer.Contains("WorldSiteAttackDirection deploymentDirection = entrance != null && entrance.Direction != WorldSiteAttackDirection.Any ? entrance.Direction : desiredDirection;", StringComparison.Ordinal),
+        "WorldSiteBattleDeploymentPreparer should not blindly reuse desiredDirection while force entrance candidates exist");
+}
+
 static void WorldSiteExplorationBattleRequestCarriesExplorationContext()
 {
     BattleStartRequest request = WorldSiteExplorationService.BuildExplorationBattleRequest(
@@ -1010,6 +1073,63 @@ static void ExplorationBattleRequestCarriesPatrolTrigger()
 
 static void ExplorationBattleVictoryRemovesTriggeringPatrol()
 {
+    const string triggerPatrolId = "bonefield_patrol_01";
+    const string triggerPlacementId = "garrison:skeleton_warrior:2";
+    const string otherPatrolId = "bonefield_patrol_02";
+    const string otherPlacementId = "garrison:skeleton_warrior:1";
+
+    SiteExplorationPatrolDefinition triggerPatrol = new()
+    {
+        Id = triggerPatrolId,
+        DisplayName = "Trigger Patrol",
+        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
+        SourcePlacementId = triggerPlacementId,
+        RouteCells =
+        {
+            new SiteExplorationRouteCellDefinition { CellX = 1, CellY = 0, CellHeight = 0 }
+        }
+    };
+    StrategicWorldDefinition definition = new()
+    {
+        Id = "test_world",
+        SiteDefinitions =
+        {
+            new WorldSiteDefinition
+            {
+                Id = StrategicWorldIds.SiteBonefield,
+                DefaultGarrisonZoneId = "bonefield_garrison",
+                DeploymentZones =
+                {
+                    new SiteDeploymentZoneDefinition
+                    {
+                        ZoneId = "bonefield_garrison",
+                        ZoneKind = SiteDeploymentZoneKind.DefaultGarrison,
+                        Capacity = 2,
+                        Cells =
+                        {
+                            new Godot.Vector2I(1, 0),
+                            new Godot.Vector2I(2, 0)
+                        }
+                    }
+                },
+                ExplorationPatrols =
+                {
+                    triggerPatrol,
+                    new SiteExplorationPatrolDefinition
+                    {
+                        Id = otherPatrolId,
+                        DisplayName = "Other Patrol",
+                        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
+                        SourcePlacementId = otherPlacementId,
+                        RouteCells =
+                        {
+                            new SiteExplorationRouteCellDefinition { CellX = 2, CellY = 0, CellHeight = 0 }
+                        }
+                    }
+                }
+            }
+        }
+    };
     StrategicWorldState state = new()
     {
         PlayerFactionId = StrategicWorldIds.FactionPlayer
@@ -1021,25 +1141,66 @@ static void ExplorationBattleVictoryRemovesTriggeringPatrol()
         {
             IsSimulationPaused = true,
             PauseReason = "exploration_alert_radius",
-            ActiveAlertPatrolId = "bonefield_patrol_01"
+            ActiveAlertPatrolId = triggerPatrolId
         }
     };
-    site.Exploration.PatrolUnits.Add(new SiteExplorationPatrolState { PatrolId = "bonefield_patrol_01", CellX = 1, CellY = 0, CellHeight = 0 });
+    site.Exploration.PatrolUnits.Add(new SiteExplorationPatrolState { PatrolId = triggerPatrolId, CellX = 1, CellY = 0, CellHeight = 0 });
+    site.Exploration.PatrolUnits.Add(new SiteExplorationPatrolState { PatrolId = otherPatrolId, CellX = 2, CellY = 0, CellHeight = 0 });
+    site.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 2 });
+    site.UnitPlacements.Add(new WorldSiteUnitPlacement
+    {
+        PlacementId = triggerPlacementId,
+        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
+        UnitIndex = 2,
+        FactionId = StrategicWorldIds.FactionUndead,
+        PlacementKind = WorldSiteUnitPlacementKind.Garrison,
+        SourceKind = "Garrison",
+        SourceId = StrategicWorldIds.SiteBonefield,
+        CellX = 1,
+        CellY = 0,
+        CellHeight = 0
+    });
+    site.UnitPlacements.Add(new WorldSiteUnitPlacement
+    {
+        PlacementId = otherPlacementId,
+        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
+        UnitIndex = 1,
+        FactionId = StrategicWorldIds.FactionUndead,
+        PlacementKind = WorldSiteUnitPlacementKind.Garrison,
+        SourceKind = "Garrison",
+        SourceId = StrategicWorldIds.SiteBonefield,
+        CellX = 2,
+        CellY = 0,
+        CellHeight = 0
+    });
     state.SiteStates[StrategicWorldIds.SiteBonefield] = site;
 
     BattleStartRequest request = WorldSiteExplorationService.BuildExplorationBattleRequest(
         StrategicWorldIds.SiteBonefield,
         "",
-        "bonefield_patrol_01",
+        triggerPatrolId,
+        null,
+        new[] { triggerPatrol },
         new GridSurfacePosition(1, 0, 0),
         alertLevel: 2,
         "res://return.tscn",
         "res://site.tscn");
     BattleResult result = BuildVictoryResult(request, "site_exploration");
+    BattleForceRequest defeatedPatrolForce = request.EnemyForces.Single(force => force.SourceId == triggerPlacementId);
+    result.ForceResults.Add(new BattleForceResult
+    {
+        ForceId = defeatedPatrolForce.ForceId,
+        SourceKind = defeatedPatrolForce.SourceKind,
+        SourceId = defeatedPatrolForce.SourceId,
+        UnitDefinitionId = defeatedPatrolForce.UnitDefinitionId,
+        InitialCount = 1,
+        SurvivedCount = 0,
+        DefeatedCount = 1
+    });
 
     WorldActionResult actionResult = new WorldBattleResultApplier().Apply(
         state,
-        new StrategicWorldDefinition { Id = "test_world" },
+        definition,
         request,
         result);
 
@@ -1636,6 +1797,11 @@ static string ExtractMethodBlock(string source, string methodSignature)
     }
 
     throw new InvalidOperationException($"unterminated method body: {methodSignature}");
+}
+
+static string NormalizeWhitespace(string source)
+{
+    return string.Join(" ", source.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 }
 
 static void AssertSequence<T>(IReadOnlyList<T> expected, IReadOnlyList<T> actual, string message)

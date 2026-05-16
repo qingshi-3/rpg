@@ -98,12 +98,6 @@ public static class BattleAbilityQueries
             return false;
         }
 
-        if (!BattleRuleQueries.CanSpendActionPoints(actor, ability.ApCost))
-        {
-            reason = "行动点不足";
-            return false;
-        }
-
         return true;
     }
 
@@ -196,7 +190,6 @@ public static class BattleAbilityQueries
             Id = BasicAttackId,
             DisplayName = "攻击",
             IconText = "攻",
-            ApCost = attack.ApCost,
             Range = attack.Range
         };
 

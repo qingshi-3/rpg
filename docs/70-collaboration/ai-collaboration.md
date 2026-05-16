@@ -57,9 +57,9 @@ Design decisions and discussions should be organized under these areas:
 
 New features must satisfy all of the following:
 
-- Do not modify the Battle flow.
-- Do not modify the AP system.
-- Do not modify TurnSystem.
+- Do not modify battle runtime ownership without an accepted technical route.
+- Do not restore retired AP/manual command/turn systems.
+- Do not bypass the auto battle and world/battle writeback contracts.
 - Only add or extend Effect, Condition, TargetRule, or Definition data.
 
 Definition data includes:

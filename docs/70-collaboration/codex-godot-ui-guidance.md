@@ -32,7 +32,7 @@ Project-specific rules:
 - Put reusable UI behavior under `src/Presentation/UI/` or the owning presentation domain, not under domain logic.
 - Player-visible in-game text defaults to Chinese.
 - Runtime code should bind data, signals, and state transitions; authored resources should own layout, theme, textures, and reusable UI composition.
-- UI work must not modify battle flow, AP, or `TurnSystem`. If UI needs new gameplay data, expose it through view models, definitions, or existing presentation-facing query APIs.
+- UI work must not restore retired manual battle flow or mutate battle runtime ownership. If UI needs new gameplay data, expose it through view models, definitions, or existing presentation-facing query APIs.
 
 ## Codex Workflow For UI Tasks
 

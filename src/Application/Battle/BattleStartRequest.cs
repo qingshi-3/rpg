@@ -14,6 +14,11 @@ public sealed class BattleStartRequest
     public string TargetArmyId { get; set; } = "";
     public string SourceSiteId { get; set; } = "";
     public string TargetSiteId { get; set; } = "";
+    public string SiteIntelPolicyId { get; set; } = "";
+    public List<string> RevealedEntranceIds { get; set; } = new();
+    public List<string> KnownTacticalTags { get; set; } = new();
+    public List<string> ActiveObscurationSourceIds { get; set; } = new();
+    public List<string> ExplorationAdvantageTags { get; set; } = new();
     public string ThreatId { get; set; } = "";
     public string WorldBattleId { get; set; } = "";
     public string WorldBattlePhase { get; set; } = "";

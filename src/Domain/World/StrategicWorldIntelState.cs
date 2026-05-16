@@ -22,6 +22,16 @@ public sealed class WorldSiteIntelSnapshot
     public SiteControlState ControlState { get; set; } = SiteControlState.Unknown;
     public WorldSiteMode SiteMode { get; set; } = WorldSiteMode.Peacetime;
     public int DamageLevel { get; set; }
+    public string IntelPolicy { get; set; } = "";
+    public string StrategicSummary { get; set; } = "";
+    public string TacticalSummary { get; set; } = "";
+    public string HiddenTacticalSummary { get; set; } = "";
+    public List<string> KnownEntranceIds { get; set; } = new();
+    public List<string> KnownExplorationPointIds { get; set; } = new();
+    public List<string> UnknownIntelReasons { get; set; } = new();
+    public List<string> ActiveObscurationSourceIds { get; set; } = new();
+    public List<string> KnownTacticalTags { get; set; } = new();
+    public List<string> ExplorationAdvantageTags { get; set; } = new();
     public ResourceStore KnownLocalResources { get; set; } = new();
     public List<FacilityInstance> KnownFacilities { get; set; } = new();
     public List<GarrisonState> KnownGarrison { get; set; } = new();

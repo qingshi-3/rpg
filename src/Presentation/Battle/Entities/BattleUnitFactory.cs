@@ -278,18 +278,9 @@ public sealed class BattleUnitFactory
             health.Hp = definition.MaxHp;
         }
 
-        if (TryGetComponent(entity, definition, out ActionPointComponent actionPoints))
-        {
-            actionPoints.MaxAp = definition.MaxActionPoints;
-            actionPoints.Ap = definition.MaxActionPoints;
-        }
-
         if (TryGetComponent(entity, definition, out MovementComponent movement))
         {
             movement.MoveRange = definition.MoveRange;
-            movement.ApCost = definition.MoveActionPointCost;
-            movement.MaxMoveUsesPerTurn = definition.MaxMoveUsesPerTurn;
-            movement.MoveUsesRemaining = definition.MaxMoveUsesPerTurn;
             movement.CanEnterWater = definition.CanEnterWater;
         }
 
@@ -297,7 +288,6 @@ public sealed class BattleUnitFactory
         {
             attack.Damage = definition.AttackDamage;
             attack.Range = definition.AttackRange;
-            attack.ApCost = definition.AttackActionPointCost;
         }
 
         if (TryGetComponent(entity, definition, out GridOccupantComponent gridOccupant))

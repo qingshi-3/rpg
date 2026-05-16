@@ -48,7 +48,7 @@ Forbidden dependencies:
 
 - `WorldFlow` depending on concrete site scene details such as `BonefieldSite`.
 - `BattleFlow` depending on a concrete UI button or a concrete map node path.
-- UI directly modifying AP, TurnSystem, Intent, or battle resolution.
+- UI directly modifying retired manual battle state, battle runtime ownership, intent/planning state, or battle resolution.
 - Domain rules calling concrete Godot scene nodes to make gameplay decisions.
 
 ## Flow Contracts
@@ -109,7 +109,7 @@ Rules:
 - Flow validates and applies decisions.
 - Presenters convert domain or flow state into UI-friendly display state.
 
-Do not let UI buttons directly resolve damage, spend AP, change turns, or mutate world flags.
+Do not let UI buttons directly resolve damage, restore retired manual battle commands, change battle runtime ownership, or mutate world flags.
 
 ## ECS Position
 

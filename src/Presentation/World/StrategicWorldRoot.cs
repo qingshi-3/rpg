@@ -2429,13 +2429,27 @@ public partial class StrategicWorldRoot : Control
         {
             return;
         }
+        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
+            State,
+            Definition,
+            definition.Id,
+            WorldIntelVisibility.Visible);
+        List<string> detailLines = new()
+        {
+            definition.Description,
+            ""
+        };
+        detailLines.AddRange(WorldSiteIntelPresenter.BuildSummaryLines(intelView));
+        detailLines.AddRange(new[]
+        {
+            $"状态：{GetControlStateLabel(site.ControlState)}",
+            $"模式：{GetSiteModeLabel(site.SiteMode)}",
+            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}",
+            $"受损：{site.DamageLevel}"
+        });
+
         _siteTitleLabel.Text = $"{definition.DisplayName}  ·  {GetSiteKindLabel(definition.SiteKind)}";
-        _siteBodyLabel.Text =
-            $"{definition.Description}\n\n" +
-            $"状态：{GetControlStateLabel(site.ControlState)}\n" +
-            $"模式：{GetSiteModeLabel(site.SiteMode)}\n" +
-            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}\n" +
-            $"受损：{site.DamageLevel}";
+        _siteBodyLabel.Text = string.Join("\n", detailLines);
 
         ClearChildren(_facilityList);
         if (site.Facilities.Count == 0)
@@ -2457,17 +2471,40 @@ public partial class StrategicWorldRoot : Control
         }
 
         ClearChildren(_garrisonList);
-        if (site.Garrison.Count == 0)
+        AddSiteGarrisonLines(_garrisonList, site, intelView);
+    }
+
+    private void AddSiteGarrisonLines(VBoxContainer list, WorldSiteState site, WorldSiteIntelViewModel intelView)
+    {
+        if (list == null)
         {
-            AddMutedLine(_garrisonList, "无");
+            return;
+        }
+
+        if (!CanRevealSiteGarrison(site, intelView))
+        {
+            AddMutedLine(list, "驻军情报不足，需侦察确认。");
+            return;
+        }
+
+        if (site?.Garrison == null || site.Garrison.Count == 0)
+        {
+            AddMutedLine(list, "无");
         }
         else
         {
             foreach (GarrisonState garrison in site.Garrison)
             {
-                AddMutedLine(_garrisonList, $"{GetUnitLabel(garrison.UnitTypeId)} x{garrison.Count}");
+                AddMutedLine(list, $"{GetUnitLabel(garrison.UnitTypeId)} x{garrison.Count}");
             }
         }
+    }
+
+    private bool CanRevealSiteGarrison(WorldSiteState site, WorldSiteIntelViewModel intelView)
+    {
+        return site != null &&
+               (site.OwnerFactionId == State?.PlayerFactionId ||
+                intelView?.CanInspectFullTacticalLayout == true);
     }
 
     private bool TryRefreshStaleSiteDetail(StrategicWorldDefinitionQueries queries, WorldSiteDefinition definition)
@@ -2509,15 +2546,26 @@ public partial class StrategicWorldRoot : Control
             _opportunityDetailPanel.Visible = false;
         }
 
-        _siteTitleLabel.Text = $"旧情报：{snapshot.DisplayName}  路  {GetSiteKindLabel(definition.SiteKind)}";
-        _siteBodyLabel.Text =
-            $"{definition.Description}\n\n" +
-            $"上次侦察：第 {snapshot.LastSeenWorldTick} 世界步\n" +
-            $"状态：{GetControlStateLabel(snapshot.ControlState)}\n" +
-            $"模式：{GetSiteModeLabel(snapshot.SiteMode)}\n" +
-            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, snapshot.OwnerFactionId)}\n" +
-            $"受损：{snapshot.DamageLevel}\n" +
-            "当前信息可能已经变化。";
+        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildViewFromSnapshot(
+            snapshot,
+            WorldIntelVisibility.Revealed);
+        List<string> detailLines = new()
+        {
+            definition.Description,
+            ""
+        };
+        detailLines.AddRange(WorldSiteIntelPresenter.BuildSummaryLines(intelView));
+        detailLines.AddRange(new[]
+        {
+            $"状态：{GetControlStateLabel(snapshot.ControlState)}",
+            $"模式：{GetSiteModeLabel(snapshot.SiteMode)}",
+            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, snapshot.OwnerFactionId)}",
+            $"受损：{snapshot.DamageLevel}",
+            "当前信息可能已经变化。"
+        });
+
+        _siteTitleLabel.Text = $"旧情报：{snapshot.DisplayName}  ·  {GetSiteKindLabel(definition.SiteKind)}";
+        _siteBodyLabel.Text = string.Join("\n", detailLines);
         return true;
     }
 
@@ -2833,6 +2881,16 @@ public partial class StrategicWorldRoot : Control
         if (CanShowSelectedSiteDetailEntry(selectedSite))
         {
             bool canEnter = CanEnterSelectedSiteDetail(out string enterFailureReason);
+            WorldIntelVisibility visibility = GetSiteIntelVisibility(new StrategicWorldDefinitionQueries(Definition).GetSite(selectedSite.SiteId));
+            WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
+                State,
+                Definition,
+                selectedSite.SiteId,
+                visibility);
+            bool usesExplorationPath = selectedSite.OwnerFactionId != State.PlayerFactionId &&
+                                       !intelView.CanInspectFullTacticalLayout &&
+                                       CanExploreSelectedSite(selectedSite);
+            string entryLabel = WorldSiteIntelPresenter.GetSiteEntryLabel(intelView, usesExplorationPath);
             Button enterButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
             if (enterButton == null)
             {
@@ -2840,8 +2898,8 @@ public partial class StrategicWorldRoot : Control
             }
 
             enterButton.Text = canEnter
-                ? "进入场域\n查看详细地图"
-                : $"进入场域\n{WorldActionResolver.FormatFailureReason(enterFailureReason)}";
+                ? $"{entryLabel}\n{(usesExplorationPath ? "确认入口和布阵" : "查看详细地图")}"
+                : $"{entryLabel}\n{WorldActionResolver.FormatFailureReason(enterFailureReason)}";
             enterButton.Disabled = !canEnter;
             if (canEnter)
             {
@@ -3045,8 +3103,21 @@ public partial class StrategicWorldRoot : Control
             return false;
         }
 
-        // Hostile site exploration is a site visit, not an assault launch; battle authority begins only if exploration later requests it.
-        if (CanExploreSelectedSite(site))
+        WorldSiteDefinition definition = new StrategicWorldDefinitionQueries(Definition).GetSite(site.SiteId);
+        WorldIntelVisibility visibility = GetSiteIntelVisibility(definition);
+        if (visibility != WorldIntelVisibility.Visible)
+        {
+            failureReason = "site_not_visible";
+            return false;
+        }
+
+        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
+            State,
+            Definition,
+            site.SiteId,
+            WorldIntelVisibility.Visible);
+
+        if (site.OwnerFactionId != State.PlayerFactionId && intelView.CanInspectFullTacticalLayout)
         {
             return true;
         }
@@ -3063,9 +3134,29 @@ public partial class StrategicWorldRoot : Control
 
     private bool CanShowSelectedSiteDetailEntry(WorldSiteState site)
     {
-        return site != null &&
-               site.OwnerFactionId == State.PlayerFactionId &&
-               site.ControlState is SiteControlState.PlayerHeld or SiteControlState.Damaged;
+        if (site == null)
+        {
+            return false;
+        }
+
+        WorldSiteDefinition definition = new StrategicWorldDefinitionQueries(Definition).GetSite(site.SiteId);
+        if (GetSiteIntelVisibility(definition) != WorldIntelVisibility.Visible)
+        {
+            return false;
+        }
+
+        if (site.OwnerFactionId == State.PlayerFactionId &&
+            site.ControlState is SiteControlState.PlayerHeld or SiteControlState.Damaged)
+        {
+            return true;
+        }
+
+        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
+            State,
+            Definition,
+            site.SiteId,
+            WorldIntelVisibility.Visible);
+        return intelView.CanInspectFullTacticalLayout;
     }
 
     private bool CanExploreSelectedSite(WorldSiteState site)
@@ -3102,7 +3193,7 @@ public partial class StrategicWorldRoot : Control
         Button assaultButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
         if (assaultButton != null)
         {
-            assaultButton.Text = "进攻\n进入攻占战";
+            assaultButton.Text = $"{WorldSiteIntelPresenter.GetDirectAssaultLabel()}\n进入攻占战";
             assaultButton.Pressed += () => TryEnterBattleForArrivedArmy(army.ArmyId);
             _actionList.AddChild(assaultButton);
         }
@@ -3112,15 +3203,10 @@ public partial class StrategicWorldRoot : Control
                              GetArmyUnitCount(army) == 1 &&
                              State.SiteStates.TryGetValue(army.TargetSiteId, out WorldSiteState site) &&
                              CanExploreSelectedSite(site);
-        if (arrivedAssaultArmyCount > 1 || GetArmyUnitCount(army) > 1)
-        {
-            return;
-        }
-
         Button infiltrateButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
         if (infiltrateButton != null)
         {
-            infiltrateButton.Text = canInfiltrate ? "潜入\n进入场域探索" : "潜入\n该场域没有探索配置";
+            infiltrateButton.Text = canInfiltrate ? "进入探索\n进入场域探索" : "进入探索\n该场域没有探索配置";
             infiltrateButton.Disabled = !canInfiltrate;
             if (canInfiltrate)
             {
@@ -3730,7 +3816,7 @@ public partial class StrategicWorldRoot : Control
 
         BattleSessionHandoff.CancelBattle();
         RollbackPendingBattleLaunch($"scene_change_failed:{error}");
-        StrategicWorldRuntime.LastNotice = "无法进入战棋战斗。";
+        StrategicWorldRuntime.LastNotice = "无法进入自动战斗。";
         GameLog.Warn(nameof(StrategicWorldRoot), $"Cannot enter site path={request.SiteScenePath} error={error}");
         RefreshAll();
     }

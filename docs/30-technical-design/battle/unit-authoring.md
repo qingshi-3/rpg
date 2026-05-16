@@ -42,7 +42,7 @@ separate migration updates all references.
 Each `BattleUnitDefinition` should use:
 
 - `Visual`: the package-local `visual.tres`.
-- Stat fields on the definition for HP, AP, movement, targeting, blocking, and
+- Stat fields on the definition for HP, movement, targeting, blocking, and
   legacy attack compatibility.
 - `Abilities`: configured `AbilityDefinition` resources. A normal attack should
   use `Id = "basic_attack"` while legacy command compatibility remains active.
@@ -129,8 +129,8 @@ be fixed in the unit visual resource.
 Animation cues, runtime boundaries, and manual checks are documented in
 `unit-animation-system.md`.
 
-Animation tracks are presentation only. They must not spend AP, apply damage,
-move grid occupants, or end turns.
+Animation tracks are presentation only. They must not apply damage, move grid
+occupants, or control battle runtime state.
 
 ## Adding A Unit
 

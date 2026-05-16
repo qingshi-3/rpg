@@ -192,81 +192,8 @@ public static class StrategicFogOfWarService
                 continue;
             }
 
-            state.Intel.KnownSites[siteDefinition.Id] = BuildSiteSnapshot(siteDefinition, siteState, state.WorldTick);
+            state.Intel.KnownSites[siteDefinition.Id] = WorldSiteIntelService.BuildSnapshot(siteDefinition, siteState, state.WorldTick);
         }
-    }
-
-    private static WorldSiteIntelSnapshot BuildSiteSnapshot(
-        WorldSiteDefinition definition,
-        WorldSiteState state,
-        int worldTick)
-    {
-        return new WorldSiteIntelSnapshot
-        {
-            SiteId = state.SiteId,
-            DisplayName = definition.DisplayName,
-            LastSeenWorldTick = worldTick,
-            OwnerFactionId = state.OwnerFactionId,
-            ControlState = state.ControlState,
-            SiteMode = state.SiteMode,
-            DamageLevel = state.DamageLevel,
-            KnownLocalResources = CloneResourceStore(state.LocalResources),
-            KnownFacilities = state.Facilities.Select(CloneFacility).ToList(),
-            KnownGarrison = state.Garrison.Select(CloneGarrison).ToList(),
-            KnownPendingThreatIds = state.PendingThreatIds.ToList()
-        };
-    }
-
-    private static ResourceStore CloneResourceStore(ResourceStore source)
-    {
-        ResourceStore clone = new();
-        if (source == null)
-        {
-            return clone;
-        }
-
-        foreach ((string resourceId, int amount) in source.Amounts)
-        {
-            clone.Amounts[resourceId] = amount;
-        }
-
-        clone.Reservations = source.Reservations
-            .Select(reservation => new ResourceReservation(
-                reservation.ResourceId,
-                reservation.Amount,
-                reservation.SourceId,
-                reservation.SourceKind))
-            .ToList();
-        return clone;
-    }
-
-    private static FacilityInstance CloneFacility(FacilityInstance source)
-    {
-        return new FacilityInstance
-        {
-            InstanceId = source.InstanceId,
-            FacilityId = source.FacilityId,
-            SiteId = source.SiteId,
-            SlotId = source.SlotId,
-            Level = source.Level,
-            State = source.State,
-            AssignedPopulation = source.AssignedPopulation,
-            ProgressTicks = source.ProgressTicks,
-            Cooldowns = source.Cooldowns.ToList(),
-            ActiveTags = source.ActiveTags.ToList()
-        };
-    }
-
-    private static GarrisonState CloneGarrison(GarrisonState source)
-    {
-        return new GarrisonState
-        {
-            UnitTypeId = source.UnitTypeId,
-            Count = source.Count,
-            SourceFacilityId = source.SourceFacilityId,
-            Morale = source.Morale,
-            DamageLevel = source.DamageLevel
-        };
     }
 
     private static StrategicFogOfWarSettings NormalizeSettings(StrategicFogOfWarSettings settings)

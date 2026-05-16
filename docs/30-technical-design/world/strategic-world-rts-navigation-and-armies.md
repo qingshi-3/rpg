@@ -24,7 +24,7 @@
 
 - 大地图寻路采用 RTS 式连续空间寻路。
 - 大地图部队使用 `Vector2` 世界坐标、移动速度和路径折线，不使用战棋格子坐标。
-- 战斗地图仍可使用 `BattleGridMap`、`GridPosition` 和战棋移动规则。
+- 战斗地图仍可使用 `BattleGridMap`、`GridPosition`、地形和寻路规则；未来战斗目标是英雄带兵轻 RTS，不是玩家逐格手操战棋，也不是纯无指挥自动播放。
 - 大地图移动系统不得复用战斗格子 A*，不得让部队一格一格移动。
 - `WorldTick` 是战略结算点；部队移动按帧或世界时钟连续推进。
 - 敌方 Raid 也必须由 `WorldArmyState + StrategicNavigation` 驱动，不再使用手工 waypoint 伪装行军路径。
@@ -192,7 +192,7 @@ WorldTick
 目标：
 
 - 文档和代码术语区分 `WorldSite`、`WorldArmy`、`ThreatPlan`。
-- 明确大地图是 RTS 连续空间，战斗才是战棋格子。
+- 明确大地图是 RTS 连续空间；战略地点和战斗可继续使用格子承载经营、部署、寻路和轻 RTS 战斗规则。
 - 敌军行军不使用手工 waypoint，统一通过 `WorldArmyState + StrategicNavigation` 表现。
 
 验收：

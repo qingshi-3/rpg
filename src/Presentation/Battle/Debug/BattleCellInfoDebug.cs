@@ -175,7 +175,6 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
     private static string FormatEntity(BattleEntity entity, GridCell cell)
     {
         HealthComponent health = entity.GetComponent<HealthComponent>();
-        ActionPointComponent actionPoint = entity.GetComponent<ActionPointComponent>();
         MovementComponent movement = entity.GetComponent<MovementComponent>();
         AttackComponent attack = entity.GetComponent<AttackComponent>();
         GridOccupantComponent grid = entity.GetComponent<GridOccupantComponent>();
@@ -202,25 +201,19 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
             AppendField(builder, "生命", $"{health.Hp}/{health.MaxHp}", color);
         }
 
-        if (actionPoint != null)
-        {
-            string color = actionPoint.Ap > 0 ? GoodColor : WarnColor;
-            AppendField(builder, "行动点", $"{actionPoint.Ap}/{actionPoint.MaxAp}", color);
-        }
-
         if (movement != null)
         {
             string water = movement.CanEnterWater ? "可入水" : "不可入水";
             AppendField(
                 builder,
                 "移动",
-                $"范围 {movement.MoveRange} / 次数 {movement.MoveUsesRemaining}/{movement.MaxMoveUsesPerTurn} / 消耗 {movement.ApCost} AP / {water}",
+                $"范围 {movement.MoveRange} / {water}",
                 TextColor);
         }
 
         if (attack != null)
         {
-            AppendField(builder, "攻击", $"伤害 {attack.Damage} / 射程 {attack.Range} / 消耗 {attack.ApCost} AP", TextColor);
+            AppendField(builder, "攻击", $"伤害 {attack.Damage} / 射程 {attack.Range}", TextColor);
         }
 
         string flags = BuildEntityFlagSummary(entity, cell);

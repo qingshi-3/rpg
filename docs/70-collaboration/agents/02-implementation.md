@@ -37,7 +37,7 @@ Next state: Agent3_Review
 
 ## Constraints
 
-- Do not modify Battle flow, AP, or TurnSystem unless Main records an explicit
+- Do not modify battle runtime ownership, retired manual battle systems, or world/battle writeback unless Main records an explicit
   architecture exception.
 - Do not keep multiple authoritative implementations for the same responsibility.
 - Do not hide broken logic behind silent fallbacks.

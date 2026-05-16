@@ -106,7 +106,7 @@ public sealed class BattleIntentResolver
         string damageText = damage > 0
             ? $"，预计造成 {damage.ToString(CultureInfo.InvariantCulture)} 点伤害"
             : "";
-        string detail = $"{actor.DisplayName}：{intent.DisplayName}。若现在结束回合，将对 {target.DisplayName} 使用 {abilityName}{damageText}。";
+        string detail = $"{actor.DisplayName}：{intent.DisplayName}。若现在执行，将对 {target.DisplayName} 使用 {abilityName}{damageText}。";
         preview = new BattleIntentPreview(
             intent,
             request,
@@ -134,11 +134,9 @@ public sealed class BattleIntentResolver
         if (movement == null ||
             actorGrid == null ||
             targetGrid == null ||
-            movement.MoveRange <= 0 ||
-            !movement.CanUseMove() ||
-            !BattleRuleQueries.CanSpendActionPoints(actor, movement.ApCost))
+            movement.MoveRange <= 0)
         {
-            rejectReason = "移动能力、移动次数或行动点不足";
+            rejectReason = "移动能力不足";
             return false;
         }
 
@@ -237,7 +235,7 @@ public sealed class BattleIntentResolver
         BattleActionRequest request = BattleActionRequest.Move(actor, bestDestination.Position);
         GridPosition[] affectedCells = { bestDestination.Position };
         int steps = System.Math.Max(0, path.Count - 1);
-        string detail = $"{actor.DisplayName}：{intent.DisplayName}。若现在结束回合，将向 {target.DisplayName} 靠近，移动 {steps.ToString(CultureInfo.InvariantCulture)} 格到 {bestDestination.Position}。";
+        string detail = $"{actor.DisplayName}：{intent.DisplayName}。若现在执行，将向 {target.DisplayName} 靠近，移动 {steps.ToString(CultureInfo.InvariantCulture)} 格到 {bestDestination.Position}。";
         preview = new BattleIntentPreview(intent, request, path, affectedCells, detail);
         return true;
     }

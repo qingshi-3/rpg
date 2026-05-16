@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Auto;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
 using Rpg.Definitions.World;
@@ -9,15 +10,11 @@ using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle;
-using Rpg.Presentation.Battle.Actions;
-using Rpg.Presentation.Battle.AI;
 using Rpg.Presentation.Battle.Entities;
-using Rpg.Presentation.Battle.Flow;
-using Rpg.Presentation.Battle.InputSystem;
 using Rpg.Presentation.Battle.Preview;
 using Rpg.Presentation.Battle.Rules;
-using Rpg.Presentation.Battle.UI;
 using Rpg.Presentation.Common;
+using Rpg.Presentation.World;
 
 namespace Rpg.Presentation.World.Sites;
 
@@ -29,33 +26,6 @@ public partial class WorldSiteRoot : Node2D
     private const string SiteExplorationPauseReady = "exploration_ready";
     private const string SiteExplorationPauseMovePreview = "exploration_move_preview";
     private const string SiteExplorationPauseAlertRadius = "exploration_alert_radius";
-
-    private sealed class WorldSiteRuntimeDeploymentCache
-    {
-        public WorldSiteRuntimeDeploymentCache(
-            string siteId,
-            Dictionary<WorldSiteAttackDirection, List<WorldSiteDeploymentCell>> candidatesByDirection)
-        {
-            SiteId = siteId ?? "";
-            CandidatesByDirection = candidatesByDirection ?? new Dictionary<WorldSiteAttackDirection, List<WorldSiteDeploymentCell>>();
-        }
-
-        public string SiteId { get; }
-        public Dictionary<WorldSiteAttackDirection, List<WorldSiteDeploymentCell>> CandidatesByDirection { get; }
-
-        public IReadOnlyList<WorldSiteDeploymentCell> GetCandidates(WorldSiteAttackDirection direction)
-        {
-            if (CandidatesByDirection.TryGetValue(direction, out List<WorldSiteDeploymentCell> candidates) &&
-                candidates.Count > 0)
-            {
-                return candidates;
-            }
-
-            return CandidatesByDirection.TryGetValue(WorldSiteAttackDirection.Any, out List<WorldSiteDeploymentCell> anyCandidates)
-                ? anyCandidates
-                : System.Array.Empty<WorldSiteDeploymentCell>();
-        }
-    }
 
     private sealed class WorldSiteLivePlacementSnapshot
     {
@@ -79,28 +49,6 @@ public partial class WorldSiteRoot : Node2D
         public List<GridPosition> FootprintCells { get; } = new();
     }
 
-    private sealed class BattleCorpsRuntimeState
-    {
-        public string CorpsId { get; set; } = "";
-        public string DisplayName { get; set; } = "";
-        public BattleFaction Faction { get; set; } = BattleFaction.Neutral;
-        public BattleCorpsCommand Command { get; set; } = BattleCorpsCommand.Assault;
-        public string CommanderEntityId { get; set; } = "";
-        public List<string> MemberEntityIds { get; } = new();
-    }
-
-    private sealed class SiteBattleLaunchRollback
-    {
-        public string SiteId { get; set; } = "";
-        public bool HasPreviousSiteMode { get; set; }
-        public WorldSiteMode PreviousSiteMode { get; set; } = WorldSiteMode.Peacetime;
-        public bool HasPreviousExplorationState { get; set; }
-        public bool PreviousExplorationPaused { get; set; }
-        public string PreviousExplorationPauseReason { get; set; } = "";
-        public string PreviousActiveAlertPatrolId { get; set; } = "";
-        public List<string> PreviousPendingPathCellKeys { get; } = new();
-    }
-
     [Signal]
     public delegate void SiteMapLoadedEventHandler(Node activeSiteMap);
 
@@ -114,28 +62,10 @@ public partial class WorldSiteRoot : Node2D
     public NodePath HighlightOverlayPath { get; set; } = new("OverlayRoot/GridHighlightOverlay");
 
     [Export]
-    public NodePath PreviewControllerPath { get; set; } = new("OverlayRoot/BattlePreviewController");
-
-    [Export]
     public NodePath SelectionVignetteOverlayPath { get; set; } = new("CanvasLayer/SelectionVignetteOverlay");
 
     [Export]
-    public NodePath HudRootPath { get; set; } = new("CanvasLayer/BattleHudRoot");
-
-    [Export]
     public NodePath BattleCameraPath { get; set; } = new("Camera2D");
-
-    [Export]
-    public NodePath InputRouterPath { get; set; } = new("InputRoot/BattleInputRouter");
-
-    [Export]
-    public NodePath CommandControllerPath { get; set; } = new("FlowRoot/BattleCommandController");
-
-    [Export]
-    public NodePath TurnControllerPath { get; set; } = new("FlowRoot/BattleTurnController");
-
-    [Export]
-    public NodePath IntentControllerPath { get; set; } = new("FlowRoot/BattleIntentController");
 
     [Export]
     public PackedScene SiteMapScene { get; set; }
@@ -149,10 +79,8 @@ public partial class WorldSiteRoot : Node2D
     private BattleGridMap _activeGridMap;
     private BattleMapLayer _coordinateLayer;
     private BattleGridHighlightOverlay _highlightOverlay;
-    private BattlePreviewController _previewController;
     private BattleSelectionVignetteOverlay _selectionVignetteOverlay;
     private BattleCameraController _battleCamera;
-    private BattleHudRoot _hudRoot;
     private Control _siteHudRoot;
     private Control _siteHudTopBar;
     private Control _sitePeacetimePanel;
@@ -175,12 +103,6 @@ public partial class WorldSiteRoot : Node2D
     private readonly Dictionary<string, WorldFacilitySlotEntity> _siteFacilitySlotEntities = new();
     private readonly Dictionary<string, WorldFacilitySlotRuntimeLayout> _siteFacilitySlotLayouts = new();
     private WorldSiteRuntimeDeploymentCache _deploymentCache;
-    private BattleInputRouter _inputRouter;
-    private BattleCommandController _commandController;
-    private BattleTurnController _turnController;
-    private BattleIntentController _intentController;
-    private int _battleStateVersion;
-    private bool _battleEndHandled;
     private bool _battleRuntimeEnabled = true;
     private string _battleStartBlockedReason = "";
     private string _siteHudReturnScenePath = "";
@@ -200,21 +122,26 @@ public partial class WorldSiteRoot : Node2D
     private Button _siteExplorationRetreatButton;
     private string _lastSiteExplorationButtonRole = "";
     private ulong _lastSiteExplorationButtonMsec;
-    private readonly BattleActionExecutor _actionExecutor = new();
     private readonly BattleUnitFactory _battleUnitFactory = new();
     private readonly WorldBattleResultApplier _worldBattleResultApplier = new();
     private readonly WorldActionResolver _worldActionResolver;
     private readonly WorldSiteDeploymentService _deploymentService = new();
+    private readonly WorldSiteRuntimeDeploymentCacheBuilder _deploymentCacheBuilder = new();
+    private readonly WorldSiteDeploymentTargetEvaluator _deploymentTargetEvaluator = new();
+    private readonly WorldSiteDeploymentTerrainReconciler _deploymentTerrainReconciler = new();
+    private readonly WorldSiteBattleDeploymentPreparer _battleDeploymentPreparer = new();
+    private readonly WorldSiteBattleLauncher _battleLauncher = new();
+    private readonly WorldSiteAutoBattleAdapter _autoBattleAdapter = new();
+    private readonly AutoBattleReportSummaryFormatter _autoBattleReportSummaryFormatter = new();
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
-    private readonly Dictionary<string, BattleCorpsRuntimeState> _battleCorpsStates = new(System.StringComparer.Ordinal);
-    private readonly Dictionary<string, string> _battleEntityToCorpsId = new(System.StringComparer.Ordinal);
-    private readonly Dictionary<string, BattleUnitControlMode> _battleEntityControlModes = new(System.StringComparer.Ordinal);
+    private AutoBattleReport _lastAutoBattleReport;
 
     public Node ActiveSiteMap => _activeSiteMap;
     public BattleGridMap ActiveGridMap => _activeGridMap;
-    public BattleEntity SelectedEntity => _commandController?.SelectedEntity;
-    public bool AllowsDebugHoverInfo => _commandController?.AllowsDebugHoverInfo == true;
-    public bool IsEnemyPhaseRunning => _turnController?.IsEnemyPhaseRunning == true;
+    public BattleEntity SelectedEntity => null;
+    public bool AllowsDebugHoverInfo => RuntimeMode != WorldSiteRuntimeMode.Battle;
+    public bool IsEnemyPhaseRunning => false;
+    public WorldSiteRuntimeMode RuntimeMode => ResolveRuntimeMode();
 
     public WorldSiteRoot()
     {
@@ -228,14 +155,8 @@ public partial class WorldSiteRoot : Node2D
         _mapRoot = GetNode<Node>(MapRootPath);
         _unitRoot = GetNodeOrNull<BattleUnitRoot>(UnitRootPath);
         _highlightOverlay = GetNodeOrNull<BattleGridHighlightOverlay>(HighlightOverlayPath);
-        _previewController = GetNodeOrNull<BattlePreviewController>(PreviewControllerPath);
         _selectionVignetteOverlay = GetNodeOrNull<BattleSelectionVignetteOverlay>(SelectionVignetteOverlayPath);
         _battleCamera = GetNodeOrNull<BattleCameraController>(BattleCameraPath);
-        _hudRoot = GetNodeOrNull<BattleHudRoot>(HudRootPath);
-        _inputRouter = GetNodeOrNull<BattleInputRouter>(InputRouterPath);
-        _commandController = GetNodeOrNull<BattleCommandController>(CommandControllerPath);
-        _turnController = GetNodeOrNull<BattleTurnController>(TurnControllerPath);
-        _intentController = GetNodeOrNull<BattleIntentController>(IntentControllerPath);
         GetViewport().SizeChanged += OnViewportSizeChanged;
         BuildSiteHud();
         EnsureBattleRenderSortDomain();
@@ -249,121 +170,10 @@ public partial class WorldSiteRoot : Node2D
         {
             GameLog.Warn(nameof(WorldSiteRoot), $"Unit root missing or missing BattleUnitRoot script path={UnitRootPath}");
         }
-        if (_inputRouter != null)
-        {
-            _inputRouter.Initialize(TryGetMouseGridPosition);
-        }
-        else
-        {
-            GameLog.Warn(nameof(WorldSiteRoot), $"Input router missing path={InputRouterPath}");
-        }
-
-        if (_hudRoot != null)
-        {
-            _hudRoot.CommandSelected += commandId => _commandController?.OnBattleCommandRequested(BattleCommand.HudCommandSelected(commandId));
-            _hudRoot.CommandCancelled += () =>
-            {
-                _commandController?.OnBattleCommandRequested(BattleCommand.HudCommandCancelled());
-            };
-            _hudRoot.ConfigureCorpsResolvers(
-                ResolveCorpsLabelForEntity,
-                ResolveCorpsCommandLabelForEntity);
-        }
-
-        if (_intentController != null)
-        {
-            _intentController.Initialize(
-                _unitRoot,
-                _previewController,
-                CreateAiContext,
-                ExecuteActionRequest,
-                () => _turnController?.EvaluateBattleOutcome() == true,
-                text => _hudRoot?.ShowActionHint(text),
-                MarkBattleStateChanged,
-                () => _unitRoot?.UnitMoveDuration ?? 0.28);
-        }
-        else
-        {
-            GameLog.Warn(nameof(WorldSiteRoot), $"Intent controller missing path={IntentControllerPath}");
-        }
-
-        if (_previewController != null)
-        {
-            _previewController.Initialize(
-                _highlightOverlay,
-                _selectionVignetteOverlay,
-                () => _activeGridMap,
-                TryGetMouseGridPosition,
-                GetBattleEntitiesSnapshot,
-                FindEntityAt,
-                BuildBlockedMovementSurfaces,
-                entity => _turnController?.HandleEntityDefeated(entity),
-                CreateAiContext,
-                _intentController == null ? null : _intentController.GetEnemyIntent,
-                text => _hudRoot?.ShowActionHint(text),
-                () => _unitRoot?.HasActiveMovementTweens == true);
-        }
-        else
-        {
-            GameLog.Warn(nameof(WorldSiteRoot), $"Preview controller missing path={PreviewControllerPath}");
-        }
-
-        if (_turnController != null)
-        {
-            _turnController.Initialize(
-                _unitRoot,
-                _commandController,
-                _previewController,
-                GetBattleEntitiesSnapshot,
-                GetAlliedAutoActionOrder,
-                _intentController == null ? null : _intentController.GenerateEnemyIntents,
-                _intentController == null ? null : _intentController.ExecuteEnemyAction,
-                ExecuteAlliedAutoAction,
-                _intentController == null ? null : _intentController.ClearEnemyIntentBookkeeping,
-                MarkBattleStateChanged,
-                text => _hudRoot?.ShowActionHint(text),
-                () => _hudRoot?.ClearActiveCommand(),
-                OnBattleEnded,
-                OnTurnQueueUpdated,
-                (entity, faction, duration) => _unitRoot?.ShowActionCueAsync(entity, faction, duration) ?? System.Threading.Tasks.Task.CompletedTask,
-                entity => _unitRoot?.HideActionCueAsync(entity) ?? System.Threading.Tasks.Task.CompletedTask);
-        }
-        else
-        {
-            GameLog.Warn(nameof(WorldSiteRoot), $"Turn controller missing path={TurnControllerPath}");
-        }
-
-        if (_commandController != null)
-        {
-            _commandController.Initialize(
-                _previewController,
-                () => _turnController?.IsEnemyPhaseRunning == true,
-                () => _activeGridMap,
-                FindEntityAt,
-                ExecuteActionRequest,
-                hint => _turnController?.EndPlayerTurn(hint),
-                CycleCorpsCommandForEntity,
-                () => _turnController?.EvaluateBattleOutcome() == true,
-                ShowBattleEntityInHud,
-                text => _hudRoot?.ShowActionHint(text),
-                () => _hudRoot?.ClearActiveCommand(),
-                () => _hudRoot?.HideSelectedActionMenu(),
-                entity => _turnController?.GetSelectionBlockReason(entity) ?? "",
-                () => _unitRoot?.HasActiveMovementTweens == true);
-
-            if (_inputRouter != null)
-            {
-                _inputRouter.CommandRequested += _commandController.OnBattleCommandRequested;
-            }
-        }
-        else
-        {
-            GameLog.Warn(nameof(WorldSiteRoot), $"Command controller missing path={CommandControllerPath}");
-        }
 
         GameLog.Info(
             nameof(WorldSiteRoot),
-            $"Ready mapRoot={_mapRoot?.GetPath()} unitRoot={_unitRoot?.GetPath()} preview={_previewController != null} highlight={_highlightOverlay != null} hud={_hudRoot != null} input={_inputRouter != null} command={_commandController != null} turn={_turnController != null} intent={_intentController != null}");
+            $"Ready mapRoot={_mapRoot?.GetPath()} unitRoot={_unitRoot?.GetPath()} highlight={_highlightOverlay != null}");
 
         LoadConfiguredSiteMap();
         ApplyBattleStartRequest();
@@ -386,22 +196,32 @@ public partial class WorldSiteRoot : Node2D
 
     public override void _Process(double delta)
     {
-        if (!_battleRuntimeEnabled)
+        WorldSiteRuntimeMode runtimeMode = RuntimeMode;
+        if (runtimeMode == WorldSiteRuntimeMode.Exploration)
         {
             ContinueConfirmedSiteExplorationMoveIfReady();
             UpdateSiteMapEntities();
             return;
         }
 
-        _previewController?.UpdateMovementPathPreview(_commandController?.IsMoveTargeting == true);
-        _previewController?.UpdateAbilityTargetPreview(_commandController?.IsAbilityTargeting == true);
-        _previewController?.UpdateHoverIntentPreview(_commandController?.CanShowHoverIntentPreview == true, _battleStateVersion);
+        if (runtimeMode == WorldSiteRuntimeMode.Management)
+        {
+            UpdateSiteMapEntities();
+            return;
+        }
     }
 
     public override void _Input(InputEvent @event)
     {
-        if (TryHandleSiteExplorationInput(@event))
+        WorldSiteRuntimeMode runtimeMode = RuntimeMode;
+        if (runtimeMode == WorldSiteRuntimeMode.Battle)
         {
+            return;
+        }
+
+        if (runtimeMode == WorldSiteRuntimeMode.Exploration)
+        {
+            TryHandleSiteExplorationInput(@event);
             return;
         }
 
@@ -416,6 +236,20 @@ public partial class WorldSiteRoot : Node2D
         }
 
         HandleSiteDeploymentDragInput(@event);
+    }
+
+    private WorldSiteRuntimeMode ResolveRuntimeMode()
+    {
+        if (_battleRuntimeEnabled)
+        {
+            return WorldSiteRuntimeMode.Battle;
+        }
+
+        WorldSiteState site = ResolveSiteState(_siteHudSiteId);
+        WorldSiteDefinition definition = ResolveSiteDefinition(_siteHudSiteId);
+        return IsSiteExplorationActive(site, definition)
+            ? WorldSiteRuntimeMode.Exploration
+            : WorldSiteRuntimeMode.Management;
     }
 
     public void LoadConfiguredSiteMap()
@@ -529,50 +363,18 @@ public partial class WorldSiteRoot : Node2D
 
     private void RebuildSiteDeploymentRuntimeCache(string siteId)
     {
-        _deploymentCache = null;
+        _deploymentCache = _deploymentCacheBuilder.Build(siteId, _activeGridMap);
         if (_activeGridMap == null)
         {
             GameLog.Warn(nameof(WorldSiteRoot), $"Cannot build site deployment cache site={siteId} reason=grid_missing");
             return;
         }
 
-        GridCellSurface[] surfaces = _activeGridMap.Surfaces.Values
-            .Where(IsDeploymentCandidateSurface)
-            .ToArray();
-        var candidatesByDirection = new Dictionary<WorldSiteAttackDirection, List<WorldSiteDeploymentCell>>();
-        WorldSiteAttackDirection[] directions =
-        {
-            WorldSiteAttackDirection.Any,
-            WorldSiteAttackDirection.North,
-            WorldSiteAttackDirection.South,
-            WorldSiteAttackDirection.West,
-            WorldSiteAttackDirection.East
-        };
-
-        foreach (WorldSiteAttackDirection direction in directions)
-        {
-            candidatesByDirection[direction] = surfaces.Length == 0
-                ? new List<WorldSiteDeploymentCell>()
-                : OrderDeploymentSurfaceCandidates(surfaces, direction)
-                    .Select(surface => new WorldSiteDeploymentCell(
-                        new Vector2I(surface.Position.X, surface.Position.Y),
-                        surface.Height,
-                        surface.TerrainTag ?? "",
-                        BattleRuleQueries.IsWater(surface)))
-                    .ToList();
-        }
-
-        _deploymentCache = new WorldSiteRuntimeDeploymentCache(siteId, candidatesByDirection);
         string counts = string.Join(
             " ",
-            directions.Select(direction => $"{direction}={candidatesByDirection[direction].Count}"));
-        GameLog.Info(nameof(WorldSiteRoot), $"SiteDeploymentCacheBuilt site={siteId} surfaces={surfaces.Length} {counts}");
-    }
-
-    private bool IsDeploymentCandidateSurface(GridCellSurface surface)
-    {
-        return surface is { IsWalkable: true, MoveCost: > 0 } &&
-               _activeGridMap?.IsTopSurface(surface.SurfacePosition) == true;
+            WorldSiteRuntimeDeploymentCacheBuilder.SupportedDirections
+                .Select(direction => $"{direction}={_deploymentCache.GetCandidates(direction).Count}"));
+        GameLog.Info(nameof(WorldSiteRoot), $"SiteDeploymentCacheBuilt site={siteId} surfaces={_deploymentCache.CandidateSurfaceCount} {counts}");
     }
 
     private void ApplyBattleStartRequest()
@@ -580,7 +382,6 @@ public partial class WorldSiteRoot : Node2D
         _battleStartBlockedReason = "";
         if (_unitRoot == null || !BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request))
         {
-            ClearBattleCorpsRuntime();
             return;
         }
 
@@ -594,11 +395,9 @@ public partial class WorldSiteRoot : Node2D
             }
 
             ClearBattleEntities();
-            ClearBattleCorpsRuntime();
             var reservedDeploymentSurfaces = new HashSet<GridSurfacePosition>();
             AddRequestedForces(request.PlayerForces, BattleFaction.Player, request, reservedDeploymentSurfaces);
             AddRequestedForces(request.EnemyForces, BattleFaction.Enemy, request, reservedDeploymentSurfaces);
-            FinalizeBattleCorpsControlOwnership();
         }
 
         if (request.BattleKind == BattleKind.DefenseRaid)
@@ -620,11 +419,67 @@ public partial class WorldSiteRoot : Node2D
             return false;
         }
 
-        PlaceBattleEntitiesOnGrid();
-        RegisterBattleEntities();
-        SetBattleRuntimeEnabled(true);
-        _turnController?.StartBattle();
+        return ActivateAutoBattleRuntime();
+    }
+
+    private bool ActivateAutoBattleRuntime()
+    {
+        if (!_autoBattleAdapter.TryResolveActiveBattle(out WorldSiteAutoBattleResolveResult resolution))
+        {
+            _battleStartBlockedReason = string.IsNullOrWhiteSpace(resolution?.FailureReason)
+                ? "auto_battle_activation_failed"
+                : resolution.FailureReason;
+            GameLog.Warn(nameof(WorldSiteRoot), $"Auto battle activation blocked reason={_battleStartBlockedReason}");
+            SetBattleRuntimeEnabled(false);
+            return false;
+        }
+
+        _lastAutoBattleReport = resolution.Report;
+        WorldActionResult applyResult = ApplyBattleResultToWorld(resolution.Request, resolution.BattleResult);
+        string autoBattleNotice = BuildAutoBattleReturnNotice(applyResult, resolution.Report);
+        if (!string.IsNullOrWhiteSpace(autoBattleNotice))
+        {
+            applyResult ??= new WorldActionResult
+            {
+                Success = true,
+                ActionId = "battle_result"
+            };
+            applyResult.Message = autoBattleNotice;
+            StrategicWorldRuntime.LastNotice = autoBattleNotice;
+        }
+
+        ReconcileWorldSitePlacementsAfterBattle(
+            resolution.Request,
+            System.Array.Empty<WorldSiteLivePlacementSnapshot>(),
+            resolution.BattleResult.Outcome);
+        ClearBattleEntities();
+        SetBattleRuntimeEnabled(false);
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"Auto battle resolved request={resolution.Request?.RequestId ?? ""} outcome={resolution.BattleResult?.Outcome} reportEvents={resolution.Report?.EventFeed.Count ?? 0} failure={resolution.Report?.TopFailureReason ?? ""}");
+        SwitchToNonBattleUi(
+            resolution.BattleResult.Outcome,
+            resolution.Request,
+            applyResult,
+            resolution.Request?.ReturnScenePath ?? "");
         return true;
+    }
+
+    private string BuildAutoBattleReturnNotice(WorldActionResult applyResult, AutoBattleReport report)
+    {
+        string worldMessage = applyResult?.Message?.Trim() ?? "";
+        string reportSummary = _autoBattleReportSummaryFormatter.Format(report).Trim();
+        if (string.IsNullOrWhiteSpace(reportSummary))
+        {
+            return worldMessage;
+        }
+
+        if (string.IsNullOrWhiteSpace(worldMessage))
+        {
+            return reportSummary;
+        }
+
+        return $"{worldMessage}\n{reportSummary}";
     }
 
     private bool EnsureBattleRequestSiteDeployments(BattleStartRequest request)
@@ -666,76 +521,15 @@ public partial class WorldSiteRoot : Node2D
             return false;
         }
 
-        _deploymentService.EnsureGarrisonPlacements(site, siteDefinition);
-        bool success = EnsureSitePlacementsRespectTerrain(site, siteDefinition);
-
-        foreach (BattleForceRequest force in request.PlayerForces)
-        {
-            success &= EnsureForceWorldSitePlacement(request, force, BattleFaction.Player, site);
-        }
-
-        foreach (BattleForceRequest force in request.EnemyForces)
-        {
-            success &= EnsureForceWorldSitePlacement(request, force, BattleFaction.Enemy, site);
-        }
-
-        success &= ApplyPreferredPlacementsFromWorldSite(site, siteDefinition, request.PlayerForces);
-        success &= ApplyPreferredPlacementsFromWorldSite(site, siteDefinition, request.EnemyForces);
-        GameLog.Info(
-            nameof(WorldSiteRoot),
-            $"BattleDeploymentsPreparedFromWorldSite site={site.SiteId} request={request.RequestId} placements={site.UnitPlacements.Count} playerForces={request.PlayerForces.Count} enemyForces={request.EnemyForces.Count}");
-        return success;
-    }
-
-    private bool EnsureForceWorldSitePlacement(
-        BattleStartRequest request,
-        BattleForceRequest force,
-        BattleFaction fallbackFaction,
-        WorldSiteState site)
-    {
-        if (force == null || force.Count <= 0 || IsResidentWorldSiteForceForSite(force, site))
-        {
-            return true;
-        }
-
-        WorldSiteAttackDirection desiredDirection = ResolveForceDeploymentDirection(request, force, fallbackFaction);
-        BattleEntranceRequest entrance = ResolveForceEntrance(request, force, desiredDirection);
-        WorldSiteAttackDirection deploymentDirection = entrance != null && entrance.Direction != WorldSiteAttackDirection.Any
-            ? entrance.Direction
-            : desiredDirection;
-        string entranceId = entrance?.EntranceId ?? force.PreferredEntranceId ?? "";
-        if (!string.IsNullOrWhiteSpace(entranceId))
-        {
-            force.PreferredEntranceId = entranceId;
-        }
-
-        WorldSiteUnitPlacementKind placementKind = request.BattleKind == BattleKind.FieldIntercept
-            ? WorldSiteUnitPlacementKind.FieldArmy
-            : IsAttackingForce(request, force, fallbackFaction)
-                ? WorldSiteUnitPlacementKind.Attacker
-                : WorldSiteUnitPlacementKind.Defender;
-        bool canEnterWater = ResolveForceCanEnterWater(force);
-        IReadOnlyList<WorldSiteDeploymentCell> candidates = (_deploymentCache?.GetCandidates(deploymentDirection) ??
-                                                            System.Array.Empty<WorldSiteDeploymentCell>())
-            .Where(candidate => CanUseDeploymentCell(candidate, canEnterWater))
-            .ToArray();
-        if (!_deploymentService.EnsureBattlePlacementsForForce(
-                site,
-                force,
-                placementKind,
-                deploymentDirection,
-                candidates,
-                request.ThreatId,
-                entranceId,
-                out string failureReason))
-        {
-            GameLog.Error(
-                nameof(WorldSiteRoot),
-                $"BattleDeploymentPrepareFailed site={site?.SiteId ?? ""} request={request.RequestId} force={force.ForceId} unit={force.UnitDefinitionId} reason={failureReason} direction={deploymentDirection} entrance={entranceId} canEnterWater={canEnterWater}");
-            return false;
-        }
-
-        return true;
+        return _battleDeploymentPreparer.Prepare(
+            request,
+            site,
+            siteDefinition,
+            _deploymentCache,
+            _activeGridMap,
+            ResolveForceCanEnterWater,
+            ResolvePlacementCanEnterWater,
+            out _);
     }
 
     private bool ResolveForceCanEnterWater(BattleForceRequest force)
@@ -753,64 +547,6 @@ public partial class WorldSiteRoot : Node2D
         return canEnterWater || !candidate.IsWater;
     }
 
-    private bool ApplyPreferredPlacementsFromWorldSite(
-        WorldSiteState site,
-        WorldSiteDefinition definition,
-        IEnumerable<BattleForceRequest> forces)
-    {
-        if (site == null || forces == null)
-        {
-            return false;
-        }
-
-        bool success = true;
-        foreach (BattleForceRequest force in forces)
-        {
-            if (force == null || force.Count <= 0)
-            {
-                continue;
-            }
-
-            bool canEnterWater = ResolveForceCanEnterWater(force);
-            WorldSiteUnitPlacement[] placements = ResolveWorldSitePlacementsForForce(site, force)
-                .OrderBy(placement => placement.UnitIndex)
-                .ThenBy(placement => placement.PlacementId)
-                .Take(force.Count)
-                .ToArray();
-            force.PreferredPlacements.Clear();
-            foreach (WorldSiteUnitPlacement placement in placements)
-            {
-                if (!CanUsePlacement(placement, canEnterWater) &&
-                    !TryRelocatePlacementForTerrain(site, definition, placement, canEnterWater, out string failureReason))
-                {
-                    success = false;
-                    GameLog.Error(
-                        nameof(WorldSiteRoot),
-                        $"BattleForcePlacementInvalidTerrain site={site.SiteId} force={force.ForceId} unit={force.UnitDefinitionId} placement={placement.PlacementId} cell=({placement.CellX},{placement.CellY},h={placement.CellHeight}) terrain={GetPlacementTerrainTag(placement)} canEnterWater={canEnterWater} reason={failureReason}");
-                    continue;
-                }
-
-                force.PreferredPlacements.Add(new BattleForcePlacementRequest
-                {
-                    PlacementId = placement.PlacementId,
-                    CellX = placement.CellX,
-                    CellY = placement.CellY,
-                    CellHeight = placement.CellHeight
-                });
-            }
-
-            if (force.PreferredPlacements.Count < force.Count)
-            {
-                success = false;
-                GameLog.Error(
-                    nameof(WorldSiteRoot),
-                    $"BattleForceMissingWorldSitePlacements site={site.SiteId} force={force.ForceId} unit={force.UnitDefinitionId} expected={force.Count} actual={force.PreferredPlacements.Count}");
-            }
-        }
-
-        return success;
-    }
-
     private bool EnsureSitePlacementsRespectTerrain(WorldSiteState site, WorldSiteDefinition definition)
     {
         if (site == null || definition == null)
@@ -823,42 +559,13 @@ public partial class WorldSiteRoot : Node2D
             RebuildSiteDeploymentRuntimeCache(site.SiteId);
         }
 
-        bool success = true;
-        int relocated = 0;
-        int heightSynced = 0;
-        foreach (WorldSiteUnitPlacement placement in site.UnitPlacements.ToArray())
-        {
-            bool canEnterWater = ResolvePlacementCanEnterWater(placement);
-            if (CanUsePlacementSurface(placement, canEnterWater, out string failureReason))
-            {
-                if (TrySyncPlacementSurfaceHeight(placement))
-                {
-                    heightSynced++;
-                }
-
-                continue;
-            }
-
-            if (TryRelocatePlacementForTerrain(site, definition, placement, canEnterWater, out failureReason))
-            {
-                relocated++;
-                continue;
-            }
-
-            success = false;
-            GameLog.Error(
-                nameof(WorldSiteRoot),
-                $"WorldSitePlacementInvalidTerrain site={site.SiteId} placement={placement.PlacementId} unit={placement.UnitTypeId} cell=({placement.CellX},{placement.CellY},h={placement.CellHeight}) terrain={GetPlacementTerrainTag(placement)} canEnterWater={canEnterWater} reason={failureReason}");
-        }
-
-        if (relocated > 0 || heightSynced > 0)
-        {
-            GameLog.Info(
-                nameof(WorldSiteRoot),
-                $"WorldSitePlacementsTerrainReconciled site={site.SiteId} relocated={relocated} heightSynced={heightSynced}");
-        }
-
-        return success;
+        WorldSiteDeploymentTerrainReconcileResult result = _deploymentTerrainReconciler.Reconcile(
+            _activeGridMap,
+            _deploymentCache,
+            site,
+            definition,
+            ResolvePlacementCanEnterWater);
+        return result.Success;
     }
 
     private bool ResolvePlacementCanEnterWater(WorldSiteUnitPlacement placement)
@@ -869,351 +576,6 @@ public partial class WorldSiteRoot : Node2D
         }
 
         return definition.CanEnterWater;
-    }
-
-    private bool TrySyncPlacementSurfaceHeight(WorldSiteUnitPlacement placement)
-    {
-        if (placement == null || !TryGetPlacementSurface(placement, out GridCellSurface surface))
-        {
-            return false;
-        }
-
-        if (placement.CellHeight == surface.Height)
-        {
-            return false;
-        }
-
-        placement.CellHeight = surface.Height;
-        return true;
-    }
-
-    private bool CanUsePlacement(WorldSiteUnitPlacement placement, bool canEnterWater)
-    {
-        return CanUsePlacementSurface(placement, canEnterWater, out _);
-    }
-
-    private bool CanUsePlacementSurface(WorldSiteUnitPlacement placement, bool canEnterWater, out string failureReason)
-    {
-        failureReason = "";
-        if (placement == null)
-        {
-            failureReason = "missing_placement";
-            return false;
-        }
-
-        if (_activeGridMap == null)
-        {
-            return true;
-        }
-
-        if (!TryGetPlacementSurface(placement, out GridCellSurface surface))
-        {
-            failureReason = "placement_surface_missing";
-            return false;
-        }
-
-        if (!IsDeploymentCandidateSurface(surface))
-        {
-            failureReason = "placement_surface_blocked";
-            return false;
-        }
-
-        if (!canEnterWater && BattleRuleQueries.IsWater(surface))
-        {
-            failureReason = "placement_surface_water";
-            return false;
-        }
-
-        return true;
-    }
-
-    private bool TryRelocatePlacementForTerrain(
-        WorldSiteState site,
-        WorldSiteDefinition definition,
-        WorldSiteUnitPlacement placement,
-        bool canEnterWater,
-        out string failureReason)
-    {
-        failureReason = "";
-        if (site == null || placement == null || _deploymentCache == null)
-        {
-            failureReason = "deployment_cache_missing";
-            return false;
-        }
-
-        IReadOnlyList<WorldSiteDeploymentCell> candidates = BuildRelocationCandidates(definition, placement, canEnterWater);
-        foreach (WorldSiteDeploymentCell candidate in candidates)
-        {
-            if (IsDeploymentCandidateOccupied(site, candidate, placement.PlacementId))
-            {
-                continue;
-            }
-
-            Vector2I oldCell = new(placement.CellX, placement.CellY);
-            int oldHeight = placement.CellHeight;
-            placement.CellX = candidate.Cell.X;
-            placement.CellY = candidate.Cell.Y;
-            placement.CellHeight = candidate.Height;
-            GameLog.Warn(
-                nameof(WorldSiteRoot),
-                $"WorldSitePlacementRelocatedForTerrain site={site.SiteId} placement={placement.PlacementId} unit={placement.UnitTypeId} from=({oldCell.X},{oldCell.Y},h={oldHeight}) to=({placement.CellX},{placement.CellY},h={placement.CellHeight}) terrain={candidate.TerrainTag} isWater={candidate.IsWater}");
-            return true;
-        }
-
-        failureReason = "non_water_deployment_cell_unavailable";
-        return false;
-    }
-
-    private string GetPlacementTerrainTag(WorldSiteUnitPlacement placement)
-    {
-        if (TryGetPlacementSurface(placement, out GridCellSurface surface))
-        {
-            return surface.TerrainTag ?? "";
-        }
-
-        return TryGetDeploymentCellForPlacement(placement, out WorldSiteDeploymentCell cell)
-            ? cell.TerrainTag ?? ""
-            : "";
-    }
-
-    private IReadOnlyList<WorldSiteDeploymentCell> BuildRelocationCandidates(
-        WorldSiteDefinition definition,
-        WorldSiteUnitPlacement placement,
-        bool canEnterWater)
-    {
-        var result = new List<WorldSiteDeploymentCell>();
-        var seen = new HashSet<GridSurfacePosition>();
-        AddZoneRelocationCandidates(definition, placement, canEnterWater, result, seen);
-
-        WorldSiteAttackDirection direction = placement.AttackDirection == WorldSiteAttackDirection.Any
-            ? WorldSiteAttackDirection.Any
-            : placement.AttackDirection;
-        foreach (WorldSiteDeploymentCell candidate in _deploymentCache.GetCandidates(direction))
-        {
-            if (!CanUseDeploymentCell(candidate, canEnterWater))
-            {
-                continue;
-            }
-
-            var surfacePosition = new GridSurfacePosition(new GridPosition(candidate.Cell.X, candidate.Cell.Y), candidate.Height);
-            if (seen.Add(surfacePosition))
-            {
-                result.Add(candidate);
-            }
-        }
-
-        return result;
-    }
-
-    private void AddZoneRelocationCandidates(
-        WorldSiteDefinition definition,
-        WorldSiteUnitPlacement placement,
-        bool canEnterWater,
-        List<WorldSiteDeploymentCell> result,
-        HashSet<GridSurfacePosition> seen)
-    {
-        if (definition == null || placement == null || _activeGridMap == null)
-        {
-            return;
-        }
-
-        SiteDeploymentZoneDefinition zone = definition.DeploymentZones.FirstOrDefault(item => item.ZoneId == placement.ZoneId) ??
-                                            _deploymentService.GetDefaultGarrisonZone(definition);
-        if (zone?.Cells == null || zone.Cells.Count == 0)
-        {
-            return;
-        }
-
-        foreach (Vector2I cell in zone.Cells)
-        {
-            var position = new GridPosition(cell.X, cell.Y);
-            if (!_activeGridMap.TryGetTopSurface(position, out GridCellSurface surface) ||
-                !IsDeploymentCandidateSurface(surface))
-            {
-                continue;
-            }
-
-            var candidate = new WorldSiteDeploymentCell(
-                new Vector2I(surface.Position.X, surface.Position.Y),
-                surface.Height,
-                surface.TerrainTag ?? "",
-                BattleRuleQueries.IsWater(surface));
-            if (!CanUseDeploymentCell(candidate, canEnterWater))
-            {
-                continue;
-            }
-
-            if (seen.Add(surface.SurfacePosition))
-            {
-                result.Add(candidate);
-            }
-        }
-    }
-
-    private bool TryGetPlacementSurface(WorldSiteUnitPlacement placement, out GridCellSurface surface)
-    {
-        surface = null;
-        if (placement == null || _activeGridMap == null)
-        {
-            return false;
-        }
-
-        var position = new GridPosition(placement.CellX, placement.CellY);
-        if (placement.CellHeight == 0 && _activeGridMap.TryGetTopSurface(position, out surface))
-        {
-            return true;
-        }
-
-        if (_activeGridMap.TryGetSurface(new GridSurfacePosition(position, placement.CellHeight), out surface))
-        {
-            return true;
-        }
-
-        return _activeGridMap.TryGetTopSurface(position, out surface);
-    }
-
-    private bool TryGetDeploymentCellForPlacement(WorldSiteUnitPlacement placement, out WorldSiteDeploymentCell cell)
-    {
-        cell = default;
-        if (placement == null || _deploymentCache == null)
-        {
-            return false;
-        }
-
-        foreach (WorldSiteDeploymentCell candidate in _deploymentCache.CandidatesByDirection.Values.SelectMany(candidates => candidates))
-        {
-            if (candidate.Cell.X == placement.CellX &&
-                candidate.Cell.Y == placement.CellY &&
-                candidate.Height == placement.CellHeight)
-            {
-                cell = candidate;
-                return true;
-            }
-        }
-
-        foreach (WorldSiteDeploymentCell candidate in _deploymentCache.CandidatesByDirection.Values.SelectMany(candidates => candidates))
-        {
-            if (candidate.Cell.X == placement.CellX &&
-                candidate.Cell.Y == placement.CellY)
-            {
-                cell = candidate;
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static bool IsDeploymentCandidateOccupied(
-        WorldSiteState site,
-        WorldSiteDeploymentCell candidate,
-        string ignorePlacementId)
-    {
-        return site.UnitPlacements.Any(placement =>
-            placement.PlacementId != ignorePlacementId &&
-            placement.CellX == candidate.Cell.X &&
-            placement.CellY == candidate.Cell.Y);
-    }
-
-    private static IEnumerable<WorldSiteUnitPlacement> ResolveWorldSitePlacementsForForce(
-        WorldSiteState site,
-        BattleForceRequest force)
-    {
-        if (IsResidentGarrisonForceForSite(force, site.SiteId))
-        {
-            return site.UnitPlacements.Where(placement =>
-                WorldSiteDeploymentService.IsGarrisonPlacement(placement) &&
-                placement.UnitTypeId == force.UnitDefinitionId);
-        }
-
-        if (IsResidentSitePlacementForce(force, site))
-        {
-            return site.UnitPlacements.Where(placement =>
-                placement.PlacementId == force.SourceId &&
-                placement.UnitTypeId == force.UnitDefinitionId);
-        }
-
-        if (IsResidentPlayerArmySiteForce(force, site))
-        {
-            return site.UnitPlacements.Where(placement =>
-                IsPlayerArmySitePlacement(placement) &&
-                placement.SourceId == force.SourceId &&
-                placement.UnitTypeId == force.UnitDefinitionId);
-        }
-
-        string sourceKind = ResolveForceSourceKind(force);
-        string sourceId = ResolveForceSourceId(force);
-        return site.UnitPlacements.Where(placement =>
-            !WorldSiteDeploymentService.IsGarrisonPlacement(placement) &&
-            placement.UnitTypeId == force.UnitDefinitionId &&
-            placement.SourceKind == sourceKind &&
-            placement.SourceId == sourceId);
-    }
-
-    private static IEnumerable<BattleForceRequest> EnumerateRequestForces(BattleStartRequest request)
-    {
-        if (request == null)
-        {
-            return System.Array.Empty<BattleForceRequest>();
-        }
-
-        return (request.PlayerForces ?? new List<BattleForceRequest>())
-            .Concat(request.EnemyForces ?? new List<BattleForceRequest>());
-    }
-
-    private static bool IsResidentGarrisonForceForSite(BattleForceRequest force, string siteId)
-    {
-        if (force == null || string.IsNullOrWhiteSpace(siteId))
-        {
-            return false;
-        }
-
-        return (force.SourceKind == "Garrison" || force.SourceKind == "DefenderSite") &&
-               force.SourceId == siteId;
-    }
-
-    private static bool IsResidentWorldSiteForceForSite(BattleForceRequest force, WorldSiteState site)
-    {
-        return site != null &&
-               (IsResidentGarrisonForceForSite(force, site.SiteId) ||
-                IsResidentSitePlacementForce(force, site) ||
-                IsResidentPlayerArmySiteForce(force, site));
-    }
-
-    private static bool IsResidentSitePlacementForce(BattleForceRequest force, WorldSiteState site)
-    {
-        return force != null &&
-               site != null &&
-               force.SourceKind == "SitePlacement" &&
-               !string.IsNullOrWhiteSpace(force.SourceId) &&
-               site.UnitPlacements.Any(placement =>
-                   placement.PlacementId == force.SourceId &&
-                   placement.UnitTypeId == force.UnitDefinitionId);
-    }
-
-    private static string ResolveForceSourceKind(BattleForceRequest force)
-    {
-        return string.IsNullOrWhiteSpace(force?.SourceKind) ? "BattleForce" : force.SourceKind;
-    }
-
-    private static string ResolveForceSourceId(BattleForceRequest force)
-    {
-        if (force == null)
-        {
-            return "";
-        }
-
-        if (!string.IsNullOrWhiteSpace(force.SourceId))
-        {
-            return force.SourceId;
-        }
-
-        if (!string.IsNullOrWhiteSpace(force.ForceId))
-        {
-            return force.ForceId;
-        }
-
-        return force.UnitDefinitionId ?? "";
     }
 
     private void AddRequestedForces(
@@ -1228,10 +590,6 @@ public partial class WorldSiteRoot : Node2D
             {
                 continue;
             }
-
-            string corpsId = BuildCorpsId(force, fallbackFaction);
-            string corpsDisplayName = BuildCorpsDisplayName(force, fallbackFaction);
-            BattleUnitControlMode defaultControlMode = ResolveForceControlMode(force, fallbackFaction);
 
             for (int i = 0; i < force.Count; i++)
             {
@@ -1256,285 +614,10 @@ public partial class WorldSiteRoot : Node2D
 
                 ApplyBattleRequestDeployment(entity, force, i, fallbackFaction, request, reservedDeploymentSurfaces);
                 _unitRoot.AddChild(entity);
-                RegisterBattleCorpsEntity(entity, corpsId, corpsDisplayName, fallbackFaction, defaultControlMode);
             }
         }
     }
 
-    private void ClearBattleCorpsRuntime()
-    {
-        _battleCorpsStates.Clear();
-        _battleEntityToCorpsId.Clear();
-        _battleEntityControlModes.Clear();
-    }
-
-    private BattleUnitControlMode ResolveForceControlMode(BattleForceRequest force, BattleFaction fallbackFaction)
-    {
-        if (_battleUnitFactory.TryGetUnitDefinition(force?.UnitDefinitionId, out BattleUnitDefinition definition))
-        {
-            return definition.ControlMode;
-        }
-
-        return fallbackFaction == BattleFaction.Player
-            ? BattleUnitControlMode.AutoByFaction
-            : BattleUnitControlMode.Ai;
-    }
-
-    private void RegisterBattleCorpsEntity(
-        BattleEntity entity,
-        string corpsId,
-        string corpsDisplayName,
-        BattleFaction fallbackFaction,
-        BattleUnitControlMode defaultControlMode)
-    {
-        if (entity == null || string.IsNullOrWhiteSpace(entity.EntityId))
-        {
-            return;
-        }
-
-        if (!_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState))
-        {
-            corpsState = new BattleCorpsRuntimeState
-            {
-                CorpsId = corpsId,
-                DisplayName = corpsDisplayName,
-                Faction = fallbackFaction,
-                Command = fallbackFaction == BattleFaction.Player
-                    ? BattleCorpsCommand.Assault
-                    : BattleCorpsCommand.HoldLine
-            };
-            _battleCorpsStates[corpsId] = corpsState;
-        }
-
-        if (!corpsState.MemberEntityIds.Contains(entity.EntityId))
-        {
-            corpsState.MemberEntityIds.Add(entity.EntityId);
-        }
-
-        _battleEntityToCorpsId[entity.EntityId] = corpsId;
-        _battleEntityControlModes[entity.EntityId] = defaultControlMode;
-    }
-
-    private static string BuildCorpsId(BattleForceRequest force, BattleFaction fallbackFaction)
-    {
-        string side = fallbackFaction.ToString().ToLowerInvariant();
-        string sourceKind = ResolveForceSourceKind(force);
-        string sourceId = ResolveForceSourceId(force);
-        if (string.IsNullOrWhiteSpace(sourceId))
-        {
-            sourceId = force?.ForceId;
-        }
-
-        if (string.IsNullOrWhiteSpace(sourceId))
-        {
-            sourceId = force?.UnitDefinitionId;
-        }
-
-        return $"{side}:{sourceKind}:{sourceId}";
-    }
-
-    private static string BuildCorpsDisplayName(BattleForceRequest force, BattleFaction fallbackFaction)
-    {
-        string sideLabel = fallbackFaction == BattleFaction.Player ? "我方" : "敌方";
-        string sourceKind = ResolveForceSourceKind(force);
-        string roleLabel = sourceKind switch
-        {
-            "PlayerArmy" => "主力",
-            "SourceSite" => "驻地",
-            "DefenderSite" or "Garrison" => "守备",
-            "ThreatArmy" or "EnemyArmy" or "ThreatRule" => "袭击",
-            _ => sourceKind
-        };
-        return $"{sideLabel}{roleLabel}";
-    }
-
-    private void FinalizeBattleCorpsControlOwnership()
-    {
-        IReadOnlyList<BattleEntity> snapshot = _unitRoot?.GetEntitiesSnapshot() ?? System.Array.Empty<BattleEntity>();
-        Dictionary<string, BattleEntity> entitiesById = snapshot
-            .Where(entity => entity != null && !string.IsNullOrWhiteSpace(entity.EntityId))
-            .GroupBy(entity => entity.EntityId)
-            .ToDictionary(group => group.Key, group => group.First(), System.StringComparer.Ordinal);
-
-        foreach (BattleCorpsRuntimeState corpsState in _battleCorpsStates.Values.Where(state => state.Faction == BattleFaction.Player))
-        {
-            corpsState.CommanderEntityId = "";
-            bool commanderAssigned = false;
-            foreach (string memberEntityId in corpsState.MemberEntityIds)
-            {
-                if (!entitiesById.TryGetValue(memberEntityId, out BattleEntity entity))
-                {
-                    continue;
-                }
-
-                BattleUnitControlMode controlMode = _battleEntityControlModes.TryGetValue(memberEntityId, out BattleUnitControlMode configuredControlMode)
-                    ? configuredControlMode
-                    : BattleUnitControlMode.AutoByFaction;
-
-                bool selectable = controlMode switch
-                {
-                    BattleUnitControlMode.Player => true,
-                    BattleUnitControlMode.Ai => false,
-                    BattleUnitControlMode.Passive => false,
-                    _ => !commanderAssigned
-                };
-
-                if (selectable && !commanderAssigned)
-                {
-                    commanderAssigned = true;
-                    corpsState.CommanderEntityId = memberEntityId;
-                }
-
-                SetEntitySelectable(entity, selectable);
-            }
-        }
-    }
-
-    private static void SetEntitySelectable(BattleEntity entity, bool selectable)
-    {
-        SelectableComponent selectableComponent = entity?.GetComponent<SelectableComponent>();
-        if (selectableComponent != null)
-        {
-            selectableComponent.IsSelectable = selectable;
-        }
-    }
-
-    private IReadOnlyList<BattleEntity> GetAlliedAutoActionOrder()
-    {
-        IReadOnlyList<BattleEntity> snapshot = GetBattleEntitiesSnapshot();
-        var entitiesById = snapshot
-            .Where(entity => entity != null && !string.IsNullOrWhiteSpace(entity.EntityId))
-            .GroupBy(entity => entity.EntityId)
-            .ToDictionary(group => group.Key, group => group.First(), System.StringComparer.Ordinal);
-        var result = new List<BattleEntity>();
-        var includedEntityIds = new HashSet<string>(System.StringComparer.Ordinal);
-
-        foreach (BattleCorpsRuntimeState corpsState in _battleCorpsStates.Values
-                     .Where(state => state.Faction == BattleFaction.Player)
-                     .OrderBy(state => state.CorpsId))
-        {
-            foreach (string memberEntityId in corpsState.MemberEntityIds)
-            {
-                if (!entitiesById.TryGetValue(memberEntityId, out BattleEntity entity) ||
-                    !IsAutoControlledPlayerEntity(entity) ||
-                    !includedEntityIds.Add(memberEntityId))
-                {
-                    continue;
-                }
-
-                result.Add(entity);
-            }
-        }
-
-        foreach (BattleEntity entity in snapshot.Where(IsAutoControlledPlayerEntity))
-        {
-            if (string.IsNullOrWhiteSpace(entity.EntityId) ||
-                !includedEntityIds.Add(entity.EntityId))
-            {
-                continue;
-            }
-
-            result.Add(entity);
-        }
-
-        return result;
-    }
-
-    private bool IsAutoControlledPlayerEntity(BattleEntity entity)
-    {
-        if (entity == null ||
-            BattleRuleQueries.IsDefeated(entity) ||
-            entity.GetComponent<FactionComponent>()?.Faction != BattleFaction.Player ||
-            entity.GetComponent<SelectableComponent>() is not { IsSelectable: false })
-        {
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(entity.EntityId))
-        {
-            return true;
-        }
-
-        BattleUnitControlMode controlMode = _battleEntityControlModes.TryGetValue(entity.EntityId, out BattleUnitControlMode configuredControlMode)
-            ? configuredControlMode
-            : BattleUnitControlMode.AutoByFaction;
-        return controlMode != BattleUnitControlMode.Passive;
-    }
-
-    private string ResolveCorpsLabelForEntity(BattleEntity entity)
-    {
-        if (entity == null ||
-            string.IsNullOrWhiteSpace(entity.EntityId) ||
-            !_battleEntityToCorpsId.TryGetValue(entity.EntityId, out string corpsId) ||
-            !_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState))
-        {
-            return "";
-        }
-
-        return corpsState.DisplayName ?? "";
-    }
-
-    private string ResolveCorpsCommandLabelForEntity(BattleEntity entity)
-    {
-        if (entity == null ||
-            entity.GetComponent<FactionComponent>()?.Faction != BattleFaction.Player ||
-            entity.GetComponent<SelectableComponent>() is not { IsSelectable: true } ||
-            string.IsNullOrWhiteSpace(entity.EntityId) ||
-            !_battleEntityToCorpsId.TryGetValue(entity.EntityId, out string corpsId) ||
-            !_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState) ||
-            corpsState.Faction != BattleFaction.Player)
-        {
-            return "";
-        }
-
-        return BattleCorpsCommandLabels.ToDisplayText(corpsState.Command);
-    }
-
-    private string CycleCorpsCommandForEntity(BattleEntity entity)
-    {
-        if (entity == null ||
-            string.IsNullOrWhiteSpace(entity.EntityId) ||
-            !_battleEntityToCorpsId.TryGetValue(entity.EntityId, out string corpsId) ||
-            !_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState) ||
-            corpsState.Faction != BattleFaction.Player)
-        {
-            return "该单位没有可用兵团指令";
-        }
-
-        corpsState.Command = BattleCorpsCommandLabels.Next(corpsState.Command);
-        string commandLabel = BattleCorpsCommandLabels.ToDisplayText(corpsState.Command);
-        return $"{corpsState.DisplayName} 指令 -> {commandLabel}";
-    }
-
-    private BattleCorpsCommand ResolveCorpsCommandForEntity(BattleEntity entity)
-    {
-        if (entity == null ||
-            string.IsNullOrWhiteSpace(entity.EntityId) ||
-            !_battleEntityToCorpsId.TryGetValue(entity.EntityId, out string corpsId) ||
-            !_battleCorpsStates.TryGetValue(corpsId, out BattleCorpsRuntimeState corpsState))
-        {
-            return BattleCorpsCommand.Assault;
-        }
-
-        return corpsState.Command;
-    }
-
-    private System.Threading.Tasks.Task ExecuteAlliedAutoAction(BattleEntity entity)
-    {
-        if (_intentController == null || entity == null)
-        {
-            return System.Threading.Tasks.Task.CompletedTask;
-        }
-
-        BattleCorpsCommand command = ResolveCorpsCommandForEntity(entity);
-        string corpsLabel = ResolveCorpsLabelForEntity(entity);
-        if (string.IsNullOrWhiteSpace(corpsLabel))
-        {
-            corpsLabel = "我方兵团";
-        }
-
-        return _intentController.ExecuteAlliedAutoAction(entity, command, corpsLabel);
-    }
 
     private void ApplyBattleRequestDeployment(
         BattleEntity entity,
@@ -1582,7 +665,6 @@ public partial class WorldSiteRoot : Node2D
     {
         if (_unitRoot == null)
         {
-            ClearBattleCorpsRuntime();
             return;
         }
 
@@ -1592,156 +674,6 @@ public partial class WorldSiteRoot : Node2D
             entity.QueueFree();
         }
 
-        ClearBattleCorpsRuntime();
-    }
-
-    private static WorldSiteAttackDirection ResolveForceDeploymentDirection(
-        BattleStartRequest request,
-        BattleForceRequest force,
-        BattleFaction fallbackFaction)
-    {
-        WorldSiteAttackDirection attackDirection = request?.AttackDirection ?? WorldSiteAttackDirection.Any;
-        if (attackDirection == WorldSiteAttackDirection.Any)
-        {
-            return WorldSiteAttackDirection.Any;
-        }
-
-        return IsAttackingForce(request, force, fallbackFaction)
-            ? attackDirection
-            : GetOppositeDirection(attackDirection);
-    }
-
-    private static bool IsAttackingForce(
-        BattleStartRequest request,
-        BattleForceRequest force,
-        BattleFaction fallbackFaction)
-    {
-        if (request != null &&
-            !string.IsNullOrWhiteSpace(force?.FactionId) &&
-            !string.IsNullOrWhiteSpace(request.AttackerFactionId))
-        {
-            return force.FactionId == request.AttackerFactionId;
-        }
-
-        return request?.BattleKind switch
-        {
-            BattleKind.AssaultSite => fallbackFaction == BattleFaction.Player,
-            BattleKind.DefenseRaid => fallbackFaction == BattleFaction.Enemy,
-            BattleKind.FieldIntercept => fallbackFaction == BattleFaction.Player,
-            _ => fallbackFaction == BattleFaction.Enemy
-        };
-    }
-
-    private static WorldSiteAttackDirection GetOppositeDirection(WorldSiteAttackDirection direction)
-    {
-        return direction switch
-        {
-            WorldSiteAttackDirection.North => WorldSiteAttackDirection.South,
-            WorldSiteAttackDirection.South => WorldSiteAttackDirection.North,
-            WorldSiteAttackDirection.West => WorldSiteAttackDirection.East,
-            WorldSiteAttackDirection.East => WorldSiteAttackDirection.West,
-            _ => WorldSiteAttackDirection.Any
-        };
-    }
-
-    private static BattleEntranceRequest ResolveForceEntrance(
-        BattleStartRequest request,
-        BattleForceRequest force,
-        WorldSiteAttackDirection desiredDirection)
-    {
-        if (request?.AvailableEntrances == null || request.AvailableEntrances.Count == 0)
-        {
-            return null;
-        }
-
-        BattleEntranceRequest[] candidates = request.AvailableEntrances
-            .Where(entrance => IsEntranceForForce(entrance, force))
-            .ToArray();
-        if (candidates.Length == 0)
-        {
-            return null;
-        }
-
-        if (!string.IsNullOrWhiteSpace(force?.PreferredEntranceId))
-        {
-            BattleEntranceRequest preferred = candidates.FirstOrDefault(entrance => entrance.EntranceId == force.PreferredEntranceId);
-            if (preferred != null)
-            {
-                return preferred;
-            }
-        }
-
-        if (desiredDirection != WorldSiteAttackDirection.Any)
-        {
-            BattleEntranceRequest exact = candidates.FirstOrDefault(entrance => entrance.Direction == desiredDirection);
-            if (exact != null)
-            {
-                return exact;
-            }
-        }
-
-        BattleEntranceRequest anyEntrance = candidates.FirstOrDefault(entrance => entrance.Direction == WorldSiteAttackDirection.Any);
-        if (anyEntrance != null)
-        {
-            return anyEntrance;
-        }
-
-        return desiredDirection == WorldSiteAttackDirection.Any
-            ? candidates.FirstOrDefault()
-            : null;
-    }
-
-    private static bool IsEntranceForForce(BattleEntranceRequest entrance, BattleForceRequest force)
-    {
-        if (entrance == null)
-        {
-            return false;
-        }
-
-        return string.IsNullOrWhiteSpace(entrance.FactionId) ||
-               string.IsNullOrWhiteSpace(force?.FactionId) ||
-               entrance.FactionId == force.FactionId;
-    }
-
-    private static IEnumerable<GridCellSurface> OrderDeploymentSurfaceCandidates(
-        IReadOnlyCollection<GridCellSurface> candidates,
-        WorldSiteAttackDirection direction)
-    {
-        int minX = candidates.Min(surface => surface.Position.X);
-        int maxX = candidates.Max(surface => surface.Position.X);
-        int minY = candidates.Min(surface => surface.Position.Y);
-        int maxY = candidates.Max(surface => surface.Position.Y);
-        float centerX = (minX + maxX) / 2f;
-        float centerY = (minY + maxY) / 2f;
-
-        return direction switch
-        {
-            WorldSiteAttackDirection.North => candidates
-                .OrderBy(surface => surface.Position.Y)
-                .ThenBy(surface => System.Math.Abs(surface.Position.X - centerX))
-                .ThenBy(surface => surface.Position.X)
-                .ThenBy(surface => surface.Height),
-            WorldSiteAttackDirection.South => candidates
-                .OrderByDescending(surface => surface.Position.Y)
-                .ThenBy(surface => System.Math.Abs(surface.Position.X - centerX))
-                .ThenBy(surface => surface.Position.X)
-                .ThenBy(surface => surface.Height),
-            WorldSiteAttackDirection.West => candidates
-                .OrderBy(surface => surface.Position.X)
-                .ThenBy(surface => System.Math.Abs(surface.Position.Y - centerY))
-                .ThenBy(surface => surface.Position.Y)
-                .ThenBy(surface => surface.Height),
-            WorldSiteAttackDirection.East => candidates
-                .OrderByDescending(surface => surface.Position.X)
-                .ThenBy(surface => System.Math.Abs(surface.Position.Y - centerY))
-                .ThenBy(surface => surface.Position.Y)
-                .ThenBy(surface => surface.Height),
-            _ => candidates
-                .OrderBy(surface => System.Math.Abs(surface.Position.X - centerX) + System.Math.Abs(surface.Position.Y - centerY))
-                .ThenBy(surface => surface.Position.Y)
-                .ThenBy(surface => surface.Position.X)
-                .ThenBy(surface => surface.Height)
-        };
     }
 
     private void ApplyBattleModifiers(BattleStartRequest request)
@@ -1762,7 +694,6 @@ public partial class WorldSiteRoot : Node2D
                     _unitRoot.MarkEntityDefeated(target);
                 }
 
-                _hudRoot?.ShowActionHint($"防御塔开场支援，对 {target.DisplayName} 造成 {applied} 伤害");
                 GameLog.Info(nameof(WorldSiteRoot), $"Tower support applied target={target.EntityId} damage={applied} supports={towerSupportCount}");
             }
         }
@@ -1811,7 +742,6 @@ public partial class WorldSiteRoot : Node2D
             _unitRoot.MarkEntityDefeated(target);
         }
 
-        _hudRoot?.ShowActionHint($"世界战斗阶段压力，对 {target.DisplayName} 造成 {applied} 伤害");
         GameLog.Info(nameof(WorldSiteRoot), $"WorldBattlePhaseModifierApplied source={sourceId} target={target.EntityId} faction={faction} damage={applied}");
     }
 
@@ -1970,86 +900,6 @@ public partial class WorldSiteRoot : Node2D
                BattleRuleQueries.CanEnterSurface(entity, surface);
     }
 
-    private BattleActionResult ExecuteActionRequest(BattleActionRequest request)
-    {
-        BattleActionResult result = _actionExecutor.Execute(CreateActionExecutionContext(), request);
-        if (result.Success)
-        {
-            _unitRoot?.PlayActionResultAnimation(result);
-            MarkBattleStateChanged();
-        }
-
-        GameLog.Info(
-            nameof(WorldSiteRoot),
-            $"Action request executed kind={request?.Kind} actor={request?.Actor?.EntityId} target={request?.Target?.EntityId} destination={request?.Destination} success={result.Success} message={result.Message}");
-        return result;
-    }
-
-    private void ShowBattleEntityInHud(BattleEntity entity)
-    {
-        _turnController?.RefreshTurnQueue(entity);
-        _hudRoot?.ShowEntity(entity);
-    }
-
-    private void OnTurnQueueUpdated(
-        int round,
-        BattleFaction activeFaction,
-        BattleEntity activeEntity,
-        IReadOnlyList<BattleEntity> queue)
-    {
-        _hudRoot?.ShowTurnQueue(round, activeFaction, activeEntity, queue);
-        if (activeEntity != null)
-        {
-            _battleCamera?.FollowActionEntityIfNeeded(activeEntity);
-        }
-    }
-
-    private BattleActionExecutionContext CreateActionExecutionContext()
-    {
-        System.Action<BattleEntity, IReadOnlyList<GridSurfacePosition>> moveEntityTo =
-            _unitRoot == null ? (_, _) => { } : (entity, path) => _unitRoot.MoveEntityTo(entity, path);
-
-        return new BattleActionExecutionContext(
-            _activeGridMap,
-            GetBattleEntitiesSnapshot(),
-            moveEntityTo,
-            entity => _turnController?.HandleEntityDefeated(entity));
-    }
-
-    private BattleAiContext CreateAiContext()
-    {
-        return new BattleAiContext(_activeGridMap, GetBattleEntitiesSnapshot());
-    }
-
-    private void OnBattleEnded(BattleOutcome outcome)
-    {
-        if (_battleEndHandled)
-        {
-            return;
-        }
-
-        _battleEndHandled = true;
-        BattleSessionResult sessionResult = BattleSessionHandoff.CompleteBattle(outcome);
-        BattleStartRequest request = null;
-        BattleResult battleResult = null;
-        WorldActionResult applyResult = null;
-        IReadOnlyList<WorldSiteLivePlacementSnapshot> livePlacementSnapshots = System.Array.Empty<WorldSiteLivePlacementSnapshot>();
-
-        if (BattleSessionHandoff.TryConsumeLastBattleResult(out BattleStartRequest consumedRequest, out BattleResult consumedResult))
-        {
-            request = consumedRequest;
-            battleResult = consumedResult;
-            livePlacementSnapshots = CaptureLivePlacementSnapshots(request);
-            PopulateLiveBattleForceResults(request, battleResult);
-            applyResult = ApplyBattleResultToWorld(request, battleResult);
-            ReconcileWorldSitePlacementsAfterBattle(request, livePlacementSnapshots, outcome);
-        }
-
-        string returnScenePath = sessionResult?.ReturnScenePath ?? request?.ReturnScenePath ?? "";
-        GameLog.Info(nameof(WorldSiteRoot), $"Battle ended outcome={outcome} encounter={request?.EncounterId ?? sessionResult?.EncounterId} returnScene={returnScenePath}");
-        SwitchToNonBattleUi(outcome, request, applyResult, returnScenePath);
-    }
-
     public void ReturnToReturnScene(string scenePath)
     {
         if (string.IsNullOrWhiteSpace(scenePath))
@@ -2062,136 +912,6 @@ public partial class WorldSiteRoot : Node2D
         if (error != Error.Ok)
         {
             GameLog.Warn(nameof(WorldSiteRoot), $"Cannot return to campaign scene path={scenePath} error={error}");
-        }
-    }
-
-    private void MarkBattleStateChanged()
-    {
-        unchecked
-        {
-            _battleStateVersion++;
-        }
-
-        _previewController?.InvalidateHoverIntentPreview();
-    }
-
-    private IReadOnlyList<WorldSiteLivePlacementSnapshot> CaptureLivePlacementSnapshots(BattleStartRequest request)
-    {
-        if (request == null || _unitRoot == null)
-        {
-            return System.Array.Empty<WorldSiteLivePlacementSnapshot>();
-        }
-
-        var snapshots = new List<WorldSiteLivePlacementSnapshot>();
-        IReadOnlyList<BattleEntity> entities = GetBattleEntitiesSnapshot();
-        foreach (BattleForceRequest force in EnumerateBattleForces(request))
-        {
-            if (force == null ||
-                force.PreferredPlacements == null ||
-                force.PreferredPlacements.Count == 0)
-            {
-                continue;
-            }
-
-            int count = System.Math.Min(force.Count, force.PreferredPlacements.Count);
-            for (int index = 0; index < count; index++)
-            {
-                BattleForcePlacementRequest requestedPlacement = force.PreferredPlacements[index];
-                if (string.IsNullOrWhiteSpace(requestedPlacement?.PlacementId))
-                {
-                    continue;
-                }
-
-                BattleEntity entity = FindBattleForceEntity(entities, force, index);
-                GridOccupantComponent gridOccupant = entity?.GetComponent<GridOccupantComponent>();
-                if (entity == null ||
-                    BattleRuleQueries.IsDefeated(entity) ||
-                    gridOccupant == null)
-                {
-                    continue;
-                }
-
-                snapshots.Add(new WorldSiteLivePlacementSnapshot
-                {
-                    PlacementId = requestedPlacement.PlacementId,
-                    UnitTypeId = force.UnitDefinitionId,
-                    UnitIndex = index + 1,
-                    Faction = entity.GetComponent<FactionComponent>()?.Faction ?? BattleFaction.Neutral,
-                    CellX = gridOccupant.GridX,
-                    CellY = gridOccupant.GridY,
-                    CellHeight = gridOccupant.GridHeight
-                });
-            }
-        }
-
-        GameLog.Info(nameof(WorldSiteRoot), $"Live battle placement snapshots captured request={request.RequestId} count={snapshots.Count}");
-        return snapshots;
-    }
-
-    private void PopulateLiveBattleForceResults(BattleStartRequest request, BattleResult result)
-    {
-        if (request == null || result == null)
-        {
-            return;
-        }
-
-        result.ForceResults.Clear();
-        IReadOnlyList<BattleEntity> entities = GetBattleEntitiesSnapshot();
-        foreach (BattleForceRequest force in EnumerateBattleForces(request))
-        {
-            if (force == null || force.Count <= 0 || string.IsNullOrWhiteSpace(force.UnitDefinitionId))
-            {
-                continue;
-            }
-
-            int survived = 0;
-            for (int index = 0; index < force.Count; index++)
-            {
-                BattleEntity entity = FindBattleForceEntity(entities, force, index);
-                if (entity != null && !BattleRuleQueries.IsDefeated(entity))
-                {
-                    survived++;
-                }
-            }
-
-            result.ForceResults.Add(new BattleForceResult
-            {
-                ForceId = force.ForceId,
-                SourceKind = force.SourceKind,
-                SourceId = force.SourceId,
-                UnitDefinitionId = force.UnitDefinitionId,
-                InitialCount = force.Count,
-                SurvivedCount = survived,
-                DefeatedCount = System.Math.Max(0, force.Count - survived)
-            });
-        }
-
-        GameLog.Info(
-            nameof(WorldSiteRoot),
-            $"Live battle force results captured request={request.RequestId} count={result.ForceResults.Count} results={FormatBattleForceResultsForLog(result.ForceResults)}");
-    }
-
-    private void PersistLivePlacementSnapshots(
-        BattleStartRequest request,
-        IReadOnlyList<WorldSiteLivePlacementSnapshot> snapshots)
-    {
-        if (request == null || snapshots == null || snapshots.Count == 0)
-        {
-            return;
-        }
-
-        StrategicWorldRuntime.EnsureInitialized();
-        string siteId = ResolveRequestSiteId(request);
-        if (string.IsNullOrWhiteSpace(siteId) ||
-            StrategicWorldRuntime.State.SiteStates.TryGetValue(siteId, out WorldSiteState site) != true)
-        {
-            return;
-        }
-
-        int updated = ApplyLiveSnapshotsToMatchingPlacements(site, snapshots, null);
-        if (updated > 0)
-        {
-            GameLog.Info(nameof(WorldSiteRoot), $"Persisted live battle placements site={site.SiteId} request={request.RequestId} updated={updated}");
         }
     }
 
@@ -2310,51 +1030,6 @@ public partial class WorldSiteRoot : Node2D
         placement.CellHeight = snapshot.CellHeight;
     }
 
-    private static IEnumerable<BattleForceRequest> EnumerateBattleForces(BattleStartRequest request)
-    {
-        if (request.PlayerForces != null)
-        {
-            foreach (BattleForceRequest force in request.PlayerForces)
-            {
-                yield return force;
-            }
-        }
-
-        if (request.EnemyForces != null)
-        {
-            foreach (BattleForceRequest force in request.EnemyForces)
-            {
-                yield return force;
-            }
-        }
-    }
-
-    private static BattleEntity FindBattleForceEntity(
-        IEnumerable<BattleEntity> entities,
-        BattleForceRequest force,
-        int forceIndex)
-    {
-        string entityId = BuildBattleForceEntityId(force, forceIndex);
-        return entities.FirstOrDefault(entity =>
-            entity != null &&
-            string.Equals(entity.EntityId, entityId, System.StringComparison.Ordinal));
-    }
-
-    private static string BuildBattleForceEntityId(BattleForceRequest force, int forceIndex)
-    {
-        string source = string.IsNullOrWhiteSpace(force?.ForceId)
-            ? force?.UnitDefinitionId
-            : force.ForceId;
-        return $"{source}:{forceIndex + 1}";
-    }
-
-    private IReadOnlyList<BattleEntity> GetBattleEntitiesSnapshot()
-    {
-        return _unitRoot == null
-            ? System.Array.Empty<BattleEntity>()
-            : _unitRoot.GetEntitiesSnapshot();
-    }
-
     private ISet<GridSurfacePosition> BuildBlockedMovementSurfaces(BattleEntity movingEntity)
     {
         return _unitRoot?.BuildBlockedMovementSurfaces(movingEntity) ?? new HashSet<GridSurfacePosition>();
@@ -2422,7 +1097,7 @@ public partial class WorldSiteRoot : Node2D
             return;
         }
 
-        Node canvasLayer = _hudRoot?.GetParent() ?? GetNodeOrNull<Node>("CanvasLayer") ?? this;
+        Node canvasLayer = GetNodeOrNull<Node>("CanvasLayer") ?? this;
         _siteHudRoot = GameUiSceneFactory.Instantiate<Control>(
             GameUiSceneFactory.WorldSitePeacetimeHudScenePath,
             nameof(WorldSiteRoot));
@@ -2737,16 +1412,9 @@ public partial class WorldSiteRoot : Node2D
             _siteHudRoot.Visible = false;
         }
 
-        if (_hudRoot != null)
-        {
-            _hudRoot.Visible = enabled;
-            _hudRoot.SetProcessUnhandledInput(enabled);
-        }
-
         if (!enabled)
         {
             _unitRoot?.PlayIdleForActiveEntities();
-            _unitRoot?.ClearIntentMarkers();
         }
 
         if (_unitRoot != null)
@@ -2760,20 +1428,6 @@ public partial class WorldSiteRoot : Node2D
         }
 
         SetFacilitySlotsVisible(true);
-
-        _inputRouter?.SetProcessUnhandledInput(enabled);
-        _commandController?.SetProcess(enabled);
-        _turnController?.SetProcess(enabled);
-        _intentController?.SetProcess(enabled);
-        _previewController?.SetProcess(enabled);
-
-        if (!enabled)
-        {
-            _commandController?.ClearSelection();
-            _hudRoot?.ClearActiveCommand();
-            _previewController?.ClearActionPreviewHighlights();
-            _previewController?.ClearSelectedHighlight();
-        }
     }
 
     private void SetFacilitySlotsVisible(bool visible)
@@ -2885,17 +1539,29 @@ public partial class WorldSiteRoot : Node2D
             return "当前场域状态缺失。";
         }
 
+        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
+            StrategicWorldRuntime.State,
+            StrategicWorldRuntime.Definition,
+            siteId,
+            WorldIntelVisibility.Visible);
         int facilityCount = site.Facilities.Count(facility => facility.State != FacilityState.Destroyed);
-        int garrisonCount = site.Garrison.Sum(garrison => garrison.Count);
+        string garrisonOverviewText = BuildSiteGarrisonOverviewText(site, intelView);
         int activeThreatCount = site.PendingThreatIds
             .Select(id => StrategicWorldRuntime.State.ThreatPlans.TryGetValue(id, out EnemyThreatPlan threat) ? threat : null)
             .Count(threat => threat is { Stage: not ThreatStage.Resolved });
+        List<string> overviewLines = new()
+        {
+            definition?.Description ?? ResolveSiteName(siteId)
+        };
+        overviewLines.AddRange(WorldSiteIntelPresenter.BuildSummaryLines(intelView));
+        overviewLines.AddRange(new[]
+        {
+            $"控制：{GetControlStateLabel(site.ControlState)}    模式：{GetSiteModeLabel(site.SiteMode)}",
+            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}    受损：{site.DamageLevel}",
+            $"建筑：{facilityCount}    驻军：{garrisonOverviewText}    威胁：{activeThreatCount}"
+        });
 
-        return
-            $"{definition?.Description ?? ResolveSiteName(siteId)}\n" +
-            $"控制：{GetControlStateLabel(site.ControlState)}    模式：{GetSiteModeLabel(site.SiteMode)}\n" +
-            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}    受损：{site.DamageLevel}\n" +
-            $"建筑：{facilityCount}    驻军：{garrisonCount}    威胁：{activeThreatCount}";
+        return string.Join("\n", overviewLines);
     }
 
     private void RefreshFacilityList(WorldSiteState site, WorldSiteDefinition definition)
@@ -3042,18 +1708,64 @@ public partial class WorldSiteRoot : Node2D
     private void RefreshGarrisonList(WorldSiteState site)
     {
         ClearChildren(_siteGarrisonList);
-        if (site == null || site.Garrison.Count == 0)
+        WorldSiteIntelViewModel intelView = site == null
+            ? null
+            : WorldSiteIntelService.BuildCurrentView(
+                StrategicWorldRuntime.State,
+                StrategicWorldRuntime.Definition,
+                site.SiteId,
+                WorldIntelVisibility.Visible);
+        AddSiteGarrisonLines(_siteGarrisonList, site, intelView);
+    }
+
+    private string BuildSiteGarrisonOverviewText(WorldSiteState site, WorldSiteIntelViewModel intelView)
+    {
+        if (!CanRevealSiteGarrison(site, intelView))
         {
-            AddMutedLine(_siteGarrisonList, "无");
+            return "驻军情报不足，需探索确认。";
+        }
+
+        return site?.Garrison?.Sum(garrison => garrison.Count).ToString() ?? "0";
+    }
+
+    private void AddSiteGarrisonLines(VBoxContainer list, WorldSiteState site, WorldSiteIntelViewModel intelView)
+    {
+        if (list == null)
+        {
+            return;
+        }
+
+        if (site == null)
+        {
+            AddMutedLine(list, "无");
+            return;
+        }
+
+        if (!CanRevealSiteGarrison(site, intelView))
+        {
+            AddMutedLine(list, "驻军情报不足，需探索确认。");
+            return;
+        }
+
+        if (site.Garrison.Count == 0)
+        {
+            AddMutedLine(list, "无");
             return;
         }
 
         WorldSiteDefinition definition = ResolveSiteDefinition(site.SiteId);
-        AddMutedLine(_siteGarrisonList, $"驻军区：{_deploymentService.BuildGarrisonSummary(site, definition)}");
+        AddMutedLine(list, $"驻军区：{_deploymentService.BuildGarrisonSummary(site, definition)}");
         foreach (GarrisonState garrison in site.Garrison)
         {
-            AddMutedLine(_siteGarrisonList, $"{GetUnitLabel(garrison.UnitTypeId)} x{garrison.Count}    士气 {garrison.Morale}");
+            AddMutedLine(list, $"{GetUnitLabel(garrison.UnitTypeId)} x{garrison.Count}    士气 {garrison.Morale}");
         }
+    }
+
+    private bool CanRevealSiteGarrison(WorldSiteState site, WorldSiteIntelViewModel intelView)
+    {
+        return site != null &&
+               (site.OwnerFactionId == StrategicWorldRuntime.State?.PlayerFactionId ||
+                intelView?.CanInspectFullTacticalLayout == true);
     }
 
     private void RefreshThreatList(WorldSiteState site)
@@ -3088,6 +1800,13 @@ public partial class WorldSiteRoot : Node2D
     {
         ClearChildren(_siteActionList);
         if (TryAppendSiteExplorationAlertChoices(site))
+        {
+            return;
+        }
+
+        WorldSiteDefinition definition = ResolveSiteDefinition(site?.SiteId);
+        if (IsSiteExplorationActive(site, definition) &&
+            TryAppendSiteExplorationPointActions(site, definition))
         {
             return;
         }
@@ -3661,6 +2380,8 @@ public partial class WorldSiteRoot : Node2D
         }
 
         bool createdAny = false;
+        bool placedAny = false;
+        WorldSiteUnitPlacement refreshedPartyPlacement = null;
         int unitIndex = 0;
         foreach (GarrisonState unit in army.GarrisonUnits.Where(item => item.Count > 0 && !string.IsNullOrWhiteSpace(item.UnitTypeId)))
         {
@@ -3668,31 +2389,37 @@ public partial class WorldSiteRoot : Node2D
             {
                 unitIndex++;
                 string placementId = BuildVisitingArmyPlacementId(army.ArmyId, unit.UnitTypeId, unitIndex);
+                bool canEnterWater = _battleUnitFactory.TryGetUnitDefinition(unit.UnitTypeId, out BattleUnitDefinition unitDefinition) &&
+                                     unitDefinition.CanEnterWater;
+                if (!TryResolveKnownPlayerEntranceDeploymentCandidate(
+                        site,
+                        definition,
+                        army.TargetApproachDirection,
+                        canEnterWater,
+                        out WorldSiteDeploymentCell candidate,
+                        out WorldSiteAttackDirection direction,
+                        out string entranceId))
+                {
+                    GameLog.Warn(nameof(WorldSiteRoot), $"VisitingArmyPlacementSkipped site={site.SiteId} army={army.ArmyId} unit={unit.UnitTypeId} reason=known_player_entrance_deployment_candidate_missing targetDirection={army.TargetApproachDirection}");
+                    continue;
+                }
+
                 WorldSiteUnitPlacement existing = site.UnitPlacements.FirstOrDefault(item => item.PlacementId == placementId);
                 if (existing != null)
                 {
-                    ApplyVisitingArmyPlacementMetadata(existing, army, unit.UnitTypeId, unitIndex);
+                    ApplyVisitingArmyPlacementMetadata(existing, army, unit.UnitTypeId, unitIndex, direction, entranceId);
+                    existing.CellX = candidate.Cell.X;
+                    existing.CellY = candidate.Cell.Y;
+                    existing.CellHeight = candidate.Height;
+                    placedAny = true;
+                    if (refreshedPartyPlacement == null || existing.UnitIndex < refreshedPartyPlacement.UnitIndex)
+                    {
+                        refreshedPartyPlacement = existing;
+                    }
                     continue;
                 }
 
-                bool canEnterWater = _battleUnitFactory.TryGetUnitDefinition(unit.UnitTypeId, out BattleUnitDefinition unitDefinition) &&
-                                     unitDefinition.CanEnterWater;
-                WorldSiteAttackDirection direction = army.TargetApproachDirection == WorldSiteAttackDirection.Any
-                    ? WorldSiteAttackDirection.West
-                    : army.TargetApproachDirection;
-                bool foundCandidate = TryResolveFirstDeploymentCandidate(direction, canEnterWater, out WorldSiteDeploymentCell candidate);
-                if (!foundCandidate)
-                {
-                    foundCandidate = TryResolveFirstDeploymentCandidate(WorldSiteAttackDirection.Any, canEnterWater, out candidate);
-                }
-
-                if (!foundCandidate)
-                {
-                    GameLog.Warn(nameof(WorldSiteRoot), $"VisitingArmyPlacementSkipped site={site.SiteId} army={army.ArmyId} unit={unit.UnitTypeId} reason=deployment_candidate_missing");
-                    continue;
-                }
-
-                site.UnitPlacements.Add(new WorldSiteUnitPlacement
+                WorldSiteUnitPlacement placement = new()
                 {
                     PlacementId = placementId,
                     UnitTypeId = unit.UnitTypeId,
@@ -3702,17 +2429,26 @@ public partial class WorldSiteRoot : Node2D
                     SourceKind = "PlayerArmy",
                     SourceId = army.ArmyId,
                     ArmyId = army.ArmyId,
+                    EntranceId = entranceId,
                     AttackDirection = direction,
                     CellX = candidate.Cell.X,
                     CellY = candidate.Cell.Y,
                     CellHeight = candidate.Height
-                });
+                };
+                site.UnitPlacements.Add(placement);
                 createdAny = true;
+                placedAny = true;
+                if (refreshedPartyPlacement == null || placement.UnitIndex < refreshedPartyPlacement.UnitIndex)
+                {
+                    refreshedPartyPlacement = placement;
+                }
             }
         }
 
-        WorldSiteUnitPlacement partyPlacement = ResolveSiteExplorationPartyPlacement(site);
-        if (partyPlacement != null)
+        WorldSiteUnitPlacement partyPlacement = refreshedPartyPlacement ?? ResolveSiteExplorationPartyPlacement(site);
+        if (partyPlacement != null &&
+            (ReferenceEquals(partyPlacement, refreshedPartyPlacement) ||
+             IsKnownPlayerEntrancePlacement(site, definition, partyPlacement)))
         {
             site.Exploration.CurrentCellX = partyPlacement.CellX;
             site.Exploration.CurrentCellY = partyPlacement.CellY;
@@ -3720,13 +2456,19 @@ public partial class WorldSiteRoot : Node2D
             site.Exploration.IsSimulationPaused = true;
             site.Exploration.PauseReason = SiteExplorationPauseReady;
         }
+        else if (partyPlacement != null)
+        {
+            GameLog.Warn(
+                nameof(WorldSiteRoot),
+                $"VisitingArmyExplorationCellCopySkipped site={site.SiteId} army={army.ArmyId} placement={partyPlacement.PlacementId} reason=stale_or_unknown_entrance");
+        }
 
         if (createdAny)
         {
             GameLog.Info(nameof(WorldSiteRoot), $"VisitingArmyPlacementEnsured site={site.SiteId} army={army.ArmyId} placements={unitIndex} armyUnits={FormatArmyUnitsForLog(army)} sitePlacements={FormatSitePlacementsForLog(site)}");
         }
 
-        return unitIndex > 0;
+        return placedAny;
     }
 
     private static string BuildVisitingArmyPlacementId(string armyId, string unitTypeId, int index)
@@ -3734,7 +2476,13 @@ public partial class WorldSiteRoot : Node2D
         return $"site_army:PlayerArmy:{armyId}:{unitTypeId}:{index}";
     }
 
-    private static void ApplyVisitingArmyPlacementMetadata(WorldSiteUnitPlacement placement, WorldArmyState army, string unitTypeId, int index)
+    private static void ApplyVisitingArmyPlacementMetadata(
+        WorldSiteUnitPlacement placement,
+        WorldArmyState army,
+        string unitTypeId,
+        int index,
+        WorldSiteAttackDirection direction,
+        string entranceId)
     {
         placement.UnitTypeId = unitTypeId;
         placement.UnitIndex = index;
@@ -3743,7 +2491,8 @@ public partial class WorldSiteRoot : Node2D
         placement.SourceKind = "PlayerArmy";
         placement.SourceId = army.ArmyId;
         placement.ArmyId = army.ArmyId;
-        placement.AttackDirection = army.TargetApproachDirection;
+        placement.EntranceId = entranceId ?? "";
+        placement.AttackDirection = direction;
     }
 
     private static bool IsPlayerArmySitePlacement(WorldSiteUnitPlacement placement)
@@ -3752,18 +2501,6 @@ public partial class WorldSiteRoot : Node2D
                placement.SourceKind == "PlayerArmy" &&
                !string.IsNullOrWhiteSpace(placement.ArmyId) &&
                placement.PlacementKind is WorldSiteUnitPlacementKind.VisitingArmy or WorldSiteUnitPlacementKind.Attacker;
-    }
-
-    private static bool IsResidentPlayerArmySiteForce(BattleForceRequest force, WorldSiteState site)
-    {
-        return force != null &&
-               site != null &&
-               force.SourceKind == "PlayerArmy" &&
-               !string.IsNullOrWhiteSpace(force.SourceId) &&
-               site.UnitPlacements.Any(placement =>
-                   IsPlayerArmySitePlacement(placement) &&
-                   placement.SourceId == force.SourceId &&
-                   placement.UnitTypeId == force.UnitDefinitionId);
     }
 
     private WorldSiteUnitPlacement ResolveSiteExplorationPartyPlacement(WorldSiteState site)
@@ -4185,6 +2922,183 @@ public partial class WorldSiteRoot : Node2D
         return closed;
     }
 
+    private bool TryAppendSiteExplorationPointActions(WorldSiteState site, WorldSiteDefinition definition)
+    {
+        if (site?.Exploration == null ||
+            definition?.ExplorationPoints == null ||
+            definition.ExplorationPoints.Count == 0)
+        {
+            return false;
+        }
+
+        WorldSiteIntelViewModel intel = WorldSiteIntelService.BuildCurrentView(
+            StrategicWorldRuntime.State,
+            StrategicWorldRuntime.Definition,
+            site.SiteId,
+            WorldIntelVisibility.Visible);
+        HashSet<string> knownPointIds = new(intel.KnownExplorationPointIds, System.StringComparer.Ordinal);
+        AddKnownSiteExplorationPointIds(knownPointIds, site.Exploration.RevealedPointIds);
+        AddKnownSiteExplorationPointIds(knownPointIds, site.Exploration.ResolvedPointIds);
+        AddKnownSiteExplorationPointIds(knownPointIds, site.Memory?.RevealedExplorationPointIds);
+        AddKnownSiteExplorationPointIds(knownPointIds, site.Memory?.ResolvedPointIds);
+
+        int appendedCount = 0;
+        foreach (SiteExplorationPointDefinition point in definition.ExplorationPoints)
+        {
+            if (point == null ||
+                string.IsNullOrWhiteSpace(point.Id) ||
+                point.Actions.Count == 0 ||
+                IsSiteExplorationPointResolved(site, point.Id) ||
+                !knownPointIds.Contains(point.Id) ||
+                !IsSiteExplorationPointInRange(site.Exploration, point))
+            {
+                continue;
+            }
+
+            foreach (SiteExplorationActionDefinition action in point.Actions.Where(item => item != null))
+            {
+                Button button = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(WorldSiteRoot));
+                if (button == null)
+                {
+                    continue;
+                }
+
+                button.Text = BuildSiteExplorationPointActionButtonText(point, action);
+                button.TooltipText = BuildSiteExplorationPointActionTooltip(point, action);
+                button.Pressed += () => ExecuteSiteExplorationPointAction(site.SiteId, point.Id, action.Id);
+
+                _siteActionList.AddChild(button);
+                appendedCount++;
+            }
+        }
+
+        return appendedCount > 0;
+    }
+
+    private void ExecuteSiteExplorationPointAction(string siteId, string pointId, string actionId)
+    {
+        WorldSiteState site = ResolveSiteState(siteId);
+        WorldSiteDefinition definition = ResolveSiteDefinition(siteId);
+        SiteExplorationPointDefinition point = definition?.ExplorationPoints.FirstOrDefault(item => item.Id == pointId);
+        SiteExplorationActionDefinition action = point?.Actions.FirstOrDefault(item => item.Id == actionId);
+        if (!IsSiteExplorationActive(site, definition) ||
+            point == null ||
+            action == null ||
+            IsSiteExplorationPointResolved(site, point.Id) ||
+            !IsSiteExplorationPointInRange(site.Exploration, point))
+        {
+            StrategicWorldRuntime.LastNotice = "探索行动已失效。";
+            RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
+            GameLog.Warn(nameof(WorldSiteRoot), $"Site exploration point action ignored site={siteId} point={pointId} action={actionId}");
+            return;
+        }
+
+        if (action.StartsBattle)
+        {
+            RequestSiteExplorationPointBattle(site, definition, point, action);
+            return;
+        }
+
+        WorldActionResult applyResult = WorldSiteExplorationService.ApplyActionResult(
+            StrategicWorldRuntime.State,
+            StrategicWorldRuntime.Definition,
+            site,
+            point.Id,
+            action);
+        StrategicWorldRuntime.LastNotice = applyResult.Message;
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"Site exploration point action executed site={site.SiteId} point={point.Id} action={action.Id} success={applyResult.Success} alert={site.Exploration.AlertLevel}");
+        RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
+    }
+
+    private static void AddKnownSiteExplorationPointIds(HashSet<string> knownPointIds, IEnumerable<string> pointIds)
+    {
+        if (knownPointIds == null || pointIds == null)
+        {
+            return;
+        }
+
+        foreach (string id in pointIds)
+        {
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                knownPointIds.Add(id);
+            }
+        }
+    }
+
+    private static bool IsSiteExplorationPointResolved(WorldSiteState site, string pointId)
+    {
+        return site?.Exploration?.ResolvedPointIds.Contains(pointId) == true ||
+               site?.Memory?.ResolvedPointIds.Contains(pointId) == true;
+    }
+
+    private static bool IsSiteExplorationPointInRange(
+        WorldSiteExplorationState exploration,
+        SiteExplorationPointDefinition point)
+    {
+        if (exploration == null || point == null || exploration.CurrentCellHeight != point.CellHeight)
+        {
+            return false;
+        }
+
+        int distance = System.Math.Abs(exploration.CurrentCellX - point.CellX) +
+                       System.Math.Abs(exploration.CurrentCellY - point.CellY);
+        return distance <= System.Math.Max(0, point.InteractionRange);
+    }
+
+    private static string BuildSiteExplorationPointActionButtonText(
+        SiteExplorationPointDefinition point,
+        SiteExplorationActionDefinition action)
+    {
+        string actionName = ResolveSiteExplorationActionDisplayName(point, action);
+        string pointName = ResolveSiteExplorationPointDisplayName(point);
+        return $"{actionName}\n{pointName}";
+    }
+
+    private static string BuildSiteExplorationPointActionTooltip(
+        SiteExplorationPointDefinition point,
+        SiteExplorationActionDefinition action)
+    {
+        var lines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(point?.Description))
+        {
+            lines.Add(point.Description);
+        }
+        if (!string.IsNullOrWhiteSpace(action?.Description))
+        {
+            lines.Add(action.Description);
+        }
+        if (action?.StartsBattle == true)
+        {
+            lines.Add("将进入场域遭遇战。");
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    private static string ResolveSiteExplorationActionDisplayName(
+        SiteExplorationPointDefinition point,
+        SiteExplorationActionDefinition action)
+    {
+        if (!string.IsNullOrWhiteSpace(action?.DisplayName))
+        {
+            return action.DisplayName;
+        }
+
+        return string.IsNullOrWhiteSpace(action?.Id)
+            ? ResolveSiteExplorationPointDisplayName(point)
+            : action.Id;
+    }
+
+    private static string ResolveSiteExplorationPointDisplayName(SiteExplorationPointDefinition point)
+    {
+        return string.IsNullOrWhiteSpace(point?.DisplayName)
+            ? point?.Id ?? ""
+            : point.DisplayName;
+    }
+
     private bool TryAppendSiteExplorationAlertChoices(WorldSiteState site)
     {
         if (site?.Exploration == null ||
@@ -4393,6 +3307,124 @@ public partial class WorldSiteRoot : Node2D
         RetreatFromSiteExplorationAlert(site);
     }
 
+    private void RequestSiteExplorationPointBattle(
+        WorldSiteState site,
+        WorldSiteDefinition definition,
+        SiteExplorationPointDefinition point,
+        SiteExplorationActionDefinition action)
+    {
+        if (!IsSiteExplorationActive(site, definition) || point == null || action == null)
+        {
+            StrategicWorldRuntime.LastNotice = "无法进入探索点遭遇战：探索状态已失效。";
+            RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
+            GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter exploration point battle site={site?.SiteId ?? ""} point={point?.Id ?? ""} action={action?.Id ?? ""} reason=exploration_context_missing");
+            return;
+        }
+
+        WorldSiteUnitPlacement partyPlacement = ResolveSiteExplorationPartyPlacement(site);
+        if (partyPlacement == null ||
+            string.IsNullOrWhiteSpace(partyPlacement.ArmyId) ||
+            StrategicWorldRuntime.State?.ArmyStates.TryGetValue(partyPlacement.ArmyId, out WorldArmyState army) != true ||
+            army.GarrisonUnits.Sum(unit => System.Math.Max(0, unit.Count)) <= 0)
+        {
+            StrategicWorldRuntime.LastNotice = "无法进入探索点遭遇战：缺少潜入部队。";
+            RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
+            GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter exploration point battle site={site.SiteId} point={point.Id} action={action.Id} reason=exploration_army_missing placement={partyPlacement?.PlacementId ?? ""}");
+            return;
+        }
+
+        SiteExplorationPatrolDefinition[] encounterPatrols = ResolveAliveExplorationEncounterPatrols(site, definition);
+        GridSurfacePosition entryCell = new(site.Exploration.CurrentCellX, site.Exploration.CurrentCellY, site.Exploration.CurrentCellHeight);
+        int alertLevel = System.Math.Clamp(site.Exploration.AlertLevel + action.AlertDelta, 0, 5);
+        string encounterId = string.IsNullOrWhiteSpace(action.BattleEncounterId) ? action.Id : action.BattleEncounterId;
+        BattleStartRequest request = WorldSiteExplorationService.BuildExplorationBattleRequest(
+            site.SiteId,
+            point.Id,
+            "",
+            army,
+            encounterPatrols,
+            entryCell,
+            alertLevel,
+            string.IsNullOrWhiteSpace(_siteHudReturnScenePath) ? "res://scenes/world/StrategicWorldRoot.tscn" : _siteHudReturnScenePath,
+            string.IsNullOrWhiteSpace(SceneFilePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : SceneFilePath,
+            encounterId);
+        WorldSiteIntelService.ApplySiteIntelToRequest(
+            StrategicWorldRuntime.State,
+            StrategicWorldRuntime.Definition,
+            request,
+            site.SiteId);
+        if (request.PlayerForces.Count == 0 || request.EnemyForces.Count == 0)
+        {
+            StrategicWorldRuntime.LastNotice = "无法进入探索点遭遇战：参战单位不完整。";
+            RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
+            GameLog.Warn(
+                nameof(WorldSiteRoot),
+                $"Cannot enter exploration point battle site={site.SiteId} point={point.Id} action={action.Id} reason=forces_missing playerForces={request.PlayerForces.Count} enemyForces={request.EnemyForces.Count} patrols={encounterPatrols.Length}");
+            return;
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"ExplorationPointBattleRequested site={site.SiteId} point={point.Id} action={action.Id} encounter={request.EncounterId} army={army.ArmyId} alert={alertLevel} playerForces={FormatForcesForLog(request.PlayerForces)} enemyForces={FormatForcesForLog(request.EnemyForces)}");
+
+        WorldSiteBattleLaunchRollback rollback = _battleLauncher.CaptureRollback(site);
+        _siteModeTransitions.EnterBattleFromExploration(
+            site,
+            StrategicWorldRuntime.State?.WorldTick ?? site.LastModeChangedTick,
+            "exploration_point_battle_requested",
+            request.RequestId);
+        WorldSiteBattleLaunchResult launch = _battleLauncher.BeginAndActivate(
+            StrategicWorldRuntime.State,
+            request,
+            rollback,
+            ApplyBattleStartRequest,
+            ActivateBattleRuntime,
+            () => _battleStartBlockedReason,
+            ClearBattleEntities,
+            null,
+            enabled => SetBattleRuntimeEnabled(enabled));
+        if (!launch.Success)
+        {
+            StrategicWorldRuntime.LastNotice = "无法进入探索点遭遇战。";
+            RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
+            GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter exploration point battle site={site.SiteId} point={point.Id} action={action.Id} reason={launch.FailureReason}");
+        }
+    }
+
+    private static SiteExplorationPatrolDefinition[] ResolveAliveExplorationEncounterPatrols(
+        WorldSiteState site,
+        WorldSiteDefinition definition)
+    {
+        if (site?.Exploration == null || definition?.ExplorationPatrols == null)
+        {
+            return System.Array.Empty<SiteExplorationPatrolDefinition>();
+        }
+
+        SiteExplorationPatrolDefinition[] patrols = definition.ExplorationPatrols
+            .Where(patrol =>
+                patrol != null &&
+                WorldSiteExplorationService.HasAlivePatrolPlacement(site, patrol) &&
+                !site.Exploration.PatrolUnits.Any(state => state.PatrolId == patrol.Id && state.IsRemoved))
+            .ToArray();
+        foreach (SiteExplorationPatrolDefinition patrol in patrols)
+        {
+            SiteExplorationPatrolState patrolState = site.Exploration.PatrolUnits.FirstOrDefault(item => item.PatrolId == patrol.Id);
+            WorldSiteUnitPlacement patrolPlacement = site.UnitPlacements.FirstOrDefault(item =>
+                item.PlacementId == patrol.SourcePlacementId &&
+                item.UnitTypeId == patrol.UnitTypeId);
+            if (patrolState == null || patrolPlacement == null)
+            {
+                continue;
+            }
+
+            patrolPlacement.CellX = patrolState.CellX;
+            patrolPlacement.CellY = patrolState.CellY;
+            patrolPlacement.CellHeight = patrolState.CellHeight;
+        }
+
+        return patrols;
+    }
+
     private void RequestSiteExplorationBattle(WorldSiteState site)
     {
         WorldSiteDefinition definition = ResolveSiteDefinition(site?.SiteId);
@@ -4459,6 +3491,11 @@ public partial class WorldSiteRoot : Node2D
             site.Exploration.AlertLevel,
             string.IsNullOrWhiteSpace(_siteHudReturnScenePath) ? "res://scenes/world/StrategicWorldRoot.tscn" : _siteHudReturnScenePath,
             string.IsNullOrWhiteSpace(SceneFilePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : SceneFilePath);
+        WorldSiteIntelService.ApplySiteIntelToRequest(
+            StrategicWorldRuntime.State,
+            StrategicWorldRuntime.Definition,
+            request,
+            site.SiteId);
         if (request.PlayerForces.Count == 0 || request.EnemyForces.Count == 0)
         {
             StrategicWorldRuntime.LastNotice = "无法进入探索遭遇战：参战单位不完整。";
@@ -4473,22 +3510,28 @@ public partial class WorldSiteRoot : Node2D
             nameof(WorldSiteRoot),
             $"ExplorationBattleRequested site={site.SiteId} army={army.ArmyId} armyUnits={FormatArmyUnitsForLog(army)} patrol={patrolId} patrolPlacement={patrolDefinition.SourcePlacementId} playerForces={FormatForcesForLog(request.PlayerForces)} enemyForces={FormatForcesForLog(request.EnemyForces)} sitePlacements={FormatSitePlacementsForLog(site)}");
 
-        SiteBattleLaunchRollback rollback = CaptureSiteBattleLaunchRollback(site.SiteId);
-        // Exploration confirmation only changes the site runtime mode; TurnSystem starts after the battle request is accepted.
+        WorldSiteBattleLaunchRollback rollback = _battleLauncher.CaptureRollback(site);
+        // Exploration confirmation only changes the site runtime mode; auto battle activation starts after the request is accepted.
         _siteModeTransitions.EnterBattleFromExploration(
             site,
             StrategicWorldRuntime.State?.WorldTick ?? site.LastModeChangedTick,
             "exploration_battle_requested",
             request.RequestId);
-        BattleSessionHandoff.BeginBattle(request);
-        ApplyBattleStartRequest();
-        if (!ActivateBattleRuntime())
+        WorldSiteBattleLaunchResult launch = _battleLauncher.BeginAndActivate(
+            StrategicWorldRuntime.State,
+            request,
+            rollback,
+            ApplyBattleStartRequest,
+            ActivateBattleRuntime,
+            () => _battleStartBlockedReason,
+            ClearBattleEntities,
+            null,
+            enabled => SetBattleRuntimeEnabled(enabled));
+        if (!launch.Success)
         {
-            BattleSessionHandoff.CancelBattle();
-            RollbackSiteBattleLaunch(rollback, request, _battleStartBlockedReason);
             StrategicWorldRuntime.LastNotice = "无法进入探索遭遇战。";
             RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
-            GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter exploration battle site={site.SiteId} patrol={patrolId} reason={_battleStartBlockedReason}");
+            GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter exploration battle site={site.SiteId} patrol={patrolId} reason={launch.FailureReason}");
         }
     }
 
@@ -4553,19 +3596,9 @@ public partial class WorldSiteRoot : Node2D
             return;
         }
 
-        SiteExplorationRouteCellDefinition start = definition.ExplorationPatrols
-            .SelectMany(patrol => patrol.RouteCells)
-            .FirstOrDefault(cell => _activeGridMap.TryGetTopSurfacePosition(new GridPosition(cell.CellX, cell.CellY), out _));
-        if (start == null)
-        {
-            return;
-        }
-
-        site.Exploration.CurrentCellX = start.CellX;
-        site.Exploration.CurrentCellY = start.CellY;
-        site.Exploration.CurrentCellHeight = start.CellHeight;
-        site.Exploration.IsSimulationPaused = true;
-        site.Exploration.PauseReason = SiteExplorationPauseReady;
+        GameLog.Warn(
+            nameof(WorldSiteRoot),
+            $"SiteExplorationEntryUnresolved site={site.SiteId} reason=known_player_entrance_entry_missing");
     }
 
     private bool TryResolveExplorationEntrySurface(
@@ -4581,6 +3614,7 @@ public partial class WorldSiteRoot : Node2D
 
         WorldSiteUnitPlacement partyPlacement = ResolveSiteExplorationPartyPlacement(site);
         if (partyPlacement != null &&
+            IsKnownPlayerEntrancePlacement(site, definition, partyPlacement) &&
             _activeGridMap.TryGetTopSurfacePosition(new GridPosition(partyPlacement.CellX, partyPlacement.CellY), out GridSurfacePosition partySurface) &&
             partySurface.Height == partyPlacement.CellHeight)
         {
@@ -4607,26 +3641,125 @@ public partial class WorldSiteRoot : Node2D
             canEnterWater = unitDefinition.CanEnterWater;
         }
 
-        WorldSiteAttackDirection direction = army.TargetApproachDirection == WorldSiteAttackDirection.Any
-            ? WorldSiteAttackDirection.West
-            : army.TargetApproachDirection;
-        bool foundCandidate = TryResolveFirstDeploymentCandidate(direction, canEnterWater, out WorldSiteDeploymentCell candidate);
-        if (!foundCandidate)
+        if (!TryResolveKnownPlayerEntranceDeploymentCandidate(
+                site,
+                definition,
+                army.TargetApproachDirection,
+                canEnterWater,
+                out WorldSiteDeploymentCell candidate,
+                out WorldSiteAttackDirection direction,
+                out string entranceId))
         {
-            foundCandidate = TryResolveFirstDeploymentCandidate(WorldSiteAttackDirection.Any, canEnterWater, out candidate);
-        }
-
-        if (!foundCandidate)
-        {
+            GameLog.Warn(nameof(WorldSiteRoot), $"SiteExplorationEntryMissingKnownEntrance site={site.SiteId} army={army.ArmyId} targetDirection={army.TargetApproachDirection}");
             return false;
         }
 
-        // Infiltration starts from the same site edge as battle deployment; exploration does not choose a hidden fallback start.
+        // Infiltration starts from a player entrance known through current intel; hidden authored entrances stay unusable until revealed.
         entry = new GridSurfacePosition(candidate.Cell.X, candidate.Cell.Y, candidate.Height);
+        partyPlacement.EntranceId = entranceId;
+        partyPlacement.AttackDirection = direction;
         partyPlacement.CellX = entry.X;
         partyPlacement.CellY = entry.Y;
         partyPlacement.CellHeight = entry.Height;
         return true;
+    }
+
+    private bool TryResolveKnownPlayerEntranceDeploymentCandidate(
+        WorldSiteState site,
+        WorldSiteDefinition definition,
+        WorldSiteAttackDirection preferredDirection,
+        bool canEnterWater,
+        out WorldSiteDeploymentCell candidate,
+        out WorldSiteAttackDirection resolvedDirection,
+        out string entranceId)
+    {
+        candidate = default;
+        resolvedDirection = WorldSiteAttackDirection.Any;
+        entranceId = "";
+        foreach (BattleEntranceDefinition entrance in EnumerateKnownPlayerEntrances(site, definition, preferredDirection))
+        {
+            WorldSiteAttackDirection direction = entrance.Direction;
+            if (TryResolveFirstDeploymentCandidate(direction, canEnterWater, out candidate))
+            {
+                resolvedDirection = direction;
+                entranceId = entrance.EntranceId ?? "";
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private IEnumerable<BattleEntranceDefinition> EnumerateKnownPlayerEntrances(
+        WorldSiteState site,
+        WorldSiteDefinition definition,
+        WorldSiteAttackDirection preferredDirection)
+    {
+        if (site == null || definition?.EntranceDefinitions == null)
+        {
+            return System.Array.Empty<BattleEntranceDefinition>();
+        }
+
+        WorldSiteIntelViewModel intel = WorldSiteIntelService.BuildCurrentView(
+            StrategicWorldRuntime.State,
+            StrategicWorldRuntime.Definition,
+            site.SiteId,
+            WorldIntelVisibility.Visible);
+        var knownEntranceIds = new HashSet<string>(intel.KnownEntranceIds, System.StringComparer.Ordinal);
+        string playerFactionId = StrategicWorldRuntime.State?.PlayerFactionId ?? StrategicWorldIds.FactionPlayer;
+        List<BattleEntranceDefinition> entrances = definition.EntranceDefinitions
+            .Where(entrance => IsKnownPlayerEntrance(entrance, knownEntranceIds, playerFactionId))
+            .ToList();
+        if (preferredDirection == WorldSiteAttackDirection.Any)
+        {
+            return entrances;
+        }
+
+        return entrances
+            .Where(entrance => entrance.Direction == preferredDirection)
+            .Concat(entrances.Where(entrance => entrance.Direction != preferredDirection))
+            .ToArray();
+    }
+
+    private static bool IsKnownPlayerEntrancePlacement(
+        WorldSiteState site,
+        WorldSiteDefinition definition,
+        WorldSiteUnitPlacement placement)
+    {
+        if (placement == null)
+        {
+            return false;
+        }
+
+        WorldSiteIntelViewModel intel = WorldSiteIntelService.BuildCurrentView(
+            StrategicWorldRuntime.State,
+            StrategicWorldRuntime.Definition,
+            site?.SiteId ?? definition?.Id ?? "",
+            WorldIntelVisibility.Visible);
+        var knownEntranceIds = new HashSet<string>(intel.KnownEntranceIds, System.StringComparer.Ordinal);
+        string playerFactionId = StrategicWorldRuntime.State?.PlayerFactionId ?? StrategicWorldIds.FactionPlayer;
+        return definition?.EntranceDefinitions?.Any(entrance =>
+            IsKnownPlayerEntrance(entrance, knownEntranceIds, playerFactionId) &&
+            ((!string.IsNullOrWhiteSpace(placement.EntranceId) && entrance.EntranceId == placement.EntranceId) ||
+             (string.IsNullOrWhiteSpace(placement.EntranceId) && entrance.Direction == placement.AttackDirection))) == true;
+    }
+
+    private static bool IsKnownPlayerEntrance(
+        BattleEntranceDefinition entrance,
+        IReadOnlySet<string> knownEntranceIds,
+        string playerFactionId)
+    {
+        if (entrance == null ||
+            string.IsNullOrWhiteSpace(entrance.EntranceId) ||
+            knownEntranceIds?.Contains(entrance.EntranceId) != true ||
+            string.Equals(entrance.Source, "Garrison", System.StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.IsNullOrWhiteSpace(entrance.FactionId) ||
+               entrance.FactionId == playerFactionId ||
+               entrance.FactionId == StrategicWorldIds.FactionPlayer;
     }
 
     private bool TryResolveFirstDeploymentCandidate(
@@ -4837,11 +3970,13 @@ public partial class WorldSiteRoot : Node2D
             return;
         }
 
-        if (_deploymentService.TryMovePlacement(
+        if (_deploymentTargetEvaluator.TryMoveToGridCell(
+                _activeGridMap,
                 site,
                 definition,
                 placementId,
                 new Vector2I(gridPosition.X, gridPosition.Y),
+                ResolvePlacementCanEnterWater,
                 out failureReason))
         {
             RefreshSiteManagementUi("驻军位置已更新。");
@@ -4901,45 +4036,14 @@ public partial class WorldSiteRoot : Node2D
         }
 
         hasGridPosition = true;
-        if (!CanPlaceSiteDeploymentOnGridCell(placementId, gridPosition, out failureReason))
-        {
-            return false;
-        }
-
-        return _deploymentService.CanMovePlacement(
+        return _deploymentTargetEvaluator.CanMoveToGridCell(
+            _activeGridMap,
             site,
             definition,
             placementId,
             new Vector2I(gridPosition.X, gridPosition.Y),
+            ResolvePlacementCanEnterWater,
             out failureReason);
-    }
-
-    private bool CanPlaceSiteDeploymentOnGridCell(string placementId, GridPosition position, out string failureReason)
-    {
-        failureReason = "";
-        if (_activeGridMap == null)
-        {
-            failureReason = "placement_cell_invalid";
-            return false;
-        }
-
-        if (!_activeGridMap.TryGetTopSurface(position, out GridCellSurface surface) ||
-            !surface.IsWalkable ||
-            surface.MoveCost <= 0)
-        {
-            failureReason = "placement_cell_blocked";
-            return false;
-        }
-
-        WorldSiteState site = ResolveSiteState(_siteHudSiteId);
-        WorldSiteUnitPlacement placement = site?.UnitPlacements.FirstOrDefault(item => item.PlacementId == placementId);
-        if (!ResolvePlacementCanEnterWater(placement) && BattleRuleQueries.IsWater(surface))
-        {
-            failureReason = "placement_cell_water";
-            return false;
-        }
-
-        return true;
     }
 
     private void ClearSiteDeploymentDragPreview(Node2D entity)
@@ -4979,7 +4083,7 @@ public partial class WorldSiteRoot : Node2D
         string returnScenePath = string.IsNullOrWhiteSpace(_siteHudReturnScenePath)
             ? "res://scenes/world/StrategicWorldRoot.tscn"
             : _siteHudReturnScenePath;
-        SiteBattleLaunchRollback rollback = CaptureSiteBattleLaunchRollback(_siteHudSiteId);
+        WorldSiteBattleLaunchRollback rollback = _battleLauncher.CaptureRollback(ResolveSiteState(_siteHudSiteId));
         WorldActionResult result = _worldActionResolver.Apply(
             StrategicWorldRuntime.State,
             StrategicWorldRuntime.Definition,
@@ -4988,7 +4092,7 @@ public partial class WorldSiteRoot : Node2D
             string.IsNullOrWhiteSpace(SceneFilePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : SceneFilePath);
 
         StrategicWorldRuntime.LastNotice = result.Message;
-        ApplyModeTransitionRollbackEvent(rollback, result.Events);
+        _battleLauncher.ApplyModeTransitionRollbackEvent(rollback, result.Events);
         if (!result.Success)
         {
             RefreshSiteManagementUi(result.Message);
@@ -4997,115 +4101,27 @@ public partial class WorldSiteRoot : Node2D
 
         if (result.BattleStartRequest != null)
         {
-            BattleSessionHandoff.BeginBattle(result.BattleStartRequest);
-            ApplyBattleStartRequest();
-            if (!ActivateBattleRuntime())
+            WorldSiteBattleLaunchResult launch = _battleLauncher.BeginAndActivate(
+                StrategicWorldRuntime.State,
+                result.BattleStartRequest,
+                rollback,
+                ApplyBattleStartRequest,
+                ActivateBattleRuntime,
+                () => _battleStartBlockedReason,
+                ClearBattleEntities,
+                null,
+                enabled => SetBattleRuntimeEnabled(enabled));
+            if (!launch.Success)
             {
-                BattleSessionHandoff.CancelBattle();
-                RollbackSiteBattleLaunch(rollback, result.BattleStartRequest, _battleStartBlockedReason);
-                StrategicWorldRuntime.LastNotice = "无法进入战棋战斗。";
+                StrategicWorldRuntime.LastNotice = "无法进入自动战斗。";
                 RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
-                GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter site battle request={result.BattleStartRequest.RequestId} target={result.BattleStartRequest.TargetSiteId} reason={_battleStartBlockedReason}");
+                GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter site battle request={result.BattleStartRequest.RequestId} target={result.BattleStartRequest.TargetSiteId} reason={launch.FailureReason}");
             }
 
             return;
         }
 
         RefreshSiteManagementUi(result.Message);
-    }
-
-    private SiteBattleLaunchRollback CaptureSiteBattleLaunchRollback(string siteId)
-    {
-        SiteBattleLaunchRollback rollback = new()
-        {
-            SiteId = siteId ?? ""
-        };
-
-        WorldSiteState site = ResolveSiteState(rollback.SiteId);
-        if (site != null)
-        {
-            rollback.HasPreviousSiteMode = true;
-            rollback.PreviousSiteMode = site.SiteMode;
-            if (site.Exploration != null)
-            {
-                rollback.HasPreviousExplorationState = true;
-                rollback.PreviousExplorationPaused = site.Exploration.IsSimulationPaused;
-                rollback.PreviousExplorationPauseReason = site.Exploration.PauseReason ?? "";
-                rollback.PreviousActiveAlertPatrolId = site.Exploration.ActiveAlertPatrolId ?? "";
-                rollback.PreviousPendingPathCellKeys.Clear();
-                rollback.PreviousPendingPathCellKeys.AddRange(site.Exploration.PendingPathCellKeys);
-            }
-        }
-
-        return rollback;
-    }
-
-    private static void ApplyModeTransitionRollbackEvent(
-        SiteBattleLaunchRollback rollback,
-        IReadOnlyCollection<GameEvent> transitionEvents)
-    {
-        if (rollback == null || transitionEvents == null)
-        {
-            return;
-        }
-
-        GameEvent modeEvent = transitionEvents.LastOrDefault(gameEvent =>
-            gameEvent.Kind == "SiteModeChanged" &&
-            gameEvent.TargetIds.Contains(rollback.SiteId) &&
-            gameEvent.Payload.TryGetValue("to", out string toMode) &&
-            toMode == WorldSiteMode.Wartime.ToString() &&
-            gameEvent.Payload.TryGetValue("from", out _));
-        if (modeEvent == null ||
-            !modeEvent.Payload.TryGetValue("from", out string fromMode) ||
-            !System.Enum.TryParse(fromMode, out WorldSiteMode previousMode))
-        {
-            return;
-        }
-
-        rollback.HasPreviousSiteMode = true;
-        rollback.PreviousSiteMode = previousMode;
-    }
-
-    private void RollbackSiteBattleLaunch(
-        SiteBattleLaunchRollback rollback,
-        BattleStartRequest request,
-        string reason)
-    {
-        string siteId = !string.IsNullOrWhiteSpace(request?.TargetSiteId)
-            ? request.TargetSiteId
-            : rollback?.SiteId ?? "";
-        WorldSiteState site = ResolveSiteState(siteId);
-        if (site == null)
-        {
-            return;
-        }
-
-        WorldSiteMode currentMode = site.SiteMode;
-        if (rollback?.HasPreviousSiteMode == true)
-        {
-            _siteModeTransitions.RestoreMode(
-                site,
-                rollback.PreviousSiteMode,
-                StrategicWorldRuntime.State?.WorldTick ?? site.LastModeChangedTick,
-                "battle_launch_rollback",
-                request?.RequestId ?? "");
-        }
-
-        if (rollback?.HasPreviousExplorationState == true && site.Exploration != null)
-        {
-            site.Exploration.IsSimulationPaused = rollback.PreviousExplorationPaused;
-            site.Exploration.PauseReason = rollback.PreviousExplorationPauseReason;
-            site.Exploration.ActiveAlertPatrolId = rollback.PreviousActiveAlertPatrolId;
-            site.Exploration.PendingPathCellKeys.Clear();
-            site.Exploration.PendingPathCellKeys.AddRange(rollback.PreviousPendingPathCellKeys);
-        }
-
-        ClearBattleEntities();
-        ClearBattleCorpsRuntime();
-        SetBattleRuntimeEnabled(false);
-        GameLog.Warn(
-            nameof(WorldSiteRoot),
-            $"Site battle launch rolled back site={site.SiteId} fromMode={currentMode} toMode={site.SiteMode} reason={reason}");
     }
 
     private string ResolveSelectedThreatId(WorldSiteState site)

@@ -15,6 +15,5 @@ Audio = ExtResource("6_audio")
 Abilities = Array[ExtResource("4_ability_definition")]([ExtResource("5_basic_attack")])
 DebugMarkerColor = Color(0.38, 0.78, 0.46, 0.95)
 MaxHp = 10
-MaxActionPoints = 2
 MoveRange = 6
 AttackDamage = 3

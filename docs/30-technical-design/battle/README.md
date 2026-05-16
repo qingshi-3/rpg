@@ -1,28 +1,26 @@
-﻿# Battle Technical Index
+# Battle Technical Index
 
-This directory stores implementation-facing battle architecture, contracts, and extension rules.
+This directory is retained for legacy implementation references while battle architecture is realigned.
+
+Current accepted architecture should be created under `system-design/` through the proposal flow. Until that exists, use the current gameplay authority and `gameplay-alignment/` gap tracking before changing battle runtime ownership.
 
 ## Start Here
 
-- Battle technical architecture: `technical-architecture.md`
+- Current gameplay authority: `../../../gameplay-design/content-systems-long-term-design.md`
+- Current system-design route: `../../../system-design/README.md`
+- Battle cleanup and gaps: `../../../gameplay-alignment/gap-register.md`
+- World battle contract: `../world/strategic-world-v1-battle-contract.md`
+- Historical auto battle migration: `../../50-production/technical-changes/2026-05-16-auto-tactics-migration.md`
+
+## Reused Presentation References
+
 - Battle scene and map runtime: `battle-scene-architecture.md`
-- Battle action and extension architecture: `battle-action-architecture.md`
-
-## Focused Documents
-
-- Battle runtime responsibility review: `battle-runtime-responsibility-review.md`
-- Battle input and command architecture: `battle-input-command-architecture.md`
-- Enemy intent runtime contract: `intent-system.md`
-- Targeting and preview vocabulary: `targeting-and-preview.md`
 - Unit system: `unit-system.md`
 - Unit authoring: `unit-authoring.md`
 - Unit animation system: `unit-animation-system.md`
-- Card system: `card-system.md`
 
 ## Rule
 
-Do not change Battle flow, AP, or TurnSystem casually. Prefer extending Effect, Condition, TargetRule, Ability, Card, or Rule definitions.
+Do not recreate AP, turn controllers, manual command routers, manual action menus, or player-phase battle HUDs.
 
-## Gameplay Counterpart
-
-Player-facing tactical-battle design lives in `../../20-game-design/tactical-battle/`.
+Do not treat the auto battle migration route as the future battle product identity. New battle runtime work should either be part of an accepted hero-led light RTS architecture proposal or stay isolated as backend auto-resolve/report infrastructure.

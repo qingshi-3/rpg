@@ -42,8 +42,9 @@ public sealed class WorldBattleRequestBuilder
             SiteScenePath = string.IsNullOrWhiteSpace(siteScenePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : siteScenePath,
             SiteStateSnapshot = BuildSnapshot(site)
         };
+        WorldSiteIntelService.ApplySiteIntelToRequest(state, definition, request, request.TargetSiteId);
         request.ObjectiveIds.Add("occupy_bonefield");
-        AddEntrances(request, siteDefinition, StrategicWorldIds.FactionPlayer, "", includeGarrisonEntrances: false);
+        AddEntrances(request, siteDefinition, StrategicWorldIds.FactionPlayer, "", includeGarrisonEntrances: false, request.RevealedEntranceIds);
         AddEntrances(request, siteDefinition, StrategicWorldIds.FactionUndead, "", includeGarrisonEntrances: false);
         if (sourceArmy != null)
         {
@@ -94,8 +95,9 @@ public sealed class WorldBattleRequestBuilder
             SiteScenePath = string.IsNullOrWhiteSpace(siteScenePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : siteScenePath,
             SiteStateSnapshot = BuildSnapshot(site)
         };
+        WorldSiteIntelService.ApplySiteIntelToRequest(state, definition, request, request.TargetSiteId);
         request.ObjectiveIds.Add("defend_bonefield");
-        AddEntrances(request, siteDefinition, StrategicWorldIds.FactionPlayer, "");
+        AddEntrances(request, siteDefinition, StrategicWorldIds.FactionPlayer, "", includeGarrisonEntrances: true, request.RevealedEntranceIds);
         AddEntrances(request, siteDefinition, request.AttackerFactionId, "", includeGarrisonEntrances: false);
 
         foreach (GarrisonState garrison in site.Garrison.Where(item => item.Count > 0))
@@ -229,8 +231,9 @@ public sealed class WorldBattleRequestBuilder
             SiteScenePath = string.IsNullOrWhiteSpace(siteScenePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : siteScenePath,
             SiteStateSnapshot = BuildSnapshot(site)
         };
+        WorldSiteIntelService.ApplySiteIntelToRequest(state, definition, request, request.TargetSiteId);
         request.ObjectiveIds.Add("win_field_intercept");
-        AddEntrances(request, siteDefinition, state.PlayerFactionId, "", includeGarrisonEntrances: false);
+        AddEntrances(request, siteDefinition, state.PlayerFactionId, "", includeGarrisonEntrances: false, request.RevealedEntranceIds);
         AddEntrances(request, siteDefinition, enemyArmy.OwnerFactionId, "", includeGarrisonEntrances: false);
         AddArmyForces(request.PlayerForces, playerArmy, "PlayerArmy", state.PlayerFactionId);
         AddArmyForces(request.EnemyForces, enemyArmy, "EnemyArmy", enemyArmy.OwnerFactionId);
@@ -313,7 +316,8 @@ public sealed class WorldBattleRequestBuilder
         WorldSiteDefinition siteDefinition,
         string factionId,
         string preferredEntranceId,
-        bool includeGarrisonEntrances = true)
+        bool includeGarrisonEntrances = true,
+        IReadOnlyCollection<string> visibleEntranceIds = null)
     {
         if (siteDefinition == null)
         {
@@ -334,6 +338,14 @@ public sealed class WorldBattleRequestBuilder
 
             if (!includeGarrisonEntrances &&
                 string.Equals(entrance.Source, "Garrison", System.StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            bool isGarrisonEntrance = string.Equals(entrance.Source, "Garrison", System.StringComparison.OrdinalIgnoreCase);
+            if (!isGarrisonEntrance &&
+                visibleEntranceIds != null &&
+                !visibleEntranceIds.Contains(entrance.EntranceId))
             {
                 continue;
             }
