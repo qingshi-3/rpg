@@ -1,6 +1,6 @@
 # Implementation Notes
 
-Status: First Phase Engineering Closure Complete
+Status: Phase 2 Started
 
 The first code refactor phase has been implemented beside the legacy battle path.
 
@@ -25,6 +25,6 @@ Engineering closure:
 - Focused target architecture regression passes.
 - Low-concurrency solution build passes.
 
-Second phase has not started. The live world/site battle entry still uses the legacy `BattleSessionHandoff` / `BattleStartRequest` chain, and the new `BattleGroupBattleFlowService` remains a validated parallel skeleton until a migration plan wires it into launch flow.
+Second phase has started with `code-refactor-phase2-entry-migration-plan.md`. The live world/site battle entry still uses the legacy `BattleSessionHandoff` / `BattleStartRequest` chain, and the new `BattleGroupBattleFlowService` remains a validated parallel skeleton until phase-2 entry migration wires it into launch flow as a side-channel probe.
 
 Implementation work should use `expected/system-design/hero-led-light-rts-system-architecture.md` as the working architecture target. If implementation reveals an architecture change, pause and update the expected copy for user acceptance before continuing.

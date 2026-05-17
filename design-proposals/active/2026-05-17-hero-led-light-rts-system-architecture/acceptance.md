@@ -19,6 +19,12 @@ The first code refactor phase has been implemented beside the legacy battle path
 
 This is not final implementation acceptance for the whole proposal. The second phase still needs to migrate the live world/site battle entry from the legacy handoff chain toward the new battle-group session flow before the expected architecture can be merged into `system-design/` and archived.
 
+## Phase 2 Start
+
+Status: Started
+
+Phase 2 is planned in `code-refactor-phase2-entry-migration-plan.md`. Its initial scope is entry migration only: run the target battle-group session flow as a side-channel probe from real `BattleStartRequest` launch data while preserving the existing legacy handoff and result writeback.
+
 ## Code Refactor Design Acceptance
 
 Status: Accepted On 2026-05-17

@@ -40,7 +40,8 @@ This document tracks durable design state. Historical implementation details liv
 
 ## Pending Design
 
-- Hero-led light RTS second-phase migration plan: wire the live world/site battle entry from the legacy `BattleSessionHandoff` / `BattleStartRequest` chain toward the new battle-group session flow without breaking existing result writeback.
+- Hero-led light RTS second-phase entry migration has started. The initial plan is to run the new battle-group session flow as a side-channel probe from real `BattleStartRequest` launch data while preserving legacy handoff and result writeback.
+- Later hero-led light RTS second-phase replacement work: move live world/site battle entry from the legacy `BattleSessionHandoff` / `BattleStartRequest` chain toward the new battle-group session flow without breaking existing result writeback.
 - Real hero-led light RTS runtime state machine and battle report contract beyond the current first-phase skeleton.
 - Hero/corps role split for commanded battles.
 - Strategic-location deployment UX for battle preparation.
