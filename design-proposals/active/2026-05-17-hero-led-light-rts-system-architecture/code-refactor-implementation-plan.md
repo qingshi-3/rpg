@@ -1,6 +1,12 @@
 # Hero-Led Light RTS Code Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
+
+## Current Status
+
+Status: First Phase Implemented
+
+This plan is now a completed first-phase implementation record, not an open task list. The target architecture regression project, target contract skeletons, boundary adapters, minimal vertical flow, and proposal note updates have landed. The implemented slice is still a contract/runtime skeleton beside the legacy battle path; it does not replace the live WorldSite battle entry or final light-RTS runtime.
 
 **Goal:** Build the first target architecture vertical slice: battle-group long-term state, snapshot contracts, command validation, runtime event/result output, settlement writeback, and report generation.
 
@@ -90,7 +96,7 @@ Do not modify UI scenes in this phase.
 - Create: `tests/TargetBattleArchitectureRegression/TargetBattleArchitectureRegression.csproj`
 - Create: `tests/TargetBattleArchitectureRegression/Program.cs`
 
-- [ ] **Step 1: Write the failing test project**
+- [x] **Step 1: Write the failing test project**
 
 Create `tests/TargetBattleArchitectureRegression/TargetBattleArchitectureRegression.csproj`:
 
@@ -307,7 +313,7 @@ static void AssertSequence<T>(IReadOnlyList<T> expected, IReadOnlyList<T> actual
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -317,7 +323,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: FAIL at compile time with missing namespaces such as `Rpg.Domain.BattleGroups`, `Rpg.Runtime.Battle`, and `Rpg.Application.Battle.Snapshots`.
 
-- [ ] **Step 3: Commit the failing architecture tests**
+- [x] **Step 3: Commit the failing architecture tests**
 
 ```powershell
 git add tests/TargetBattleArchitectureRegression
@@ -338,7 +344,7 @@ git commit -m "test: add target battle architecture regression suite"
 - Create: `src/Domain/Equipment/EquipmentAssignment.cs`
 - Test: `tests/TargetBattleArchitectureRegression/Program.cs`
 
-- [ ] **Step 1: Add hero state**
+- [x] **Step 1: Add hero state**
 
 Create `src/Domain/Heroes/HeroRank.cs`:
 
@@ -393,7 +399,7 @@ public sealed class HeroState
 }
 ```
 
-- [ ] **Step 2: Add corps state**
+- [x] **Step 2: Add corps state**
 
 Create `src/Domain/Corps/CorpsState.cs`:
 
@@ -447,7 +453,7 @@ public static class CorpsStrengthPolicy
 }
 ```
 
-- [ ] **Step 3: Add battle group and equipment state**
+- [x] **Step 3: Add battle group and equipment state**
 
 Create `src/Domain/BattleGroups/BattleGroupStatus.cs`:
 
@@ -511,7 +517,7 @@ public sealed class EquipmentAssignment
 }
 ```
 
-- [ ] **Step 4: Run architecture regression**
+- [x] **Step 4: Run architecture regression**
 
 Run:
 
@@ -521,7 +527,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: FAIL with missing Application and Runtime namespaces, while `CorpsStrengthClampsAndVisibleSoldiersAreDerived` compiles.
 
-- [ ] **Step 5: Commit domain contracts**
+- [x] **Step 5: Commit domain contracts**
 
 ```powershell
 git add src/Domain/Heroes src/Domain/Corps src/Domain/BattleGroups src/Domain/Equipment tests/TargetBattleArchitectureRegression
@@ -537,7 +543,7 @@ git commit -m "feat: add battle group domain state contracts"
 - Create: `src/Definitions/Corps/CorpsDefinition.cs`
 - Create: `src/Definitions/Equipment/EquipmentDefinition.cs`
 
-- [ ] **Step 1: Add hero definition resources**
+- [x] **Step 1: Add hero definition resources**
 
 Create `src/Definitions/Heroes/HeroAttributeBlock.cs`:
 
@@ -579,7 +585,7 @@ public partial class HeroDefinition : Resource
 }
 ```
 
-- [ ] **Step 2: Add corps and equipment definition resources**
+- [x] **Step 2: Add corps and equipment definition resources**
 
 Create `src/Definitions/Corps/CorpsCombatClass.cs`:
 
@@ -637,7 +643,7 @@ public partial class EquipmentDefinition : Resource
 }
 ```
 
-- [ ] **Step 3: Build to verify Godot resource classes compile**
+- [x] **Step 3: Build to verify Godot resource classes compile**
 
 Run:
 
@@ -647,7 +653,7 @@ dotnet build rpg.csproj -maxcpucount:2 -v:minimal
 
 Expected: exit code 0. This verifies the new Godot `Resource` classes compile without building the regression project that is still waiting for Application and Runtime contracts.
 
-- [ ] **Step 4: Commit definition resources**
+- [x] **Step 4: Commit definition resources**
 
 ```powershell
 git add src/Definitions/Heroes src/Definitions/Corps src/Definitions/Equipment
@@ -663,7 +669,7 @@ git commit -m "feat: add hero corps equipment definitions"
 - Create: `src/Application/Battle/Snapshots/BattleSnapshotBuilder.cs`
 - Test: `tests/TargetBattleArchitectureRegression/Program.cs`
 
-- [ ] **Step 1: Add snapshot data contracts**
+- [x] **Step 1: Add snapshot data contracts**
 
 Create `src/Application/Battle/Snapshots/BattleGroupSnapshot.cs`:
 
@@ -717,7 +723,7 @@ public sealed class BattleStartSnapshot
 }
 ```
 
-- [ ] **Step 2: Add snapshot builder**
+- [x] **Step 2: Add snapshot builder**
 
 Create `src/Application/Battle/Snapshots/BattleSnapshotBuilder.cs`:
 
@@ -781,7 +787,7 @@ public sealed class BattleSnapshotBuilder
 }
 ```
 
-- [ ] **Step 3: Run architecture regression**
+- [x] **Step 3: Run architecture regression**
 
 Run:
 
@@ -791,7 +797,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: FAIL with missing Command, Settlement, Report, and Runtime types. `SnapshotCopiesBattleGroupFacts` should compile after this task.
 
-- [ ] **Step 4: Commit snapshot contracts**
+- [x] **Step 4: Commit snapshot contracts**
 
 ```powershell
 git add src/Application/Battle/Snapshots tests/TargetBattleArchitectureRegression
@@ -808,7 +814,7 @@ git commit -m "feat: add battle snapshot contracts"
 - Create: `src/Application/Battle/Commands/BattleCommandApplicationValidator.cs`
 - Test: `tests/TargetBattleArchitectureRegression/Program.cs`
 
-- [ ] **Step 1: Add command request and enums**
+- [x] **Step 1: Add command request and enums**
 
 Create `src/Application/Battle/Commands/CommandChannel.cs`:
 
@@ -856,7 +862,7 @@ public sealed class CommandRequest
 }
 ```
 
-- [ ] **Step 2: Add command validation result and validator**
+- [x] **Step 2: Add command validation result and validator**
 
 Create `src/Application/Battle/Commands/CommandValidationResult.cs`:
 
@@ -942,7 +948,7 @@ public sealed class BattleCommandApplicationValidator
 }
 ```
 
-- [ ] **Step 3: Run architecture regression**
+- [x] **Step 3: Run architecture regression**
 
 Run:
 
@@ -952,7 +958,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: FAIL with missing Settlement, Report, and Runtime types. `CommandValidationDistinguishesApplicationRejection` should compile after this task.
 
-- [ ] **Step 4: Commit command contracts**
+- [x] **Step 4: Commit command contracts**
 
 ```powershell
 git add src/Application/Battle/Commands tests/TargetBattleArchitectureRegression
@@ -973,7 +979,7 @@ git commit -m "feat: add battle command contracts"
 - Create: `src/Runtime/Battle/BattleRuntimeSession.cs`
 - Test: `tests/TargetBattleArchitectureRegression/Program.cs`
 
-- [ ] **Step 1: Add event stream**
+- [x] **Step 1: Add event stream**
 
 Create `src/Runtime/Battle/Events/BattleEventKind.cs`:
 
@@ -1037,7 +1043,7 @@ public sealed class BattleEventStream
 }
 ```
 
-- [ ] **Step 2: Add runtime result contracts**
+- [x] **Step 2: Add runtime result contracts**
 
 Create `src/Runtime/Battle/BattleTerminationReason.cs`:
 
@@ -1085,7 +1091,7 @@ public sealed class BattleOutcomeResult
 }
 ```
 
-- [ ] **Step 3: Add minimal runtime session**
+- [x] **Step 3: Add minimal runtime session**
 
 Create `src/Runtime/Battle/BattleRuntimeActorKind.cs`:
 
@@ -1179,7 +1185,7 @@ public sealed class BattleRuntimeSession
 }
 ```
 
-- [ ] **Step 4: Run architecture regression**
+- [x] **Step 4: Run architecture regression**
 
 Run:
 
@@ -1189,7 +1195,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: FAIL with missing Settlement and Report types. Runtime source isolation tests should compile.
 
-- [ ] **Step 5: Commit runtime contracts**
+- [x] **Step 5: Commit runtime contracts**
 
 ```powershell
 git add src/Runtime/Battle tests/TargetBattleArchitectureRegression
@@ -1206,7 +1212,7 @@ git commit -m "feat: add battle runtime event contracts"
 - Create: `src/Application/Battle/Reports/BattleReportBuilder.cs`
 - Test: `tests/TargetBattleArchitectureRegression/Program.cs`
 
-- [ ] **Step 1: Add settlement contracts**
+- [x] **Step 1: Add settlement contracts**
 
 Create `src/Application/Battle/Settlement/StateDeltaSet.cs`:
 
@@ -1242,7 +1248,7 @@ public sealed class SettlementPlan
 }
 ```
 
-- [ ] **Step 2: Add settlement service**
+- [x] **Step 2: Add settlement service**
 
 Create `src/Application/Battle/Settlement/BattleSettlementService.cs`:
 
@@ -1297,7 +1303,7 @@ public sealed class BattleSettlementService
 }
 ```
 
-- [ ] **Step 3: Add report contracts**
+- [x] **Step 3: Add report contracts**
 
 Create `src/Application/Battle/Reports/BattleReportRecord.cs`:
 
@@ -1346,7 +1352,7 @@ public sealed class BattleReportBuilder
 }
 ```
 
-- [ ] **Step 4: Run architecture regression**
+- [x] **Step 4: Run architecture regression**
 
 Run:
 
@@ -1356,7 +1362,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: PASS all tests in `TargetBattleArchitectureRegression`.
 
-- [ ] **Step 5: Commit settlement and report contracts**
+- [x] **Step 5: Commit settlement and report contracts**
 
 ```powershell
 git add src/Application/Battle/Settlement src/Application/Battle/Reports tests/TargetBattleArchitectureRegression
@@ -1371,7 +1377,7 @@ git commit -m "feat: add battle settlement and report contracts"
 - Create: `src/Application/Battle/Adapters/LegacyBattleResultAdapter.cs`
 - Test: `tests/TargetBattleArchitectureRegression/Program.cs`
 
-- [ ] **Step 1: Add adapter tests**
+- [x] **Step 1: Add adapter tests**
 
 Append these test registrations near the top of `tests/TargetBattleArchitectureRegression/Program.cs`:
 
@@ -1416,7 +1422,7 @@ using Rpg.Application.Battle.Adapters;
 using Rpg.Application.Battle;
 ```
 
-- [ ] **Step 2: Run adapter tests to verify they fail**
+- [x] **Step 2: Run adapter tests to verify they fail**
 
 Run:
 
@@ -1426,7 +1432,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: FAIL at compile time with missing `Rpg.Application.Battle.Adapters`.
 
-- [ ] **Step 3: Add garrison seed adapter**
+- [x] **Step 3: Add garrison seed adapter**
 
 Create `src/Application/Battle/Adapters/LegacyBattleGroupSeedAdapter.cs`:
 
@@ -1471,7 +1477,7 @@ public sealed class LegacyBattleGroupSeedAdapter
 }
 ```
 
-- [ ] **Step 4: Add start snapshot and result adapters**
+- [x] **Step 4: Add start snapshot and result adapters**
 
 Create `src/Application/Battle/Adapters/LegacyBattleStartSnapshotAdapter.cs`:
 
@@ -1538,7 +1544,7 @@ public sealed class LegacyBattleResultAdapter
 }
 ```
 
-- [ ] **Step 5: Run adapter tests**
+- [x] **Step 5: Run adapter tests**
 
 Run:
 
@@ -1548,7 +1554,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: PASS all tests in `TargetBattleArchitectureRegression`.
 
-- [ ] **Step 6: Commit adapters**
+- [x] **Step 6: Commit adapters**
 
 ```powershell
 git add src/Application/Battle/Adapters tests/TargetBattleArchitectureRegression
@@ -1562,7 +1568,7 @@ git commit -m "feat: add legacy battle architecture adapters"
 - Create: `src/Application/Battle/BattleGroupBattleFlowService.cs`
 - Test: `tests/TargetBattleArchitectureRegression/Program.cs`
 
-- [ ] **Step 1: Add vertical flow regression**
+- [x] **Step 1: Add vertical flow regression**
 
 Append this test registration:
 
@@ -1600,7 +1606,7 @@ Add this using:
 using Rpg.Application.BattleGroups;
 ```
 
-- [ ] **Step 2: Run vertical flow test to verify it fails**
+- [x] **Step 2: Run vertical flow test to verify it fails**
 
 Run:
 
@@ -1610,7 +1616,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: FAIL at compile time with missing `BattleGroupLifecycleService`, `BattleGroupBattleFlowService`, and `BattleGroupBattleFlowResult`.
 
-- [ ] **Step 3: Add lifecycle service**
+- [x] **Step 3: Add lifecycle service**
 
 Create `src/Application/BattleGroups/BattleGroupLifecycleService.cs`:
 
@@ -1662,7 +1668,7 @@ public sealed class BattleGroupLifecycleService
 }
 ```
 
-- [ ] **Step 4: Add vertical flow service**
+- [x] **Step 4: Add vertical flow service**
 
 Create `src/Application/Battle/BattleGroupBattleFlowService.cs`:
 
@@ -1730,7 +1736,7 @@ public sealed class BattleGroupBattleFlowService
 }
 ```
 
-- [ ] **Step 5: Run vertical flow test**
+- [x] **Step 5: Run vertical flow test**
 
 Run:
 
@@ -1740,7 +1746,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: PASS all tests in `TargetBattleArchitectureRegression`.
 
-- [ ] **Step 6: Commit vertical flow service**
+- [x] **Step 6: Commit vertical flow service**
 
 ```powershell
 git add src/Application/BattleGroups src/Application/Battle/BattleGroupBattleFlowService.cs tests/TargetBattleArchitectureRegression
@@ -1752,18 +1758,18 @@ git commit -m "feat: wire minimal battle group vertical slice"
 **Files:**
 - Modify: `design-proposals/active/2026-05-17-hero-led-light-rts-system-architecture/implementation-notes.md`
 
-- [ ] **Step 1: Update implementation notes**
+- [x] **Step 1: Update implementation notes**
 
 Modify `implementation-notes.md` to record the first phase entry point:
 
 ```markdown
 # Implementation Notes
 
-Status: First Phase Plan Ready
+Status: First Phase Implemented
 
-No implementation work has started for this proposal.
+The first code refactor phase has been implemented beside the legacy battle path.
 
-The user accepted the expected architecture and `code-refactor-design.md` on 2026-05-17. The first code refactor phase is planned in `code-refactor-implementation-plan.md`.
+The user accepted the expected architecture and `code-refactor-design.md` on 2026-05-17. The first code refactor phase is tracked in `code-refactor-implementation-plan.md`.
 
 First implementation phase:
 
@@ -1780,7 +1786,7 @@ target contracts and boundary tests
 Implementation work should use `expected/system-design/hero-led-light-rts-system-architecture.md` as the working architecture target. If implementation reveals an architecture change, pause and update the expected copy for user acceptance before continuing.
 ```
 
-- [ ] **Step 2: Run target architecture regression**
+- [x] **Step 2: Run target architecture regression**
 
 Run:
 
@@ -1790,7 +1796,7 @@ dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchit
 
 Expected: PASS all tests in `TargetBattleArchitectureRegression`.
 
-- [ ] **Step 3: Run low-concurrency solution build**
+- [x] **Step 3: Run low-concurrency solution build**
 
 Run:
 
@@ -1800,7 +1806,7 @@ dotnet build rpg.sln -maxcpucount:2 -v:minimal
 
 Expected: exit code 0.
 
-- [ ] **Step 4: Run focused existing regression projects**
+- [x] **Step 4: Run focused existing regression projects**
 
 Run:
 
@@ -1812,7 +1818,7 @@ dotnet run --project tests/BattleHitFeedbackRegression/BattleHitFeedbackRegressi
 
 Expected: all three commands exit code 0.
 
-- [ ] **Step 5: Clean build servers**
+- [x] **Step 5: Clean build servers**
 
 Run:
 
@@ -1822,7 +1828,7 @@ dotnet build-server shutdown
 
 Expected: command exits successfully and reports build servers shut down or no servers running.
 
-- [ ] **Step 6: Commit proposal note update**
+- [x] **Step 6: Commit proposal note update**
 
 ```powershell
 git add design-proposals/active/2026-05-17-hero-led-light-rts-system-architecture/implementation-notes.md
@@ -1831,13 +1837,13 @@ git commit -m "docs: record battle architecture first phase plan"
 
 ## Self-Review Checklist
 
-- [ ] Every target file is listed in the File Structure section.
-- [ ] Boundary tests are written before target implementation tasks.
-- [ ] Runtime source isolation is tested.
-- [ ] Domain source isolation is tested.
-- [ ] Snapshot copies facts instead of passing live Domain objects.
-- [ ] Settlement rejects incomplete and mismatched results.
-- [ ] Report and Settlement consume the same event IDs.
-- [ ] Adapters are boundary-only and log migration decisions.
-- [ ] The plan does not edit UI scenes in this phase.
-- [ ] Verification uses low-concurrency `dotnet build`.
+- [x] Every target file is listed in the File Structure section.
+- [x] Boundary tests are written before target implementation tasks.
+- [x] Runtime source isolation is tested.
+- [x] Domain source isolation is tested.
+- [x] Snapshot copies facts instead of passing live Domain objects.
+- [x] Settlement rejects incomplete and mismatched results.
+- [x] Report and Settlement consume the same event IDs.
+- [x] Adapters are boundary-only and log migration decisions.
+- [x] The plan does not edit UI scenes in this phase.
+- [x] Verification uses low-concurrency `dotnet build`.

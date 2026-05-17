@@ -23,6 +23,7 @@ This document tracks durable design state. Historical implementation details liv
 - Strategic map TileMap contract exists: `WorldMapRoot/SiteVisualLayer`, `WorldMapRoot/MapAnchors/Sites`, and `WorldMapRoot/StrategicNavigationTileLayer` with Godot 2D navigation for world-army movement.
 - Enemy Raid appears as an enemy `WorldArmyState` on the strategic map and moves through strategic navigation.
 - Scene structure cleanup split strategic world, site runtime shell, authored site implementations, and site interaction placeholders into `StrategicWorldRoot`, `sites/WorldSiteRoot`, `sites/impl`, and `site_interactions`.
+- Hero-led light RTS architecture proposal has design acceptance and first-phase engineering closure. The target architecture skeleton now covers hero/corps/battle-group state, snapshot contracts, command validation, runtime event/result contracts, settlement/report contracts, legacy boundary adapters, minimal battle-group vertical flow, and solution-level target architecture regression coverage.
 
 ## Confirmed Principles
 
@@ -39,7 +40,8 @@ This document tracks durable design state. Historical implementation details liv
 
 ## Pending Design
 
-- Hero-led light RTS runtime architecture and battle report contract.
+- Hero-led light RTS second-phase migration plan: wire the live world/site battle entry from the legacy `BattleSessionHandoff` / `BattleStartRequest` chain toward the new battle-group session flow without breaking existing result writeback.
+- Real hero-led light RTS runtime state machine and battle report contract beyond the current first-phase skeleton.
 - Hero/corps role split for commanded battles.
 - Strategic-location deployment UX for battle preparation.
 - Facility effects that influence battles without making wall-hitting the main experience.

@@ -13,9 +13,11 @@ Review entry points:
 
 ## Implementation Acceptance
 
-Status: First Phase Implemented
+Status: First Phase Engineering Closure Complete
 
-The first code refactor phase has been implemented beside the legacy battle path. Detailed phase status is tracked in `implementation-notes.md`.
+The first code refactor phase has been implemented beside the legacy battle path, and engineering closure has synced the implementation plan and solution-level regression coverage. Detailed phase status is tracked in `implementation-notes.md`.
+
+This is not final implementation acceptance for the whole proposal. The second phase still needs to migrate the live world/site battle entry from the legacy handoff chain toward the new battle-group session flow before the expected architecture can be merged into `system-design/` and archived.
 
 ## Code Refactor Design Acceptance
 
