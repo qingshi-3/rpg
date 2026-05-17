@@ -1,3 +1,5 @@
+using Rpg.Application.Battle;
+using Rpg.Application.Battle.Adapters;
 using Rpg.Application.Battle.Commands;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.Battle.Settlement;
@@ -9,6 +11,8 @@ using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Results;
 
+Environment.SetEnvironmentVariable("RPG_GAMELOG_DIR", Path.Combine(Path.GetTempPath(), "rpg-test-logs"));
+
 Run("corps strength clamps and visible soldiers are derived", CorpsStrengthClampsAndVisibleSoldiersAreDerived);
 Run("runtime source stays isolated from domain and presentation owners", RuntimeSourceStaysIsolated);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
@@ -17,6 +21,9 @@ Run("snapshot copies battle group facts", SnapshotCopiesBattleGroupFacts);
 Run("command validation distinguishes application rejection", CommandValidationDistinguishesApplicationRejection);
 Run("settlement rejects incomplete result", SettlementRejectsIncompleteResult);
 Run("report and settlement consume the same event ids", ReportAndSettlementConsumeSameEventIds);
+Run("legacy garrison adapter creates explicit battle groups", LegacyGarrisonAdapterCreatesExplicitBattleGroups);
+Run("legacy result adapter preserves request and outcome ids", LegacyResultAdapterPreservesRequestAndOutcomeIds);
+Run("legacy result adapter maps failed handoff to disaster", LegacyResultAdapterMapsFailedHandoffToDisaster);
 
 static void CorpsStrengthClampsAndVisibleSoldiersAreDerived()
 {
@@ -154,6 +161,56 @@ static void ReportAndSettlementConsumeSameEventIds()
 
     AssertSequence(new[] { "event_1", "event_2" }, plan.SourceEventIds, "settlement source events");
     AssertSequence(new[] { "event_1", "event_2" }, report.SourceEventIds, "report source events");
+}
+
+static void LegacyGarrisonAdapterCreatesExplicitBattleGroups()
+{
+    Rpg.Domain.World.WorldSiteState site = new() { SiteId = "city_1" };
+    site.Garrison.Add(new Rpg.Domain.World.GarrisonState { UnitTypeId = "militia", Count = 2 });
+
+    Rpg.Application.Battle.Adapters.LegacyBattleGroupSeedAdapter adapter = new();
+    IReadOnlyList<BattleGroupState> groups = adapter.SeedFromGarrison(site, "hero_seed");
+
+    AssertEqual(2, groups.Count, "group count");
+    AssertEqual("city_1", groups[0].CurrentLocationId, "location copied");
+    AssertTrue(groups.All(item => !string.IsNullOrWhiteSpace(item.HeroId)), "hero ids assigned");
+    AssertTrue(groups.All(item => !string.IsNullOrWhiteSpace(item.CorpsId)), "corps ids assigned");
+}
+
+static void LegacyResultAdapterPreservesRequestAndOutcomeIds()
+{
+    BattleOutcomeResult outcome = BattleOutcomeResult.Completed("snapshot_1", "battle_1", BattleTerminationReason.NormalVictory);
+    Rpg.Application.Battle.BattleResult result = new Rpg.Application.Battle.Adapters.LegacyBattleResultAdapter()
+        .ToLegacyResult("request_1", Rpg.Application.Battle.BattleKind.AssaultSite, outcome);
+
+    AssertEqual("request_1", result.RequestId, "legacy request id");
+    AssertEqual("battle_1", result.ContextId, "legacy context id");
+    AssertEqual(Rpg.Application.Battle.BattleOutcome.Victory, result.Outcome, "legacy outcome");
+}
+
+static void LegacyResultAdapterMapsFailedHandoffToDisaster()
+{
+    LegacyBattleResultAdapter adapter = new();
+
+    Rpg.Application.Battle.BattleResult nullOutcome = adapter
+        .ToLegacyResult("request_null", Rpg.Application.Battle.BattleKind.AssaultSite, null);
+
+    BattleOutcomeResult runtimeExceptionOutcome = new()
+    {
+        SnapshotId = "snapshot_1",
+        BattleId = "battle_1",
+        IsComplete = false,
+        TerminationReason = BattleTerminationReason.RuntimeException
+    };
+    Rpg.Application.Battle.BattleResult incompleteRuntimeException = adapter
+        .ToLegacyResult("request_runtime_exception", Rpg.Application.Battle.BattleKind.AssaultSite, runtimeExceptionOutcome);
+
+    AssertEqual(Rpg.Application.Battle.BattleOutcome.Disaster, nullOutcome.Outcome, "null outcome maps to disaster");
+    AssertTrue(nullOutcome.Outcome != Rpg.Application.Battle.BattleOutcome.Victory, "null outcome must not map to victory");
+    AssertTrue(nullOutcome.Outcome != Rpg.Application.Battle.BattleOutcome.Defeat, "null outcome must not map to defeat");
+    AssertEqual(Rpg.Application.Battle.BattleOutcome.Disaster, incompleteRuntimeException.Outcome, "incomplete runtime exception maps to disaster");
+    AssertTrue(incompleteRuntimeException.Outcome != Rpg.Application.Battle.BattleOutcome.Victory, "incomplete runtime exception must not map to victory");
+    AssertTrue(incompleteRuntimeException.Outcome != Rpg.Application.Battle.BattleOutcome.Defeat, "incomplete runtime exception must not map to defeat");
 }
 
 static string CombinedSource(params string[] pathParts)
