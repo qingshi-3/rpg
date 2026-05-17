@@ -21,9 +21,11 @@ This is not final implementation acceptance for the whole proposal. The second p
 
 ## Phase 2 Start
 
-Status: Started
+Status: Entry Migration Complete
 
 Phase 2 is planned in `code-refactor-phase2-entry-migration-plan.md`. Its initial scope is entry migration only: run the target battle-group session flow as a side-channel probe from real `BattleStartRequest` launch data while preserving the existing legacy handoff and result writeback.
+
+The entry migration has been implemented and verified. Business gameplay work may now start on the smallest hero/corps slice, with the constraint that the legacy handoff/result path remains the user-facing runtime until a later accepted replacement phase.
 
 ## Code Refactor Design Acceptance
 

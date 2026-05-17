@@ -23,15 +23,20 @@ public sealed class WorldSiteBattleLaunchResult
 {
     public bool Success { get; init; }
     public string FailureReason { get; init; } = "";
+    public BattleGroupSessionProbeResult ProbeResult { get; init; }
 }
 
 public sealed class WorldSiteBattleLauncher
 {
     private readonly WorldSiteModeTransitionService _siteModeTransitions;
+    private readonly BattleGroupSessionProbeService _battleGroupSessionProbe;
 
-    public WorldSiteBattleLauncher(WorldSiteModeTransitionService siteModeTransitions = null)
+    public WorldSiteBattleLauncher(
+        WorldSiteModeTransitionService siteModeTransitions = null,
+        BattleGroupSessionProbeService battleGroupSessionProbe = null)
     {
         _siteModeTransitions = siteModeTransitions ?? new WorldSiteModeTransitionService();
+        _battleGroupSessionProbe = battleGroupSessionProbe;
     }
 
     public WorldSiteBattleLaunchRollback CaptureRollback(WorldSiteState site)
@@ -108,10 +113,17 @@ public sealed class WorldSiteBattleLauncher
         }
 
         BattleSessionHandoff.BeginBattle(request);
+        // Probe is intentionally diagnostic-only while legacy handoff remains the
+        // player-facing path; probe failure must not roll back a valid launch.
+        BattleGroupSessionProbeResult probeResult = _battleGroupSessionProbe?.Probe(request);
         applyBattleStartRequest?.Invoke();
         if (activateBattleRuntime?.Invoke() == true)
         {
-            return new WorldSiteBattleLaunchResult { Success = true };
+            return new WorldSiteBattleLaunchResult
+            {
+                Success = true,
+                ProbeResult = probeResult
+            };
         }
 
         string reason = getBlockedReason?.Invoke() ?? "";
@@ -132,7 +144,8 @@ public sealed class WorldSiteBattleLauncher
         return new WorldSiteBattleLaunchResult
         {
             Success = false,
-            FailureReason = reason
+            FailureReason = reason,
+            ProbeResult = probeResult
         };
     }
 

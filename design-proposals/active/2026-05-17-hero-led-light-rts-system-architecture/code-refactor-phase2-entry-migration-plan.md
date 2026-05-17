@@ -1,6 +1,6 @@
 # Hero-Led Light RTS Code Refactor Phase 2 Entry Migration Plan
 
-Status: Started
+Status: Entry Migration Complete
 
 ## Purpose
 
@@ -123,3 +123,17 @@ Phase 2 entry migration is acceptable when:
 - probe diagnostics are explicit and low-noise;
 - no long-term world state is mutated by the probe;
 - the next step can choose between replacing result/report handling or expanding the real runtime state machine.
+
+## Completion
+
+Status: Complete
+
+Implemented phase-2 entry migration:
+
+- `BattleGroupSessionProbeService` accepts real `BattleStartRequest` launch data, builds target snapshots, and runs the target battle-group flow.
+- `WorldSiteBattleLauncher` runs the probe as a diagnostic side channel while keeping legacy `BattleSessionHandoff` as the player-facing path.
+- Probe success and rejection are exposed through `WorldSiteBattleLaunchResult`.
+- Probe failure does not cancel, consume, or replace the active legacy handoff.
+- Regression coverage proves successful probe flow, rejected probe flow, and unchanged legacy rollback behavior.
+
+The project is now ready to start the smallest business gameplay slice on top of the new architecture. The old handoff/result path still exists as the player-facing runtime until a later replacement phase.

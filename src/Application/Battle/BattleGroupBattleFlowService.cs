@@ -58,4 +58,25 @@ public sealed class BattleGroupBattleFlowService
             Report = report
         };
     }
+
+    public BattleGroupBattleFlowResult RunSnapshot(BattleStartSnapshot snapshot)
+    {
+        BattleRuntimeSessionResult runtimeResult = _runtimeSession.RunMinimal(snapshot);
+        SettlementPlan settlementPlan = _settlementService.BuildPlan(
+            snapshot?.SnapshotId ?? "",
+            runtimeResult.Outcome,
+            runtimeResult.EventStream);
+        BattleReportRecord report = _reportBuilder.Build(
+            runtimeResult.Outcome,
+            runtimeResult.EventStream,
+            settlementPlan);
+
+        return new BattleGroupBattleFlowResult
+        {
+            Snapshot = snapshot ?? new BattleStartSnapshot(),
+            RuntimeResult = runtimeResult,
+            SettlementPlan = settlementPlan,
+            Report = report
+        };
+    }
 }
