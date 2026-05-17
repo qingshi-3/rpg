@@ -4,6 +4,7 @@ using Rpg.Application.Battle.Commands;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Application.BattleGroups;
 using Rpg.Domain.BattleGroups;
 using Rpg.Domain.Corps;
 using Rpg.Domain.Heroes;
@@ -18,12 +19,16 @@ Run("runtime source stays isolated from domain and presentation owners", Runtime
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
 Run("snapshot copies battle group facts", SnapshotCopiesBattleGroupFacts);
+Run("battle group lifecycle rejects invalid identities", BattleGroupLifecycleRejectsInvalidIdentities);
+Run("battle group lifecycle preserves state on invalid lock", BattleGroupLifecyclePreservesStateOnInvalidLock);
+Run("battle group lifecycle releases only active battle groups", BattleGroupLifecycleReleasesOnlyActiveBattleGroups);
 Run("command validation distinguishes application rejection", CommandValidationDistinguishesApplicationRejection);
 Run("settlement rejects incomplete result", SettlementRejectsIncompleteResult);
 Run("report and settlement consume the same event ids", ReportAndSettlementConsumeSameEventIds);
 Run("legacy garrison adapter creates explicit battle groups", LegacyGarrisonAdapterCreatesExplicitBattleGroups);
 Run("legacy result adapter preserves request and outcome ids", LegacyResultAdapterPreservesRequestAndOutcomeIds);
 Run("legacy result adapter maps failed handoff to disaster", LegacyResultAdapterMapsFailedHandoffToDisaster);
+Run("battle group vertical slice settles and reports from runtime facts", BattleGroupVerticalSliceSettlesAndReports);
 
 static void CorpsStrengthClampsAndVisibleSoldiersAreDerived()
 {
@@ -58,6 +63,29 @@ static void RuntimeRejectsInvalidBattleHandoff()
 {
     AssertInvalidBattleHandoff(new BattleRuntimeSession().RunMinimal(null), "null snapshot");
     AssertInvalidBattleHandoff(new BattleRuntimeSession().RunMinimal(new BattleStartSnapshot()), "blank snapshot ids");
+    AssertInvalidBattleHandoff(new BattleRuntimeSession().RunMinimal(new BattleStartSnapshot
+    {
+        SnapshotId = "snapshot_empty",
+        BattleId = "battle_empty"
+    }), "empty battle groups");
+    AssertInvalidBattleHandoff(new BattleRuntimeSession().RunMinimal(new BattleStartSnapshot
+    {
+        SnapshotId = "snapshot_null_groups",
+        BattleId = "battle_null_groups",
+        BattleGroups = null
+    }), "null battle groups");
+    AssertInvalidBattleHandoff(new BattleRuntimeSession().RunMinimal(new BattleStartSnapshot
+    {
+        SnapshotId = "snapshot_blank_group",
+        BattleId = "battle_blank_group",
+        BattleGroups = { new BattleGroupSnapshot() }
+    }), "blank battle group payload");
+    AssertInvalidBattleHandoff(new BattleRuntimeSession().RunMinimal(new BattleStartSnapshot
+    {
+        SnapshotId = "snapshot_null_group",
+        BattleId = "battle_null_group",
+        BattleGroups = { null! }
+    }), "null battle group payload");
 }
 
 static void AssertInvalidBattleHandoff(BattleRuntimeSessionResult result, string message)
@@ -113,6 +141,119 @@ static void SnapshotCopiesBattleGroupFacts()
     AssertEqual("shield", snapshot.BattleGroups[0].CorpsDefinitionId, "corps definition copied");
     corps.CorpsStrength = 12;
     AssertEqual(77, snapshot.BattleGroups[0].CorpsStrength, "snapshot must not track live domain object");
+}
+
+static void BattleGroupLifecycleRejectsInvalidIdentities()
+{
+    BattleGroupLifecycleService service = new();
+
+    AssertThrows<ArgumentException>(
+        () => service.CreateAndStation("", "hero_1", "corps_1", "city_1"),
+        "blank group id should throw");
+    AssertThrows<ArgumentException>(
+        () => service.CreateAndStation("group_1", " ", "corps_1", "city_1"),
+        "blank hero id should throw");
+    AssertThrows<ArgumentException>(
+        () => service.CreateAndStation("group_1", "hero_1", null, "city_1"),
+        "blank corps id should throw");
+    AssertThrows<ArgumentException>(
+        () => service.CreateAndStation("group_1", "hero_1", "corps_1", ""),
+        "blank location id should throw");
+}
+
+static void BattleGroupLifecyclePreservesStateOnInvalidLock()
+{
+    BattleGroupLifecycleService service = new();
+    BattleGroupState group = new()
+    {
+        BattleGroupId = "group_1",
+        HeroId = "hero_1",
+        CorpsId = "corps_1",
+        CurrentLocationId = "city_1",
+        Status = BattleGroupStatus.Stationed,
+        ActiveBattleId = "existing_battle"
+    };
+
+    bool locked = service.TryLockForBattle(group, " ");
+
+    AssertTrue(!locked, "blank battle id should not lock");
+    AssertEqual(BattleGroupStatus.Stationed, group.Status, "status unchanged");
+    AssertEqual("existing_battle", group.ActiveBattleId, "active battle unchanged");
+
+    group.BattleGroupId = "";
+    locked = service.TryLockForBattle(group, "battle_1");
+
+    AssertTrue(!locked, "blank group identity should not lock");
+    AssertEqual(BattleGroupStatus.Stationed, group.Status, "blank group status unchanged");
+    AssertEqual("existing_battle", group.ActiveBattleId, "blank group active battle unchanged");
+
+    group.BattleGroupId = "group_1";
+    group.HeroId = "";
+    locked = service.TryLockForBattle(group, "battle_1");
+
+    AssertTrue(!locked, "blank hero identity should not lock");
+    AssertEqual(BattleGroupStatus.Stationed, group.Status, "blank hero status unchanged");
+    AssertEqual("existing_battle", group.ActiveBattleId, "blank hero active battle unchanged");
+
+    group.HeroId = "hero_1";
+    group.CorpsId = "";
+    locked = service.TryLockForBattle(group, "battle_1");
+
+    AssertTrue(!locked, "blank corps identity should not lock");
+    AssertEqual(BattleGroupStatus.Stationed, group.Status, "blank corps status unchanged");
+    AssertEqual("existing_battle", group.ActiveBattleId, "blank corps active battle unchanged");
+
+    AssertTrue(!service.TryLockForBattle(null, "battle_1"), "null group should not lock");
+
+    BattleGroupState recovering = new()
+    {
+        BattleGroupId = "group_recovering",
+        HeroId = "hero_1",
+        CorpsId = "corps_1",
+        Status = BattleGroupStatus.Recovering,
+        ActiveBattleId = "recovering_battle"
+    };
+
+    locked = service.TryLockForBattle(recovering, "battle_1");
+
+    AssertTrue(!locked, "non sortie group should not lock");
+    AssertEqual(BattleGroupStatus.Recovering, recovering.Status, "non sortie status unchanged");
+    AssertEqual("recovering_battle", recovering.ActiveBattleId, "non sortie active battle unchanged");
+}
+
+static void BattleGroupLifecycleReleasesOnlyActiveBattleGroups()
+{
+    BattleGroupLifecycleService service = new();
+    BattleGroupState recovering = new()
+    {
+        BattleGroupId = "group_recovering",
+        Status = BattleGroupStatus.Recovering,
+        ActiveBattleId = "battle_1"
+    };
+    BattleGroupState stationed = new()
+    {
+        BattleGroupId = "group_stationed",
+        Status = BattleGroupStatus.InBattle,
+        CurrentLocationId = "city_1",
+        ActiveBattleId = "battle_1"
+    };
+    BattleGroupState unstationed = new()
+    {
+        BattleGroupId = "group_unstationed",
+        Status = BattleGroupStatus.InBattle,
+        ActiveBattleId = "battle_1"
+    };
+
+    service.ReleaseAfterBattle(recovering);
+    service.ReleaseAfterBattle(stationed);
+    service.ReleaseAfterBattle(unstationed);
+
+    AssertEqual(BattleGroupStatus.Recovering, recovering.Status, "non battle status unchanged");
+    AssertEqual("battle_1", recovering.ActiveBattleId, "non battle active id unchanged");
+    AssertEqual(BattleGroupStatus.Stationed, stationed.Status, "stationed group released to station");
+    AssertEqual("", stationed.ActiveBattleId, "stationed group active id cleared");
+    AssertEqual(BattleGroupStatus.Available, unstationed.Status, "unstationed group released to available");
+    AssertEqual("", unstationed.ActiveBattleId, "unstationed group active id cleared");
 }
 
 static void CommandValidationDistinguishesApplicationRejection()
@@ -213,6 +354,40 @@ static void LegacyResultAdapterMapsFailedHandoffToDisaster()
     AssertTrue(incompleteRuntimeException.Outcome != Rpg.Application.Battle.BattleOutcome.Defeat, "incomplete runtime exception must not map to defeat");
 }
 
+static void BattleGroupVerticalSliceSettlesAndReports()
+{
+    HeroState hero = new() { HeroId = "hero_1", HeroDefinitionId = "hero_def_1", Level = 3 };
+    CorpsState corps = new() { CorpsId = "corps_1", CorpsDefinitionId = "shield", Level = 2, CorpsStrength = 90 };
+    BattleGroupState group = new BattleGroupLifecycleService().CreateAndStation("group_1", hero.HeroId, corps.CorpsId, "city_1");
+
+    Rpg.Application.Battle.BattleGroupBattleFlowService flow = new();
+    Rpg.Application.Battle.BattleGroupBattleFlowResult result = flow.RunMinimalBattle(
+        "snapshot_1",
+        "battle_1",
+        "site_1",
+        new[] { group },
+        new Dictionary<string, HeroState> { [hero.HeroId] = hero },
+        new Dictionary<string, CorpsState> { [corps.CorpsId] = corps });
+
+    AssertTrue(result.SettlementPlan.Accepted, "settlement accepted");
+    AssertEqual("battle_1", result.Report.BattleId, "report battle id");
+    AssertSequence(result.RuntimeResult.EventStream.EventIds, result.SettlementPlan.SourceEventIds, "settlement uses runtime events");
+    AssertSequence(result.RuntimeResult.EventStream.EventIds, result.Report.SourceEventIds, "report uses runtime events");
+    AssertSequence(result.SettlementPlan.SourceEventIds, result.Report.SourceEventIds, "same source events");
+
+    Rpg.Application.Battle.BattleGroupBattleFlowResult rejected = flow.RunMinimalBattle(
+        "snapshot_missing",
+        "battle_missing",
+        "site_1",
+        new[] { group },
+        new Dictionary<string, HeroState>(),
+        new Dictionary<string, CorpsState> { [corps.CorpsId] = corps });
+
+    AssertTrue(!rejected.RuntimeResult.Outcome.IsComplete, "missing hero handoff must not complete");
+    AssertTrue(!rejected.SettlementPlan.Accepted, "missing hero handoff must not settle");
+    AssertEqual("battle_result_incomplete", rejected.SettlementPlan.RejectionReason, "missing hero settlement rejection");
+}
+
 static string CombinedSource(params string[] pathParts)
 {
     string root = ProjectRoot();
@@ -266,6 +441,25 @@ static void AssertEqual<T>(T expected, T actual, string message)
     {
         throw new Exception($"{message}: expected={expected} actual={actual}");
     }
+}
+
+static void AssertThrows<T>(Action action, string message)
+    where T : Exception
+{
+    try
+    {
+        action();
+    }
+    catch (T)
+    {
+        return;
+    }
+    catch (Exception exception)
+    {
+        throw new Exception($"{message}: expected={typeof(T).Name} actual={exception.GetType().Name}");
+    }
+
+    throw new Exception($"{message}: expected={typeof(T).Name} actual=no exception");
 }
 
 static void AssertSequence<T>(IReadOnlyList<T> expected, IReadOnlyList<T> actual, string message)

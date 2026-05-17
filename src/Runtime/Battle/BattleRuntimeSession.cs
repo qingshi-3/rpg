@@ -13,7 +13,11 @@ public sealed class BattleRuntimeSession
         BattleEventStream stream = new();
         string battleId = snapshot?.BattleId ?? "";
         string snapshotId = snapshot?.SnapshotId ?? "";
-        if (string.IsNullOrWhiteSpace(snapshotId) || string.IsNullOrWhiteSpace(battleId))
+        if (string.IsNullOrWhiteSpace(snapshotId) ||
+            string.IsNullOrWhiteSpace(battleId) ||
+            snapshot?.BattleGroups == null ||
+            snapshot.BattleGroups.Count == 0 ||
+            snapshot.BattleGroups.Any(item => !HasRequiredGroupIdentity(item)))
         {
             stream.Add(new BattleEvent
             {
@@ -66,5 +70,16 @@ public sealed class BattleRuntimeSession
             EventStream = stream,
             Outcome = BattleOutcomeResult.Completed(snapshotId, battleId, BattleTerminationReason.NormalVictory)
         };
+    }
+
+    private static bool HasRequiredGroupIdentity(BattleGroupSnapshot group)
+    {
+        return group != null &&
+            !string.IsNullOrWhiteSpace(group.BattleGroupId) &&
+            !string.IsNullOrWhiteSpace(group.HeroId) &&
+            !string.IsNullOrWhiteSpace(group.CorpsId) &&
+            !string.IsNullOrWhiteSpace(group.HeroDefinitionId) &&
+            !string.IsNullOrWhiteSpace(group.CorpsDefinitionId) &&
+            !string.IsNullOrWhiteSpace(group.SourceLocationId);
     }
 }
