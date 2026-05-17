@@ -1,6 +1,6 @@
 # Hero-Led Light RTS System Architecture Proposal
 
-Status: Draft
+Status: Design Accepted
 
 ## Background
 
@@ -52,7 +52,7 @@ This draft incorporates two review passes:
 
 ## Acceptance Request
 
-User review should focus on whether the expected architecture is the right target before any architecture refactor or implementation begins.
+User accepted the expected architecture on 2026-05-17. Architecture refactor and implementation planning should use the expected copy as the proposal-scoped authority until implementation is accepted and merged into `system-design/`.
 
 Review entry points:
 

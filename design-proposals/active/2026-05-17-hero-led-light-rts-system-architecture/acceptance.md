@@ -2,9 +2,9 @@
 
 ## Design Acceptance
 
-Status: Pending User Review
+Status: Accepted On 2026-05-17
 
-The user has not yet accepted the expected architecture copy in this proposal.
+The user accepted the expected architecture copy in this proposal and authorized moving into code architecture refactor design.
 
 Review entry points:
 
@@ -13,6 +13,12 @@ Review entry points:
 
 ## Implementation Acceptance
 
-Status: Not Started
+Status: First Phase Implemented
 
-No implementation has been performed for this proposal.
+The first code refactor phase has been implemented beside the legacy battle path. Detailed phase status is tracked in `implementation-notes.md`.
+
+## Code Refactor Design Acceptance
+
+Status: Accepted On 2026-05-17
+
+The user accepted `code-refactor-design.md` and authorized moving into implementation planning.
