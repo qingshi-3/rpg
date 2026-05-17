@@ -1,6 +1,6 @@
 # Hero-Led Light RTS Code Refactor Phase 2 Entry Migration Plan
 
-Status: Entry Migration Complete
+Status: Live Replacement V0 In Progress
 
 ## Purpose
 
@@ -19,7 +19,7 @@ Phase 2 migrates the live world/site battle entry toward that target architectur
 
 ## Current Entry Path
 
-The active live path still uses:
+The original active live path used:
 
 ```text
 StrategicWorldRoot / WorldSiteRoot
@@ -30,11 +30,11 @@ StrategicWorldRoot / WorldSiteRoot
 -> WorldBattleResultApplier
 ```
 
-This path remains the user-facing authority until the new battle-group session path can run from the same launch data and produce equivalent safe failure behavior.
+This path must not remain the long-term player-facing authority. The live `WorldSiteRoot` start-battle activation is being moved to the battle-group runtime adapter first, while legacy request/result objects remain only as transition adapters until settlement writeback is replaced.
 
 ## Target Phase 2 Shape
 
-Phase 2 should introduce a battle session boundary that can run in parallel with the legacy handoff:
+Phase 2 first introduced a battle session boundary that could run in parallel with the legacy handoff:
 
 ```text
 BattleStartRequest
@@ -44,7 +44,21 @@ BattleStartRequest
 -> diagnostics / target report record
 ```
 
-The first phase-2 integration must not replace the player-facing result path. It should prove that the new session flow can be constructed, validated, and failed safely from real launch data.
+That probe is complete. The current replacement step moves live start-battle activation to:
+
+```text
+BattleSessionHandoff active request
+-> WorldSiteBattleGroupRuntimeAdapter
+-> BattleGroupBattleFlowService
+-> BattleRuntimeState
+-> BattleOutcomeResult + BattleEventStream
+-> SettlementPlan / BattleReportRecord
+-> legacy result adapter only for remaining world writeback bridge
+```
+
+The remaining legacy result bridge is not authority. It must be removed when settlement writeback fully owns strategic-state mutation.
+
+The live replacement now includes an autonomous combat v0 inside `BattleRuntimeSession`: runtime actors advance, find opposing corps by faction, apply damage, and terminate only after a side is defeated. Player command intervention remains out of scope for this v0.
 
 ## Non-Goals
 
@@ -126,9 +140,9 @@ Phase 2 entry migration is acceptable when:
 
 ## Completion
 
-Status: Complete
+Status: Probe complete; replacement incomplete
 
-Implemented phase-2 entry migration:
+Implemented phase-2 entry probe:
 
 - `BattleGroupSessionProbeService` accepts real `BattleStartRequest` launch data, builds target snapshots, and runs the target battle-group flow.
 - `WorldSiteBattleLauncher` runs the probe as a diagnostic side channel while keeping legacy `BattleSessionHandoff` as the player-facing path.
@@ -136,4 +150,13 @@ Implemented phase-2 entry migration:
 - Probe failure does not cancel, consume, or replace the active legacy handoff.
 - Regression coverage proves successful probe flow, rejected probe flow, and unchanged legacy rollback behavior.
 
-The project is now ready to start the smallest business gameplay slice on top of the new architecture. The old handoff/result path still exists as the player-facing runtime until a later replacement phase.
+Live replacement has started:
+
+- `WorldSiteRoot` no longer resolves player-facing start battle through `WorldSiteAutoBattleAdapter`.
+- `WorldSiteBattleGroupRuntimeAdapter` resolves the active launch through target battle-group runtime flow.
+- `BattleGroupSessionProbeService` snapshots both player and enemy forces into the target battle-group flow with faction and source-force attribution.
+- `BattleRuntimeSession` no longer returns immediate placeholder victory for valid opposed battles; it runs deterministic autonomous movement and corps attacks until player victory or defeat.
+- `LegacyBattleResultAdapter` converts runtime actor survival back into bridge `BattleForceResult` records so remaining world writeback consumes runtime facts instead of guessing force losses.
+- `BattleStartRequest`, `BattleResult`, and `WorldBattleResultApplier` remain as bridge objects for world writeback and must not receive new business authority.
+
+The project is not yet fully migrated. The next replacement step is moving strategic-state writeback from `WorldBattleResultApplier` to `SettlementPlan` / `StateDeltaSet`, then replacing the bridge result path completely.

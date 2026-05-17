@@ -345,7 +345,7 @@ static void BonefieldIsPartialIntelWithPublicEntrance()
 
 static void StrategicDetailGarrisonListIsGatedByTacticalLayoutIntel()
 {
-    string strategicRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "StrategicWorldRoot.cs"));
+    string strategicRoot = ReadStrategicWorldRootSource();
     string method = ExtractMethodBlock(strategicRoot, "private void RefreshDetail");
 
     AssertTrue(
@@ -464,7 +464,7 @@ static void ExplorationBattleRequestReceivesStructuredSiteIntel()
 
 static void WorldSiteRootAppliesIntelToExplorationBattleRequest()
 {
-    string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    string worldSiteRoot = ReadWorldSiteRootSource();
     string method = ExtractMethodBlock(worldSiteRoot, "private void RequestSiteExplorationBattle");
 
     AssertTrue(method.Contains("WorldSiteExplorationService.BuildExplorationBattleRequest", StringComparison.Ordinal), "root should build exploration battle request in RequestSiteExplorationBattle");
@@ -473,7 +473,7 @@ static void WorldSiteRootAppliesIntelToExplorationBattleRequest()
 
 static void WorldSiteRootAppliesExplorationActionsThroughWorldContext()
 {
-    string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    string worldSiteRoot = ReadWorldSiteRootSource();
     string method = ExtractMethodBlock(worldSiteRoot, "private void ExecuteSiteExplorationPointAction");
 
     AssertTrue(
@@ -490,7 +490,7 @@ static void WorldSiteRootAppliesExplorationActionsThroughWorldContext()
 
 static void WorldSiteRootExplorationPlacementUsesKnownPlayerEntrances()
 {
-    string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    string worldSiteRoot = ReadWorldSiteRootSource();
     string ensurePlacement = ExtractMethodBlock(worldSiteRoot, "private bool EnsureVisitingArmyPlacement");
     string resolveEntry = ExtractMethodBlock(worldSiteRoot, "private bool TryResolveExplorationEntrySurface");
 
@@ -510,7 +510,7 @@ static void WorldSiteRootExplorationPlacementUsesKnownPlayerEntrances()
 
 static void WorldSiteRootExplorationReadinessHasNoPatrolRouteFallback()
 {
-    string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    string worldSiteRoot = ReadWorldSiteRootSource();
     string method = ExtractMethodBlock(worldSiteRoot, "private void EnsureSiteExplorationStateReady");
     string afterEntryFailure = method.Contains("if (TryResolveExplorationEntrySurface", StringComparison.Ordinal)
         ? method[(method.IndexOf("if (TryResolveExplorationEntrySurface", StringComparison.Ordinal) + 1)..]
@@ -527,7 +527,7 @@ static void WorldSiteRootExplorationReadinessHasNoPatrolRouteFallback()
 
 static void WorldSiteRootExplorationCurrentCellCopyRequiresKnownEntrancePlacement()
 {
-    string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    string worldSiteRoot = ReadWorldSiteRootSource();
     string method = ExtractMethodBlock(worldSiteRoot, "private bool EnsureVisitingArmyPlacement");
     string copyBlock = ExtractIfBlockContaining(method, "site.Exploration.CurrentCellX = partyPlacement.CellX");
 
@@ -542,7 +542,7 @@ static void WorldSiteRootExplorationCurrentCellCopyRequiresKnownEntrancePlacemen
 
 static void WorldSiteRootExecutesStartsBattleExplorationActionsThroughBattleHandoff()
 {
-    string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    string worldSiteRoot = ReadWorldSiteRootSource();
     string appendMethod = ExtractMethodBlock(worldSiteRoot, "private bool TryAppendSiteExplorationPointActions");
     string executeMethod = ExtractMethodBlock(worldSiteRoot, "private void ExecuteSiteExplorationPointAction");
     string battleMethod = ExtractMethodBlock(worldSiteRoot, "private void RequestSiteExplorationPointBattle");
@@ -574,7 +574,7 @@ static void WorldSiteRootExecutesStartsBattleExplorationActionsThroughBattleHand
 
 static void StrategicDirectSiteEntryRequiresTacticalLayoutIntel()
 {
-    string strategicRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "StrategicWorldRoot.cs"));
+    string strategicRoot = ReadStrategicWorldRootSource();
     string canEnterMethod = NormalizeLineEndings(ExtractMethodBlock(strategicRoot, "private bool CanEnterSelectedSiteDetail"));
     string canShowMethod = NormalizeLineEndings(ExtractMethodBlock(strategicRoot, "private bool CanShowSelectedSiteDetailEntry"));
     string arrivedChoiceMethod = ExtractMethodBlock(strategicRoot, "private void AddArrivedAssaultChoiceButtons");
@@ -691,6 +691,19 @@ static bool HasEntrance(BattleStartRequest request, string entranceId, string fa
     return request.AvailableEntrances.Any(entrance =>
         entrance.EntranceId == entranceId &&
         entrance.FactionId == factionId);
+}
+
+
+static string ReadStrategicWorldRootSource()
+{
+    string dir = Path.Combine("src", "Presentation", "World");
+    return string.Join("\n", Directory.GetFiles(dir, "StrategicWorldRoot*.cs").OrderBy(path => path).Select(File.ReadAllText));
+}
+
+static string ReadWorldSiteRootSource()
+{
+    string dir = Path.Combine("src", "Presentation", "World", "Sites");
+    return string.Join("\n", Directory.GetFiles(dir, "WorldSiteRoot*.cs").OrderBy(path => path).Select(File.ReadAllText));
 }
 
 static string ExtractMethodBlock(string source, string signature)

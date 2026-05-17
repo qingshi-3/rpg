@@ -673,6 +673,7 @@ public sealed class WorldActionResolver
             "threat_not_attackable" => "敌方威胁尚未到达",
             "not_enough_garrison" => "驻军不足",
             "no_expedition_units" => "没有可出征英雄或小兵",
+            "no_expedition_hero" => "没有可出征英雄",
             "missing_source_site" => "找不到出发场域",
             "missing_target_site" => "找不到目标场域",
             "source_site_not_owned" => "只能从己方场域出征",

@@ -5,8 +5,9 @@ public enum BattleEventKind
     BattleStarted = 0,
     CommandAccepted = 1,
     CommandRejected = 2,
-    MovementCompleted = 3,
-    DamageApplied = 4,
-    CorpsStrengthChanged = 5,
-    BattleEnded = 6
+    RuntimeActorSpawned = 3,
+    MovementCompleted = 4,
+    DamageApplied = 5,
+    CorpsStrengthChanged = 6,
+    BattleEnded = 7
 }

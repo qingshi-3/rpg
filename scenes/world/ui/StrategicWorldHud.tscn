@@ -50,6 +50,71 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 
+[node name="TopBarHost" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="LeftPrimaryPanelHost" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RightNotificationHost" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="MinimapHost" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BottomCommandHost" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="OverlayHost" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ModalHost" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
 [node name="Background" type="ColorRect" parent="."]
 z_index = -100
 layout_mode = 1
@@ -61,7 +126,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.05, 0.058, 0.052, 1)
 
-[node name="TopResourceBar" type="PanelContainer" parent="."]
+[node name="TopResourceBar" type="PanelContainer" parent="TopBarHost"]
 z_index = 80
 layout_mode = 1
 anchors_preset = 10
@@ -80,17 +145,17 @@ theme_override_constants/margin_top = 6
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 6
 
-[node name="TopResourceRow" type="HBoxContainer" parent="TopResourceBar/TopResourceBarContent"]
+[node name="TopResourceRow" type="HBoxContainer" parent="TopBarHost/TopResourceBar/TopResourceBarContent"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="TitleResourceStack" type="VBoxContainer" parent="TopResourceBar/TopResourceBarContent/TopResourceRow"]
+[node name="TitleResourceStack" type="VBoxContainer" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow"]
 custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
 
-[node name="Title" type="Label" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TitleResourceStack"]
+[node name="Title" type="Label" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TitleResourceStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
@@ -99,7 +164,7 @@ text = "战略大世界"
 vertical_alignment = 1
 clip_text = true
 
-[node name="ResourceLabel" type="Label" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TitleResourceStack"]
+[node name="ResourceLabel" type="Label" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TitleResourceStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
@@ -107,7 +172,7 @@ text = "人口 0/0    经济 0    石材 0    世界步 0"
 vertical_alignment = 1
 clip_text = true
 
-[node name="NoticeLabel" type="Label" parent="TopResourceBar/TopResourceBarContent/TopResourceRow"]
+[node name="NoticeLabel" type="Label" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow"]
 custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -116,7 +181,7 @@ vertical_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="WorldClockLabel" type="Label" parent="TopResourceBar/TopResourceBarContent/TopResourceRow"]
+[node name="WorldClockLabel" type="Label" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow"]
 custom_minimum_size = Vector2(190, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.86, 0.92, 1, 1)
@@ -127,52 +192,52 @@ vertical_alignment = 1
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="TopRightControls" type="HBoxContainer" parent="TopResourceBar/TopResourceBarContent/TopResourceRow"]
+[node name="TopRightControls" type="HBoxContainer" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow"]
 custom_minimum_size = Vector2(348, 0)
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 2
 
-[node name="PauseButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+[node name="PauseButton" type="Button" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
 custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 text = "暂停"
 
-[node name="QuickButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+[node name="QuickButton" type="Button" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
 custom_minimum_size = Vector2(44, 44)
 layout_mode = 2
 mouse_default_cursor_shape = 2
 text = "1x"
 
-[node name="SaveButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+[node name="SaveButton" type="Button" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
 custom_minimum_size = Vector2(76, 44)
 layout_mode = 2
 text = "保存"
 
-[node name="LoadButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+[node name="LoadButton" type="Button" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
 custom_minimum_size = Vector2(76, 44)
 layout_mode = 2
 text = "读取"
 
-[node name="ResetButton" type="Button" parent="TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
+[node name="ResetButton" type="Button" parent="TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls"]
 custom_minimum_size = Vector2(76, 44)
 layout_mode = 2
 text = "重置"
 
-[node name="SiteDetailPanel" type="PanelContainer" parent="."]
+[node name="SiteDetailPanel" type="PanelContainer" parent="LeftPrimaryPanelHost"]
 z_index = 80
 custom_minimum_size = Vector2(420, 0)
 layout_mode = 1
-anchors_preset = 11
-anchor_left = 1.0
-anchor_right = 1.0
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
 anchor_bottom = 1.0
-offset_left = -553.0
+offset_left = 24.0
 offset_top = 92.0
-offset_right = -33.0
+offset_right = 544.0
 offset_bottom = -34.0
-grow_horizontal = 0
+grow_horizontal = 1
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_world_detail_panel")
 
@@ -183,163 +248,163 @@ theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="Scroll" type="ScrollContainer" parent="SiteDetailPanel/Margin"]
+[node name="Scroll" type="ScrollContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Content" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll"]
+[node name="Content" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
-[node name="SummaryCard" type="PanelContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+[node name="SummaryCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_world_summary_card")
 
-[node name="SummaryMargin" type="MarginContainer" parent="SiteDetailPanel/Margin/Scroll/Content/SummaryCard"]
+[node name="SummaryMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="SummaryStack" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin"]
+[node name="SummaryStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="SiteTitleLabel" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
+[node name="SiteTitleLabel" type="Label" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 19
 autowrap_mode = 3
 
-[node name="SiteBodyLabel" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
+[node name="SiteBodyLabel" type="Label" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
 autowrap_mode = 3
 
-[node name="OpportunityCard" type="PanelContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+[node name="OpportunityCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content"]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_world_card")
 
-[node name="OpportunityMargin" type="MarginContainer" parent="SiteDetailPanel/Margin/Scroll/Content/OpportunityCard"]
+[node name="OpportunityMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="OpportunitySlot" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/OpportunityCard/OpportunityMargin"]
+[node name="OpportunitySlot" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard/OpportunityMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="InfrastructureCard" type="PanelContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+[node name="InfrastructureCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_world_card")
 
-[node name="InfrastructureMargin" type="MarginContainer" parent="SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard"]
+[node name="InfrastructureMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="InfrastructureStack" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin"]
+[node name="InfrastructureStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="FacilityTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack"]
+[node name="FacilityTitle" type="Label" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "建筑"
 
-[node name="FacilityList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack"]
+[node name="FacilityList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="DefenseCard" type="PanelContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+[node name="DefenseCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_world_card")
 
-[node name="DefenseMargin" type="MarginContainer" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard"]
+[node name="DefenseMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="DefenseStack" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin"]
+[node name="DefenseStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="ThreatDivider" type="HSeparator" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+[node name="ThreatDivider" type="HSeparator" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
 layout_mode = 2
 
-[node name="GarrisonTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+[node name="GarrisonTitle" type="Label" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "驻军"
 
-[node name="GarrisonList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+[node name="GarrisonList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="ThreatTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+[node name="ThreatTitle" type="Label" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "威胁"
 
-[node name="ThreatList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
+[node name="ThreatList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="ActionCard" type="PanelContainer" parent="SiteDetailPanel/Margin/Scroll/Content"]
+[node name="ActionCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_world_card")
 
-[node name="ActionMargin" type="MarginContainer" parent="SiteDetailPanel/Margin/Scroll/Content/ActionCard"]
+[node name="ActionMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="ActionStack" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin"]
+[node name="ActionStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="ActionTitle" type="Label" parent="SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+[node name="ActionTitle" type="Label" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "行动"
 
-[node name="ActionList" type="VBoxContainer" parent="SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+[node name="ActionList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8

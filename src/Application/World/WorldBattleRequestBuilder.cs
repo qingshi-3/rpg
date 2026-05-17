@@ -10,6 +10,7 @@ namespace Rpg.Application.World;
 public sealed class WorldBattleRequestBuilder
 {
     private readonly WorldSiteDeploymentService _deploymentService = new();
+    private readonly WorldSiteBattleUnitPoolService _battleUnitPool = new();
 
     public BattleStartRequest BuildAssaultBonefieldRequest(
         StrategicWorldState state,
@@ -20,6 +21,7 @@ public sealed class WorldBattleRequestBuilder
     {
         StrategicWorldDefinitionQueries queries = new(definition);
         WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
+        new StrategicWorldStateInvariantService().RepairGarrisonMetadata(state);
         WorldSiteDefinition siteDefinition = queries.GetSite(StrategicWorldIds.SiteBonefield);
         WorldArmyState sourceArmy = !string.IsNullOrWhiteSpace(sourceArmyId) &&
                                     state.ArmyStates.TryGetValue(sourceArmyId, out WorldArmyState army)
@@ -48,15 +50,32 @@ public sealed class WorldBattleRequestBuilder
         AddEntrances(request, siteDefinition, StrategicWorldIds.FactionUndead, "", includeGarrisonEntrances: false);
         if (sourceArmy != null)
         {
-            AddArmyForces(request.PlayerForces, sourceArmy, "PlayerArmy", state.PlayerFactionId);
+            _battleUnitPool.ImportArmyForSiteBattle(site, sourceArmy, state.PlayerFactionId);
+            AddSiteGarrisonForces(
+                request.PlayerForces,
+                site,
+                "PlayerArmy",
+                state.PlayerFactionId,
+                sourceFilterKind: "PlayerArmy",
+                sourceFilterId: sourceArmy.ArmyId);
         }
         else if (state.SiteStates.TryGetValue(StrategicWorldIds.SitePlayerCamp, out WorldSiteState sourceSite))
         {
-            AddSiteGarrisonForces(request.PlayerForces, sourceSite, "SourceSite", state.PlayerFactionId);
+            AddSiteGarrisonForces(
+                request.PlayerForces,
+                sourceSite,
+                "SourceSite",
+                state.PlayerFactionId,
+                factionFilterId: state.PlayerFactionId);
         }
 
         _deploymentService.EnsureGarrisonPlacements(site, siteDefinition);
-        AddSiteGarrisonForces(request.EnemyForces, site, "DefenderSite", request.DefenderFactionId);
+        AddSiteGarrisonForces(
+            request.EnemyForces,
+            site,
+            "DefenderSite",
+            request.DefenderFactionId,
+            factionFilterId: request.DefenderFactionId);
 
         GameLog.Info(nameof(WorldBattleRequestBuilder), $"BattleRequested kind={request.BattleKind} target={request.TargetSiteId} direction={request.AttackDirection} request={request.RequestId}");
         return request;
@@ -482,26 +501,47 @@ public sealed class WorldBattleRequestBuilder
         System.Collections.Generic.ICollection<BattleForceRequest> target,
         WorldSiteState site,
         string sourceKind,
-        string factionId)
+        string factionId,
+        string factionFilterId = "",
+        string sourceFilterKind = "",
+        string sourceFilterId = "")
     {
         if (target == null || site == null)
         {
             return;
         }
 
-        foreach (GarrisonState garrison in site.Garrison.Where(item => item.Count > 0))
+        foreach (GarrisonState garrison in site.Garrison.Where(item =>
+                     item.Count > 0 &&
+                     MatchesOptionalFilter(item.FactionId, factionFilterId) &&
+                     MatchesOptionalFilter(item.SourceKind, sourceFilterKind) &&
+                     MatchesOptionalFilter(item.SourceId, sourceFilterId)))
         {
+            string resolvedSourceKind = string.IsNullOrWhiteSpace(garrison.SourceKind) ||
+                                        sourceKind is "SourceSite" or "DefenderSite"
+                ? sourceKind
+                : garrison.SourceKind;
+            string resolvedSourceId = string.IsNullOrWhiteSpace(garrison.SourceId) ||
+                                      sourceKind is "SourceSite" or "DefenderSite"
+                ? site.SiteId
+                : garrison.SourceId;
             BattleForceRequest force = new()
             {
-                ForceId = $"{site.SiteId}:{garrison.UnitTypeId}",
-                SourceKind = sourceKind,
-                SourceId = site.SiteId,
+                ForceId = $"{resolvedSourceId}:{garrison.UnitTypeId}",
+                SourceKind = resolvedSourceKind,
+                SourceId = resolvedSourceId,
                 UnitDefinitionId = garrison.UnitTypeId,
                 Count = garrison.Count,
-                FactionId = factionId
+                FactionId = string.IsNullOrWhiteSpace(garrison.FactionId) ? factionId : garrison.FactionId
             };
             target.Add(force);
         }
+    }
+
+    private static bool MatchesOptionalFilter(string current, string expected)
+    {
+        return string.IsNullOrWhiteSpace(expected) ||
+               string.Equals(current ?? "", expected, System.StringComparison.Ordinal);
     }
 
     private static void AddDefinitionForces(

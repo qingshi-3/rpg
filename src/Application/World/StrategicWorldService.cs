@@ -66,6 +66,9 @@ public sealed class StrategicWorldService
                 {
                     UnitTypeId = garrison.UnitTypeId,
                     Count = garrison.Count,
+                    FactionId = siteDefinition.InitialOwnerFactionId,
+                    SourceKind = "InitialGarrison",
+                    SourceId = siteDefinition.Id,
                     Morale = garrison.Morale
                 });
             }

@@ -14,6 +14,7 @@ public sealed class WorldBattleResultApplier
     private readonly WorldSiteDeploymentService _deploymentService = new();
     private readonly WorldBattleProgressionService _worldBattleProgressionService = new();
     private readonly WorldGarrisonMutationService _garrisonMutations = new();
+    private readonly WorldSiteBattleUnitPoolService _battleUnitPool = new();
 
     public WorldActionResult Apply(
         StrategicWorldState state,
@@ -390,18 +391,46 @@ public sealed class WorldBattleResultApplier
 
         if (status == WorldArmyStatus.Garrisoned && targetSite != null)
         {
-            bool hasForceResults = HasForceResults(battleResult);
-            foreach (GarrisonState unit in army.GarrisonUnits.Where(item => item.Count > 0))
+            if (_battleUnitPool.HasImportedArmy(targetSite, army.ArmyId))
             {
-                int transferred = hasForceResults
-                    ? GetSurvivedCountForArmyUnit(request, battleResult, army.ArmyId, unit.UnitTypeId)
-                    : unit.Count;
-                _garrisonMutations.Add(targetSite, unit.UnitTypeId, transferred);
+                ApplyImportedArmyCasualties(targetSite, request, battleResult, army);
+            }
+            else
+            {
+                bool hasForceResults = HasForceResults(battleResult);
+                foreach (GarrisonState unit in army.GarrisonUnits.Where(item => item.Count > 0))
+                {
+                    int transferred = hasForceResults
+                        ? GetSurvivedCountForArmyUnit(request, battleResult, army.ArmyId, unit.UnitTypeId)
+                        : unit.Count;
+                    _garrisonMutations.Add(
+                        targetSite,
+                        unit.UnitTypeId,
+                        transferred,
+                        request.AttackerFactionId,
+                        "PlayerArmy",
+                        army.ArmyId,
+                        unit.Morale);
+                }
             }
 
             WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(targetSite.SiteId);
+            int removedTransientPlacements = RemoveResolvedAssaultArmyPlacements(targetSite, army.ArmyId);
             _deploymentService.EnsureGarrisonPlacements(targetSite, siteDefinition);
             army.GarrisonUnits.Clear();
+            GameLog.Info(
+                nameof(WorldBattleResultApplier),
+                $"AssaultArmyGarrisoned army={army.ArmyId} site={targetSite.SiteId} removedTransientPlacements={removedTransientPlacements}");
+        }
+        else if (targetSite != null && status == WorldArmyStatus.Defeated)
+        {
+            // Assault deployment uses site-local VisitingArmy/Attacker placement rows before the
+            // runtime starts. Once the army is resolved, those rows are no longer authoritative;
+            // survivors are represented by the target garrison and defeated armies by army state.
+            int removedTransientPlacements = RemoveResolvedAssaultArmyPlacements(targetSite, army.ArmyId);
+            GameLog.Info(
+                nameof(WorldBattleResultApplier),
+                $"AssaultArmyDefeated army={army.ArmyId} site={targetSite.SiteId} removedTransientPlacements={removedTransientPlacements}");
         }
 
         army.Status = status;
@@ -413,6 +442,47 @@ public sealed class WorldBattleResultApplier
             TargetIds = { army.ArmyId, request.TargetSiteId },
             Payload = { ["status"] = status.ToString(), ["reason"] = "battle_result" }
         });
+    }
+
+    private void ApplyImportedArmyCasualties(
+        WorldSiteState targetSite,
+        BattleStartRequest request,
+        BattleResult battleResult,
+        WorldArmyState army)
+    {
+        if (targetSite == null || request == null || battleResult == null || army == null)
+        {
+            return;
+        }
+
+        foreach (GarrisonState unit in army.GarrisonUnits.Where(item => item.Count > 0))
+        {
+            int survived = HasForceResults(battleResult)
+                ? GetSurvivedCountForArmyUnit(request, battleResult, army.ArmyId, unit.UnitTypeId)
+                : unit.Count;
+            int defeated = System.Math.Max(0, unit.Count - survived);
+            _garrisonMutations.Remove(
+                targetSite,
+                unit.UnitTypeId,
+                defeated,
+                request.AttackerFactionId,
+                "PlayerArmy",
+                army.ArmyId);
+        }
+    }
+
+    private static int RemoveResolvedAssaultArmyPlacements(WorldSiteState site, string armyId)
+    {
+        if (site == null || string.IsNullOrWhiteSpace(armyId))
+        {
+            return 0;
+        }
+
+        return site.UnitPlacements.RemoveAll(placement =>
+            placement != null &&
+            placement.SourceKind == "PlayerArmy" &&
+            placement.SourceId == armyId &&
+            placement.PlacementKind is WorldSiteUnitPlacementKind.VisitingArmy or WorldSiteUnitPlacementKind.Attacker);
     }
 
     private WorldActionResult ApplyDefenseRaid(
@@ -677,7 +747,13 @@ public sealed class WorldBattleResultApplier
             int removeCount = hasForceResults
                 ? GetDefeatedCount(result, force, 0)
                 : force.Count;
-            _garrisonMutations.Remove(site, force.UnitDefinitionId, removeCount);
+            _garrisonMutations.Remove(
+                site,
+                force.UnitDefinitionId,
+                removeCount,
+                force.FactionId,
+                IsSiteGarrisonForce(force, site.SiteId) ? "" : force.SourceKind,
+                IsSiteGarrisonForce(force, site.SiteId) ? "" : force.SourceId);
         }
     }
 
@@ -772,5 +848,3 @@ public sealed class WorldBattleResultApplier
         }
     }
 }
-
-

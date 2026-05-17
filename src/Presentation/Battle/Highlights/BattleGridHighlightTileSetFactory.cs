@@ -71,6 +71,17 @@ internal static class BattleGridHighlightTileSetFactory
 
     private static void DrawHighlightTile(Image atlas, Vector2I tileSize, int tileIndex, BattleGridHighlightStyle style)
     {
+        if (style.Shape == BattleGridHighlightTileShape.Square)
+        {
+            DrawSquareHighlightTile(atlas, tileSize, tileIndex, style);
+            return;
+        }
+
+        DrawDiamondHighlightTile(atlas, tileSize, tileIndex, style);
+    }
+
+    private static void DrawDiamondHighlightTile(Image atlas, Vector2I tileSize, int tileIndex, BattleGridHighlightStyle style)
+    {
         int originX = tileIndex * tileSize.X;
         float centerX = originX + (tileSize.X - 1) * 0.5f;
         float centerY = (tileSize.Y - 1) * 0.5f;
@@ -95,5 +106,28 @@ internal static class BattleGridHighlightTileSetFactory
             }
         }
     }
-}
 
+    private static void DrawSquareHighlightTile(Image atlas, Vector2I tileSize, int tileIndex, BattleGridHighlightStyle style)
+    {
+        int originX = tileIndex * tileSize.X;
+        int padding = Mathf.Max(1, Mathf.RoundToInt(System.Math.Min(tileSize.X, tileSize.Y) * 0.08f));
+        float borderWidth = Mathf.Max(1f, style.BorderWidth);
+        int left = originX + padding;
+        int right = originX + tileSize.X - padding - 1;
+        int top = padding;
+        int bottom = tileSize.Y - padding - 1;
+
+        for (int y = top; y <= bottom; y++)
+        {
+            for (int x = left; x <= right; x++)
+            {
+                bool isBorder =
+                    x - left < borderWidth ||
+                    right - x < borderWidth ||
+                    y - top < borderWidth ||
+                    bottom - y < borderWidth;
+                atlas.SetPixel(x, y, isBorder ? style.Border : style.Fill);
+            }
+        }
+    }
+}

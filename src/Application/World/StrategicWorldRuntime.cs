@@ -6,6 +6,7 @@ namespace Rpg.Application.World;
 public static class StrategicWorldRuntime
 {
     private static readonly StrategicWorldService WorldService = new();
+    private static readonly StrategicWorldStateInvariantService Invariants = new();
 
     public static StrategicWorldDefinition Definition { get; private set; }
     public static StrategicWorldState State { get; private set; }
@@ -19,6 +20,7 @@ public static class StrategicWorldRuntime
     {
         Definition ??= StrategicWorldV1DefinitionFactory.Create();
         State ??= WorldService.CreateInitialState(Definition);
+        Invariants.RepairAll(State);
     }
 
     public static void Reset()
@@ -34,6 +36,7 @@ public static class StrategicWorldRuntime
     {
         Definition ??= StrategicWorldV1DefinitionFactory.Create();
         State = state ?? WorldService.CreateInitialState(Definition);
+        Invariants.RepairAll(State);
     }
 
     public static void BeginSiteVisit(string siteId, string returnScenePath)

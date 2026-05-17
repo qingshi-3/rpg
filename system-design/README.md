@@ -46,3 +46,8 @@ Initial architecture documents should be created through proposals for:
 - corps level and equipment-level progression;
 - city management and resource flow;
 - battle result writeback.
+
+## Accepted Documents
+
+- `hero-led-light-rts-system-architecture.md`: target battle architecture for hero-led light RTS runtime, settlement, and legacy adapter migration.
+- `presentation-ui-layout-architecture.md`: Presentation/UI layout hosts, UI mode boundaries, and authority rules.

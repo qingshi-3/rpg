@@ -64,7 +64,7 @@ Archived proposals are historical records, not active authority.
 Comments are part of the implementation-level memory for future AI readers.
 
 - Non-trivial code changes must leave concise comments near the relevant code explaining why the behavior exists, the design background, or the authority boundary.
-- Comments should preserve intent, state transitions, failure semantics, tuning rationale, architecture ownership, or temporary workaround reasons.
+- Comments should preserve intent, state transitions, failure semantics, tuning rationale, or architecture ownership.
 - Do not add mechanical comments that only restate what the next line of code does.
 - Treat stale comments as bugs. When behavior, constants, exported tunables, or authority boundaries change, update nearby comments in the same change.
 
@@ -87,7 +87,9 @@ Do not revive old manual tactical chess, pure post-deployment autobattler playba
 - Do not keep multiple authoritative implementations for the same runtime responsibility.
 - Do not hide broken core logic behind layered fallbacks. Fail explicitly, log the reason, and fix the authoritative path.
 - Default to the accepted long-term architecture and persistent state model.
-- If a temporary workaround is unavoidable, isolate it, comment the reason, and keep it out of the main implementation path.
+- Reject temporary coding. Do not add throwaway models, one-off bypasses, hidden compatibility branches, or "just for now" logic for core gameplay, runtime, persistence, settlement, or content flow.
+- All code changes must fit the accepted long-term architecture. If the architecture is missing or unclear, stop and repair the design/proposal first instead of inventing a local shortcut.
+- Migration adapters are allowed only when they are explicit boundary adapters from a legacy owner into the accepted architecture. They must not own new business facts, gameplay rules, or runtime authority.
 
 ## Godot Resource Authoring
 

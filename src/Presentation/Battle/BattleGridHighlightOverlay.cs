@@ -50,7 +50,7 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     [Export]
     // Friendly hover uses green for mobility so it does not read as enemy intent.
-    public Color FriendlyMoveColor { get; set; } = new(0.14f, 0.85f, 0.34f, 0.30f);
+    public Color FriendlyMoveColor { get; set; } = new(0.08f, 0.82f, 0.28f, 0.34f);
 
     [Export]
     // Friendly hover attack range is yellow to separate planning information from hostile threat red.
@@ -725,7 +725,10 @@ public partial class BattleGridHighlightOverlay : Node2D
         foreach (BattleGridHighlightKind kind in kinds)
         {
             (Color fill, Color border, float borderWidth) = GetStyle(kind);
-            styles[kind] = new BattleGridHighlightStyle(fill, border, borderWidth);
+            BattleGridHighlightTileShape shape = kind == BattleGridHighlightKind.FriendlyMove
+                ? BattleGridHighlightTileShape.Square
+                : BattleGridHighlightTileShape.Diamond;
+            styles[kind] = new BattleGridHighlightStyle(fill, border, borderWidth, shape);
         }
 
         return styles;

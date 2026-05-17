@@ -45,6 +45,14 @@ public static class GameUiSceneFactory
         return node;
     }
 
+    public static void Preload(params string[] scenePaths)
+    {
+        foreach (string scenePath in scenePaths ?? System.Array.Empty<string>())
+        {
+            LoadScene(scenePath, nameof(GameUiSceneFactory));
+        }
+    }
+
     public static Button CreateWorldSiteHitButton(string ownerName)
     {
         return Instantiate<Button>(WorldSiteHitButtonScenePath, ownerName);

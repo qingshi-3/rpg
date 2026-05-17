@@ -1,41 +1,30 @@
-[gd_resource type="Resource" script_class="StrategicWorldInitialStateResource" load_steps=14 format=3 uid="uid://ib41eqggrwqu"]
+[gd_resource type="Resource" script_class="StrategicWorldInitialStateResource" load_steps=10 format=3 uid="uid://ib41eqggrwqu"]
 
 [ext_resource type="Script" uid="uid://dsmk3eac2fy2j" path="res://src/Definitions/World/StrategicWorldInitialStateResource.cs" id="1_state"]
 [ext_resource type="Script" uid="uid://cc44harkywfw2" path="res://src/Definitions/World/WorldSiteInitialStateResource.cs" id="2_site"]
-[ext_resource type="Resource" path="res://assets/battle/units/首领_噬法者/unit.tres" id="3_g3lr6"]
+[ext_resource type="Resource" path="res://assets/battle/units/f1_将军/unit.tres" id="3_g3lr6"]
 [ext_resource type="Script" uid="uid://cnvutenea03pk" path="res://src/Definitions/World/WorldInitialGarrisonEntryResource.cs" id="3_garrison"]
-[ext_resource type="Resource" path="res://assets/battle/units/中立_修女/unit.tres" id="4_g3lr6"]
-[ext_resource type="Resource" path="res://assets/battle/units/skeleton_warrior.tres" id="6_skeleton_warrior"]
-[ext_resource type="Resource" path="res://assets/battle/units/skeleton_archer.tres" id="7_skeleton_archer"]
+[ext_resource type="Resource" path="res://assets/battle/units/首领_城域守卫/unit.tres" id="6_boss_city"]
 
 [sub_resource type="Resource" id="WorldInitialGarrisonEntry_player_knight"]
 script = ExtResource("3_garrison")
 UnitDefinition = ExtResource("3_g3lr6")
 Morale = 80
 
-[sub_resource type="Resource" id="WorldInitialGarrisonEntry_militia"]
-script = ExtResource("3_garrison")
-UnitDefinition = ExtResource("4_g3lr6")
-
 [sub_resource type="Resource" id="WorldSiteInitialState_player_camp"]
 script = ExtResource("2_site")
 SiteId = "player_camp"
-InitialGarrison = Array[ExtResource("3_garrison")]([SubResource("WorldInitialGarrisonEntry_player_knight"), SubResource("WorldInitialGarrisonEntry_militia")])
+InitialGarrison = Array[ExtResource("3_garrison")]([SubResource("WorldInitialGarrisonEntry_player_knight")])
 
-[sub_resource type="Resource" id="WorldInitialGarrisonEntry_skeleton_warrior"]
+[sub_resource type="Resource" id="WorldInitialGarrisonEntry_boss_city"]
 script = ExtResource("3_garrison")
-UnitDefinition = ExtResource("6_skeleton_warrior")
-Morale = 35
-
-[sub_resource type="Resource" id="WorldInitialGarrisonEntry_skeleton_archer"]
-script = ExtResource("3_garrison")
-UnitDefinition = ExtResource("7_skeleton_archer")
+UnitDefinition = ExtResource("6_boss_city")
 Morale = 35
 
 [sub_resource type="Resource" id="WorldSiteInitialState_bonefield"]
 script = ExtResource("2_site")
 SiteId = "bonefield"
-InitialGarrison = Array[ExtResource("3_garrison")]([SubResource("WorldInitialGarrisonEntry_skeleton_warrior"), SubResource("WorldInitialGarrisonEntry_skeleton_archer")])
+InitialGarrison = Array[ExtResource("3_garrison")]([SubResource("WorldInitialGarrisonEntry_boss_city")])
 
 [resource]
 script = ExtResource("1_state")

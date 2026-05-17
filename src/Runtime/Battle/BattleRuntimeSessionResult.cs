@@ -7,4 +7,5 @@ public sealed class BattleRuntimeSessionResult
 {
     public BattleOutcomeResult Outcome { get; init; } = new();
     public BattleEventStream EventStream { get; init; } = new();
+    public BattleRuntimeState FinalState { get; init; } = new();
 }

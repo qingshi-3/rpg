@@ -16,6 +16,9 @@ Environment.SetEnvironmentVariable("RPG_GAMELOG_DIR", Path.Combine(Path.GetTempP
 
 Run("corps strength clamps and visible soldiers are derived", CorpsStrengthClampsAndVisibleSoldiersAreDerived);
 Run("runtime source stays isolated from domain and presentation owners", RuntimeSourceStaysIsolated);
+Run("oversized code files are tracked and no new ones are introduced", OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced);
+Run("runtime owns stable in-memory actor state", RuntimeOwnsStableInMemoryActorState);
+Run("runtime auto battle resolves opposing factions from actor state", RuntimeAutoBattleResolvesOpposingFactionsFromActorState);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
 Run("snapshot copies battle group facts", SnapshotCopiesBattleGroupFacts);
@@ -28,7 +31,9 @@ Run("settlement rejects invalid complete results and missing event boundaries", 
 Run("rejected settlement report is diagnostic", RejectedSettlementReportIsDiagnostic);
 Run("report and settlement consume the same event ids", ReportAndSettlementConsumeSameEventIds);
 Run("legacy garrison adapter creates explicit battle groups", LegacyGarrisonAdapterCreatesExplicitBattleGroups);
+Run("battle group session probe snapshots player and enemy forces", BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces);
 Run("legacy result adapter preserves request and outcome ids", LegacyResultAdapterPreservesRequestAndOutcomeIds);
+Run("legacy result adapter copies runtime survival into force results", LegacyResultAdapterCopiesRuntimeSurvivalIntoForceResults);
 Run("legacy result adapter maps failed handoff to disaster", LegacyResultAdapterMapsFailedHandoffToDisaster);
 Run("battle group vertical slice settles and reports from runtime facts", BattleGroupVerticalSliceSettlesAndReports);
 Run("mixed valid and missing hero handoff rejects settlement and normal report", MixedValidAndMissingHeroHandoffRejectsSettlementAndNormalReport);
@@ -60,6 +65,129 @@ static void RuntimeSourceStaysIsolated()
     AssertTrue(!source.Contains("BattleStartRequest", StringComparison.Ordinal), "runtime must not reference legacy battle requests");
     AssertTrue(!source.Contains("BattleResult", StringComparison.Ordinal), "runtime must not reference legacy battle results");
     AssertTrue(!source.Contains("AutoBattle", StringComparison.Ordinal), "runtime must not reference old auto battle");
+    AssertTrue(!source.Contains("Temporary", StringComparison.OrdinalIgnoreCase), "runtime source must not describe core flow as temporary");
+}
+
+static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
+{
+    string root = ProjectRoot();
+    var allowedOversized = new HashSet<string>(StringComparer.Ordinal);
+
+    List<string> oversized = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
+        .Where(path => !IsIgnoredCodePath(root, path))
+        .Select(path => new
+        {
+            RelativePath = ToRepoPath(root, path),
+            LineCount = File.ReadLines(path).Count()
+        })
+        .Where(item => item.LineCount > 1000)
+        .Select(item => $"{item.RelativePath}:{item.LineCount}")
+        .ToList();
+
+    List<string> unexpected = oversized
+        .Where(item => !allowedOversized.Contains(item.Split(':')[0]))
+        .ToList();
+    AssertTrue(
+        unexpected.Count == 0,
+        $"new oversized code files must be split or added to the decomposition proposal: {string.Join(", ", unexpected)}");
+}
+
+static void RuntimeOwnsStableInMemoryActorState()
+{
+    BattleStartSnapshot snapshot = new()
+    {
+        SnapshotId = "snapshot_1",
+        BattleId = "battle_1",
+        TargetLocationId = "site_1",
+        BattleGroups =
+        {
+            new BattleGroupSnapshot
+            {
+                BattleGroupId = "group_1",
+                FactionId = "player",
+                SourceForceId = "force_player",
+                HeroId = "hero_1",
+                HeroDefinitionId = "hero_def_1",
+                CorpsId = "corps_1",
+                CorpsDefinitionId = "shield",
+                CorpsStrength = 80,
+                SourceLocationId = "city_1",
+                CellX = 2,
+                CellY = 3
+            }
+        }
+    };
+
+    BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+    AssertTrue(result.Outcome.IsComplete, "valid snapshot should complete minimal runtime");
+    AssertEqual("snapshot_1", result.FinalState.SnapshotId, "runtime state snapshot id");
+    AssertEqual(2, result.FinalState.Actors.Count, "one battle group should create hero and corps runtime actors");
+    AssertTrue(
+        result.FinalState.Actors.Any(actor =>
+            actor.Kind == BattleRuntimeActorKind.Hero &&
+            actor.SourceStateId == "hero_1"),
+        "runtime hero actor should retain source state id for settlement attribution");
+    AssertTrue(
+        result.FinalState.Actors.Any(actor =>
+            actor.Kind == BattleRuntimeActorKind.Corps &&
+            actor.SourceStateId == "corps_1" &&
+            actor.HitPoints == 80),
+        "runtime corps actor should derive hit points from corps strength");
+    AssertEqual(2, result.Outcome.ActorOutcomes.Count, "outcome should report runtime actor results");
+    AssertTrue(
+        result.FinalState.Actors.Any(actor =>
+            actor.Kind == BattleRuntimeActorKind.Corps &&
+            actor.GridX == 2 &&
+            actor.GridY == 3),
+        "runtime actor should start from battle snapshot grid placement");
+    AssertTrue(
+        result.Outcome.ActorOutcomes.All(actor => actor.FactionId == "player" && actor.SourceForceId == "force_player"),
+        "runtime outcome should preserve faction and source force attribution");
+}
+
+static void RuntimeAutoBattleResolvesOpposingFactionsFromActorState()
+{
+    BattleStartSnapshot victorySnapshot = BuildOpposedSnapshot("battle_victory", playerStrength: 80, enemyStrength: 20);
+    BattleRuntimeSessionResult victory = new BattleRuntimeSession().RunMinimal(victorySnapshot);
+
+    AssertEqual(BattleTerminationReason.NormalVictory, victory.Outcome.TerminationReason, "stronger player side should win");
+    AssertTrue(
+        victory.EventStream.Events.Any(item => item.Kind == BattleEventKind.MovementCompleted),
+        "auto battle should advance units before contact");
+    AssertTrue(
+        victory.EventStream.Events.Any(item => item.Kind == BattleEventKind.DamageApplied),
+        "auto battle should apply damage instead of ending immediately");
+    AssertTrue(
+        victory.Outcome.ActorOutcomes.Any(item =>
+            item.Kind == BattleRuntimeActorKind.Corps &&
+            item.FactionId == "enemy" &&
+            !item.Survived),
+        "enemy corps should be defeated in a player victory");
+
+    BattleStartSnapshot defeatSnapshot = BuildOpposedSnapshot("battle_defeat", playerStrength: 20, enemyStrength: 80);
+    BattleRuntimeSessionResult defeat = new BattleRuntimeSession().RunMinimal(defeatSnapshot);
+
+    AssertEqual(BattleTerminationReason.NormalDefeat, defeat.Outcome.TerminationReason, "stronger enemy side should defeat player");
+    AssertTrue(
+        defeat.Outcome.ActorOutcomes.Any(item =>
+            item.Kind == BattleRuntimeActorKind.Corps &&
+            item.FactionId == "player" &&
+            !item.Survived),
+        "player corps should be defeated in a player defeat");
+}
+
+static bool IsIgnoredCodePath(string root, string path)
+{
+    string relative = ToRepoPath(root, path);
+    return relative.StartsWith(".godot/", StringComparison.Ordinal) ||
+           relative.Contains("/bin/", StringComparison.Ordinal) ||
+           relative.Contains("/obj/", StringComparison.Ordinal);
+}
+
+static string ToRepoPath(string root, string path)
+{
+    return Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/');
 }
 
 static void RuntimeRejectsInvalidBattleHandoff()
@@ -390,6 +518,41 @@ static void LegacyGarrisonAdapterCreatesExplicitBattleGroups()
     AssertTrue(groups.All(item => !string.IsNullOrWhiteSpace(item.CorpsId)), "corps ids assigned");
 }
 
+static void BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces()
+{
+    BattleStartRequest request = new()
+    {
+        RequestId = "request_1",
+        ContextId = "battle_1",
+        TargetSiteId = "site_1"
+    };
+    request.PlayerForces.Add(new BattleForceRequest
+    {
+        ForceId = "force_player",
+        UnitDefinitionId = "player_corps",
+        FactionId = "player",
+        Count = 1
+    });
+    request.EnemyForces.Add(new BattleForceRequest
+    {
+        ForceId = "force_enemy",
+        UnitDefinitionId = "enemy_corps",
+        FactionId = "enemy",
+        Count = 1
+    });
+
+    BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().Probe(request);
+
+    AssertTrue(result.Success, "probe should accept opposed player and enemy forces");
+    AssertEqual(2, result.Snapshot.BattleGroups.Count, "snapshot should include both sides");
+    AssertTrue(
+        result.Snapshot.BattleGroups.Any(item => item.FactionId == "player" && item.SourceForceId == "force_player"),
+        "player force should keep faction and source force identity");
+    AssertTrue(
+        result.Snapshot.BattleGroups.Any(item => item.FactionId == "enemy" && item.SourceForceId == "force_enemy"),
+        "enemy force should keep faction and source force identity");
+}
+
 static void LegacyResultAdapterPreservesRequestAndOutcomeIds()
 {
     BattleOutcomeResult outcome = BattleOutcomeResult.Completed("snapshot_1", "battle_1", BattleTerminationReason.NormalVictory);
@@ -399,6 +562,62 @@ static void LegacyResultAdapterPreservesRequestAndOutcomeIds()
     AssertEqual("request_1", result.RequestId, "legacy request id");
     AssertEqual("battle_1", result.ContextId, "legacy context id");
     AssertEqual(Rpg.Application.Battle.BattleOutcome.Victory, result.Outcome, "legacy outcome");
+}
+
+static void LegacyResultAdapterCopiesRuntimeSurvivalIntoForceResults()
+{
+    Rpg.Application.Battle.BattleStartRequest request = new()
+    {
+        RequestId = "request_1",
+        BattleKind = Rpg.Application.Battle.BattleKind.AssaultSite
+    };
+    request.PlayerForces.Add(new BattleForceRequest
+    {
+        ForceId = "force_player",
+        SourceKind = "army",
+        SourceId = "army_1",
+        UnitDefinitionId = "player_corps",
+        Count = 2
+    });
+    request.EnemyForces.Add(new BattleForceRequest
+    {
+        ForceId = "force_enemy",
+        SourceKind = "garrison",
+        SourceId = "site_1",
+        UnitDefinitionId = "enemy_corps",
+        Count = 1
+    });
+    BattleOutcomeResult outcome = BattleOutcomeResult.Completed("snapshot_1", "battle_1", BattleTerminationReason.NormalVictory);
+    outcome.ActorOutcomes.Add(new BattleActorOutcome
+    {
+        Kind = BattleRuntimeActorKind.Corps,
+        SourceForceId = "force_player",
+        Survived = true
+    });
+    outcome.ActorOutcomes.Add(new BattleActorOutcome
+    {
+        Kind = BattleRuntimeActorKind.Corps,
+        SourceForceId = "force_player",
+        Survived = false
+    });
+    outcome.ActorOutcomes.Add(new BattleActorOutcome
+    {
+        Kind = BattleRuntimeActorKind.Corps,
+        SourceForceId = "force_enemy",
+        Survived = false
+    });
+
+    Rpg.Application.Battle.BattleResult result = new LegacyBattleResultAdapter()
+        .ToLegacyResult(request, outcome);
+
+    BattleForceResult player = result.ForceResults.Single(item => item.ForceId == "force_player");
+    BattleForceResult enemy = result.ForceResults.Single(item => item.ForceId == "force_enemy");
+    AssertEqual(2, player.InitialCount, "player initial count");
+    AssertEqual(1, player.SurvivedCount, "player survived count");
+    AssertEqual(1, player.DefeatedCount, "player defeated count");
+    AssertEqual(1, enemy.InitialCount, "enemy initial count");
+    AssertEqual(0, enemy.SurvivedCount, "enemy survived count");
+    AssertEqual(1, enemy.DefeatedCount, "enemy defeated count");
 }
 
 static void LegacyResultAdapterMapsFailedHandoffToDisaster()
@@ -426,6 +645,47 @@ static void LegacyResultAdapterMapsFailedHandoffToDisaster()
     AssertTrue(incompleteRuntimeException.Outcome != Rpg.Application.Battle.BattleOutcome.Defeat, "incomplete runtime exception must not map to defeat");
 }
 
+static BattleStartSnapshot BuildOpposedSnapshot(string battleId, int playerStrength, int enemyStrength)
+{
+    return new BattleStartSnapshot
+    {
+        SnapshotId = $"snapshot_{battleId}",
+        BattleId = battleId,
+        TargetLocationId = "site_1",
+        BattleGroups =
+        {
+            new BattleGroupSnapshot
+            {
+                BattleGroupId = "group_player",
+                FactionId = "player",
+                SourceForceId = "force_player",
+                HeroId = "hero_player",
+                HeroDefinitionId = "hero_def_player",
+                CorpsId = "corps_player",
+                CorpsDefinitionId = "player_corps",
+                CorpsStrength = playerStrength,
+                SourceLocationId = "city_player",
+                CellX = 0,
+                CellY = 0
+            },
+            new BattleGroupSnapshot
+            {
+                BattleGroupId = "group_enemy",
+                FactionId = "enemy",
+                SourceForceId = "force_enemy",
+                HeroId = "hero_enemy",
+                HeroDefinitionId = "hero_def_enemy",
+                CorpsId = "corps_enemy",
+                CorpsDefinitionId = "enemy_corps",
+                CorpsStrength = enemyStrength,
+                SourceLocationId = "site_1",
+                CellX = 6,
+                CellY = 0
+            }
+        }
+    };
+}
+
 static void BattleGroupVerticalSliceSettlesAndReports()
 {
     HeroState hero = new() { HeroId = "hero_1", HeroDefinitionId = "hero_def_1", Level = 3 };
@@ -443,6 +703,9 @@ static void BattleGroupVerticalSliceSettlesAndReports()
 
     AssertTrue(result.SettlementPlan.Accepted, "settlement accepted");
     AssertEqual("battle_1", result.Report.BattleId, "report battle id");
+    AssertTrue(result.SettlementPlan.Deltas.ChangedBattleGroupIds.Contains("group_1"), "settlement should mark changed battle group");
+    AssertTrue(result.SettlementPlan.Deltas.ChangedHeroIds.Contains("hero_1"), "settlement should mark changed hero from runtime outcome");
+    AssertTrue(result.SettlementPlan.Deltas.ChangedCorpsIds.Contains("corps_1"), "settlement should mark changed corps from runtime outcome");
     AssertSequence(result.RuntimeResult.EventStream.EventIds, result.SettlementPlan.SourceEventIds, "settlement uses runtime events");
     AssertSequence(result.RuntimeResult.EventStream.EventIds, result.Report.SourceEventIds, "report uses runtime events");
     AssertSequence(result.SettlementPlan.SourceEventIds, result.Report.SourceEventIds, "same source events");

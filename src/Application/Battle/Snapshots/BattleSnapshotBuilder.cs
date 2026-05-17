@@ -45,6 +45,7 @@ public sealed class BattleSnapshotBuilder
             snapshot.BattleGroups.Add(new BattleGroupSnapshot
             {
                 BattleGroupId = group.BattleGroupId ?? "",
+                FactionId = hero?.OwnerFactionId ?? "",
                 HeroId = hero?.HeroId ?? group.HeroId ?? "",
                 HeroDefinitionId = hero?.HeroDefinitionId ?? "",
                 HeroLevel = hero?.Level ?? 0,

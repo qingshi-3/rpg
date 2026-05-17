@@ -51,8 +51,41 @@ public sealed class BattleSettlementService
             Accepted = true,
             SnapshotId = result.SnapshotId,
             BattleId = result.BattleId,
-            SourceEventIds = eventStream.EventIds.ToList()
+            SourceEventIds = eventStream.EventIds.ToList(),
+            Deltas = BuildDeltas(result)
         };
+    }
+
+    private static StateDeltaSet BuildDeltas(BattleOutcomeResult result)
+    {
+        StateDeltaSet deltas = new();
+        foreach (BattleActorOutcome actor in result.ActorOutcomes ?? Enumerable.Empty<BattleActorOutcome>())
+        {
+            if (string.IsNullOrWhiteSpace(actor.BattleGroupId))
+            {
+                continue;
+            }
+
+            AddUnique(deltas.ChangedBattleGroupIds, actor.BattleGroupId);
+            if (actor.Kind == BattleRuntimeActorKind.Corps)
+            {
+                AddUnique(deltas.ChangedCorpsIds, actor.SourceStateId);
+            }
+            else if (actor.Kind == BattleRuntimeActorKind.Hero)
+            {
+                AddUnique(deltas.ChangedHeroIds, actor.SourceStateId);
+            }
+        }
+
+        return deltas;
+    }
+
+    private static void AddUnique(System.Collections.Generic.ICollection<string> values, string value)
+    {
+        if (!string.IsNullOrWhiteSpace(value) && !values.Contains(value))
+        {
+            values.Add(value);
+        }
     }
 
     private static SettlementPlan Reject(string snapshotId, string battleId, string reason)
