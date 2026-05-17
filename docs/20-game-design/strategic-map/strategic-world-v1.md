@@ -82,7 +82,7 @@ V1 battle integration must preserve:
 - `WorldBattleResultApplier`;
 - `WorldSiteState.UnitPlacements` as site-local deployment authority.
 
-The battle runtime behind the handoff may be legacy manual battle during transition or automated battle after migration.
+The battle runtime behind the handoff is transitional. Do not restore legacy manual/AP battle behavior or treat pure auto battle playback as product identity; future-facing work should align with hero-led light RTS authority.
 
 ## First Acceptance Bar
 

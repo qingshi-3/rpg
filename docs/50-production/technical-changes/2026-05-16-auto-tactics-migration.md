@@ -18,27 +18,27 @@ strategic world
 
 This was not a cosmetic battle-mode change. Since then, accepted gameplay direction has moved again to hero-led light RTS with battle-time hero/corps/combined commands. Do not treat pure no-command auto battle playback as current product authority.
 
-## Target Battle Identity
+## Historical Battle Identity
 
-The execution layer may borrow the readable auto-battler shape of 云顶之弈 / TFT:
+At the time of this migration, the execution layer was planned around a readable auto-battler shape inspired by 云顶之弈 / TFT:
 
 - pre-battle placement and composition matter;
 - units fight automatically after battle starts;
 - target selection, movement, attack cadence, skills, and survival are readable;
 - speed, pause, skip, event feed, and result report help the player diagnose the battle.
 
-The project must not become a TFT clone:
+Even then, the project was not intended to become a TFT clone:
 
 - no shop-roll economy as the main loop;
 - no fair mirrored board as the primary battle space;
 - no synergy drafting replacing site, people, officer authority, and strategic pressure;
 - no battle-time macro chores that recreate manual tactical control.
 
-The board is an authored `WorldSite` interior battlefield. Terrain, entrances, facility slots, deployment cells, garrison state, site damage, and local objectives must matter.
+This is historical context. Current battle identity is hero-led light RTS with battle-time hero, corps, and combined command channels.
 
-## Stable Architecture Contract
+## Historical Compatibility Contract
 
-The strategic world still launches combat through `BattleStartRequest` and consumes `BattleResult`.
+The first migration kept the strategic world launch/result bridge on `BattleStartRequest` and `BattleResult`.
 
 ```text
 WorldActionRequest
@@ -53,13 +53,13 @@ WorldActionRequest
 -> StrategicWorldState / WorldSiteState changes
 ```
 
-Hard boundaries:
+The following boundaries remain useful compatibility constraints, but they are not the final target architecture:
 
 - `WorldSite` remains the persistent location authority.
 - `WorldSiteState.UnitPlacements` remains the site-local deployment authority.
 - Deployment caches derived from the active grid are candidate lists only.
 - Battle runtime must not mutate `StrategicWorldState` or persist `WorldSiteState` directly.
-- World result writeback must use `BattleResult.ForceResults` when resolving survivors, losses, retreat, transfer, and garrison counts.
+- Legacy world result writeback uses `BattleResult.ForceResults` when resolving survivors, losses, retreat, transfer, and garrison counts.
 - Scene roots are composition shells, not domain owners.
 - Broken core paths should fail with low-noise logs instead of being hidden by layered fallbacks.
 
@@ -81,9 +81,9 @@ Do not add new gameplay features to the retired manual battle loop:
 - AP-driven per-unit player command flow.
 - Macro corps commands implemented as battle-time player chores.
 
-The first migration pass has deleted or detached the active manual runtime, old HUD/action-menu scenes, battle AP component, and legacy AP authoring fields. Future work should treat missing auto battle presentation as a blank/placeholder surface, not as permission to rebuild manual commands.
+The first migration pass has deleted or detached the active manual runtime, old HUD/action-menu scenes, battle AP component, and legacy AP authoring fields. Missing battle presentation is not permission to rebuild manual/AP commands; future-facing work should follow the accepted hero-led light RTS architecture.
 
-## Target Runtime Ownership
+## Historical Runtime Ownership Plan
 
 `WorldSiteRoot` should become a thin scene shell:
 
@@ -93,7 +93,7 @@ The first migration pass has deleted or detached the active manual runtime, old 
 - call world/battle handoff boundaries;
 - avoid owning domain rules.
 
-Target owners:
+Historical target owners from this migration:
 
 | Owner | Responsibility |
 |---|---|
@@ -105,9 +105,9 @@ Target owners:
 | `AutoBattleRuntimeController` | Own automated battle pacing, unit behavior ticks, outcome checks, and playback. |
 | `AutoBattleReportBuilder` | Convert runtime events into contribution and failure summaries. |
 
-## Detailed Workstream Documents
+## Historical Workstream Documents
 
-Use these child documents for clean-context subagents:
+Use these child documents only for cleanup archaeology and compatibility investigation. Do not use them as future battle product direction:
 
 - Battle language and product guardrails: `2026-05-16-auto-tactics-migration/01-battle-language-and-guardrails.md`
 - WorldSite runtime split: `2026-05-16-auto-tactics-migration/02-worldsite-runtime-split.md`
@@ -131,19 +131,21 @@ Use these child documents for clean-context subagents:
 - Twelfth implementation plan: `2026-05-16-auto-tactics-migration/20-legacy-manual-authority-deletion-implementation-plan.md`
 - Final cleanup plan: `2026-05-16-auto-tactics-migration/21-final-manual-runtime-removal-implementation-plan.md`
 
-## Migration Sequence
+## Historical Migration Sequence
 
-1. Align wording and guardrails so new work treats battles as automated WorldSite tactical validation, not manual chess or TFT economy.
+Historical sequence:
+
+1. Align wording and guardrails so new work stops restoring manual chess/AP runtime.
 2. Extract deployment cache construction from `WorldSiteRoot`.
 3. Split `WorldSiteRoot` responsibilities one owner at a time.
-4. Build the smallest auto battle runtime that reads `BattleStartRequest`, uses site placements, and emits `BattleResult.ForceResults`.
+4. Build the first backend auto-resolve runtime that reads `BattleStartRequest`, uses site placements, and emits `BattleResult.ForceResults`.
 5. Add playback controls, event feed, and a readable battle report.
 6. Verify strategic writeback for assault, defense, and field-intercept style requests.
 7. Keep the retired manual runtime deleted while auto battle placeholders mature; do not restore old AP or command UI to fill gaps.
 
-## Auto Battle Minimum Slice
+## Historical Minimum Slice From First Cleanup
 
-The first playable slice should be intentionally narrow:
+This was the minimum slice for the first cleanup, not the current business-development target:
 
 - one authored `WorldSite` battlefield;
 - one hero/corps force on the player side;
@@ -167,12 +169,12 @@ During migration, prefer deleting copied logic and private helper islands from `
 
 Already retired manual pieces must stay retired: player-phase turn controllers, battle command routers, manual action menus, turn queues, preview controllers, battle AP components, and AP authoring fields.
 
-## Docs-First Gate
+## Historical Docs-First Gate
 
-No code migration should start until this document and the routed product/gameplay/technical docs agree on the target direction.
+This gate applied to the first migration. Current architecture and gameplay work should start from `gameplay-design/`, `system-design/`, and the active hero-led light RTS proposal.
 
-After docs are accepted, create a focused implementation plan before editing code. Do not combine "change battle identity" and "clean up every old battle file" in one unbounded refactor.
+Do not combine "change battle identity" and "clean up every old battle file" in one unbounded refactor.
 
-## QA Entry
+## Historical QA Entry
 
 Focused checks live in `docs/60-qa/testcases/auto-tactics-migration.md`.

@@ -4,7 +4,7 @@ This directory stores lightweight planning notes for changes that can affect arc
 
 ## Recent Notes
 
-- 2026-05-16: `2026-05-16-auto-tactics-migration.md`
+- 2026-05-16: `2026-05-16-auto-tactics-migration.md` historical cleanup record only; not current battle product direction.
 - 2026-05-14: `2026-05-14-world-runtime-state-mutation.md`
 - 2026-05-14: `2026-05-14-resident-unit-definition-cache.md`
 - 2026-05-13: `2026-05-13-battle-audio-slice.md`
@@ -41,3 +41,4 @@ Use filenames like `YYYY-MM-DD-topic` with the `.md` extension and cover:
 
 - If the change fits only `Effect`, `Condition`, `TargetRule`, or Definition data, prefer a module document or test case update.
 - If the change breaks those boundaries, document the risk here before coding.
+- Historical migration notes must not override `gameplay-design/`, `system-design/`, or accepted active proposals. If an old note routes work toward auto-tactics, AP, player phases, or manual action menus, treat it as historical context and follow `gameplay-alignment/authority-map.md`.

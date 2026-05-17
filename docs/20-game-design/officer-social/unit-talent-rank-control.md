@@ -171,7 +171,7 @@ Enemy: Intent-driven.
 敌人 -> Intent-driven
 ```
 
-所有行动仍应通过 `BattleActionRequest` 和 `BattleActionExecutor` 结算。非亲控单位不应绕开战斗行动边界直接修改 HP、AP、位置或死亡状态。
+该段落是旧亲控/非亲控划分的设计参考，不是当前战斗架构入口。未来战斗行动应通过已接受的英雄带兵轻 RTS 架构定义命令、事件和结算边界；非亲控单位不应绕开战斗行动边界直接修改 HP、位置、死亡状态或长期战役状态。
 
 ## 设计风险
 

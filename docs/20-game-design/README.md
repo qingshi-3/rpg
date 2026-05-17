@@ -20,7 +20,7 @@ The project may use 异世界召唤 as a setting and content expression, but gam
 - Officer social gameplay: `officer-social/README.md`
 - Battle gameplay: `tactical-battle/README.md`
 - Current gameplay authority outside legacy docs: `../../gameplay-design/content-systems-long-term-design.md`
-- Historical auto battle migration guardrails: `../50-production/technical-changes/2026-05-16-auto-tactics-migration.md`
+- Historical battle cleanup record: `../50-production/technical-changes/2026-05-16-auto-tactics-migration.md`
 
 ## Boundaries
 
@@ -28,3 +28,4 @@ The project may use 异世界召唤 as a setting and content expression, but gam
 - Technical contracts, data models, and engine implementation belong in `../30-technical-design/`.
 - Authored scenario, tutorial, character, and world content belongs in `../40-content/`.
 - Roadmap state and implementation sequencing belong in `../50-production/`.
+- Historical cleanup notes must not define current player-facing battle identity. Use `../../gameplay-design/content-systems-long-term-design.md` for that authority.
