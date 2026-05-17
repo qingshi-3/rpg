@@ -25,6 +25,7 @@ public partial class StrategicWorldRoot
 
         AddChild(hud);
         BindStrategicHud(hud);
+        UpdateMainWorldViewportLayout(GetMapBounds());
         WarmupStrategicSelectionUiScenes();
         BuildMapArea();
         BuildSiteHoverSummaryPanel();
@@ -71,13 +72,28 @@ public partial class StrategicWorldRoot
             ZIndex = 60
         };
         SetFullRect(_fogOverlay);
-        AddChild(_fogOverlay);
+        // Fog is world presentation, so it lives in the viewport overlay instead of the root UI canvas.
+        if (_worldMapOverlay == null)
+        {
+            GameLog.Error(nameof(StrategicWorldRoot), "WorldMapOverlayMissingForFog");
+            return;
+        }
+
+        _worldMapOverlay.AddChild(_fogOverlay);
     }
 
     private void BindStrategicHud(Control hud)
     {
         // Layout hosts are Presentation-only containers. They organize panels without
         // owning strategic state, site state, or action authority.
+        _topBarHost = GameUiSceneFactory.GetRequiredNode<Control>(
+            hud,
+            "TopBarHost",
+            nameof(StrategicWorldRoot));
+        _leftPrimaryPanelHost = GameUiSceneFactory.GetRequiredNode<Control>(
+            hud,
+            "LeftPrimaryPanelHost",
+            nameof(StrategicWorldRoot));
         Label title = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
             "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TitleResourceStack/Title",
@@ -245,10 +261,16 @@ public partial class StrategicWorldRoot
 
     private void BuildMapArea()
     {
+        if (_worldMapOverlay == null)
+        {
+            GameLog.Error(nameof(StrategicWorldRoot), "WorldMapOverlayMissing");
+            return;
+        }
+
         foreach (WorldSiteDefinition site in Definition.SiteDefinitions)
         {
-            Rect2 hitRect = GetSiteHitRect(site);
-            Rect2 labelRect = GetSiteLabelRect(site);
+            Rect2 hitRect = ToViewportLocal(GetSiteHitRect(site));
+            Rect2 labelRect = ToViewportLocal(GetSiteLabelRect(site));
             Button button = GameUiSceneFactory.CreateWorldSiteHitButton(nameof(StrategicWorldRoot));
             if (button == null)
             {
@@ -266,7 +288,7 @@ public partial class StrategicWorldRoot
             button.MouseEntered += () => ShowSiteHoverSummary(site.Id);
             button.MouseExited += () => HideSiteHoverSummary(site.Id);
             button.GuiInput += @event => OnSiteButtonGuiInput(site.Id, @event);
-            AddChild(button);
+            _worldMapOverlay.AddChild(button);
             _siteButtons[site.Id] = button;
 
             Label label = GameUiSceneFactory.CreateWorldSiteLabel(nameof(StrategicWorldRoot));
@@ -278,7 +300,7 @@ public partial class StrategicWorldRoot
             label.Name = $"{site.Id}Label";
             label.Position = labelRect.Position;
             label.Size = labelRect.Size;
-            AddChild(label);
+            _worldMapOverlay.AddChild(label);
             _siteLabels[site.Id] = label;
         }
     }
@@ -312,7 +334,7 @@ public partial class StrategicWorldRoot
         {
             WorldSiteState state = State.SiteStates[siteId];
             WorldSiteDefinition definition = queries.GetSite(siteId);
-            Rect2 hitRect = GetSiteHitRect(definition);
+            Rect2 hitRect = ToViewportLocal(GetSiteHitRect(definition));
             button.Position = hitRect.Position;
             button.Size = hitRect.Size;
             WorldIntelVisibility siteVisibility = GetSiteIntelVisibility(definition);
@@ -339,7 +361,7 @@ public partial class StrategicWorldRoot
 
             if (_siteLabels.TryGetValue(siteId, out Label label))
             {
-                Rect2 labelRect = GetSiteLabelRect(definition);
+                Rect2 labelRect = ToViewportLocal(GetSiteLabelRect(definition));
                 label.Position = labelRect.Position;
                 label.Size = labelRect.Size;
                 label.Visible = siteKnown;

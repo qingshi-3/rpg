@@ -75,6 +75,37 @@ internal static void DeploymentCacheFallsBackToAnyDirection()
     AssertEqual(fallback, cache.GetCandidates(WorldSiteAttackDirection.North)[0], "missing direction should fall back to any candidates");
 }
 
+internal static void BattleFootprintCellsUseTopLeftAnchor()
+{
+    GridPosition[] cells = BattleFootprintCells
+        .Enumerate(new GridPosition(4, 5), width: 2, height: 2)
+        .ToArray();
+
+    AssertEqual("4,5|5,5|4,6|5,6", FormatCells(cells), "2x2 footprint should expand from the top-left anchor");
+
+    GridPosition[] wideCells = BattleFootprintCells
+        .Enumerate(new GridPosition(4, 5), width: 2, height: 1)
+        .ToArray();
+
+    AssertEqual("4,5|5,5", FormatCells(wideCells), "2x1 footprint should expand horizontally without adding a second row");
+}
+
+internal static void BattleFootprintAnchorSnapsByFootprintCenter()
+{
+    AssertEqual(new GridPosition(-1, 0), BattleFootprintCells.ResolveAnchorFromCenter(-0.01f, 0f, width: 2, height: 1), "2x1 should shift left before the left cell center");
+    AssertEqual(new GridPosition(0, 0), BattleFootprintCells.ResolveAnchorFromCenter(0f, 0f, width: 2, height: 1), "2x1 should keep the two-cell footprint when the pointer is at the left cell center");
+    AssertEqual(new GridPosition(0, 0), BattleFootprintCells.ResolveAnchorFromCenter(0.99f, 0f, width: 2, height: 1), "2x1 should keep the two-cell footprint until the right cell center is crossed");
+    AssertEqual(new GridPosition(1, 0), BattleFootprintCells.ResolveAnchorFromCenter(1.01f, 0f, width: 2, height: 1), "2x1 should shift right after the right cell center");
+
+    AssertEqual(new GridPosition(0, 0), BattleFootprintCells.ResolveAnchorFromCenter(0.49f, 0.49f, width: 1, height: 1), "1x1 should keep normal half-cell snapping");
+    AssertEqual(new GridPosition(1, 1), BattleFootprintCells.ResolveAnchorFromCenter(0.51f, 0.51f, width: 1, height: 1), "1x1 should shift after the cell midpoint");
+
+    AssertEqual(new GridPosition(-1, -1), BattleFootprintCells.ResolveAnchorFromCenter(0.49f, 0.49f, width: 3, height: 3), "3x3 should shift before the centered footprint window");
+    AssertEqual(new GridPosition(0, 0), BattleFootprintCells.ResolveAnchorFromCenter(0.51f, 0.51f, width: 3, height: 3), "3x3 should keep the centered footprint window");
+    AssertEqual(new GridPosition(0, 0), BattleFootprintCells.ResolveAnchorFromCenter(1.49f, 1.49f, width: 3, height: 3), "3x3 should remain until the far center threshold");
+    AssertEqual(new GridPosition(1, 1), BattleFootprintCells.ResolveAnchorFromCenter(1.51f, 1.51f, width: 3, height: 3), "3x3 should shift after the far center threshold");
+}
+
 internal static void DeploymentTargetEvaluatorRejectsBlockedWaterAndOccupiedCells()
 {
     BattleGridMap grid = new();
@@ -109,7 +140,7 @@ internal static void DeploymentTargetEvaluatorMovesPlacementThroughDeploymentSer
 {
     BattleGridMap grid = new();
     AddWalkableSurface(grid, 0, 0, terrainTag: "plain");
-    AddWalkableSurface(grid, 1, 0, terrainTag: "plain");
+    AddWalkableSurface(grid, 1, 0, height: 2, terrainTag: "upper_plain");
 
     WorldSiteState site = BuildDeploymentSite();
     WorldSiteUnitPlacement placement = new() { PlacementId = "unit:1", UnitTypeId = "militia", CellX = 0, CellY = 0 };
@@ -128,6 +159,7 @@ internal static void DeploymentTargetEvaluatorMovesPlacementThroughDeploymentSer
     AssertTrue(moved, $"valid placement move should succeed failure={failureReason}");
     AssertEqual(1, placement.CellX, "placement x should update through deployment service");
     AssertEqual(0, placement.CellY, "placement y should update through deployment service");
+    AssertEqual(2, placement.CellHeight, "placement height should update to the target top surface");
 }
 
 internal static void DeploymentTerrainReconcilerSyncsPlacementHeight()
@@ -272,5 +304,10 @@ internal static void BattleDeploymentPreparerUsesKnownEntranceBeforeDesiredAppro
     AssertTrue(prepared, $"known entrance deployment should succeed failure={failureReason}");
     AssertEqual("known_west_gate", playerForce.PreferredEntranceId, "force preferred entrance should use known entrance");
     AssertEqual(0, playerForce.PreferredPlacements[0].CellX, "known west entrance should override east desired direction");
+}
+
+private static string FormatCells(IEnumerable<GridPosition> cells)
+{
+    return string.Join("|", cells.Select(cell => $"{cell.X},{cell.Y}"));
 }
 }

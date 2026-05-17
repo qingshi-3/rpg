@@ -33,6 +33,17 @@ public partial class MapCameraController : Camera2D
     [Export]
     public float ZoomStep { get; set; } = 0.18f;
 
+    [ExportGroup("Map Bounds")]
+
+    [Export]
+    public bool UseConfiguredMapBoundsFallback { get; set; }
+
+    [Export]
+    public Vector2 ConfiguredMapBoundsPosition { get; set; } = Vector2.Zero;
+
+    [Export]
+    public Vector2 ConfiguredMapBoundsSize { get; set; } = Vector2.Zero;
+
     [ExportGroup("Mouse Drag")]
 
     [Export]
@@ -45,6 +56,7 @@ public partial class MapCameraController : Camera2D
 
     private Rect2 _mapBounds;
     private bool _hasMapBounds;
+    private bool _usingConfiguredMapBoundsFallback;
     private Vector2 _lastViewportSize;
     private bool _hasViewportSize;
     private Vector2 _viewportSizeOverride;
@@ -61,6 +73,7 @@ public partial class MapCameraController : Camera2D
     public override void _Ready()
     {
         Enabled = UseViewportCamera;
+        ApplyConfiguredMapBoundsFallback("ready");
     }
 
     public override void _Process(double delta)
@@ -110,15 +123,7 @@ public partial class MapCameraController : Camera2D
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (TryHandlePointerNavigationInput(@event))
-        {
-            return;
-        }
-
-        if (@event is InputEventMouseButton mouseButton)
-        {
-            HandleMouseWheelInput(mouseButton);
-        }
+        TryHandlePointerNavigationAndZoomInput(@event);
     }
 
     public bool TryHandlePointerNavigationInput(InputEvent @event)
@@ -136,18 +141,67 @@ public partial class MapCameraController : Camera2D
         return false;
     }
 
+    public bool TryHandlePointerNavigationAndZoomInput(InputEvent @event)
+    {
+        if (TryHandlePointerNavigationInput(@event))
+        {
+            return true;
+        }
+
+        return @event is InputEventMouseButton mouseButton && HandleMouseWheelInput(mouseButton);
+    }
+
     public void SetMapBounds(Rect2 mapBounds)
     {
         _mapBounds = mapBounds;
         _hasMapBounds = mapBounds.Size.X > 0f && mapBounds.Size.Y > 0f;
+        _usingConfiguredMapBoundsFallback = false;
         SetZoomScalar(GetZoomScalar());
         ClampToMapBounds();
     }
 
     public void ClearMapBounds()
     {
+        ClearRuntimeMapBounds();
+    }
+
+    public void ClearRuntimeMapBounds()
+    {
         _mapBounds = default;
         _hasMapBounds = false;
+        _usingConfiguredMapBoundsFallback = false;
+        SetZoomScalar(GetZoomScalar());
+    }
+
+    public bool ClearMapBoundsAndApplyConfiguredFallback(string reason)
+    {
+        ClearRuntimeMapBounds();
+        return ApplyConfiguredMapBoundsFallback(reason);
+    }
+
+    public bool ApplyConfiguredMapBoundsFallback(string reason)
+    {
+        if (_hasMapBounds && !_usingConfiguredMapBoundsFallback)
+        {
+            return false;
+        }
+
+        if (!UseConfiguredMapBoundsFallback ||
+            ConfiguredMapBoundsSize.X <= 0f ||
+            ConfiguredMapBoundsSize.Y <= 0f)
+        {
+            return false;
+        }
+
+        // Scene-authored bounds keep camera zoom from revealing unpainted space
+        // when runtime map-bound discovery is not available for a viewport slice.
+        _mapBounds = new Rect2(ConfiguredMapBoundsPosition, ConfiguredMapBoundsSize);
+        _hasMapBounds = true;
+        _usingConfiguredMapBoundsFallback = true;
+        SetZoomScalar(GetZoomScalar());
+        ClampToMapBounds();
+        GameLog.Info("Camera", $"ConfiguredMapBoundsFallbackApplied reason={reason} bounds={_mapBounds}");
+        return true;
     }
 
     public void SetViewportSizeOverride(Vector2 viewportSize)
@@ -195,23 +249,28 @@ public partial class MapCameraController : Camera2D
         return Mathf.Max(Zoom.X, 0.001f);
     }
 
-    private void HandleMouseWheelInput(InputEventMouseButton mouseButton)
+    private bool HandleMouseWheelInput(InputEventMouseButton mouseButton)
     {
         if (!MouseWheelZoomEnabled || !mouseButton.Pressed)
         {
-            return;
+            return false;
         }
 
         if (mouseButton.ButtonIndex == MouseButton.WheelUp)
         {
             SetZoomScalar(GetZoomScalar() + ZoomStep);
             GetViewport().SetInputAsHandled();
+            return true;
         }
-        else if (mouseButton.ButtonIndex == MouseButton.WheelDown)
+
+        if (mouseButton.ButtonIndex == MouseButton.WheelDown)
         {
             SetZoomScalar(GetZoomScalar() - ZoomStep);
             GetViewport().SetInputAsHandled();
+            return true;
         }
+
+        return false;
     }
 
     private bool HandleMiddleMouseDragButton(InputEventMouseButton mouseButton)

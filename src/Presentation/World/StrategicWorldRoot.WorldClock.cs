@@ -283,7 +283,7 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        QueueRedraw();
+        QueueStrategicOverlayRedraw();
         return true;
     }
 

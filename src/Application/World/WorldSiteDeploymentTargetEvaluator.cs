@@ -47,7 +47,13 @@ public sealed class WorldSiteDeploymentTargetEvaluator
             return false;
         }
 
-        return _deploymentService.TryMovePlacement(site, definition, placementId, cell, out failureReason);
+        if (!gridMap.TryGetTopSurfacePosition(new GridPosition(cell.X, cell.Y), out GridSurfacePosition surfacePosition))
+        {
+            failureReason = "placement_cell_blocked";
+            return false;
+        }
+
+        return _deploymentService.TryMovePlacementToSurface(site, definition, placementId, surfacePosition, out failureReason);
     }
 
     public bool CanPlaceOnGridCell(

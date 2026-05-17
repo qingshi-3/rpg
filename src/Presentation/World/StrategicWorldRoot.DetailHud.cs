@@ -24,7 +24,7 @@ public partial class StrategicWorldRoot
         RefreshCurrentStrategicWorldPanel(queries);
         RefreshWorldClockLabel();
         _noticeLabel.Text = StrategicWorldRuntime.LastNotice;
-        QueueRedraw();
+        QueueStrategicOverlayRedraw();
         stopwatch.Stop();
         if (stopwatch.ElapsedMilliseconds >= 16)
         {

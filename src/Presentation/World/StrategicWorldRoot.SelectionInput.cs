@@ -117,7 +117,18 @@ public partial class StrategicWorldRoot
             .FirstOrDefault(opportunity => MapToScreen(opportunity.WorldPosition).DistanceTo(screenPosition) <= OpportunityMarkerRadius + 10.0f);
     }
 
-    private void HandleWorldArmyInput(InputEvent @event)
+    private void OnWorldMapOverlayGuiInput(InputEvent @event)
+    {
+        if (TryHandleWorldCameraPointerInput(@event))
+        {
+            _worldMapOverlay?.AcceptEvent();
+            return;
+        }
+
+        HandleWorldArmyInput(@event, eventIsViewportLocal: true);
+    }
+
+    private void HandleWorldArmyInput(InputEvent @event, bool eventIsViewportLocal = false)
     {
         if (_pendingBattleRequest != null || Definition == null || State == null)
         {
@@ -126,41 +137,47 @@ public partial class StrategicWorldRoot
 
         if (@event is InputEventMouseButton mouseButton)
         {
+            // The world viewport owns map events, but selection/command code still
+            // compares against root-screen rectangles shared with the HUD.
+            Vector2 screenPosition = eventIsViewportLocal ? ToRootScreen(mouseButton.Position) : mouseButton.Position;
             if (mouseButton.ButtonIndex == MouseButton.Left)
             {
-                HandleWorldArmyLeftMouse(mouseButton);
+                HandleWorldArmyLeftMouse(mouseButton, screenPosition, eventIsViewportLocal);
             }
             else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
             {
                 if (_isExpeditionTargeting)
                 {
-                    TryIssueExpeditionToTarget(mouseButton.Position);
-                    AcceptEvent();
+                    TryIssueExpeditionToTarget(screenPosition);
+                    AcceptWorldMapInput(eventIsViewportLocal);
                     return;
                 }
 
-                if (TryCommandSelectedArmies(mouseButton.Position))
+                if (TryCommandSelectedArmies(screenPosition))
                 {
-                    AcceptEvent();
+                    AcceptWorldMapInput(eventIsViewportLocal);
                 }
             }
         }
         else if (@event is InputEventMouseMotion mouseMotion && _isArmyBoxSelecting)
         {
-            _armySelectionCurrentScreen = mouseMotion.Position;
-            QueueRedraw();
-            AcceptEvent();
+            _armySelectionCurrentScreen = eventIsViewportLocal ? ToRootScreen(mouseMotion.Position) : mouseMotion.Position;
+            QueueStrategicOverlayRedraw();
+            AcceptWorldMapInput(eventIsViewportLocal);
         }
     }
 
-    private void HandleWorldArmyLeftMouse(InputEventMouseButton mouseButton)
+    private void HandleWorldArmyLeftMouse(
+        InputEventMouseButton mouseButton,
+        Vector2 screenPosition,
+        bool eventIsViewportLocal)
     {
         if (mouseButton.Pressed)
         {
             _isArmyBoxSelecting = true;
-            _armySelectionStartScreen = mouseButton.Position;
-            _armySelectionCurrentScreen = mouseButton.Position;
-            AcceptEvent();
+            _armySelectionStartScreen = screenPosition;
+            _armySelectionCurrentScreen = screenPosition;
+            AcceptWorldMapInput(eventIsViewportLocal);
             return;
         }
 
@@ -170,20 +187,20 @@ public partial class StrategicWorldRoot
         }
 
         _isArmyBoxSelecting = false;
-        _armySelectionCurrentScreen = mouseButton.Position;
+        _armySelectionCurrentScreen = screenPosition;
 
         bool append = mouseButton.ShiftPressed;
         if (_armySelectionStartScreen.DistanceTo(_armySelectionCurrentScreen) <= 8.0f)
         {
             if (!_isExpeditionDrafting && TrySelectOpportunityAt(_armySelectionCurrentScreen))
             {
-                AcceptEvent();
+                AcceptWorldMapInput(eventIsViewportLocal);
                 return;
             }
 
             if (TrySelectSiteAt(_armySelectionCurrentScreen))
             {
-                AcceptEvent();
+                AcceptWorldMapInput(eventIsViewportLocal);
                 return;
             }
 
@@ -195,6 +212,17 @@ public partial class StrategicWorldRoot
         }
 
         RefreshAll();
+        AcceptWorldMapInput(eventIsViewportLocal);
+    }
+
+    private void AcceptWorldMapInput(bool eventIsViewportLocal)
+    {
+        if (eventIsViewportLocal)
+        {
+            _worldMapOverlay?.AcceptEvent();
+            return;
+        }
+
         AcceptEvent();
     }
 

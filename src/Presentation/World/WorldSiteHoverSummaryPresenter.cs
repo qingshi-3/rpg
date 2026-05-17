@@ -100,7 +100,7 @@ public static class WorldSiteHoverSummaryPresenter
 
     private static bool IsHeroUnitType(string unitTypeId)
     {
-        return unitTypeId == StrategicWorldIds.UnitPlayerKnight;
+        return unitTypeId == HeroCorpsV0PlayableSliceIds.HeroUnit;
     }
 }
 

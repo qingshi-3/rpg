@@ -14,30 +14,43 @@
 script = ExtResource("1_world_site_root")
 SiteMapScene = ExtResource("2_bonefield_site")
 
-[node name="MapRoot" type="Node2D" parent="."]
+[node name="MainWorldViewportHost" type="SubViewportContainer" parent="."]
+offset_right = 1280.0
+offset_bottom = 720.0
+mouse_filter = 1
+stretch = true
 
-[node name="UnitRoot" type="Node2D" parent="."]
+[node name="MainWorldViewport" type="SubViewport" parent="MainWorldViewportHost"]
+size = Vector2i(1280, 720)
+disable_3d = true
+transparent_bg = true
+
+[node name="MapRoot" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport"]
+
+[node name="UnitRoot" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport"]
 script = ExtResource("19_battle_unit_root")
 UnitMoveDuration = 0.07
 
-[node name="OverlayRoot" type="Node2D" parent="."]
+[node name="OverlayRoot" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport"]
 
-[node name="GridHighlightOverlay" type="Node2D" parent="OverlayRoot"]
+[node name="GridHighlightOverlay" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport/OverlayRoot"]
 script = ExtResource("5_grid_highlight_overlay")
 
-[node name="DebugRoot" type="Node" parent="."]
+[node name="DebugRoot" type="Node" parent="MainWorldViewportHost/MainWorldViewport"]
 script = ExtResource("3_debug_controller")
 
-[node name="CellInfoDebug" type="Node" parent="DebugRoot"]
+[node name="CellInfoDebug" type="Node" parent="MainWorldViewportHost/MainWorldViewport/DebugRoot"]
 script = ExtResource("4_cell_info_debug")
 
-[node name="GuideGridDebug" type="Node" parent="DebugRoot"]
+[node name="GuideGridDebug" type="Node" parent="MainWorldViewportHost/MainWorldViewport/DebugRoot"]
 script = ExtResource("6_guide_grid_debug")
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="MainWorldViewportHost/MainWorldViewport"]
 position = Vector2(575, 324)
 zoom = Vector2(2.2, 2.2)
 script = ExtResource("7_camera_controller")
+UseConfiguredMapBoundsFallback = true
+ConfiguredMapBoundsSize = Vector2(1150, 648)
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 

@@ -46,15 +46,15 @@ public partial class StrategicWorldRoot
 
     private List<Vector2> GetLegacyThreatNavigationPoints(EnemyThreatPlan threat, Vector2 sourceCenter, Vector2 targetCenter)
     {
-        Vector2 sourceMapPosition = ScreenToMap(sourceCenter);
-        Vector2 targetMapPosition = ScreenToMap(targetCenter);
+        Vector2 sourceMapPosition = ViewportLocalToMap(sourceCenter);
+        Vector2 targetMapPosition = ViewportLocalToMap(targetCenter);
         if (_strategicNavigationContext.TryBuildPath(
                 sourceMapPosition,
                 targetMapPosition,
                 out StrategicNavigationPath path,
                 out string failureReason))
         {
-            return path.Points.Select(MapToScreen).ToList();
+            return path.Points.Select(MapToViewportLocal).ToList();
         }
 
         string failureKey = $"{threat?.Id ?? ""}:{failureReason}";
@@ -221,20 +221,115 @@ public partial class StrategicWorldRoot
 
     private Rect2 GetMapBounds()
     {
+        return ResolveMainWorldViewportRect();
+    }
+
+    private Rect2 ResolveMainWorldViewportRect()
+    {
         Vector2 viewport = GetViewportRect().Size;
+        if (_topBarHost == null ||
+            _leftPrimaryPanelHost == null ||
+            _mainWorldViewportHost == null)
+        {
+            Rect2 hostRect = _mainWorldViewportHost?.GetGlobalRect() ?? new Rect2(Vector2.Zero, viewport);
+            return hostRect.Size.X > 0.0f && hostRect.Size.Y > 0.0f
+                ? hostRect
+                : new Rect2(Vector2.Zero, viewport);
+        }
+
+        Rect2 leftHostRect = _leftPrimaryPanelHost.GetGlobalRect();
+        Rect2 topHostRect = _topBarHost.GetGlobalRect();
+        if (!TryResolveFirstControlChildRect(_leftPrimaryPanelHost, leftHostRect, out Rect2 primaryPanelRect) ||
+            !TryResolveFirstControlChildRect(_topBarHost, topHostRect, out Rect2 topBarRect))
+        {
+            Rect2 hostRect = _mainWorldViewportHost.GetGlobalRect();
+            return hostRect.Size.X > 0.0f && hostRect.Size.Y > 0.0f
+                ? hostRect
+                : new Rect2(Vector2.Zero, viewport);
+        }
+
+        Rect2 authoredWorldRect = _mainWorldViewportHost.GetGlobalRect();
+        float sideMargin = Mathf.Max(0.0f, primaryPanelRect.Position.X - leftHostRect.Position.X);
+        float gapAfterPanel = Mathf.Max(sideMargin, authoredWorldRect.Position.X - primaryPanelRect.End.X);
+        float topGap = Mathf.Max(0.0f, primaryPanelRect.Position.Y - topBarRect.End.Y);
+        float topOffset = Mathf.Max(0.0f, authoredWorldRect.Position.Y - primaryPanelRect.Position.Y);
+        float bottomMargin = Mathf.Max(sideMargin, topGap * 2.0f);
+        Vector2 position = new(primaryPanelRect.End.X + gapAfterPanel, topBarRect.End.Y + topGap + topOffset);
+
+        // MainWorldViewport follows the authored HUD host geometry. The world view no
+        // longer owns a separate copy of left-panel or top-bar dimensions.
         return new Rect2(
-            new Vector2(OuterMargin, TopBarHeight + 24.0f),
-            new Vector2(viewport.X - DetailWidth - OuterMargin * 3.0f, viewport.Y - TopBarHeight - OuterMargin * 2.0f));
+            position,
+            new Vector2(
+                Mathf.Max(1.0f, viewport.X - position.X - sideMargin),
+                Mathf.Max(1.0f, viewport.Y - position.Y - bottomMargin)));
+    }
+
+    private static bool TryResolveFirstControlChildRect(Control host, Rect2 hostRect, out Rect2 rect)
+    {
+        rect = default;
+        if (host == null)
+        {
+            return false;
+        }
+
+        foreach (Node child in host.GetChildren())
+        {
+            if (child is not Control control)
+            {
+                continue;
+            }
+
+            Rect2 childRect = control.GetGlobalRect();
+            if (childRect.Size.X > 0.0f && childRect.Size.Y > 0.0f)
+            {
+                rect = childRect;
+                return true;
+            }
+        }
+
+        if (hostRect.Size.X <= 0.0f || hostRect.Size.Y <= 0.0f)
+        {
+            return false;
+        }
+
+        rect = hostRect;
+        return true;
     }
 
     private Vector2 MapToScreen(Vector2 mapPosition)
     {
-        return _worldMapRoot?.ToGlobal(mapPosition) ?? mapPosition;
+        return ToRootScreen(MapToViewportLocal(mapPosition));
     }
 
     private Vector2 ScreenToMap(Vector2 screenPosition)
     {
-        return _worldMapRoot?.ToLocal(screenPosition) ?? screenPosition;
+        return ViewportLocalToMap(ToViewportLocal(screenPosition));
+    }
+
+    private Vector2 MapToViewportLocal(Vector2 mapPosition)
+    {
+        return _worldMapRoot?.ToGlobal(mapPosition) ?? mapPosition;
+    }
+
+    private Vector2 ViewportLocalToMap(Vector2 viewportLocalPosition)
+    {
+        return _worldMapRoot?.ToLocal(viewportLocalPosition) ?? viewportLocalPosition;
+    }
+
+    private Vector2 ToRootScreen(Vector2 viewportLocalPosition)
+    {
+        return (_mainWorldViewportHost?.GlobalPosition ?? Vector2.Zero) + viewportLocalPosition;
+    }
+
+    private Vector2 ToViewportLocal(Vector2 rootScreenPosition)
+    {
+        return rootScreenPosition - (_mainWorldViewportHost?.GlobalPosition ?? Vector2.Zero);
+    }
+
+    private Rect2 ToViewportLocal(Rect2 rootScreenRect)
+    {
+        return new Rect2(ToViewportLocal(rootScreenRect.Position), rootScreenRect.Size);
     }
 
     private static Rect2 BuildScreenRect(Vector2 a, Vector2 b)
@@ -290,6 +385,11 @@ public partial class StrategicWorldRoot
         return BuildScreenRect(MapToScreen(mapRect.Position), MapToScreen(mapRect.End));
     }
 
+    private Rect2 MapRectToViewportLocal(Rect2 mapRect)
+    {
+        return BuildScreenRect(MapToViewportLocal(mapRect.Position), MapToViewportLocal(mapRect.End));
+    }
+
     private bool TryGetSiteVisualScreenBounds(string siteId, out Rect2 screenBounds)
     {
         screenBounds = default;
@@ -300,6 +400,19 @@ public partial class StrategicWorldRoot
         }
 
         screenBounds = MapRectToScreen(footprint.MapBounds);
+        return true;
+    }
+
+    private bool TryGetSiteVisualViewportBounds(string siteId, out Rect2 viewportBounds)
+    {
+        viewportBounds = default;
+        if (string.IsNullOrWhiteSpace(siteId) ||
+            !_siteVisualFootprints.TryGetValue(siteId, out SiteVisualFootprint footprint))
+        {
+            return false;
+        }
+
+        viewportBounds = MapRectToViewportLocal(footprint.MapBounds);
         return true;
     }
 
@@ -358,6 +471,16 @@ public partial class StrategicWorldRoot
         return MapToScreen(GetSiteMapPosition(definition));
     }
 
+    private Vector2 GetSiteViewportCenter(WorldSiteDefinition definition)
+    {
+        if (definition == null)
+        {
+            return Vector2.Zero;
+        }
+
+        return MapToViewportLocal(GetSiteMapPosition(definition));
+    }
+
     private static void SetFullRect(Control control)
     {
         control.AnchorLeft = 0.0f;
@@ -368,5 +491,17 @@ public partial class StrategicWorldRoot
         control.OffsetTop = 0.0f;
         control.OffsetRight = 0.0f;
         control.OffsetBottom = 0.0f;
+    }
+
+    private static void SetFixedRect(Control control, Rect2 rect)
+    {
+        control.AnchorLeft = 0.0f;
+        control.AnchorTop = 0.0f;
+        control.AnchorRight = 0.0f;
+        control.AnchorBottom = 0.0f;
+        control.OffsetLeft = rect.Position.X;
+        control.OffsetTop = rect.Position.Y;
+        control.OffsetRight = rect.End.X;
+        control.OffsetBottom = rect.End.Y;
     }
 }

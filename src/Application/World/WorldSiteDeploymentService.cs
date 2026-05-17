@@ -3,6 +3,7 @@ using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Definitions.World;
+using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 
@@ -262,6 +263,29 @@ public sealed class WorldSiteDeploymentService
         placement.CellY = cell.Y;
         placement.ZoneId = ResolveZoneIdForCell(definition, cell, placement.ZoneId);
         GameLog.Info(nameof(WorldSiteDeploymentService), $"SiteUnitPlacementMoved site={site.SiteId} placement={placementId} cell={cell}");
+        return true;
+    }
+
+    public bool TryMovePlacementToSurface(
+        WorldSiteState site,
+        WorldSiteDefinition definition,
+        string placementId,
+        GridSurfacePosition surface,
+        out string failureReason)
+    {
+        Vector2I cell = new(surface.X, surface.Y);
+        if (!TryValidatePlacementMove(site, definition, placementId, cell, out WorldSiteUnitPlacement placement, out failureReason))
+        {
+            return false;
+        }
+
+        // Surface-backed moves update all persisted placement coordinates together;
+        // presentation render sorting depends on CellHeight matching the hit surface.
+        placement.CellX = cell.X;
+        placement.CellY = cell.Y;
+        placement.CellHeight = surface.Height;
+        placement.ZoneId = ResolveZoneIdForCell(definition, cell, placement.ZoneId);
+        GameLog.Info(nameof(WorldSiteDeploymentService), $"SiteUnitPlacementMoved site={site.SiteId} placement={placementId} surface={surface}");
         return true;
     }
 

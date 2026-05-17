@@ -19,6 +19,14 @@ public partial class GridOccupantComponent : BattleEntityComponent
     [Export]
     public bool UseExplicitHeight { get; set; }
 
+    [ExportGroup("Footprint")]
+
+    [Export]
+    public int FootprintWidth { get; set; } = 1;
+
+    [Export]
+    public int FootprintHeight { get; set; } = 1;
+
     [ExportGroup("阻挡")]
 
     [Export]

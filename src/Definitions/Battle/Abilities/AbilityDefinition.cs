@@ -18,6 +18,15 @@ public partial class AbilityDefinition : Resource
     public int Range { get; set; } = 1;
 
     [Export]
+    public AbilityTargetMode TargetMode { get; set; } = AbilityTargetMode.UnitTarget;
+
+    [Export]
+    public AbilityDirectionMode DirectionMode { get; set; } = AbilityDirectionMode.EightWay;
+
+    [Export]
+    public AbilityAreaShape AreaShape { get; set; } = AbilityAreaShape.SingleActor;
+
+    [Export]
     public Godot.Collections.Array<AbilityTargetRule> TargetRules { get; set; } = new();
 
     [Export]

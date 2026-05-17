@@ -11,4 +11,11 @@ public sealed class BattleEvent
     public string TargetId { get; set; } = "";
     public string ReasonCode { get; set; } = "";
     public int CorpsStrengthDelta { get; set; }
+    public bool HasMovementCells { get; set; }
+    public int FromGridX { get; set; }
+    public int FromGridY { get; set; }
+    public int FromGridHeight { get; set; }
+    public int ToGridX { get; set; }
+    public int ToGridY { get; set; }
+    public int ToGridHeight { get; set; }
 }

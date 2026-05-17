@@ -8,6 +8,7 @@ using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Preview;
 using Rpg.Presentation.Common;
 using Rpg.Presentation.World;
+using Rpg.Definitions.Battle.Abilities;
 using Rpg.Definitions.Battle.Audio;
 using Rpg.Application.Battle;
 using Rpg.Application.World;
@@ -82,6 +83,23 @@ internal static void FriendlyHoverSuppressesAttackCellsUnderTargets()
         "target cells should remain available for arrow presentation");
 }
 
+internal static void HoverFrameUsesUnitFootprint()
+{
+    string overlaySource = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+    string unitRootSource = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string normalizedOverlaySource = NormalizeWhitespace(overlaySource);
+
+    AssertTrue(
+        overlaySource.Contains("TryResolveHoveredEntityFootprint", StringComparison.Ordinal) &&
+        overlaySource.Contains("_siteRoot?.FindEntityAt(position)", StringComparison.Ordinal) &&
+        normalizedOverlaySource.Contains("BattleFootprintCells.Enumerate( gridOccupant.Position,", StringComparison.Ordinal),
+        "automatic hover should draw the existing hover frame over the hovered unit's full footprint");
+    AssertTrue(
+        unitRootSource.Contains("ContainsGridFootprint", StringComparison.Ordinal) &&
+        !unitRootSource.Contains("GridOccupant?.Position == position", StringComparison.Ordinal),
+        "hover entity lookup should hit any covered footprint cell, not only the top-left anchor");
+}
+
 internal static void HighlightTileLayerDiff()
 {
     HashSet<GridPosition> current = new()
@@ -119,6 +137,64 @@ internal static void MovementPathArrowsDisabled()
 internal static void UnitVisualScaleMultiplier()
 {
     AssertFloatEqual(0.8f, BattleUnitVisualScale.Default.SpriteScaleMultiplier, 0.0001f, "unit visuals should be reduced by one fifth");
+    AssertFloatEqual(0.35f, BattleUnitVisualScale.Default.FootprintScaleStepMultiplier, 0.0001f, "footprint visual growth should be tunable and below one full cell per size step");
+}
+
+internal static void UnitDefinitionFootprintDefaults()
+{
+    string definition = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "BattleUnitDefinition.cs"));
+    string forceRequest = File.ReadAllText(Path.Combine("src", "Application", "Battle", "BattleForceRequest.cs"));
+    string snapshot = File.ReadAllText(Path.Combine("src", "Application", "Battle", "Snapshots", "BattleGroupSnapshot.cs"));
+
+    AssertTrue(
+        definition.Contains("public int FootprintWidth { get; set; } = 1;", StringComparison.Ordinal),
+        "battle unit definitions should default footprint width to one cell");
+    AssertTrue(
+        definition.Contains("public int FootprintHeight { get; set; } = 1;", StringComparison.Ordinal),
+        "battle unit definitions should default footprint height to one cell");
+    AssertTrue(
+        forceRequest.Contains("public int FootprintWidth { get; set; } = 1;", StringComparison.Ordinal) &&
+        forceRequest.Contains("public int FootprintHeight { get; set; } = 1;", StringComparison.Ordinal),
+        "battle force requests should carry footprint metadata with 1x1 defaults");
+    AssertTrue(
+        snapshot.Contains("public int FootprintWidth { get; set; } = 1;", StringComparison.Ordinal) &&
+        snapshot.Contains("public int FootprintHeight { get; set; } = 1;", StringComparison.Ordinal),
+        "battle snapshots should carry footprint metadata with 1x1 defaults");
+}
+
+internal static void BattleUnitFactoryScalesSpritesUniformlyByFootprint()
+{
+    string source = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"))
+        .Replace("\r\n", "\n", StringComparison.Ordinal);
+
+    AssertTrue(
+        source.Contains("ResolveFootprintVisualScale(definition)", StringComparison.Ordinal),
+        "unit factory should derive visual footprint scale from the battle unit definition");
+    AssertTrue(
+        source.Contains("BattleUnitVisualScale.Default.FootprintScaleStepMultiplier", StringComparison.Ordinal),
+        "footprint sprite growth should use a tunable coefficient instead of raw cell count");
+    AssertTrue(
+        source.Contains("int footprintSize = System.Math.Max(width, height);", StringComparison.Ordinal),
+        "visual footprint scale should use the largest footprint side as the size signal");
+    AssertTrue(
+        source.Contains("return new Vector2(uniformScale, uniformScale);", StringComparison.Ordinal),
+        "footprint sprite scale should remain uniform on X and Y");
+    AssertTrue(
+        !source.Contains("return new Vector2(\n            System.Math.Clamp(definition?.FootprintWidth ?? 1, 1, 3),\n            System.Math.Clamp(definition?.FootprintHeight ?? 1, 1, 3));", StringComparison.Ordinal),
+        "footprint sprite scale must not stretch art by raw footprint width and height");
+}
+
+internal static void WorldSiteRuntimeCopiesDefinitionFootprintToBattleRequests()
+{
+    string source = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntime.cs"));
+
+    AssertTrue(
+        source.Contains("ApplyBattleRequestForceFootprints(request);", StringComparison.Ordinal),
+        "site battle runtime should enrich battle requests with definition footprints before probe");
+    AssertTrue(
+        source.Contains("force.FootprintWidth = definition.FootprintWidth;", StringComparison.Ordinal) &&
+        source.Contains("force.FootprintHeight = definition.FootprintHeight;", StringComparison.Ordinal),
+        "site battle runtime should copy configured footprint width and height from unit definitions");
 }
 
 internal static void ActionCueSequencerOrder()
@@ -197,6 +273,57 @@ internal static void UnitAudioDefinitionResolvesCueVariants()
     AssertEqual(1, BattleUnitAudioDefinition.ResolveVariantIndex(-1, 2), "variant index should wrap backward");
     AssertEqual(0, BattleUnitAudioDefinition.ResolveVariantIndex(5, 1), "single variant should always resolve to zero");
     AssertEqual(-1, BattleUnitAudioDefinition.ResolveVariantIndex(0, 0), "empty variants should return sentinel");
+}
+
+internal static void AbilitySpatialContractDefaults()
+{
+    string abilityDefinition = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Abilities", "AbilityDefinition.cs"));
+    string targetMode = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Abilities", "AbilityTargetMode.cs"));
+    string directionMode = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Abilities", "AbilityDirectionMode.cs"));
+    string areaShape = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Abilities", "AbilityAreaShape.cs"));
+
+    AssertTrue(targetMode.Contains("UnitTarget = 0", StringComparison.Ordinal), "unit target mode should be the stable default enum value");
+    AssertTrue(directionMode.Contains("EightWay = 1", StringComparison.Ordinal), "eight-way direction mode should be available");
+    AssertTrue(areaShape.Contains("SingleActor = 0", StringComparison.Ordinal), "single actor area shape should be the stable default enum value");
+    AssertTrue(
+        abilityDefinition.Contains("public AbilityTargetMode TargetMode { get; set; } = AbilityTargetMode.UnitTarget;", StringComparison.Ordinal),
+        "basic ability target mode should default to unit target");
+    AssertTrue(
+        abilityDefinition.Contains("public AbilityDirectionMode DirectionMode { get; set; } = AbilityDirectionMode.EightWay;", StringComparison.Ordinal),
+        "basic ability direction mode should default to eight-way");
+    AssertTrue(
+        abilityDefinition.Contains("public AbilityAreaShape AreaShape { get; set; } = AbilityAreaShape.SingleActor;", StringComparison.Ordinal),
+        "basic ability area shape should default to single actor");
+}
+
+internal static void BattleRuntimePlaybackConsumesRuntimeMovementCells()
+{
+    string source = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+
+    AssertTrue(
+        source.Contains("runtimeEvent.HasMovementCells", StringComparison.Ordinal),
+        "battle runtime playback should require authoritative runtime movement cells");
+    AssertTrue(
+        source.Contains("runtimeEvent.ToGridX", StringComparison.Ordinal) &&
+        source.Contains("runtimeEvent.ToGridY", StringComparison.Ordinal),
+        "battle runtime playback should consume runtime destination cells");
+    AssertTrue(
+        !source.Contains("MoveRuntimeActorIntoVisualAttackRangeAsync", StringComparison.Ordinal),
+        "presentation must not move units into attack range independently before damage playback");
+    AssertTrue(
+        !source.Contains("TryResolveRuntimeVisualPathStep", StringComparison.Ordinal),
+        "presentation must not run a separate visual pathfinder for runtime combat");
+}
+
+internal static void BattleUnitBaseSceneAuthorsInteractionCollisionShape()
+{
+    string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));
+
+    AssertTrue(scene.Contains("[sub_resource type=\"CircleShape2D\"", StringComparison.Ordinal), "battle unit base should author an interaction circle shape");
+    AssertTrue(
+        scene.Contains("[node name=\"InteractionShape\" type=\"CollisionShape2D\" parent=\".\"]", StringComparison.Ordinal),
+        "battle unit base should include an authored interaction collision shape node");
+    AssertTrue(scene.Contains("shape = SubResource(", StringComparison.Ordinal), "interaction collision shape should reference authored shape resource");
 }
 
 internal static void StarterUnitDefinitionsReferenceAudioProfiles()

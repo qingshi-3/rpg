@@ -39,7 +39,7 @@ public partial class StrategicWorldRoot
             }
 
             Rect2 mapRect = StrategicFogOfWarService.CellKeyToWorldRect(cellKey, settings);
-            Rect2 screenRect = MapRectToScreen(mapRect);
+            Rect2 screenRect = MapRectToViewportLocal(mapRect);
             revealedRects.Add(new StrategicWorldFogOverlayRect(
                 screenRect,
                 revealedColor));
@@ -47,7 +47,7 @@ public partial class StrategicWorldRoot
 
         List<StrategicWorldFogOverlayCircle> visibleCircles = BuildStrategicFogOverlayCircles(settings);
         _fogOverlay.SetFog(
-            MapRectToScreen(mapBounds),
+            MapRectToViewportLocal(mapBounds),
             revealedRects,
             visibleCircles,
             EstimateFogTexelScreenSize(settings.FogTexelWorldSize),
@@ -71,9 +71,9 @@ public partial class StrategicWorldRoot
         List<StrategicWorldFogOverlayCircle> circles = new();
         foreach (StrategicFogVisionSource source in StrategicFogOfWarService.BuildVisionSources(State, Definition, settings))
         {
-            Vector2 center = MapToScreen(source.Position);
-            float radiusX = center.DistanceTo(MapToScreen(source.Position + new Vector2(source.Radius, 0.0f)));
-            float radiusY = center.DistanceTo(MapToScreen(source.Position + new Vector2(0.0f, source.Radius)));
+            Vector2 center = MapToViewportLocal(source.Position);
+            float radiusX = center.DistanceTo(MapToViewportLocal(source.Position + new Vector2(source.Radius, 0.0f)));
+            float radiusY = center.DistanceTo(MapToViewportLocal(source.Position + new Vector2(0.0f, source.Radius)));
             float radius = Mathf.Max(radiusX, radiusY);
             if (radius > 0.0f)
             {
@@ -105,7 +105,7 @@ public partial class StrategicWorldRoot
 
         if (changed)
         {
-            QueueRedraw();
+            QueueStrategicOverlayRedraw();
         }
 
         return changed;
@@ -123,9 +123,9 @@ public partial class StrategicWorldRoot
 
     private float EstimateFogTexelScreenSize(float fogTexelWorldSize)
     {
-        Vector2 mapOriginScreen = MapToScreen(Vector2.Zero);
-        Vector2 mapOffsetXScreen = MapToScreen(new Vector2(1.0f, 0.0f));
-        Vector2 mapOffsetYScreen = MapToScreen(new Vector2(0.0f, 1.0f));
+        Vector2 mapOriginScreen = MapToViewportLocal(Vector2.Zero);
+        Vector2 mapOffsetXScreen = MapToViewportLocal(new Vector2(1.0f, 0.0f));
+        Vector2 mapOffsetYScreen = MapToViewportLocal(new Vector2(0.0f, 1.0f));
 
         float scaleX = (mapOffsetXScreen - mapOriginScreen).Length();
         float scaleY = (mapOffsetYScreen - mapOriginScreen).Length();
@@ -148,5 +148,10 @@ public partial class StrategicWorldRoot
     private bool IsScreenPositionVisible(Vector2 screenPosition)
     {
         return IsMapPositionVisible(ScreenToMap(screenPosition));
+    }
+
+    private bool IsViewportPositionVisible(Vector2 viewportLocalPosition)
+    {
+        return IsMapPositionVisible(ViewportLocalToMap(viewportLocalPosition));
     }
 }

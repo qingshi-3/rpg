@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
+using Rpg.Application.Battle;
 using Rpg.Definitions.Battle.Audio;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Infrastructure.Logging;
@@ -91,10 +92,27 @@ public partial class BattleUnitRoot : Node2D
                 Entity = entity,
                 GridOccupant = entity.GetComponent<GridOccupantComponent>()
             })
-            .Where(item => item.GridOccupant?.Position == position && !BattleRuleQueries.IsDefeated(item.Entity))
+            .Where(item => item.GridOccupant != null &&
+                           ContainsGridFootprint(item.GridOccupant, position) &&
+                           !BattleRuleQueries.IsDefeated(item.Entity))
             .OrderByDescending(item => item.GridOccupant.GridHeight)
             .Select(item => item.Entity)
             .FirstOrDefault();
+    }
+
+    private static bool ContainsGridFootprint(GridOccupantComponent gridOccupant, GridPosition position)
+    {
+        if (gridOccupant == null)
+        {
+            return false;
+        }
+
+        int width = BattleFootprintCells.NormalizeSize(gridOccupant.FootprintWidth);
+        int height = BattleFootprintCells.NormalizeSize(gridOccupant.FootprintHeight);
+        return position.X >= gridOccupant.GridX &&
+               position.X < gridOccupant.GridX + width &&
+               position.Y >= gridOccupant.GridY &&
+               position.Y < gridOccupant.GridY + height;
     }
 
     public IEnumerable<BattleEntity> EnumerateAliveFaction(BattleFaction faction)

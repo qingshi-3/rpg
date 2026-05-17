@@ -15,9 +15,6 @@ public partial class StrategicWorldRoot : Control
 {
 	public static StrategicWorldRoot Current { get; private set; }
 
-	private const float OuterMargin = 26.0f;
-	private const float TopBarHeight = 70.0f;
-	private const float DetailWidth = 520.0f;
 	private const float SiteIconRadius = 24.0f;
 	private const float SiteVisualHitPadding = 10.0f;
 	private const float SiteVisualLabelGap = 5.0f;
@@ -48,22 +45,31 @@ public partial class StrategicWorldRoot : Control
 	public string SiteScenePath { get; set; } = "res://scenes/world/sites/WorldSiteRoot.tscn";
 
 	[Export]
-	public NodePath WorldMapRootPath { get; set; } = new("WorldMapRoot");
+	public NodePath MainWorldViewportHostPath { get; set; } = new("MainWorldViewportHost");
 
 	[Export]
-	public NodePath WorldCameraPath { get; set; } = new("WorldCamera");
+	public NodePath MainWorldViewportPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport");
 
 	[Export]
-	public NodePath SiteAnchorRootPath { get; set; } = new("WorldMapRoot/MapAnchors/Sites");
+	public NodePath WorldMapOverlayPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/WorldMapOverlay");
 
 	[Export]
-	public NodePath SiteVisualLayerPath { get; set; } = new("WorldMapRoot/SiteVisualLayer");
+	public NodePath WorldMapRootPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/WorldMapRoot");
 
 	[Export]
-	public NodePath ArmySpawnPointRootPath { get; set; } = new("WorldMapRoot/MapAnchors/ArmySpawnPoints");
+	public NodePath WorldCameraPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/WorldCamera");
 
 	[Export]
-	public NodePath EncounterZoneRootPath { get; set; } = new("WorldMapRoot/MapAnchors/EncounterZones");
+	public NodePath SiteAnchorRootPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/WorldMapRoot/MapAnchors/Sites");
+
+	[Export]
+	public NodePath SiteVisualLayerPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/WorldMapRoot/SiteVisualLayer");
+
+	[Export]
+	public NodePath ArmySpawnPointRootPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/WorldMapRoot/MapAnchors/ArmySpawnPoints");
+
+	[Export]
+	public NodePath EncounterZoneRootPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/WorldMapRoot/MapAnchors/EncounterZones");
 
 	[Export]
 	public bool AutoWorldClockEnabled { get; set; } = true;
@@ -104,6 +110,11 @@ public partial class StrategicWorldRoot : Control
 	private readonly HashSet<string> _reportedThreatNavigationFailures = new();
 	private readonly HashSet<string> _reportedSiteVisualFootprintFailures = new();
 	private readonly HashSet<string> _reportedSiteNavigationPointResolutions = new();
+	private Control _mainWorldViewportHost;
+	private SubViewport _mainWorldViewport;
+	private Control _worldMapOverlay;
+	private Control _topBarHost;
+	private Control _leftPrimaryPanelHost;
 	private Node2D _worldMapRoot;
 	private MapCameraController _worldCamera;
 	private Node2D _siteAnchorRoot;
@@ -152,6 +163,7 @@ public partial class StrategicWorldRoot : Control
 	private int _worldClockSpeedIndex = 2;
 	private double _worldClockAccumulator;
 	private bool _reportedStrategicNavigationNotSynchronized;
+	private bool _worldMapOverlaySignalsConnected;
 	private BattleStartRequest _pendingBattleRequest;
 	private PendingBattleLaunchRollback _pendingBattleRollback;
 	private AcceptDialog _battleAlertDialog;
@@ -178,6 +190,7 @@ public partial class StrategicWorldRoot : Control
 		SetFullRect(this);
 
 		StrategicWorldRuntime.EnsureInitialized();
+		ResolveMainWorldViewportNodes();
 		ResolveWorldMapNodes();
 		ResolveWorldCamera();
 		BuildStrategicFogOverlay();
@@ -185,10 +198,10 @@ public partial class StrategicWorldRoot : Control
 		SyncDefinitionMapPositionsFromAnchors();
 		RebuildSiteVisualFootprints();
 		bool hasUnsupportedAssaultState = ReportUnsupportedPlayerAssaultArmies();
+		BuildUi();
 		ConfigureWorldCamera();
 		UpdateWorldCameraView(true);
 		_worldClockPaused = hasUnsupportedAssaultState || HasAttackingThreat() || HasNavigationBlockedArmy();
-		BuildUi();
 		ConsumeBattleResult();
 		_worldClockPaused = hasUnsupportedAssaultState || HasAttackingThreat() || HasNavigationBlockedArmy();
 		RefreshAll();
@@ -241,7 +254,7 @@ public partial class StrategicWorldRoot : Control
 			return false;
 		}
 
-		bool handled = _worldCamera.TryHandlePointerNavigationInput(@event);
+		bool handled = _worldCamera.TryHandlePointerNavigationAndZoomInput(@event);
 		if (handled)
 		{
 			UpdateWorldCameraView();

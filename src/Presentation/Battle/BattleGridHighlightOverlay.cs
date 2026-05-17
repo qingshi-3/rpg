@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using Rpg.Application.Battle;
 using Rpg.Domain.Battle.Grid;
+using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.World.Sites;
 
 namespace Rpg.Presentation.Battle;
@@ -141,7 +143,8 @@ public partial class BattleGridHighlightOverlay : Node2D
     private BattleGridMap _gridMap;
     private BattleMapLayer _coordinateLayer;
     private Node2D _vectorOverlayRoot;
-    private GridPosition? _hoverCell;
+    private readonly HashSet<GridPosition> _hoverCells = new();
+    private bool _hoverOverrideActive;
 
     public override void _Ready()
     {
@@ -168,7 +171,16 @@ public partial class BattleGridHighlightOverlay : Node2D
     {
         if (!HoverEnabled || _battleMapView == null || _gridMap == null || _coordinateLayer == null)
         {
-            SetHoverCell(null);
+            if (!_hoverOverrideActive)
+            {
+                SetAutoHoverCell(null);
+            }
+
+            return;
+        }
+
+        if (_hoverOverrideActive)
+        {
             return;
         }
 
@@ -176,15 +188,20 @@ public partial class BattleGridHighlightOverlay : Node2D
         Vector2I tilePosition = _coordinateLayer.LocalToMap(_coordinateLayer.ToLocal(mouseGlobal));
         var position = new GridPosition(tilePosition.X, tilePosition.Y);
 
-        SetHoverCell(_gridMap.TryGetCell(position, out _) ? position : null);
+        if (TryResolveHoveredEntityFootprint(position, out IReadOnlyList<GridPosition> footprintCells))
+        {
+            SetHoverCells(footprintCells, overrideActive: false);
+            return;
+        }
+
+        SetAutoHoverCell(_gridMap.TryGetCell(position, out _) ? position : null);
     }
 
     public void SetCells(BattleGridHighlightKind kind, IEnumerable<GridPosition> cells)
     {
         if (kind == BattleGridHighlightKind.Hover)
         {
-            GridPosition[] hoverCells = cells.Take(1).ToArray();
-            SetHoverCell(hoverCells.Length == 0 ? null : hoverCells[0]);
+            SetHoverCells(cells, overrideActive: true);
             return;
         }
 
@@ -217,8 +234,7 @@ public partial class BattleGridHighlightOverlay : Node2D
         {
             if (kind == BattleGridHighlightKind.Hover)
             {
-                GridPosition[] hoverCells = cells?.Take(1).ToArray() ?? System.Array.Empty<GridPosition>();
-                _hoverCell = hoverCells.Length == 0 ? null : hoverCells[0];
+                SetHoverCellsState(cells, overrideActive: true);
                 continue;
             }
 
@@ -264,7 +280,7 @@ public partial class BattleGridHighlightOverlay : Node2D
     {
         if (kind == BattleGridHighlightKind.Hover)
         {
-            SetHoverCell(null);
+            SetHoverCells(System.Array.Empty<GridPosition>(), overrideActive: false);
             return;
         }
 
@@ -290,7 +306,8 @@ public partial class BattleGridHighlightOverlay : Node2D
         _cellsByKind.Clear();
         _pathCells.Clear();
         _targetPointerCells.Clear();
-        _hoverCell = null;
+        _hoverCells.Clear();
+        _hoverOverrideActive = false;
         _tileLayerRenderer.ClearAll();
         ClearDynamicOverlay();
     }
@@ -301,7 +318,8 @@ public partial class BattleGridHighlightOverlay : Node2D
         _battleMapView?.EnsureRuntimeData();
         _gridMap = _siteRoot?.ActiveGridMap ?? _battleMapView?.GridMap;
         _coordinateLayer = _battleMapView?.CoordinateLayer;
-        _hoverCell = null;
+        _hoverCells.Clear();
+        _hoverOverrideActive = false;
         _pathCells.Clear();
         _targetPointerCells.Clear();
         _cellsByKind.Remove(BattleGridHighlightKind.Path);
@@ -310,15 +328,54 @@ public partial class BattleGridHighlightOverlay : Node2D
         RebuildDynamicOverlay();
     }
 
-    private void SetHoverCell(GridPosition? position)
+    private void SetAutoHoverCell(GridPosition? position)
     {
-        if (_hoverCell == position)
+        SetHoverCells(
+            position.HasValue ? new[] { position.Value } : System.Array.Empty<GridPosition>(),
+            overrideActive: false);
+    }
+
+    private bool TryResolveHoveredEntityFootprint(GridPosition position, out IReadOnlyList<GridPosition> footprintCells)
+    {
+        footprintCells = System.Array.Empty<GridPosition>();
+        BattleEntity entity = _siteRoot?.FindEntityAt(position);
+        GridOccupantComponent gridOccupant = entity?.GetComponent<GridOccupantComponent>();
+        if (gridOccupant == null)
         {
-            return;
+            return false;
         }
 
-        _hoverCell = position;
-        RebuildDynamicOverlay();
+        footprintCells = BattleFootprintCells.Enumerate(
+            gridOccupant.Position,
+            gridOccupant.FootprintWidth,
+            gridOccupant.FootprintHeight);
+        return footprintCells.Count > 0;
+    }
+
+    private void SetHoverCells(IEnumerable<GridPosition> cells, bool overrideActive)
+    {
+        if (SetHoverCellsState(cells, overrideActive))
+        {
+            RebuildDynamicOverlay();
+        }
+    }
+
+    private bool SetHoverCellsState(IEnumerable<GridPosition> cells, bool overrideActive)
+    {
+        HashSet<GridPosition> nextCells = cells?.ToHashSet() ?? new HashSet<GridPosition>();
+        if (_hoverOverrideActive == overrideActive && _hoverCells.SetEquals(nextCells))
+        {
+            return false;
+        }
+
+        _hoverOverrideActive = overrideActive;
+        _hoverCells.Clear();
+        foreach (GridPosition cell in nextCells)
+        {
+            _hoverCells.Add(cell);
+        }
+
+        return true;
     }
 
     private void SetPathState(IReadOnlyList<GridPosition> orderedCells)
@@ -383,9 +440,9 @@ public partial class BattleGridHighlightOverlay : Node2D
         AddPathArrows();
         AddTargetPointers();
 
-        if (_hoverCell.HasValue)
+        if (_hoverCells.Count > 0)
         {
-            AddCellHighlight(BattleGridHighlightKind.Hover, _hoverCell.Value);
+            AddHoverFrame(BuildHoverFramePolygon(_hoverCells));
         }
     }
 
@@ -685,6 +742,50 @@ public partial class BattleGridHighlightOverlay : Node2D
             center + (stepX - stepY) * 0.5f,
             center + (stepX + stepY) * 0.5f,
             center + (-stepX + stepY) * 0.5f
+        };
+
+        return localPoints
+            .Select(point => ToLocal(_coordinateLayer.ToGlobal(point)))
+            .ToArray();
+    }
+
+    private Vector2[] BuildHoverFramePolygon(IEnumerable<GridPosition> cells)
+    {
+        GridPosition[] hoverCells = cells?.Distinct().ToArray() ?? System.Array.Empty<GridPosition>();
+        if (hoverCells.Length == 0)
+        {
+            return System.Array.Empty<Vector2>();
+        }
+
+        if (hoverCells.Length == 1)
+        {
+            return BuildCellPolygon(hoverCells[0]);
+        }
+
+        // Explicit hover is used by rectangular deployment footprints; one outer frame preserves the existing hover language without tile fills.
+        int minX = hoverCells.Min(cell => cell.X);
+        int maxX = hoverCells.Max(cell => cell.X);
+        int minY = hoverCells.Min(cell => cell.Y);
+        int maxY = hoverCells.Max(cell => cell.Y);
+        return BuildCellBlockPolygon(minX, minY, maxX, maxY);
+    }
+
+    private Vector2[] BuildCellBlockPolygon(int minX, int minY, int maxX, int maxY)
+    {
+        var topLeftOrigin = new Vector2I(minX, minY);
+        Vector2 topLeftCenter = _coordinateLayer.MapToLocal(topLeftOrigin);
+        Vector2 topRightCenter = _coordinateLayer.MapToLocal(new Vector2I(maxX, minY));
+        Vector2 bottomRightCenter = _coordinateLayer.MapToLocal(new Vector2I(maxX, maxY));
+        Vector2 bottomLeftCenter = _coordinateLayer.MapToLocal(new Vector2I(minX, maxY));
+        Vector2 stepX = _coordinateLayer.MapToLocal(new Vector2I(minX + 1, minY)) - topLeftCenter;
+        Vector2 stepY = _coordinateLayer.MapToLocal(new Vector2I(minX, minY + 1)) - topLeftCenter;
+
+        Vector2[] localPoints =
+        {
+            topLeftCenter - (stepX + stepY) * 0.5f,
+            topRightCenter + (stepX - stepY) * 0.5f,
+            bottomRightCenter + (stepX + stepY) * 0.5f,
+            bottomLeftCenter + (-stepX + stepY) * 0.5f
         };
 
         return localPoints

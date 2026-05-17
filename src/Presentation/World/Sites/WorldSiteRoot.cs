@@ -18,9 +18,10 @@ using Rpg.Presentation.World;
 
 namespace Rpg.Presentation.World.Sites;
 
-public partial class WorldSiteRoot : Node2D
+public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 {
 	private const float SitePlacementPickRadiusPixels = 42.0f;
+	private const int DeploymentDragZIndex = 4096;
 	private const string SiteExplorationHudScenePath = "res://scenes/world/sites/SiteExplorationHud.tscn";
 	private const string FacilitySlotsRootName = "FacilitySlots";
 	private const string SiteExplorationPauseReady = "exploration_ready";
@@ -31,19 +32,25 @@ public partial class WorldSiteRoot : Node2D
 	public delegate void SiteMapLoadedEventHandler(Node activeSiteMap);
 
 	[Export]
-	public NodePath MapRootPath { get; set; } = new("MapRoot");
+	public NodePath MainWorldViewportHostPath { get; set; } = new("MainWorldViewportHost");
 
 	[Export]
-	public NodePath UnitRootPath { get; set; } = new("UnitRoot");
+	public NodePath MainWorldViewportPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport");
 
 	[Export]
-	public NodePath HighlightOverlayPath { get; set; } = new("OverlayRoot/GridHighlightOverlay");
+	public NodePath MapRootPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/MapRoot");
+
+	[Export]
+	public NodePath UnitRootPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/UnitRoot");
+
+	[Export]
+	public NodePath HighlightOverlayPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/OverlayRoot/GridHighlightOverlay");
 
 	[Export]
 	public NodePath SelectionVignetteOverlayPath { get; set; } = new("CanvasLayer/SelectionVignetteOverlay");
 
 	[Export]
-	public NodePath BattleCameraPath { get; set; } = new("Camera2D");
+	public NodePath BattleCameraPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/Camera2D");
 
 	[Export]
 	public PackedScene SiteMapScene { get; set; }
@@ -52,6 +59,8 @@ public partial class WorldSiteRoot : Node2D
 	public PackedScene FieldInterceptMapScene { get; set; }
 
 	private Node _mapRoot;
+	private Control _mainWorldViewportHost;
+	private SubViewport _mainWorldViewport;
 	private BattleUnitRoot _unitRoot;
 	private Node _activeSiteMap;
 	private BattleGridMap _activeGridMap;
@@ -126,11 +135,13 @@ public partial class WorldSiteRoot : Node2D
 	private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
 
 	public Node ActiveSiteMap => _activeSiteMap;
+	public Node ActiveBattleMap => _activeSiteMap;
 	public BattleGridMap ActiveGridMap => _activeGridMap;
 	public BattleEntity SelectedEntity => null;
 	public bool AllowsDebugHoverInfo => RuntimeMode != WorldSiteRuntimeMode.Battle;
 	public bool IsEnemyPhaseRunning => false;
 	public WorldSiteRuntimeMode RuntimeMode => ResolveRuntimeMode();
+	public event System.Action<Node> BattleMapLoaded;
 
 	public WorldSiteRoot()
 	{
@@ -141,6 +152,7 @@ public partial class WorldSiteRoot : Node2D
 	{
 		GameLog.StartSession(nameof(WorldSiteRoot));
 
+		ResolveMainWorldViewportNodes();
 		_mapRoot = GetNode<Node>(MapRootPath);
 		_unitRoot = GetNodeOrNull<BattleUnitRoot>(UnitRootPath);
 		_highlightOverlay = GetNodeOrNull<BattleGridHighlightOverlay>(HighlightOverlayPath);
@@ -148,6 +160,7 @@ public partial class WorldSiteRoot : Node2D
 		_battleCamera = GetNodeOrNull<BattleCameraController>(BattleCameraPath);
 		GetViewport().SizeChanged += OnViewportSizeChanged;
 		BuildSiteHud();
+		UpdateMainWorldViewportLayout("ready");
 		EnsureBattleRenderSortDomain();
 
 		bool hasActiveBattleLaunch = BattleSessionHandoff.HasActiveLaunch;
@@ -244,6 +257,88 @@ public partial class WorldSiteRoot : Node2D
 			: WorldSiteRuntimeMode.Management;
 	}
 
+	private void ResolveMainWorldViewportNodes()
+	{
+		_mainWorldViewportHost = GetNodeOrNull<Control>(MainWorldViewportHostPath);
+		_mainWorldViewport = GetNodeOrNull<SubViewport>(MainWorldViewportPath);
+		if (_mainWorldViewportHost == null || _mainWorldViewport == null)
+		{
+			GameLog.Error(
+				nameof(WorldSiteRoot),
+				$"SiteMainWorldViewportMissing host={_mainWorldViewportHost != null} viewport={_mainWorldViewport != null}");
+			return;
+		}
+
+		_mainWorldViewportHost.MouseFilter = Control.MouseFilterEnum.Pass;
+	}
+
+	private void UpdateMainWorldViewportLayout(string reason)
+	{
+		if (_mainWorldViewportHost == null || _mainWorldViewport == null)
+		{
+			return;
+		}
+
+		Rect2 worldViewportRect = ResolveMainWorldViewportRect();
+		bool reserveUiWorkspace = _siteHudRoot?.Visible == true;
+
+		// The site/battle map is a separate world viewport. HUD and modal UI stay on
+		// the outer CanvasLayer, so root mouse positions must cross this boundary.
+		_mainWorldViewportHost.Position = worldViewportRect.Position;
+		_mainWorldViewportHost.Size = worldViewportRect.Size;
+		Vector2I viewportSize = new(Mathf.RoundToInt(worldViewportRect.Size.X), Mathf.RoundToInt(worldViewportRect.Size.Y));
+		if (_mainWorldViewport.Size != viewportSize)
+		{
+			_mainWorldViewport.Size = viewportSize;
+		}
+
+		_battleCamera?.SetViewportSizeOverride(worldViewportRect.Size);
+		GameLog.Info(
+			nameof(WorldSiteRoot),
+			$"SiteMainWorldViewportLayoutApplied reason={reason} reserveUi={reserveUiWorkspace} position={_mainWorldViewportHost.Position} size={worldViewportRect.Size}");
+	}
+
+	private Rect2 ResolveMainWorldViewportRect()
+	{
+		Vector2 rootViewportSize = GetViewportRect().Size;
+		if (_siteHudRoot?.Visible != true || _sitePeacetimePanel == null)
+		{
+			return new Rect2(Vector2.Zero, rootViewportSize);
+		}
+
+		Rect2 panelRect = _sitePeacetimePanel.GetGlobalRect();
+		float sideMargin = Mathf.Max(0.0f, panelRect.Position.X);
+		float bottomMargin = Mathf.Max(0.0f, rootViewportSize.Y - panelRect.End.Y);
+		Vector2 position = new(panelRect.End.X + sideMargin, panelRect.Position.Y);
+		Vector2 size = new(
+			Mathf.Max(1.0f, rootViewportSize.X - position.X - sideMargin),
+			Mathf.Max(1.0f, rootViewportSize.Y - position.Y - bottomMargin));
+
+		return new Rect2(position, size);
+	}
+
+	private Vector2 GetWorldViewportMousePosition()
+	{
+		return WorldViewportLocalToWorld(ToWorldViewportLocal(GetGlobalMousePosition()));
+	}
+
+	private Vector2 ToWorldViewportLocal(Vector2 rootGlobalPosition)
+	{
+		return rootGlobalPosition - (_mainWorldViewportHost?.GlobalPosition ?? Vector2.Zero);
+	}
+
+	private Vector2 WorldViewportLocalToWorld(Vector2 viewportLocalPosition)
+	{
+		if (_mainWorldViewport == null)
+		{
+			return viewportLocalPosition;
+		}
+
+		// Site input originates outside MainWorldViewport; drag/drop needs the
+		// SubViewport world coordinate after Camera2D pan and zoom are applied.
+		return _mainWorldViewport.GetCanvasTransform().AffineInverse() * viewportLocalPosition;
+	}
+
 	public void LoadConfiguredSiteMap()
 	{
 		PackedScene mapScene = ResolveConfiguredSiteMapScene();
@@ -298,6 +393,7 @@ public partial class WorldSiteRoot : Node2D
 		RebuildSiteDeploymentRuntimeCache(ResolveActiveWorldSiteId());
 		SetFacilitySlotsVisible(true);
 		EmitSignal(SignalName.SiteMapLoaded, _activeSiteMap);
+		BattleMapLoaded?.Invoke(_activeSiteMap);
 
 		PlaceBattleEntitiesOnGrid();
 	}

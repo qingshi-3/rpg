@@ -93,8 +93,8 @@ public partial class WorldSiteRoot
         if (_sitePlacementEntities.TryGetValue(_draggedPlacementId, out Node2D entity))
         {
             _draggedPlacementOriginGlobalPosition = entity.GlobalPosition;
-            entity.GlobalPosition = GetGlobalMousePosition();
             SetSitePlacementSelected(entity, true);
+            RaiseDeploymentDragEntity(entity);
             UpdateSiteDeploymentDragPreview(entity);
         }
 
@@ -173,7 +173,6 @@ public partial class WorldSiteRoot
         {
             if (_sitePlacementEntities.TryGetValue(_draggedPlacementId, out Node2D entity))
             {
-                entity.GlobalPosition = GetGlobalMousePosition();
                 UpdateSiteDeploymentDragPreview(entity);
             }
 
@@ -218,6 +217,16 @@ public partial class WorldSiteRoot
                 ResolvePlacementCanEnterWater,
                 out failureReason))
         {
+            WorldSiteUnitPlacement movedPlacement = site?.UnitPlacements.FirstOrDefault(item => item.PlacementId == placementId);
+            if (draggedEntity is BattleEntity battleEntity && movedPlacement != null)
+            {
+                SyncSitePlacementGridOccupant(battleEntity, movedPlacement);
+            }
+            else
+            {
+                RestoreDeploymentEntityRenderSort(draggedEntity);
+            }
+
             RefreshSitePlacementUi(_isBattlePreparationActive ? "部署位置已更新。" : "驻军位置已更新。");
         }
         else
@@ -250,7 +259,7 @@ public partial class WorldSiteRoot
 
         WorldSiteState site = ResolveSiteState(_siteHudSiteId);
         WorldSiteDefinition definition = ResolveSiteDefinition(_siteHudSiteId);
-        bool canDrop = TryEvaluateSiteDeploymentTarget(
+        TryEvaluateSiteDeploymentTarget(
             _draggedPlacementId,
             site,
             definition,
@@ -258,13 +267,14 @@ public partial class WorldSiteRoot
             out bool hasGridPosition,
             out _);
 
-        if (hasGridPosition && !canDrop)
+        WorldSiteUnitPlacement placement = site?.UnitPlacements.FirstOrDefault(item => item.PlacementId == _draggedPlacementId);
+        Vector2I footprintSize = ResolveUnitFootprintSize(placement?.UnitTypeId);
+        SetBattlePreparationDragFootprintPreview(
+            hasGridPosition ? BuildSitePlacementFootprintCells(placement, gridPosition) : System.Array.Empty<GridPosition>());
+        if (hasGridPosition)
         {
-            _highlightOverlay?.SetCells(BattleGridHighlightKind.Invalid, new[] { gridPosition });
-            return;
+            SetDeploymentDragEntityToFootprintCenter(entity, gridPosition, footprintSize);
         }
-
-        _highlightOverlay?.ClearCells(BattleGridHighlightKind.Invalid);
     }
 
     private bool TryEvaluateSiteDeploymentTarget(
@@ -279,27 +289,76 @@ public partial class WorldSiteRoot
         hasGridPosition = false;
         failureReason = "";
 
-        if (!TryGetMouseGridPosition(out gridPosition))
+        WorldSiteUnitPlacement activePlacement = site?.UnitPlacements.FirstOrDefault(item => item.PlacementId == placementId);
+        if (!TryResolveMouseFootprintAnchor(ResolveUnitFootprintSize(activePlacement?.UnitTypeId), out gridPosition))
         {
             failureReason = "placement_cell_invalid";
             return false;
         }
 
         hasGridPosition = true;
-        return _deploymentTargetEvaluator.CanMoveToGridCell(
-            _activeGridMap,
-            site,
-            definition,
-            placementId,
-            new Vector2I(gridPosition.X, gridPosition.Y),
-            ResolvePlacementCanEnterWater,
-            out failureReason);
+        if (!_deploymentTargetEvaluator.CanMoveToGridCell(
+                _activeGridMap,
+                site,
+                definition,
+                placementId,
+                new Vector2I(gridPosition.X, gridPosition.Y),
+                ResolvePlacementCanEnterWater,
+                out failureReason))
+        {
+            return false;
+        }
+
+        IReadOnlyList<GridPosition> footprintCells = BuildSitePlacementFootprintCells(activePlacement, gridPosition);
+        bool canEnterWater = ResolvePlacementCanEnterWater(activePlacement);
+        WorldSiteAttackDirection direction = activePlacement?.AttackDirection ?? _battlePreparationRequest?.AttackDirection ?? WorldSiteAttackDirection.Any;
+        if (!IsBattlePreparationFootprintDeployable(footprintCells, direction, canEnterWater, out failureReason))
+        {
+            return false;
+        }
+
+        if (IsSiteDeploymentFootprintOccupied(site, placementId, footprintCells))
+        {
+            failureReason = "placement_cell_occupied";
+            return false;
+        }
+
+        return true;
     }
 
     private void ClearSiteDeploymentDragPreview(Node2D entity)
     {
-        _highlightOverlay?.ClearCells(BattleGridHighlightKind.Invalid);
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.Hover);
         SetSitePlacementSelected(entity, false);
+    }
+
+    private static void RaiseDeploymentDragEntity(Node2D entity)
+    {
+        if (entity == null)
+        {
+            return;
+        }
+
+        // Deployment drags cross terrain/object layers, so the entity is temporarily above map rendering until drop/cancel restores surface sort.
+        entity.ZAsRelative = false;
+        entity.ZIndex = DeploymentDragZIndex;
+    }
+
+    private void RestoreDeploymentEntityRenderSort(Node2D entity)
+    {
+        if (entity is not BattleEntity battleEntity)
+        {
+            return;
+        }
+
+        GridOccupantComponent gridOccupant = battleEntity.GetComponent<GridOccupantComponent>();
+        if (gridOccupant == null)
+        {
+            return;
+        }
+
+        ResolveEntitySurfaceHeight(gridOccupant);
+        ApplyEntityRenderSort(battleEntity, gridOccupant.SurfacePosition);
     }
 
     private void ReturnDraggedPlacementToOrigin(Node2D entity)
@@ -311,6 +370,7 @@ public partial class WorldSiteRoot
 
         entity.GlobalPosition = _draggedPlacementOriginGlobalPosition;
         SetSitePlacementSelected(entity, false);
+        RestoreDeploymentEntityRenderSort(entity);
     }
 
     private void ExecuteSiteAction(WorldActionViewModel action, string targetSlotId = "")
@@ -484,7 +544,7 @@ public partial class WorldSiteRoot
             }
         }
 
-        Vector2 pointerGlobal = GetGlobalMousePosition();
+        Vector2 pointerGlobal = GetWorldViewportMousePosition();
         float maxDistanceSquared = SitePlacementPickRadiusPixels * SitePlacementPickRadiusPixels;
         KeyValuePair<string, Node2D>? nearest = _sitePlacementEntities
             .Where(item =>
@@ -568,9 +628,13 @@ public partial class WorldSiteRoot
 
         _draggedBattleForceId = force.ForceId ?? "";
         _draggedBattleForceIndex = forceIndex;
+        BattleForcePlacementRequest removedPlacement = forceIndex < (force.PreferredPlacements?.Count ?? 0)
+            ? force.PreferredPlacements[forceIndex]
+            : null;
         RemoveBattlePreparationPreferredPlacement(force, forceIndex);
         ClearDraggedBattleRosterEntity();
-        RefreshBattlePreparationMapEntities();
+        // Roster dragging is only a live preview change; avoid rebuilding unrelated units so their idle animations keep advancing.
+        RemoveBattlePreparationPlacementEntity(removedPlacement?.PlacementId);
 
         _draggedBattleRosterEntity = _battleUnitFactory.Create(
             force,
@@ -580,8 +644,8 @@ public partial class WorldSiteRoot
         if (_draggedBattleRosterEntity != null && _unitRoot != null)
         {
             _unitRoot.AddChild(_draggedBattleRosterEntity);
-            _draggedBattleRosterEntity.GlobalPosition = GetGlobalMousePosition();
-            _draggedBattleRosterEntity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
+            RaiseDeploymentDragEntity(_draggedBattleRosterEntity);
+            UpdateBattlePreparationRosterDragPreview();
         }
 
         if (_sitePeacetimePanel != null)
@@ -599,10 +663,8 @@ public partial class WorldSiteRoot
         {
             if (_draggedBattleRosterEntity != null && IsLiveNode(_draggedBattleRosterEntity))
             {
-                _draggedBattleRosterEntity.GlobalPosition = GetGlobalMousePosition();
+                UpdateBattlePreparationRosterDragPreview();
             }
-
-            UpdateBattlePreparationRosterDragPreview();
             GetViewport().SetInputAsHandled();
             return;
         }
@@ -625,16 +687,19 @@ public partial class WorldSiteRoot
     private void UpdateBattlePreparationRosterDragPreview()
     {
         BattleForceRequest force = FindBattlePreparationPlayerForce(_draggedBattleForceId);
-        if (TryResolveBattlePreparationRosterDrop(force, _draggedBattleForceIndex, out GridPosition gridPosition, out _, out _))
+        Vector2I footprintSize = ResolveForceFootprintSize(force);
+        if (!TryResolveMouseFootprintAnchor(footprintSize, out GridPosition gridPosition))
         {
-            _highlightOverlay?.ClearCells(BattleGridHighlightKind.Invalid);
+            SetBattlePreparationDragFootprintPreview(System.Array.Empty<GridPosition>());
             return;
         }
 
-        if (TryGetMouseGridPosition(out gridPosition))
-        {
-            _highlightOverlay?.SetCells(BattleGridHighlightKind.Invalid, new[] { gridPosition });
-        }
+        IReadOnlyList<GridPosition> footprintCells = BuildBattlePreparationFootprintCells(force, gridPosition);
+        SetDeploymentDragEntityToFootprintCenter(
+            _draggedBattleRosterEntity,
+            gridPosition,
+            footprintSize);
+        SetBattlePreparationDragFootprintPreview(footprintCells);
     }
 
     private bool TryPlaceBattlePreparationRosterUnit(
@@ -680,7 +745,8 @@ public partial class WorldSiteRoot
             return false;
         }
 
-        if (!TryGetMouseGridPosition(out gridPosition) ||
+        Vector2I footprintSize = ResolveForceFootprintSize(force);
+        if (!TryResolveMouseFootprintAnchor(footprintSize, out gridPosition) ||
             _activeGridMap?.TryGetTopSurfacePosition(gridPosition, out GridSurfacePosition surface) != true)
         {
             failureReason = "placement_cell_invalid";
@@ -689,19 +755,17 @@ public partial class WorldSiteRoot
 
         cellHeight = surface.Height;
         bool canEnterWater = ResolveForceCanEnterWater(force);
-        int targetX = gridPosition.X;
-        int targetY = gridPosition.Y;
-        bool hasCandidate = (_deploymentCache?.GetCandidates(_battlePreparationRequest?.AttackDirection ?? WorldSiteAttackDirection.Any) ??
-                             System.Array.Empty<WorldSiteDeploymentCell>())
-            .Concat(_deploymentCache?.GetCandidates(WorldSiteAttackDirection.Any) ?? System.Array.Empty<WorldSiteDeploymentCell>())
-            .Any(item => item.Cell.X == targetX && item.Cell.Y == targetY && CanUseDeploymentCell(item, canEnterWater));
-        if (!hasCandidate)
+        IReadOnlyList<GridPosition> footprintCells = BuildBattlePreparationFootprintCells(force, gridPosition);
+        if (!IsBattlePreparationFootprintDeployable(
+                footprintCells,
+                _battlePreparationRequest?.AttackDirection ?? WorldSiteAttackDirection.Any,
+                canEnterWater,
+                out failureReason))
         {
-            failureReason = "placement_cell_not_deployable";
             return false;
         }
 
-        if (IsBattlePreparationCellOccupied(gridPosition, force.ForceId, forceIndex))
+        if (IsBattlePreparationFootprintOccupied(footprintCells, force.ForceId, forceIndex))
         {
             failureReason = "placement_cell_occupied";
             return false;
@@ -710,28 +774,10 @@ public partial class WorldSiteRoot
         return true;
     }
 
-    private bool IsBattlePreparationCellOccupied(GridPosition gridPosition, string forceId, int forceIndex)
+    private void SetBattlePreparationDragFootprintPreview(IEnumerable<GridPosition> footprintCells)
     {
-        foreach (BattleForceRequest force in (_battlePreparationRequest?.PlayerForces ?? Enumerable.Empty<BattleForceRequest>())
-                     .Concat(_battlePreparationRequest?.EnemyForces ?? Enumerable.Empty<BattleForceRequest>()))
-        {
-            for (int index = 0; index < (force?.PreferredPlacements?.Count ?? 0); index++)
-            {
-                BattleForcePlacementRequest placement = force.PreferredPlacements[index];
-                if (placement == null ||
-                    (force.ForceId == forceId && index == forceIndex))
-                {
-                    continue;
-                }
-
-                if (placement.CellX == gridPosition.X && placement.CellY == gridPosition.Y)
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        GridPosition[] cells = footprintCells?.Distinct().ToArray() ?? System.Array.Empty<GridPosition>();
+        _highlightOverlay?.SetCells(BattleGridHighlightKind.Hover, cells);
     }
 
     private BattleForceRequest FindBattlePreparationPlayerForce(string forceId)
@@ -769,7 +815,7 @@ public partial class WorldSiteRoot
         ClearDraggedBattleRosterEntity();
         _draggedBattleForceId = "";
         _draggedBattleForceIndex = -1;
-        _highlightOverlay?.ClearCells(BattleGridHighlightKind.Invalid);
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.Hover);
     }
 
     private void ClearDraggedBattleRosterEntity()
@@ -781,6 +827,19 @@ public partial class WorldSiteRoot
         }
 
         _draggedBattleRosterEntity = null;
+    }
+
+    private void RemoveBattlePreparationPlacementEntity(string placementId)
+    {
+        if (string.IsNullOrWhiteSpace(placementId) ||
+            !_sitePlacementEntities.Remove(placementId, out Node2D entity) ||
+            !IsLiveNode(entity))
+        {
+            return;
+        }
+
+        entity.GetParent()?.RemoveChild(entity);
+        entity.QueueFree();
     }
 
     private bool IsPointerOverSiteHud(InputEvent @event)

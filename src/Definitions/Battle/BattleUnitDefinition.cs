@@ -52,6 +52,13 @@ public partial class BattleUnitDefinition : Resource
     [ExportGroup("战斗占位")]
 
     [Export]
+    // Footprint controls runtime occupancy; presentation applies a separate uniform visual scale coefficient.
+    public int FootprintWidth { get; set; } = 1;
+
+    [Export]
+    public int FootprintHeight { get; set; } = 1;
+
+    [Export]
     public bool BlocksMovement { get; set; } = true;
 
     [Export]

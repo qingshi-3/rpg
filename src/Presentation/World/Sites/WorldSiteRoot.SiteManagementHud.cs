@@ -291,6 +291,8 @@ public partial class WorldSiteRoot
         {
             ApplySiteHudFullRect("viewport_resized");
         }
+
+        UpdateMainWorldViewportLayout("viewport_resized");
     }
 
     private void ApplySiteHudFullRect(string reason)
@@ -311,6 +313,7 @@ public partial class WorldSiteRoot
         _siteHudRoot.Position = Vector2.Zero;
         _siteHudRoot.Size = GetViewportRect().Size;
         ApplySitePeacetimePanelLayout();
+        UpdateMainWorldViewportLayout(reason);
 
         GameLog.Info(
             nameof(WorldSiteRoot),
@@ -386,6 +389,8 @@ public partial class WorldSiteRoot
         {
             _siteHudRoot.Visible = false;
         }
+
+        UpdateMainWorldViewportLayout(enabled ? "battle_runtime_enabled" : "battle_runtime_disabled");
 
         if (!enabled)
         {

@@ -138,7 +138,7 @@ grow_horizontal = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_world_top_bar")
 
-[node name="TopResourceBarContent" type="MarginContainer" parent="TopResourceBar"]
+[node name="TopResourceBarContent" type="MarginContainer" parent="TopBarHost/TopResourceBar"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 6
@@ -241,7 +241,7 @@ grow_horizontal = 1
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_world_detail_panel")
 
-[node name="Margin" type="MarginContainer" parent="SiteDetailPanel"]
+[node name="Margin" type="MarginContainer" parent="LeftPrimaryPanelHost/SiteDetailPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12

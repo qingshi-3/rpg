@@ -17,4 +17,6 @@ public sealed class BattleGroupSnapshot
     public int CellX { get; set; }
     public int CellY { get; set; }
     public int CellHeight { get; set; }
+    public int FootprintWidth { get; set; } = 1;
+    public int FootprintHeight { get; set; } = 1;
 }

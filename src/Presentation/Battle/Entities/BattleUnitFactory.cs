@@ -294,6 +294,8 @@ public sealed class BattleUnitFactory
         {
             gridOccupant.GridX = gridPosition.X;
             gridOccupant.GridY = gridPosition.Y;
+            gridOccupant.FootprintWidth = definition.FootprintWidth;
+            gridOccupant.FootprintHeight = definition.FootprintHeight;
             if (placement?.CellHeight > 0)
             {
                 gridOccupant.GridHeight = placement.CellHeight;
@@ -431,7 +433,7 @@ public sealed class BattleUnitFactory
 
         animatedSprite.SpriteFrames = visual.SpriteFrames;
         animatedSprite.Centered = true;
-        ApplySpriteLayout(animatedSprite, visual, definition.Id);
+        ApplySpriteLayout(animatedSprite, visual, definition.Id, ResolveFootprintVisualScale(definition));
         // Faction readability is handled by unit markers; keep the sprite art untinted.
         animatedSprite.Modulate = Colors.White;
 
@@ -441,7 +443,8 @@ public sealed class BattleUnitFactory
     private void ApplySpriteLayout(
         AnimatedSprite2D animatedSprite,
         BattleUnitVisualDefinition visual,
-        string definitionId)
+        string definitionId,
+        Vector2 footprintScale)
     {
         if (!visual.AutoLayoutFromSpriteFrames ||
             !TryCalculateSpriteAutoLayout(
@@ -456,18 +459,27 @@ public sealed class BattleUnitFactory
                 out float scaledHeight))
         {
             animatedSprite.Position = Vector2.Zero;
-            animatedSprite.Offset = visual.Offset;
-            // Keep authored per-unit proportions but apply the current battle-wide readability multiplier.
-            animatedSprite.Scale = visual.Scale * BattleUnitVisualScale.Default.SpriteScaleMultiplier;
+            animatedSprite.Offset = new Vector2(0f, visual.Offset.Y);
+            // Runtime footprint owns occupied cells; presentation grows high-resolution art uniformly to avoid stretched or oversized sprites.
+            animatedSprite.Scale = visual.Scale * BattleUnitVisualScale.Default.SpriteScaleMultiplier * footprintScale;
             return;
         }
 
         animatedSprite.Position = position;
         animatedSprite.Offset = Vector2.Zero;
-        animatedSprite.Scale = scale;
+        animatedSprite.Scale = scale * footprintScale;
         GameLog.Info(
             nameof(BattleUnitFactory),
-            $"Battle unit visual auto layout id={definitionId} visibleSize={visibleSize} visibleCenterOffset={visibleCenterOffset} targetMax={visual.TargetMaxSpriteSizePixels:0.##} scaleMultiplier={BattleUnitVisualScale.Default.SpriteScaleMultiplier:0.##} scale={scale.X:0.###} scaledHeight={scaledHeight:0.##} position={position}");
+            $"Battle unit visual auto layout id={definitionId} visibleSize={visibleSize} visibleCenterOffset={visibleCenterOffset} targetMax={visual.TargetMaxSpriteSizePixels:0.##} scaleMultiplier={BattleUnitVisualScale.Default.SpriteScaleMultiplier:0.##} footprintScale={footprintScale} scale={animatedSprite.Scale} scaledHeight={scaledHeight:0.##} position={position}");
+    }
+
+    private static Vector2 ResolveFootprintVisualScale(BattleUnitDefinition definition)
+    {
+        int width = System.Math.Clamp(definition?.FootprintWidth ?? 1, 1, 3);
+        int height = System.Math.Clamp(definition?.FootprintHeight ?? 1, 1, 3);
+        int footprintSize = System.Math.Max(width, height);
+        float uniformScale = 1f + ((footprintSize - 1) * BattleUnitVisualScale.Default.FootprintScaleStepMultiplier);
+        return new Vector2(uniformScale, uniformScale);
     }
 
     private static bool TryCalculateSpriteAutoLayout(

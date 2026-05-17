@@ -145,7 +145,9 @@ public sealed class BattleGroupSessionProbeService
 					SourceForceId = forceId,
 					CellX = placement?.CellX ?? ResolveFallbackCellX(fallbackFactionId),
 					CellY = placement?.CellY ?? index,
-					CellHeight = placement?.CellHeight ?? 0
+					CellHeight = placement?.CellHeight ?? 0,
+					FootprintWidth = force.FootprintWidth,
+					FootprintHeight = force.FootprintHeight
 				};
 				seed.Heroes[hero.HeroId] = hero;
 				seed.Corps[corps.CorpsId] = corps;
@@ -176,6 +178,8 @@ public sealed class BattleGroupSessionProbeService
 			group.CellX = metadata.CellX;
 			group.CellY = metadata.CellY;
 			group.CellHeight = metadata.CellHeight;
+			group.FootprintWidth = metadata.FootprintWidth;
+			group.FootprintHeight = metadata.FootprintHeight;
 		}
 	}
 
@@ -199,5 +203,7 @@ public sealed class BattleGroupSessionProbeService
 		public int CellX { get; init; }
 		public int CellY { get; init; }
 		public int CellHeight { get; init; }
+		public int FootprintWidth { get; init; } = 1;
+		public int FootprintHeight { get; init; } = 1;
 	}
 }

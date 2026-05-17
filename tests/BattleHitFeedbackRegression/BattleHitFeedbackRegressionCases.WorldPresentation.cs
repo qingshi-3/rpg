@@ -28,7 +28,7 @@ internal static void WorldSiteHoverSummaryUsesLocalResourcesAndForceCounts()
     site.LocalResources.Set(StrategicWorldIds.ResourceEconomy, 8);
     site.LocalResources.Set(StrategicWorldIds.ResourceStone, 12);
     site.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 4 });
-    site.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitPlayerKnight, Count = 1 });
+    site.Garrison.Add(new GarrisonState { UnitTypeId = HeroCorpsV0PlayableSliceIds.HeroUnit, Count = 1 });
 
     WorldSiteDefinition siteDefinition = queries.GetSite(StrategicWorldIds.SiteBonefield);
     WorldSiteHoverSummaryData summary = WorldSiteHoverSummaryPresenter.Build(queries, siteDefinition, site);
@@ -63,11 +63,17 @@ internal static void WorldSiteHoverSummaryStaysInsideViewport()
 internal static void StrategicWorldForwardsMiddleMouseCameraNavigation()
 {
     string strategicRoot = ReadStrategicWorldRootSource();
+    string cameraController = File.ReadAllText(Path.Combine("src", "Presentation", "Common", "MapCameraController.cs"));
+
+    AssertTrue(
+        cameraController.Contains("public bool TryHandlePointerNavigationAndZoomInput(InputEvent @event)", StringComparison.Ordinal) &&
+        cameraController.Contains("HandleMouseWheelInput(mouseButton)", StringComparison.Ordinal),
+        "MapCameraController should expose one public pointer entry point for middle-drag panning and mouse-wheel zoom.");
     AssertTrue(
         strategicRoot.Contains("TryHandleWorldCameraPointerInput(@event)", StringComparison.Ordinal),
         "strategic world root should forward pointer camera navigation before world army input");
     AssertTrue(
-        strategicRoot.Contains("_worldCamera.TryHandlePointerNavigationInput(@event)", StringComparison.Ordinal),
-        "strategic world root should delegate middle mouse navigation to MapCameraController");
+        strategicRoot.Contains("_worldCamera.TryHandlePointerNavigationAndZoomInput(@event)", StringComparison.Ordinal),
+        "strategic world root should delegate middle mouse navigation and wheel zoom to MapCameraController");
 }
 }

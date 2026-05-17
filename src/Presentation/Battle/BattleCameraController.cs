@@ -1,7 +1,6 @@
 using Godot;
 using Rpg.Presentation.Common;
 using Rpg.Presentation.Battle.Entities;
-using Rpg.Presentation.World.Sites;
 
 namespace Rpg.Presentation.Battle;
 
@@ -27,27 +26,37 @@ public partial class BattleCameraController : MapCameraController
     [Export(PropertyHint.Range, "8,120,1")]
     public float FollowMinimumDistancePixels { get; set; } = 18f;
 
-    private WorldSiteRoot _siteRoot;
+    private IBattleMapBoundsSource _mapBoundsSource;
     private Tween _followTween;
     private string _lastFollowEntityId = "";
 
     public override void _Ready()
     {
         base._Ready();
-        _siteRoot = GetParentOrNull<WorldSiteRoot>();
+        _mapBoundsSource = ResolveMapBoundsSource();
 
-        if (_siteRoot == null)
+        if (_mapBoundsSource == null)
         {
-            GD.PushWarning("BattleCameraController must be a child of WorldSiteRoot.");
+            GD.PushWarning("BattleCameraController could not find an IBattleMapBoundsSource ancestor.");
             return;
         }
 
-        _siteRoot.SiteMapLoaded += OnSiteMapLoaded;
+        _mapBoundsSource.BattleMapLoaded += OnBattleMapLoaded;
 
-        if (_siteRoot.ActiveSiteMap != null)
+        if (_mapBoundsSource.ActiveBattleMap != null)
         {
-            OnSiteMapLoaded(_siteRoot.ActiveSiteMap);
+            OnBattleMapLoaded(_mapBoundsSource.ActiveBattleMap);
         }
+    }
+
+    public override void _ExitTree()
+    {
+        if (_mapBoundsSource != null)
+        {
+            _mapBoundsSource.BattleMapLoaded -= OnBattleMapLoaded;
+        }
+
+        CancelFollowTween();
     }
 
     public override void _Process(double delta)
@@ -115,16 +124,32 @@ public partial class BattleCameraController : MapCameraController
         };
     }
 
-    private void OnSiteMapLoaded(Node activeSiteMap)
+    private void OnBattleMapLoaded(Node activeSiteMap)
     {
-        if (activeSiteMap is not BattleMapView battleMapView ||
-            !TryCalculateMapBounds(battleMapView, out Rect2 mapBounds))
+        if (activeSiteMap is BattleMapView battleMapView &&
+            TryCalculateMapBounds(battleMapView, out Rect2 mapBounds))
         {
-            GD.PushWarning("BattleCameraController could not calculate battle map bounds.");
+            SetMapBounds(mapBounds);
             return;
         }
 
-        SetMapBounds(mapBounds);
+        if (!ClearMapBoundsAndApplyConfiguredFallback("site_map_loaded_without_runtime_bounds"))
+        {
+            GD.PushWarning("BattleCameraController could not calculate battle map bounds.");
+        }
+    }
+
+    private IBattleMapBoundsSource ResolveMapBoundsSource()
+    {
+        for (Node node = GetParent(); node != null; node = node.GetParent())
+        {
+            if (node is IBattleMapBoundsSource source)
+            {
+                return source;
+            }
+        }
+
+        return GetTree()?.CurrentScene as IBattleMapBoundsSource;
     }
 
     private bool IsInsideFollowSafeArea(Vector2 worldPosition)

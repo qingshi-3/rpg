@@ -19,6 +19,13 @@ Run("runtime source stays isolated from domain and presentation owners", Runtime
 Run("oversized code files are tracked and no new ones are introduced", OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced);
 Run("runtime owns stable in-memory actor state", RuntimeOwnsStableInMemoryActorState);
 Run("runtime auto battle resolves opposing factions from actor state", RuntimeAutoBattleResolvesOpposingFactionsFromActorState);
+Run("runtime uses 8-neighbor square-grid movement", RuntimeUsesEightNeighborSquareGridMovement);
+Run("runtime diagonal adjacency is in basic attack range", RuntimeDiagonalAdjacencyIsInBasicAttackRange);
+Run("runtime movement events carry authoritative cells", RuntimeMovementEventsCarryAuthoritativeCells);
+Run("runtime square-grid combat avoids physics and full-map pathfinding authority", RuntimeSquareGridCombatAvoidsPhysicsAndFullMapPathfindingAuthority);
+Run("runtime copies snapshot footprint to corps actors", TargetBattleFootprintRegressionCases.RuntimeCopiesSnapshotFootprintToCorpsActors);
+Run("runtime footprint range uses rectangle edges", TargetBattleFootprintRegressionCases.RuntimeFootprintRangeUsesRectangleEdges);
+Run("runtime footprint occupancy blocks covered cells", TargetBattleFootprintRegressionCases.RuntimeFootprintOccupancyBlocksCoveredCells);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
 Run("snapshot copies battle group facts", SnapshotCopiesBattleGroupFacts);
@@ -175,6 +182,55 @@ static void RuntimeAutoBattleResolvesOpposingFactionsFromActorState()
             item.FactionId == "player" &&
             !item.Survived),
         "player corps should be defeated in a player defeat");
+}
+
+static void RuntimeUsesEightNeighborSquareGridMovement()
+{
+    BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_diagonal_move", 80, 80, enemyCellX: 2, enemyCellY: 2);
+    BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+    BattleEvent firstMove = result.EventStream.Events
+        .FirstOrDefault(item => item.Kind == BattleEventKind.MovementCompleted);
+
+    AssertTrue(firstMove != null, "a corps should move before diagonal contact");
+    AssertEqual(1, firstMove.ToGridX, "first diagonal move to x");
+    AssertEqual(1, firstMove.ToGridY, "first diagonal move to y");
+    AssertTrue(
+        firstMove.FromGridX != firstMove.ToGridX &&
+        firstMove.FromGridY != firstMove.ToGridY,
+        "first square-grid approach should use a diagonal neighbor when both axes need closing");
+}
+
+static void RuntimeDiagonalAdjacencyIsInBasicAttackRange()
+{
+    BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_diagonal_attack", 80, 80, enemyCellX: 1, enemyCellY: 1);
+    BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+    BattleEvent[] combatEvents = result.EventStream.Events
+        .Where(item => item.Kind is BattleEventKind.MovementCompleted or BattleEventKind.DamageApplied)
+        .ToArray();
+
+    AssertTrue(combatEvents.Length > 0, "diagonal adjacency should produce combat events");
+    AssertEqual(BattleEventKind.DamageApplied, combatEvents[0].Kind, "diagonal adjacent units should attack before moving");
+}
+
+static void RuntimeMovementEventsCarryAuthoritativeCells()
+{
+    BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_move_cells", 80, 80, enemyCellX: 3, enemyCellY: 0);
+    BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+    BattleEvent move = result.EventStream.Events.FirstOrDefault(item => item.Kind == BattleEventKind.MovementCompleted);
+    AssertTrue(move != null, "runtime should emit movement");
+    AssertTrue(move.HasMovementCells, "movement event should mark authoritative cells");
+    AssertTrue(move.FromGridX != move.ToGridX || move.FromGridY != move.ToGridY, "movement event should carry a changed destination");
+}
+
+static void RuntimeSquareGridCombatAvoidsPhysicsAndFullMapPathfindingAuthority()
+{
+    string source = CombinedSource("src", "Runtime", "Battle");
+    AssertTrue(!source.Contains("Area2D", StringComparison.Ordinal), "runtime combat must not depend on Godot Area2D authority");
+    AssertTrue(!source.Contains("CollisionShape2D", StringComparison.Ordinal), "runtime combat must not depend on Godot collision shapes");
+    AssertTrue(!source.Contains("MovementRangeFinder", StringComparison.Ordinal), "runtime combat must not run full-map pathfinding per actor in this slice");
 }
 
 static bool IsIgnoredCodePath(string root, string path)
@@ -531,7 +587,9 @@ static void BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces()
         ForceId = "force_player",
         UnitDefinitionId = "player_corps",
         FactionId = "player",
-        Count = 1
+        Count = 1,
+        FootprintWidth = 2,
+        FootprintHeight = 2
     });
     request.EnemyForces.Add(new BattleForceRequest
     {
@@ -548,6 +606,9 @@ static void BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces()
     AssertTrue(
         result.Snapshot.BattleGroups.Any(item => item.FactionId == "player" && item.SourceForceId == "force_player"),
         "player force should keep faction and source force identity");
+    BattleGroupSnapshot playerGroup = result.Snapshot.BattleGroups.Single(item => item.SourceForceId == "force_player");
+    AssertEqual(2, playerGroup.FootprintWidth, "player force footprint width should enter snapshot");
+    AssertEqual(2, playerGroup.FootprintHeight, "player force footprint height should enter snapshot");
     AssertTrue(
         result.Snapshot.BattleGroups.Any(item => item.FactionId == "enemy" && item.SourceForceId == "force_enemy"),
         "enemy force should keep faction and source force identity");
@@ -645,7 +706,12 @@ static void LegacyResultAdapterMapsFailedHandoffToDisaster()
     AssertTrue(incompleteRuntimeException.Outcome != Rpg.Application.Battle.BattleOutcome.Defeat, "incomplete runtime exception must not map to defeat");
 }
 
-static BattleStartSnapshot BuildOpposedSnapshot(string battleId, int playerStrength, int enemyStrength)
+static BattleStartSnapshot BuildOpposedSnapshot(
+    string battleId,
+    int playerStrength,
+    int enemyStrength,
+    int enemyCellX = 6,
+    int enemyCellY = 0)
 {
     return new BattleStartSnapshot
     {
@@ -679,8 +745,8 @@ static BattleStartSnapshot BuildOpposedSnapshot(string battleId, int playerStren
                 CorpsDefinitionId = "enemy_corps",
                 CorpsStrength = enemyStrength,
                 SourceLocationId = "site_1",
-                CellX = 6,
-                CellY = 0
+                CellX = enemyCellX,
+                CellY = enemyCellY
             }
         }
     };

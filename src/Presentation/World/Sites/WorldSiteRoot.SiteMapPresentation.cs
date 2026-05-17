@@ -291,9 +291,12 @@ public partial class WorldSiteRoot
             return;
         }
 
+        Vector2I footprintSize = ResolveUnitFootprintSize(placement.UnitTypeId);
         gridOccupant.GridX = placement.CellX;
         gridOccupant.GridY = placement.CellY;
         gridOccupant.GridHeight = placement.CellHeight;
+        gridOccupant.FootprintWidth = footprintSize.X;
+        gridOccupant.FootprintHeight = footprintSize.Y;
         gridOccupant.UseExplicitHeight = placement.CellHeight > 0;
         ResolveEntitySurfaceHeight(gridOccupant);
         ApplyEntityRenderSort(entity, gridOccupant.SurfacePosition);
@@ -310,12 +313,15 @@ public partial class WorldSiteRoot
     private Vector2 ResolvePlacementEntityGlobalPosition(WorldSiteUnitPlacement placement)
     {
         GridPosition gridPosition = new(placement.CellX, placement.CellY);
-        if (TryGetCellGlobalPosition(gridPosition, out Vector2 globalPosition))
+        if (TryGetFootprintCenterGlobalPosition(
+                gridPosition,
+                ResolveUnitFootprintSize(placement.UnitTypeId),
+                out Vector2 globalPosition))
         {
             return globalPosition;
         }
 
-        return GlobalPosition + new Vector2(96.0f, 128.0f + _sitePlacementEntities.Count * 32.0f);
+        return new Vector2(96.0f, 128.0f + _sitePlacementEntities.Count * 32.0f);
     }
 
     private bool TrySnapFacilitySlotEntity(

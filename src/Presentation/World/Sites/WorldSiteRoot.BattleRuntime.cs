@@ -29,6 +29,7 @@ public partial class WorldSiteRoot
         }
 
         _battlePreparationRequest = request;
+        ApplyBattleRequestForceFootprints(request);
         if (request.BattleKind is BattleKind.AssaultSite or BattleKind.DefenseRaid or BattleKind.FieldIntercept)
         {
             if (!EnsureBattleRequestSiteDeployments(request))
@@ -287,6 +288,22 @@ public partial class WorldSiteRoot
         return definition.CanEnterWater;
     }
 
+    private void ApplyBattleRequestForceFootprints(BattleStartRequest request)
+    {
+        IEnumerable<BattleForceRequest> playerForces = request?.PlayerForces ?? Enumerable.Empty<BattleForceRequest>();
+        IEnumerable<BattleForceRequest> enemyForces = request?.EnemyForces ?? Enumerable.Empty<BattleForceRequest>();
+        foreach (BattleForceRequest force in playerForces.Concat(enemyForces))
+        {
+            if (!_battleUnitFactory.TryGetUnitDefinition(force?.UnitDefinitionId, out BattleUnitDefinition definition))
+            {
+                continue;
+            }
+
+            force.FootprintWidth = definition.FootprintWidth;
+            force.FootprintHeight = definition.FootprintHeight;
+        }
+    }
+
     private static bool CanUseDeploymentCell(WorldSiteDeploymentCell candidate, bool canEnterWater)
     {
         return canEnterWater || !candidate.IsWater;
@@ -414,6 +431,8 @@ public partial class WorldSiteRoot
         {
             gridOccupant.GridX = placement.CellX;
             gridOccupant.GridY = placement.CellY;
+            gridOccupant.FootprintWidth = BattleFootprintCells.NormalizeSize(force?.FootprintWidth ?? gridOccupant.FootprintWidth);
+            gridOccupant.FootprintHeight = BattleFootprintCells.NormalizeSize(force?.FootprintHeight ?? gridOccupant.FootprintHeight);
             if (placement.CellHeight > 0)
             {
                 gridOccupant.GridHeight = placement.CellHeight;
@@ -560,7 +579,18 @@ public partial class WorldSiteRoot
 
             ResolveEntitySurfaceHeight(gridOccupant);
             var cell = new Vector2I(gridOccupant.GridX, gridOccupant.GridY);
-            entity.GlobalPosition = _coordinateLayer.ToGlobal(_coordinateLayer.MapToLocal(cell));
+            if (TryGetFootprintCenterGlobalPosition(
+                    gridOccupant.Position,
+                    new Vector2I(gridOccupant.FootprintWidth, gridOccupant.FootprintHeight),
+                    out Vector2 globalPosition))
+            {
+                entity.GlobalPosition = globalPosition;
+            }
+            else
+            {
+                entity.GlobalPosition = _coordinateLayer.ToGlobal(_coordinateLayer.MapToLocal(cell));
+            }
+
             ApplyEntityRenderSort(entity, gridOccupant.SurfacePosition);
             placedCount++;
             GameLog.Info(
@@ -818,9 +848,63 @@ public partial class WorldSiteRoot
             return false;
         }
 
-        Vector2I tilePosition = _coordinateLayer.LocalToMap(_coordinateLayer.ToLocal(GetGlobalMousePosition()));
+        Vector2I tilePosition = _coordinateLayer.LocalToMap(_coordinateLayer.ToLocal(GetWorldViewportMousePosition()));
         position = new GridPosition(tilePosition.X, tilePosition.Y);
         return _activeGridMap.TryGetCell(position, out _);
+    }
+
+    private bool TryResolveMouseFootprintAnchor(Vector2I footprintSize, out GridPosition position)
+    {
+        return TryResolveFootprintAnchorAtWorldPosition(
+            GetWorldViewportMousePosition(),
+            footprintSize,
+            out position);
+    }
+
+    private bool TryResolveFootprintAnchorAtWorldPosition(
+        Vector2 globalPosition,
+        Vector2I footprintSize,
+        out GridPosition position)
+    {
+        position = default;
+        if (_coordinateLayer == null ||
+            _activeGridMap == null ||
+            !TryResolveCellCenterCoordinates(globalPosition, out float centerX, out float centerY))
+        {
+            return false;
+        }
+
+        position = BattleFootprintCells.ResolveAnchorFromCenter(
+            centerX,
+            centerY,
+            footprintSize.X,
+            footprintSize.Y);
+        return _activeGridMap.TryGetCell(position, out _);
+    }
+
+    private bool TryResolveCellCenterCoordinates(Vector2 globalPosition, out float cellX, out float cellY)
+    {
+        cellX = 0f;
+        cellY = 0f;
+        if (_coordinateLayer == null)
+        {
+            return false;
+        }
+
+        Vector2 localPosition = _coordinateLayer.ToLocal(globalPosition);
+        Vector2 origin = _coordinateLayer.MapToLocal(Vector2I.Zero);
+        Vector2 stepX = _coordinateLayer.MapToLocal(new Vector2I(1, 0)) - origin;
+        Vector2 stepY = _coordinateLayer.MapToLocal(new Vector2I(0, 1)) - origin;
+        float determinant = (stepX.X * stepY.Y) - (stepX.Y * stepY.X);
+        if (Mathf.Abs(determinant) <= 0.001f)
+        {
+            return false;
+        }
+
+        Vector2 delta = localPosition - origin;
+        cellX = ((delta.X * stepY.Y) - (delta.Y * stepY.X)) / determinant;
+        cellY = ((stepX.X * delta.Y) - (stepX.Y * delta.X)) / determinant;
+        return true;
     }
 
     private bool TryGetCellGlobalPosition(GridPosition position, out Vector2 globalPosition)
@@ -834,6 +918,30 @@ public partial class WorldSiteRoot
 
         var cell = new Vector2I(position.X, position.Y);
         globalPosition = _coordinateLayer.ToGlobal(_coordinateLayer.MapToLocal(cell));
+        return true;
+    }
+
+    private bool TryGetFootprintCenterGlobalPosition(
+        GridPosition anchor,
+        Vector2I footprintSize,
+        out Vector2 globalPosition)
+    {
+        globalPosition = default;
+        if (_coordinateLayer == null)
+        {
+            return false;
+        }
+
+        int width = BattleFootprintCells.NormalizeSize(footprintSize.X);
+        int height = BattleFootprintCells.NormalizeSize(footprintSize.Y);
+        var anchorCell = new Vector2I(anchor.X, anchor.Y);
+        Vector2 anchorLocal = _coordinateLayer.MapToLocal(anchorCell);
+        Vector2 stepX = _coordinateLayer.MapToLocal(new Vector2I(anchor.X + 1, anchor.Y)) - anchorLocal;
+        Vector2 stepY = _coordinateLayer.MapToLocal(new Vector2I(anchor.X, anchor.Y + 1)) - anchorLocal;
+        Vector2 centerLocal = anchorLocal +
+                              stepX * ((width - 1) * 0.5f) +
+                              stepY * ((height - 1) * 0.5f);
+        globalPosition = _coordinateLayer.ToGlobal(centerLocal);
         return true;
     }
 

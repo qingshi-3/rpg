@@ -482,6 +482,12 @@ public partial class StrategicWorldRoot
 
     private void OnSiteButtonGuiInput(string siteId, InputEvent @event)
     {
+        if (TryHandleWorldCameraPointerInput(@event))
+        {
+            _worldMapOverlay?.AcceptEvent();
+            return;
+        }
+
         if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true })
         {
             return;

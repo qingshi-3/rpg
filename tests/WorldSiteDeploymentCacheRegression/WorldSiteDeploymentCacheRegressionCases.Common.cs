@@ -19,6 +19,35 @@ internal static string ReadWorldSiteRootSource()
     return string.Join("\n", Directory.GetFiles(siteRootDir, "WorldSiteRoot*.cs").OrderBy(path => path).Select(File.ReadAllText));
 }
 
+internal static string ExtractMethodBody(string source, string signature)
+{
+    int signatureIndex = source.IndexOf(signature, StringComparison.Ordinal);
+    AssertTrue(signatureIndex >= 0, $"source method missing signature={signature}");
+
+    int openBraceIndex = source.IndexOf('{', signatureIndex);
+    AssertTrue(openBraceIndex >= 0, $"source method missing opening brace signature={signature}");
+
+    int depth = 0;
+    for (int index = openBraceIndex; index < source.Length; index++)
+    {
+        char current = source[index];
+        if (current == '{')
+        {
+            depth++;
+        }
+        else if (current == '}')
+        {
+            depth--;
+            if (depth == 0)
+            {
+                return source.Substring(openBraceIndex + 1, index - openBraceIndex - 1);
+            }
+        }
+    }
+
+    throw new InvalidOperationException($"source method missing closing brace signature={signature}");
+}
+
 internal static string ProjectRoot()
 {
     DirectoryInfo? directory = new(AppContext.BaseDirectory);

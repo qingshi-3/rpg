@@ -13,22 +13,42 @@ namespace Rpg.Presentation.World;
 
 public partial class StrategicWorldRoot
 {
+    private void ResolveMainWorldViewportNodes()
+    {
+        _mainWorldViewportHost = GetNodeOrNull<Control>(MainWorldViewportHostPath);
+        _mainWorldViewport = GetNodeOrNull<SubViewport>(MainWorldViewportPath);
+        _worldMapOverlay = GetNodeOrNull<Control>(WorldMapOverlayPath);
+
+        if (_mainWorldViewportHost == null || _mainWorldViewport == null || _worldMapOverlay == null)
+        {
+            GameLog.Error(
+                nameof(StrategicWorldRoot),
+                $"MainWorldViewportMissing host={_mainWorldViewportHost != null} viewport={_mainWorldViewport != null} overlay={_worldMapOverlay != null}");
+            return;
+        }
+
+        _mainWorldViewportHost.MouseFilter = MouseFilterEnum.Pass;
+        _worldMapOverlay.MouseFilter = MouseFilterEnum.Pass;
+        if (!_worldMapOverlaySignalsConnected)
+        {
+            // Godot C# logs an error when event -= disconnects a callable that was
+            // never connected, so overlay signals are connected once per root instance.
+            _worldMapOverlay.GuiInput += OnWorldMapOverlayGuiInput;
+            _worldMapOverlay.Draw += DrawWorldMapOverlay;
+            _worldMapOverlaySignalsConnected = true;
+        }
+    }
+
     private void ResolveWorldMapNodes()
     {
         _worldMapRoot = GetNodeOrNull<Node2D>(WorldMapRootPath);
         if (_worldMapRoot == null)
         {
-            _worldMapRoot = new Node2D
-            {
-                Name = "WorldMapRoot",
-                ZIndex = -20
-            };
-            AddChild(_worldMapRoot);
+            GameLog.Error(nameof(StrategicWorldRoot), $"WorldMapRootMissing path={WorldMapRootPath}");
+            return;
         }
-        else
-        {
-            _worldMapRoot.ZIndex = System.Math.Min(_worldMapRoot.ZIndex, -20);
-        }
+
+        _worldMapRoot.ZIndex = System.Math.Min(_worldMapRoot.ZIndex, -20);
 
         Node2D mapAnchors = GetOrCreateNode2D(_worldMapRoot, "MapAnchors");
         _siteAnchorRoot = GetNodeOrNull<Node2D>(SiteAnchorRootPath) ?? GetOrCreateNode2D(mapAnchors, "Sites");
@@ -40,14 +60,17 @@ public partial class StrategicWorldRoot
 
     private void EnsureStrategicNavigationLayerIsStable()
     {
-        _strategicNavigationRoot = GetNodeOrNull<Node2D>(StrategicNavigationRootName);
+        _strategicNavigationRoot =
+            _mainWorldViewport?.GetNodeOrNull<Node2D>(StrategicNavigationRootName) ??
+            GetNodeOrNull<Node2D>(StrategicNavigationRootName);
         if (_strategicNavigationRoot == null)
         {
             _strategicNavigationRoot = new Node2D
             {
                 Name = StrategicNavigationRootName
             };
-            AddChild(_strategicNavigationRoot);
+            Node navigationParent = _mainWorldViewport != null ? _mainWorldViewport : this;
+            navigationParent.AddChild(_strategicNavigationRoot);
         }
 
         _strategicNavigationRoot.Visible = true;
@@ -82,15 +105,8 @@ public partial class StrategicWorldRoot
         _worldCamera = GetNodeOrNull<MapCameraController>(WorldCameraPath);
         if (_worldCamera == null)
         {
-            _worldCamera = new MapCameraController
-            {
-                Name = "WorldCamera",
-                UseViewportCamera = false,
-                MinZoom = 0.5f,
-                MaxZoom = 3.0f,
-                Zoom = Vector2.One
-            };
-            AddChild(_worldCamera);
+            GameLog.Error(nameof(StrategicWorldRoot), $"WorldCameraMissing path={WorldCameraPath}");
+            return;
         }
 
         _worldCamera.UseViewportCamera = false;
@@ -118,6 +134,12 @@ public partial class StrategicWorldRoot
             return;
         }
 
+        if (_worldCamera.ClearMapBoundsAndApplyConfiguredFallback("strategic_map_bounds_missing"))
+        {
+            GameLog.Warn(nameof(StrategicWorldRoot), "StrategicWorldCameraUsingConfiguredBoundsFallback");
+            return;
+        }
+
         _worldCamera.ClearMapBounds();
         GameLog.Warn(nameof(StrategicWorldRoot), "StrategicWorldCameraBoundsMissing");
     }
@@ -130,11 +152,12 @@ public partial class StrategicWorldRoot
         }
 
         Rect2 mapViewBounds = GetMapBounds();
+        UpdateMainWorldViewportLayout(mapViewBounds);
         _worldCamera.SetViewportSizeOverride(mapViewBounds.Size);
 
         Vector2 zoom = _worldCamera.Zoom;
         _worldMapRoot.GlobalScale = zoom;
-        _worldMapRoot.GlobalPosition = mapViewBounds.GetCenter() - _worldCamera.GlobalPosition * zoom;
+        _worldMapRoot.GlobalPosition = mapViewBounds.Size * 0.5f - _worldCamera.GlobalPosition * zoom;
 
         bool changed = force ||
                        _lastWorldMapRootPosition.DistanceSquaredTo(_worldMapRoot.GlobalPosition) > 0.001f ||
@@ -152,8 +175,41 @@ public partial class StrategicWorldRoot
             RefreshSiteButtons(new StrategicWorldDefinitionQueries(Definition));
         }
 
-        QueueRedraw();
+        QueueStrategicOverlayRedraw();
         return true;
+    }
+
+    private void QueueStrategicOverlayRedraw()
+    {
+        _worldMapOverlay?.QueueRedraw();
+    }
+
+    private void UpdateMainWorldViewportLayout(Rect2 mapBounds)
+    {
+        if (_mainWorldViewportHost != null)
+        {
+            SetFixedRect(_mainWorldViewportHost, mapBounds);
+        }
+
+        Vector2 viewportSize = new(
+            Mathf.Max(1.0f, mapBounds.Size.X),
+            Mathf.Max(1.0f, mapBounds.Size.Y));
+        Vector2I viewportSizeI = new(
+            Mathf.RoundToInt(viewportSize.X),
+            Mathf.RoundToInt(viewportSize.Y));
+
+        if (_mainWorldViewport != null && _mainWorldViewport.Size != viewportSizeI)
+        {
+            _mainWorldViewport.Size = viewportSizeI;
+        }
+
+        if (_worldMapOverlay == null)
+        {
+            return;
+        }
+
+        _worldMapOverlay.Position = Vector2.Zero;
+        _worldMapOverlay.Size = viewportSize;
     }
 
     private bool TryCalculateStrategicMapBounds(out Rect2 bounds)
@@ -181,22 +237,6 @@ public partial class StrategicWorldRoot
                     ExpandBounds(point, ref bounds, ref hasPoint);
                 }
             }
-        }
-
-        if (_siteAnchorRoot != null)
-        {
-            foreach (Node child in _siteAnchorRoot.GetChildren())
-            {
-                if (child is Node2D anchor)
-                {
-                    ExpandBounds(_worldMapRoot.ToLocal(anchor.GlobalPosition), ref bounds, ref hasPoint);
-                }
-            }
-        }
-
-        if (hasPoint)
-        {
-            bounds = bounds.Grow(96.0f);
         }
 
         return hasPoint;
