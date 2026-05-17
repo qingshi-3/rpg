@@ -24,11 +24,14 @@ Run("battle group lifecycle preserves state on invalid lock", BattleGroupLifecyc
 Run("battle group lifecycle releases only active battle groups", BattleGroupLifecycleReleasesOnlyActiveBattleGroups);
 Run("command validation distinguishes application rejection", CommandValidationDistinguishesApplicationRejection);
 Run("settlement rejects incomplete result", SettlementRejectsIncompleteResult);
+Run("settlement rejects invalid complete results and missing event boundaries", SettlementRejectsInvalidCompleteResultsAndMissingEventBoundaries);
+Run("rejected settlement report is diagnostic", RejectedSettlementReportIsDiagnostic);
 Run("report and settlement consume the same event ids", ReportAndSettlementConsumeSameEventIds);
 Run("legacy garrison adapter creates explicit battle groups", LegacyGarrisonAdapterCreatesExplicitBattleGroups);
 Run("legacy result adapter preserves request and outcome ids", LegacyResultAdapterPreservesRequestAndOutcomeIds);
 Run("legacy result adapter maps failed handoff to disaster", LegacyResultAdapterMapsFailedHandoffToDisaster);
 Run("battle group vertical slice settles and reports from runtime facts", BattleGroupVerticalSliceSettlesAndReports);
+Run("mixed valid and missing hero handoff rejects settlement and normal report", MixedValidAndMissingHeroHandoffRejectsSettlementAndNormalReport);
 
 static void CorpsStrengthClampsAndVisibleSoldiersAreDerived()
 {
@@ -290,18 +293,87 @@ static void SettlementRejectsIncompleteResult()
     AssertEqual("battle_result_incomplete", plan.RejectionReason, "rejection reason");
 }
 
+static void SettlementRejectsInvalidCompleteResultsAndMissingEventBoundaries()
+{
+    BattleSettlementService service = new();
+    BattleOutcomeResult acceptedShape = BattleOutcomeResult.Completed("snapshot_1", "battle_1", BattleTerminationReason.NormalVictory);
+    BattleEventStream matchingEnd = EndedStream("battle_1");
+
+    AssertRejectedPlan(
+        service.BuildPlan("snapshot_1", null, matchingEnd),
+        "battle_result_missing",
+        "null result");
+    AssertRejectedPlan(
+        service.BuildPlan("snapshot_1", BattleOutcomeResult.Completed("snapshot_1", "", BattleTerminationReason.NormalVictory), matchingEnd),
+        "battle_result_missing_battle_id",
+        "blank battle id");
+    AssertRejectedPlan(
+        service.BuildPlan("snapshot_1", BattleOutcomeResult.Completed("snapshot_1", "battle_1", BattleTerminationReason.None), matchingEnd),
+        "battle_result_invalid_termination",
+        "none termination");
+    AssertRejectedPlan(
+        service.BuildPlan("snapshot_1", BattleOutcomeResult.Completed("snapshot_1", "battle_1", BattleTerminationReason.RuntimeException), matchingEnd),
+        "battle_result_invalid_termination",
+        "runtime exception termination");
+    AssertRejectedPlan(
+        service.BuildPlan("snapshot_1", BattleOutcomeResult.Completed("snapshot_1", "battle_1", BattleTerminationReason.Interrupted), matchingEnd),
+        "battle_result_invalid_termination",
+        "interrupted termination");
+    AssertRejectedPlan(
+        service.BuildPlan("snapshot_1", acceptedShape, null),
+        "battle_event_boundary_missing",
+        "null event stream");
+    AssertRejectedPlan(
+        service.BuildPlan("snapshot_1", acceptedShape, BattleEventStream.Empty),
+        "battle_event_boundary_missing",
+        "empty event stream");
+    AssertRejectedPlan(
+        service.BuildPlan("snapshot_1", acceptedShape, StartedStream("battle_1")),
+        "battle_event_boundary_missing",
+        "missing battle ended event");
+    AssertRejectedPlan(
+        service.BuildPlan("snapshot_1", acceptedShape, EndedStream("other_battle")),
+        "battle_event_boundary_missing",
+        "mismatched battle ended event");
+}
+
+static void RejectedSettlementReportIsDiagnostic()
+{
+    BattleOutcomeResult result = new()
+    {
+        SnapshotId = "snapshot_1",
+        BattleId = "battle_1",
+        IsComplete = false,
+        TerminationReason = BattleTerminationReason.RuntimeException
+    };
+    SettlementPlan rejectedPlan = new()
+    {
+        Accepted = false,
+        SnapshotId = "snapshot_1",
+        BattleId = "battle_1",
+        RejectionReason = "battle_result_incomplete"
+    };
+
+    BattleReportRecord report = new BattleReportBuilder().Build(result, StartedStream("battle_1"), rejectedPlan);
+
+    AssertEqual("", report.ReportId, "rejected report must not have normal report id");
+    AssertEqual("SettlementRejected", report.OutcomeSummary, "rejected report outcome");
+    AssertTrue(report.FailureCandidates.Contains("battle_result_incomplete"), "rejected report failure reason");
+}
+
 static void ReportAndSettlementConsumeSameEventIds()
 {
     BattleEventStream stream = new();
     stream.Add(new BattleEvent { EventId = "event_1", BattleId = "battle_1", Kind = BattleEventKind.CommandAccepted });
     stream.Add(new BattleEvent { EventId = "event_2", BattleId = "battle_1", Kind = BattleEventKind.DamageApplied });
+    stream.Add(new BattleEvent { EventId = "event_3", BattleId = "battle_1", Kind = BattleEventKind.BattleEnded });
     BattleOutcomeResult result = BattleOutcomeResult.Completed("snapshot_1", "battle_1", BattleTerminationReason.NormalVictory);
 
     SettlementPlan plan = new BattleSettlementService().BuildPlan("snapshot_1", result, stream);
     BattleReportRecord report = new BattleReportBuilder().Build(result, stream, plan);
 
-    AssertSequence(new[] { "event_1", "event_2" }, plan.SourceEventIds, "settlement source events");
-    AssertSequence(new[] { "event_1", "event_2" }, report.SourceEventIds, "report source events");
+    AssertSequence(new[] { "event_1", "event_2", "event_3" }, plan.SourceEventIds, "settlement source events");
+    AssertSequence(new[] { "event_1", "event_2", "event_3" }, report.SourceEventIds, "report source events");
 }
 
 static void LegacyGarrisonAdapterCreatesExplicitBattleGroups()
@@ -386,6 +458,64 @@ static void BattleGroupVerticalSliceSettlesAndReports()
     AssertTrue(!rejected.RuntimeResult.Outcome.IsComplete, "missing hero handoff must not complete");
     AssertTrue(!rejected.SettlementPlan.Accepted, "missing hero handoff must not settle");
     AssertEqual("battle_result_incomplete", rejected.SettlementPlan.RejectionReason, "missing hero settlement rejection");
+}
+
+static void MixedValidAndMissingHeroHandoffRejectsSettlementAndNormalReport()
+{
+    HeroState hero = new() { HeroId = "hero_1", HeroDefinitionId = "hero_def_1", Level = 3 };
+    CorpsState corps = new() { CorpsId = "corps_1", CorpsDefinitionId = "shield", Level = 2, CorpsStrength = 90 };
+    CorpsState missingHeroCorps = new() { CorpsId = "corps_2", CorpsDefinitionId = "pike", Level = 1, CorpsStrength = 60 };
+    BattleGroupState validGroup = new BattleGroupLifecycleService().CreateAndStation("group_1", hero.HeroId, corps.CorpsId, "city_1");
+    BattleGroupState missingHeroGroup = new()
+    {
+        BattleGroupId = "group_missing_hero",
+        HeroId = "hero_missing",
+        CorpsId = missingHeroCorps.CorpsId,
+        CurrentLocationId = "city_1",
+        Status = BattleGroupStatus.Stationed
+    };
+
+    Rpg.Application.Battle.BattleGroupBattleFlowResult result = new Rpg.Application.Battle.BattleGroupBattleFlowService()
+        .RunMinimalBattle(
+            "snapshot_mixed",
+            "battle_mixed",
+            "site_1",
+            new[] { validGroup, missingHeroGroup },
+            new Dictionary<string, HeroState> { [hero.HeroId] = hero },
+            new Dictionary<string, CorpsState>
+            {
+                [corps.CorpsId] = corps,
+                [missingHeroCorps.CorpsId] = missingHeroCorps
+            });
+
+    AssertEqual(2, result.Snapshot.BattleGroups.Count, "snapshot keeps requested group count");
+    AssertTrue(!result.RuntimeResult.Outcome.IsComplete, "mixed invalid handoff must not complete");
+    AssertEqual(BattleTerminationReason.RuntimeException, result.RuntimeResult.Outcome.TerminationReason, "mixed invalid handoff termination");
+    AssertTrue(!result.SettlementPlan.Accepted, "mixed invalid handoff settlement rejected");
+    AssertEqual("battle_result_incomplete", result.SettlementPlan.RejectionReason, "mixed invalid handoff settlement reason");
+    AssertEqual("", result.Report.ReportId, "mixed invalid handoff must not create normal report");
+    AssertEqual("SettlementRejected", result.Report.OutcomeSummary, "mixed invalid handoff report outcome");
+    AssertTrue(result.Report.FailureCandidates.Contains("battle_result_incomplete"), "mixed invalid handoff report failure reason");
+}
+
+static BattleEventStream StartedStream(string battleId)
+{
+    BattleEventStream stream = new();
+    stream.Add(new BattleEvent { EventId = $"{battleId}:started", BattleId = battleId, Kind = BattleEventKind.BattleStarted });
+    return stream;
+}
+
+static BattleEventStream EndedStream(string battleId)
+{
+    BattleEventStream stream = StartedStream(battleId);
+    stream.Add(new BattleEvent { EventId = $"{battleId}:ended", BattleId = battleId, Kind = BattleEventKind.BattleEnded });
+    return stream;
+}
+
+static void AssertRejectedPlan(SettlementPlan plan, string reason, string message)
+{
+    AssertTrue(!plan.Accepted, $"{message} should reject");
+    AssertEqual(reason, plan.RejectionReason, $"{message} rejection reason");
 }
 
 static string CombinedSource(params string[] pathParts)

@@ -30,25 +30,30 @@ public sealed class BattleSnapshotBuilder
 
         foreach (BattleGroupState group in battleGroups)
         {
-            if (group == null ||
-                !heroes.TryGetValue(group.HeroId, out HeroState hero) ||
-                !corps.TryGetValue(group.CorpsId, out CorpsState corpsState))
+            if (group == null)
             {
+                // Preserve invalid requested entries so Runtime rejects the handoff instead of letting Application narrow it.
+                snapshot.BattleGroups.Add(new BattleGroupSnapshot());
                 continue;
             }
 
+            HeroState hero = null;
+            CorpsState corpsState = null;
+            heroes?.TryGetValue(group.HeroId ?? "", out hero);
+            corps?.TryGetValue(group.CorpsId ?? "", out corpsState);
+
             snapshot.BattleGroups.Add(new BattleGroupSnapshot
             {
-                BattleGroupId = group.BattleGroupId,
-                HeroId = hero.HeroId,
-                HeroDefinitionId = hero.HeroDefinitionId,
-                HeroLevel = hero.Level,
-                CorpsId = corpsState.CorpsId,
-                CorpsDefinitionId = corpsState.CorpsDefinitionId,
-                CorpsLevel = corpsState.Level,
-                CorpsEquipmentLevel = corpsState.EquipmentLevel,
-                CorpsStrength = CorpsStrengthPolicy.Clamp(corpsState.CorpsStrength),
-                SourceLocationId = group.CurrentLocationId
+                BattleGroupId = group.BattleGroupId ?? "",
+                HeroId = hero?.HeroId ?? group.HeroId ?? "",
+                HeroDefinitionId = hero?.HeroDefinitionId ?? "",
+                HeroLevel = hero?.Level ?? 0,
+                CorpsId = corpsState?.CorpsId ?? group.CorpsId ?? "",
+                CorpsDefinitionId = corpsState?.CorpsDefinitionId ?? "",
+                CorpsLevel = corpsState?.Level ?? 0,
+                CorpsEquipmentLevel = corpsState?.EquipmentLevel ?? 0,
+                CorpsStrength = corpsState == null ? 0 : CorpsStrengthPolicy.Clamp(corpsState.CorpsStrength),
+                SourceLocationId = group.CurrentLocationId ?? ""
             });
         }
 

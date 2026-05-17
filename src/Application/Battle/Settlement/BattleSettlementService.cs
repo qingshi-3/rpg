@@ -1,4 +1,5 @@
 using System.Linq;
+using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Results;
 
@@ -26,12 +27,31 @@ public sealed class BattleSettlementService
             return Reject(expectedSnapshotId, result.BattleId, "battle_snapshot_mismatch");
         }
 
+        if (string.IsNullOrWhiteSpace(result.BattleId))
+        {
+            return Reject(expectedSnapshotId, result.BattleId, "battle_result_missing_battle_id");
+        }
+
+        if (result.TerminationReason == BattleTerminationReason.None ||
+            result.TerminationReason == BattleTerminationReason.RuntimeException ||
+            result.TerminationReason == BattleTerminationReason.Interrupted)
+        {
+            return Reject(expectedSnapshotId, result.BattleId, "battle_result_invalid_termination");
+        }
+
+        if (eventStream == null ||
+            eventStream.Events.Count == 0 ||
+            !eventStream.Events.Any(item => item.Kind == BattleEventKind.BattleEnded && item.BattleId == result.BattleId))
+        {
+            return Reject(expectedSnapshotId, result.BattleId, "battle_event_boundary_missing");
+        }
+
         return new SettlementPlan
         {
             Accepted = true,
             SnapshotId = result.SnapshotId,
             BattleId = result.BattleId,
-            SourceEventIds = eventStream?.EventIds.ToList() ?? new()
+            SourceEventIds = eventStream.EventIds.ToList()
         };
     }
 
