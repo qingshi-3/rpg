@@ -11,6 +11,7 @@ using Rpg.Runtime.Battle.Results;
 
 Run("corps strength clamps and visible soldiers are derived", CorpsStrengthClampsAndVisibleSoldiersAreDerived);
 Run("runtime source stays isolated from domain and presentation owners", RuntimeSourceStaysIsolated);
+Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
 Run("snapshot copies battle group facts", SnapshotCopiesBattleGroupFacts);
 Run("command validation distinguishes application rejection", CommandValidationDistinguishesApplicationRejection);
@@ -35,7 +36,32 @@ static void RuntimeSourceStaysIsolated()
     AssertTrue(!source.Contains("StrategicWorldState", StringComparison.Ordinal), "runtime must not reference StrategicWorldState");
     AssertTrue(!source.Contains("WorldSiteRoot", StringComparison.Ordinal), "runtime must not reference WorldSiteRoot");
     AssertTrue(!source.Contains("Godot.Control", StringComparison.Ordinal), "runtime must not reference Godot UI controls");
+    AssertTrue(!source.Contains("Rpg.Domain", StringComparison.Ordinal), "runtime must not reference Domain owners");
+    AssertTrue(!source.Contains("Rpg.Presentation", StringComparison.Ordinal), "runtime must not reference Presentation owners");
+    AssertTrue(!source.Contains("using Godot", StringComparison.Ordinal), "runtime must not reference Godot");
+    AssertTrue(!source.Contains("Godot.Node", StringComparison.Ordinal), "runtime must not reference scene nodes");
+    AssertTrue(!source.Contains("SaveService", StringComparison.Ordinal), "runtime must not reference save services");
     AssertTrue(!source.Contains("StrategicWorldSaveService", StringComparison.Ordinal), "runtime must not reference save services");
+    AssertTrue(!source.Contains("BattleStartRequest", StringComparison.Ordinal), "runtime must not reference legacy battle requests");
+    AssertTrue(!source.Contains("BattleResult", StringComparison.Ordinal), "runtime must not reference legacy battle results");
+    AssertTrue(!source.Contains("AutoBattle", StringComparison.Ordinal), "runtime must not reference old auto battle");
+}
+
+static void RuntimeRejectsInvalidBattleHandoff()
+{
+    AssertInvalidBattleHandoff(new BattleRuntimeSession().RunMinimal(null), "null snapshot");
+    AssertInvalidBattleHandoff(new BattleRuntimeSession().RunMinimal(new BattleStartSnapshot()), "blank snapshot ids");
+}
+
+static void AssertInvalidBattleHandoff(BattleRuntimeSessionResult result, string message)
+{
+    AssertTrue(!result.Outcome.IsComplete, "invalid handoff must not complete");
+    AssertEqual(BattleTerminationReason.RuntimeException, result.Outcome.TerminationReason, $"{message} termination");
+    AssertTrue(
+        result.EventStream.Events.Any(item =>
+            (item.Kind == BattleEventKind.CommandRejected || item.Kind == BattleEventKind.BattleEnded)
+            && item.ReasonCode == "battle_snapshot_invalid"),
+        $"{message} should emit rejection event");
 }
 
 static void DomainSourceStaysIsolated()
