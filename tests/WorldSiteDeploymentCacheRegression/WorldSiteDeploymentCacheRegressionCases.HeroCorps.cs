@@ -700,13 +700,7 @@ internal static void BattlePreparationSupportsDraggingOnHostileSites()
 internal static void BattlePreparationDragValidationUsesFactionDeploymentDirection()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string interactionSource = File.ReadAllText(Path.Combine(
-        ProjectRoot(),
-        "src",
-        "Presentation",
-        "World",
-        "Sites",
-        "WorldSiteRoot.SiteInteraction.cs"));
+    string interactionSource = ReadWorldSiteRootSource();
 
     AssertTrue(
         rootSource.Contains("ResolveBattlePreparationDeploymentSide", StringComparison.Ordinal) &&
@@ -729,13 +723,7 @@ internal static void BattlePreparationRosterDragResolvesBothSides()
         "World",
         "Sites",
         "WorldSiteRoot.BattlePreparationHud.cs"));
-    string interactionSource = File.ReadAllText(Path.Combine(
-        ProjectRoot(),
-        "src",
-        "Presentation",
-        "World",
-        "Sites",
-        "WorldSiteRoot.SiteInteraction.cs"));
+    string interactionSource = ReadWorldSiteRootSource();
     string refreshBody = ExtractMethodBody(hudSource, "private void RefreshBattlePreparationForceList()");
     string beginDragBody = ExtractMethodBody(interactionSource, "private void BeginBattlePreparationRosterDrag(");
     string handleDragBody = ExtractMethodBody(interactionSource, "private void HandleBattlePreparationRosterDragInput(");
@@ -762,13 +750,7 @@ internal static void BattlePreparationRosterDragResolvesBothSides()
 internal static void BattlePreparationMapDragUsesRequestBackedPlacements()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string interactionSource = File.ReadAllText(Path.Combine(
-        ProjectRoot(),
-        "src",
-        "Presentation",
-        "World",
-        "Sites",
-        "WorldSiteRoot.SiteInteraction.cs"));
+    string interactionSource = ReadWorldSiteRootSource();
 
     AssertTrue(
         rootSource.Contains("BattlePreparationPlacementDragContext", StringComparison.Ordinal) &&
@@ -787,13 +769,7 @@ internal static void BattlePreparationMapDragUsesRequestBackedPlacements()
 internal static void BattlePreparationMapDragUsesSameDeploymentZoneRestrictionForBothSides()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string interactionSource = File.ReadAllText(Path.Combine(
-        ProjectRoot(),
-        "src",
-        "Presentation",
-        "World",
-        "Sites",
-        "WorldSiteRoot.SiteInteraction.cs"));
+    string interactionSource = ReadWorldSiteRootSource();
 
     AssertTrue(
         rootSource.Contains("ShouldRestrictBattlePreparationDeploymentZone", StringComparison.Ordinal),
