@@ -10,6 +10,13 @@ namespace Rpg.Presentation.Battle.AI;
 
 public sealed class GreedyAlliedIntentPlanner
 {
+    private readonly BattleAiDecisionTreeRunner _decisionRunner;
+
+    public GreedyAlliedIntentPlanner(BattleAiDecisionTreeRunner decisionRunner = null)
+    {
+        _decisionRunner = decisionRunner ?? new BattleAiDecisionTreeRunner();
+    }
+
     public BattleIntent ChooseIntent(
         BattleAiContext context,
         BattleEntity actor,
@@ -17,12 +24,16 @@ public sealed class GreedyAlliedIntentPlanner
     {
         if (context?.GridMap == null || actor == null || BattleRuleQueries.IsDefeated(actor))
         {
-            return BattleIntent.Hold(actor, "友军自动行动上下文无效");
+            return _decisionRunner
+                .ChooseAlliedIntent(new BattleAiDecisionFacts { HasValidContext = context?.GridMap != null, ActorCanAct = false }, corpsCommand)
+                .ToIntent(actor, null);
         }
 
         if (!TryFindTarget(context, actor, corpsCommand, out BattleEntity target))
         {
-            return BattleIntent.Hold(actor, "当前没有可攻击目标");
+            return _decisionRunner
+                .ChooseAlliedIntent(new BattleAiDecisionFacts { HasValidContext = true, ActorCanAct = true, HasTarget = false }, corpsCommand)
+                .ToIntent(actor, null);
         }
 
         AbilityDefinition ability = BattleAbilityQueries.GetPrimaryAbility(actor);
@@ -40,28 +51,21 @@ public sealed class GreedyAlliedIntentPlanner
                                 null,
                                 out _);
 
-        if (corpsCommand == BattleCorpsCommand.HoldLine)
+        BattleAiDecisionResult decision = _decisionRunner.ChooseAlliedIntent(new BattleAiDecisionFacts
         {
-            return canStrikeNow
-                ? BattleIntentTemplates.DirectStrike.Create(actor, ability, damage)
-                : BattleIntent.Hold(actor, "执行坚守，保持阵线");
-        }
-
-        if (corpsCommand == BattleCorpsCommand.FocusFire)
-        {
-            return canStrikeNow
-                ? BattleIntentTemplates.FocusStrike.Create(actor, ability, damage)
-                : BattleIntentTemplates.FocusPressure.Create(actor, ability, damage);
-        }
-
-        if (ability != null && ability.Range > 1)
-        {
-            return BattleIntentTemplates.RangedPressure.Create(actor, ability, damage);
-        }
-
-        return canStrikeNow
-            ? BattleIntentTemplates.DirectStrike.Create(actor, ability, damage)
-            : BattleIntentTemplates.MeleePressure.Create(actor, ability, damage);
+            HasValidContext = true,
+            ActorCanAct = true,
+            HasTarget = true,
+            HasPrimaryAbility = ability != null,
+            PrimaryAbilityId = BattleAbilityQueries.ToCommandId(ability),
+            PrimaryAbilityRange = ability?.Range ?? 0,
+            PrimaryAbilityPower = damage,
+            CanStrikeNow = canStrikeNow,
+            MoveRange = actor.GetComponent<MovementComponent>()?.MoveRange,
+            NearestHostileTargetId = target.EntityId,
+            LowestHealthHostileTargetId = corpsCommand == BattleCorpsCommand.FocusFire ? target.EntityId : ""
+        }, corpsCommand);
+        return decision.ToIntent(actor, ability);
     }
 
     private static bool TryFindTarget(

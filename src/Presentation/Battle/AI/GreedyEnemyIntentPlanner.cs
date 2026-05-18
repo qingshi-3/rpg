@@ -9,29 +9,35 @@ namespace Rpg.Presentation.Battle.AI;
 
 public sealed class GreedyEnemyIntentPlanner : IEnemyIntentPlanner
 {
+    private readonly BattleAiDecisionTreeRunner _decisionRunner;
+
+    public GreedyEnemyIntentPlanner(BattleAiDecisionTreeRunner decisionRunner = null)
+    {
+        _decisionRunner = decisionRunner ?? new BattleAiDecisionTreeRunner();
+    }
+
     public BattleIntent ChooseIntent(BattleAiContext context, BattleEntity actor)
     {
         if (context?.GridMap == null || actor == null || BattleRuleQueries.IsDefeated(actor))
         {
-            return BattleIntent.Hold(actor, "意图上下文无效");
+            return _decisionRunner
+                .ChooseEnemyIntent(new BattleAiDecisionFacts { HasValidContext = context?.GridMap != null, ActorCanAct = false })
+                .ToIntent(actor, null);
         }
 
         if (!TryFindClosestHostileTarget(context, actor, out BattleEntity target))
         {
-            return BattleIntent.Hold(actor, "没有可用目标");
+            return _decisionRunner
+                .ChooseEnemyIntent(new BattleAiDecisionFacts { HasValidContext = true, ActorCanAct = true, HasTarget = false })
+                .ToIntent(actor, null);
         }
 
         AbilityDefinition ability = BattleAbilityQueries.GetPrimaryAbility(actor);
         int damage = GetDamageValue(ability);
-        if (ability != null && ability.Range > 1)
-        {
-            return BattleIntentTemplates.RangedPressure.Create(actor, ability, damage);
-        }
-
         GridOccupantComponent targetGrid = target.GetComponent<GridOccupantComponent>();
-        if (ability != null &&
-            targetGrid != null &&
-            BattleAbilityQueries.IsValidTarget(
+        bool canStrikeNow = ability != null &&
+                            targetGrid != null &&
+                            BattleAbilityQueries.IsValidTarget(
                 context.GridMap,
                 context.Entities,
                 actor,
@@ -39,14 +45,23 @@ public sealed class GreedyEnemyIntentPlanner : IEnemyIntentPlanner
                 targetGrid.Position,
                 ability,
                 null,
-                out _))
-        {
-            return BattleIntentTemplates.DirectStrike.Create(actor, ability, damage);
-        }
+                out _);
 
         MovementComponent movement = actor.GetComponent<MovementComponent>();
-        int pressureValue = movement == null ? damage : movement.MoveRange;
-        return BattleIntentTemplates.MeleePressure.Create(actor, ability, pressureValue);
+        BattleAiDecisionResult decision = _decisionRunner.ChooseEnemyIntent(new BattleAiDecisionFacts
+        {
+            HasValidContext = true,
+            ActorCanAct = true,
+            HasTarget = true,
+            HasPrimaryAbility = ability != null,
+            PrimaryAbilityId = BattleAbilityQueries.ToCommandId(ability),
+            PrimaryAbilityRange = ability?.Range ?? 0,
+            PrimaryAbilityPower = damage,
+            CanStrikeNow = canStrikeNow,
+            MoveRange = movement?.MoveRange,
+            NearestHostileTargetId = target.EntityId
+        });
+        return decision.ToIntent(actor, ability);
     }
 
     private static bool TryFindClosestHostileTarget(
