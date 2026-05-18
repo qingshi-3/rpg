@@ -3,8 +3,10 @@ using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
+using Rpg.Application.Maps;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
+using Rpg.Definitions.Maps;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
@@ -88,6 +90,18 @@ public partial class WorldSiteRoot
             return;
         }
 
+        SemanticMapMarkerData[] buildingSlotMarkers = ResolveSemanticBuildingSlotMarkers(definition);
+        if (buildingSlotMarkers.Length > 0 &&
+            BuildFacilitySlotEntitiesFromSemanticMarkers(site, definition, buildingSlotMarkers))
+        {
+            return;
+        }
+
+        RefreshLegacyFacilitySlotEntities(site, definition);
+    }
+
+    private void RefreshLegacyFacilitySlotEntities(WorldSiteState site, WorldSiteDefinition definition)
+    {
         Node slotsRoot = _activeSiteMap?.GetNodeOrNull<Node>(FacilitySlotsRootName);
         if (slotsRoot == null)
         {
@@ -154,6 +168,127 @@ public partial class WorldSiteRoot
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"FacilitySlotsRegistered site={site.SiteId} rootVisible={(slotsRoot is CanvasItem item ? item.Visible : null)} definitions={definition.FacilitySlots.Count} sceneEntities={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count} footprints={BuildFacilitySlotFootprintLogSummary()} selectedSlot={_selectedFacilitySlotId}");
+    }
+
+    private void ExtractSemanticMapMarkers(string mapId)
+    {
+        _semanticMapMarkers = _semanticMapMarkerExtractor.Extract(_activeSiteMap, mapId);
+        foreach (string diagnostic in _semanticMapMarkers.Diagnostics)
+        {
+            GameLog.Warn(nameof(WorldSiteRoot), $"SemanticMapMarkerDiagnostic map={mapId} {diagnostic}");
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"SemanticMapMarkersExtracted map={mapId} markers={_semanticMapMarkers.Markers.Count} diagnostics={_semanticMapMarkers.Diagnostics.Count}");
+    }
+
+    private SemanticMapMarkerData[] ResolveSemanticBuildingSlotMarkers(WorldSiteDefinition definition)
+    {
+        if (definition?.FacilitySlots == null || _semanticMapMarkers?.Markers == null)
+        {
+            return System.Array.Empty<SemanticMapMarkerData>();
+        }
+
+        var slotIds = new HashSet<string>(
+            definition.FacilitySlots.Select(slot => slot.SlotId),
+            System.StringComparer.Ordinal);
+        return _semanticMapMarkers.Markers
+            .Where(marker => marker.MarkerType == SemanticMapMarkerType.BuildingSlot &&
+                             slotIds.Contains(marker.MarkerId))
+            .OrderBy(marker => marker.Priority)
+            .ThenBy(marker => marker.MarkerId, System.StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private SemanticMapMarkerData[] ResolveSemanticDeploymentZoneMarkers()
+    {
+        if (_semanticMapMarkers?.Markers == null)
+        {
+            return System.Array.Empty<SemanticMapMarkerData>();
+        }
+
+        return _semanticMapMarkers.Markers
+            .Where(marker => marker.MarkerType == SemanticMapMarkerType.DeploymentZone)
+            .OrderBy(marker => marker.Priority)
+            .ThenBy(marker => marker.MarkerId, System.StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private bool BuildFacilitySlotEntitiesFromSemanticMarkers(
+        WorldSiteState site,
+        WorldSiteDefinition definition,
+        IReadOnlyList<SemanticMapMarkerData> markers)
+    {
+        if (site == null || definition == null || markers == null || markers.Count == 0)
+        {
+            return false;
+        }
+
+        var occupiedCells = new Dictionary<GridPosition, string>();
+        foreach (SemanticMapMarkerData marker in markers)
+        {
+            FacilitySlotDefinition slot = definition.FacilitySlots.FirstOrDefault(item => item.SlotId == marker.MarkerId);
+            if (slot == null)
+            {
+                GameLog.Warn(nameof(WorldSiteRoot), $"Semantic building slot marker has no definition site={site.SiteId} marker={marker.MarkerId}");
+                continue;
+            }
+
+            WorldFacilitySlotEntity entity = GameUiSceneFactory.Instantiate<WorldFacilitySlotEntity>(
+                GameUiSceneFactory.WorldFacilitySlotEntityScenePath,
+                nameof(WorldSiteRoot));
+            if (entity == null)
+            {
+                GameLog.Warn(nameof(WorldSiteRoot), $"Cannot instantiate facility slot entity for semantic marker site={site.SiteId} marker={marker.MarkerId}");
+                continue;
+            }
+
+            entity.Name = $"{slot.SlotId.Replace(':', '_').Replace('-', '_')}SemanticFacilitySlot";
+            _sitePlacementEntityRoot.AddChild(entity);
+
+            string configurationError = "";
+            if (!TrySnapFacilitySlotEntityToSemanticMarker(entity, slot, marker, occupiedCells, out WorldFacilitySlotRuntimeLayout layout, out string layoutFailureReason))
+            {
+                configurationError = layoutFailureReason;
+                GameLog.Warn(nameof(WorldSiteRoot), $"Semantic facility slot layout invalid site={site.SiteId} slot={slot.SlotId} reason={layoutFailureReason}");
+            }
+            else
+            {
+                _siteFacilitySlotLayouts[slot.SlotId] = layout;
+            }
+
+            FacilityInstance facility = ResolveFacilityInSlot(site, slot.SlotId);
+            IReadOnlyList<WorldActionViewModel> buildActions = facility == null
+                ? ResolveBuildActionsForSlot(site, slot)
+                : System.Array.Empty<WorldActionViewModel>();
+            int enabledBuildActionCount = buildActions.Count(action => action.IsEnabled);
+            bool canInteract = string.IsNullOrWhiteSpace(configurationError) &&
+                               (facility != null || buildActions.Count > 0);
+            entity.BindState(
+                slot.SlotId,
+                facility != null,
+                facility?.State == FacilityState.Building,
+                enabledBuildActionCount > 0,
+                canInteract,
+                _selectedFacilitySlotId == slot.SlotId,
+                configurationError,
+                BuildFacilitySlotMapHint(facility, buildActions.Count, enabledBuildActionCount, configurationError));
+            _siteFacilitySlotEntities[slot.SlotId] = entity;
+        }
+
+        foreach (FacilitySlotDefinition slot in definition.FacilitySlots)
+        {
+            if (!_siteFacilitySlotEntities.ContainsKey(slot.SlotId))
+            {
+                GameLog.Warn(nameof(WorldSiteRoot), $"Facility slot definition has no semantic marker site={site.SiteId} slot={slot.SlotId}");
+            }
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"SemanticFacilitySlotsRegistered site={site.SiteId} definitions={definition.FacilitySlots.Count} markers={markers.Count} layouts={_siteFacilitySlotLayouts.Count} footprints={BuildFacilitySlotFootprintLogSummary()} selectedSlot={_selectedFacilitySlotId}");
+        return _siteFacilitySlotEntities.Count > 0;
     }
 
     private static string BuildFacilitySlotMapHint(
@@ -408,6 +543,89 @@ public partial class WorldSiteRoot
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"Facility slot footprint snapped slot={slot.SlotId} anchor={anchorCell} size={footprintSize.X}x{footprintSize.Y} cells={footprintCells.Count} sort={sortSurface}");
+        return true;
+    }
+
+    private bool TrySnapFacilitySlotEntityToSemanticMarker(
+        WorldFacilitySlotEntity entity,
+        FacilitySlotDefinition slot,
+        SemanticMapMarkerData marker,
+        Dictionary<GridPosition, string> occupiedCells,
+        out WorldFacilitySlotRuntimeLayout layout,
+        out string failureReason)
+    {
+        layout = null;
+        failureReason = "";
+        if (entity == null || slot == null || marker == null)
+        {
+            failureReason = "semantic_slot_marker_missing";
+            return false;
+        }
+
+        if (_coordinateLayer == null || _activeGridMap == null)
+        {
+            failureReason = "grid_missing";
+            return false;
+        }
+
+        var footprintCells = new List<GridPosition>();
+        foreach (Vector2I markerCell in marker.CoveredCells)
+        {
+            GridPosition cell = new(markerCell.X, markerCell.Y);
+            if (!_activeGridMap.TryGetCell(cell, out _))
+            {
+                failureReason = $"semantic_footprint_cell_missing anchor={marker.AnchorCell} size={marker.Width}x{marker.Height} cell={cell}";
+                return false;
+            }
+
+            footprintCells.Add(cell);
+        }
+
+        foreach (GridPosition cell in footprintCells)
+        {
+            if (occupiedCells.TryGetValue(cell, out string occupiedSlotId))
+            {
+                failureReason = $"semantic_footprint_overlap other={occupiedSlotId} cell={cell}";
+                return false;
+            }
+        }
+
+        GridPosition anchorCell = new(marker.AnchorCell.X, marker.AnchorCell.Y);
+        GridPosition sortCell = footprintCells
+            .OrderByDescending(cell => cell.Y)
+            .ThenBy(cell => cell.X)
+            .First();
+        GridSurfacePosition sortSurface = ResolveFacilitySlotSortSurface(sortCell);
+        if (!TryGetCellGlobalPosition(anchorCell, out Vector2 rootGlobalPosition))
+        {
+            failureReason = $"semantic_anchor_cell_invalid cell={anchorCell}";
+            return false;
+        }
+
+        entity.ApplySnappedLayout(rootGlobalPosition);
+        entity.SetFootprintPolygons(footprintCells.Select(BuildCellPolygonGlobal).ToArray());
+        int zIndex = ApplyFacilitySlotRenderSort(entity, sortSurface);
+
+        layout = new WorldFacilitySlotRuntimeLayout
+        {
+            SlotId = slot.SlotId,
+            SortCell = sortCell,
+            SortSurface = sortSurface,
+            FootprintWidth = marker.Width,
+            FootprintHeight = marker.Height,
+            ZIndex = zIndex,
+            SourcePath = marker.SourcePath
+        };
+        layout.FootprintCells.AddRange(footprintCells);
+
+        foreach (GridPosition cell in footprintCells)
+        {
+            occupiedCells[cell] = slot.SlotId;
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"Semantic facility slot snapped slot={slot.SlotId} marker={marker.MarkerId} anchor={anchorCell} size={marker.Width}x{marker.Height} cells={footprintCells.Count} sort={sortSurface}");
         return true;
     }
 

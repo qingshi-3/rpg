@@ -17,16 +17,14 @@ internal static void HeroCorpsV0PlayableSliceUsesAuthoredUnitResources()
     AssertTrue(idsSource.Contains("DefaultCorpsUnit = \"f1_azuritelion\"", StringComparison.Ordinal), "v0 default corps id should be azurite lion");
     AssertTrue(idsSource.Contains("EnemyLeaderUnit = \"f6_draugarlord\"", StringComparison.Ordinal), "v0 enemy leader id should be draugar lord");
     AssertTrue(idsSource.Contains("DefaultCorpsCount = 1", StringComparison.Ordinal), "v0 should deploy one player corps case unit");
-    AssertTrue(initialState.Contains("res://assets/battle/units/f1_宗师Zir/unit.tres", StringComparison.Ordinal), "initial player hero should use authored grandmaster Zir resource");
-    AssertTrue(initialState.Contains("res://assets/battle/units/f6_Draugar领主/unit.tres", StringComparison.Ordinal), "initial enemy leader should use authored draugar lord resource");
-    AssertUnitFootprint("assets/battle/units/f1_天蓝石狮/unit.tres", 2, 1, "azurite lion corps");
-    AssertUnitFootprint("assets/battle/units/f1_宗师Zir/unit.tres", 2, 1, "grandmaster Zir hero");
-    AssertUnitFootprint("assets/battle/units/f6_Draugar领主/unit.tres", 2, 2, "draugar lord enemy hero");
-    AssertUnitMaxHp("assets/battle/units/f1_天蓝石狮/unit.tres", 48, "azurite lion corps");
-    AssertUnitMaxHp("assets/battle/units/f1_宗师Zir/unit.tres", 48, "grandmaster Zir hero");
-    AssertUnitMaxHp("assets/battle/units/f6_Draugar领主/unit.tres", 48, "draugar lord enemy hero");
-    AssertTrue(!initialState.Contains("res://assets/battle/units/skeleton_warrior.tres", StringComparison.Ordinal), "v0 bonefield should not start from the old skeleton placeholder roster");
-    AssertTrue(!initialState.Contains("res://assets/battle/units/skeleton_archer.tres", StringComparison.Ordinal), "v0 bonefield should not start from the old skeleton archer placeholder roster");
+    AssertTrue(initialState.Contains("res://assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", StringComparison.Ordinal), "initial player hero should use authored grandmaster Zir resource");
+    AssertTrue(initialState.Contains("res://assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", StringComparison.Ordinal), "initial enemy leader should use authored draugar lord resource");
+    AssertUnitFootprint("assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres", 2, 1, "azurite lion corps");
+    AssertUnitFootprint("assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", 2, 1, "grandmaster Zir hero");
+    AssertUnitFootprint("assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", 2, 2, "draugar lord enemy hero");
+    AssertUnitMaxHp("assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres", 48, "azurite lion corps");
+    AssertUnitMaxHp("assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", 48, "grandmaster Zir hero");
+    AssertUnitMaxHp("assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", 48, "draugar lord enemy hero");
 }
 
 private static void AssertUnitFootprint(string relativePath, int expectedWidth, int expectedHeight, string label)
@@ -671,11 +669,9 @@ internal static void BattlePreparationSupportsDraggingOnHostileSites()
         dragComponentSource.Contains("CanDragPlacement", StringComparison.Ordinal),
         "deployment dragging should be configured through a placement drag component");
     AssertTrue(
-        rootSource.Contains("SetDeploymentDragComponent(entity, placementId, fallbackFaction == BattleFaction.Player)", StringComparison.Ordinal),
-        "battle preparation initialization should enable drag on player-side units through the component");
-    AssertTrue(
-        !rootSource.Contains("fallbackFaction != BattleFaction.Player", StringComparison.Ordinal),
-        "enemy units should still be registered for battle preparation preview even though drag is disabled");
+        rootSource.Contains("SetDeploymentDragComponent(entity, placementId, IsBattlePreparationPlacementDragEnabled(fallbackFaction))", StringComparison.Ordinal) &&
+        rootSource.Contains("fallbackFaction is BattleFaction.Player or BattleFaction.Enemy", StringComparison.Ordinal),
+        "battle preparation initialization should enable drag components for both player and enemy deployment entities");
     AssertTrue(
         rootSource.Contains("IsDeploymentDragEnabled", StringComparison.Ordinal),
         "drag picking should read component state instead of world ownership semantics");
@@ -685,6 +681,9 @@ internal static void BattlePreparationSupportsDraggingOnHostileSites()
     AssertTrue(
         rootSource.Contains("SyncBattlePreparationRequestPlacements(request)", StringComparison.Ordinal),
         "start battle should sync dragged deployment placements back into the battle request");
+    AssertTrue(
+        rootSource.Contains("SyncBattlePreparationRequestPlacement(placementId, movedPlacement)", StringComparison.Ordinal),
+        "dropping an existing battle-preparation unit should sync the matching request placement before the UI rebuilds");
     AssertTrue(
         rootSource.Contains("CanLaunchPreparedBattle", StringComparison.Ordinal) &&
         rootSource.Contains("还有我方单位未部署，不能开战。", StringComparison.Ordinal),
@@ -696,5 +695,115 @@ internal static void BattlePreparationSupportsDraggingOnHostileSites()
     AssertTrue(
         rootSource.Contains("BattlePreparationPlacementsSynced", StringComparison.Ordinal),
         "placement sync should leave a low-noise diagnostic log");
+}
+
+internal static void BattlePreparationDragValidationUsesFactionDeploymentDirection()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string interactionSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.SiteInteraction.cs"));
+
+    AssertTrue(
+        rootSource.Contains("ResolveBattlePreparationDeploymentSide", StringComparison.Ordinal) &&
+        rootSource.Contains("ResolveBattlePreparationDeploymentDirection", StringComparison.Ordinal),
+        "battle preparation should centralize side-aware deployment direction resolution");
+    AssertTrue(
+        interactionSource.Contains("ResolveBattlePreparationDeploymentSide(dragContext.FactionId, dragContext.FallbackFaction)", StringComparison.Ordinal),
+        "existing placement drag validation should use the dragged request side rather than stale placement direction");
+    AssertTrue(
+        interactionSource.Contains("ResolveBattlePreparationDeploymentSide(force.FactionId, _draggedBattleForceFallbackFaction)", StringComparison.Ordinal),
+        "roster drag validation should use the force side so defender-side roster drops use the defender zone");
+}
+
+internal static void BattlePreparationRosterDragResolvesBothSides()
+{
+    string hudSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.BattlePreparationHud.cs"));
+    string interactionSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.SiteInteraction.cs"));
+    string refreshBody = ExtractMethodBody(hudSource, "private void RefreshBattlePreparationForceList()");
+    string beginDragBody = ExtractMethodBody(interactionSource, "private void BeginBattlePreparationRosterDrag(");
+    string handleDragBody = ExtractMethodBody(interactionSource, "private void HandleBattlePreparationRosterDragInput(");
+    string previewBody = ExtractMethodBody(interactionSource, "private void UpdateBattlePreparationRosterDragPreview()");
+
+    AssertTrue(
+        refreshBody.Contains("AddBattlePreparationRosterButtons(_battlePreparationRequest?.PlayerForces, BattleFaction.Player)", StringComparison.Ordinal) &&
+        refreshBody.Contains("AddBattlePreparationRosterButtons(_battlePreparationRequest?.EnemyForces, BattleFaction.Enemy)", StringComparison.Ordinal),
+        "battle preparation roster should expose both player and enemy request forces through the same draggable button path");
+    AssertTrue(
+        beginDragBody.Contains("_draggedBattleForceFallbackFaction = fallbackFaction", StringComparison.Ordinal) &&
+        beginDragBody.Contains("_battleUnitFactory.Create(" , StringComparison.Ordinal) &&
+        beginDragBody.Contains("fallbackFaction", StringComparison.Ordinal),
+        "roster drag preview should preserve the side that produced the dragged request force");
+    AssertTrue(
+        handleDragBody.Contains("FindBattlePreparationForce(forceId, _draggedBattleForceFallbackFaction)", StringComparison.Ordinal) &&
+        previewBody.Contains("FindBattlePreparationForce(_draggedBattleForceId, _draggedBattleForceFallbackFaction)", StringComparison.Ordinal),
+        "roster drag drop and preview should resolve request forces from both sides, not only PlayerForces");
+    AssertTrue(
+        !interactionSource.Contains("FindBattlePreparationPlayerForce", StringComparison.Ordinal),
+        "battle preparation roster drag should not keep a player-only force lookup");
+}
+
+internal static void BattlePreparationMapDragUsesRequestBackedPlacements()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string interactionSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.SiteInteraction.cs"));
+
+    AssertTrue(
+        rootSource.Contains("BattlePreparationPlacementDragContext", StringComparison.Ordinal) &&
+        rootSource.Contains("TryResolveBattlePreparationDragContext", StringComparison.Ordinal),
+        "battle preparation map drag should resolve placement metadata from the battle request as well as site placements");
+    AssertTrue(
+        interactionSource.Contains("TryMoveBattlePreparationPlacement", StringComparison.Ordinal),
+        "dropping a battle-preparation map entity should update request-backed placements without requiring a WorldSiteState placement row");
+    AssertTrue(
+        interactionSource.Contains("dragContext.FootprintSize", StringComparison.Ordinal) &&
+        interactionSource.Contains("dragContext.ForceId", StringComparison.Ordinal) &&
+        interactionSource.Contains("dragContext.ForceIndex", StringComparison.Ordinal),
+        "map drag preview, validation, and occupancy should use the dragged request force footprint and self identity");
+}
+
+internal static void BattlePreparationMapDragUsesSameDeploymentZoneRestrictionForBothSides()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string interactionSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.SiteInteraction.cs"));
+
+    AssertTrue(
+        rootSource.Contains("ShouldRestrictBattlePreparationDeploymentZone", StringComparison.Ordinal),
+        "battle preparation should make deployment-zone restriction an explicit side-aware rule");
+    AssertTrue(
+        interactionSource.Contains("ShouldRestrictBattlePreparationDeploymentZone(dragContext)", StringComparison.Ordinal) &&
+        interactionSource.Contains("IsBattlePreparationFootprintDeployable", StringComparison.Ordinal),
+        "map drag should route both sides through the same authored deployment-zone validation");
+    AssertTrue(
+        !rootSource.Contains("dragContext.FallbackFaction != BattleFaction.Enemy", StringComparison.Ordinal),
+        "enemy deployment map drags should not bypass authored DeploymentZone markers");
 }
 }

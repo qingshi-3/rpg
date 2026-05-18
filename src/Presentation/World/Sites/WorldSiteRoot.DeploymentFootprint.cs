@@ -4,6 +4,7 @@ using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
+using Rpg.Definitions.Maps;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
@@ -64,15 +65,16 @@ public partial class WorldSiteRoot
 
     private bool IsBattlePreparationFootprintDeployable(
         IEnumerable<GridPosition> footprintCells,
+        SemanticDeploymentSide deploymentSide,
+        string factionId,
         WorldSiteAttackDirection direction,
         bool canEnterWater,
         out string failureReason)
     {
         failureReason = "";
-        WorldSiteDeploymentCell[] candidates = (_deploymentCache?.GetCandidates(direction) ??
-                                                System.Array.Empty<WorldSiteDeploymentCell>())
-            .Concat(_deploymentCache?.GetCandidates(WorldSiteAttackDirection.Any) ?? System.Array.Empty<WorldSiteDeploymentCell>())
-            .ToArray();
+        WorldSiteDeploymentCell[] candidates = _deploymentCache?
+            .GetDeploymentZoneCandidatesForSide(deploymentSide, factionId, direction)
+            .ToArray() ?? System.Array.Empty<WorldSiteDeploymentCell>();
 
         foreach (GridPosition cell in footprintCells ?? System.Array.Empty<GridPosition>())
         {
@@ -89,6 +91,36 @@ public partial class WorldSiteRoot
             if (!hasCandidate)
             {
                 failureReason = "placement_cell_not_deployable";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool IsBattlePreparationFootprintOnValidTerrain(
+        IEnumerable<GridPosition> footprintCells,
+        bool canEnterWater,
+        out string failureReason)
+    {
+        failureReason = "";
+        foreach (GridPosition cell in footprintCells ?? System.Array.Empty<GridPosition>())
+        {
+            if (_activeGridMap?.TryGetTopSurface(cell, out GridCellSurface surface) != true)
+            {
+                failureReason = "placement_cell_invalid";
+                return false;
+            }
+
+            if (!WorldSiteRuntimeDeploymentCacheBuilder.IsDeploymentCandidateSurface(_activeGridMap, surface))
+            {
+                failureReason = "placement_cell_blocked";
+                return false;
+            }
+
+            if (!canEnterWater && BattleGridTerrainQueries.IsWater(surface))
+            {
+                failureReason = "placement_cell_water";
                 return false;
             }
         }

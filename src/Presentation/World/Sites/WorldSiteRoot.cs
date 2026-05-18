@@ -3,6 +3,7 @@ using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
+using Rpg.Application.Maps;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
 using Rpg.Definitions.World;
@@ -97,6 +98,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 	private readonly Dictionary<string, Node2D> _siteExplorationPatrolMarkers = new(System.StringComparer.Ordinal);
 	private readonly Dictionary<string, WorldFacilitySlotEntity> _siteFacilitySlotEntities = new();
 	private readonly Dictionary<string, WorldFacilitySlotRuntimeLayout> _siteFacilitySlotLayouts = new();
+	private SemanticMapMarkerExtractionResult _semanticMapMarkers = new();
 	private WorldSiteRuntimeDeploymentCache _deploymentCache;
 	private bool _battleRuntimeEnabled = true;
 	private string _battleStartBlockedReason = "";
@@ -110,6 +112,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 	private Vector2 _draggedPlacementOriginGlobalPosition;
 	private string _draggedBattleForceId = "";
 	private int _draggedBattleForceIndex = -1;
+	private BattleFaction _draggedBattleForceFallbackFaction = BattleFaction.Neutral;
 	private BattleEntity _draggedBattleRosterEntity;
 	private Node2D _siteExplorationPartyMarker;
 	private Node2D _siteExplorationAlertRangeRoot;
@@ -133,6 +136,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 	private readonly WorldSiteBattleLauncher _battleLauncher = new();
 	private readonly WorldSiteBattleGroupRuntimeAdapter _battleGroupRuntimeAdapter = new();
 	private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
+	private readonly SemanticMapMarkerExtractor _semanticMapMarkerExtractor = new();
 
 	public Node ActiveSiteMap => _activeSiteMap;
 	public Node ActiveBattleMap => _activeSiteMap;
@@ -390,6 +394,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 			GameLog.Warn(nameof(WorldSiteRoot), "Loaded site map is not a BattleMapView; grid map is unavailable.");
 		}
 
+		ExtractSemanticMapMarkers(ResolveActiveWorldSiteId());
 		RebuildSiteDeploymentRuntimeCache(ResolveActiveWorldSiteId());
 		SetFacilitySlotsVisible(true);
 		EmitSignal(SignalName.SiteMapLoaded, _activeSiteMap);
@@ -436,7 +441,8 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 
 	private void RebuildSiteDeploymentRuntimeCache(string siteId)
 	{
-		_deploymentCache = _deploymentCacheBuilder.Build(siteId, _activeGridMap);
+		SemanticMapMarkerData[] deploymentZoneMarkers = ResolveSemanticDeploymentZoneMarkers();
+		_deploymentCache = _deploymentCacheBuilder.Build(siteId, _activeGridMap, deploymentZoneMarkers);
 		if (_activeGridMap == null)
 		{
 			GameLog.Warn(nameof(WorldSiteRoot), $"Cannot build site deployment cache site={siteId} reason=grid_missing");
@@ -447,7 +453,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 			" ",
 			WorldSiteRuntimeDeploymentCacheBuilder.SupportedDirections
 				.Select(direction => $"{direction}={_deploymentCache.GetCandidates(direction).Count}"));
-		GameLog.Info(nameof(WorldSiteRoot), $"SiteDeploymentCacheBuilt site={siteId} surfaces={_deploymentCache.CandidateSurfaceCount} {counts}");
+		GameLog.Info(nameof(WorldSiteRoot), $"SiteDeploymentCacheBuilt site={siteId} surfaces={_deploymentCache.CandidateSurfaceCount} authoredZones={_deploymentCache.AuthoredDeploymentZoneSurfaceCount} {counts}");
 	}
 
 	public void ReturnToReturnScene(string scenePath)

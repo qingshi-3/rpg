@@ -51,4 +51,3 @@ Initial architecture documents should be created through proposals for:
 
 - `hero-led-light-rts-system-architecture.md`: target battle architecture for hero-led light RTS runtime, settlement, and legacy adapter migration.
 - `presentation-ui-layout-architecture.md`: Presentation/UI layout hosts, UI mode boundaries, and authority rules.
-- `semantic-map-marker-architecture.md`: reusable editor-authored semantic map regions for building slots, deployment, entrances, exploration, and future tactical battle markers.

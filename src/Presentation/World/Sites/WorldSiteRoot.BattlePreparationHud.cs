@@ -5,6 +5,7 @@ using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
+using Rpg.Definitions.Maps;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
@@ -97,11 +98,175 @@ public partial class WorldSiteRoot
 
     private void ShowBattlePreparationDeploymentZone()
     {
-        IEnumerable<GridPosition> cells = _deploymentCache?
-            .GetCandidates(_battlePreparationRequest?.AttackDirection ?? WorldSiteAttackDirection.Any)
+        string playerFactionId = ResolveBattlePreparationPlayerDeploymentFactionId();
+        SemanticDeploymentSide playerSide = SemanticDeploymentSide.Player;
+        IEnumerable<GridPosition> playerCells = BuildBattlePreparationDeploymentZoneCells(
+            playerSide,
+            playerFactionId,
+            ResolveBattlePreparationDeploymentDirection(playerSide, playerFactionId));
+        _highlightOverlay?.SetCells(BattleGridHighlightKind.FriendlyMove, playerCells);
+
+        string enemyFactionId = ResolveBattlePreparationEnemyDeploymentFactionId();
+        SemanticDeploymentSide enemySide = SemanticDeploymentSide.Enemy;
+        IEnumerable<GridPosition> enemyCells = HasAuthoredBattlePreparationDeploymentZone(enemySide, enemyFactionId)
+            ? BuildBattlePreparationDeploymentZoneCells(
+                enemySide,
+                enemyFactionId,
+                ResolveBattlePreparationDeploymentDirection(enemySide, enemyFactionId))
+            : System.Array.Empty<GridPosition>();
+        _highlightOverlay?.SetCells(BattleGridHighlightKind.EnemyDeployment, enemyCells);
+    }
+
+    private IEnumerable<GridPosition> BuildBattlePreparationDeploymentZoneCells(
+        SemanticDeploymentSide deploymentSide,
+        string factionId,
+        WorldSiteAttackDirection direction)
+    {
+        return _deploymentCache?
+            .GetDeploymentZoneCandidatesForSide(deploymentSide, factionId, direction)
             .Select(candidate => new GridPosition(candidate.Cell.X, candidate.Cell.Y)) ??
             System.Array.Empty<GridPosition>();
-        _highlightOverlay?.SetCells(BattleGridHighlightKind.FriendlyMove, cells);
+    }
+
+    private string ResolveBattlePreparationPlayerDeploymentFactionId()
+    {
+        string forceFactionId = _battlePreparationRequest?.PlayerForces?
+            .FirstOrDefault(force => !string.IsNullOrWhiteSpace(force?.FactionId))
+            ?.FactionId;
+        if (!string.IsNullOrWhiteSpace(forceFactionId))
+        {
+            return forceFactionId;
+        }
+
+        return !string.IsNullOrWhiteSpace(_battlePreparationRequest?.AttackerFactionId)
+            ? _battlePreparationRequest.AttackerFactionId
+            : StrategicWorldRuntime.State?.PlayerFactionId ?? "";
+    }
+
+    private string ResolveBattlePreparationEnemyDeploymentFactionId()
+    {
+        string forceFactionId = _battlePreparationRequest?.EnemyForces?
+            .FirstOrDefault(force => !string.IsNullOrWhiteSpace(force?.FactionId))
+            ?.FactionId;
+        if (!string.IsNullOrWhiteSpace(forceFactionId))
+        {
+            return forceFactionId;
+        }
+
+        string playerFactionId = ResolveBattlePreparationPlayerDeploymentFactionId();
+        foreach (string factionId in new[]
+                 {
+                     _battlePreparationRequest?.DefenderFactionId,
+                     _battlePreparationRequest?.AttackerFactionId
+                 })
+        {
+            if (!string.IsNullOrWhiteSpace(factionId) &&
+                !string.Equals(factionId, playerFactionId, System.StringComparison.Ordinal))
+            {
+                return factionId;
+            }
+        }
+
+        return "";
+    }
+
+    private bool HasAuthoredBattlePreparationDeploymentZone(SemanticDeploymentSide deploymentSide, string factionId)
+    {
+        return _deploymentCache?.HasAuthoredDeploymentZoneForSide(deploymentSide, factionId) == true;
+    }
+
+    private WorldSiteAttackDirection ResolveBattlePreparationDeploymentDirection(
+        SemanticDeploymentSide deploymentSide,
+        string factionId)
+    {
+        WorldSiteAttackDirection attackDirection = _battlePreparationRequest?.AttackDirection ?? WorldSiteAttackDirection.Any;
+        if (attackDirection == WorldSiteAttackDirection.Any)
+        {
+            return WorldSiteAttackDirection.Any;
+        }
+
+        string factionKey = factionId?.Trim() ?? "";
+        if (!string.IsNullOrWhiteSpace(factionKey) &&
+            string.Equals(factionKey, _battlePreparationRequest?.DefenderFactionId, System.StringComparison.Ordinal))
+        {
+            return GetOppositeBattlePreparationDirection(attackDirection);
+        }
+
+        if (!string.IsNullOrWhiteSpace(factionKey) &&
+            string.Equals(factionKey, _battlePreparationRequest?.AttackerFactionId, System.StringComparison.Ordinal))
+        {
+            return attackDirection;
+        }
+
+        bool defenderSide = _battlePreparationRequest?.BattleKind switch
+        {
+            BattleKind.AssaultSite => deploymentSide == SemanticDeploymentSide.Enemy,
+            BattleKind.DefenseRaid => deploymentSide == SemanticDeploymentSide.Player,
+            BattleKind.FieldIntercept => deploymentSide == SemanticDeploymentSide.Enemy,
+            _ => deploymentSide == SemanticDeploymentSide.Player
+        };
+
+        if (defenderSide)
+        {
+            return GetOppositeBattlePreparationDirection(attackDirection);
+        }
+
+        return attackDirection;
+    }
+
+    private SemanticDeploymentSide ResolveBattlePreparationDeploymentSide(string factionId, BattleFaction fallbackFaction)
+    {
+        if (fallbackFaction == BattleFaction.Player)
+        {
+            return SemanticDeploymentSide.Player;
+        }
+
+        if (fallbackFaction == BattleFaction.Enemy)
+        {
+            return SemanticDeploymentSide.Enemy;
+        }
+
+        string factionKey = factionId?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(factionKey))
+        {
+            return SemanticDeploymentSide.Any;
+        }
+
+        if ((_battlePreparationRequest?.PlayerForces ?? Enumerable.Empty<BattleForceRequest>())
+            .Any(force => string.Equals(force?.FactionId, factionKey, System.StringComparison.Ordinal)))
+        {
+            return SemanticDeploymentSide.Player;
+        }
+
+        if ((_battlePreparationRequest?.EnemyForces ?? Enumerable.Empty<BattleForceRequest>())
+            .Any(force => string.Equals(force?.FactionId, factionKey, System.StringComparison.Ordinal)))
+        {
+            return SemanticDeploymentSide.Enemy;
+        }
+
+        if (string.Equals(factionKey, ResolveBattlePreparationPlayerDeploymentFactionId(), System.StringComparison.Ordinal))
+        {
+            return SemanticDeploymentSide.Player;
+        }
+
+        if (string.Equals(factionKey, ResolveBattlePreparationEnemyDeploymentFactionId(), System.StringComparison.Ordinal))
+        {
+            return SemanticDeploymentSide.Enemy;
+        }
+
+        return SemanticDeploymentSide.Any;
+    }
+
+    private static WorldSiteAttackDirection GetOppositeBattlePreparationDirection(WorldSiteAttackDirection direction)
+    {
+        return direction switch
+        {
+            WorldSiteAttackDirection.North => WorldSiteAttackDirection.South,
+            WorldSiteAttackDirection.South => WorldSiteAttackDirection.North,
+            WorldSiteAttackDirection.West => WorldSiteAttackDirection.East,
+            WorldSiteAttackDirection.East => WorldSiteAttackDirection.West,
+            _ => WorldSiteAttackDirection.Any
+        };
     }
 
     private string BuildBattlePreparationOverview(WorldSiteState site, WorldSiteDefinition definition)
@@ -133,7 +298,9 @@ public partial class WorldSiteRoot
 
         ClearChildren(_siteBattlePreparationRosterList);
         AddMutedLine(_siteBattlePreparationRosterList, "我方出征单位");
-        AddBattlePreparationRosterButtons(_battlePreparationRequest?.PlayerForces);
+        AddBattlePreparationRosterButtons(_battlePreparationRequest?.PlayerForces, BattleFaction.Player);
+        AddMutedLine(_siteBattlePreparationRosterList, "敌方部署单位");
+        AddBattlePreparationRosterButtons(_battlePreparationRequest?.EnemyForces, BattleFaction.Enemy);
         AddMutedLine(
             _siteBattlePreparationRosterList,
             $"敌方：{BuildBattlePreparationForceSummary(_battlePreparationRequest?.EnemyForces)}");
@@ -144,7 +311,7 @@ public partial class WorldSiteRoot
         }
     }
 
-    private void AddBattlePreparationRosterButtons(IEnumerable<BattleForceRequest> forces)
+    private void AddBattlePreparationRosterButtons(IEnumerable<BattleForceRequest> forces, BattleFaction fallbackFaction)
     {
         foreach (BattleForceRequest force in forces ?? System.Array.Empty<BattleForceRequest>())
         {
@@ -162,7 +329,8 @@ public partial class WorldSiteRoot
                 button.Disabled = false;
                 int capturedIndex = index;
                 BattleForceRequest capturedForce = force;
-                button.ButtonDown += () => BeginBattlePreparationRosterDrag(capturedForce, capturedIndex);
+                BattleFaction capturedFallbackFaction = fallbackFaction;
+                button.ButtonDown += () => BeginBattlePreparationRosterDrag(capturedForce, capturedIndex, capturedFallbackFaction);
                 if (_siteBattlePreparationRosterList == null)
                 {
                     continue;

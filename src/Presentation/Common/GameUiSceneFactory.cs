@@ -22,6 +22,7 @@ public static class GameUiSceneFactory
     public const string WorldCompactMarkerButtonScenePath = "res://scenes/world/ui/WorldCompactMarkerButton.tscn";
     public const string WorldExpeditionCountRowScenePath = "res://scenes/world/ui/WorldExpeditionCountRow.tscn";
     public const string WorldOpportunityDetailPanelScenePath = "res://scenes/world/ui/WorldOpportunityDetailPanel.tscn";
+    public const string WorldFacilitySlotEntityScenePath = "res://scenes/world/site_interactions/WorldFacilitySlotEntity.tscn";
     public const string BattleIntentMarkerScenePath = "res://scenes/battle/intents/BattleIntentMarker.tscn";
     public const string BattleDamageNumberScenePath = "res://scenes/battle/feedback/BattleDamageNumber.tscn";
     public const string BattleCellInfoDebugPanelScenePath = "res://scenes/battle/debug/BattleCellInfoDebugPanel.tscn";

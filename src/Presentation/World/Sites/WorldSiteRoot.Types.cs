@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+using Godot;
+using Rpg.Application.Battle;
 using Rpg.Domain.Battle.Grid;
+using Rpg.Domain.World;
 using Rpg.Presentation.Battle.Entities;
 
 namespace Rpg.Presentation.World.Sites;
@@ -25,6 +28,21 @@ public partial class WorldSiteRoot
         public int FootprintWidth { get; set; } = 1;
         public int FootprintHeight { get; set; } = 1;
         public int ZIndex { get; set; }
+        public string SourcePath { get; set; } = "";
         public List<GridPosition> FootprintCells { get; } = new();
+    }
+
+    private sealed class BattlePreparationPlacementDragContext
+    {
+        public string PlacementId { get; set; } = "";
+        public string ForceId { get; set; } = "";
+        public int ForceIndex { get; set; } = -1;
+        public string UnitTypeId { get; set; } = "";
+        public string FactionId { get; set; } = "";
+        public BattleFaction FallbackFaction { get; set; } = BattleFaction.Neutral;
+        public Vector2I FootprintSize { get; set; } = Vector2I.One;
+        public bool CanEnterWater { get; set; }
+        public BattleForcePlacementRequest RequestPlacement { get; set; }
+        public WorldSiteUnitPlacement SitePlacement { get; set; }
     }
 }

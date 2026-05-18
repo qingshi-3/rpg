@@ -1,6 +1,8 @@
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.Maps;
 using Rpg.Application.World;
+using Rpg.Definitions.Maps;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
@@ -46,6 +48,93 @@ internal static void DeploymentCacheExcludesInvalidSurfacesAndKeepsTopSurface()
     AssertTrue(!any.Any(item => item.Cell == new Vector2I(4, 4) && item.Height == 0), "non-top surface should be excluded");
     AssertTrue(!any.Any(item => item.Cell == new Vector2I(5, 5)), "non-walkable surface should be excluded");
     AssertTrue(!any.Any(item => item.Cell == new Vector2I(6, 6)), "foundation without positive move cost should be excluded");
+}
+
+internal static void DeploymentCacheKeepsAuthoredDeploymentZonesSeparateFromFullSurfaces()
+{
+    BattleGridMap grid = new();
+    AddWalkableSurface(grid, 0, 0, terrainTag: "west_zone");
+    AddWalkableSurface(grid, 1, 0, terrainTag: "middle");
+    AddWalkableSurface(grid, 2, 0, terrainTag: "east_zone");
+
+    var markers = new[]
+    {
+        new SemanticMapMarkerData
+        {
+            MarkerId = "player_deployment_zone_west",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            AnchorCell = new Vector2I(0, 0),
+            Width = 1,
+            Height = 1,
+            FactionId = StrategicWorldIds.FactionPlayer
+        },
+        new SemanticMapMarkerData
+        {
+            MarkerId = "undead_deployment_zone_east",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            AnchorCell = new Vector2I(2, 0),
+            Width = 1,
+            Height = 1,
+            FactionId = StrategicWorldIds.FactionUndead
+        }
+    };
+
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder()
+        .Build("site_under_test", grid, markers);
+
+    AssertEqual(3, cache.GetCandidates(WorldSiteAttackDirection.Any).Count, "full deployment cache should still contain all valid surfaces");
+    AssertEqual(2, cache.AuthoredDeploymentZoneSurfaceCount, "authored deployment zone surface count");
+    AssertEqual(new Vector2I(0, 0), cache.GetDeploymentZoneCandidates(StrategicWorldIds.FactionPlayer, WorldSiteAttackDirection.East)[0].Cell, "player faction should use its authored deployment zone");
+    AssertEqual(new Vector2I(2, 0), cache.GetDeploymentZoneCandidates(StrategicWorldIds.FactionUndead, WorldSiteAttackDirection.West)[0].Cell, "enemy faction should use its authored deployment zone");
+}
+
+internal static void DeploymentCacheRoutesAuthoredDeploymentZonesBySemanticSide()
+{
+    BattleGridMap grid = new();
+    AddWalkableSurface(grid, 0, 0, terrainTag: "player_zone");
+    AddWalkableSurface(grid, 1, 0, terrainTag: "middle");
+    AddWalkableSurface(grid, 2, 0, terrainTag: "enemy_zone");
+
+    var markers = new[]
+    {
+        new SemanticMapMarkerData
+        {
+            MarkerId = "author_can_name_this_anything_a",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            DeploymentSide = SemanticDeploymentSide.Player,
+            AnchorCell = new Vector2I(0, 0),
+            Width = 1,
+            Height = 1
+        },
+        new SemanticMapMarkerData
+        {
+            MarkerId = "author_can_name_this_anything_b",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            DeploymentSide = SemanticDeploymentSide.Enemy,
+            AnchorCell = new Vector2I(2, 0),
+            Width = 1,
+            Height = 1
+        }
+    };
+
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder()
+        .Build("site_under_test", grid, markers);
+
+    IReadOnlyList<WorldSiteDeploymentCell> playerCandidates = cache.GetDeploymentZoneCandidatesForSide(
+        SemanticDeploymentSide.Player,
+        "renamed_player_faction",
+        WorldSiteAttackDirection.Any);
+    IReadOnlyList<WorldSiteDeploymentCell> enemyCandidates = cache.GetDeploymentZoneCandidatesForSide(
+        SemanticDeploymentSide.Enemy,
+        "renamed_enemy_faction",
+        WorldSiteAttackDirection.Any);
+
+    AssertEqual(3, cache.GetCandidates(WorldSiteAttackDirection.Any).Count, "full deployment cache should remain independent of authored side zones");
+    AssertEqual(2, cache.AuthoredDeploymentZoneSurfaceCount, "side-authored deployment zone surface count");
+    AssertEqual(1, playerCandidates.Count, "player side should only see player deployment marker cells");
+    AssertEqual(new Vector2I(0, 0), playerCandidates[0].Cell, "player side should not depend on marker id or faction id");
+    AssertEqual(1, enemyCandidates.Count, "enemy side should only see enemy deployment marker cells");
+    AssertEqual(new Vector2I(2, 0), enemyCandidates[0].Cell, "enemy side should not depend on marker id or faction id");
 }
 
 internal static void DeploymentCacheHandlesMissingGridAsEmptyCache()
@@ -115,8 +204,8 @@ internal static void DeploymentTargetEvaluatorRejectsBlockedWaterAndOccupiedCell
     AddWalkableSurface(grid, 3, 0, terrainTag: "plain");
 
     WorldSiteState site = BuildDeploymentSite();
-    site.UnitPlacements.Add(new WorldSiteUnitPlacement { PlacementId = "unit:1", UnitTypeId = "militia", CellX = 0, CellY = 0 });
-    site.UnitPlacements.Add(new WorldSiteUnitPlacement { PlacementId = "unit:2", UnitTypeId = "militia", CellX = 3, CellY = 0 });
+    site.UnitPlacements.Add(new WorldSiteUnitPlacement { PlacementId = "unit:1", UnitTypeId = StrategicWorldIds.UnitMilitia, CellX = 0, CellY = 0 });
+    site.UnitPlacements.Add(new WorldSiteUnitPlacement { PlacementId = "unit:2", UnitTypeId = StrategicWorldIds.UnitMilitia, CellX = 3, CellY = 0 });
 
     WorldSiteDeploymentTargetEvaluator evaluator = new();
 
@@ -143,7 +232,7 @@ internal static void DeploymentTargetEvaluatorMovesPlacementThroughDeploymentSer
     AddWalkableSurface(grid, 1, 0, height: 2, terrainTag: "upper_plain");
 
     WorldSiteState site = BuildDeploymentSite();
-    WorldSiteUnitPlacement placement = new() { PlacementId = "unit:1", UnitTypeId = "militia", CellX = 0, CellY = 0 };
+    WorldSiteUnitPlacement placement = new() { PlacementId = "unit:1", UnitTypeId = StrategicWorldIds.UnitMilitia, CellX = 0, CellY = 0 };
     site.UnitPlacements.Add(placement);
 
     WorldSiteDeploymentTargetEvaluator evaluator = new();
@@ -168,7 +257,7 @@ internal static void DeploymentTerrainReconcilerSyncsPlacementHeight()
     AddWalkableSurface(grid, 2, 0, height: 2, terrainTag: "upper_plain");
     WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder().Build("site_under_test", grid);
     WorldSiteState site = BuildDeploymentSite();
-    WorldSiteUnitPlacement placement = new() { PlacementId = "unit:1", UnitTypeId = "militia", CellX = 2, CellY = 0, CellHeight = 0 };
+    WorldSiteUnitPlacement placement = new() { PlacementId = "unit:1", UnitTypeId = StrategicWorldIds.UnitMilitia, CellX = 2, CellY = 0, CellHeight = 0 };
     site.UnitPlacements.Add(placement);
 
     WorldSiteDeploymentTerrainReconcileResult result = new WorldSiteDeploymentTerrainReconciler()
@@ -190,7 +279,7 @@ internal static void DeploymentTerrainReconcilerRelocatesBlockedNonWaterPlacemen
     WorldSiteUnitPlacement placement = new()
     {
         PlacementId = "unit:1",
-        UnitTypeId = "militia",
+        UnitTypeId = StrategicWorldIds.UnitMilitia,
         CellX = 0,
         CellY = 0,
         ZoneId = WorldSiteDeploymentService.DefaultGarrisonZoneId
@@ -226,7 +315,7 @@ internal static void BattleDeploymentPreparerCreatesSitePlacementsAndForcePrefer
         ForceId = "player_force",
         SourceKind = "PlayerArmy",
         SourceId = "army_1",
-        UnitDefinitionId = "militia",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
         Count = 1,
         FactionId = "player"
     };
@@ -235,7 +324,7 @@ internal static void BattleDeploymentPreparerCreatesSitePlacementsAndForcePrefer
         ForceId = "enemy_force",
         SourceKind = "ThreatArmy",
         SourceId = "threat_1",
-        UnitDefinitionId = "militia",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
         Count = 1,
         FactionId = "enemy"
     };
@@ -258,6 +347,156 @@ internal static void BattleDeploymentPreparerCreatesSitePlacementsAndForcePrefer
     AssertEqual(1, enemyForce.PreferredPlacements.Count, "enemy preferred placement count");
     AssertEqual(2, playerForce.PreferredPlacements[0].CellX, "attacker should use east candidate");
     AssertEqual(0, enemyForce.PreferredPlacements[0].CellX, "defender should use west candidate");
+}
+
+internal static void BattleDeploymentPreparerPrefersFactionDeploymentZoneMarkers()
+{
+    BattleGridMap grid = new();
+    AddWalkableSurface(grid, 0, 0, terrainTag: "west_zone");
+    AddWalkableSurface(grid, 1, 0, terrainTag: "middle");
+    AddWalkableSurface(grid, 2, 0, terrainTag: "east_zone");
+    var markers = new[]
+    {
+        new SemanticMapMarkerData
+        {
+            MarkerId = "player_deployment_zone_west",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            AnchorCell = new Vector2I(0, 0),
+            Width = 1,
+            Height = 1,
+            FactionId = StrategicWorldIds.FactionPlayer
+        },
+        new SemanticMapMarkerData
+        {
+            MarkerId = "undead_deployment_zone_east",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            AnchorCell = new Vector2I(2, 0),
+            Width = 1,
+            Height = 1,
+            FactionId = StrategicWorldIds.FactionUndead
+        }
+    };
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder()
+        .Build("site_under_test", grid, markers);
+    WorldSiteState site = BuildDeploymentSite();
+    WorldSiteDefinition definition = new() { Id = "site_under_test" };
+    BattleStartRequest request = new()
+    {
+        TargetSiteId = site.SiteId,
+        BattleKind = BattleKind.AssaultSite,
+        AttackDirection = WorldSiteAttackDirection.West,
+        AttackerFactionId = StrategicWorldIds.FactionPlayer,
+        DefenderFactionId = StrategicWorldIds.FactionUndead
+    };
+    BattleForceRequest playerForce = new()
+    {
+        ForceId = "player_force",
+        SourceKind = "PlayerArmy",
+        SourceId = "army_1",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 1,
+        FactionId = StrategicWorldIds.FactionPlayer
+    };
+    BattleForceRequest enemyForce = new()
+    {
+        ForceId = "enemy_force",
+        SourceKind = "ThreatArmy",
+        SourceId = "threat_1",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 1,
+        FactionId = StrategicWorldIds.FactionUndead
+    };
+    request.PlayerForces.Add(playerForce);
+    request.EnemyForces.Add(enemyForce);
+
+    bool prepared = new WorldSiteBattleDeploymentPreparer().Prepare(
+        request,
+        site,
+        definition,
+        cache,
+        grid,
+        CanForceEnterWater,
+        CanPlacementEnterWater,
+        out string failureReason);
+
+    AssertTrue(prepared, $"deployment preparation should succeed failure={failureReason}");
+    AssertEqual(new Vector2I(0, 0), new Vector2I(playerForce.PreferredPlacements[0].CellX, playerForce.PreferredPlacements[0].CellY), "player should deploy inside player marker");
+    AssertEqual(new Vector2I(2, 0), new Vector2I(enemyForce.PreferredPlacements[0].CellX, enemyForce.PreferredPlacements[0].CellY), "enemy should deploy inside enemy marker");
+}
+
+internal static void BattleDeploymentPreparerUsesDeploymentSideMarkersWithoutFactionIds()
+{
+    BattleGridMap grid = new();
+    AddWalkableSurface(grid, 0, 0, terrainTag: "player_zone");
+    AddWalkableSurface(grid, 1, 0, terrainTag: "middle");
+    AddWalkableSurface(grid, 2, 0, terrainTag: "enemy_zone");
+    var markers = new[]
+    {
+        new SemanticMapMarkerData
+        {
+            MarkerId = "west_start",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            DeploymentSide = SemanticDeploymentSide.Player,
+            AnchorCell = new Vector2I(0, 0),
+            Width = 1,
+            Height = 1
+        },
+        new SemanticMapMarkerData
+        {
+            MarkerId = "east_start",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            DeploymentSide = SemanticDeploymentSide.Enemy,
+            AnchorCell = new Vector2I(2, 0),
+            Width = 1,
+            Height = 1
+        }
+    };
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder()
+        .Build("site_under_test", grid, markers);
+    WorldSiteState site = BuildDeploymentSite();
+    WorldSiteDefinition definition = new() { Id = "site_under_test" };
+    BattleStartRequest request = new()
+    {
+        TargetSiteId = site.SiteId,
+        BattleKind = BattleKind.AssaultSite,
+        AttackDirection = WorldSiteAttackDirection.West,
+        AttackerFactionId = "renamed_player_faction",
+        DefenderFactionId = "renamed_enemy_faction"
+    };
+    BattleForceRequest playerForce = new()
+    {
+        ForceId = "player_force",
+        SourceKind = "PlayerArmy",
+        SourceId = "army_1",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 1,
+        FactionId = "renamed_player_faction"
+    };
+    BattleForceRequest enemyForce = new()
+    {
+        ForceId = "enemy_force",
+        SourceKind = "ThreatArmy",
+        SourceId = "threat_1",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 1,
+        FactionId = "renamed_enemy_faction"
+    };
+    request.PlayerForces.Add(playerForce);
+    request.EnemyForces.Add(enemyForce);
+
+    bool prepared = new WorldSiteBattleDeploymentPreparer().Prepare(
+        request,
+        site,
+        definition,
+        cache,
+        grid,
+        CanForceEnterWater,
+        CanPlacementEnterWater,
+        out string failureReason);
+
+    AssertTrue(prepared, $"deployment preparation should succeed failure={failureReason}");
+    AssertEqual(new Vector2I(0, 0), new Vector2I(playerForce.PreferredPlacements[0].CellX, playerForce.PreferredPlacements[0].CellY), "player force should use player-side marker without matching a concrete faction id");
+    AssertEqual(new Vector2I(2, 0), new Vector2I(enemyForce.PreferredPlacements[0].CellX, enemyForce.PreferredPlacements[0].CellY), "enemy force should use enemy-side marker without matching a concrete faction id");
 }
 
 internal static void BattleDeploymentPreparerUsesKnownEntranceBeforeDesiredApproachDirection()
@@ -285,7 +524,7 @@ internal static void BattleDeploymentPreparerUsesKnownEntranceBeforeDesiredAppro
         ForceId = "player_force",
         SourceKind = "PlayerArmy",
         SourceId = "army_1",
-        UnitDefinitionId = "militia",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
         Count = 1,
         FactionId = "player"
     };

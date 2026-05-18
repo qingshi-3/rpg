@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Definitions.Maps;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
@@ -12,12 +13,6 @@ namespace Rpg.Application.World;
 
 public sealed class WorldSiteBattleDeploymentPreparer
 {
-    private enum DeploymentSide
-    {
-        Player,
-        Enemy
-    }
-
     private readonly WorldSiteDeploymentService _deploymentService;
     private readonly WorldSiteDeploymentTerrainReconciler _terrainReconciler;
 
@@ -81,7 +76,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
             success &= EnsureForceWorldSitePlacement(
                 request,
                 force,
-                DeploymentSide.Player,
+                SemanticDeploymentSide.Player,
                 site,
                 deploymentCache,
                 canForceEnterWater,
@@ -93,7 +88,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
             success &= EnsureForceWorldSitePlacement(
                 request,
                 force,
-                DeploymentSide.Enemy,
+                SemanticDeploymentSide.Enemy,
                 site,
                 deploymentCache,
                 canForceEnterWater,
@@ -126,7 +121,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
     private bool EnsureForceWorldSitePlacement(
         BattleStartRequest request,
         BattleForceRequest force,
-        DeploymentSide side,
+        SemanticDeploymentSide side,
         WorldSiteState site,
         WorldSiteRuntimeDeploymentCache deploymentCache,
         Func<BattleForceRequest, bool> canForceEnterWater,
@@ -152,7 +147,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
                 ? WorldSiteUnitPlacementKind.Attacker
                 : WorldSiteUnitPlacementKind.Defender;
         bool canEnterWater = canForceEnterWater?.Invoke(force) == true;
-        IReadOnlyList<WorldSiteDeploymentCell> candidates = (deploymentCache?.GetCandidates(deploymentDirection) ??
+        IReadOnlyList<WorldSiteDeploymentCell> candidates = (deploymentCache?.GetDeploymentZoneCandidatesForSide(side, force.FactionId, deploymentDirection) ??
                                                             Array.Empty<WorldSiteDeploymentCell>())
             .Where(candidate => CanUseDeploymentCell(candidate, canEnterWater))
             .ToArray();
@@ -336,7 +331,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
     private static WorldSiteAttackDirection ResolveForceDeploymentDirection(
         BattleStartRequest request,
         BattleForceRequest force,
-        DeploymentSide side)
+        SemanticDeploymentSide side)
     {
         WorldSiteAttackDirection attackDirection = request?.AttackDirection ?? WorldSiteAttackDirection.Any;
         if (attackDirection == WorldSiteAttackDirection.Any)
@@ -352,7 +347,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
     private static bool IsAttackingForce(
         BattleStartRequest request,
         BattleForceRequest force,
-        DeploymentSide side)
+        SemanticDeploymentSide side)
     {
         if (request != null &&
             !string.IsNullOrWhiteSpace(force?.FactionId) &&
@@ -363,10 +358,10 @@ public sealed class WorldSiteBattleDeploymentPreparer
 
         return request?.BattleKind switch
         {
-            BattleKind.AssaultSite => side == DeploymentSide.Player,
-            BattleKind.DefenseRaid => side == DeploymentSide.Enemy,
-            BattleKind.FieldIntercept => side == DeploymentSide.Player,
-            _ => side == DeploymentSide.Enemy
+            BattleKind.AssaultSite => side == SemanticDeploymentSide.Player,
+            BattleKind.DefenseRaid => side == SemanticDeploymentSide.Enemy,
+            BattleKind.FieldIntercept => side == SemanticDeploymentSide.Player,
+            _ => side == SemanticDeploymentSide.Enemy
         };
     }
 
