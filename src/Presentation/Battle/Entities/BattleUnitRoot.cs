@@ -191,16 +191,16 @@ public partial class BattleUnitRoot : Node2D
             $"Entity grid moved without step animation id={entity.EntityId} fromCell={previousPosition} toCell={targetPosition}");
     }
 
-    public void PlayActionResultAnimation(BattleActionResult result)
+    public double PlayActionResultAnimation(BattleActionResult result)
     {
         if (result?.Success != true)
         {
-            return;
+            return 0;
         }
 
         if (result.Kind is not (BattleActionKind.Ability or BattleActionKind.Attack))
         {
-            return;
+            return 0;
         }
 
         BattleDamageEvent[] damageEvents = result.DamageEvents?.ToArray() ?? System.Array.Empty<BattleDamageEvent>();
@@ -212,11 +212,13 @@ public partial class BattleUnitRoot : Node2D
             actorAnimation?.FaceToward(result.Target.GlobalPosition);
         }
 
+        double attackDurationSeconds = actorAnimation?.ResolveAttackDurationSeconds() ?? 0;
         actorAnimation?.PlayAttack();
         result.Actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Attack);
         // Hit outline covers the whole attack animation so actual impact feedback belongs to units, not grid cells.
         SetHitOutlines(hitTargets, visible: true);
         _ = PlayHitFeedbackAsync(result.Actor, damageEvents, hitTargets);
+        return attackDurationSeconds;
     }
 
     public Task ShowActionCueAsync(BattleEntity entity, BattleFaction faction, double durationSeconds)

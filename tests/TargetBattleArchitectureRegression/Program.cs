@@ -4,6 +4,7 @@ using Rpg.Application.Battle.Commands;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Application.World;
 using Rpg.Application.BattleGroups;
 using Rpg.Domain.BattleGroups;
 using Rpg.Domain.Corps;
@@ -21,11 +22,16 @@ Run("runtime owns stable in-memory actor state", RuntimeOwnsStableInMemoryActorS
 Run("runtime auto battle resolves opposing factions from actor state", RuntimeAutoBattleResolvesOpposingFactionsFromActorState);
 Run("runtime uses 8-neighbor square-grid movement", RuntimeUsesEightNeighborSquareGridMovement);
 Run("runtime diagonal adjacency is in basic attack range", RuntimeDiagonalAdjacencyIsInBasicAttackRange);
+Run("runtime attack speed gates attack cadence", RuntimeAttackSpeedGatesAttackCadence);
 Run("runtime movement events carry authoritative cells", RuntimeMovementEventsCarryAuthoritativeCells);
+Run("runtime navigation consumes authored surface snapshot", TargetBattleNavigationRegressionCases.RuntimeNavigationConsumesAuthoredSurfaceSnapshot);
+Run("runtime navigation changes height only through authored connections", TargetBattleNavigationRegressionCases.RuntimeNavigationChangesHeightOnlyThroughAuthoredConnections);
 Run("runtime square-grid combat avoids physics and full-map pathfinding authority", RuntimeSquareGridCombatAvoidsPhysicsAndFullMapPathfindingAuthority);
 Run("runtime copies snapshot footprint to corps actors", TargetBattleFootprintRegressionCases.RuntimeCopiesSnapshotFootprintToCorpsActors);
 Run("runtime footprint range uses rectangle edges", TargetBattleFootprintRegressionCases.RuntimeFootprintRangeUsesRectangleEdges);
 Run("runtime footprint occupancy blocks covered cells", TargetBattleFootprintRegressionCases.RuntimeFootprintOccupancyBlocksCoveredCells);
+Run("runtime pathfinder routes around blocked anchor", TargetBattleFootprintRegressionCases.RuntimePathfinderRoutesAroundBlockedAnchor);
+Run("runtime pathfinder routes around large unit interior", TargetBattleFootprintRegressionCases.RuntimePathfinderRoutesAroundLargeUnitInterior);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
 Run("snapshot copies battle group facts", SnapshotCopiesBattleGroupFacts);
@@ -212,6 +218,29 @@ static void RuntimeDiagonalAdjacencyIsInBasicAttackRange()
 
     AssertTrue(combatEvents.Length > 0, "diagonal adjacency should produce combat events");
     AssertEqual(BattleEventKind.DamageApplied, combatEvents[0].Kind, "diagonal adjacent units should attack before moving");
+}
+
+static void RuntimeAttackSpeedGatesAttackCadence()
+{
+    BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_attack_speed", 100, 100, enemyCellX: 1, enemyCellY: 0);
+    snapshot.BattleGroups.Single(item => item.SourceForceId == "force_player").AttackSpeed = 0.5;
+    BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+    BattleRuntimeActor playerActor = result.FinalState.Actors.Single(item => item.ActorId == "force_player:1");
+    AssertEqual(0.5, playerActor.AttackSpeed, "runtime actor should copy attack speed from snapshot");
+
+    BattleEvent[] playerDamageEvents = result.EventStream.Events
+        .Where(item => item.Kind == BattleEventKind.DamageApplied && item.ActorId == "force_player:1")
+        .ToArray();
+
+    AssertTrue(playerDamageEvents.Length >= 2, "slow attack speed should still eventually attack more than once");
+    AssertTrue(playerDamageEvents[0].EventId.Contains(":tick_0:", StringComparison.Ordinal), "initial attack should be ready at contact");
+    AssertTrue(
+        playerDamageEvents.Skip(1).First().EventId.Contains(":tick_2:", StringComparison.Ordinal),
+        "0.5 attack speed should skip tick one before the second attack");
+    AssertTrue(
+        playerDamageEvents.All(item => !item.EventId.Contains(":tick_1:", StringComparison.Ordinal)),
+        "0.5 attack speed should not attack every runtime tick");
 }
 
 static void RuntimeMovementEventsCarryAuthoritativeCells()
@@ -563,7 +592,7 @@ static void ReportAndSettlementConsumeSameEventIds()
 static void LegacyGarrisonAdapterCreatesExplicitBattleGroups()
 {
     Rpg.Domain.World.WorldSiteState site = new() { SiteId = "city_1" };
-    site.Garrison.Add(new Rpg.Domain.World.GarrisonState { UnitTypeId = "militia", Count = 2 });
+    site.Garrison.Add(new Rpg.Domain.World.GarrisonState { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 2 });
 
     Rpg.Application.Battle.Adapters.LegacyBattleGroupSeedAdapter adapter = new();
     IReadOnlyList<BattleGroupState> groups = adapter.SeedFromGarrison(site, "hero_seed");
@@ -589,7 +618,8 @@ static void BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces()
         FactionId = "player",
         Count = 1,
         FootprintWidth = 2,
-        FootprintHeight = 2
+        FootprintHeight = 2,
+        AttackSpeed = 0.75
     });
     request.EnemyForces.Add(new BattleForceRequest
     {
@@ -609,6 +639,7 @@ static void BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces()
     BattleGroupSnapshot playerGroup = result.Snapshot.BattleGroups.Single(item => item.SourceForceId == "force_player");
     AssertEqual(2, playerGroup.FootprintWidth, "player force footprint width should enter snapshot");
     AssertEqual(2, playerGroup.FootprintHeight, "player force footprint height should enter snapshot");
+    AssertEqual(0.75, playerGroup.AttackSpeed, "player force attack speed should enter snapshot");
     AssertTrue(
         result.Snapshot.BattleGroups.Any(item => item.FactionId == "enemy" && item.SourceForceId == "force_enemy"),
         "enemy force should keep faction and source force identity");

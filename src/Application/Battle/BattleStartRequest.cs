@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Domain.World;
 
 namespace Rpg.Application.Battle;
@@ -36,6 +37,8 @@ public sealed class BattleStartRequest
     public List<BattleEntranceRequest> AvailableEntrances { get; set; } = new();
     public List<BattleForceRequest> PlayerForces { get; set; } = new();
     public List<BattleForceRequest> EnemyForces { get; set; } = new();
+    public List<BattleNavigationSurfaceSnapshot> NavigationSurfaces { get; set; } = new();
+    public List<BattleNavigationConnectionSnapshot> NavigationConnections { get; set; } = new();
     public List<BattleModifier> BattleModifiers { get; set; } = new();
     public SiteStateSnapshot SiteStateSnapshot { get; set; } = new();
     public string ReturnScenePath { get; set; } = "";

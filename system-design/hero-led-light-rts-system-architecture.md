@@ -154,6 +154,52 @@ Runtime state exists only during the active battle, scene, or service operation:
 
 Runtime cannot query or mutate Domain state directly. Application snapshots and result contracts isolate the two sides.
 
+## Battle Space Authority
+
+Live battle uses square-grid anchored realtime combat. The square battle grid remains the runtime spatial authority; this proposal does not migrate the project to hexes or freeform physics movement.
+
+Runtime owns these combat-space facts:
+
+- actor anchored cell;
+- actor reserved next cell, when moving;
+- movement state such as anchored, moving, attacking, casting, defeated, or interrupted;
+- current target actor or target cell;
+- attack range, cooldown, and ability execution state;
+- emitted movement, attack, damage, cast, interruption, and failure events.
+
+Presentation owns visual interpolation between runtime cells, animation, selection, hover, debug overlays, and feedback. Presentation must not create separate combat truth by moving units into visual attack range independently of runtime facts.
+
+Godot `Area2D` and `CollisionShape2D` may be authored on battle unit scenes for mouse picking, hover, selection, debug, and later visual helpers. They are not authoritative damage resolution in the square-grid realtime model.
+
+Movement rules:
+
+- Deployment places actors on valid square-grid cells.
+- During live battle, an actor may reserve and move to a valid neighbor cell.
+- First implementation uses 8-neighbor movement unless map data forbids diagonal transitions.
+- Occupancy and reservation prevent multiple living actors from owning the same cell.
+- Actors cannot perform basic attacks while moving between cells.
+
+Attack rules:
+
+- Basic attacks target actors, not damage cells.
+- Basic attacks resolve from attacker anchored cell to target anchored cell using the ability's grid range.
+- Runtime emits attack and damage events from the same authority used by settlement and reports.
+- Ranged attacks may use longer grid range, but still resolve as actor-target attacks in the first implementation.
+
+Footprint rules:
+
+- Each actor may define a rectangular footprint width and height in cells.
+- The actor anchor is always the top-left cell of that footprint.
+- `1x1`, `1x2`, `2x1`, `2x2`, and `3x3` are valid initial footprint targets.
+- Runtime may still choose movement by evaluating neighboring anchor cells.
+- Candidate movement is valid only if all cells covered by the candidate footprint are walkable, unoccupied, and unreserved.
+- Occupancy and reservation are stored per covered cell.
+- Pre-battle deployment drag previews resize the existing hover selection frame over the same covered footprint cells that placement validation uses from the top-left anchor. Dragged sprites are positioned at the footprint center, and the top-left anchor snaps from pointer center thresholds instead of following raw mouse coordinates inside a cell.
+- Attack range is measured by shortest square-grid distance between actor footprints.
+- Area effects hit an actor when any covered footprint cell overlaps the resolved effect area.
+- Unit sprites are authored from varied source pixel sizes. Presentation derives a uniform footprint visual scale from the largest footprint side and a tuning coefficient, so runtime occupancy can grow without stretching art or blindly mapping every occupied cell to a full sprite-scale step.
+- Snapshot contracts carry footprint width and height into Runtime. Runtime clamps the supported footprint range and does not load Godot resources.
+
 ## Snapshot And Result Contracts
 
 | Contract | Owner | Purpose |
@@ -264,6 +310,18 @@ Layer rules:
 - Infrastructure loads resources and reports missing or invalid references.
 
 Adding a specific skill, equipment effect, or corps trait should usually require only Resource authoring. A system change is needed only when a new effect primitive, target type, or cross-system rule is introduced.
+
+Ability spatial contracts should support these extension points:
+
+| Contract | Purpose |
+|---|---|
+| Target mode | Unit target, cell target, direction target, or self-centered execution. |
+| Direction mode | Free angle, 8-way snap, 4-way snap, or forward arc. |
+| Area shape | Single actor, single cell, line, cone, circle radius, or grid radius. |
+| Range metric | Square-grid range rule used by the selected target and area mode. |
+| Resolution source | Actor facts and grid facts owned by Runtime, not UI or presentation-only collision callbacks. |
+
+The first square-grid realtime implementation only needs actor-target basic attacks and the contract fields required to avoid hardcoding future skills into the wrong model.
 
 ## Resource And Progression Flow
 

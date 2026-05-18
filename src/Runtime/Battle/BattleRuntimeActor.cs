@@ -22,4 +22,6 @@ public sealed class BattleRuntimeActor
     public int ReservedGridY { get; set; }
     public int ReservedGridHeight { get; set; }
     public int AttackRange { get; set; } = 1;
+    public double AttackSpeed { get; set; } = 1.0;
+    public double AttackCharge { get; set; } = 1.0;
 }

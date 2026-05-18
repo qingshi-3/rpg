@@ -1,6 +1,6 @@
 # Square-Grid Realtime Combat Proposal
 
-Status: Implementing
+Status: Accepted
 
 ## Purpose
 

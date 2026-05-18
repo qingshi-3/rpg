@@ -10,4 +10,6 @@ public partial class AttackComponent : BattleEntityComponent
     [Export]
     public int Range { get; set; } = 1;
 
+    [Export(PropertyHint.Range, "0.1,4,0.05")]
+    public double AttackSpeed { get; set; } = 1.0;
 }

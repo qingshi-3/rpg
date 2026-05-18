@@ -29,6 +29,7 @@ public sealed class LegacyBattleStartSnapshotAdapter
             heroes,
             corps);
 
+        BattleNavigationSnapshotBuilder.CopyRequestToLocationContext(request, snapshot.LocationContext);
         GameLog.Info(nameof(LegacyBattleStartSnapshotAdapter), $"Converted legacy battle request to snapshot request={request?.RequestId ?? ""} snapshot={snapshot.SnapshotId}");
         return snapshot;
     }

@@ -213,7 +213,7 @@ public partial class BattleCellInfoDebug : BattleDebugComponent
 
         if (attack != null)
         {
-            AppendField(builder, "攻击", $"伤害 {attack.Damage} / 射程 {attack.Range}", TextColor);
+            AppendField(builder, "攻击", $"伤害 {attack.Damage} / 射程 {attack.Range} / 攻速 {attack.AttackSpeed:0.##}", TextColor);
         }
 
         string flags = BuildEntityFlagSummary(entity, cell);

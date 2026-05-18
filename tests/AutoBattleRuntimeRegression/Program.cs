@@ -44,8 +44,8 @@ static void AutoBattleSpawnsFromPreferredPlacementsAndReturnsVictoryForceResults
     AssertEqual(request.BattleKind, simulation.BattleResult.BattleKind, "battle kind should be copied");
     AssertEqual(3, simulation.FinalState.Combatants.Count, "runtime combatant count");
 
-    AssertSpawnedAt(simulation.Events, "player_force:0", "player_force", "militia", 0, 0, 0);
-    AssertSpawnedAt(simulation.Events, "player_force:1", "player_force", "militia", 0, 1, 0);
+    AssertSpawnedAt(simulation.Events, "player_force:0", "player_force", StrategicWorldIds.UnitMilitia, 0, 0, 0);
+    AssertSpawnedAt(simulation.Events, "player_force:1", "player_force", StrategicWorldIds.UnitMilitia, 0, 1, 0);
     AssertSpawnedAt(simulation.Events, "enemy_force:0", "enemy_force", "skeleton", 1, 0, 0);
     AssertHasEvent(simulation.Events, AutoBattleEventKind.BattleStarted, "battle started event");
     AssertHasEvent(simulation.Events, AutoBattleEventKind.TargetAcquired, "target acquired event");
@@ -510,7 +510,7 @@ static BattleStartRequest BuildRequest(
         ForceId = "player_force",
         SourceKind = "PlayerArmy",
         SourceId = "army_player",
-        UnitDefinitionId = "militia",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
         Count = playerCount,
         FactionId = "player"
     };

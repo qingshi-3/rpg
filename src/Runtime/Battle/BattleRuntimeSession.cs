@@ -1,7 +1,8 @@
 using System.Linq;
-using System.Collections.Generic;
+using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle.Events;
+using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Results;
 
 namespace Rpg.Runtime.Battle;
@@ -9,9 +10,9 @@ namespace Rpg.Runtime.Battle;
 public sealed class BattleRuntimeSession
 {
     private const int MaxAutonomousCombatTicks = 128;
+    private const int MaxAttacksResolvedPerActorTick = 4;
     private const int CorpsAttackDamage = 20;
     private const int EngagementRange = 1;
-    private const int MaxFootprintSize = 3;
 
     public BattleRuntimeSessionResult RunMinimal(BattleStartSnapshot snapshot)
     {
@@ -71,7 +72,8 @@ public sealed class BattleRuntimeSession
             });
         }
 
-        BattleTerminationReason terminationReason = ResolveAutonomousCombat(state, stream, battleId);
+        BattleNavigationGraph navigationGraph = BattleNavigationGraph.Create(snapshot.LocationContext, state.Actors);
+        BattleTerminationReason terminationReason = ResolveAutonomousCombat(state, stream, battleId, navigationGraph);
         stream.Add(new BattleEvent
         {
             EventId = $"{battleId}:ended",
@@ -105,8 +107,8 @@ public sealed class BattleRuntimeSession
             sourceForceIndexes.TryGetValue(sourceForceId, out int sourceForceIndex);
             sourceForceIndexes[sourceForceId] = sourceForceIndex + 1;
             int corpsHitPoints = System.Math.Max(1, group.CorpsStrength);
-            int corpsFootprintWidth = NormalizeFootprintSize(group.FootprintWidth);
-            int corpsFootprintHeight = NormalizeFootprintSize(group.FootprintHeight);
+            int corpsFootprintWidth = BattleActorFootprint.NormalizeSize(group.FootprintWidth);
+            int corpsFootprintHeight = BattleActorFootprint.NormalizeSize(group.FootprintHeight);
             state.Actors.Add(new BattleRuntimeActor
             {
                 ActorId = $"{group.BattleGroupId}:hero",
@@ -121,7 +123,8 @@ public sealed class BattleRuntimeSession
                 GridY = group.CellY,
                 GridHeight = group.CellHeight,
                 MotionState = BattleRuntimeActorMotionState.Anchored,
-                AttackRange = EngagementRange
+                AttackRange = EngagementRange,
+                AttackSpeed = BattleAttackSpeedPolicy.DefaultAttackSpeed
             });
             state.Actors.Add(new BattleRuntimeActor
             {
@@ -139,7 +142,8 @@ public sealed class BattleRuntimeSession
                 FootprintWidth = corpsFootprintWidth,
                 FootprintHeight = corpsFootprintHeight,
                 MotionState = BattleRuntimeActorMotionState.Anchored,
-                AttackRange = EngagementRange
+                AttackRange = EngagementRange,
+                AttackSpeed = BattleAttackSpeedPolicy.Normalize(group.AttackSpeed)
             });
         }
 
@@ -149,7 +153,8 @@ public sealed class BattleRuntimeSession
     private static BattleTerminationReason ResolveAutonomousCombat(
         BattleRuntimeState state,
         BattleEventStream stream,
-        string battleId)
+        string battleId,
+        BattleNavigationGraph navigationGraph)
     {
         // V0 keeps combat authority inside Runtime: Application supplies frozen
         // factions/actors, and settlement consumes only emitted events/results.
@@ -160,8 +165,8 @@ public sealed class BattleRuntimeSession
 
         for (int tick = 0; tick < MaxAutonomousCombatTicks; tick++)
         {
-            HashSet<(int X, int Y)> occupiedCells = BuildOccupiedCells(state);
-            HashSet<(int X, int Y)> reservedCells = new();
+            BattleDynamicOccupancy occupancy = BattleDynamicOccupancy.FromActors(state.Actors);
+            BattleMovementReservationMap reservations = new();
             BattleTerminationReason resolved = ResolveTermination(state);
             if (resolved != BattleTerminationReason.None)
             {
@@ -190,11 +195,11 @@ public sealed class BattleRuntimeSession
                 if (distance > System.Math.Max(1, actor.AttackRange))
                 {
                     if (!TryAdvanceOneSquareGridStep(
-                            state,
                             actor,
                             target,
-                            occupiedCells,
-                            reservedCells,
+                            navigationGraph,
+                            occupancy,
+                            reservations,
                             out (int FromX, int FromY, int FromHeight, int ToX, int ToY, int ToHeight) move))
                     {
                         continue;
@@ -217,22 +222,40 @@ public sealed class BattleRuntimeSession
                         ToGridY = move.ToY,
                         ToGridHeight = move.ToHeight
                     });
+                    RechargeAttack(actor);
                     continue;
                 }
 
-                int damage = System.Math.Min(CorpsAttackDamage, System.Math.Max(0, target.HitPoints));
-                target.HitPoints = System.Math.Max(0, target.HitPoints - damage);
-                stream.Add(new BattleEvent
+                if (!TryConsumeAttackCharge(actor))
                 {
-                    EventId = $"{battleId}:tick_{tick}:{actor.ActorId}:attack:{target.ActorId}",
-                    BattleId = battleId,
-                    BattleGroupId = actor.BattleGroupId,
-                    ActorId = actor.ActorId,
-                    TargetId = target.ActorId,
-                    Kind = BattleEventKind.DamageApplied,
-                    ReasonCode = target.HitPoints <= 0 ? "auto_attack_target_defeated" : "auto_attack",
-                    CorpsStrengthDelta = -damage
-                });
+                    RechargeAttack(actor);
+                    continue;
+                }
+
+                int attacksResolved = 0;
+                do
+                {
+                    int damage = System.Math.Min(CorpsAttackDamage, System.Math.Max(0, target.HitPoints));
+                    target.HitPoints = System.Math.Max(0, target.HitPoints - damage);
+                    string attackEventKey = attacksResolved == 0 ? "attack" : $"attack_{attacksResolved + 1}";
+                    stream.Add(new BattleEvent
+                    {
+                        EventId = $"{battleId}:tick_{tick}:{actor.ActorId}:{attackEventKey}:{target.ActorId}",
+                        BattleId = battleId,
+                        BattleGroupId = actor.BattleGroupId,
+                        ActorId = actor.ActorId,
+                        TargetId = target.ActorId,
+                        Kind = BattleEventKind.DamageApplied,
+                        ReasonCode = target.HitPoints <= 0 ? "auto_attack_target_defeated" : "auto_attack",
+                        CorpsStrengthDelta = -damage
+                    });
+                    attacksResolved++;
+                }
+                while (target.HitPoints > 0 &&
+                       attacksResolved < MaxAttacksResolvedPerActorTick &&
+                       TryConsumeAttackCharge(actor));
+
+                RechargeAttack(actor);
             }
         }
 
@@ -253,156 +276,74 @@ public sealed class BattleRuntimeSession
 
     private static int GetSquareGridDistance(BattleRuntimeActor first, BattleRuntimeActor second)
     {
-        if (first == null || second == null)
-        {
-            return 0;
-        }
-
-        return System.Math.Max(
-            GetFootprintGap(first.GridX, first.FootprintWidth, second.GridX, second.FootprintWidth),
-            GetFootprintGap(first.GridY, first.FootprintHeight, second.GridY, second.FootprintHeight));
-    }
-
-    private static HashSet<(int X, int Y)> BuildOccupiedCells(BattleRuntimeState state)
-    {
-        HashSet<(int X, int Y)> occupiedCells = new();
-        foreach (BattleRuntimeActor actor in state?.Actors ?? Enumerable.Empty<BattleRuntimeActor>())
-        {
-            if (actor.Kind == BattleRuntimeActorKind.Corps && actor.HitPoints > 0)
-            {
-                foreach ((int x, int y) in EnumerateFootprintCells(actor))
-                {
-                    occupiedCells.Add((x, y));
-                }
-            }
-        }
-
-        return occupiedCells;
-    }
-
-    private static int GetFootprintGap(int firstStart, int firstSize, int secondStart, int secondSize)
-    {
-        int firstEnd = firstStart + NormalizeFootprintSize(firstSize) - 1;
-        int secondEnd = secondStart + NormalizeFootprintSize(secondSize) - 1;
-        if (firstStart > secondEnd)
-        {
-            return firstStart - secondEnd;
-        }
-
-        if (secondStart > firstEnd)
-        {
-            return secondStart - firstEnd;
-        }
-
-        return 0;
-    }
-
-    private static IEnumerable<(int X, int Y)> EnumerateFootprintCells(BattleRuntimeActor actor)
-    {
-        return EnumerateFootprintCells(actor, actor?.GridX ?? 0, actor?.GridY ?? 0);
-    }
-
-    private static IEnumerable<(int X, int Y)> EnumerateFootprintCells(BattleRuntimeActor actor, int anchorX, int anchorY)
-    {
-        int width = NormalizeFootprintSize(actor?.FootprintWidth ?? 1);
-        int height = NormalizeFootprintSize(actor?.FootprintHeight ?? 1);
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                yield return (anchorX + x, anchorY + y);
-            }
-        }
-    }
-
-    private static int NormalizeFootprintSize(int value)
-    {
-        // Footprint support is intentionally small in this slice so per-actor checks stay bounded.
-        return System.Math.Clamp(value <= 0 ? 1 : value, 1, MaxFootprintSize);
+        return BattleActorFootprint.GetGap(first, second);
     }
 
     private static bool TryAdvanceOneSquareGridStep(
-        BattleRuntimeState state,
         BattleRuntimeActor actor,
         BattleRuntimeActor target,
-        ISet<(int X, int Y)> occupiedCells,
-        ISet<(int X, int Y)> reservedCells,
+        BattleNavigationGraph navigationGraph,
+        BattleDynamicOccupancy occupancy,
+        BattleMovementReservationMap reservations,
         out (int FromX, int FromY, int FromHeight, int ToX, int ToY, int ToHeight) move)
     {
         move = default;
-        if (state?.Actors == null || actor == null || target == null)
+        if (actor == null || target == null)
         {
             return false;
         }
 
-        int stepX = System.Math.Sign(target.GridX - actor.GridX);
-        int stepY = System.Math.Sign(target.GridY - actor.GridY);
-        if (TryReserveNeighbor(actor, occupiedCells, reservedCells, actor.GridX + stepX, actor.GridY + stepY, out move))
-        {
-            return true;
-        }
-
-        if (TryReserveNeighbor(actor, occupiedCells, reservedCells, actor.GridX + stepX, actor.GridY, out move))
-        {
-            return true;
-        }
-
-        return TryReserveNeighbor(actor, occupiedCells, reservedCells, actor.GridX, actor.GridY + stepY, out move);
-    }
-
-    private static bool TryReserveNeighbor(
-        BattleRuntimeActor actor,
-        ISet<(int X, int Y)> occupiedCells,
-        ISet<(int X, int Y)> reservedCells,
-        int x,
-        int y,
-        out (int FromX, int FromY, int FromHeight, int ToX, int ToY, int ToHeight) move)
-    {
-        move = default;
-        if (actor == null ||
-            (x == actor.GridX && y == actor.GridY))
+        BattleGridCoord from = new(actor.GridX, actor.GridY, actor.GridHeight);
+        if (!BattlePathfinder.TryFindNextStepTowardAttackRange(
+                actor,
+                target,
+                navigationGraph,
+                occupancy,
+                reservations,
+                out BattleGridCoord next) ||
+            !reservations.TryReserveMove(actor, from, next, occupancy))
         {
             return false;
         }
 
-        HashSet<(int X, int Y)> currentFootprint = EnumerateFootprintCells(actor).ToHashSet();
-        (int X, int Y)[] candidateFootprint = EnumerateFootprintCells(actor, x, y).ToArray();
-        foreach ((int cellX, int cellY) in candidateFootprint)
-        {
-            if (reservedCells?.Contains((cellX, cellY)) == true ||
-                (occupiedCells?.Contains((cellX, cellY)) == true && !currentFootprint.Contains((cellX, cellY))))
-            {
-                return false;
-            }
-        }
-
-        move = (actor.GridX, actor.GridY, actor.GridHeight, x, y, actor.GridHeight);
+        move = (actor.GridX, actor.GridY, actor.GridHeight, next.X, next.Y, next.Height);
         actor.HasReservedGridCell = true;
-        actor.ReservedGridX = x;
-        actor.ReservedGridY = y;
-        actor.ReservedGridHeight = actor.GridHeight;
+        actor.ReservedGridX = next.X;
+        actor.ReservedGridY = next.Y;
+        actor.ReservedGridHeight = next.Height;
         actor.MotionState = BattleRuntimeActorMotionState.Moving;
-        foreach ((int cellX, int cellY) in candidateFootprint)
-        {
-            reservedCells?.Add((cellX, cellY));
-        }
-
-        foreach ((int cellX, int cellY) in currentFootprint)
-        {
-            occupiedCells?.Remove((cellX, cellY));
-        }
-
-        foreach ((int cellX, int cellY) in candidateFootprint)
-        {
-            occupiedCells?.Add((cellX, cellY));
-        }
-
-        actor.GridX = x;
-        actor.GridY = y;
+        actor.GridX = next.X;
+        actor.GridY = next.Y;
+        actor.GridHeight = next.Height;
         actor.Position = actor.GridX;
         actor.HasReservedGridCell = false;
         actor.MotionState = BattleRuntimeActorMotionState.Anchored;
         return true;
+    }
+
+    private static bool TryConsumeAttackCharge(BattleRuntimeActor actor)
+    {
+        if (actor == null || actor.AttackCharge < 1.0)
+        {
+            return false;
+        }
+
+        actor.AttackCharge = System.Math.Max(0, actor.AttackCharge - 1.0);
+        return true;
+    }
+
+    private static void RechargeAttack(BattleRuntimeActor actor)
+    {
+        if (actor == null)
+        {
+            return;
+        }
+
+        actor.AttackSpeed = BattleAttackSpeedPolicy.Normalize(actor.AttackSpeed);
+        actor.AttackCharge = System.Math.Clamp(
+            actor.AttackCharge + actor.AttackSpeed,
+            0,
+            MaxAttacksResolvedPerActorTick);
     }
 
     private static BattleTerminationReason ResolveTermination(BattleRuntimeState state)

@@ -57,6 +57,41 @@ internal static class TargetBattleFootprintRegressionCases
             "2x2 actor must not reserve an anchor whose covered cells overlap another actor");
     }
 
+    public static void RuntimePathfinderRoutesAroundBlockedAnchor()
+    {
+        BattleStartSnapshot snapshot = BuildBlockedAnchorRouteSnapshot();
+
+        BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+        BattleEvent? playerMove = result.EventStream.Events.FirstOrDefault(item =>
+            item.ActorId == "a_player:1" &&
+            item.Kind == BattleEventKind.MovementCompleted &&
+            item.EventId.Contains(":tick_0:", StringComparison.Ordinal));
+        AssertTrue(playerMove != null, "pathfinder should route around a blocked direct anchor on tick zero");
+        AssertTrue(
+            playerMove!.ToGridX != 1 || playerMove.ToGridY != 0,
+            "pathfinder must not move into the occupied direct-route cell");
+    }
+
+    public static void RuntimePathfinderRoutesAroundLargeUnitInterior()
+    {
+        BattleStartSnapshot snapshot = BuildLargeInteriorRouteSnapshot();
+
+        BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+        BattleEvent? playerMove = result.EventStream.Events.FirstOrDefault(item =>
+            item.ActorId == "a_player:1" &&
+            item.Kind == BattleEventKind.MovementCompleted &&
+            item.EventId.Contains(":tick_0:", StringComparison.Ordinal));
+        AssertTrue(playerMove != null, "pathfinder should route around a large unit's covered cells");
+        AssertTrue(
+            playerMove!.ToGridX < 1 ||
+            playerMove.ToGridX > 2 ||
+            playerMove.ToGridY < 0 ||
+            playerMove.ToGridY > 1,
+            "small units must not route into a 2x2 unit interior");
+    }
+
     private static BattleStartSnapshot BuildOpposedSnapshot(
         string battleId,
         int enemyCellX = 6,
@@ -163,6 +198,67 @@ internal static class TargetBattleFootprintRegressionCases
                     CellY = 0
                 }
             }
+        };
+    }
+
+    private static BattleStartSnapshot BuildBlockedAnchorRouteSnapshot()
+    {
+        return new BattleStartSnapshot
+        {
+            SnapshotId = "snapshot_battle_blocked_anchor_route",
+            BattleId = "battle_blocked_anchor_route",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "player", "a_player", "hero_player", "corps_player", 0, 0),
+                BuildGroup("group_blocker", "player", "z_blocker", "hero_blocker", "corps_blocker", 1, 0),
+                BuildGroup("group_enemy", "enemy", "z_enemy", "hero_enemy", "corps_enemy", 4, 0)
+            }
+        };
+    }
+
+    private static BattleStartSnapshot BuildLargeInteriorRouteSnapshot()
+    {
+        return new BattleStartSnapshot
+        {
+            SnapshotId = "snapshot_battle_large_interior_route",
+            BattleId = "battle_large_interior_route",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "player", "a_player", "hero_player", "corps_player", 0, 1),
+                BuildGroup("group_large_blocker", "player", "z_large_blocker", "hero_large_blocker", "corps_large_blocker", 1, 0, 2, 2),
+                BuildGroup("group_enemy", "enemy", "z_enemy", "hero_enemy", "corps_enemy", 5, 1)
+            }
+        };
+    }
+
+    private static BattleGroupSnapshot BuildGroup(
+        string groupId,
+        string factionId,
+        string sourceForceId,
+        string heroId,
+        string corpsId,
+        int cellX,
+        int cellY,
+        int footprintWidth = 1,
+        int footprintHeight = 1)
+    {
+        return new BattleGroupSnapshot
+        {
+            BattleGroupId = groupId,
+            FactionId = factionId,
+            SourceForceId = sourceForceId,
+            HeroId = heroId,
+            HeroDefinitionId = $"{heroId}_definition",
+            CorpsId = corpsId,
+            CorpsDefinitionId = $"{corpsId}_definition",
+            CorpsStrength = 80,
+            SourceLocationId = factionId == "player" ? "city_1" : "site_1",
+            CellX = cellX,
+            CellY = cellY,
+            FootprintWidth = footprintWidth,
+            FootprintHeight = footprintHeight
         };
     }
 

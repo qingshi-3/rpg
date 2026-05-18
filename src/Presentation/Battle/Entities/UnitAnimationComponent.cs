@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Godot;
+using Rpg.Application.Battle;
 using Rpg.Definitions.Battle.Animation;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Rules;
@@ -17,6 +18,9 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
     [Export]
     public BattleUnitAnimationSet AnimationSet { get; set; }
+
+    [Export(PropertyHint.Range, "0.1,4,0.05")]
+    public double AttackSpeed { get; set; } = 1.0;
 
     [Export]
     public NodePath VisualRootPath { get; set; } = new("VisualRoot");
@@ -355,8 +359,9 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return true;
         }
 
+        _animationPlayer.SpeedScale = ResolveAnimationPlayerSpeedScale(cue);
         _animationPlayer.Play(animationName);
-        HandleCueStarted(cue, animationName, ResolveAnimationPlayerAnimationSeconds(animationName));
+        HandleCueStarted(cue, animationName, ResolveAnimationPlayerAnimationSeconds(animationName, cue));
         GameLog.Info(nameof(UnitAnimationComponent), $"Animation played entity={Entity?.EntityId} cue={cue} animation={animationName}");
         return true;
     }
@@ -547,7 +552,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             Animation animation = _animationPlayer.GetAnimation(animationName);
             if (animation != null && animation.Length > 0)
             {
-                return animation.Length;
+                return ScaleAnimationSecondsByAttackSpeed(animation.Length, cue);
             }
         }
 
@@ -573,7 +578,9 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
         return cue is "hit" or "defeated"
             ? System.Math.Max(targetSeconds, minimumTargetSeconds)
-            : targetSeconds;
+            : cue == "attack"
+                ? BattleAttackSpeedPolicy.ScaleTargetSeconds(targetSeconds, AttackSpeed)
+                : targetSeconds;
     }
 
     private bool PlayProceduralCue(string cue, bool restart, double minimumTargetSeconds = 0)
@@ -616,9 +623,11 @@ public partial class UnitAnimationComponent : BattleEntityComponent
                 break;
 
             case "attack":
-                _proceduralTween.TweenProperty(_visualRoot, "position", new Vector2(8f, -2f), 0.08);
-                _proceduralTween.TweenProperty(_visualRoot, "position", Vector2.Zero, 0.14);
-                QueueProceduralReturnToIdle(version, 0.24);
+                double attackWindupSeconds = BattleAttackSpeedPolicy.ScaleTargetSeconds(0.08, AttackSpeed);
+                double attackReturnSeconds = BattleAttackSpeedPolicy.ScaleTargetSeconds(0.14, AttackSpeed);
+                _proceduralTween.TweenProperty(_visualRoot, "position", new Vector2(8f, -2f), attackWindupSeconds);
+                _proceduralTween.TweenProperty(_visualRoot, "position", Vector2.Zero, attackReturnSeconds);
+                QueueProceduralReturnToIdle(version, attackWindupSeconds + attackReturnSeconds + 0.02);
                 break;
 
             case "hit":
@@ -776,7 +785,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         return IsCurrentAnimation(animationName);
     }
 
-    private double ResolveAnimationPlayerAnimationSeconds(string animationName)
+    private double ResolveAnimationPlayerAnimationSeconds(string animationName, string cue)
     {
         if (_animationPlayer == null ||
             !GodotObject.IsInstanceValid(_animationPlayer) ||
@@ -786,7 +795,21 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         }
 
         double seconds = _animationPlayer.CurrentAnimationLength;
-        return seconds > 0 ? seconds : 0;
+        return seconds > 0 ? ScaleAnimationSecondsByAttackSpeed(seconds, cue) : 0;
+    }
+
+    private float ResolveAnimationPlayerSpeedScale(string cue)
+    {
+        return cue == "attack"
+            ? (float)BattleAttackSpeedPolicy.Normalize(AttackSpeed)
+            : 1f;
+    }
+
+    private double ScaleAnimationSecondsByAttackSpeed(double seconds, string cue)
+    {
+        return cue == "attack"
+            ? BattleAttackSpeedPolicy.ScaleTargetSeconds(seconds, AttackSpeed)
+            : seconds;
     }
 
     private async Task CompleteDefeatedAfterFallbackDelay(int version, double seconds)

@@ -27,7 +27,11 @@ public partial class WorldSiteRoot
         }
 
         GridSurfacePosition nextStep = new(runtimeEvent.ToGridX, runtimeEvent.ToGridY, runtimeEvent.ToGridHeight);
-        _unitRoot.MoveEntityTo(actor, new[] { actorGrid.SurfacePosition, nextStep });
+        _unitRoot.MoveEntityTo(
+            actor,
+            new[] { actorGrid.SurfacePosition, nextStep },
+            restartMoveAnimation: false,
+            returnToIdleOnComplete: false);
         await WaitSiteBattlePresentationSeconds(_unitRoot.UnitMoveDuration);
     }
 
@@ -45,7 +49,7 @@ public partial class WorldSiteRoot
         HealthComponent health = target.GetComponent<HealthComponent>();
         int applied = health?.ApplyDamage(damage, actor) ?? 0;
         bool defeated = BattleRuleQueries.IsDefeated(target);
-        _unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded(
+        double attackAnimationSeconds = _unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded(
             actor,
             target,
             applied,
@@ -56,6 +60,8 @@ public partial class WorldSiteRoot
             _unitRoot.MarkEntityDefeated(target);
         }
 
-        await WaitSiteBattlePresentationSeconds(0.42);
+        // Runtime events are semantic combat facts, but playback must pace them
+        // by the authored attack animation so long sprites are not restarted early.
+        await WaitSiteBattlePresentationSeconds(System.Math.Max(0.42, attackAnimationSeconds));
     }
 }

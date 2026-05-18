@@ -123,20 +123,6 @@ public partial class DamageReactionComponent : BattleEntityComponent
             : System.Math.Max(0, FallbackHitDelaySeconds);
     }
 
-    private double ResolveMinimumHitDurationSeconds(HealthDamageEvent damage)
-    {
-        if (!AlignHitWithSourceAttack ||
-            damage.Source == null ||
-            !GodotObject.IsInstanceValid(damage.Source))
-        {
-            return 0;
-        }
-
-        UnitAnimationComponent sourceAnimation = damage.Source.GetComponent<UnitAnimationComponent>();
-        double attackDurationSeconds = sourceAnimation?.ResolveAttackDurationSeconds() ?? 0;
-        return _animation.ResolveMinimumHitDurationSeconds(attackDurationSeconds);
-    }
-
     private double ResolveMinimumDefeatedDurationSeconds(HealthDamageEvent damage)
     {
         if (!AlignHitWithSourceAttack ||
@@ -175,10 +161,9 @@ public partial class DamageReactionComponent : BattleEntityComponent
             _animation.FaceToward(damage.Source.GlobalPosition);
         }
 
-        _animation.PlayHit(ResolveMinimumHitDurationSeconds(damage));
         Entity.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Hit);
         GameLog.Info(
             nameof(DamageReactionComponent),
-            $"Damage reaction played target={Entity?.EntityId} source={damage.Source?.EntityId} damage={damage.DamageApplied} hp={damage.HpBefore}->{damage.HpAfter} delay={delaySeconds:0.00}");
+            $"Damage feedback played target={Entity?.EntityId} source={damage.Source?.EntityId} damage={damage.DamageApplied} hp={damage.HpBefore}->{damage.HpAfter} delay={delaySeconds:0.00}");
     }
 }

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
 using Rpg.Definitions.World;
@@ -57,9 +58,8 @@ public partial class WorldSiteRoot
 
     private bool ActivateBattleRuntime()
     {
-        _isBattlePreparationActive = false;
-        _battlePreparationRequest = null;
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.FriendlyMove);
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.EnemyDeployment);
         if (!string.IsNullOrWhiteSpace(_battleStartBlockedReason))
         {
             GameLog.Warn(nameof(WorldSiteRoot), $"Battle runtime activation blocked reason={_battleStartBlockedReason}");
@@ -67,11 +67,26 @@ public partial class WorldSiteRoot
             return false;
         }
 
+        if (BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request))
+        {
+            ApplyBattleNavigationSnapshot(request);
+        }
+
+        _isBattlePreparationActive = false;
+        _battlePreparationRequest = null;
         // Preparation can start runtime directly after the player confirms deployment,
         // so this boundary must own the UI transition instead of relying on launch callbacks.
         SetBattleRuntimeEnabled(true);
         BindBattleRuntimeHud();
         return ActivateBattleGroupRuntime();
+    }
+
+    private void ApplyBattleNavigationSnapshot(BattleStartRequest request)
+    {
+        BattleNavigationSnapshotBuilder.ApplyToRequest(request, _activeGridMap);
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"Battle navigation snapshot applied request={request?.RequestId ?? ""} surfaces={request?.NavigationSurfaces.Count ?? 0} connections={request?.NavigationConnections.Count ?? 0}");
     }
 
     private void BindBattleRuntimeHud()
@@ -172,6 +187,7 @@ public partial class WorldSiteRoot
             }
         }
 
+        _unitRoot.PlayIdleForActiveEntities();
         if (_unitRoot.HasPendingDefeatedPresentations)
         {
             await _unitRoot.WaitForDefeatedPresentationsAsync();
@@ -301,6 +317,7 @@ public partial class WorldSiteRoot
 
             force.FootprintWidth = definition.FootprintWidth;
             force.FootprintHeight = definition.FootprintHeight;
+            force.AttackSpeed = definition.AttackSpeed;
         }
     }
 
@@ -403,11 +420,16 @@ public partial class WorldSiteRoot
         if (!string.IsNullOrWhiteSpace(placementId))
         {
             // Both sides are indexed from the same prepared placement data so
-            // preview and runtime start positions cannot drift apart. Only player
-            // units expose drag behavior.
-            SetDeploymentDragComponent(entity, placementId, fallbackFaction == BattleFaction.Player);
+            // preview and runtime start positions cannot drift apart. Battle
+            // preparation can tune both sides, but runtime disables all drag before start.
+            SetDeploymentDragComponent(entity, placementId, IsBattlePreparationPlacementDragEnabled(fallbackFaction));
             _sitePlacementEntities[placementId] = entity;
         }
+    }
+
+    private static bool IsBattlePreparationPlacementDragEnabled(BattleFaction fallbackFaction)
+    {
+        return fallbackFaction is BattleFaction.Player or BattleFaction.Enemy;
     }
 
     private void ApplyBattleRequestDeployment(

@@ -19,4 +19,5 @@ public sealed class BattleGroupSnapshot
     public int CellHeight { get; set; }
     public int FootprintWidth { get; set; } = 1;
     public int FootprintHeight { get; set; } = 1;
+    public double AttackSpeed { get; set; } = 1.0;
 }

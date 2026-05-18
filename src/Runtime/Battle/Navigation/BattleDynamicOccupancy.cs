@@ -1,0 +1,62 @@
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Rpg.Runtime.Battle.Navigation;
+
+internal sealed class BattleDynamicOccupancy
+{
+    private readonly Dictionary<BattleGridCoord, HashSet<string>> _tickStartOccupants = new();
+
+    private BattleDynamicOccupancy()
+    {
+    }
+
+    public static BattleDynamicOccupancy FromActors(IEnumerable<BattleRuntimeActor> actors)
+    {
+        BattleDynamicOccupancy occupancy = new();
+        foreach (BattleRuntimeActor actor in actors ?? Enumerable.Empty<BattleRuntimeActor>())
+        {
+            if (actor?.Kind != BattleRuntimeActorKind.Corps || actor.HitPoints <= 0)
+            {
+                continue;
+            }
+
+            foreach (BattleGridCoord cell in BattleActorFootprint.Enumerate(actor))
+            {
+                if (!occupancy._tickStartOccupants.TryGetValue(cell, out HashSet<string> actorIds))
+                {
+                    actorIds = new HashSet<string>(System.StringComparer.Ordinal);
+                    occupancy._tickStartOccupants[cell] = actorIds;
+                }
+
+                actorIds.Add(actor.ActorId ?? "");
+            }
+        }
+
+        return occupancy;
+    }
+
+    public bool CanPlaceFootprint(BattleRuntimeActor actor, BattleGridCoord anchor)
+    {
+        foreach (BattleGridCoord cell in BattleActorFootprint.Enumerate(actor, anchor))
+        {
+            if (IsOccupiedByOther(actor, cell))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public bool IsOccupiedByOther(BattleRuntimeActor actor, BattleGridCoord cell)
+    {
+        if (!_tickStartOccupants.TryGetValue(cell, out HashSet<string> actorIds))
+        {
+            return false;
+        }
+
+        string actorId = actor?.ActorId ?? "";
+        return actorIds.Any(item => !string.Equals(item, actorId, System.StringComparison.Ordinal));
+    }
+}
