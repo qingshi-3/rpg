@@ -9,6 +9,7 @@ This directory stores implementation-facing architecture, boundaries, contracts,
 - Battle implementation and contracts: `battle/README.md`
 - Relationship/emotion backend: `relationship/README.md`
 - Content pipeline architecture: `content-pipeline/content-authoring-architecture.md`
+- Godot editor authoring guide: `content-pipeline/godot-editor-authoring-guide.md`
 - Current system-design route: `../../system-design/README.md`
 - Historical battle cleanup architecture: `../50-production/technical-changes/2026-05-16-auto-tactics-migration.md`
 

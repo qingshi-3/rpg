@@ -1,4 +1,4 @@
-[gd_scene load_steps=121 format=4 uid="uid://c2oee8rh6qi6"]
+[gd_scene load_steps=123 format=4 uid="uid://c2oee8rh6qi6"]
 
 [ext_resource type="Script" uid="uid://dfevlaghvwjr5" path="res://src/Presentation/Battle/BattleMapView.cs" id="1_battle_map_view"]
 [ext_resource type="Script" uid="uid://c4x18hxm1w8qv" path="res://src/Presentation/Battle/BattleMapLayer.cs" id="2_battle_map_layer"]
@@ -12,7 +12,9 @@
 [ext_resource type="Texture2D" uid="uid://bjjmpgfrsrofw" path="res://assets/textures/tiles/亡灵_undead-tileset/Objects.png" id="10_7ggnt"]
 [ext_resource type="Script" uid="uid://b51m638fbhadw" path="res://src/Definitions/Maps/BattleMapConnectionPoint.cs" id="10_connection_point"]
 [ext_resource type="Texture2D" uid="uid://fl5cdm4q4th8" path="res://assets/textures/tiles/亡灵_undead-tileset/Objects_animated2.png" id="11_o0x6w"]
-[ext_resource type="PackedScene" uid="uid://7k4ebnqn4wm7" path="res://scenes/world/site_interactions/WorldFacilitySlotEntity.tscn" id="12_facility_slot"]
+[ext_resource type="PackedScene" uid="uid://d0gbsg4pyx4rq" path="res://scenes/maps/markers/BuildingSlotMapMarker.tscn" id="13_building_marker"]
+[ext_resource type="PackedScene" uid="uid://bmx3joktj2w6h" path="res://scenes/maps/markers/DeploymentZoneMapMarker.tscn" id="14_deployment_marker"]
+[ext_resource type="PackedScene" uid="uid://c7gdryxsbto44" path="res://scenes/tools/battle/UnitPreviewWorkbench.tscn" id="15_unit_preview_workbench"]
 
 [sub_resource type="Resource" id="BattleMapConnectionPoint_north_low_l"]
 script = ExtResource("10_connection_point")
@@ -2923,12 +2925,35 @@ IsVisualOnly = true
 [node name="FacilitySlots" type="Node2D" parent="."]
 y_sort_enabled = true
 
-[node name="mine_slot_01" parent="FacilitySlots" instance=ExtResource("12_facility_slot")]
-position = Vector2(690, 358)
-FootprintWidth = 3
-FootprintHeight = 2
+[node name="SemanticMarkers" type="Node2D" parent="."]
+y_sort_enabled = true
 
-[node name="tower_slot_01" parent="FacilitySlots" instance=ExtResource("12_facility_slot")]
-position = Vector2(204, 575)
-FootprintWidth = 2
-FootprintHeight = 2
+[node name="mine_slot_01" parent="SemanticMarkers" instance=ExtResource("13_building_marker")]
+position = Vector2(640, 352)
+MarkerId = "mine_slot_01"
+Width = 3
+Height = 2
+
+[node name="tower_slot_01" parent="SemanticMarkers" instance=ExtResource("13_building_marker")]
+position = Vector2(208, 544)
+MarkerId = "tower_slot_01"
+Width = 2
+Height = 2
+
+[node name="player_deployment_zone_west" parent="SemanticMarkers" instance=ExtResource("14_deployment_marker")]
+position = Vector2(64, 112)
+DeploymentSide = 1
+MarkerId = "player_deployment_zone_west"
+Width = 4
+Height = 8
+
+[node name="undead_deployment_zone_east" parent="SemanticMarkers" instance=ExtResource("14_deployment_marker")]
+position = Vector2(352, 528)
+DeploymentSide = 2
+MarkerId = "undead_deployment_zone_east"
+Width = 8
+Height = 4
+
+[node name="UnitPreviewWorkbench" parent="." instance=ExtResource("15_unit_preview_workbench")]
+position = Vector2(192, 192)
+metadata/authoring_hint = "editor_unit_preview"

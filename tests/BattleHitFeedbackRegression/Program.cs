@@ -37,7 +37,9 @@ BattleHitFeedbackRegressionCases.Run("map camera middle drag pans opposite to mo
 BattleHitFeedbackRegressionCases.Run("unit audio definition resolves cue variants deterministically", BattleHitFeedbackRegressionCases.UnitAudioDefinitionResolvesCueVariants);
 BattleHitFeedbackRegressionCases.Run("ability spatial contract defaults to unit target eight way single actor", BattleHitFeedbackRegressionCases.AbilitySpatialContractDefaults);
 BattleHitFeedbackRegressionCases.Run("battle unit base scene authors interaction collision shape", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAuthorsInteractionCollisionShape);
+BattleHitFeedbackRegressionCases.Run("battle unit preview workbench mirrors visual resources", BattleHitFeedbackRegressionCases.BattleUnitPreviewWorkbenchIsVisualResourceMirror);
 BattleHitFeedbackRegressionCases.Run("starter battle unit definitions reference audio profiles", BattleHitFeedbackRegressionCases.StarterUnitDefinitionsReferenceAudioProfiles);
+BattleHitFeedbackRegressionCases.Run("legacy starter unit packages are removed", BattleHitFeedbackRegressionCases.LegacyStarterUnitPackagesAreRemoved);
 BattleHitFeedbackRegressionCases.Run("starter audio migration is mapped from source visuals", BattleHitFeedbackRegressionCases.StarterAudioMigrationUsesSourceVisuals);
 BattleHitFeedbackRegressionCases.Run("battle unit display names use resource label plus two digit instance index", BattleHitFeedbackRegressionCases.BattleUnitDisplayNamesUseIndexedResourceLabel);
 BattleHitFeedbackRegressionCases.Run("starter unit display names use source visual translations", BattleHitFeedbackRegressionCases.StarterUnitDisplayNamesUseSourceVisualTranslations);
@@ -77,6 +79,15 @@ BattleHitFeedbackRegressionCases.Run("strategic world forwards middle mouse came
 BattleHitFeedbackRegressionCases.Run("battle result applier messages use configured display names", BattleHitFeedbackRegressionCases.BattleResultApplierMessagesUseConfiguredDisplayNames);
 BattleHitFeedbackRegressionCases.Run("battle unit factory keeps definition caches shared across scenes", BattleHitFeedbackRegressionCases.BattleUnitFactoryKeepsDefinitionCachesShared);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback consumes runtime movement cells", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackConsumesRuntimeMovementCells);
+BattleHitFeedbackRegressionCases.Run("battle runtime playback keeps move loop across runtime steps", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackKeepsMoveLoopAcrossRuntimeSteps);
+BattleHitFeedbackRegressionCases.Run("battle runtime playback waits for attack animation duration", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackWaitsForAttackAnimationDuration);
+BattleHitFeedbackRegressionCases.Run("realtime damage reaction does not play hit animation", BattleHitFeedbackRegressionCases.RealtimeDamageReactionDoesNotPlayHitAnimation);
+BattleHitFeedbackRegressionCases.Run("unit attack speed is bound to runtime and attack animation speed", BattleHitFeedbackRegressionCases.UnitAttackSpeedContract);
+BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors enemy greedy branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsEnemyGreedyBranches);
+BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors allied command branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsAlliedCommandBranches);
+BattleHitFeedbackRegressionCases.Run("limbo ai battle resource boundary is authored", BattleHitFeedbackRegressionCases.LimboAiBattleResourceBoundaryIsAuthored);
+BattleHitFeedbackRegressionCases.Run("limbo ai battle facade writes blackboard and emits intent", BattleHitFeedbackRegressionCases.LimboAiBattleFacadeWritesBlackboardAndEmitsIntent);
+BattleHitFeedbackRegressionCases.Run("limbo ai battle tasks pass blackboard through facade", BattleHitFeedbackRegressionCases.LimboAiBattleTasksPassBlackboardThroughFacade);
 BattleHitFeedbackRegressionCases.Run("battle result applier uses survivor counts when garrisoning assault army", BattleHitFeedbackRegressionCases.BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssaultArmy);
 BattleHitFeedbackRegressionCases.Run("battle result applier keeps surviving defending garrison after defense victory", BattleHitFeedbackRegressionCases.BattleResultApplierKeepsSurvivingDefendingGarrisonAfterDefenseVictory);
 BattleHitFeedbackRegressionCases.Run("unit display name translation report keeps low confidence review queue bounded", BattleHitFeedbackRegressionCases.UnitDisplayNameTranslationReportQuality);

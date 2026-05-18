@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3 uid="uid://c7gdryxsbto44"]
+
+[ext_resource type="Script" uid="uid://b8ants0dwy7f0" path="res://src/Presentation/Battle/Preview/BattleUnitPreviewWorkbench.cs" id="1_workbench"]
+[ext_resource type="Script" uid="uid://bpbcgdj4dlllt" path="res://src/Presentation/Battle/Preview/BattleUnitPreviewFootprintOverlay.cs" id="2_footprint_overlay"]
+[ext_resource type="SpriteFrames" uid="uid://7mpemwrv8j3b" path="res://assets/battle/units/莱昂纳王国/f1_Baast冠军/frames.tres" id="3_jpfaj"]
+
+[node name="UnitPreviewWorkbench" type="Node2D"]
+script = ExtResource("1_workbench")
+
+[node name="FootprintOverlay" type="Node2D" parent="."]
+position = Vector2(80, 80)
+script = ExtResource("2_footprint_overlay")
+
+[node name="PreviewRoot" type="Node2D" parent="."]
+position = Vector2(16, 32)
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="PreviewRoot"]
+position = Vector2(0, -14.428572)
+scale = Vector2(0.5714286, 0.5714286)
+sprite_frames = ExtResource("3_jpfaj")
+animation = &"idle"
+frame_progress = 0.79196906
+
+[node name="StatusLabel" type="Label" parent="."]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 760.0
+offset_bottom = 42.0
+text = "frames.tres  动画 idle  自动布局 True  目标 40px  占格 1x1"

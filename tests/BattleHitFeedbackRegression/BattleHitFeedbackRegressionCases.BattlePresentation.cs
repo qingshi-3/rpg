@@ -315,6 +315,84 @@ internal static void BattleRuntimePlaybackConsumesRuntimeMovementCells()
         "presentation must not run a separate visual pathfinder for runtime combat");
 }
 
+internal static void BattleRuntimePlaybackKeepsMoveLoopAcrossRuntimeSteps()
+{
+    string source = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntime.cs"));
+
+    AssertTrue(
+        source.Contains("restartMoveAnimation: false", StringComparison.Ordinal) &&
+        source.Contains("returnToIdleOnComplete: false", StringComparison.Ordinal),
+        "runtime movement playback should keep the move loop alive across adjacent step events instead of restarting and returning to idle per cell");
+    AssertTrue(
+        runtime.Contains("_unitRoot.PlayIdleForActiveEntities();", StringComparison.Ordinal),
+        "runtime playback should return surviving units to idle after the event stream finishes");
+}
+
+internal static void BattleRuntimePlaybackWaitsForAttackAnimationDuration()
+{
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+
+    AssertTrue(
+        unitRoot.Contains("public double PlayActionResultAnimation(BattleActionResult result)", StringComparison.Ordinal) &&
+        unitRoot.Contains("ResolveAttackDurationSeconds()", StringComparison.Ordinal),
+        "battle action playback should expose the resolved attack animation duration to the runtime event player");
+    AssertTrue(
+        playback.Contains("double attackAnimationSeconds = _unitRoot.PlayActionResultAnimation", StringComparison.Ordinal) &&
+        playback.Contains("WaitSiteBattlePresentationSeconds(System.Math.Max(0.42, attackAnimationSeconds))", StringComparison.Ordinal),
+        "runtime damage playback should wait for the full attack animation instead of advancing after a fixed short delay");
+}
+
+internal static void RealtimeDamageReactionDoesNotPlayHitAnimation()
+{
+    string damageReaction = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "DamageReactionComponent.cs"));
+    string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+
+    AssertTrue(
+        !damageReaction.Contains(".PlayHit(", StringComparison.Ordinal),
+        "realtime damage reactions should not invoke the hit animation at the call layer");
+    AssertTrue(
+        damageReaction.Contains("PlayCue(BattleUnitAudioCue.Hit)", StringComparison.Ordinal),
+        "damage feedback may keep hit audio after removing the hit animation call");
+    AssertTrue(
+        animationComponent.Contains("public bool PlayHit(double minimumDurationSeconds = 0)", StringComparison.Ordinal),
+        "hit animation resources and preview API should remain available even when runtime damage no longer calls them");
+}
+
+internal static void UnitAttackSpeedContract()
+{
+    string definition = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "BattleUnitDefinition.cs"));
+    string forceRequest = File.ReadAllText(Path.Combine("src", "Application", "Battle", "BattleForceRequest.cs"));
+    string snapshot = File.ReadAllText(Path.Combine("src", "Application", "Battle", "Snapshots", "BattleGroupSnapshot.cs"));
+    string runtimeActor = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeActor.cs"));
+    string runtimeSession = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeSession.cs"));
+    string unitFactory = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"));
+    string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+
+    AssertTrue(
+        definition.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal),
+        "battle unit definitions should expose attack speed with a stable default");
+    AssertTrue(
+        forceRequest.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal) &&
+        snapshot.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal),
+        "battle handoff contracts should carry attack speed from request to snapshot");
+    AssertTrue(
+        runtimeActor.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal) &&
+        runtimeSession.Contains("AttackSpeed = BattleAttackSpeedPolicy.Normalize(group.AttackSpeed)", StringComparison.Ordinal),
+        "runtime actors should consume snapshot attack speed");
+    AssertTrue(
+        runtimeSession.Contains("actor.AttackCharge", StringComparison.Ordinal),
+        "runtime attack cadence should be gated by attack speed rather than attacking every tick unconditionally");
+    AssertTrue(
+        unitFactory.Contains("attack.AttackSpeed = definition.AttackSpeed;", StringComparison.Ordinal) &&
+        unitFactory.Contains("animationComponent.AttackSpeed = definition.AttackSpeed;", StringComparison.Ordinal),
+        "unit factory should apply attack speed to presentation attack data and animation playback");
+    AssertTrue(
+        animationComponent.Contains("BattleAttackSpeedPolicy.ScaleTargetSeconds(targetSeconds, AttackSpeed)", StringComparison.Ordinal),
+        "attack animation target duration should be scaled by the configured attack speed");
+}
+
 internal static void BattleUnitBaseSceneAuthorsInteractionCollisionShape()
 {
     string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));
@@ -326,24 +404,145 @@ internal static void BattleUnitBaseSceneAuthorsInteractionCollisionShape()
     AssertTrue(scene.Contains("shape = SubResource(", StringComparison.Ordinal), "interaction collision shape should reference authored shape resource");
 }
 
+internal static void BattleUnitPreviewWorkbenchIsVisualResourceMirror()
+{
+    string scriptPath = Path.Combine("src", "Presentation", "Battle", "Preview", "BattleUnitPreviewWorkbench.cs");
+    string scenePath = Path.Combine("scenes", "tools", "battle", "UnitPreviewWorkbench.tscn");
+    string siteScenePath = Path.Combine("scenes", "world", "sites", "impl", "BonefieldSite.tscn");
+    string worldSiteRootScenePath = Path.Combine("scenes", "world", "sites", "WorldSiteRoot.tscn");
+    string factoryPath = Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs");
+    string layoutCalculatorPath = Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitVisualLayoutCalculator.cs");
+
+    AssertTrue(File.Exists(scriptPath), "unit preview workbench script should exist");
+    AssertTrue(File.Exists(scenePath), "unit preview workbench scene should exist");
+    AssertTrue(File.Exists(layoutCalculatorPath), "unit visual layout calculator should exist as the shared presentation layout authority");
+
+    string script = File.ReadAllText(scriptPath);
+    string scene = File.ReadAllText(scenePath);
+    string siteScene = File.ReadAllText(siteScenePath);
+    string worldSiteRootScene = File.ReadAllText(worldSiteRootScenePath);
+    string factory = File.ReadAllText(factoryPath);
+    string layoutCalculator = File.ReadAllText(layoutCalculatorPath);
+
+    AssertTrue(script.Contains("[Tool]", StringComparison.Ordinal), "workbench should run in the Godot editor");
+    AssertTrue(
+        script.Contains("SetProcess(false)", StringComparison.Ordinal) &&
+        script.Contains("!Engine.IsEditorHint()", StringComparison.Ordinal),
+        "workbench should disable itself outside the editor so it cannot add runtime polling");
+    AssertTrue(
+        !script.Contains("public SpriteFrames SpriteFrames", StringComparison.Ordinal) &&
+        script.Contains("ResolvePreviewSpriteFrames()", StringComparison.Ordinal) &&
+        script.Contains("_previewSprite.SpriteFrames", StringComparison.Ordinal),
+        "preview scene should use its child AnimatedSprite2D SpriteFrames as the direct unit-like authoring entry");
+    AssertTrue(
+        script.Contains("public BattleUnitPreviewAnimationNameSet AnimationNameSet", StringComparison.Ordinal) &&
+        script.Contains("BattleUnitPreviewAnimationNameSet.StandardDuelyst", StringComparison.Ordinal),
+        "workbench should expose an enum animation-name preset instead of requiring authors to drag an animation set resource");
+    AssertTrue(
+        script.Contains("public bool AutoLayoutFromSpriteFrames", StringComparison.Ordinal) &&
+        script.Contains("public float TargetMaxSpriteSizePixels", StringComparison.Ordinal) &&
+        script.Contains("public float GroundAnchorOffsetPixels", StringComparison.Ordinal) &&
+        script.Contains("public float VisibleAlphaThreshold", StringComparison.Ordinal) &&
+        script.Contains("public Vector2 Offset", StringComparison.Ordinal) &&
+        script.Contains("public Vector2 ManualScale", StringComparison.Ordinal) &&
+        script.Contains("public Color PreviewModulate", StringComparison.Ordinal),
+        "workbench should mirror BattleUnitVisualDefinition layout fields instead of the full unit definition");
+    AssertTrue(
+        script.Contains("public int FootprintWidth", StringComparison.Ordinal) &&
+        script.Contains("public int FootprintHeight", StringComparison.Ordinal),
+        "workbench should keep footprint width and height as preview-only scale aids");
+    AssertTrue(
+        script.Contains("PreviewAnimation", StringComparison.Ordinal) &&
+        script.Contains("PlayPreviewAnimation", StringComparison.Ordinal),
+        "workbench should let authors switch authored unit animations without entering battle");
+    AssertTrue(
+        script.Contains("BattleUnitVisualLayoutCalculator", StringComparison.Ordinal),
+        "workbench should share the same visual layout calculator as runtime presentation");
+    AssertTrue(
+        !script.Contains("UnitDefinitionResource", StringComparison.Ordinal) &&
+        !script.Contains("UnitDefinitionPath", StringComparison.Ordinal) &&
+        !script.Contains("BattleUnitAnimationSet", StringComparison.Ordinal) &&
+        !script.Contains("BattleUnitFactory", StringComparison.Ordinal) &&
+        !script.Contains("CreatePreview", StringComparison.Ordinal) &&
+        !script.Contains("_previewSprite.SpriteFrames = null", StringComparison.Ordinal) &&
+        !script.Contains("_previewSprite.SpriteFrames = SpriteFrames", StringComparison.Ordinal),
+        "preview scene should not load unit.tres, animation-set resources, the full runtime battle unit scene, or clear child sprite frames");
+    AssertTrue(
+        factory.Contains("BattleUnitVisualLayoutCalculator.TryCalculateAutoLayout", StringComparison.Ordinal),
+        "runtime unit factory should use the shared visual layout calculator");
+    AssertTrue(
+        layoutCalculator.Contains("public static bool TryCalculateAutoLayout", StringComparison.Ordinal) &&
+        layoutCalculator.Contains("TryGetVisibleTextureBounds", StringComparison.Ordinal),
+        "layout calculator should own visible-pixel sprite bounds and auto-layout math");
+    AssertTrue(
+        scene.Contains("res://src/Presentation/Battle/Preview/BattleUnitPreviewWorkbench.cs", StringComparison.Ordinal),
+        "workbench scene should bind the preview script");
+    AssertTrue(
+        scene.Contains("[node name=\"AnimatedSprite2D\" type=\"AnimatedSprite2D\" parent=\"PreviewRoot\"]", StringComparison.Ordinal) &&
+        !scene.Contains("visible = false", StringComparison.Ordinal) &&
+        scene.Contains("PreviewRoot", StringComparison.Ordinal) &&
+        scene.Contains("FootprintOverlay", StringComparison.Ordinal),
+        "workbench scene should author a visible AnimatedSprite2D preview unit, preview root, and footprint overlay instead of constructing preview nodes from unit.tres");
+    AssertTrue(
+        scene.Contains("AnimatedSprite2D", StringComparison.Ordinal) &&
+        scene.Contains("frames.tres", StringComparison.Ordinal) &&
+        !scene.Contains("UnitDefinitionResource", StringComparison.Ordinal) &&
+        !scene.Contains("UnitDefinitionPath", StringComparison.Ordinal),
+        "workbench scene text should direct authors to put frames.tres on the child AnimatedSprite2D rather than unit.tres");
+    AssertTrue(
+        siteScene.Contains("res://scenes/tools/battle/UnitPreviewWorkbench.tscn", StringComparison.Ordinal) &&
+        siteScene.Contains("[node name=\"UnitPreviewWorkbench\" parent=\".\" instance=", StringComparison.Ordinal),
+        "the current concrete site map should carry the default unit preview workbench for scale debugging");
+    AssertTrue(
+        siteScene.Contains("metadata/authoring_hint = \"editor_unit_preview\"", StringComparison.Ordinal),
+        "embedded field preview should be explicitly marked as editor authoring support");
+    AssertTrue(
+        !worldSiteRootScene.Contains("res://scenes/tools/battle/UnitPreviewWorkbench.tscn", StringComparison.Ordinal),
+        "WorldSiteRoot is the site runtime shell and should not own the default authoring workbench");
+}
+
 internal static void StarterUnitDefinitionsReferenceAudioProfiles()
 {
-    string[] unitIds = { "player_knight", "militia", "skeleton_warrior", "skeleton_archer" };
-
-    foreach (string unitId in unitIds)
+    Dictionary<string, string> unitDirs = new()
     {
-        string unitPath = Path.Combine("assets", "battle", "units", $"{unitId}.tres");
-        string audioPath = $"res://assets/battle/units/{unitId}/audio/audio.tres";
+        ["f1_shieldforger"] = Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_盾牌铸造者"),
+        ["f1_scintilla"] = Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_闪烁")
+    };
+
+    foreach ((string unitId, string unitDir) in unitDirs)
+    {
+        string unitPath = Path.Combine(unitDir, "unit.tres");
+        string resourceDir = unitDir.Replace(Path.DirectorySeparatorChar, '/');
+        string audioPath = $"res://{resourceDir}/audio/audio.tres";
         string text = File.ReadAllText(unitPath);
         AssertTrue(text.Contains(audioPath, StringComparison.Ordinal), $"{unitId} should reference its audio profile");
 
-        string audioText = File.ReadAllText(Path.Combine("assets", "battle", "units", unitId, "audio", "audio.tres"));
+        string audioText = File.ReadAllText(Path.Combine(unitDir, "audio", "audio.tres"));
         foreach (string cue in new[] { "deploy", "move", "attack", "attack_impact", "hit", "defeated" })
         {
             AssertTrue(
-                audioText.Contains($"res://assets/battle/units/{unitId}/audio/{cue}.ogg", StringComparison.Ordinal),
+                audioText.Contains($"{audioPath[..^"audio.tres".Length]}{cue}.ogg", StringComparison.Ordinal),
                 $"{unitId} audio profile should include {cue}");
         }
+    }
+}
+
+internal static void LegacyStarterUnitPackagesAreRemoved()
+{
+    string[] legacyUnitIds = { "player_knight", "militia", "skeleton_warrior", "skeleton_archer" };
+
+    foreach (string unitId in legacyUnitIds)
+    {
+        string legacyDir = Path.Combine("assets", "battle", "units", "neutral", $"legacy_{unitId}");
+        AssertTrue(!Directory.Exists(legacyDir), $"{unitId} legacy unit package should be removed after migrating references");
+    }
+
+    string idsSource = File.ReadAllText(Path.Combine("src", "Application", "World", "StrategicWorldIds.cs"));
+    foreach (string oldId in legacyUnitIds)
+    {
+        AssertTrue(
+            !idsSource.Contains($"= \"{oldId}\"", StringComparison.Ordinal),
+            $"StrategicWorldIds should not keep the removed battle unit id {oldId}");
     }
 }
 
@@ -377,17 +576,15 @@ internal static void BattleUnitDisplayNamesUseIndexedResourceLabel()
 
 internal static void StarterUnitDisplayNamesUseSourceVisualTranslations()
 {
-    Dictionary<string, string> expectedNames = new()
+    Dictionary<string, (string UnitDir, string ExpectedName)> expectedNames = new()
     {
-        ["player_knight"] = "盾牌铸造者",
-        ["militia"] = "盾牌铸造者",
-        ["skeleton_warrior"] = "盾牌铸造者",
-        ["skeleton_archer"] = "闪烁术士"
+        ["f1_shieldforger"] = (Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_盾牌铸造者"), "盾牌铸造者"),
+        ["f1_scintilla"] = (Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_闪烁"), "闪烁术士")
     };
 
-    foreach ((string unitId, string expectedName) in expectedNames)
+    foreach ((string unitId, (string unitDir, string expectedName)) in expectedNames)
     {
-        string unitPath = Path.Combine("assets", "battle", "units", $"{unitId}.tres");
+        string unitPath = Path.Combine(unitDir, "unit.tres");
         string text = File.ReadAllText(unitPath);
         AssertTrue(
             text.Contains($"DisplayName = \"{expectedName}\"", StringComparison.Ordinal),

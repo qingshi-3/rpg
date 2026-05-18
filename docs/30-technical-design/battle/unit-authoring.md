@@ -5,12 +5,15 @@ adding or changing unit content without creating another runtime authority.
 
 ## Runtime Structure
 
-`assets/battle/units/<category>_<semantic-name>/unit.tres` is the preferred
-unit definition entry point. Folder prefixes should be `首领_`, `中立_`, or
-`f1_` through `f6_`; rare source terms may keep the original word after a close
-Chinese semantic label, with `异界<原词>` as the fallback when no better semantic
-translation is known. Legacy flat definitions under
-`assets/battle/units/*.tres` remain loadable for compatibility.
+`assets/battle/units/<faction>/<category>_<semantic-name>/unit.tres` is the
+preferred unit definition entry point. The seven faction directories are
+`莱昂纳王国`, `松海帝国`, `维图鲁维安帝国`, `深渊军团`, `玛格玛族群`,
+`瓦纳族群`, and `neutral`; `neutral` also owns boss/special Duelyst packages and
+legacy starter packages under `legacy_*`. Package folder prefixes should be
+`首领_`, `中立_`, or `f1_` through `f6_`; rare source terms may keep the original
+word after a close Chinese semantic label, with `异界<原词>` as the fallback when
+no better semantic translation is known. Legacy flat definitions under
+`assets/battle/units/*.tres` remain loadable for compatibility if present.
 
 `BattleUnitDefinition` resources and the nested unit-definition path index are
 resident metadata. They are shared by the battle scene, strategic-world UI, and
@@ -35,9 +38,9 @@ share one authored definition.
 Bulk DisplayName refresh is handled by
 `tools/apply-battle-unit-display-names.mjs`. It may read the local Duelyst source
 checkout to map RSX animation aliases back to original card names, then writes
-`assets/battle/units/_display_name_translation_report.json` for audit. Directory
-renaming is deferred; stable IDs and resource paths remain authoritative until a
-separate migration updates all references.
+`assets/battle/units/_display_name_translation_report.json` for audit. Display
+name refresh must not rename directories by itself; any directory migration must
+update all resource references in the same change.
 
 Each `BattleUnitDefinition` should use:
 
@@ -116,6 +119,31 @@ until the runtime facing model is expanded.
 Do not duplicate `BattleUnitBase.tscn` for each unit. Unit differences should be
 expressed through unit definitions, ability resources, and visual resources.
 
+## Visual Preview Workbench
+
+`scenes/tools/battle/UnitPreviewWorkbench.tscn` is an editor-only helper for
+checking `frames.tres` and `visual.tres` values in a real map scale. It does not
+load `unit.tres`, does not instantiate `BattleUnitBase.tscn`, and does not own
+unit facts.
+
+Authors select the child `PreviewRoot/AnimatedSprite2D` and drag the
+package-local `frames.tres` into that node's own `SpriteFrames` field, then
+return to the `UnitPreviewWorkbench` root to choose an `AnimationNameSet` preset
+and tune the fields that correspond to `BattleUnitVisualDefinition`. The
+workbench must not require authors to drag a `BattleUnitAnimationSet` resource;
+preview animation naming is intentionally decoupled from the resource graph.
+`ManualScale` corresponds to `visual.tres` `Scale`, and `PreviewModulate`
+corresponds to `visual.tres` `Modulate`; the names avoid colliding with Godot's
+own `Node2D.Scale` and `CanvasItem.Modulate` properties.
+
+The workbench script reads the child `AnimatedSprite2D.SpriteFrames`; it must
+not clear or replace the child sprite frames. The workbench and
+`BattleUnitFactory` must share `BattleUnitVisualLayoutCalculator` for
+visible-pixel bounds and auto-layout math. The workbench may expose
+`FootprintWidth` and `FootprintHeight` only as preview aids for the same uniform
+footprint visual scale used at runtime; real occupancy remains configured on
+`unit.tres`.
+
 ## Animation
 
 `UnitAnimationComponent` lives on `BattleUnitBase.tscn`. Unit-specific animation
@@ -134,8 +162,9 @@ occupants, or control battle runtime state.
 
 ## Adding A Unit
 
-1. Create a folder under `assets/battle/units/` named with the category prefix
-   plus business semantic label, such as `f1_盾牌铸造者`.
+1. Choose the faction parent folder under `assets/battle/units/`, then create a
+   package folder named with the category prefix plus business semantic label,
+   such as `assets/battle/units/莱昂纳王国/f1_盾牌铸造者`.
 2. Move the source PNG and its `.import` file into that folder.
 3. Create `frames.tres` with the standard cue animations and bind it to the
    package-local PNG. For Duelyst atlas assets, prefer regenerating frames from

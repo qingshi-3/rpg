@@ -5,6 +5,7 @@ This directory stores technical rules for data-driven authoring, content validat
 ## Routes
 
 - Content authoring architecture: `content-authoring-architecture.md`
+- Godot editor authoring guide: `godot-editor-authoring-guide.md`
 
 ## Content Counterpart
 
