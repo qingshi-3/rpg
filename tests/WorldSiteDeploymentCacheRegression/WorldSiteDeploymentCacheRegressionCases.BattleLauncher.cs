@@ -189,7 +189,7 @@ internal static BattleStartRequest BuildProbeBattleRequest(string requestId, str
         ForceId = "player_force",
         SourceKind = "PlayerArmy",
         SourceId = "army_1",
-        UnitDefinitionId = "militia",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
         Count = 1,
         FactionId = "player"
     });

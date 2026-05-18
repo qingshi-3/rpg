@@ -12,7 +12,14 @@
 
 # Local AI reference clones
 .codex/external/GodotPrompter/
+.codex/external/
+docs/superpowers/
 
 # Build outputs
 bin/
 obj/
+
+# Generated local artifacts and extracted examples
+outputs/
+/demo/
+*.old.*

@@ -7,8 +7,8 @@ adding or changing unit content without creating another runtime authority.
 
 `assets/battle/units/<faction>/<category>_<semantic-name>/unit.tres` is the
 preferred unit definition entry point. The seven faction directories are
-`莱昂纳王国`, `松海帝国`, `维图鲁维安帝国`, `深渊军团`, `玛格玛族群`,
-`瓦纳族群`, and `neutral`; `neutral` also owns boss/special Duelyst packages and
+`莱昂纳王国`, `岚影诸派`, `星砂圣庭`, `深渊军团`, `青鳞萨盟`,
+`霜原部盟`, and `neutral`; `neutral` also owns boss/special Duelyst packages and
 legacy starter packages under `legacy_*`. Package folder prefixes should be
 `首领_`, `中立_`, or `f1_` through `f6_`; rare source terms may keep the original
 word after a close Chinese semantic label, with `异界<原词>` as the fallback when

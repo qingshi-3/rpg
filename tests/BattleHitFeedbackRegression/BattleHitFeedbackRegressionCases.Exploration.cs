@@ -268,15 +268,15 @@ internal static void ExplorationBattleRequestCarriesPatrolTrigger()
 internal static void ExplorationBattleVictoryRemovesTriggeringPatrol()
 {
     const string triggerPatrolId = "bonefield_patrol_01";
-    const string triggerPlacementId = "garrison:skeleton_warrior:2";
+    const string triggerPlacementId = "garrison:neutral_shadow1:2";
     const string otherPatrolId = "bonefield_patrol_02";
-    const string otherPlacementId = "garrison:skeleton_warrior:1";
+    const string otherPlacementId = "garrison:neutral_shadow1:1";
 
     SiteExplorationPatrolDefinition triggerPatrol = new()
     {
         Id = triggerPatrolId,
         DisplayName = "Trigger Patrol",
-        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
+        UnitTypeId = StrategicWorldIds.UnitGraveShadow,
         SourcePlacementId = triggerPlacementId,
         RouteCells =
         {
@@ -313,7 +313,7 @@ internal static void ExplorationBattleVictoryRemovesTriggeringPatrol()
                     {
                         Id = otherPatrolId,
                         DisplayName = "Other Patrol",
-                        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
+                        UnitTypeId = StrategicWorldIds.UnitGraveShadow,
                         SourcePlacementId = otherPlacementId,
                         RouteCells =
                         {
@@ -340,11 +340,11 @@ internal static void ExplorationBattleVictoryRemovesTriggeringPatrol()
     };
     site.Exploration.PatrolUnits.Add(new SiteExplorationPatrolState { PatrolId = triggerPatrolId, CellX = 1, CellY = 0, CellHeight = 0 });
     site.Exploration.PatrolUnits.Add(new SiteExplorationPatrolState { PatrolId = otherPatrolId, CellX = 2, CellY = 0, CellHeight = 0 });
-    site.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 2 });
+    site.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 2 });
     site.UnitPlacements.Add(new WorldSiteUnitPlacement
     {
         PlacementId = triggerPlacementId,
-        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
+        UnitTypeId = StrategicWorldIds.UnitGraveShadow,
         UnitIndex = 2,
         FactionId = StrategicWorldIds.FactionUndead,
         PlacementKind = WorldSiteUnitPlacementKind.Garrison,
@@ -357,7 +357,7 @@ internal static void ExplorationBattleVictoryRemovesTriggeringPatrol()
     site.UnitPlacements.Add(new WorldSiteUnitPlacement
     {
         PlacementId = otherPlacementId,
-        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
+        UnitTypeId = StrategicWorldIds.UnitGraveShadow,
         UnitIndex = 1,
         FactionId = StrategicWorldIds.FactionUndead,
         PlacementKind = WorldSiteUnitPlacementKind.Garrison,

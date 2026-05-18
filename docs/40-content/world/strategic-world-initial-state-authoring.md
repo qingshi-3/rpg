@@ -14,7 +14,7 @@ Open this resource in Godot Inspector. Each `Sites` entry maps one `WorldSite` t
 
 - `SiteId`: site id, such as `player_camp` or `bonefield`.
 - `InitialGarrison`: starting unit stacks inside that site.
-- `UnitDefinition`: pick a battle unit resource, such as `res://assets/battle/units/player_knight.tres`.
+- `UnitDefinition`: pick a battle unit resource, such as `res://assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres`.
 - `Count`: stack count.
 - `Morale`: starting morale.
 

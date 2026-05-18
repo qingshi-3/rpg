@@ -15,13 +15,6 @@ const defaultDuelystRoot = path.join(
 );
 const duelystRoot = process.env.DUELYST_ROOT || defaultDuelystRoot;
 
-const starterSourceKeys = new Map([
-  ["player_knight", "f1_shieldforger"],
-  ["militia", "f1_shieldforger"],
-  ["skeleton_warrior", "f1_shieldforger"],
-  ["skeleton_archer", "f1_scintilla"],
-]);
-
 const sourceKeyOverrides = new Map(Object.entries({
   f1_shieldforger: "盾牌铸造者",
   f1_scintilla: "闪烁术士",
@@ -1270,13 +1263,6 @@ function loadDuelystSourceNameMap() {
 }
 
 function resolveSourceKey(packageDir, unitId) {
-  if (starterSourceKeys.has(unitId)) {
-    return {
-      sourceKey: starterSourceKeys.get(unitId),
-      sourceKind: "starter-visual-map",
-    };
-  }
-
   const framesPath = path.join(packageDir, "frames.tres");
   if (fs.existsSync(framesPath)) {
     const frameText = readText(framesPath);

@@ -30,9 +30,9 @@ Required first playable roster:
 
 | Role | Resource | Display Name | Footprint |
 | --- | --- | --- | --- |
-| Player hero | `assets/battle/units/f1_宗师Zir/unit.tres` | `宗师兹伊尔` | `2x1` |
-| Player corps soldier | `assets/battle/units/f1_天蓝石狮/unit.tres` | `天蓝石狮` | `2x1` |
-| Enemy leader | `assets/battle/units/f6_Draugar领主/unit.tres` | `尸鬼领主` | `2x2` |
+| Player hero | `assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres` | `宗师兹伊尔` | `2x1` |
+| Player corps soldier | `assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres` | `天蓝石狮` | `2x1` |
+| Enemy leader | `assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres` | `尸鬼领主` | `2x2` |
 
 Visible combatants in this slice must use authored unit resources under `assets/battle/units/`. Geometric placeholders are not acceptable for hero, corps, or enemy units in the player-facing prototype.
 

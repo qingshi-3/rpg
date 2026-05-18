@@ -15,7 +15,7 @@ This note records reusable reference observations from Duelyst for this project'
 
 ## Extracted Unit-Archetype Features
 
-The project asset package currently contains 696 generated unit packages under `assets/battle/units/`. The six dense prefix groups `f1` to `f6` are strong enough to support six original visual lineages.
+The project asset package currently contains 697 generated unit packages under the seven `assets/battle/units/` faction directories. The six dense prefix groups `f1` to `f6` are strong enough to support six original visual lineages.
 
 | Local Prefix | Visual / Role Features To Reuse | Do Not Reuse |
 | --- | --- | --- |

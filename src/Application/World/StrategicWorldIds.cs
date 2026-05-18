@@ -24,13 +24,15 @@ public static class StrategicWorldIds
     public const string SiteBonefield = "bonefield";
     public const string SiteGraveyard = "graveyard";
 
-    public const string UnitMilitia = "militia";
-    public const string UnitPlayerKnight = "player_knight";
-    public const string UnitSkeletonWarrior = "skeleton_warrior";
-    public const string UnitSkeletonArcher = "skeleton_archer";
     public const string UnitGraveShadow = "neutral_shadow1";
     public const string UnitGraveMarksman = "neutral_shadowranged";
     public const string UnitDeathBlighter = "neutral_deathblighter";
+    // The early placeholder unit ids now point at authored battle definitions;
+    // the removed placeholder packages duplicated other visuals.
+    public const string UnitMilitia = "f1_shieldforger";
+    public const string UnitPlayerKnight = "f1_grandmasterzir";
+    public const string UnitSkeletonWarrior = UnitGraveShadow;
+    public const string UnitSkeletonArcher = UnitGraveMarksman;
 
     public const string ThreatRuleGraveyardRaidBonefield = "graveyard_raid_bonefield";
 

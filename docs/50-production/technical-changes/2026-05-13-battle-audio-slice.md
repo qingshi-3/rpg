@@ -4,8 +4,8 @@ This change adds the first battle-audio slice for the starter units only.
 
 ## Scope
 
-- Four starter unit definitions now reference local `BattleUnitAudioDefinition` resources.
-- Unit-owned audio files live under each unit directory at `assets/battle/units/<unit_id>/audio/`.
+- Two canonical source-visual unit definitions now reference local `BattleUnitAudioDefinition` resources.
+- Unit-owned audio files live under each unit package at `assets/battle/units/<faction>/<package>/audio/`.
 - Shared UI/common cues live under `assets/audio/sfx/common/`.
 - Source and target conversion records live in `assets/audio/sfx/duelyst_audio_migration_a.json`.
 
@@ -23,5 +23,5 @@ This change adds the first battle-audio slice for the starter units only.
 
 ## Starter Slice Mapping
 
-- `player_knight`, `militia`, and `skeleton_warrior` currently all resolve to `f1_shieldforger.png` / `RSX.f1Surgeforger*`, so they intentionally share the original `Surgeforger` sound mapping.
-- `skeleton_archer` currently resolves to `f1_scintilla.png` / `RSX.f1Scintilla*`, so it uses the original `Scintilla` sound mapping.
+- `f1_shieldforger` owns the consolidated `Surgeforger` sound mapping for the removed placeholder units that shared its visuals.
+- `f1_scintilla` owns the consolidated `Scintilla` sound mapping for the removed placeholder unit that shared its visuals.

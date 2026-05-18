@@ -22,23 +22,22 @@ BattleUnitDefinition.Visual
 
 - Map audio by actual sprite/animation source, not by local unit id or display name.
 - Record the source visual key, RSX animation alias, card factory path/line, source sfx file, and target Godot path for every migrated cue.
-- Keep unit-specific audio under `assets/battle/units/<unit_id>/audio/` for maintainability.
+- Keep unit-specific audio under the unit package, such as
+  `assets/battle/units/<faction>/<package>/audio/`, for maintainability.
 - Keep common UI/system audio under `assets/audio/sfx/common/`.
 - Do not bulk-copy all Duelyst sounds; migrate only sounds referenced by accepted units, UI events, or battle feedback needs.
 - Treat first-pass audio as presentation-only. It must not change AP, turn order, hit timing authority, health, death state, or action resolution.
 
 ## Starter Slice Finding
 
-The initial four local unit definitions are not four distinct Duelyst units:
+The early placeholder definitions were consolidated into the real source-visual units before deletion:
 
-| Local Unit Id | Actual Sprite Source | Duelyst Mapping Source |
+| Canonical Unit Id | Actual Sprite Source | Duelyst Mapping Source |
 | --- | --- | --- |
-| `player_knight` | `f1_shieldforger.png` | `RSX.f1Surgeforger*` / `app/sdk/cards/factory/wartech/faction1.coffee` |
-| `militia` | `f1_shieldforger.png` | `RSX.f1Surgeforger*` / `app/sdk/cards/factory/wartech/faction1.coffee` |
-| `skeleton_warrior` | `f1_shieldforger.png` | `RSX.f1Surgeforger*` / `app/sdk/cards/factory/wartech/faction1.coffee` |
-| `skeleton_archer` | `f1_scintilla.png` | `RSX.f1Scintilla*` / `app/sdk/cards/factory/bloodstorm/faction1.coffee` |
+| `f1_shieldforger` | `f1_shieldforger.png` | `RSX.f1Surgeforger*` / `app/sdk/cards/factory/wartech/faction1.coffee` |
+| `f1_scintilla` | `f1_scintilla.png` | `RSX.f1Scintilla*` / `app/sdk/cards/factory/bloodstorm/faction1.coffee` |
 
-This means the current local names are not reliable audio identities. Future content should either rename/re-author these units or keep audio tied to the actual sprite source until the unit identity is finalized.
+This means temporary local names are not reliable audio identities. Future content should keep audio tied to the actual sprite source until the unit identity is finalized.
 
 ## Proposed Tooling
 

@@ -1,239 +1,143 @@
 {
-  "mappingRule": "Unit audio is mapped from the actual SpriteFrames source visual/RSX animation identity, not from temporary local unit ids or display names.",
-  "sourceRoot": "C:\\Users\\qs\\Desktop\\游戏素材\\duelyst-main (1)\\duelyst-main\\app\\resources\\sfx",
-  "ffmpeg": "C:\\Users\\qs\\AppData\\Roaming\\Python\\Python314\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe",
-  "converted": [
-    {
-      "unit": "player_knight",
-      "cue": "deploy",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_spell_immolation_b.m4a",
-      "target": "assets/battle/units/player_knight/audio/deploy.ogg"
-    },
-    {
-      "unit": "player_knight",
-      "cue": "move",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_unit_run_charge_4.m4a",
-      "target": "assets/battle/units/player_knight/audio/move.ogg"
-    },
-    {
-      "unit": "player_knight",
-      "cue": "attack",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_attack_swing.m4a",
-      "target": "assets/battle/units/player_knight/audio/attack.ogg"
-    },
-    {
-      "unit": "player_knight",
-      "cue": "attack_impact",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_attack_impact.m4a",
-      "target": "assets/battle/units/player_knight/audio/attack_impact.ogg"
-    },
-    {
-      "unit": "player_knight",
-      "cue": "hit",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_hit.m4a",
-      "target": "assets/battle/units/player_knight/audio/hit.ogg"
-    },
-    {
-      "unit": "player_knight",
-      "cue": "defeated",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_death.m4a",
-      "target": "assets/battle/units/player_knight/audio/defeated.ogg"
-    },
-    {
-      "unit": "militia",
-      "cue": "deploy",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_spell_immolation_b.m4a",
-      "target": "assets/battle/units/militia/audio/deploy.ogg"
-    },
-    {
-      "unit": "militia",
-      "cue": "move",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_unit_run_charge_4.m4a",
-      "target": "assets/battle/units/militia/audio/move.ogg"
-    },
-    {
-      "unit": "militia",
-      "cue": "attack",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_attack_swing.m4a",
-      "target": "assets/battle/units/militia/audio/attack.ogg"
-    },
-    {
-      "unit": "militia",
-      "cue": "attack_impact",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_attack_impact.m4a",
-      "target": "assets/battle/units/militia/audio/attack_impact.ogg"
-    },
-    {
-      "unit": "militia",
-      "cue": "hit",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_hit.m4a",
-      "target": "assets/battle/units/militia/audio/hit.ogg"
-    },
-    {
-      "unit": "militia",
-      "cue": "defeated",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_death.m4a",
-      "target": "assets/battle/units/militia/audio/defeated.ogg"
-    },
-    {
-      "unit": "skeleton_warrior",
-      "cue": "deploy",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_spell_immolation_b.m4a",
-      "target": "assets/battle/units/skeleton_warrior/audio/deploy.ogg"
-    },
-    {
-      "unit": "skeleton_warrior",
-      "cue": "move",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_unit_run_charge_4.m4a",
-      "target": "assets/battle/units/skeleton_warrior/audio/move.ogg"
-    },
-    {
-      "unit": "skeleton_warrior",
-      "cue": "attack",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_attack_swing.m4a",
-      "target": "assets/battle/units/skeleton_warrior/audio/attack.ogg"
-    },
-    {
-      "unit": "skeleton_warrior",
-      "cue": "attack_impact",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_attack_impact.m4a",
-      "target": "assets/battle/units/skeleton_warrior/audio/attack_impact.ogg"
-    },
-    {
-      "unit": "skeleton_warrior",
-      "cue": "hit",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_hit.m4a",
-      "target": "assets/battle/units/skeleton_warrior/audio/hit.ogg"
-    },
-    {
-      "unit": "skeleton_warrior",
-      "cue": "defeated",
-      "sourceVisual": "f1_shieldforger.png / RSX.f1Surgeforger*",
-      "sourceCardFactory": "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
-      "source": "sfx_f1_ironcliffeguardian_death.m4a",
-      "target": "assets/battle/units/skeleton_warrior/audio/defeated.ogg"
-    },
-    {
-      "unit": "skeleton_archer",
-      "cue": "deploy",
-      "sourceVisual": "f1_scintilla.png / RSX.f1Scintilla*",
-      "sourceCardFactory": "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
-      "source": "sfx_spell_immolation_b.m4a",
-      "target": "assets/battle/units/skeleton_archer/audio/deploy.ogg"
-    },
-    {
-      "unit": "skeleton_archer",
-      "cue": "move",
-      "sourceVisual": "f1_scintilla.png / RSX.f1Scintilla*",
-      "sourceCardFactory": "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
-      "source": "singe2.m4a",
-      "target": "assets/battle/units/skeleton_archer/audio/move.ogg"
-    },
-    {
-      "unit": "skeleton_archer",
-      "cue": "attack",
-      "sourceVisual": "f1_scintilla.png / RSX.f1Scintilla*",
-      "sourceCardFactory": "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
-      "source": "sfx_neutral_redsynja_attack_swing.m4a",
-      "target": "assets/battle/units/skeleton_archer/audio/attack.ogg"
-    },
-    {
-      "unit": "skeleton_archer",
-      "cue": "attack_impact",
-      "sourceVisual": "f1_scintilla.png / RSX.f1Scintilla*",
-      "sourceCardFactory": "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
-      "source": "sfx_f2melee_attack_impact_1.m4a",
-      "target": "assets/battle/units/skeleton_archer/audio/attack_impact.ogg"
-    },
-    {
-      "unit": "skeleton_archer",
-      "cue": "hit",
-      "sourceVisual": "f1_scintilla.png / RSX.f1Scintilla*",
-      "sourceCardFactory": "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
-      "source": "sfx_f2melee_hit_2.m4a",
-      "target": "assets/battle/units/skeleton_archer/audio/hit.ogg"
-    },
-    {
-      "unit": "skeleton_archer",
-      "cue": "defeated",
-      "sourceVisual": "f1_scintilla.png / RSX.f1Scintilla*",
-      "sourceCardFactory": "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
-      "source": "sfx_f2melee_death.m4a",
-      "target": "assets/battle/units/skeleton_archer/audio/defeated.ogg"
-    },
-    {
-      "unit": "common",
-      "cue": "select",
-      "sourceVisual": "common-ui",
-      "sourceCardFactory": "manual-common-cue",
-      "source": "select.m4a",
-      "target": "assets/audio/sfx/common/select.ogg"
-    },
-    {
-      "unit": "common",
-      "cue": "ui_select",
-      "sourceVisual": "common-ui",
-      "sourceCardFactory": "manual-common-cue",
-      "source": "sfx_ui_select.m4a",
-      "target": "assets/audio/sfx/common/ui_select.ogg"
-    },
-    {
-      "unit": "common",
-      "cue": "ui_error",
-      "sourceVisual": "common-ui",
-      "sourceCardFactory": "manual-common-cue",
-      "source": "sfx_ui_error.m4a",
-      "target": "assets/audio/sfx/common/ui_error.ogg"
-    },
-    {
-      "unit": "common",
-      "cue": "your_turn",
-      "sourceVisual": "common-ui",
-      "sourceCardFactory": "manual-common-cue",
-      "source": "sfx_ui_yourturn.m4a",
-      "target": "assets/audio/sfx/common/your_turn.ogg"
-    },
-    {
-      "unit": "common",
-      "cue": "victory",
-      "sourceVisual": "common-ui",
-      "sourceCardFactory": "manual-common-cue",
-      "source": "sfx_victory_match.m4a",
-      "target": "assets/audio/sfx/common/victory.ogg"
-    }
-  ]
+    "mappingRule":  "Unit audio is mapped from the actual SpriteFrames source visual/RSX animation identity, not from temporary local unit ids or display names.",
+    "sourceRoot":  "C:\\Users\\qs\\Desktop\\游戏素材\\duelyst-main (1)\\duelyst-main\\app\\resources\\sfx",
+    "ffmpeg":  "C:\\Users\\qs\\AppData\\Roaming\\Python\\Python314\\site-packages\\imageio_ffmpeg\\binaries\\ffmpeg-win-x86_64-v7.1.exe",
+    "converted":  [
+                      {
+                          "unit":  "f1_shieldforger",
+                          "cue":  "deploy",
+                          "sourceVisual":  "f1_shieldforger.png / RSX.f1Surgeforger*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
+                          "source":  "sfx_spell_immolation_b.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_盾牌铸造者/audio/deploy.ogg"
+                      },
+                      {
+                          "unit":  "f1_shieldforger",
+                          "cue":  "move",
+                          "sourceVisual":  "f1_shieldforger.png / RSX.f1Surgeforger*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
+                          "source":  "sfx_unit_run_charge_4.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_盾牌铸造者/audio/move.ogg"
+                      },
+                      {
+                          "unit":  "f1_shieldforger",
+                          "cue":  "attack",
+                          "sourceVisual":  "f1_shieldforger.png / RSX.f1Surgeforger*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
+                          "source":  "sfx_f1_ironcliffeguardian_attack_swing.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_盾牌铸造者/audio/attack.ogg"
+                      },
+                      {
+                          "unit":  "f1_shieldforger",
+                          "cue":  "attack_impact",
+                          "sourceVisual":  "f1_shieldforger.png / RSX.f1Surgeforger*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
+                          "source":  "sfx_f1_ironcliffeguardian_attack_impact.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_盾牌铸造者/audio/attack_impact.ogg"
+                      },
+                      {
+                          "unit":  "f1_shieldforger",
+                          "cue":  "hit",
+                          "sourceVisual":  "f1_shieldforger.png / RSX.f1Surgeforger*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
+                          "source":  "sfx_f1_ironcliffeguardian_hit.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_盾牌铸造者/audio/hit.ogg"
+                      },
+                      {
+                          "unit":  "f1_shieldforger",
+                          "cue":  "defeated",
+                          "sourceVisual":  "f1_shieldforger.png / RSX.f1Surgeforger*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/wartech/faction1.coffee:291-307",
+                          "source":  "sfx_f1_ironcliffeguardian_death.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_盾牌铸造者/audio/defeated.ogg"
+                      },
+                      {
+                          "unit":  "f1_scintilla",
+                          "cue":  "deploy",
+                          "sourceVisual":  "f1_scintilla.png / RSX.f1Scintilla*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
+                          "source":  "sfx_spell_immolation_b.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_闪烁/audio/deploy.ogg"
+                      },
+                      {
+                          "unit":  "f1_scintilla",
+                          "cue":  "move",
+                          "sourceVisual":  "f1_scintilla.png / RSX.f1Scintilla*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
+                          "source":  "singe2.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_闪烁/audio/move.ogg"
+                      },
+                      {
+                          "unit":  "f1_scintilla",
+                          "cue":  "attack",
+                          "sourceVisual":  "f1_scintilla.png / RSX.f1Scintilla*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
+                          "source":  "sfx_neutral_redsynja_attack_swing.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_闪烁/audio/attack.ogg"
+                      },
+                      {
+                          "unit":  "f1_scintilla",
+                          "cue":  "attack_impact",
+                          "sourceVisual":  "f1_scintilla.png / RSX.f1Scintilla*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
+                          "source":  "sfx_f2melee_attack_impact_1.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_闪烁/audio/attack_impact.ogg"
+                      },
+                      {
+                          "unit":  "f1_scintilla",
+                          "cue":  "hit",
+                          "sourceVisual":  "f1_scintilla.png / RSX.f1Scintilla*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
+                          "source":  "sfx_f2melee_hit_2.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_闪烁/audio/hit.ogg"
+                      },
+                      {
+                          "unit":  "f1_scintilla",
+                          "cue":  "defeated",
+                          "sourceVisual":  "f1_scintilla.png / RSX.f1Scintilla*",
+                          "sourceCardFactory":  "app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116",
+                          "source":  "sfx_f2melee_death.m4a",
+                          "target":  "assets/battle/units/莱昂纳王国/f1_闪烁/audio/defeated.ogg"
+                      },
+                      {
+                          "unit":  "common",
+                          "cue":  "select",
+                          "sourceVisual":  "common-ui",
+                          "sourceCardFactory":  "manual-common-cue",
+                          "source":  "select.m4a",
+                          "target":  "assets/audio/sfx/common/select.ogg"
+                      },
+                      {
+                          "unit":  "common",
+                          "cue":  "ui_select",
+                          "sourceVisual":  "common-ui",
+                          "sourceCardFactory":  "manual-common-cue",
+                          "source":  "sfx_ui_select.m4a",
+                          "target":  "assets/audio/sfx/common/ui_select.ogg"
+                      },
+                      {
+                          "unit":  "common",
+                          "cue":  "ui_error",
+                          "sourceVisual":  "common-ui",
+                          "sourceCardFactory":  "manual-common-cue",
+                          "source":  "sfx_ui_error.m4a",
+                          "target":  "assets/audio/sfx/common/ui_error.ogg"
+                      },
+                      {
+                          "unit":  "common",
+                          "cue":  "your_turn",
+                          "sourceVisual":  "common-ui",
+                          "sourceCardFactory":  "manual-common-cue",
+                          "source":  "sfx_ui_yourturn.m4a",
+                          "target":  "assets/audio/sfx/common/your_turn.ogg"
+                      },
+                      {
+                          "unit":  "common",
+                          "cue":  "victory",
+                          "sourceVisual":  "common-ui",
+                          "sourceCardFactory":  "manual-common-cue",
+                          "source":  "sfx_victory_match.m4a",
+                          "target":  "assets/audio/sfx/common/victory.ogg"
+                      }
+                  ]
 }

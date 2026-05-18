@@ -94,7 +94,7 @@ internal static void BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssault
     StrategicWorldState state = new StrategicWorldService().CreateInitialState(definition);
     WorldSiteState targetSite = state.SiteStates[StrategicWorldIds.SiteBonefield];
     targetSite.Garrison.Clear();
-    targetSite.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1 });
+    targetSite.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1 });
 
     WorldArmyState army = new()
     {
@@ -120,7 +120,7 @@ internal static void BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssault
     request.ObjectiveIds.Add("occupy_bonefield");
     request.PlayerForces.Add(new BattleForceRequest
     {
-        ForceId = "player:militia",
+        ForceId = $"player:{StrategicWorldIds.UnitMilitia}",
         SourceKind = "PlayerArmy",
         SourceId = army.ArmyId,
         UnitDefinitionId = StrategicWorldIds.UnitMilitia,
@@ -129,10 +129,10 @@ internal static void BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssault
     });
     request.EnemyForces.Add(new BattleForceRequest
     {
-        ForceId = "defender:skeleton",
+        ForceId = $"defender:{StrategicWorldIds.UnitGraveShadow}",
         SourceKind = "DefenderSite",
         SourceId = StrategicWorldIds.SiteBonefield,
-        UnitDefinitionId = StrategicWorldIds.UnitSkeletonWarrior,
+        UnitDefinitionId = StrategicWorldIds.UnitGraveShadow,
         Count = 1,
         FactionId = StrategicWorldIds.FactionUndead
     });
@@ -151,7 +151,7 @@ internal static void BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssault
     {
         SourceKind = "DefenderSite",
         SourceId = StrategicWorldIds.SiteBonefield,
-        UnitDefinitionId = StrategicWorldIds.UnitSkeletonWarrior,
+        UnitDefinitionId = StrategicWorldIds.UnitGraveShadow,
         InitialCount = 1,
         SurvivedCount = 0,
         DefeatedCount = 1
@@ -184,7 +184,7 @@ internal static void BattleResultApplierKeepsSurvivingDefendingGarrisonAfterDefe
     request.ObjectiveIds.Add("defend_bonefield");
     request.PlayerForces.Add(new BattleForceRequest
     {
-        ForceId = "garrison:militia",
+        ForceId = $"garrison:{StrategicWorldIds.UnitMilitia}",
         SourceKind = "Garrison",
         SourceId = StrategicWorldIds.SiteBonefield,
         UnitDefinitionId = StrategicWorldIds.UnitMilitia,
@@ -195,7 +195,7 @@ internal static void BattleResultApplierKeepsSurvivingDefendingGarrisonAfterDefe
     BattleResult result = BuildVictoryResult(request, "defend_bonefield");
     result.ForceResults.Add(new BattleForceResult
     {
-        ForceId = "garrison:militia",
+        ForceId = $"garrison:{StrategicWorldIds.UnitMilitia}",
         SourceKind = "Garrison",
         SourceId = StrategicWorldIds.SiteBonefield,
         UnitDefinitionId = StrategicWorldIds.UnitMilitia,

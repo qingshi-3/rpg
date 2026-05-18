@@ -400,8 +400,8 @@ public static class StrategicWorldV1DefinitionFactory
                     {
                         Id = "bonefield_patrol_01",
                         DisplayName = "骸骨巡逻队",
-                        UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior,
-                        SourcePlacementId = "garrison:skeleton_warrior:1",
+                        UnitTypeId = StrategicWorldIds.UnitGraveShadow,
+                        SourcePlacementId = "garrison:neutral_shadow1:1",
                         AlertRadiusCells = 2,
                         ActionPointRegenPerTick = 1,
                         MoveCostPerCell = 2,
@@ -416,8 +416,8 @@ public static class StrategicWorldV1DefinitionFactory
                     {
                         Id = "bonefield_patrol_02",
                         DisplayName = "骸骨射手巡逻队",
-                        UnitTypeId = StrategicWorldIds.UnitSkeletonArcher,
-                        SourcePlacementId = "garrison:skeleton_archer:1",
+                        UnitTypeId = StrategicWorldIds.UnitGraveMarksman,
+                        SourcePlacementId = "garrison:neutral_shadowranged:1",
                         AlertRadiusCells = 2,
                         ActionPointRegenPerTick = 1,
                         MoveCostPerCell = 2,
@@ -446,8 +446,6 @@ public static class StrategicWorldV1DefinitionFactory
                 },
                 InitialGarrison = new List<GarrisonDefinition>
                 {
-                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1, Morale = 35 },
-                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonArcher, Count = 1, Morale = 35 },
                     new() { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1, Morale = 40 },
                     new() { UnitTypeId = StrategicWorldIds.UnitGraveMarksman, Count = 1, Morale = 40 },
                     new() { UnitTypeId = StrategicWorldIds.UnitDeathBlighter, Count = 1, Morale = 45 }
@@ -461,8 +459,6 @@ public static class StrategicWorldV1DefinitionFactory
                         MaxStoredUnits = 10,
                         BatchUnits = new List<GarrisonDefinition>
                         {
-                            new() { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1, Morale = 35 },
-                            new() { UnitTypeId = StrategicWorldIds.UnitSkeletonArcher, Count = 1, Morale = 35 },
                             new() { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1, Morale = 40 },
                             new() { UnitTypeId = StrategicWorldIds.UnitGraveMarksman, Count = 1, Morale = 40 },
                             new() { UnitTypeId = StrategicWorldIds.UnitDeathBlighter, Count = 1, Morale = 45 }
@@ -778,8 +774,6 @@ public static class StrategicWorldV1DefinitionFactory
                 EnemyGroupId = "undead_raid_01",
                 EnemyForces = new List<GarrisonDefinition>
                 {
-                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonWarrior, Count = 1, Morale = 30 },
-                    new() { UnitTypeId = StrategicWorldIds.UnitSkeletonArcher, Count = 1, Morale = 30 },
                     new() { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1, Morale = 35 },
                     new() { UnitTypeId = StrategicWorldIds.UnitGraveMarksman, Count = 1, Morale = 35 },
                     new() { UnitTypeId = StrategicWorldIds.UnitDeathBlighter, Count = 1, Morale = 40 }

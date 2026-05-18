@@ -624,8 +624,6 @@ public sealed class WorldBattleProgressionService
         {
             StrategicWorldIds.UnitPlayerKnight => 7,
             StrategicWorldIds.UnitMilitia => 3,
-            StrategicWorldIds.UnitSkeletonWarrior => 4,
-            StrategicWorldIds.UnitSkeletonArcher => 4,
             StrategicWorldIds.UnitGraveShadow => 5,
             StrategicWorldIds.UnitGraveMarksman => 5,
             StrategicWorldIds.UnitDeathBlighter => 6,

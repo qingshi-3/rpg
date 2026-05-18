@@ -77,8 +77,8 @@ Setup:
 - Open the strategic world.
 
 Expected:
-- `militia` move range is 6.
-- `player_knight` move range is 8.
-- `skeleton_warrior` move range is 6.
-- `skeleton_archer` move range is 4.
+- `f1_shieldforger` move range is 3.
+- `f1_grandmasterzir` move range is 3.
+- `neutral_shadow1` move range is 3.
+- `neutral_shadowranged` move range is 3.
 - The strategic world clock starts at 4x.
