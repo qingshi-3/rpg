@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BattleUnitDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://8cgtvlv57kfn" path="res://src/Definitions/Battle/BattleUnitDefinition.cs" id="1_definition"]
+[ext_resource type="Resource" path="res://assets/battle/units/星砂圣庭/f3_异界Sinergyunit/visual.tres" id="2_visual"]
+
+
+[resource]
+script = ExtResource("1_definition")
+Id = "f3_sinergyunit"
+DisplayName = "沙域协同单位"
+Visual = ExtResource("2_visual")
+DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
+MaxHp = 12
+MoveRange = 3
+AttackDamage = 4
+AttackRange = 1
+BlocksMovement = true
+IsTargetable = true

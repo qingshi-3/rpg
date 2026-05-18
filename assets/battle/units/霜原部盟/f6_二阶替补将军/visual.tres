@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="BattleUnitVisualDefinition" load_steps=4 format=3]
+
+[ext_resource type="Resource" uid="uid://cvvghru2jhsxw" path="res://assets/battle/unit_visuals/default_battle_unit_animation_set.tres" id="1_animation_set"]
+[ext_resource type="SpriteFrames" path="res://assets/battle/units/霜原部盟/f6_二阶替补将军/frames.tres" id="2_frames"]
+[ext_resource type="Script" uid="uid://b5lqkuxa0rjxu" path="res://src/Definitions/Battle/BattleUnitVisualDefinition.cs" id="3_definition"]
+
+[resource]
+script = ExtResource("3_definition")
+SpriteFrames = ExtResource("2_frames")
+AnimationSet = ExtResource("1_animation_set")
+Offset = Vector2(0, -9.6)
+Scale = Vector2(0.229, 0.229)
+Modulate = Color(1, 1, 1, 1)
