@@ -12,7 +12,6 @@ public sealed class WorldActionResolver
 {
     private readonly WorldConditionEvaluator _conditionEvaluator = new();
     private readonly WorldTickService _worldTickService = new();
-    private readonly WorldThreatService _threatService;
     private readonly WorldBattleRequestBuilder _battleRequestBuilder = new();
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
     private readonly WorldGarrisonMutationService _garrisonMutations = new();
@@ -21,14 +20,12 @@ public sealed class WorldActionResolver
     public WorldActionResolver(Func<string, string> unitDisplayNameResolver = null)
     {
         _unitDisplayNameResolver = unitDisplayNameResolver;
-        _threatService = new WorldThreatService(unitDisplayNameResolver);
     }
 
     public IReadOnlyList<WorldActionViewModel> GetAvailableActions(
         StrategicWorldState state,
         StrategicWorldDefinition definition,
         string selectedSiteId,
-        string selectedThreatId = "",
         string selectedSlotId = "")
     {
         StrategicWorldDefinitionQueries queries = new(definition);
@@ -36,12 +33,12 @@ public sealed class WorldActionResolver
 
         foreach (WorldActionDefinition action in definition.ActionDefinitions)
         {
-            if (!ShouldShowAction(state, action, selectedSiteId, selectedThreatId))
+            if (!ShouldShowAction(state, action, selectedSiteId))
             {
                 continue;
             }
 
-            WorldActionRequest request = BuildRequestForViewModel(action, selectedSiteId, selectedThreatId, selectedSlotId);
+            WorldActionRequest request = BuildRequestForViewModel(action, selectedSiteId, selectedSlotId);
             bool enabled = CanApply(state, definition, action, request, out string failureReason);
             viewModels.Add(new WorldActionViewModel
             {
@@ -52,10 +49,9 @@ public sealed class WorldActionResolver
                 DisabledReason = enabled ? "" : FormatFailureReason(failureReason, queries),
                 CostLines = action.Costs.Select(cost => $"{StrategicWorldDisplayNames.GetResourceLabel(queries, cost.ResourceId)} {cost.Amount}").ToList(),
                 EffectLines = BuildEffectLines(action, queries),
-                WarningLines = BuildWarningLines(state, action, selectedThreatId, queries),
+                WarningLines = new List<string>(),
                 TargetSiteId = request.TargetSiteId,
-                TargetSlotId = request.TargetSlotId,
-                ThreatId = request.ThreatId
+                TargetSlotId = request.TargetSlotId
             });
         }
 
@@ -79,16 +75,6 @@ public sealed class WorldActionResolver
         if (!CanApply(state, definition, action, request, out string failureReason))
         {
             return WorldActionResult.Failed(action.Id, failureReason, FormatFailureReason(failureReason, queries));
-        }
-
-        if (action.Id == StrategicWorldIds.ActionAutoResolveRaid)
-        {
-            if (WorldBattleProgressionService.HasActiveBattleForThreat(state, request.ThreatId))
-            {
-                return WorldActionResult.Failed(action.Id, "world_battle_in_progress", "战斗正在世界层推演中，可选择介入，或让世界时钟继续推进。");
-            }
-
-            return _threatService.ResolveRaidAutomatically(state, definition, request.ThreatId);
         }
 
         WorldActionResult result = new()
@@ -151,14 +137,7 @@ public sealed class WorldActionResolver
         StrategicWorldDefinitionQueries queries = new(definition);
         failureReason = "";
 
-        if (action.Scope != WorldActionScope.Threat &&
-            HasBlockingAttackingThreat(state, definition))
-        {
-            failureReason = "attacking_threat_pending";
-            return false;
-        }
-
-        if (action.Scope is not (WorldActionScope.Run or WorldActionScope.Threat) &&
+        if (action.Scope != WorldActionScope.Run &&
             IsTargetSiteInWartime(state, request))
         {
             failureReason = "site_in_wartime";
@@ -182,24 +161,11 @@ public sealed class WorldActionResolver
         return CanApplyRequestedFacilitySlot(state, queries, action, request, out failureReason);
     }
 
-    private static bool ShouldShowAction(StrategicWorldState state, WorldActionDefinition action, string selectedSiteId, string selectedThreatId)
+    private static bool ShouldShowAction(StrategicWorldState state, WorldActionDefinition action, string selectedSiteId)
     {
         if (action.Scope == WorldActionScope.Run)
         {
             return true;
-        }
-
-        if (action.Scope == WorldActionScope.Threat)
-        {
-            if (action.Id == StrategicWorldIds.ActionAutoResolveRaid &&
-                WorldBattleProgressionService.HasActiveBattleForThreat(state, selectedThreatId))
-            {
-                return false;
-            }
-
-            return !string.IsNullOrWhiteSpace(selectedThreatId) &&
-                   state.ThreatPlans.TryGetValue(selectedThreatId, out EnemyThreatPlan threat) &&
-                   threat.Stage == ThreatStage.Attacking;
         }
 
         if (string.IsNullOrWhiteSpace(selectedSiteId))
@@ -219,7 +185,6 @@ public sealed class WorldActionResolver
     private static WorldActionRequest BuildRequestForViewModel(
         WorldActionDefinition action,
         string selectedSiteId,
-        string selectedThreatId,
         string selectedSlotId)
     {
         string targetSiteId = action.Id switch
@@ -236,8 +201,7 @@ public sealed class WorldActionResolver
             ActorFactionId = StrategicWorldIds.FactionPlayer,
             SourceSiteId = selectedSiteId,
             TargetSiteId = targetSiteId,
-            TargetSlotId = ActionAddsFacility(action) ? selectedSlotId ?? "" : "",
-            ThreatId = selectedThreatId
+            TargetSlotId = ActionAddsFacility(action) ? selectedSlotId ?? "" : ""
         };
     }
 
@@ -433,22 +397,6 @@ public sealed class WorldActionResolver
             return _battleRequestBuilder.BuildAssaultBonefieldRequest(state, definition, returnScenePath, siteScenePath);
         }
 
-        if (battleKind == BattleKind.DefenseRaid)
-        {
-            WorldBattleState battle = WorldBattleProgressionService.FindActiveBattleForThreat(state, request.ThreatId);
-            if (battle != null)
-            {
-                return _battleRequestBuilder.BuildWorldBattleInterventionRequest(
-                    state,
-                    definition,
-                    battle.BattleId,
-                    returnScenePath,
-                    siteScenePath);
-            }
-
-            return _battleRequestBuilder.BuildDefenseRaidRequest(state, definition, request.ThreatId, returnScenePath, siteScenePath);
-        }
-
         return null;
     }
 
@@ -601,27 +549,9 @@ public sealed class WorldActionResolver
             },
             StrategicWorldIds.ActionBuildDefenseTower => new List<string> { $"{bonefield}防守 +3", $"防守战获得{defenseTower}支援 1 次" },
             StrategicWorldIds.ActionTrainMilitia => new List<string> { $"{playerCamp}{militia} +1" },
-            StrategicWorldIds.ActionDefendRaid => new List<string> { "进入防守战", "胜利后清除 Raid" },
-            StrategicWorldIds.ActionAutoResolveRaid => new List<string> { $"按驻军和{defenseTower}计算防守结果" },
-            StrategicWorldIds.ActionWaitTick => new List<string> { "推进世界步", "结算生产和威胁" },
+            StrategicWorldIds.ActionWaitTick => new List<string> { "推进世界步", "结算生产和机会" },
             _ => action.Effects.Select(effect => effect.Kind.ToString()).ToList()
         };
-    }
-
-    private List<string> BuildWarningLines(StrategicWorldState state, WorldActionDefinition action, string selectedThreatId, StrategicWorldDefinitionQueries queries)
-    {
-        if (action.Id != StrategicWorldIds.ActionAutoResolveRaid ||
-            string.IsNullOrWhiteSpace(selectedThreatId) ||
-            !state.ThreatPlans.TryGetValue(selectedThreatId, out EnemyThreatPlan threat) ||
-            !state.SiteStates.TryGetValue(threat.TargetSiteId, out WorldSiteState site))
-        {
-            return new List<string>();
-        }
-
-        int militia = site.Garrison.Where(item => item.UnitTypeId == StrategicWorldIds.UnitMilitia).Sum(item => item.Count);
-        int towers = site.Facilities.Count(item => item.FacilityId == StrategicWorldIds.FacilityDefenseTower && item.State == FacilityState.Active);
-        string defenseTower = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityDefenseTower, "防御塔");
-        return new List<string> { $"当前防守：{ResolveUnitLabel(StrategicWorldIds.UnitMilitia)} {militia}，{defenseTower} {towers}" };
     }
 
     private string ResolveUnitLabel(string unitTypeId)
@@ -638,14 +568,6 @@ public sealed class WorldActionResolver
         }
 
         return unitTypeId == StrategicWorldIds.UnitMilitia ? "民兵" : unitTypeId;
-    }
-
-    private static bool HasBlockingAttackingThreat(StrategicWorldState state, StrategicWorldDefinition definition)
-    {
-        return state?.ThreatPlans.Values.Any(threat =>
-            threat.Stage == ThreatStage.Attacking &&
-            WorldBattleProgressionService.IsPlayerInvolvedThreat(state, definition, threat) &&
-            !WorldBattleProgressionService.HasActiveBattleForThreat(state, threat.Id)) == true;
     }
 
     private static string BuildResourceShortageReason(string resourceId)
@@ -670,7 +592,6 @@ public sealed class WorldActionResolver
             "site_not_owned" => "场域不属于玩家",
             "missing_facility" => "缺少可用建筑",
             "no_valid_facility_slot" => "没有合法建筑槽位",
-            "threat_not_attackable" => "敌方威胁尚未到达",
             "not_enough_garrison" => "驻军不足",
             "no_expedition_units" => "没有可出征英雄或小兵",
             "no_expedition_hero" => "没有可出征英雄",
@@ -683,7 +604,6 @@ public sealed class WorldActionResolver
             "garrison_zone_full" => "驻军区已满，无法进驻",
             "garrison_zone_missing" => "未配置默认驻军区",
             "site_not_attackable" => "当前场域不可攻打",
-            "attacking_threat_pending" => "敌方正在进攻，必须先处理威胁",
             "site_in_wartime" => "场域正在战时，不能执行经营行动",
             "army_already_en_route" => "已有玩家部队正在执行该目标",
             _ => string.IsNullOrWhiteSpace(reason) ? "无法执行" : reason

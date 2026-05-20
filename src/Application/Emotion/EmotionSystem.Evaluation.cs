@@ -395,7 +395,6 @@ public sealed partial class EmotionSystem
     {
         return taskKind switch
         {
-            WorldTaskKind.Explore => actor.GetTrait(EmotionAxis.Curiosity) / 2 + actor.GetTrait(EmotionAxis.Courage) / 4,
             WorldTaskKind.Gather => actor.GetTrait(EmotionAxis.Order) / 4 + actor.GetTrait(EmotionAxis.Helpfulness) / 4,
             WorldTaskKind.Mine => actor.GetTrait(EmotionAxis.Order) / 3 + actor.GetTrait(EmotionAxis.Courage) / 5,
             WorldTaskKind.Hunt => actor.GetTrait(EmotionAxis.Courage) / 4 + actor.GetTrait(EmotionAxis.Aggression) / 5 + actor.GetTrait(EmotionAxis.Curiosity) / 5,
@@ -406,7 +405,6 @@ public sealed partial class EmotionSystem
             WorldTaskKind.Craft => actor.GetTrait(EmotionAxis.Order) / 3 + actor.GetTrait(EmotionAxis.Curiosity) / 5,
             WorldTaskKind.Diplomacy => actor.GetTrait(EmotionAxis.Empathy) / 3 + actor.GetTrait(EmotionAxis.Honor) / 4 - actor.GetTrait(EmotionAxis.Aggression) / 5,
             WorldTaskKind.Rescue => actor.GetTrait(EmotionAxis.Helpfulness) / 3 + actor.GetTrait(EmotionAxis.Empathy) / 3 + actor.GetTrait(EmotionAxis.Courage) / 4,
-            WorldTaskKind.Raid => actor.GetTrait(EmotionAxis.Aggression) / 3 + actor.GetTrait(EmotionAxis.Courage) / 4 - actor.GetTrait(EmotionAxis.Empathy) / 5,
             WorldTaskKind.Research => actor.GetTrait(EmotionAxis.Curiosity) / 3 + actor.GetTrait(EmotionAxis.Order) / 5,
             _ => 0
         };

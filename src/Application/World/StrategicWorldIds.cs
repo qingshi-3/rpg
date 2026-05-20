@@ -9,7 +9,6 @@ public static class StrategicWorldIds
 
     public const string FactionCapabilityFieldIntervention = "field_intervention";
     public const string FactionCapabilityCampLogistics = "camp_logistics";
-    public const string FactionCapabilityRelentlessRaid = "relentless_raid";
     public const string FactionCapabilityGraveReinforcement = "grave_reinforcement";
 
     public const string ResourcePopulation = "population";
@@ -34,7 +33,6 @@ public static class StrategicWorldIds
     public const string UnitSkeletonWarrior = UnitGraveShadow;
     public const string UnitSkeletonArcher = UnitGraveMarksman;
 
-    public const string ThreatRuleGraveyardRaidBonefield = "graveyard_raid_bonefield";
 
     public const string OpportunityPoolWildernessV1 = "wilderness_v1";
     public const string OpportunityRuleWildernessV1 = "wilderness_v1_rule";
@@ -45,7 +43,5 @@ public static class StrategicWorldIds
     public const string ActionBuildMine = "build_mine";
     public const string ActionBuildDefenseTower = "build_defense_tower";
     public const string ActionTrainMilitia = "train_militia";
-    public const string ActionDefendRaid = "defend_raid";
-    public const string ActionAutoResolveRaid = "auto_resolve_raid";
     public const string ActionWaitTick = "wait_tick";
 }

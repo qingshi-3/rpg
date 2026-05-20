@@ -7,6 +7,13 @@ using Rpg.Domain.World;
 
 namespace Rpg.Application.World;
 
+public enum StrategicFogVisibility
+{
+    Unknown = 0,
+    Revealed = 1,
+    Visible = 2
+}
+
 public sealed class StrategicFogOfWarSettings
 {
     public float FogTexelWorldSize { get; set; } = StrategicFogOfWarService.DefaultFogTexelWorldSize;
@@ -18,7 +25,8 @@ public readonly record struct StrategicFogVisionSource(Vector2 Position, float R
 
 public static class StrategicFogOfWarService
 {
-    // Intel cells are storage/query granularity only; presentation draws circular masks from vision sources.
+    // Fog cells are map visibility granularity only. They must not carry site intel,
+    // infiltration, alert, or battle-trigger facts.
     public const float DefaultFogTexelWorldSize = 16.0f;
 
     public static bool RefreshVisibility(
@@ -31,20 +39,18 @@ public static class StrategicFogOfWarService
             return false;
         }
 
-        state.Intel ??= new StrategicWorldIntelState();
-        HashSet<string> previousVisible = state.Intel.VisibleCells.ToHashSet(StringComparer.Ordinal);
-        HashSet<string> previousExplored = state.Intel.ExploredCells.ToHashSet(StringComparer.Ordinal);
+        state.Fog ??= new StrategicWorldFogState();
+        HashSet<string> previousVisible = state.Fog.VisibleCells.ToHashSet(StringComparer.Ordinal);
+        HashSet<string> previousExplored = state.Fog.ExploredCells.ToHashSet(StringComparer.Ordinal);
 
         StrategicFogOfWarSettings effectiveSettings = NormalizeSettings(settings);
         HashSet<string> visible = BuildVisibleCellKeys(BuildVisionSources(state, definition, effectiveSettings), effectiveSettings);
         HashSet<string> explored = new(previousExplored, StringComparer.Ordinal);
         explored.UnionWith(visible);
 
-        state.Intel.VisibleCells = visible.OrderBy(key => key, StringComparer.Ordinal).ToList();
-        state.Intel.ExploredCells = explored.OrderBy(key => key, StringComparer.Ordinal).ToList();
-        state.Intel.LastUpdatedWorldTick = state.WorldTick;
-
-        RefreshVisibleSiteSnapshots(state, definition, settings);
+        state.Fog.VisibleCells = visible.OrderBy(key => key, StringComparer.Ordinal).ToList();
+        state.Fog.ExploredCells = explored.OrderBy(key => key, StringComparer.Ordinal).ToList();
+        state.Fog.LastUpdatedWorldTick = state.WorldTick;
 
         return !previousVisible.SetEquals(visible) || !previousExplored.SetEquals(explored);
     }
@@ -86,46 +92,25 @@ public static class StrategicFogOfWarService
         return visible;
     }
 
-    public static WorldIntelVisibility GetSiteVisibility(
-        StrategicWorldIntelState intel,
-        WorldSiteDefinition site,
-        StrategicFogOfWarSettings settings)
-    {
-        if (intel == null || site == null)
-        {
-            return WorldIntelVisibility.Unknown;
-        }
-
-        string cellKey = ToCellKey(WorldToCell(site.MapPosition, NormalizeSettings(settings).FogTexelWorldSize));
-        if (intel.VisibleCells.Contains(cellKey))
-        {
-            return WorldIntelVisibility.Visible;
-        }
-
-        return intel.KnownSites.ContainsKey(site.Id)
-            ? WorldIntelVisibility.Revealed
-            : WorldIntelVisibility.Unknown;
-    }
-
-    public static WorldIntelVisibility GetPositionVisibility(
-        StrategicWorldIntelState intel,
+    public static StrategicFogVisibility GetPositionVisibility(
+        StrategicWorldFogState fog,
         Vector2 position,
         StrategicFogOfWarSettings settings)
     {
-        if (intel == null || !IsFinite(position))
+        if (fog == null || !IsFinite(position))
         {
-            return WorldIntelVisibility.Unknown;
+            return StrategicFogVisibility.Unknown;
         }
 
         string cellKey = ToCellKey(WorldToCell(position, NormalizeSettings(settings).FogTexelWorldSize));
-        if (intel.VisibleCells.Contains(cellKey))
+        if (fog.VisibleCells.Contains(cellKey))
         {
-            return WorldIntelVisibility.Visible;
+            return StrategicFogVisibility.Visible;
         }
 
-        return intel.ExploredCells.Contains(cellKey)
-            ? WorldIntelVisibility.Revealed
-            : WorldIntelVisibility.Unknown;
+        return fog.ExploredCells.Contains(cellKey)
+            ? StrategicFogVisibility.Revealed
+            : StrategicFogVisibility.Unknown;
     }
 
     public static IEnumerable<string> EnumerateCellKeysForBounds(Rect2 bounds, StrategicFogOfWarSettings settings)
@@ -179,23 +164,6 @@ public static class StrategicFogOfWarService
         }
     }
 
-    private static void RefreshVisibleSiteSnapshots(
-        StrategicWorldState state,
-        StrategicWorldDefinition definition,
-        StrategicFogOfWarSettings settings)
-    {
-        foreach (WorldSiteDefinition siteDefinition in definition.SiteDefinitions.Where(site => site != null))
-        {
-            if (!state.SiteStates.TryGetValue(siteDefinition.Id, out WorldSiteState siteState) ||
-                GetSiteVisibility(state.Intel, siteDefinition, settings) != WorldIntelVisibility.Visible)
-            {
-                continue;
-            }
-
-            state.Intel.KnownSites[siteDefinition.Id] = WorldSiteIntelService.BuildSnapshot(siteDefinition, siteState, state.WorldTick);
-        }
-    }
-
     private static StrategicFogOfWarSettings NormalizeSettings(StrategicFogOfWarSettings settings)
     {
         return new StrategicFogOfWarSettings
@@ -211,13 +179,6 @@ public static class StrategicFogOfWarService
         return new Vector2I(
             Mathf.FloorToInt(position.X / texelWorldSize),
             Mathf.FloorToInt(position.Y / texelWorldSize));
-    }
-
-    private static Vector2 CellToWorldCenter(Vector2I cell, float texelWorldSize)
-    {
-        return new Vector2(
-            (cell.X + 0.5f) * texelWorldSize,
-            (cell.Y + 0.5f) * texelWorldSize);
     }
 
     private static string ToCellKey(Vector2I cell)

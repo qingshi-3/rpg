@@ -27,6 +27,10 @@ public partial class BattleUnitRoot : Node2D
     // Default is 0.28s; battle site scenes may lower this during prototype tuning to keep turn flow readable.
     public double UnitMoveDuration { get; set; } = 0.28;
 
+    [Export]
+    // Presentation-only buffer keeps the visual lane from emptying during small Runtime spikes.
+    public double VisualMoveSmoothingSeconds { get; set; } = 0.06;
+
     [ExportGroup("Hit Feedback")]
 
     [Export]
@@ -42,7 +46,7 @@ public partial class BattleUnitRoot : Node2D
     [Export]
     public PackedScene ActionCueScene { get; set; }
 
-    private readonly Dictionary<BattleEntity, Tween> _movementTweens = new();
+    private readonly Dictionary<BattleEntity, MovementLane> _movementLanes = new();
     private readonly Dictionary<BattleEntity, BattleIntentMarker> _intentMarkers = new();
     private readonly Dictionary<BattleEntity, BattleActionCue> _actionCues = new();
     private readonly HashSet<BattleEntity> _hitOutlinedEntities = new();
@@ -54,7 +58,8 @@ public partial class BattleUnitRoot : Node2D
     private TryResolveFootprintGlobalPosition _tryResolveFootprintGlobalPosition;
     private ApplyEntityRenderSort _applyEntityRenderSort;
 
-    public bool HasActiveMovementTweens => _movementTweens.Count > 0;
+    public bool HasActiveMovementTweens => _movementLanes.Count > 0;
+    public int ActiveMovementTweenCount => _movementLanes.Count;
     public bool HasPendingDefeatedPresentations => _pendingDefeatedPresentations.Count > 0;
 
     public override void _Ready()
@@ -63,10 +68,25 @@ public partial class BattleUnitRoot : Node2D
         GameLog.Info(nameof(BattleUnitRoot), $"Ready path={GetPath()} entities={GetEntitiesSnapshot().Count}");
     }
 
+    public override void _Process(double delta)
+    {
+        if (_movementLanes.Count == 0 || delta <= 0)
+        {
+            return;
+        }
+
+        foreach ((BattleEntity entity, MovementLane lane) in _movementLanes.ToArray())
+        {
+            if (!IsEntityAlive(entity) || !AdvanceMovementLane(entity, lane, delta))
+            {
+                _movementLanes.Remove(entity);
+            }
+        }
+    }
+
     public override void _ExitTree()
     {
-        // Movement tweens own frame callbacks that close over BattleEntity; stop them before entities are freed.
-        KillAllMovementTweens();
+        _movementLanes.Clear();
         ClearAllActionCues();
         ClearCommandSelection();
         SetHitOutlines(_hitOutlinedEntities.ToArray(), visible: false);
@@ -186,8 +206,7 @@ public partial class BattleUnitRoot : Node2D
             animation?.PlayMove(restartMoveAnimation);
             entity.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Move);
             AnimateEntityMove(entity, globalPath, surfacePath, returnToIdleOnComplete, stepDurationSeconds);
-            GameLog.Info(
-                nameof(BattleUnitRoot),
+            GameLog.Trace(nameof(BattleUnitRoot),
                 $"Entity visual move id={entity.EntityId} fromCell={previousPosition} toCell={targetPosition} footprint={gridOccupant.FootprintWidth}x{gridOccupant.FootprintHeight} steps={System.Math.Max(0, globalPath.Length - 1)} fromGlobal={previousGlobal} toGlobal={globalPath[^1]} stepDuration={ResolveMoveStepDurationSeconds(stepDurationSeconds):0.00}");
             return;
         }
@@ -643,11 +662,6 @@ public partial class BattleUnitRoot : Node2D
         bool returnToIdleOnComplete,
         double stepDurationSeconds)
     {
-        if (_movementTweens.Remove(entity, out Tween previousTween))
-        {
-            KillMovementTween(previousTween);
-        }
-
         if (!IsEntityAlive(entity))
         {
             return;
@@ -664,115 +678,179 @@ public partial class BattleUnitRoot : Node2D
             return;
         }
 
-        entity.GlobalPosition = globalPath[0];
-        Tween tween = CreateTween();
-        tween.SetTrans(Tween.TransitionType.Linear);
-        tween.SetEase(Tween.EaseType.In);
-
-        int lastSegmentIndex = -1;
-        int stepCount = System.Math.Max(1, globalPath.Count - 1);
-        double totalDuration = resolvedStepDurationSeconds * stepCount;
-        tween.TweenMethod(Callable.From<float>(progress =>
+        if (!_movementLanes.TryGetValue(entity, out MovementLane lane))
         {
-            if (!IsInsideTree() || !IsEntityAlive(entity))
-            {
-                KillTrackedMovementTween(entity);
-                return;
-            }
-
-            ResolveMovementSegment(globalPath, progress, out int segmentIndex, out float segmentProgress);
-            Vector2 from = globalPath[segmentIndex - 1];
-            Vector2 to = globalPath[segmentIndex];
-            entity.GlobalPosition = from.Lerp(to, segmentProgress);
-
-            if (segmentIndex == lastSegmentIndex)
-            {
-                return;
-            }
-
-            lastSegmentIndex = segmentIndex;
-            ApplyRenderSort(entity, ResolveSurfaceAt(surfacePath, segmentIndex));
-            FaceAlongSegment(entity.GetComponent<UnitAnimationComponent>(), from, to);
-        }), 0f, 1f, totalDuration);
-
-        tween.Finished += () =>
-        {
-            if (!IsInsideTree() || !IsEntityAlive(entity))
-            {
-                _movementTweens.Remove(entity);
-                return;
-            }
-
-            entity.GlobalPosition = globalPath[^1];
-            if (surfacePath?.Count > 0)
-            {
-                ApplyRenderSort(entity, surfacePath[^1]);
-            }
-            _movementTweens.Remove(entity);
-            if (returnToIdleOnComplete)
-            {
-                entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
-            }
-        };
-
-        _movementTweens[entity] = tween;
-    }
-
-    private void KillAllMovementTweens()
-    {
-        foreach (Tween tween in _movementTweens.Values.ToArray())
-        {
-            KillMovementTween(tween);
+            lane = new MovementLane(entity.GlobalPosition, ResolveSurfaceAt(surfacePath, 0));
+            _movementLanes[entity] = lane;
         }
 
-        _movementTweens.Clear();
+        // Movement events are Runtime facts, but the visual path is actor-local
+        // so consecutive grid steps can be stitched into one continuous stream.
+        lane.Enqueue(globalPath, surfacePath, resolvedStepDurationSeconds, returnToIdleOnComplete);
+        if (lane.HasSegments)
+        {
+            SetProcess(true);
+        }
     }
+
+    private bool AdvanceMovementLane(BattleEntity entity, MovementLane lane, double delta)
+    {
+        if (!IsInsideTree() || lane == null || !lane.HasSegments)
+        {
+            return false;
+        }
+
+        double remainingSeconds = delta;
+        while (remainingSeconds > 0 && lane.TryGetCurrent(out MovementSegment segment))
+        {
+            if (lane.IsNewSegment)
+            {
+                ApplyRenderSort(entity, segment.FromSurface);
+                FaceAlongSegment(entity.GetComponent<UnitAnimationComponent>(), segment.From, segment.To);
+                lane.MarkSegmentApplied();
+            }
+
+            double segmentDuration = System.Math.Max(0.001, segment.DurationSeconds);
+            double consumeSeconds = System.Math.Min(remainingSeconds, segmentDuration - lane.ElapsedSeconds);
+            lane.ElapsedSeconds += consumeSeconds;
+            remainingSeconds -= consumeSeconds;
+
+            float progress = (float)Mathf.Clamp(lane.ElapsedSeconds / segmentDuration, 0, 1);
+            entity.GlobalPosition = segment.From.Lerp(segment.To, progress);
+
+            if (lane.ElapsedSeconds + 0.0001 < segmentDuration)
+            {
+                break;
+            }
+
+            entity.GlobalPosition = segment.To;
+            ApplyRenderSort(entity, segment.ToSurface);
+            lane.CompleteCurrentSegment();
+        }
+
+        if (lane.HasSegments)
+        {
+            return true;
+        }
+
+        if (lane.ReturnToIdleOnComplete)
+        {
+            entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
+        }
+
+        return false;
+    }
+
+    private sealed class MovementLane
+    {
+        private readonly Queue<MovementSegment> _segments = new();
+        private MovementSegment _current;
+        private bool _hasCurrent;
+        private Vector2 _queuedEndPoint;
+        private GridSurfacePosition _queuedEndSurface;
+
+        public MovementLane(Vector2 startPoint, GridSurfacePosition startSurface)
+        {
+            _queuedEndPoint = startPoint;
+            _queuedEndSurface = startSurface;
+        }
+
+        public double ElapsedSeconds { get; set; }
+        public bool IsNewSegment { get; private set; }
+        public bool ReturnToIdleOnComplete { get; private set; }
+        public bool HasSegments => _hasCurrent || _segments.Count > 0;
+
+        public void Enqueue(
+            IReadOnlyList<Vector2> globalPath,
+            IReadOnlyList<GridSurfacePosition> surfacePath,
+            double stepDurationSeconds,
+            bool returnToIdleOnComplete)
+        {
+            ReturnToIdleOnComplete = returnToIdleOnComplete;
+            if (globalPath == null || globalPath.Count < 2)
+            {
+                return;
+            }
+
+            Vector2 from = _queuedEndPoint;
+            GridSurfacePosition fromSurface = _queuedEndSurface;
+            for (int index = 1; index < globalPath.Count; index++)
+            {
+                Vector2 to = globalPath[index];
+                GridSurfacePosition toSurface = ResolveSurfaceAt(surfacePath, index);
+                if (from.DistanceSquaredTo(to) <= 0.01f)
+                {
+                    from = to;
+                    fromSurface = toSurface;
+                    continue;
+                }
+
+                _segments.Enqueue(new MovementSegment(from, to, fromSurface, toSurface, stepDurationSeconds));
+                from = to;
+                fromSurface = toSurface;
+            }
+
+            _queuedEndPoint = from;
+            _queuedEndSurface = fromSurface;
+        }
+
+        public bool TryGetCurrent(out MovementSegment segment)
+        {
+            if (_hasCurrent)
+            {
+                segment = _current;
+                return true;
+            }
+
+            if (_segments.Count == 0)
+            {
+                segment = default;
+                return false;
+            }
+
+            _current = _segments.Dequeue();
+            _hasCurrent = true;
+            IsNewSegment = true;
+            ElapsedSeconds = 0;
+            segment = _current;
+            return true;
+        }
+
+        public void MarkSegmentApplied()
+        {
+            IsNewSegment = false;
+        }
+
+        public void CompleteCurrentSegment()
+        {
+            _hasCurrent = false;
+            IsNewSegment = false;
+            ElapsedSeconds = 0;
+        }
+    }
+
+    private readonly record struct MovementSegment(
+        Vector2 From,
+        Vector2 To,
+        GridSurfacePosition FromSurface,
+        GridSurfacePosition ToSurface,
+        double DurationSeconds);
 
     private double ResolveMoveStepDurationSeconds(double stepDurationSeconds)
     {
-        return stepDurationSeconds > 0 ? stepDurationSeconds : UnitMoveDuration;
+        return ResolveVisualMoveStepDurationSeconds(stepDurationSeconds);
     }
 
-    private void KillTrackedMovementTween(BattleEntity entity)
+    public double ResolveVisualMoveStepDurationSeconds(double stepDurationSeconds)
     {
-        if (_movementTweens.Remove(entity, out Tween tween))
-        {
-            KillMovementTween(tween);
-        }
-    }
-
-    private static void KillMovementTween(Tween tween)
-    {
-        if (tween != null && GodotObject.IsInstanceValid(tween))
-        {
-            tween.Kill();
-        }
+        double baseSeconds = stepDurationSeconds > 0 ? stepDurationSeconds : UnitMoveDuration;
+        double smoothingSeconds = System.Math.Clamp(VisualMoveSmoothingSeconds, 0, 0.12);
+        return System.Math.Max(0.01, baseSeconds + smoothingSeconds);
     }
 
     private static bool IsEntityAlive(BattleEntity entity)
     {
         return entity != null && GodotObject.IsInstanceValid(entity);
-    }
-
-    private static void ResolveMovementSegment(
-        IReadOnlyList<Vector2> globalPath,
-        float progress,
-        out int segmentIndex,
-        out float segmentProgress)
-    {
-        int stepCount = System.Math.Max(1, (globalPath?.Count ?? 0) - 1);
-        float clampedProgress = Mathf.Clamp(progress, 0f, 1f);
-        if (clampedProgress >= 1f)
-        {
-            segmentIndex = stepCount;
-            segmentProgress = 1f;
-            return;
-        }
-
-        float pathProgress = clampedProgress * stepCount;
-        int segmentOffset = System.Math.Clamp((int)System.Math.Floor(pathProgress), 0, stepCount - 1);
-        segmentIndex = segmentOffset + 1;
-        segmentProgress = Mathf.Clamp(pathProgress - segmentOffset, 0f, 1f);
     }
 
     private static GridSurfacePosition ResolveSurfaceAt(

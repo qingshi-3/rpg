@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Results;
@@ -20,6 +22,7 @@ public sealed class BattleRuntimeSessionController
     private readonly BattleRuntimeTickResolver _tickResolver;
     private readonly BattleNavigationGraph _navigationGraph;
     private readonly HashSet<string> _navigationFailureDiagnostics = new(System.StringComparer.Ordinal);
+    private readonly BattlePerformanceCounters _performanceCounters;
     private readonly int _maxTicks;
     private int _nextTick;
 
@@ -30,7 +33,8 @@ public sealed class BattleRuntimeSessionController
         string battleId,
         string snapshotId,
         BattleNavigationGraph navigationGraph,
-        int maxTicks)
+        int maxTicks,
+        BattlePerformanceCounters performanceCounters = null)
     {
         _tickResolver = tickResolver;
         State = state ?? new BattleRuntimeState();
@@ -38,6 +42,7 @@ public sealed class BattleRuntimeSessionController
         BattleId = battleId ?? "";
         SnapshotId = snapshotId ?? "";
         _navigationGraph = navigationGraph;
+        _performanceCounters = performanceCounters;
         _maxTicks = System.Math.Max(1, maxTicks);
         Outcome = new BattleOutcomeResult
         {
@@ -81,6 +86,7 @@ public sealed class BattleRuntimeSessionController
 
         // Presentation-backed battles call this one action-time slice at a time.
         // Runtime remains the only owner of damage, movement, target choice, and action readiness.
+        long resolveStartedAt = Stopwatch.GetTimestamp();
         _tickResolver.ResolveTick(
             State,
             EventStream,
@@ -88,7 +94,9 @@ public sealed class BattleRuntimeSessionController
             _nextTick,
             CurrentTimeSeconds,
             _navigationGraph,
-            _navigationFailureDiagnostics);
+            _navigationFailureDiagnostics,
+            _performanceCounters);
+        _performanceCounters?.RecordRuntimeAdvanceElapsedTicks(Stopwatch.GetTimestamp() - resolveStartedAt);
         _nextTick++;
 
         BattleTerminationReason postTickTermination = BattleRuntimeSession.ResolveTermination(State);

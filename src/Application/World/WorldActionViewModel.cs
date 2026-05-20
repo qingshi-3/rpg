@@ -14,5 +14,4 @@ public sealed class WorldActionViewModel
     public List<string> WarningLines { get; set; } = new();
     public string TargetSiteId { get; set; } = "";
     public string TargetSlotId { get; set; } = "";
-    public string ThreatId { get; set; } = "";
 }

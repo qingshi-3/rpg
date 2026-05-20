@@ -2943,11 +2943,11 @@ Width = 4
 Height = 8
 
 [node name="undead_deployment_zone_east" parent="SemanticMarkers" instance=ExtResource("13_b4y6s")]
-position = Vector2(960, 288)
+position = Vector2(816, 240)
 DeploymentSide = 2
 MarkerId = "undead_deployment_zone_east"
-Width = 8
-Height = 4
+Width = 20
+Height = 12
 
 [node name="player_deployment_zone_west2" parent="SemanticMarkers" instance=ExtResource("13_b4y6s")]
 position = Vector2(272, 512)
@@ -2974,5 +2974,5 @@ Height = 4
 position = Vector2(896, 64)
 DeploymentSide = 2
 MarkerId = "undead_deployment_zone_east"
-Width = 8
-Height = 4
+Width = 14
+Height = 8

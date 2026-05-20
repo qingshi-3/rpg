@@ -49,7 +49,7 @@ public partial class WorldSiteRoot
             restartMoveAnimation: false,
             returnToIdleOnComplete: returnToIdleOnComplete,
             stepDurationSeconds: runtimeEvent.ActionDurationSeconds);
-        return System.Math.Max(0, runtimeEvent.ActionDurationSeconds > 0 ? runtimeEvent.ActionDurationSeconds : _unitRoot.UnitMoveDuration);
+        return _unitRoot.ResolveVisualMoveStepDurationSeconds(runtimeEvent.ActionDurationSeconds);
     }
 
     private async Task ObserveRuntimeDamageEventAsync(

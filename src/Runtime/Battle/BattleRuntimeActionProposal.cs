@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Navigation;
 
@@ -13,5 +14,6 @@ internal sealed class BattleRuntimeActionProposal
     public BattleGridCoord TargetStart { get; init; }
     public BattleGridCoord MoveTo { get; init; }
     public bool HasMoveTo { get; init; }
+    public IReadOnlyList<BattleGridCoord> MoveOptions { get; init; } = new List<BattleGridCoord>();
     public string FailureReason { get; init; } = "";
 }

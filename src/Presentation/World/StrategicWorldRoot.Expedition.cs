@@ -313,12 +313,6 @@ public partial class StrategicWorldRoot
     private bool CanStartExpeditionFromSite(string siteId, out string failureReason)
     {
         failureReason = "";
-        if (HasAttackingThreat())
-        {
-            failureReason = "attacking_threat_pending";
-            return false;
-        }
-
         if (string.IsNullOrWhiteSpace(siteId) ||
             !State.SiteStates.TryGetValue(siteId, out WorldSiteState site))
         {

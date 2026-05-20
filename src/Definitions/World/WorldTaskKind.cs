@@ -2,7 +2,7 @@
 
 public enum WorldTaskKind
 {
-    Explore = 0,
+    None = 0,
     Gather = 1,
     Mine = 2,
     Hunt = 3,
@@ -13,6 +13,5 @@ public enum WorldTaskKind
     Craft = 8,
     Diplomacy = 9,
     Rescue = 10,
-    Raid = 11,
     Research = 12
 }

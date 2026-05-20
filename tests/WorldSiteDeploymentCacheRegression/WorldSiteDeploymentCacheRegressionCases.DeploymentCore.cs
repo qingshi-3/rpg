@@ -404,8 +404,8 @@ internal static void BattleDeploymentPreparerCreatesSitePlacementsAndForcePrefer
     BattleForceRequest enemyForce = new()
     {
         ForceId = "enemy_force",
-        SourceKind = "ThreatArmy",
-        SourceId = "threat_1",
+        SourceKind = "EnemyArmy",
+        SourceId = "enemy_army_1",
         UnitDefinitionId = StrategicWorldIds.UnitMilitia,
         Count = 1,
         FactionId = "enemy"
@@ -482,8 +482,8 @@ internal static void BattleDeploymentPreparerPrefersFactionDeploymentZoneMarkers
     BattleForceRequest enemyForce = new()
     {
         ForceId = "enemy_force",
-        SourceKind = "ThreatArmy",
-        SourceId = "threat_1",
+        SourceKind = "EnemyArmy",
+        SourceId = "enemy_army_1",
         UnitDefinitionId = StrategicWorldIds.UnitMilitia,
         Count = 1,
         FactionId = StrategicWorldIds.FactionUndead
@@ -557,8 +557,8 @@ internal static void BattleDeploymentPreparerUsesDeploymentSideMarkersWithoutFac
     BattleForceRequest enemyForce = new()
     {
         ForceId = "enemy_force",
-        SourceKind = "ThreatArmy",
-        SourceId = "threat_1",
+        SourceKind = "EnemyArmy",
+        SourceId = "enemy_army_1",
         UnitDefinitionId = StrategicWorldIds.UnitMilitia,
         Count = 1,
         FactionId = "renamed_enemy_faction"

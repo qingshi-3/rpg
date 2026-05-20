@@ -63,14 +63,21 @@ Run("runtime large footprint cannot move onto anchor with missing covered surfac
 Run("runtime backline advances behind blocked frontline", TargetBattleCongestionRegressionCases.RuntimeBacklineAdvancesBehindBlockedFrontline);
 Run("runtime future occupancy does not force immediate detour", TargetBattleCongestionRegressionCases.RuntimeFutureOccupancyDoesNotForceImmediateDetour);
 Run("runtime projected occupancy allows direct first step then replans", TargetBattleCongestionRegressionCases.RuntimeProjectedOccupancyAllowsDirectFirstStepThenReplans);
-Run("runtime keeps assault target intent while rerouting", TargetBattleMovementIntentRegressionCases.RuntimeKeepsAssaultTargetIntentWhileRerouting);
+Run("runtime tries alternate same-tick reservation candidate", TargetBattleCongestionRegressionCases.RuntimeTriesAlternateSameTickReservationCandidate);
+Run("runtime can switch assault target for faster attack opportunity", TargetBattleMovementIntentRegressionCases.RuntimeCanSwitchAssaultTargetForFasterAttackOpportunity);
+Run("runtime mover retargets when target dies before movement resolves", TargetBattleMovementIntentRegressionCases.RuntimeMoverRetargetsWhenTargetDiesBeforeMovementResolves);
 Run("runtime support unit does not move away from engaged target for far flank", TargetBattleMovementIntentRegressionCases.RuntimeSupportUnitDoesNotMoveAwayFromEngagedTargetForFarFlank);
+Run("runtime assault target selection prefers fastest attack opportunity", TargetBattleMovementIntentRegressionCases.RuntimeAssaultTargetSelectionPrefersFastestAttackOpportunity);
 Run("runtime many allies converge on single holdline enemy without overlap", TargetBattleMultiUnitNavigationRegressionCases.RuntimeManyAlliesConvergeOnSingleHoldlineEnemyWithoutOverlap);
 Run("runtime many enemies converge on single holdline defender without overlap", TargetBattleMultiUnitNavigationRegressionCases.RuntimeManyEnemiesConvergeOnSingleHoldlineDefenderWithoutOverlap);
 Run("runtime many vs many open field closes without illegal positions", TargetBattleMultiUnitNavigationRegressionCases.RuntimeManyVsManyOpenFieldClosesWithoutIllegalPositions);
+Run("runtime four versus four battle does not timeout while both sides live", TargetBattleMultiUnitNavigationRegressionCases.RuntimeFourVersusFourBattleDoesNotTimeoutWhileBothSidesLive);
 Run("runtime same-lane crowd advances as chain in one tick", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSameLaneCrowdAdvancesAsChainInOneTick);
 Run("runtime support queue advances chain behind engaged frontline", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportQueueAdvancesChainBehindEngagedFrontline);
 Run("runtime support unit continues into diagonal attack range against engaged target", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportUnitContinuesIntoDiagonalAttackRangeAgainstEngagedTarget);
+Run("runtime performance counters separate navigation and logging costs", TargetBattlePerformanceRegressionCases.RuntimePerformanceCountersSeparateNavigationAndLoggingCosts);
+Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology);
+Run("high-frequency battle presentation logs use trace channel", TargetBattlePerformanceRegressionCases.HighFrequencyBattlePresentationLogsUseTraceChannel);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
 Run("snapshot copies battle group facts", SnapshotCopiesBattleGroupFacts);
@@ -195,7 +202,6 @@ static void RuntimeOwnsStableInMemoryActorState()
         result.Outcome.ActorOutcomes.All(actor => actor.FactionId == "player" && actor.SourceForceId == "force_player"),
         "runtime outcome should preserve faction and source force attribution");
 }
-
 static void RuntimeAutoBattleResolvesOpposingFactionsFromActorState()
 {
     BattleStartSnapshot victorySnapshot = BuildOpposedSnapshot("battle_victory", playerStrength: 80, enemyStrength: 20);
@@ -967,8 +973,6 @@ static void AssertEqual<T>(T expected, T actual, string message)
         throw new Exception($"{message}: expected={expected} actual={actual}");
     }
 }
-
-
 static void AssertThrows<T>(Action action, string message)
     where T : Exception
 {

@@ -68,10 +68,6 @@ public sealed class WorldConditionEvaluator
             WorldConditionKind.HasGarrisonAtLeast => site != null && site.Garrison.Any(garrison =>
                 garrison.UnitTypeId == condition.UnitTypeId &&
                 garrison.Count >= condition.Amount),
-            WorldConditionKind.ThreatStageIs => ResolveThreat(state, condition.ThreatId, request)?.Stage == condition.ThreatStage,
-            WorldConditionKind.NoActiveThreatOfRule => !state.ThreatPlans.Values.Any(threat =>
-                threat.RuleId == condition.RuleId &&
-                threat.Stage != ThreatStage.Resolved),
             WorldConditionKind.HasGarrisonCapacity => site != null &&
                 _deploymentService.CanAcceptGarrison(site, definitions.GetSite(siteId), condition.Amount, out _),
             _ => false
@@ -111,14 +107,6 @@ public sealed class WorldConditionEvaluator
     {
         return !string.IsNullOrWhiteSpace(siteId) && state.SiteStates.TryGetValue(siteId, out WorldSiteState site)
             ? site
-            : null;
-    }
-
-    private static EnemyThreatPlan ResolveThreat(StrategicWorldState state, string threatId, WorldActionRequest request)
-    {
-        string resolvedThreatId = string.IsNullOrWhiteSpace(threatId) ? request?.ThreatId : threatId;
-        return !string.IsNullOrWhiteSpace(resolvedThreatId) && state.ThreatPlans.TryGetValue(resolvedThreatId, out EnemyThreatPlan threat)
-            ? threat
             : null;
     }
 

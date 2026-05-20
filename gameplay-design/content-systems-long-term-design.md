@@ -445,7 +445,7 @@ special city: unique corps or special resources
 
 ### Resource Sites
 
-Resource sites provide specific resources and can be occupied, guarded, raided, or linked to nearby cities.
+Resource sites provide specific resources and can be occupied, guarded, contested through direct battles, or linked to nearby cities.
 
 They should not carry full city systems such as population, broad facilities, and full training or workshop layers.
 

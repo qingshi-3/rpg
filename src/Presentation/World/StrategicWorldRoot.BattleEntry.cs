@@ -26,13 +26,12 @@ public partial class StrategicWorldRoot
 
         _worldClockPaused = true;
         _selectedSiteId = army.TargetSiteId;
-        _selectedThreatId = "";
         if (!CanBuildAssaultBattleForSite(army.TargetSiteId))
         {
             army.Status = WorldArmyStatus.Idle;
             army.Intent = WorldArmyIntent.None;
             army.ClearNavigationPath();
-            _worldClockPaused = HasAttackingThreat();
+            _worldClockPaused = false;
             StrategicWorldDefinitionQueries queries = new(Definition);
             WorldSiteDefinition siteDefinition = queries.GetSite(army.TargetSiteId);
             StrategicWorldRuntime.LastNotice = BuildUnsupportedAssaultNotice(siteDefinition);
@@ -65,106 +64,6 @@ public partial class StrategicWorldRoot
         return true;
     }
 
-    private bool TryEnterDefenseRaidBattle(string threatId)
-    {
-        if (string.IsNullOrWhiteSpace(threatId) ||
-            !State.ThreatPlans.TryGetValue(threatId, out EnemyThreatPlan threat) ||
-            threat.Stage != ThreatStage.Attacking)
-        {
-            return false;
-        }
-
-        if (!WorldBattleProgressionService.IsPlayerInvolvedThreat(State, Definition, threat))
-        {
-            return false;
-        }
-
-        _worldClockPaused = true;
-        _selectedThreatId = threat.Id;
-        _selectedSiteId = threat.TargetSiteId;
-
-        if (!State.SiteStates.TryGetValue(threat.TargetSiteId, out WorldSiteState site))
-        {
-            StrategicWorldRuntime.LastNotice = $"敌方部队已抵达，但目标场域不存在：{threat.TargetSiteId}。";
-            GameLog.Warn(nameof(StrategicWorldRoot), $"Arrived raid has no target site threat={threat.Id} target={threat.TargetSiteId}");
-            RefreshAll();
-            return true;
-        }
-
-        PendingBattleLaunchRollback rollback = CaptureBattleLaunchRollbackForSite(threat.TargetSiteId);
-        _siteModeTransitions.EnterWartime(site, State.WorldTick, "raid_army_arrived", threat.Id);
-
-        string returnScenePath = string.IsNullOrWhiteSpace(SceneFilePath)
-            ? "res://scenes/world/StrategicWorldRoot.tscn"
-            : SceneFilePath;
-        BattleStartRequest request = _battleRequestBuilder.BuildDefenseRaidRequest(
-            State,
-            Definition,
-            threat.Id,
-            returnScenePath,
-            SiteScenePath);
-        StrategicWorldRuntime.LastNotice = "敌方部队已抵达，进入守城战。";
-        if (!TryEnterBattle(request, rollback))
-        {
-            RefreshAll();
-        }
-
-        return true;
-    }
-
-    private bool TryEnterWorldBattleIntervention(string worldBattleId)
-    {
-        if (string.IsNullOrWhiteSpace(worldBattleId) ||
-            State.WorldBattleStates == null ||
-            !State.WorldBattleStates.TryGetValue(worldBattleId, out WorldBattleState battle) ||
-            battle.IsResolved)
-        {
-            StrategicWorldRuntime.LastNotice = "该世界战斗已经结束，无法介入。";
-            RefreshAll();
-            return false;
-        }
-
-        _worldClockPaused = true;
-        _selectedThreatId = battle.ThreatId;
-        _selectedSiteId = battle.TargetSiteId;
-        string returnScenePath = string.IsNullOrWhiteSpace(SceneFilePath)
-            ? "res://scenes/world/StrategicWorldRoot.tscn"
-            : SceneFilePath;
-        BattleStartRequest request = _battleRequestBuilder.BuildWorldBattleInterventionRequest(
-            State,
-            Definition,
-            battle.BattleId,
-            returnScenePath,
-            SiteScenePath);
-        if (request == null)
-        {
-            StrategicWorldRuntime.LastNotice = "世界战斗缺少进入战斗所需的上下文。";
-            RefreshAll();
-            return false;
-        }
-
-        StrategicWorldRuntime.LastNotice =
-            $"介入世界战斗：{WorldBattleProgressionService.GetPhaseLabel(battle.CurrentPhase)}阶段。";
-        if (!TryEnterBattle(request))
-        {
-            RefreshAll();
-        }
-
-        return true;
-    }
-
-    private bool TryEnterFirstDefenseRaidBattle()
-    {
-        string threatId = State?.ThreatPlans.Values
-            .Where(threat =>
-                threat.Stage == ThreatStage.Attacking &&
-                WorldBattleProgressionService.IsPlayerInvolvedThreat(State, Definition, threat))
-            .OrderBy(threat => threat.CreatedTick)
-            .Select(threat => threat.Id)
-            .FirstOrDefault() ?? "";
-        return TryEnterDefenseRaidBattle(threatId);
-    }
-
     private bool TryEnterFieldInterceptBattle(WorldArmyInterceptResult intercept)
     {
         if (intercept == null ||
@@ -190,7 +89,6 @@ public partial class StrategicWorldRoot
         _selectedSiteId = string.IsNullOrWhiteSpace(request.TargetSiteId)
             ? _selectedSiteId
             : request.TargetSiteId;
-        _selectedThreatId = request.ThreatId ?? "";
         StrategicWorldRuntime.LastNotice = "玩家部队与敌军接触，进入野外遭遇战。";
         if (!TryEnterBattle(request))
         {
@@ -494,22 +392,11 @@ public partial class StrategicWorldRoot
             $"敌方：{BuildForceSummary(request.EnemyForces, request.TargetArmyId, false)}"
         };
 
-        if (request.BattleKind is BattleKind.AssaultSite or BattleKind.DefenseRaid)
+        if (request.BattleKind == BattleKind.AssaultSite)
         {
             lines.Add("");
             lines.Add("城池信息");
             lines.Add(BuildSiteBattleSummary(request));
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.WorldBattleId) &&
-            State.WorldBattleStates != null &&
-            State.WorldBattleStates.TryGetValue(request.WorldBattleId, out WorldBattleState worldBattle))
-        {
-            lines.Add("");
-            lines.Add("世界战斗");
-            lines.Add($"阶段：{WorldBattleProgressionService.GetPhaseLabel(worldBattle.CurrentPhase)}");
-            lines.Add($"自动推演：{WorldBattleProgressionService.GetOutcomeLabel(worldBattle.ProjectedOutcome)}");
-            lines.Add($"剩余：{WorldBattleProgressionService.GetRemainingTicks(State, worldBattle)} 个世界步");
         }
 
         return string.Join("\n", lines);
@@ -521,40 +408,6 @@ public partial class StrategicWorldRoot
             .Where(force => force.Count > 0)
             .Select(force => $"{GetUnitLabel(force.UnitDefinitionId)} x{force.Count}")
             .ToList() ?? new List<string>();
-
-        if (unitLines.Count == 0 &&
-            !string.IsNullOrWhiteSpace(armyId) &&
-            State.ArmyStates.TryGetValue(armyId, out WorldArmyState army))
-        {
-            unitLines.AddRange(army.GarrisonUnits
-                .Where(unit => unit.Count > 0)
-                .Select(unit => $"{GetUnitLabel(unit.UnitTypeId)} x{unit.Count}"));
-
-            if (unitLines.Count == 0)
-            {
-                StrategicWorldDefinitionQueries queries = new(Definition);
-                return $"{StrategicWorldDisplayNames.GetFactionLabel(queries, army.OwnerFactionId)}部队（未配置单位明细）";
-            }
-        }
-
-        if (unitLines.Count == 0 &&
-            !playerSide &&
-            _pendingBattleRequest?.BattleKind == BattleKind.AssaultSite &&
-            !string.IsNullOrWhiteSpace(_pendingBattleRequest.TargetSiteId) &&
-            State.SiteStates.TryGetValue(_pendingBattleRequest.TargetSiteId, out WorldSiteState targetSite))
-        {
-            unitLines.AddRange(targetSite.Garrison
-                .Where(unit => unit.Count > 0)
-                .Select(unit => $"{GetUnitLabel(unit.UnitTypeId)} x{unit.Count}"));
-        }
-
-        if (unitLines.Count == 0 &&
-            !playerSide &&
-            !string.IsNullOrWhiteSpace(_pendingBattleRequest?.ThreatId) &&
-            State.ThreatPlans.TryGetValue(_pendingBattleRequest.ThreatId, out EnemyThreatPlan threat))
-        {
-            return $"敌军编组 {threat.EnemyGroupId}";
-        }
 
         return unitLines.Count == 0 ? "未配置部队详情" : string.Join("，", unitLines);
     }
@@ -609,14 +462,6 @@ public partial class StrategicWorldRoot
             State.ArmyStates.TryGetValue(request.TargetArmyId, out WorldArmyState targetArmy))
         {
             return targetArmy.WorldPosition;
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.ThreatId) &&
-            State.ThreatPlans.TryGetValue(request.ThreatId, out EnemyThreatPlan threat) &&
-            !string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
-            State.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState threatArmy))
-        {
-            return threatArmy.WorldPosition;
         }
 
         StrategicWorldDefinitionQueries queries = new(Definition);

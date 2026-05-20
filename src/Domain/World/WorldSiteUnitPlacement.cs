@@ -10,7 +10,6 @@ public sealed class WorldSiteUnitPlacement
     public string SourceKind { get; set; } = "";
     public string SourceId { get; set; } = "";
     public string ArmyId { get; set; } = "";
-    public string ThreatId { get; set; } = "";
     public string ZoneId { get; set; } = "";
     public string EntranceId { get; set; } = "";
     public WorldSiteAttackDirection AttackDirection { get; set; } = WorldSiteAttackDirection.Any;

@@ -100,16 +100,13 @@ public partial class StrategicWorldRoot : Control
 	private readonly WorldOpportunityService _opportunityService = new();
 	private readonly WorldSiteDeploymentService _deploymentService = new();
 	private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
-	private readonly StrategicWorldSaveService _saveService = new();
 	private readonly WorldTickService _worldTickService = new();
-	private readonly WorldBattleProgressionService _worldBattleProgressionService = new();
 	private readonly BattleUnitFactory _battleUnitFactory = new();
 	private readonly SceneTransitionRouter _sceneTransitionRouter;
 
 	private readonly Dictionary<string, Button> _siteButtons = new();
 	private readonly Dictionary<string, Label> _siteLabels = new();
 	private readonly Dictionary<string, SiteVisualFootprint> _siteVisualFootprints = new();
-	private readonly HashSet<string> _reportedThreatNavigationFailures = new();
 	private readonly HashSet<string> _reportedSiteVisualFootprintFailures = new();
 	private readonly HashSet<string> _reportedSiteNavigationPointResolutions = new();
 	private Control _mainWorldViewportHost;
@@ -135,7 +132,6 @@ public partial class StrategicWorldRoot : Control
 	private Label _siteBodyLabel;
 	private VBoxContainer _facilityList;
 	private VBoxContainer _garrisonList;
-	private VBoxContainer _threatList;
 	private VBoxContainer _actionList;
 	private Control _siteSummaryCard;
 	private Control _facilityCard;
@@ -150,7 +146,6 @@ public partial class StrategicWorldRoot : Control
 	private WorldSiteHoverSummaryPanel _siteHoverSummaryPanel;
 
 	private string _selectedSiteId = "";
-	private string _selectedThreatId = "";
 	private string _selectedOpportunityId = "";
 	private string _hoveredSiteId = "";
 	private readonly HashSet<string> _selectedArmyIds = new();
@@ -204,9 +199,9 @@ public partial class StrategicWorldRoot : Control
 		BuildUi();
 		ConfigureWorldCamera();
 		UpdateWorldCameraView(true);
-		_worldClockPaused = hasUnsupportedAssaultState || HasAttackingThreat() || HasNavigationBlockedArmy();
+		_worldClockPaused = hasUnsupportedAssaultState || HasNavigationBlockedArmy();
 		ConsumeBattleResult();
-		_worldClockPaused = hasUnsupportedAssaultState || HasAttackingThreat() || HasNavigationBlockedArmy();
+		_worldClockPaused = hasUnsupportedAssaultState || HasNavigationBlockedArmy();
 		RefreshAll();
 		_runtimeStage = StrategicRuntimeStage.WaitingForNavigation;
 		GameLog.Info(nameof(StrategicWorldRoot), "Strategic world static initialization complete; waiting for runtime readiness.");
@@ -228,13 +223,8 @@ public partial class StrategicWorldRoot : Control
 			return;
 		}
 
-		bool worldArmyPresentationChanged = UpdateWorldArmyMovement(delta);
+		UpdateWorldArmyMovement(delta);
 		UpdateWorldClock(delta);
-		if (worldArmyPresentationChanged)
-		{
-			// 迷雾覆盖层会重建 CPU mask 和 ImageTexture；空闲帧不能无条件刷新。
-			RefreshWorldIntel();
-		}
 
 		UpdateWorldCameraView();
 	}

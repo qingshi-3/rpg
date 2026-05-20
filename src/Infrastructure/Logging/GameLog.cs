@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using Godot;
+using Rpg.Infrastructure.Diagnostics;
 
 namespace Rpg.Infrastructure.Logging;
 
@@ -11,7 +14,9 @@ public static class GameLog
     private const string LogDirectoryOverrideEnvironmentVariable = "RPG_GAMELOG_DIR";
 
     private static readonly object Sync = new();
+    private static readonly HashSet<string> EnabledTraceCategories = new(StringComparer.Ordinal);
     private static bool _sessionStarted;
+    private static BattlePerformanceCounters _performanceCounters;
 
     public static string CurrentLogPath { get; private set; } = "";
 
@@ -36,6 +41,20 @@ public static class GameLog
         Write("INFO", category, message);
     }
 
+    public static void Trace(string category, string message)
+    {
+        lock (Sync)
+        {
+            if (!EnabledTraceCategories.Contains(category ?? ""))
+            {
+                _performanceCounters?.RecordLogSuppressed();
+                return;
+            }
+        }
+
+        Write("TRACE", category, message);
+    }
+
     public static void Warn(string category, string message)
     {
         Write("WARN", category, message);
@@ -46,8 +65,47 @@ public static class GameLog
         Write("ERROR", category, message);
     }
 
+    public static void SetPerformanceCounters(BattlePerformanceCounters counters)
+    {
+        lock (Sync)
+        {
+            _performanceCounters = counters;
+        }
+    }
+
+    public static void SetTraceCategoryEnabled(string category, bool enabled)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return;
+        }
+
+        lock (Sync)
+        {
+            if (enabled)
+            {
+                EnabledTraceCategories.Add(category);
+            }
+            else
+            {
+                EnabledTraceCategories.Remove(category);
+            }
+        }
+    }
+
+    public static void RecordBattleMovementTweenCreated()
+    {
+        _performanceCounters?.RecordMovementTweenCreated();
+    }
+
+    public static void RecordBattleMovementTweenInterrupted()
+    {
+        _performanceCounters?.RecordMovementTweenInterrupted();
+    }
+
     private static void Write(string level, string category, string message)
     {
+        long startedAt = Stopwatch.GetTimestamp();
         lock (Sync)
         {
             EnsureLogPath();
@@ -57,6 +115,7 @@ public static class GameLog
             }
 
             WriteLine($"{Timestamp()} [{level}] [{category}] {Sanitize(message)}");
+            _performanceCounters?.RecordLogWrite(Stopwatch.GetTimestamp() - startedAt);
         }
     }
 

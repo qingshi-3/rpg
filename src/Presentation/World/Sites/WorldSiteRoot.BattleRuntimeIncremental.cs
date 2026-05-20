@@ -138,7 +138,11 @@ public partial class WorldSiteRoot
 
             if (runtimeEvent.Kind == BattleEventKind.MovementCompleted)
             {
-                ObserveRuntimeMovementEvent(runtimeEvent, presentationState.EntitiesByRuntimeActor);
+                presentationState.TrackActorAction(
+                    runtimeEvent.ActorId,
+                    () => ObserveRuntimeMovementEventAsync(
+                        runtimeEvent,
+                        presentationState.EntitiesByRuntimeActor));
                 continue;
             }
 
@@ -158,6 +162,17 @@ public partial class WorldSiteRoot
         }
 
         return Task.CompletedTask;
+    }
+
+    private async Task ObserveRuntimeMovementEventAsync(
+        BattleEvent runtimeEvent,
+        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
+    {
+        double movementSeconds = ObserveRuntimeMovementEvent(runtimeEvent, entitiesByRuntimeActor);
+        if (movementSeconds > 0)
+        {
+            await WaitSiteBattlePresentationSeconds(movementSeconds);
+        }
     }
 
     private async Task ObserveRuntimeDamageEventAfterSameTickMovementAsync(

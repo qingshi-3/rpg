@@ -105,8 +105,6 @@ public partial class WorldSiteRoot
         ClearChildren(_siteFacilityList);
         AddMutedLine(_siteFacilityList, "战前部署中不能建造或调整建筑。");
         RefreshBattlePreparationForceList();
-        ClearChildren(_siteThreatList);
-        AddMutedLine(_siteThreatList, "部署完成后将进入实时战斗。");
         RefreshBattlePreparationActions();
         ShowBattlePreparationDeploymentZone();
         RefreshBattlePreparationMapEntities();
@@ -218,7 +216,6 @@ public partial class WorldSiteRoot
         bool defenderSide = _battlePreparationRequest?.BattleKind switch
         {
             BattleKind.AssaultSite => deploymentSide == SemanticDeploymentSide.Enemy,
-            BattleKind.DefenseRaid => deploymentSide == SemanticDeploymentSide.Player,
             BattleKind.FieldIntercept => deploymentSide == SemanticDeploymentSide.Enemy,
             _ => deploymentSide == SemanticDeploymentSide.Player
         };

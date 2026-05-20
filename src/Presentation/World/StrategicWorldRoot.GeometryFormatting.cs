@@ -44,30 +44,6 @@ public partial class StrategicWorldRoot
         return false;
     }
 
-    private List<Vector2> GetLegacyThreatNavigationPoints(EnemyThreatPlan threat, Vector2 sourceCenter, Vector2 targetCenter)
-    {
-        Vector2 sourceMapPosition = ViewportLocalToMap(sourceCenter);
-        Vector2 targetMapPosition = ViewportLocalToMap(targetCenter);
-        if (_strategicNavigationContext.TryBuildPath(
-                sourceMapPosition,
-                targetMapPosition,
-                out StrategicNavigationPath path,
-                out string failureReason))
-        {
-            return path.Points.Select(MapToViewportLocal).ToList();
-        }
-
-        string failureKey = $"{threat?.Id ?? ""}:{failureReason}";
-        if (_reportedThreatNavigationFailures.Add(failureKey))
-        {
-            GameLog.Error(
-                nameof(StrategicWorldRoot),
-                $"ThreatNavigationPathFailed threat={threat?.Id ?? ""} rule={threat?.RuleId ?? ""} reason={failureReason}");
-        }
-
-        return new List<Vector2>();
-    }
-
     private static Vector2 SamplePolyline(IReadOnlyList<Vector2> points, float progress)
     {
         if (points == null || points.Count == 0)
@@ -165,7 +141,6 @@ public partial class StrategicWorldRoot
         return mode switch
         {
             WorldSiteMode.Peacetime => "非战时",
-            WorldSiteMode.Alert => "警戒",
             WorldSiteMode.Wartime => "战时",
             WorldSiteMode.Aftermath => "战后",
             _ => "未知"
@@ -196,7 +171,6 @@ public partial class StrategicWorldRoot
         return kind switch
         {
             BattleKind.AssaultSite => "攻城战",
-            BattleKind.DefenseRaid => "守城战",
             BattleKind.FieldIntercept => "野外遭遇战",
             BattleKind.SearchAndExtract => "搜索撤离",
             BattleKind.Rescue => "救援战",

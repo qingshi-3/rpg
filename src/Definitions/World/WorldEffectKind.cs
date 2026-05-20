@@ -12,10 +12,8 @@ public enum WorldEffectKind
     SetFacilityState = 7,
     AddGarrison = 8,
     RemoveGarrison = 9,
-    CreateThreat = 10,
-    SetThreatStage = 11,
-    StartBattle = 12,
-    CreateArmy = 13,
-    AddSiteTag = 14,
-    RemoveSiteTag = 15
+    StartBattle = 10,
+    CreateArmy = 11,
+    AddSiteTag = 12,
+    RemoveSiteTag = 13
 }

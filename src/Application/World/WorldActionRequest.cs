@@ -10,6 +10,5 @@ public sealed class WorldActionRequest
     public string TargetSiteId { get; set; } = "";
     public string TargetFacilityInstanceId { get; set; } = "";
     public string TargetSlotId { get; set; } = "";
-    public string ThreatId { get; set; } = "";
     public Dictionary<string, string> Payload { get; set; } = new();
 }

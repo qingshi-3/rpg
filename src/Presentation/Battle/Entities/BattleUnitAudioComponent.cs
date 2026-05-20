@@ -55,7 +55,7 @@ public partial class BattleUnitAudioComponent : BattleEntityComponent
         player.VolumeDb = VolumeDb;
         player.PitchScale = PitchScale;
         player.Play();
-        GameLog.Info(nameof(BattleUnitAudioComponent), $"Audio cue played entity={Entity?.EntityId} cue={cue}");
+        GameLog.Trace(nameof(BattleUnitAudioComponent), $"Audio cue played entity={Entity?.EntityId} cue={cue}");
     }
 
     private AudioStreamPlayer2D ResolvePlayer()

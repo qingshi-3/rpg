@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Infrastructure.Diagnostics;
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
@@ -12,18 +14,22 @@ namespace Rpg.Runtime.Battle;
 
 public sealed class BattleRuntimeSession
 {
-    internal const int MaxAutonomousCombatTicks = 128;
+    // This cap is a runaway guard, not a combat-length budget. Multi-unit live battles can
+    // legitimately need hundreds of actor-local decision slices before one side is defeated.
+    internal const int MaxAutonomousCombatTicks = 2048;
     private const int LegacyCorpsAttackDamage = 20;
     private const int EngagementRange = 1;
     private const string CommandAssault = "Assault";
     private const string CommandFocusFire = "FocusFire";
     private const string CommandHoldLine = "HoldLine";
     private readonly BattleRuntimeTickResolver _tickResolver;
+    private readonly BattlePerformanceCounters _performanceCounters;
 
-    public BattleRuntimeSession(IBattleRuntimeAiExecutor aiExecutor = null)
+    public BattleRuntimeSession(IBattleRuntimeAiExecutor aiExecutor = null, BattlePerformanceCounters performanceCounters = null)
     {
         IBattleRuntimeAiExecutor executor = aiExecutor ?? new DefaultBattleRuntimeAiExecutor();
         _tickResolver = new BattleRuntimeTickResolver(executor);
+        _performanceCounters = performanceCounters;
     }
 
     public BattleRuntimeSessionResult RunMinimal(BattleStartSnapshot snapshot)
@@ -96,7 +102,8 @@ public sealed class BattleRuntimeSession
             battleId,
             snapshotId,
             navigationGraph,
-            MaxAutonomousCombatTicks);
+            MaxAutonomousCombatTicks,
+            _performanceCounters);
     }
 
     internal static BattleRuntimeState BuildRuntimeState(BattleStartSnapshot snapshot)
@@ -204,6 +211,7 @@ public sealed class BattleRuntimeSession
                 currentTimeSeconds = nextReady.Value;
             }
 
+            long resolveStartedAt = Stopwatch.GetTimestamp();
             _tickResolver.ResolveTick(
                 state,
                 stream,
@@ -211,7 +219,9 @@ public sealed class BattleRuntimeSession
                 tick,
                 currentTimeSeconds,
                 navigationGraph,
-                navigationFailureDiagnostics);
+                navigationFailureDiagnostics,
+                _performanceCounters);
+            _performanceCounters?.RecordRuntimeAdvanceElapsedTicks(Stopwatch.GetTimestamp() - resolveStartedAt);
         }
 
         return BattleTerminationReason.RuntimeException;

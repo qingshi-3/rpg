@@ -48,20 +48,6 @@ BattleHitFeedbackRegressionCases.Run("world resource and faction labels resolve 
 BattleHitFeedbackRegressionCases.Run("world site and facility labels resolve through strategic definitions", BattleHitFeedbackRegressionCases.WorldSiteAndFacilityLabelsResolveThroughDefinitions);
 BattleHitFeedbackRegressionCases.Run("world action resource text uses custom resource display names", BattleHitFeedbackRegressionCases.WorldActionResourceTextUsesCustomDisplayNames);
 BattleHitFeedbackRegressionCases.Run("world action site and facility preview text uses custom display names", BattleHitFeedbackRegressionCases.WorldActionSiteAndFacilityPreviewTextUsesCustomDisplayNames);
-BattleHitFeedbackRegressionCases.Run("world threat auto resolve messages use configured display names", BattleHitFeedbackRegressionCases.WorldThreatAutoResolveMessagesUseConfiguredDisplayNames);
-BattleHitFeedbackRegressionCases.Run("world action non-population shortage uses custom resource display name", BattleHitFeedbackRegressionCases.WorldActionNonPopulationShortageUsesCustomDisplayName);
-BattleHitFeedbackRegressionCases.Run("world action blank resource display name falls back to id", BattleHitFeedbackRegressionCases.WorldActionBlankResourceDisplayNameFallsBackToId);
-BattleHitFeedbackRegressionCases.Run("world opportunity reward text uses custom resource display name", BattleHitFeedbackRegressionCases.WorldOpportunityRewardTextUsesCustomResourceDisplayName);
-BattleHitFeedbackRegressionCases.Run("world tick production text uses custom resource display names", BattleHitFeedbackRegressionCases.WorldTickProductionTextUsesCustomDisplayNames);
-BattleHitFeedbackRegressionCases.Run("world tick threat feed uses configured display names", BattleHitFeedbackRegressionCases.WorldTickThreatFeedUsesConfiguredDisplayNames);
-BattleHitFeedbackRegressionCases.Run("strategic fog stamps pixel circle independent of tile cells", BattleHitFeedbackRegressionCases.StrategicFogStampsPixelCircleIndependentOfTileCells);
-BattleHitFeedbackRegressionCases.Run("strategic fog default texel stays below tile sized chunks", BattleHitFeedbackRegressionCases.StrategicFogDefaultTexelStaysBelowTileSizedChunks);
-BattleHitFeedbackRegressionCases.Run("strategic fog persists explored cells while visible is derived", BattleHitFeedbackRegressionCases.StrategicFogPersistsExploredCellsWhileVisibleIsDerived);
-BattleHitFeedbackRegressionCases.Run("strategic fog keeps stale site intel after leaving vision", BattleHitFeedbackRegressionCases.StrategicFogKeepsStaleSiteIntelAfterLeavingVision);
-BattleHitFeedbackRegressionCases.Run("strategic navigation target lookup ignores fog visibility", BattleHitFeedbackRegressionCases.StrategicNavigationTargetLookupIgnoresFogVisibility);
-BattleHitFeedbackRegressionCases.Run("strategic navigation command flow stays independent from fog", BattleHitFeedbackRegressionCases.StrategicNavigationCommandFlowStaysIndependentFromFog);
-BattleHitFeedbackRegressionCases.Run("strategic navigation layer is isolated from camera transform", BattleHitFeedbackRegressionCases.StrategicNavigationLayerIsIsolatedFromCameraTransform);
-BattleHitFeedbackRegressionCases.Run("strategic fog overlay uses circular visibility mask", BattleHitFeedbackRegressionCases.StrategicFogOverlayUsesCircularVisibilityMask);
 BattleHitFeedbackRegressionCases.Run("world site hover summary uses local resources and force counts", BattleHitFeedbackRegressionCases.WorldSiteHoverSummaryUsesLocalResourcesAndForceCounts);
 BattleHitFeedbackRegressionCases.Run("world site hover summary stays inside viewport", BattleHitFeedbackRegressionCases.WorldSiteHoverSummaryStaysInsideViewport);
 BattleHitFeedbackRegressionCases.Run("strategic world forwards middle mouse camera navigation", BattleHitFeedbackRegressionCases.StrategicWorldForwardsMiddleMouseCameraNavigation);
@@ -75,6 +61,8 @@ BattleHitFeedbackRegressionCases.Run("battle runtime playback waits for attack a
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation uses tick clock", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationUsesTickClock);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback does not globally gate movement on attack animation", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackDoesNotGloballyGateMovementOnAttackAnimation);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback plans move idle only at sequence boundary", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary);
+BattleHitFeedbackRegressionCases.Run("battle runtime live movement uses actor motion lane", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementUsesActorMotionLane);
+BattleHitFeedbackRegressionCases.Run("battle runtime registers Godot performance monitors", BattleHitFeedbackRegressionCases.BattleRuntimeRegistersGodotPerformanceMonitors);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback delays damage until same tick target movement settles", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackDelaysDamageUntilSameTickTargetMovementSettles);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation waits for same tick movement before dependent attack", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationWaitsForSameTickMovementBeforeDependentAttack);
 BattleHitFeedbackRegressionCases.Run("runtime playback damage waits for target movement but not target attack backlog", BattleHitFeedbackRegressionCases.RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAttackBacklog);
@@ -96,6 +84,4 @@ BattleHitFeedbackRegressionCases.Run("limbo ai battle tasks pass blackboard thro
 BattleHitFeedbackRegressionCases.Run("limbo ai authored resources mirror planner branches", BattleHitFeedbackRegressionCases.LimboAiAuthoredResourcesMirrorPlannerBranches);
 BattleHitFeedbackRegressionCases.Run("limbo ai godot facade requires blackboard target before strike", BattleHitFeedbackRegressionCases.LimboAiGodotFacadeRequiresBlackboardTargetBeforeStrike);
 BattleHitFeedbackRegressionCases.Run("battle result applier uses survivor counts when garrisoning assault army", BattleHitFeedbackRegressionCases.BattleResultApplierUsesSurvivorCountsWhenGarrisoningAssaultArmy);
-BattleHitFeedbackRegressionCases.Run("battle result applier keeps surviving defending garrison after defense victory", BattleHitFeedbackRegressionCases.BattleResultApplierKeepsSurvivingDefendingGarrisonAfterDefenseVictory);
-BattleHitFeedbackRegressionCases.Run("battle result applier clears defense raid attacker placements after victory", BattleHitFeedbackRegressionCases.BattleResultApplierClearsDefenseRaidAttackerPlacementsAfterVictory);
 BattleHitFeedbackRegressionCases.Run("unit display name translation report keeps low confidence review queue bounded", BattleHitFeedbackRegressionCases.UnitDisplayNameTranslationReportQuality);

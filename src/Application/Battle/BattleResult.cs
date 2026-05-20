@@ -13,7 +13,6 @@ public sealed class BattleResult
     public List<BattleResourceChange> ResourceChanges { get; set; } = new();
     public List<SiteStateChange> SiteStateChanges { get; set; } = new();
     public List<FacilityStateChange> FacilityStateChanges { get; set; } = new();
-    public List<ThreatStateChange> ThreatStateChanges { get; set; } = new();
     public List<string> TagsAdded { get; set; } = new();
     public List<string> TagsRemoved { get; set; } = new();
 }

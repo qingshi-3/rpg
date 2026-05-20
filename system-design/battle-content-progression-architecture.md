@@ -23,7 +23,7 @@ This architecture does not own:
 - exact UI layout;
 - runtime movement legality or topology;
 - final settlement writeback mechanics;
-- save-file schema details.
+- long-term state schema details.
 
 ## Ability And Effect Definitions
 

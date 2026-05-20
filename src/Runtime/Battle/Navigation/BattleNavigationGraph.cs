@@ -25,6 +25,7 @@ internal sealed class BattleNavigationGraph
     private readonly Dictionary<BattleGridCoord, int> _topologyNodeMoveCosts;
     private readonly Dictionary<BattleGridCoord, List<GraphEdge>> _topologyEdges;
     private readonly Dictionary<BattleGridCoord, List<GraphEdge>> _reverseTopologyEdges;
+    private readonly Dictionary<GraphCell, int[]> _topologyHeightsByCell;
 
     private BattleNavigationGraph(
         int minX,
@@ -42,6 +43,7 @@ internal sealed class BattleNavigationGraph
         _topologyNodeMoveCosts = topologyNodeMoveCosts ?? new Dictionary<BattleGridCoord, int>();
         _topologyEdges = topologyEdges ?? new Dictionary<BattleGridCoord, List<GraphEdge>>();
         _reverseTopologyEdges = reverseTopologyEdges ?? new Dictionary<BattleGridCoord, List<GraphEdge>>();
+        _topologyHeightsByCell = BuildTopologyHeightsByCell(_topologyNodeMoveCosts.Keys);
     }
 
     public int MinX { get; }
@@ -310,6 +312,42 @@ internal sealed class BattleNavigationGraph
         }
     }
 
+    public IEnumerable<BattleGridCoord> GetAnchorsInBounds(int minX, int maxX, int minY, int maxY)
+    {
+        if (UsesTopology)
+        {
+            for (int y = minY; y <= maxY; y++)
+            {
+                for (int x = minX; x <= maxX; x++)
+                {
+                    if (!_topologyHeightsByCell.TryGetValue(new GraphCell(x, y), out int[] heights))
+                    {
+                        continue;
+                    }
+
+                    foreach (int height in heights)
+                    {
+                        yield return new BattleGridCoord(x, y, height);
+                    }
+                }
+            }
+
+            yield break;
+        }
+
+        int clampedMinX = System.Math.Max(minX, MinX);
+        int clampedMaxX = System.Math.Min(maxX, MaxX);
+        int clampedMinY = System.Math.Max(minY, MinY);
+        int clampedMaxY = System.Math.Min(maxY, MaxY);
+        for (int y = clampedMinY; y <= clampedMaxY; y++)
+        {
+            for (int x = clampedMinX; x <= clampedMaxX; x++)
+            {
+                yield return new BattleGridCoord(x, y, 0);
+            }
+        }
+    }
+
     public bool CanPlaceFootprint(BattleRuntimeActor actor, BattleGridCoord anchor)
     {
         // Runtime owns actor-specific footprint legality over topology nodes.
@@ -385,6 +423,19 @@ internal sealed class BattleNavigationGraph
         return reachable;
     }
 
+    private static Dictionary<GraphCell, int[]> BuildTopologyHeightsByCell(IEnumerable<BattleGridCoord> anchors)
+    {
+        return anchors
+            .GroupBy(coord => new GraphCell(coord.X, coord.Y))
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .Select(coord => coord.Height)
+                    .Distinct()
+                    .OrderBy(height => height)
+                    .ToArray());
+    }
+
     private static bool IsBefore(BattleGridCoord candidate, BattleGridCoord known)
     {
         return candidate.Height < known.Height ||
@@ -392,6 +443,7 @@ internal sealed class BattleNavigationGraph
                candidate.Height == known.Height && candidate.Y == known.Y && candidate.X < known.X;
     }
 
+    private readonly record struct GraphCell(int X, int Y);
     private readonly record struct GraphEdge(BattleGridCoord From, BattleGridCoord To, int MoveCost);
     private readonly record struct NavigationTopologySummary(int ComponentCount, int LargestComponentSize);
 }

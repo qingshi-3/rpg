@@ -10,7 +10,5 @@ public enum WorldConditionKind
     HasFacility = 5,
     HasEmptyFacilitySlot = 6,
     HasGarrisonAtLeast = 7,
-    ThreatStageIs = 8,
-    NoActiveThreatOfRule = 9,
-    HasGarrisonCapacity = 10
+    HasGarrisonCapacity = 8
 }

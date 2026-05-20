@@ -98,7 +98,7 @@ public sealed class WorldArmyMovementService
             army.WorldPosition = current + (nextPoint - current).Normalized() * step;
         }
 
-        if (result.BattleReadyArmyIds.Count == 0 && result.AttackingThreatIds.Count == 0)
+        if (result.BattleReadyArmyIds.Count == 0)
         {
             DetectFieldIntercepts(state, result);
         }
@@ -289,7 +289,7 @@ public sealed class WorldArmyMovementService
 
         army.Status = army.Intent switch
         {
-            WorldArmyIntent.Raid or WorldArmyIntent.AssaultSite => WorldArmyStatus.Attacking,
+            WorldArmyIntent.AssaultSite => WorldArmyStatus.Attacking,
             WorldArmyIntent.ReinforceSite => WorldArmyStatus.Garrisoned,
             _ => WorldArmyStatus.Idle
         };
@@ -316,23 +316,6 @@ public sealed class WorldArmyMovementService
         {
             result.BattleReadyArmyIds.Add(army.ArmyId);
             result.Messages.Add("\u73a9\u5bb6\u8fdb\u653b\u90e8\u961f\u5df2\u62b5\u8fbe\uff0c\u51c6\u5907\u8fdb\u5165\u653b\u5360\u6218\u3002");
-        }
-
-        if (!string.IsNullOrWhiteSpace(army.RelatedThreatId) &&
-            state.ThreatPlans.TryGetValue(army.RelatedThreatId, out EnemyThreatPlan threat) &&
-            threat.Stage != ThreatStage.Resolved)
-        {
-            threat.Stage = ThreatStage.Attacking;
-            threat.CountdownTicks = 0;
-            result.AttackingThreatIds.Add(threat.Id);
-            result.Messages.Add("\u654c\u65b9\u90e8\u961f\u5df2\u62b5\u8fbe\uff0c\u5fc5\u987b\u5904\u7406\u3002");
-            result.Events.Add(new GameEvent
-            {
-                Kind = "ThreatStageChanged",
-                Tick = state.WorldTick,
-                TargetIds = { threat.Id, army.ArmyId },
-                Payload = { ["stage"] = nameof(ThreatStage.Attacking), ["reason"] = "army_arrived" }
-            });
         }
 
         GameLog.Info(
@@ -450,7 +433,7 @@ public sealed class WorldArmyMovementService
     private static bool CanFieldIntercept(WorldArmyState army)
     {
         return army.Status == WorldArmyStatus.Moving &&
-               army.Intent is WorldArmyIntent.Raid or WorldArmyIntent.AssaultSite or WorldArmyIntent.ReinforceSite or WorldArmyIntent.Intercept or WorldArmyIntent.MoveToPosition;
+               army.Intent is WorldArmyIntent.AssaultSite or WorldArmyIntent.ReinforceSite or WorldArmyIntent.Intercept or WorldArmyIntent.MoveToPosition;
     }
 
     private static Vector2 ResolveFinalArrivalPosition(WorldArmyState army)

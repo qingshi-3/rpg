@@ -9,6 +9,7 @@ using Rpg.Definitions.Battle;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
+using Rpg.Infrastructure.Diagnostics;
 using Rpg.Infrastructure.Logging;
 using Rpg.Infrastructure.Scenes;
 using Rpg.Presentation.Battle;
@@ -17,6 +18,7 @@ using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Preview;
 using Rpg.Presentation.Battle.Rules;
 using Rpg.Presentation.Common;
+using Rpg.Presentation.Debug;
 using Rpg.Presentation.World;
 
 namespace Rpg.Presentation.World.Sites;
@@ -107,7 +109,6 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Button _returnMapButton;
 	private VBoxContainer _siteFacilityList;
 	private VBoxContainer _siteGarrisonList;
-	private VBoxContainer _siteThreatList;
 	private VBoxContainer _siteActionList;
 	private readonly Dictionary<string, Node2D> _sitePlacementEntities = new();
 	private readonly Dictionary<string, WorldFacilitySlotEntity> _siteFacilitySlotEntities = new();
@@ -141,7 +142,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private readonly WorldSiteDeploymentTerrainReconciler _deploymentTerrainReconciler = new();
 	private readonly WorldSiteBattleDeploymentPreparer _battleDeploymentPreparer = new();
 	private readonly WorldSiteBattleLauncher _battleLauncher = new();
-	private readonly WorldSiteBattleGroupRuntimeAdapter _battleGroupRuntimeAdapter = new();
+	private readonly BattlePerformanceCounters _battlePerformanceCounters = new();
+	private readonly WorldSiteBattleGroupRuntimeAdapter _battleGroupRuntimeAdapter;
 	private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
 	private readonly SemanticMapMarkerExtractor _semanticMapMarkerExtractor = new();
 	private readonly SceneTransitionRouter _sceneTransitionRouter;
@@ -157,6 +159,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 	public WorldSiteRoot()
 	{
+		_battleGroupRuntimeAdapter = new(_battlePerformanceCounters);
 		_worldActionResolver = new WorldActionResolver(_battleUnitFactory.ResolveUnitDisplayName);
 		_sceneTransitionRouter = new SceneTransitionRouter(new GodotSceneTransitionGateway(() => GetTree()));
 	}
@@ -164,6 +167,9 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	public override void _Ready()
 	{
 		GameLog.StartSession(nameof(WorldSiteRoot));
+		BattlePerformanceMonitorRegistry.Register(
+			_battlePerformanceCounters,
+			() => _unitRoot?.ActiveMovementTweenCount ?? 0);
 		MouseFilter = MouseFilterEnum.Stop;
 		SetFullRect(this);
 
@@ -211,6 +217,15 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		else
 		{
 			SwitchToNonBattleUi(BattleOutcome.None, null, null, "");
+		}
+	}
+
+	public override void _ExitTree()
+	{
+		BattlePerformanceMonitorRegistry.Unregister();
+		if (GetViewport() != null)
+		{
+			GetViewport().SizeChanged -= OnViewportSizeChanged;
 		}
 	}
 

@@ -462,8 +462,7 @@ public partial class WorldSiteRoot
             ActorFactionId = StrategicWorldRuntime.State.PlayerFactionId,
             SourceSiteId = _siteHudSiteId,
             TargetSiteId = action.TargetSiteId,
-            TargetSlotId = targetSlotId ?? "",
-            ThreatId = action.ThreatId
+            TargetSlotId = targetSlotId ?? ""
         };
 
         string returnScenePath = string.IsNullOrWhiteSpace(_siteHudReturnScenePath)
@@ -508,14 +507,6 @@ public partial class WorldSiteRoot
         }
 
         RefreshSiteManagementUi(result.Message);
-    }
-
-    private string ResolveSelectedThreatId(WorldSiteState site)
-    {
-        return site?.PendingThreatIds
-            .Select(id => StrategicWorldRuntime.State.ThreatPlans.TryGetValue(id, out EnemyThreatPlan threat) ? threat : null)
-            .FirstOrDefault(threat => threat?.Stage == ThreatStage.Attacking)
-            ?.Id ?? "";
     }
 
     private void RefreshSelectedSlotLabel(WorldSiteState site)

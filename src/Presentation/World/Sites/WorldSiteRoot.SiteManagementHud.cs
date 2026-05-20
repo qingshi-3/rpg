@@ -194,10 +194,6 @@ public partial class WorldSiteRoot
             _siteHudRoot,
             "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/SiteGarrisonList",
             nameof(WorldSiteRoot));
-        _siteThreatList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/SiteThreatList",
-            nameof(WorldSiteRoot));
         _siteActionList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             _siteHudRoot,
             "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/SiteActionList",
@@ -218,10 +214,6 @@ public partial class WorldSiteRoot
             _siteHudRoot,
             "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/GarrisonTitle",
             nameof(WorldSiteRoot));
-        Label threatTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/ThreatTitle",
-            nameof(WorldSiteRoot));
         Label actionTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
             "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionTitle",
@@ -233,7 +225,7 @@ public partial class WorldSiteRoot
 
         if (operationHintLabel != null)
         {
-            operationHintLabel.Text = "场域经营：点击建筑点管理；有探索内容时，点击地图格设置移动意图。";
+            operationHintLabel.Text = "场域经营：点击建筑点管理；点击地图格设置移动意图。";
         }
 
         if (_returnMapButton != null)
@@ -249,11 +241,6 @@ public partial class WorldSiteRoot
         if (garrisonTitleLabel != null)
         {
             garrisonTitleLabel.Text = "驻防兵力";
-        }
-
-        if (threatTitleLabel != null)
-        {
-            threatTitleLabel.Text = "敌情追踪";
         }
 
         if (actionTitleLabel != null)
@@ -610,7 +597,6 @@ public partial class WorldSiteRoot
         RefreshFacilityList(site, definition);
         RefreshFacilityBuildList(site, definition);
         RefreshGarrisonList(site);
-        RefreshThreatList(site);
         RefreshActionList(site);
         UpdateSitePeacetimePanelVisibility("refresh");
     }
@@ -684,34 +670,21 @@ public partial class WorldSiteRoot
         StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
         if (site == null)
         {
-            return "当前场域状态缺失。";
+            return "当前场地状态缺失。";
         }
 
-        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
-            StrategicWorldRuntime.State,
-            StrategicWorldRuntime.Definition,
-            siteId,
-            WorldIntelVisibility.Visible);
         int facilityCount = site.Facilities.Count(facility => facility.State != FacilityState.Destroyed);
-        string garrisonOverviewText = BuildSiteGarrisonOverviewText(site, intelView);
-        int activeThreatCount = site.PendingThreatIds
-            .Select(id => StrategicWorldRuntime.State.ThreatPlans.TryGetValue(id, out EnemyThreatPlan threat) ? threat : null)
-            .Count(threat => threat is { Stage: not ThreatStage.Resolved });
+        string garrisonOverviewText = BuildSiteGarrisonOverviewText(site);
         List<string> overviewLines = new()
         {
-            definition?.Description ?? ResolveSiteName(siteId)
-        };
-        overviewLines.AddRange(WorldSiteIntelPresenter.BuildSummaryLines(intelView));
-        overviewLines.AddRange(new[]
-        {
+            definition?.Description ?? ResolveSiteName(siteId),
             $"控制：{GetControlStateLabel(site.ControlState)}    模式：{GetSiteModeLabel(site.SiteMode)}",
             $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}    受损：{site.DamageLevel}",
-            $"建筑：{facilityCount}    驻军：{garrisonOverviewText}    威胁：{activeThreatCount}"
-        });
+            $"建筑：{facilityCount}    驻军：{garrisonOverviewText}"
+        };
 
         return string.Join("\n", overviewLines);
     }
-
     private void RefreshFacilityList(WorldSiteState site, WorldSiteDefinition definition)
     {
         ClearChildren(_siteFacilityList);
@@ -856,46 +829,22 @@ public partial class WorldSiteRoot
     private void RefreshGarrisonList(WorldSiteState site)
     {
         ClearChildren(_siteGarrisonList);
-        WorldSiteIntelViewModel intelView = site == null
-            ? null
-            : WorldSiteIntelService.BuildCurrentView(
-                StrategicWorldRuntime.State,
-                StrategicWorldRuntime.Definition,
-                site.SiteId,
-                WorldIntelVisibility.Visible);
-        AddSiteGarrisonLines(_siteGarrisonList, site, intelView);
+        AddSiteGarrisonLines(_siteGarrisonList, site);
     }
 
-    private string BuildSiteGarrisonOverviewText(WorldSiteState site, WorldSiteIntelViewModel intelView)
+    private string BuildSiteGarrisonOverviewText(WorldSiteState site)
     {
-        if (!CanRevealSiteGarrison(site, intelView))
-        {
-            return "驻军情报不足，需探索确认。";
-        }
-
         return site?.Garrison?.Sum(garrison => garrison.Count).ToString() ?? "0";
     }
 
-    private void AddSiteGarrisonLines(VBoxContainer list, WorldSiteState site, WorldSiteIntelViewModel intelView)
+    private void AddSiteGarrisonLines(VBoxContainer list, WorldSiteState site)
     {
         if (list == null)
         {
             return;
         }
 
-        if (site == null)
-        {
-            AddMutedLine(list, "无");
-            return;
-        }
-
-        if (!CanRevealSiteGarrison(site, intelView))
-        {
-            AddMutedLine(list, "驻军情报不足，需探索确认。");
-            return;
-        }
-
-        if (site.Garrison.Count == 0)
+        if (site == null || site.Garrison.Count == 0)
         {
             AddMutedLine(list, "无");
             return;
@@ -908,52 +857,14 @@ public partial class WorldSiteRoot
             AddMutedLine(list, $"{GetUnitLabel(garrison.UnitTypeId)} x{garrison.Count}    士气 {garrison.Morale}");
         }
     }
-
-    private bool CanRevealSiteGarrison(WorldSiteState site, WorldSiteIntelViewModel intelView)
-    {
-        return site != null &&
-               (site.OwnerFactionId == StrategicWorldRuntime.State?.PlayerFactionId ||
-                intelView?.CanInspectFullTacticalLayout == true);
-    }
-
-    private void RefreshThreatList(WorldSiteState site)
-    {
-        ClearChildren(_siteThreatList);
-        if (site == null)
-        {
-            AddMutedLine(_siteThreatList, "暂无");
-            return;
-        }
-
-        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-        EnemyThreatPlan[] threats = site.PendingThreatIds
-            .Select(id => StrategicWorldRuntime.State.ThreatPlans.TryGetValue(id, out EnemyThreatPlan threat) ? threat : null)
-            .Where(threat => threat is { Stage: not ThreatStage.Resolved })
-            .ToArray();
-
-        if (threats.Length == 0)
-        {
-            AddMutedLine(_siteThreatList, "暂无");
-            return;
-        }
-
-        foreach (EnemyThreatPlan threat in threats)
-        {
-            string source = queries.GetSite(threat.SourceSiteId)?.DisplayName ?? threat.SourceSiteId;
-            AddMutedLine(_siteThreatList, $"{GetThreatStageLabel(threat.Stage)}    来源：{source}    倒计时：{threat.CountdownTicks}");
-        }
-    }
-
     private void RefreshActionList(WorldSiteState site)
     {
         ClearChildren(_siteActionList);
 
-        string selectedThreatId = ResolveSelectedThreatId(site);
         IReadOnlyList<WorldActionViewModel> actions = _worldActionResolver.GetAvailableActions(
             StrategicWorldRuntime.State,
             StrategicWorldRuntime.Definition,
-            _siteHudSiteId,
-            selectedThreatId);
+            _siteHudSiteId);
 
         foreach (WorldActionViewModel action in actions)
         {

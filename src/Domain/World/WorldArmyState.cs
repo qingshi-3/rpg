@@ -10,7 +10,6 @@ public sealed class WorldArmyState
     public string OwnerFactionId { get; set; } = "";
     public string SourceSiteId { get; set; } = "";
     public string TargetSiteId { get; set; } = "";
-    public string RelatedThreatId { get; set; } = "";
     public float WorldX { get; set; }
     public float WorldY { get; set; }
     public float DestinationX { get; set; }

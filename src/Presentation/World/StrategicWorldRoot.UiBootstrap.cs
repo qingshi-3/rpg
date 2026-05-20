@@ -71,7 +71,6 @@ public partial class StrategicWorldRoot
             ZIndex = 60
         };
         SetFullRect(_fogOverlay);
-        // Fog is world presentation, so it lives in the viewport overlay instead of the root UI canvas.
         if (_worldMapOverlay == null)
         {
             GameLog.Error(nameof(StrategicWorldRoot), "WorldMapOverlayMissingForFog");
@@ -166,14 +165,6 @@ public partial class StrategicWorldRoot
             hud,
             "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/GarrisonList",
             nameof(StrategicWorldRoot));
-        _threatList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/ThreatList",
-            nameof(StrategicWorldRoot));
-        Label threatTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/ThreatTitle",
-            nameof(StrategicWorldRoot));
         _actionCard = GameUiSceneFactory.GetRequiredNode<Control>(
             hud,
             "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard",
@@ -206,11 +197,6 @@ public partial class StrategicWorldRoot
             _garrisonTitleLabel.Text = "驻防兵力";
         }
 
-        if (threatTitleLabel != null)
-        {
-            threatTitleLabel.Text = "敌情追踪";
-        }
-
         if (_actionTitleLabel != null)
         {
             _actionTitleLabel.Text = "行动面板";
@@ -226,30 +212,10 @@ public partial class StrategicWorldRoot
             _worldClockSpeedButton.Pressed += CycleWorldClockSpeed;
         }
 
-        Button saveButton = GameUiSceneFactory.GetRequiredNode<Button>(
-            hud,
-            "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls/SaveButton",
-            nameof(StrategicWorldRoot));
-        Button loadButton = GameUiSceneFactory.GetRequiredNode<Button>(
-            hud,
-            "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls/LoadButton",
-            nameof(StrategicWorldRoot));
         Button resetButton = GameUiSceneFactory.GetRequiredNode<Button>(
             hud,
             "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls/ResetButton",
             nameof(StrategicWorldRoot));
-
-        if (saveButton != null)
-        {
-            saveButton.Text = "保存";
-            saveButton.Pressed += SaveWorld;
-        }
-
-        if (loadButton != null)
-        {
-            loadButton.Text = "读取";
-            loadButton.Pressed += LoadWorld;
-        }
 
         if (resetButton != null)
         {
@@ -304,6 +270,18 @@ public partial class StrategicWorldRoot
         }
     }
 
+    private void ResetWorld()
+    {
+        StrategicWorldRuntime.Reset();
+        _selectedSiteId = "";
+        _selectedOpportunityId = "";
+        _selectedArmyIds.Clear();
+        _worldClockAccumulator = 0.0;
+        _worldClockPaused = false;
+        StrategicWorldRuntime.LastNotice = "世界状态已重置。";
+        RefreshAll();
+    }
+
     private void BuildSiteHoverSummaryPanel()
     {
         _siteHoverSummaryPanel = GameUiSceneFactory.CreateWorldSiteHoverSummaryPanel(nameof(StrategicWorldRoot));
@@ -331,31 +309,16 @@ public partial class StrategicWorldRoot
     {
         foreach ((string siteId, Button button) in _siteButtons)
         {
-            WorldSiteState state = State.SiteStates[siteId];
             WorldSiteDefinition definition = queries.GetSite(siteId);
             Rect2 hitRect = ToViewportLocal(GetSiteHitRect(definition));
             button.Position = hitRect.Position;
             button.Size = hitRect.Size;
-            WorldIntelVisibility siteVisibility = GetSiteIntelVisibility(definition);
-            bool siteKnown = siteVisibility != WorldIntelVisibility.Unknown;
-            button.Visible = siteKnown;
-            if (!siteKnown && _hoveredSiteId == siteId)
-            {
-                HideSiteHoverSummary(siteId);
-            }
-
-            string threatMark = state.PendingThreatIds
-                .Select(id => State.ThreatPlans.TryGetValue(id, out EnemyThreatPlan threat) ? threat : null)
-                .Any(threat => threat is { Stage: ThreatStage.Attacking })
-                ? "\n进攻中"
-                : "";
+            button.Visible = true;
             button.Text = "";
             bool isBlockedTarget = _isExpeditionTargeting
                 ? IsSiteBlockedForExpeditionTarget(siteId)
                 : IsSiteBlockedForSelectedSiteCommand(siteId);
-            button.MouseDefaultCursorShape = isBlockedTarget
-                ? CursorShape.Forbidden
-                : CursorShape.PointingHand;
+            button.MouseDefaultCursorShape = isBlockedTarget ? CursorShape.Forbidden : CursorShape.PointingHand;
             button.TooltipText = "";
 
             if (_siteLabels.TryGetValue(siteId, out Label label))
@@ -363,17 +326,8 @@ public partial class StrategicWorldRoot
                 Rect2 labelRect = ToViewportLocal(GetSiteLabelRect(definition));
                 label.Position = labelRect.Position;
                 label.Size = labelRect.Size;
-                label.Visible = siteKnown;
-                string displayName = siteVisibility == WorldIntelVisibility.Revealed &&
-                                     State.Intel.KnownSites.TryGetValue(siteId, out WorldSiteIntelSnapshot snapshot) &&
-                                     !string.IsNullOrWhiteSpace(snapshot.DisplayName)
-                    ? snapshot.DisplayName
-                    : definition.DisplayName;
-                label.Text = siteVisibility == WorldIntelVisibility.Revealed
-                    ? $"{displayName}\n旧情报"
-                    : string.IsNullOrWhiteSpace(threatMark)
-                    ? definition.DisplayName
-                    : $"{definition.DisplayName}{threatMark}";
+                label.Visible = true;
+                label.Text = definition.DisplayName;
                 label.TooltipText = "";
             }
 
@@ -383,7 +337,6 @@ public partial class StrategicWorldRoot
             }
         }
     }
-
     private void ShowSiteHoverSummary(string siteId)
     {
         _hoveredSiteId = siteId;
@@ -417,38 +370,15 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        WorldIntelVisibility visibility = GetSiteIntelVisibility(definition);
-        if (visibility == WorldIntelVisibility.Unknown)
-        {
-            _siteHoverSummaryPanel.HideSummary();
-            return;
-        }
-
-        if (visibility == WorldIntelVisibility.Revealed &&
-            State.Intel.KnownSites.TryGetValue(siteId, out WorldSiteIntelSnapshot snapshot))
-        {
-            _siteHoverSummaryPanel.Bind(WorldSiteHoverSummaryPresenter.BuildSnapshot(queries, definition, snapshot));
-        }
-        else
-        {
-            _siteHoverSummaryPanel.Bind(WorldSiteHoverSummaryPresenter.Build(queries, definition, state));
-        }
-
+        _siteHoverSummaryPanel.Bind(WorldSiteHoverSummaryPresenter.Build(queries, definition, state));
         _siteHoverSummaryPanel.Visible = true;
         _siteHoverSummaryPanel.ResetSize();
 
-        Rect2 anchorBounds = TryGetSiteVisualScreenBounds(siteId, out Rect2 visualBounds)
-            ? visualBounds
-            : GetSiteHitRect(definition);
+        Rect2 anchorBounds = TryGetSiteVisualScreenBounds(siteId, out Rect2 visualBounds) ? visualBounds : GetSiteHitRect(definition);
         Vector2 panelSize = _siteHoverSummaryPanel.Size;
         Vector2 minimumSize = _siteHoverSummaryPanel.GetCombinedMinimumSize();
-        panelSize = new Vector2(
-            Mathf.Max(panelSize.X, minimumSize.X),
-            Mathf.Max(panelSize.Y, minimumSize.Y));
+        panelSize = new Vector2(Mathf.Max(panelSize.X, minimumSize.X), Mathf.Max(panelSize.Y, minimumSize.Y));
         Vector2 viewportSize = GetViewport().GetVisibleRect().Size;
-        _siteHoverSummaryPanel.Position = WorldSiteHoverSummaryPresenter.CalculatePanelPosition(
-            anchorBounds,
-            panelSize,
-            viewportSize);
+        _siteHoverSummaryPanel.Position = WorldSiteHoverSummaryPresenter.CalculatePanelPosition(anchorBounds, panelSize, viewportSize);
     }
 }

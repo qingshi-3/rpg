@@ -191,7 +191,7 @@ static WorldArmyState BuildMovingArmy()
         MoveSpeed = 40.0f,
         Radius = 18.0f,
         Status = WorldArmyStatus.Moving,
-        Intent = WorldArmyIntent.Raid
+        Intent = WorldArmyIntent.AssaultSite
     };
     army.WorldPosition = new Vector2(0, 0);
     army.Destination = new Vector2(100, 0);

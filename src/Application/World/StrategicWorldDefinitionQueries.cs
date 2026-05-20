@@ -14,7 +14,6 @@ public sealed class StrategicWorldDefinitionQueries
     private readonly Dictionary<string, OpportunitySpawnPointDefinition> _opportunitySpawnPoints;
     private readonly Dictionary<string, OpportunitySpawnRuleDefinition> _opportunitySpawnRules;
     private readonly Dictionary<string, WorldActionDefinition> _actions;
-    private readonly Dictionary<string, ThreatRuleDefinition> _threatRules;
 
     public StrategicWorldDefinitionQueries(StrategicWorldDefinition definition)
     {
@@ -27,7 +26,6 @@ public sealed class StrategicWorldDefinitionQueries
         _opportunitySpawnPoints = definition.OpportunitySpawnPoints.Where(item => item != null).ToDictionary(item => item.Id, item => item);
         _opportunitySpawnRules = definition.OpportunitySpawnRules.Where(item => item != null).ToDictionary(item => item.Id, item => item);
         _actions = definition.ActionDefinitions.Where(item => item != null).ToDictionary(item => item.Id, item => item);
-        _threatRules = definition.ThreatRules.Where(item => item != null).ToDictionary(item => item.Id, item => item);
     }
 
     public StrategicWorldDefinition Definition { get; }
@@ -39,7 +37,6 @@ public sealed class StrategicWorldDefinitionQueries
     public IReadOnlyDictionary<string, OpportunitySpawnPointDefinition> OpportunitySpawnPoints => _opportunitySpawnPoints;
     public IReadOnlyDictionary<string, OpportunitySpawnRuleDefinition> OpportunitySpawnRules => _opportunitySpawnRules;
     public IReadOnlyDictionary<string, WorldActionDefinition> Actions => _actions;
-    public IReadOnlyDictionary<string, ThreatRuleDefinition> ThreatRules => _threatRules;
 
     public ResourceDefinition GetResource(string id)
     {
@@ -81,8 +78,4 @@ public sealed class StrategicWorldDefinitionQueries
         return !string.IsNullOrWhiteSpace(id) && _actions.TryGetValue(id, out WorldActionDefinition value) ? value : null;
     }
 
-    public ThreatRuleDefinition GetThreatRule(string id)
-    {
-        return !string.IsNullOrWhiteSpace(id) && _threatRules.TryGetValue(id, out ThreatRuleDefinition value) ? value : null;
-    }
 }

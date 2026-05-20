@@ -4,10 +4,9 @@ public enum BattleKind
 {
     Unknown = 0,
     AssaultSite = 1,
-    DefenseRaid = 2,
-    FieldIntercept = 3,
-    SearchAndExtract = 4,
-    Rescue = 5,
-    Sabotage = 6,
-    BossAssault = 7
+    FieldIntercept = 2,
+    SearchAndExtract = 3,
+    Rescue = 4,
+    Sabotage = 5,
+    BossAssault = 6
 }

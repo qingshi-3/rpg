@@ -19,6 +19,7 @@ InitialGarrison = Array[ExtResource("3_garrison")]([SubResource("WorldInitialGar
 [sub_resource type="Resource" id="WorldInitialGarrisonEntry_boss_city"]
 script = ExtResource("3_garrison")
 UnitDefinition = ExtResource("6_boss_city")
+Count = 4
 Morale = 35
 
 [sub_resource type="Resource" id="WorldSiteInitialState_bonefield"]

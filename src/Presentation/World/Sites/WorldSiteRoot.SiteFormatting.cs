@@ -58,7 +58,6 @@ public partial class WorldSiteRoot
             StrategicWorldRuntime.State,
             StrategicWorldRuntime.Definition,
             _siteHudSiteId,
-            ResolveSelectedThreatId(site),
             slot.SlotId);
         return actions
             .Where(action => actionIds.Contains(action.ActionId))
@@ -226,7 +225,6 @@ public partial class WorldSiteRoot
         return mode switch
         {
             WorldSiteMode.Peacetime => "非战时",
-            WorldSiteMode.Alert => "警戒",
             WorldSiteMode.Wartime => "战时",
             WorldSiteMode.Aftermath => "战后",
             _ => "未知"
@@ -243,19 +241,6 @@ public partial class WorldSiteRoot
             FacilityState.Damaged => "受损",
             FacilityState.Disabled => "停用",
             FacilityState.Destroyed => "摧毁",
-            _ => "未知"
-        };
-    }
-
-    private static string GetThreatStageLabel(ThreatStage stage)
-    {
-        return stage switch
-        {
-            ThreatStage.Hidden => "隐藏",
-            ThreatStage.Rumor => "传闻",
-            ThreatStage.Marching => "行军中",
-            ThreatStage.Attacking => "进攻中",
-            ThreatStage.Resolved => "已解决",
             _ => "未知"
         };
     }

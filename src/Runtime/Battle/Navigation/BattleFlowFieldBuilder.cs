@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Rpg.Infrastructure.Diagnostics;
 
 namespace Rpg.Runtime.Battle.Navigation;
 
@@ -12,9 +13,11 @@ internal static class BattleFlowFieldBuilder
         BattleRuntimeActor actor,
         BattleRuntimeActor target,
         BattleNavigationGraph graph,
-        bool preferSupportSlots)
+        bool preferSupportSlots,
+        BattlePerformanceCounters performanceCounters = null)
     {
-        IReadOnlyList<BattleCombatSlot> slots = BattleCombatSlotAllocator.FindSlots(actor, target, graph);
+        performanceCounters?.RecordFlowFieldBuild();
+        IReadOnlyList<BattleCombatSlot> slots = BattleCombatSlotAllocator.FindSlots(actor, target, graph, performanceCounters);
         BattleCombatSlot[] goals = preferSupportSlots
             ? slots.Where(item => item.Kind == BattleCombatSlotKind.Support).ToArray()
             : System.Array.Empty<BattleCombatSlot>();

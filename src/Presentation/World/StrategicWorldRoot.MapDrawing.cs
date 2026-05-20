@@ -28,7 +28,6 @@ public partial class StrategicWorldRoot
         }
 
         DrawSiteIcons(_worldMapOverlay, queries);
-        DrawLegacyThreatMarkers(_worldMapOverlay, queries);
         DrawWorldOpportunities(_worldMapOverlay, queries);
         DrawWorldArmies(_worldMapOverlay);
         DrawArmySelectionBox(_worldMapOverlay);
@@ -67,69 +66,6 @@ public partial class StrategicWorldRoot
         }
     }
 
-    private void DrawLegacyThreatMarkers(Control canvas, StrategicWorldDefinitionQueries queries)
-    {
-        foreach (EnemyThreatPlan threat in State.ThreatPlans.Values.Where(threat => threat.Stage != ThreatStage.Resolved))
-        {
-            if (!string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
-                State.ArmyStates.ContainsKey(threat.WorldArmyId))
-            {
-                continue;
-            }
-
-            WorldSiteDefinition source = queries.GetSite(threat.SourceSiteId);
-            WorldSiteDefinition target = queries.GetSite(threat.TargetSiteId);
-            if (source == null || target == null)
-            {
-                continue;
-            }
-
-            Vector2 sourceCenter = GetSiteViewportCenter(source);
-            Vector2 targetCenter = GetSiteViewportCenter(target);
-            List<Vector2> navigationPoints = GetLegacyThreatNavigationPoints(threat, sourceCenter, targetCenter);
-            if (navigationPoints.Count == 0)
-            {
-                continue;
-            }
-
-            if (threat.Stage == ThreatStage.Attacking)
-            {
-                if (!IsViewportPositionVisible(targetCenter))
-                {
-                    continue;
-                }
-
-                canvas.DrawArc(targetCenter, SiteIconRadius + 13.0f, 0, Mathf.Tau, 40, new Color(1.0f, 0.23f, 0.15f, 0.92f), 4.0f, true);
-                DrawThreatArmyMarker(canvas, targetCenter + new Vector2(34.0f, -28.0f), true);
-                continue;
-            }
-
-            int initialCountdown = threat.InitialCountdownTicks > 0 ? threat.InitialCountdownTicks : 3;
-            float progress = 1.0f - Mathf.Clamp(threat.CountdownTicks / (float)initialCountdown, 0.0f, 1.0f);
-            Vector2 marker = SamplePolyline(navigationPoints, Mathf.Clamp(0.08f + progress * 0.84f, 0.08f, 0.92f));
-            if (!IsViewportPositionVisible(marker))
-            {
-                continue;
-            }
-
-            DrawThreatArmyMarker(canvas, marker, false);
-        }
-    }
-
-    private static void DrawThreatArmyMarker(Control canvas, Vector2 position, bool attacking)
-    {
-        Color fill = attacking
-            ? new Color(1.0f, 0.12f, 0.08f, 1.0f)
-            : new Color(0.88f, 0.18f, 0.12f, 1.0f);
-        Color dark = new(0.12f, 0.035f, 0.03f, 1.0f);
-        canvas.DrawRect(new Rect2(position - new Vector2(11.0f, 11.0f), new Vector2(22.0f, 22.0f)), dark, true);
-        canvas.DrawRect(new Rect2(position - new Vector2(8.0f, 8.0f), new Vector2(16.0f, 16.0f)), fill, true);
-        canvas.DrawLine(position + new Vector2(-2.0f, -16.0f), position + new Vector2(-2.0f, 12.0f), dark, 3.0f, true);
-        canvas.DrawPolygon(
-            new[] { position + new Vector2(0.0f, -16.0f), position + new Vector2(18.0f, -10.0f), position + new Vector2(0.0f, -4.0f) },
-            new[] { attacking ? new Color(1.0f, 0.32f, 0.14f, 1.0f) : new Color(0.78f, 0.12f, 0.08f, 1.0f) });
-    }
-
     private void DrawWorldArmies(Control canvas)
     {
         if (State?.ArmyStates == null)
@@ -150,7 +86,7 @@ public partial class StrategicWorldRoot
                 continue;
             }
 
-            DrawWorldArmyMarker(canvas, army);
+DrawWorldArmyMarker(canvas, army);
         }
     }
 
@@ -173,7 +109,7 @@ public partial class StrategicWorldRoot
                 continue;
             }
 
-            DrawWorldOpportunityMarker(canvas, opportunity, queries.GetOpportunity(opportunity.DefinitionId));
+DrawWorldOpportunityMarker(canvas, opportunity, queries.GetOpportunity(opportunity.DefinitionId));
         }
     }
 

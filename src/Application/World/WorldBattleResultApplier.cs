@@ -12,7 +12,6 @@ public sealed class WorldBattleResultApplier
     private readonly WorldTickService _worldTickService = new();
     private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
     private readonly WorldSiteDeploymentService _deploymentService = new();
-    private readonly WorldBattleProgressionService _worldBattleProgressionService = new();
     private readonly WorldGarrisonMutationService _garrisonMutations = new();
     private readonly WorldSiteBattleUnitPoolService _battleUnitPool = new();
 
@@ -32,21 +31,12 @@ public sealed class WorldBattleResultApplier
             return WorldActionResult.Failed("battle_result", "battle_result_mismatch", "战斗结果与发起请求不匹配。");
         }
 
-        WorldActionResult actionResult;
-        if (!string.IsNullOrWhiteSpace(request.WorldBattleId))
+        WorldActionResult actionResult = request.BattleKind switch
         {
-            actionResult = _worldBattleProgressionService.ApplyPlayerInterventionResult(state, definition, request, result);
-        }
-        else
-        {
-            actionResult = request.BattleKind switch
-            {
-                BattleKind.AssaultSite => ApplyAssaultBonefield(state, definition, request, result),
-                BattleKind.DefenseRaid => ApplyDefenseRaid(state, definition, request, result),
-                BattleKind.FieldIntercept => ApplyFieldIntercept(state, request, result),
-                _ => WorldActionResult.Failed("battle_result", "unsupported_battle_kind", "暂不支持该战斗类型回写。")
-            };
-        }
+            BattleKind.AssaultSite => ApplyAssaultBonefield(state, definition, request, result),
+            BattleKind.FieldIntercept => ApplyFieldIntercept(state, request, result),
+            _ => WorldActionResult.Failed("battle_result", "unsupported_battle_kind", "暂不支持该战斗类型回写。")
+        };
 
         if (!actionResult.Success)
         {
@@ -268,199 +258,6 @@ public sealed class WorldBattleResultApplier
             placement.PlacementKind is WorldSiteUnitPlacementKind.VisitingArmy or WorldSiteUnitPlacementKind.Attacker);
     }
 
-    private WorldActionResult ApplyDefenseRaid(
-        StrategicWorldState state,
-        StrategicWorldDefinition definition,
-        BattleStartRequest request,
-        BattleResult result)
-    {
-        WorldSiteState site = state.SiteStates[request.TargetSiteId];
-        StrategicWorldDefinitionQueries queries = new(definition);
-        string targetSite = StrategicWorldDisplayNames.GetSiteLabel(queries, site.SiteId, "埋骨地");
-        string attackerFaction = StrategicWorldDisplayNames.GetFactionLabel(queries, request.AttackerFactionId, "亡灵");
-        EnemyThreatPlan threat = !string.IsNullOrWhiteSpace(request.ThreatId) && state.ThreatPlans.TryGetValue(request.ThreatId, out EnemyThreatPlan value)
-            ? value
-            : null;
-
-        if (result.Outcome == BattleOutcome.Victory && ObjectiveSucceeded(result, "defend_bonefield"))
-        {
-            ApplyDefendingGarrisonCasualties(site, request, result);
-            if (threat != null)
-            {
-                threat.Stage = ThreatStage.Resolved;
-                site.PendingThreatIds.Remove(threat.Id);
-                if (!string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
-                    state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState threatArmy))
-                {
-                    WorldDefenseRaidResolutionHelper.ResolveThreatArmy(threatArmy);
-                }
-            }
-
-            site.ControlState = SiteControlState.PlayerHeld;
-            int removedTransientPlacements = RemoveResolvedDefenseRaidAttackerPlacements(site, request, threat);
-            WorldActionResult actionResult = new()
-            {
-                Success = true,
-                ActionId = "battle_result",
-                Message = $"{targetSite}防守成功，{attackerFaction} Raid 已清除。",
-                Events =
-                {
-                    new GameEvent
-                    {
-                        Kind = "ThreatStageChanged",
-                        Tick = state.WorldTick,
-                        TargetIds = { request.ThreatId },
-                        Payload = { ["stage"] = nameof(ThreatStage.Resolved) }
-                    }
-                }
-            };
-            WorldSiteDefinition defenseSiteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(site.SiteId);
-            _deploymentService.EnsureGarrisonPlacements(site, defenseSiteDefinition);
-            GameLog.Info(
-                nameof(WorldBattleResultApplier),
-                $"DefenseRaidResolved threat={request.ThreatId} site={site.SiteId} removedTransientPlacements={removedTransientPlacements}");
-            WorldSiteModeTransitionService.AddEvent(actionResult, _siteModeTransitions.EnterAftermath(site, state.WorldTick, "defense_victory", request.RequestId));
-            return actionResult;
-        }
-
-        WorldArmyState occupyingArmy = null;
-        if (threat != null)
-        {
-            threat.Stage = ThreatStage.Resolved;
-            site.PendingThreatIds.Remove(threat.Id);
-            if (!string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
-                state.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState threatArmy))
-            {
-                occupyingArmy = threatArmy;
-            }
-        }
-
-        site.OwnerFactionId = request.AttackerFactionId;
-        site.ControlState = SiteControlState.Lost;
-        site.DamageLevel = System.Math.Min(2, site.DamageLevel + 1);
-        WorldDefenseRaidResolutionHelper.ClearDefendingGarrison(site);
-        if (occupyingArmy != null)
-        {
-            WorldDefenseRaidResolutionHelper.TransferThreatArmyToCapturedSite(occupyingArmy, site);
-        }
-
-        int removedCapturedTransientPlacements = RemoveResolvedDefenseRaidAttackerPlacements(site, request, threat);
-        state.PlayerResources.ReleaseReservationsBySite(site.SiteId);
-        foreach (FacilityInstance mine in site.Facilities.Where(facility => facility.FacilityId == StrategicWorldIds.FacilityMine))
-        {
-            mine.AssignedPopulation = 0;
-            mine.State = FacilityState.Damaged;
-        }
-
-        WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(site.SiteId);
-        _deploymentService.EnsureGarrisonPlacements(site, siteDefinition);
-        GameLog.Info(
-            nameof(WorldBattleResultApplier),
-            $"DefenseRaidCaptured threat={request.ThreatId} site={site.SiteId} removedTransientPlacements={removedCapturedTransientPlacements}");
-
-        WorldActionResult failedDefenseResult = new()
-        {
-            Success = true,
-            ActionId = "battle_result",
-            Message = $"{targetSite}防守失败，场域被{attackerFaction}夺回，敌军残部进驻城中。",
-            Events =
-            {
-                new GameEvent
-                {
-                    Kind = "SiteControlChanged",
-                    Tick = state.WorldTick,
-                    TargetIds = { site.SiteId },
-                    Payload = { ["owner"] = site.OwnerFactionId, ["state"] = nameof(SiteControlState.Lost) }
-                }
-            }
-        };
-        if (occupyingArmy != null)
-        {
-            failedDefenseResult.Events.Add(new GameEvent
-            {
-                Kind = "WorldArmyStateChanged",
-                Tick = state.WorldTick,
-                TargetIds = { occupyingArmy.ArmyId, site.SiteId },
-                Payload = { ["status"] = occupyingArmy.Status.ToString(), ["reason"] = "captured_site" }
-            });
-        }
-
-        WorldSiteModeTransitionService.AddEvent(failedDefenseResult, _siteModeTransitions.EnterAftermath(site, state.WorldTick, "defense_failed", request.RequestId));
-        return failedDefenseResult;
-    }
-
-    private static int RemoveResolvedDefenseRaidAttackerPlacements(
-        WorldSiteState site,
-        BattleStartRequest request,
-        EnemyThreatPlan threat)
-    {
-        if (site == null || request == null)
-        {
-            return 0;
-        }
-
-        string threatId = string.IsNullOrWhiteSpace(request.ThreatId) ? threat?.Id ?? "" : request.ThreatId;
-        string threatArmyId = threat?.WorldArmyId ?? "";
-        HashSet<string> sourceKeys = new();
-        foreach (BattleForceRequest force in request.EnemyForces ?? Enumerable.Empty<BattleForceRequest>())
-        {
-            AddSourceKey(sourceKeys, force.SourceKind, force.SourceId);
-        }
-
-        AddSourceKey(sourceKeys, "ThreatArmy", threatArmyId);
-        AddSourceKey(sourceKeys, "ThreatRule", threat?.EnemyGroupId);
-        AddSourceKey(sourceKeys, "ThreatRule", threat?.RuleId);
-
-        return site.UnitPlacements.RemoveAll(placement =>
-            placement != null &&
-            placement.PlacementKind == WorldSiteUnitPlacementKind.Attacker &&
-            !WorldSiteDeploymentService.IsGarrisonPlacement(placement) &&
-            MatchesResolvedDefenseRaidPlacement(placement, threatId, threatArmyId, sourceKeys));
-    }
-
-    private static bool MatchesResolvedDefenseRaidPlacement(
-        WorldSiteUnitPlacement placement,
-        string threatId,
-        string threatArmyId,
-        HashSet<string> sourceKeys)
-    {
-        if (!string.IsNullOrWhiteSpace(threatId) &&
-            string.Equals(placement.ThreatId, threatId, System.StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(threatArmyId) &&
-            (string.Equals(placement.ArmyId, threatArmyId, System.StringComparison.Ordinal) ||
-             string.Equals(placement.SourceId, threatArmyId, System.StringComparison.Ordinal)))
-        {
-            return true;
-        }
-
-        return sourceKeys.Contains(BuildSourceKey(placement.SourceKind, placement.SourceId));
-    }
-
-    private static void AddSourceKey(HashSet<string> sourceKeys, string sourceKind, string sourceId)
-    {
-        if (sourceKeys == null)
-        {
-            return;
-        }
-
-        string key = BuildSourceKey(sourceKind, sourceId);
-        if (!string.IsNullOrWhiteSpace(key))
-        {
-            sourceKeys.Add(key);
-        }
-    }
-
-    private static string BuildSourceKey(string sourceKind, string sourceId)
-    {
-        return string.IsNullOrWhiteSpace(sourceKind) || string.IsNullOrWhiteSpace(sourceId)
-            ? ""
-            : $"{sourceKind}:{sourceId}";
-    }
-
     private WorldActionResult ApplyFieldIntercept(StrategicWorldState state, BattleStartRequest request, BattleResult result)
     {
         WorldArmyState playerArmy = !string.IsNullOrWhiteSpace(request.SourceArmyId) &&
@@ -491,7 +288,6 @@ public sealed class WorldBattleResultApplier
         {
             enemyArmy.Status = WorldArmyStatus.Defeated;
             ResumeArmyAfterFieldBattle(playerArmy);
-            ResolveRelatedThreat(state, enemyArmy, actionResult, "field_intercept_victory");
         }
         else
         {
@@ -521,37 +317,10 @@ public sealed class WorldBattleResultApplier
             return;
         }
 
-        army.Status = army.Intent is WorldArmyIntent.Raid or WorldArmyIntent.AssaultSite or WorldArmyIntent.ReinforceSite or WorldArmyIntent.Intercept
+        army.Status = army.Intent is WorldArmyIntent.AssaultSite or WorldArmyIntent.ReinforceSite or WorldArmyIntent.Intercept
             ? WorldArmyStatus.Moving
             : WorldArmyStatus.Idle;
         army.ClearNavigationPath();
-    }
-
-    private static void ResolveRelatedThreat(
-        StrategicWorldState state,
-        WorldArmyState army,
-        WorldActionResult result,
-        string reason)
-    {
-        if (string.IsNullOrWhiteSpace(army.RelatedThreatId) ||
-            !state.ThreatPlans.TryGetValue(army.RelatedThreatId, out EnemyThreatPlan threat))
-        {
-            return;
-        }
-
-        threat.Stage = ThreatStage.Resolved;
-        if (state.SiteStates.TryGetValue(threat.TargetSiteId, out WorldSiteState site))
-        {
-            site.PendingThreatIds.Remove(threat.Id);
-        }
-
-        result.Events.Add(new GameEvent
-        {
-            Kind = "ThreatStageChanged",
-            Tick = state.WorldTick,
-            TargetIds = { threat.Id, army.ArmyId },
-            Payload = { ["stage"] = nameof(ThreatStage.Resolved), ["reason"] = reason }
-        });
     }
 
     private static bool ObjectiveSucceeded(BattleResult result, string objectiveId)

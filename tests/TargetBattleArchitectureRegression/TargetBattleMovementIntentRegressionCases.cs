@@ -8,7 +8,7 @@ using Rpg.Runtime.Battle.Events;
 
 internal static class TargetBattleMovementIntentRegressionCases
 {
-    public static void RuntimeKeepsAssaultTargetIntentWhileRerouting()
+    public static void RuntimeCanSwitchAssaultTargetForFasterAttackOpportunity()
     {
         RecordingBattleRuntimeAiExecutor executor = new(new DefaultBattleRuntimeAiExecutor());
 
@@ -22,8 +22,8 @@ internal static class TargetBattleMovementIntentRegressionCases
 
         AssertTrue(playerTargets.Length >= 4, "player actor should keep receiving combat decisions while rerouting");
         AssertTrue(
-            playerTargets.All(item => item == "enemy_a:1"),
-            $"assault movement should keep the acquired target while rerouting: actual=[{string.Join(",", playerTargets)}]");
+            playerTargets.All(item => item == "enemy_z:1"),
+            $"assault movement should switch to the faster attack opportunity while rerouting: actual=[{string.Join(",", playerTargets)}]");
     }
 
     public static void RuntimeSupportUnitDoesNotMoveAwayFromEngagedTargetForFarFlank()
@@ -38,6 +38,38 @@ internal static class TargetBattleMovementIntentRegressionCases
         AssertTrue(
             backlineMove!.ToGridX == 2 && backlineMove.ToGridY == 2,
             $"backline should take the nearer support step when an ally already engages the target: actual=({backlineMove.ToGridX},{backlineMove.ToGridY})");
+    }
+
+    public static void RuntimeAssaultTargetSelectionPrefersFastestAttackOpportunity()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(BuildAdjacentOpportunityBeatsRetainedTargetSnapshot());
+        BattleRuntimeActor player = controller.State.Actors.Single(item => item.ActorId == "force_player:1");
+        player.TargetActorId = "enemy_far:1";
+
+        BattleRuntimeAdvanceResult advance = controller.AdvanceNextTick();
+
+        BattleEvent? firstDamage = advance.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.DamageApplied &&
+            item.ActorId == "force_player:1");
+        AssertTrue(firstDamage != null, "player should attack the immediately available enemy instead of walking toward retained distant target");
+        AssertTrue(
+            firstDamage!.TargetId == "enemy_near:1",
+            $"default assault target should be the fastest attack opportunity: actual={firstDamage.TargetId}");
+    }
+
+    public static void RuntimeMoverRetargetsWhenTargetDiesBeforeMovementResolves()
+    {
+        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession()
+            .Begin(BuildSameTickTargetDeathRetargetSnapshot())
+            .AdvanceNextTick();
+
+        BattleEvent? moverMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementCompleted &&
+            item.ActorId == "player_mover:1");
+        AssertTrue(moverMove != null, "mover should not spend its decision slice on a target killed earlier in the same tick");
+        AssertTrue(
+            moverMove!.TargetId == "enemy_live:1",
+            $"mover should retarget the next live attack opportunity in the same tick: actual={moverMove.TargetId}");
     }
 
     private static BattleStartSnapshot BuildReroutePastSecondaryTargetSnapshot()
@@ -92,6 +124,59 @@ internal static class TargetBattleMovementIntentRegressionCases
         AddSurface(snapshot, 4, 1);
         AddSurface(snapshot, 3, 0);
         AddSurface(snapshot, 2, 0);
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildAdjacentOpportunityBeatsRetainedTargetSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_fastest_attack_opportunity",
+            BattleId = "battle_fastest_attack_opportunity",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "player", "force_player", 0, 0, 80),
+                BuildGroup("group_enemy_far", "enemy", "enemy_far", 5, 0, 80, initialCommandId: "HoldLine"),
+                BuildGroup("group_enemy_near", "enemy", "enemy_near", 0, 1, 80, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int x = 0; x <= 5; x++)
+        {
+            AddSurface(snapshot, x, 0);
+        }
+
+        AddSurface(snapshot, 0, 1);
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildSameTickTargetDeathRetargetSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_same_tick_target_death_retarget",
+            BattleId = "battle_same_tick_target_death_retarget",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player_killer", "player", "player_killer", 2, 0, 80),
+                BuildGroup("group_player_mover", "player", "player_mover", 0, 2, 80),
+                BuildGroup("group_enemy_weak", "enemy", "enemy_weak", 3, 0, 1, initialCommandId: "HoldLine"),
+                BuildGroup("group_enemy_live", "enemy", "enemy_live", 6, 2, 80, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int x = 0; x <= 6; x++)
+        {
+            for (int y = 0; y <= 2; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
         return snapshot;
     }

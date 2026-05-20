@@ -23,7 +23,6 @@ public partial class StrategicWorldRoot
         WorldActionResult applyResult = _battleResultApplier.Apply(State, Definition, request, result);
         StrategicWorldRuntime.LastNotice = applyResult.Message;
         _selectedSiteId = "";
-        _selectedThreatId = "";
         _selectedOpportunityId = "";
     }
 
@@ -34,43 +33,19 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        StrategicWorldDefinitionQueries queries = new(Definition);
-        if (GetSiteIntelVisibility(queries.GetSite(siteId)) == WorldIntelVisibility.Unknown)
-        {
-            return;
-        }
-
         _selectedSiteId = siteId;
         _selectedOpportunityId = "";
-        _selectedThreatId = State.SiteStates[siteId].PendingThreatIds
-            .Select(id => State.ThreatPlans.TryGetValue(id, out EnemyThreatPlan threat) ? threat : null)
-            .FirstOrDefault(threat => threat?.Stage == ThreatStage.Attacking)
-            ?.Id ?? "";
         RefreshAll();
     }
 
     private void ClearSelectedWorldDetail(bool clearNotice = false)
     {
         _selectedSiteId = "";
-        _selectedThreatId = "";
         _selectedOpportunityId = "";
         if (clearNotice)
         {
             StrategicWorldRuntime.LastNotice = "";
         }
-    }
-
-    private void SelectThreat(string threatId)
-    {
-        if (string.IsNullOrWhiteSpace(threatId) || !State.ThreatPlans.TryGetValue(threatId, out EnemyThreatPlan threat))
-        {
-            return;
-        }
-
-        _selectedThreatId = threatId;
-        _selectedSiteId = threat.TargetSiteId;
-        _selectedOpportunityId = "";
-        RefreshAll();
     }
 
     private bool TrySelectOpportunityAt(Vector2 screenPosition)
@@ -98,7 +73,6 @@ public partial class StrategicWorldRoot
         WorldOpportunityDefinition definition = queries.GetOpportunity(opportunity.DefinitionId);
         _selectedOpportunityId = opportunityId;
         _selectedSiteId = "";
-        _selectedThreatId = "";
         _selectedArmyIds.Clear();
         StrategicWorldRuntime.LastNotice = $"发现野外小场域：{definition?.DisplayName ?? opportunity.DefinitionId}。";
         RefreshAll();
@@ -112,7 +86,7 @@ public partial class StrategicWorldRoot
         }
 
         return State.OpportunityStates.Values
-            .Where(opportunity => opportunity.Status == WorldOpportunityStatus.Active && IsMapPositionVisible(opportunity.WorldPosition))
+            .Where(opportunity => opportunity.Status == WorldOpportunityStatus.Active)
             .OrderBy(opportunity => MapToScreen(opportunity.WorldPosition).DistanceSquaredTo(screenPosition))
             .FirstOrDefault(opportunity => MapToScreen(opportunity.WorldPosition).DistanceTo(screenPosition) <= OpportunityMarkerRadius + 10.0f);
     }

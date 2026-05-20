@@ -5,6 +5,5 @@ public enum WorldActionScope
     Run = 0,
     Site = 1,
     Facility = 2,
-    Threat = 3,
-    BattleEntry = 4
+    BattleEntry = 3
 }

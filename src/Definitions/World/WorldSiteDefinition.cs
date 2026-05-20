@@ -11,7 +11,6 @@ public sealed class WorldSiteDefinition
     public WorldSiteKind SiteKind { get; set; } = WorldSiteKind.ResourceSite;
     public string Description { get; set; } = "";
     public string SiteScenePath { get; set; } = "";
-    public WorldSiteIntelDefinition Intel { get; set; }
     public Vector2 MapPosition { get; set; }
     public string InitialOwnerFactionId { get; set; } = "";
     public SiteControlState InitialControlState { get; set; } = SiteControlState.Unknown;

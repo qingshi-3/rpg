@@ -29,23 +29,6 @@ public static class WorldSiteHoverSummaryPresenter
         };
     }
 
-    public static WorldSiteHoverSummaryData BuildSnapshot(
-        StrategicWorldDefinitionQueries queries,
-        WorldSiteDefinition definition,
-        WorldSiteIntelSnapshot snapshot)
-    {
-        ResourceStore resources = snapshot?.KnownLocalResources ?? new ResourceStore();
-        return new WorldSiteHoverSummaryData
-        {
-            Title = $"旧情报：{snapshot?.DisplayName ?? StrategicWorldDisplayNames.GetSiteLabel(queries, definition?.Id, definition?.DisplayName ?? "")}",
-            ResourceText =
-                $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} {resources.GetAvailable(StrategicWorldIds.ResourcePopulation)}/{resources.GetAmount(StrategicWorldIds.ResourcePopulation)}　" +
-                $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceEconomy)} {resources.GetAmount(StrategicWorldIds.ResourceEconomy)}　" +
-                $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} {resources.GetAmount(StrategicWorldIds.ResourceStone)}",
-            ForceText = $"兵团 {GetArmyCount(snapshot?.KnownGarrison)}　英雄 {GetHeroCount(snapshot?.KnownGarrison)}"
-        };
-    }
-
     public static Vector2 CalculatePanelPosition(
         Rect2 anchorBounds,
         Vector2 panelSize,

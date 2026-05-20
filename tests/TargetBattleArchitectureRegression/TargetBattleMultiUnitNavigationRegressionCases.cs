@@ -62,6 +62,16 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         AssertAllMovesProgressX(result, actorId => actorId.StartsWith("enemy_", StringComparison.Ordinal), expectedDirection: -1);
     }
 
+    public static void RuntimeFourVersusFourBattleDoesNotTimeoutWhileBothSidesLive()
+    {
+        BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(BuildFourVersusFourOpenFieldSnapshot());
+
+        AssertCompletedWithoutRuntimeException(result, "4v4 open-field battle should resolve through combat instead of the runtime tick cap");
+        AssertTrue(
+            result.EventStream.Events.Any(item => item.Kind == BattleEventKind.DamageApplied),
+            "4v4 battle should produce combat damage before completion");
+    }
+
     public static void RuntimeSameLaneCrowdAdvancesAsChainInOneTick()
     {
         BattleStartSnapshot snapshot = BuildSingleLaneSnapshot("battle_same_lane_chain");
@@ -153,6 +163,33 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         for (int x = 0; x <= 6; x++)
         {
             AddSurface(snapshot, x, 0);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildFourVersusFourOpenFieldSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_four_vs_four_open_field",
+            BattleId = "battle_four_vs_four_open_field",
+            TargetLocationId = "site_1"
+        };
+
+        for (int x = 0; x <= 12; x++)
+        {
+            for (int y = 0; y <= 5; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        for (int i = 0; i < 4; i++)
+        {
+            AddGroup(snapshot, $"group_player_{i}", "player", $"player_{i}", 0, i, 160);
+            AddGroup(snapshot, $"group_enemy_{i}", "enemy", $"enemy_{i}", 10, i, 160);
         }
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);

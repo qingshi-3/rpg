@@ -20,24 +20,52 @@ internal static class BattleCrowdMovementPlanner
         out BattleGridCoord nextStep)
     {
         nextStep = default;
-        if (actor == null || target == null || graph == null || occupancy == null || reservations == null)
+        IReadOnlyList<BattleGridCoord> candidates = FindNextStepCandidatesTowardTarget(
+            actor,
+            target,
+            graph,
+            occupancy,
+            reservations,
+            flowFields,
+            preferSupportSlots,
+            avoidOpeningNewAxisGapNearEngagedTarget);
+        if (candidates.Count == 0)
         {
             return false;
+        }
+
+        nextStep = candidates[0];
+        return true;
+    }
+
+    public static IReadOnlyList<BattleGridCoord> FindNextStepCandidatesTowardTarget(
+        BattleRuntimeActor actor,
+        BattleRuntimeActor target,
+        BattleNavigationGraph graph,
+        BattleDynamicOccupancy occupancy,
+        BattleMovementReservationMap reservations,
+        BattleFlowFieldCache flowFields,
+        bool preferSupportSlots,
+        bool avoidOpeningNewAxisGapNearEngagedTarget)
+    {
+        if (actor == null || target == null || graph == null || occupancy == null || reservations == null)
+        {
+            return new List<BattleGridCoord>();
         }
 
         BattleGridCoord start = new(actor.GridX, actor.GridY, actor.GridHeight);
         if (!graph.Contains(start))
         {
-            return false;
+            return new List<BattleGridCoord>();
         }
 
         BattleFlowField field = (flowFields ?? new BattleFlowFieldCache()).GetOrBuild(actor, target, graph, preferSupportSlots);
         if (!field.HasCosts || !field.TryGetCost(start, out int startCost))
         {
-            return false;
+            return new List<BattleGridCoord>();
         }
 
-        MoveOption? selected = null;
+        List<MoveOption> options = new();
         foreach (BattleGridCoord neighbor in graph.GetNeighbors(start))
         {
             if (!BattlePathStepRules.CanUseStaticStep(actor, start, neighbor, graph) ||
@@ -56,19 +84,13 @@ internal static class BattleCrowdMovementPlanner
                         occupancy.CountOtherOccupiedCells(actor, neighbor) * OccupiedPenalty +
                         GetStepCost(start, neighbor);
             MoveOption option = new(neighbor, score, neighborCost);
-            if (selected == null || IsBetter(option, selected.Value))
-            {
-                selected = option;
-            }
+            options.Add(option);
         }
 
-        if (selected == null)
-        {
-            return false;
-        }
-
-        nextStep = selected.Value.Anchor;
-        return true;
+        return options
+            .OrderBy(item => item, MoveOptionComparer.Instance)
+            .Select(item => item.Anchor)
+            .ToArray();
     }
 
     private static bool OpensNewAxisGap(
@@ -105,4 +127,19 @@ internal static class BattleCrowdMovementPlanner
     }
 
     private readonly record struct MoveOption(BattleGridCoord Anchor, int Score, int FlowCost);
+
+    private sealed class MoveOptionComparer : IComparer<MoveOption>
+    {
+        public static readonly MoveOptionComparer Instance = new();
+
+        public int Compare(MoveOption x, MoveOption y)
+        {
+            if (IsBetter(x, y))
+            {
+                return -1;
+            }
+
+            return IsBetter(y, x) ? 1 : 0;
+        }
+    }
 }

@@ -31,7 +31,6 @@ public static class StrategicWorldV1DefinitionFactory
             OpportunitySpawnPoints = CreateOpportunitySpawnPoints(),
             OpportunitySpawnRules = CreateOpportunitySpawnRules(),
             ActionDefinitions = CreateActions(),
-            ThreatRules = CreateThreatRules(),
             InitialResources = new List<ResourceAmountDefinition>
             {
                 new(StrategicWorldIds.ResourcePopulation, 8),
@@ -107,20 +106,9 @@ public static class StrategicWorldV1DefinitionFactory
             {
                 Id = StrategicWorldIds.FactionUndead,
                 DisplayName = "亡灵",
-                Description = "依靠持续压迫和坟场增援强化世界层 Raid。",
+                Description = "亡灵势力的敌方据点和后续敌军内容来源。",
                 Capabilities = new List<FactionCapabilityDefinition>
                 {
-                    new()
-                    {
-                        Id = StrategicWorldIds.FactionCapabilityRelentlessRaid,
-                        DisplayName = "无休突袭",
-                        Description = "亡灵 Raid 会拖入更长的世界层交战过程，给玩家留下介入窗口。",
-                        Values = new Dictionary<string, int>
-                        {
-                            ["world_attack_bonus"] = 2,
-                            ["world_battle_duration_bonus"] = 1
-                        }
-                    },
                     new()
                     {
                         Id = StrategicWorldIds.FactionCapabilityGraveReinforcement,
@@ -199,10 +187,6 @@ public static class StrategicWorldV1DefinitionFactory
                 MapPosition = new Vector2(236, 413),
                 InitialOwnerFactionId = StrategicWorldIds.FactionPlayer,
                 InitialControlState = SiteControlState.PlayerHeld,
-                Intel = new WorldSiteIntelDefinition
-                {
-                    Policy = WorldSiteIntelPolicy.Transparent
-                },
                 FacilitySlots = new List<FacilitySlotDefinition>
                 {
                     new()
@@ -244,29 +228,10 @@ public static class StrategicWorldV1DefinitionFactory
                 Id = StrategicWorldIds.SiteBonefield,
                 DisplayName = "埋骨地",
                 SiteKind = WorldSiteKind.ResourceSite,
-                Description = "第一座可争夺资源场域，能启用矿场、建造防御塔并成为墓园 Raid 目标。",
+                Description = "第一座可争夺资源地点，能启用矿场、建造防御塔并承接普通攻占战。",
                 MapPosition = new Vector2(796, 413),
                 InitialOwnerFactionId = StrategicWorldIds.FactionUndead,
                 InitialControlState = SiteControlState.Hostile,
-                Intel = new WorldSiteIntelDefinition
-                {
-                    Policy = WorldSiteIntelPolicy.Partial,
-                    StrategicSummary = "亡灵控制的资源场域，确认有可利用矿道和外层守军。",
-                    TacticalSummary = "正门可进攻，外层有骸骨巡逻。",
-                    HiddenTacticalSummary = "内侧营地布阵、侧路和伏兵尚未确认。",
-                    PublicEntranceIds = new List<string> { "main_entrance" },
-                    ObscurationSources = new List<WorldSiteObscurationDefinition>
-                    {
-                        new()
-                        {
-                            Id = "bonefield_outer_watch",
-                            DisplayName = "外层哨岗",
-                            Description = "哨岗仍在巡逻，内侧布阵只显示为粗略情报。",
-                            HidesTacticalLayout = true,
-                            DisabledByResolvedPointIds = new List<string> { "bonefield_watch_post" }
-                        }
-                    }
-                },
                 FacilitySlots = new List<FacilitySlotDefinition>
                 {
                     new()
@@ -297,16 +262,15 @@ public static class StrategicWorldV1DefinitionFactory
                         Capacity = 4,
                         Cells = new List<Vector2I>
                         {
-                            new(18, 17),
-                            new(20, 21),
                             new(18, 15),
-                            new(19, 15)
+                            new(20, 15),
+                            new(18, 17),
+                            new(20, 17)
                         }
                     }
                 },
                 EntranceDefinitions = new List<BattleEntranceDefinition>
                 {
-                    new() { EntranceId = "undead_raid_east", DisplayName = "东侧亡灵进攻点", FactionId = StrategicWorldIds.FactionUndead, Direction = WorldSiteAttackDirection.East, BattleAnchorId = "bonefield_east_raid", Source = "Attacker" },
                     new() { EntranceId = "main_entrance", DisplayName = "埋骨地入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.West, BattleAnchorId = "bonefield_main_entrance" },
                     new() { EntranceId = "main_entrance_east", DisplayName = "埋骨地东侧入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.East, BattleAnchorId = "bonefield_east_entrance" },
                     new() { EntranceId = "defense_post", DisplayName = "防守据点", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.Any, BattleAnchorId = "bonefield_defense_post", Source = "Garrison" }
@@ -318,14 +282,10 @@ public static class StrategicWorldV1DefinitionFactory
                 Id = StrategicWorldIds.SiteGraveyard,
                 DisplayName = "墓园",
                 SiteKind = WorldSiteKind.EnemySource,
-                Description = "第一版敌方源头，会定期向埋骨地生成亡灵 Raid。",
+                Description = "第一版敌方据点，为普通敌方驻军和后续内容提供来源。",
                 MapPosition = new Vector2(1076, 413),
                 InitialOwnerFactionId = StrategicWorldIds.FactionUndead,
                 InitialControlState = SiteControlState.Hostile,
-                Intel = new WorldSiteIntelDefinition
-                {
-                    Policy = WorldSiteIntelPolicy.Transparent
-                },
                 InitialGarrison = new List<GarrisonDefinition>
                 {
                     new() { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1, Morale = 40 },
@@ -503,35 +463,9 @@ public static class StrategicWorldV1DefinitionFactory
             },
             new()
             {
-                Id = StrategicWorldIds.ActionDefendRaid,
-                DisplayName = "进入防守战",
-                Description = "带领埋骨地驻军进入自动防守战。",
-                Scope = WorldActionScope.Threat,
-                Conditions = new List<WorldConditionDefinition>
-                {
-                    new() { Kind = WorldConditionKind.ThreatStageIs, ThreatStage = ThreatStage.Attacking, FailureReasonKey = "threat_not_attackable" }
-                },
-                Effects = new List<WorldEffectDefinition>
-                {
-                    new() { Kind = WorldEffectKind.StartBattle, SiteId = StrategicWorldIds.SiteBonefield, BattleKind = nameof(BattleKind.DefenseRaid) }
-                }
-            },
-            new()
-            {
-                Id = StrategicWorldIds.ActionAutoResolveRaid,
-                DisplayName = "自动结算",
-                Description = "按埋骨地驻军和防御塔自动结算本次 Raid。",
-                Scope = WorldActionScope.Threat,
-                Conditions = new List<WorldConditionDefinition>
-                {
-                    new() { Kind = WorldConditionKind.ThreatStageIs, ThreatStage = ThreatStage.Attacking, FailureReasonKey = "threat_not_attackable" }
-                }
-            },
-            new()
-            {
                 Id = StrategicWorldIds.ActionWaitTick,
                 DisplayName = "等待 / 整顿",
-                Description = "推进一个世界步，结算产出和敌方威胁。",
+                Description = "推进一个世界步，结算产出和机会。",
                 Scope = WorldActionScope.Run,
                 AdvancesWorldTick = true
             }
@@ -642,32 +576,5 @@ public static class StrategicWorldV1DefinitionFactory
         };
     }
 
-    private static List<ThreatRuleDefinition> CreateThreatRules()
-    {
-        return new List<ThreatRuleDefinition>
-        {
-            new()
-            {
-                Id = StrategicWorldIds.ThreatRuleGraveyardRaidBonefield,
-                SourceSiteId = StrategicWorldIds.SiteGraveyard,
-                TargetSiteId = StrategicWorldIds.SiteBonefield,
-                ThreatType = ThreatType.Raid,
-                InitialCountdownTicks = 3,
-                EnemyGroupId = "undead_raid_01",
-                EnemyForces = new List<GarrisonDefinition>
-                {
-                    new() { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1, Morale = 35 },
-                    new() { UnitTypeId = StrategicWorldIds.UnitGraveMarksman, Count = 1, Morale = 35 },
-                    new() { UnitTypeId = StrategicWorldIds.UnitDeathBlighter, Count = 1, Morale = 40 }
-                },
-                TriggerConditions = new List<WorldConditionDefinition>
-                {
-                    new() { Kind = WorldConditionKind.SiteControlStateIs, SiteId = StrategicWorldIds.SiteBonefield, ControlStates = new List<SiteControlState> { SiteControlState.PlayerHeld, SiteControlState.Damaged } },
-                    new() { Kind = WorldConditionKind.SiteControlStateIs, SiteId = StrategicWorldIds.SiteGraveyard, ControlState = SiteControlState.Hostile },
-                    new() { Kind = WorldConditionKind.NoActiveThreatOfRule, RuleId = StrategicWorldIds.ThreatRuleGraveyardRaidBonefield }
-                }
-            }
-        };
-    }
 }
 

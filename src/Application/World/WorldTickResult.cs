@@ -7,8 +7,4 @@ public sealed class WorldTickResult
     public int WorldTick { get; set; }
     public List<GameEvent> Events { get; set; } = new();
     public List<string> Messages { get; set; } = new();
-    public List<string> AttackingThreatIds { get; set; } = new();
-    public List<string> StartedWorldBattleIds { get; set; } = new();
-    public List<string> PhaseChangedWorldBattleIds { get; set; } = new();
-    public List<string> ResolvedWorldBattleIds { get; set; } = new();
 }

@@ -171,7 +171,6 @@ public sealed class WorldSiteDeploymentService
         WorldSiteUnitPlacementKind placementKind,
         WorldSiteAttackDirection direction,
         IReadOnlyList<WorldSiteDeploymentCell> candidates,
-        string threatId,
         string preferredEntranceId,
         out string failureReason)
     {
@@ -207,7 +206,7 @@ public sealed class WorldSiteDeploymentService
             WorldSiteUnitPlacement existing = site.UnitPlacements.FirstOrDefault(placement => placement.PlacementId == placementId);
             if (existing != null)
             {
-                ApplyBattleMetadata(existing, force, placementKind, sourceKind, sourceId, armyId, threatId, preferredEntranceId, direction, index);
+                ApplyBattleMetadata(existing, force, placementKind, sourceKind, sourceId, armyId, preferredEntranceId, direction, index);
                 continue;
             }
 
@@ -230,7 +229,6 @@ public sealed class WorldSiteDeploymentService
                 SourceKind = sourceKind,
                 SourceId = sourceId,
                 ArmyId = armyId,
-                ThreatId = threatId ?? "",
                 ZoneId = "",
                 EntranceId = preferredEntranceId ?? "",
                 AttackDirection = direction,
@@ -423,7 +421,6 @@ public sealed class WorldSiteDeploymentService
         placement.SourceKind = "Garrison";
         placement.SourceId = site.SiteId;
         placement.ArmyId = "";
-        placement.ThreatId = "";
         placement.ZoneId = zone?.ZoneId ?? placement.ZoneId;
         placement.EntranceId = "";
         placement.AttackDirection = WorldSiteAttackDirection.Any;
@@ -436,7 +433,6 @@ public sealed class WorldSiteDeploymentService
         string sourceKind,
         string sourceId,
         string armyId,
-        string threatId,
         string entranceId,
         WorldSiteAttackDirection direction,
         int index)
@@ -448,7 +444,6 @@ public sealed class WorldSiteDeploymentService
         placement.SourceKind = sourceKind;
         placement.SourceId = sourceId;
         placement.ArmyId = armyId;
-        placement.ThreatId = threatId ?? "";
         placement.EntranceId = entranceId ?? "";
         placement.AttackDirection = direction;
     }
@@ -503,7 +498,7 @@ public sealed class WorldSiteDeploymentService
     {
         return sourceKind switch
         {
-            "PlayerArmy" or "EnemyArmy" or "ThreatArmy" => sourceId ?? "",
+            "PlayerArmy" or "EnemyArmy" => sourceId ?? "",
             _ => ""
         };
     }
@@ -513,13 +508,4 @@ public sealed class WorldSiteDeploymentService
         return $"battle:{sourceKind}:{sourceId}:{unitTypeId}:{index}";
     }
 
-    private static string BuildSourceKey(string sourceKind, string sourceId)
-    {
-        if (string.IsNullOrWhiteSpace(sourceKind) || string.IsNullOrWhiteSpace(sourceId))
-        {
-            return "";
-        }
-
-        return $"{sourceKind}:{sourceId}";
-    }
 }

@@ -362,7 +362,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         _animationPlayer.SpeedScale = ResolveAnimationPlayerSpeedScale(cue);
         _animationPlayer.Play(animationName);
         HandleCueStarted(cue, animationName, ResolveAnimationPlayerAnimationSeconds(animationName, cue));
-        GameLog.Info(nameof(UnitAnimationComponent), $"Animation played entity={Entity?.EntityId} cue={cue} animation={animationName}");
+        GameLog.Trace(nameof(UnitAnimationComponent), $"Animation played entity={Entity?.EntityId} cue={cue} animation={animationName}");
         return true;
     }
 
@@ -435,7 +435,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
         _animatedSprite.Play(spriteAnimationName);
         HandleCueStarted(cue, animationName, ResolveAnimatedSpriteAnimationSeconds(animationName));
-        GameLog.Info(
+        GameLog.Trace(
             nameof(UnitAnimationComponent),
             $"Animated sprite played entity={Entity?.EntityId} cue={cue} animation={animationName} frames={playbackTiming.FrameCount} authoredSeconds={playbackTiming.AuthoredSeconds:0.00} targetSeconds={playbackTiming.TargetSeconds:0.00} speedScale={playbackTiming.SpeedScale:0.00} path={_animatedSprite.GetPath()}");
         return true;
@@ -651,7 +651,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
                 return false;
         }
 
-        GameLog.Info(nameof(UnitAnimationComponent), $"Procedural animation played entity={Entity?.EntityId} cue={cue}");
+        GameLog.Trace(nameof(UnitAnimationComponent), $"Procedural animation played entity={Entity?.EntityId} cue={cue}");
         return true;
     }
 

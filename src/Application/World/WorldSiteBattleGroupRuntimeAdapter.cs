@@ -3,6 +3,7 @@ using Rpg.Application.Battle.Adapters;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Infrastructure.Diagnostics;
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle;
 
@@ -23,10 +24,15 @@ public sealed class WorldSiteBattleGroupRuntimeResolveResult
 public sealed class WorldSiteBattleGroupRuntimeAdapter
 {
     private readonly BattleGroupSessionProbeService _sessionService = new();
-    private readonly BattleRuntimeSession _runtimeSession = new();
+    private readonly BattleRuntimeSession _runtimeSession;
     private readonly BattleSettlementService _settlementService = new();
     private readonly BattleReportBuilder _reportBuilder = new();
     private readonly LegacyBattleResultAdapter _legacyResultAdapter = new();
+
+    public WorldSiteBattleGroupRuntimeAdapter(BattlePerformanceCounters performanceCounters = null)
+    {
+        _runtimeSession = new(performanceCounters: performanceCounters);
+    }
 
     public bool TryResolveActiveBattle(out WorldSiteBattleGroupRuntimeResolveResult result)
     {

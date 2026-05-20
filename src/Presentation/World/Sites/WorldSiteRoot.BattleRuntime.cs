@@ -33,7 +33,7 @@ public partial class WorldSiteRoot
 
         _battlePreparationRequest = request;
         ApplyBattleRequestForceFootprints(request);
-        if (request.BattleKind is BattleKind.AssaultSite or BattleKind.DefenseRaid or BattleKind.FieldIntercept)
+        if (request.BattleKind is BattleKind.AssaultSite or BattleKind.FieldIntercept)
         {
             if (!EnsureBattleRequestSiteDeployments(request))
             {
@@ -46,11 +46,6 @@ public partial class WorldSiteRoot
             var reservedDeploymentSurfaces = new HashSet<GridSurfacePosition>();
             AddRequestedForces(request.PlayerForces, BattleFaction.Player, request, reservedDeploymentSurfaces);
             AddRequestedForces(request.EnemyForces, BattleFaction.Enemy, request, reservedDeploymentSurfaces);
-        }
-
-        if (request.BattleKind == BattleKind.DefenseRaid)
-        {
-            ApplyBattleModifiers(request);
         }
 
         GameLog.Info(
@@ -79,6 +74,7 @@ public partial class WorldSiteRoot
         _battlePreparationRequest = null;
         _battleRuntimeCommandPauseActive = false;
         _selectedBattleRuntimeGroupKey = "";
+        _battlePerformanceCounters.Reset();
         // Preparation can start runtime directly after the player confirms deployment,
         // so this boundary must own the UI transition instead of relying on launch callbacks.
         SetBattleRuntimeEnabled(true);
@@ -309,52 +305,6 @@ public partial class WorldSiteRoot
                 GameLog.Info(nameof(WorldSiteRoot), $"Tower support applied target={target.EntityId} damage={applied} supports={towerSupportCount}");
             }
         }
-
-        ApplyWorldBattlePhaseModifiers(request);
-    }
-
-    private void ApplyWorldBattlePhaseModifiers(BattleStartRequest request)
-    {
-        foreach (BattleModifier modifier in request.BattleModifiers.Where(modifier =>
-                     modifier.Type == "world_battle_phase" && modifier.Uses > 0))
-        {
-            int playerDamage = modifier.Values.TryGetValue("player_damage", out int playerValue) ? playerValue : 0;
-            int enemyDamage = modifier.Values.TryGetValue("enemy_damage", out int enemyValue) ? enemyValue : 0;
-            if (playerDamage > 0)
-            {
-                ApplyWorldBattlePhaseDamage(BattleFaction.Player, playerDamage, modifier.SourceId);
-            }
-
-            if (enemyDamage > 0)
-            {
-                ApplyWorldBattlePhaseDamage(BattleFaction.Enemy, enemyDamage, modifier.SourceId);
-            }
-        }
-    }
-
-    private void ApplyWorldBattlePhaseDamage(BattleFaction faction, int damage, string sourceId)
-    {
-        if (damage <= 0)
-        {
-            return;
-        }
-
-        BattleEntity target = _unitRoot.GetEntitiesSnapshot()
-            .FirstOrDefault(entity =>
-                entity.GetComponent<FactionComponent>()?.Faction == faction &&
-                !BattleRuleQueries.IsDefeated(entity));
-        if (target == null)
-        {
-            return;
-        }
-
-        int applied = target.GetComponent<HealthComponent>()?.ApplyDamage(damage) ?? 0;
-        if (BattleRuleQueries.IsDefeated(target))
-        {
-            _unitRoot.MarkEntityDefeated(target);
-        }
-
-        GameLog.Info(nameof(WorldSiteRoot), $"WorldBattlePhaseModifierApplied source={sourceId} target={target.EntityId} faction={faction} damage={applied}");
     }
 
     private void EnsureBattleRenderSortDomain()

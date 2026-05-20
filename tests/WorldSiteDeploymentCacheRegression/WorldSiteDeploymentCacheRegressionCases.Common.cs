@@ -64,6 +64,41 @@ internal static string ProjectRoot()
     throw new InvalidOperationException("Could not locate project root from test output directory.");
 }
 
+internal static void GodotTextResourcesDoNotUseUtf8Bom()
+{
+    string root = ProjectRoot();
+    string[] searchRoots =
+    {
+        Path.Combine(root, "assets"),
+        Path.Combine(root, "scenes")
+    };
+    string[] extensions = { ".tscn", ".tres", ".gdshader" };
+    List<string> bomFiles = new();
+    foreach (string searchRoot in searchRoots)
+    {
+        if (!Directory.Exists(searchRoot))
+        {
+            continue;
+        }
+
+        foreach (string file in Directory.GetFiles(searchRoot, "*", SearchOption.AllDirectories))
+        {
+            if (!extensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            byte[] bytes = File.ReadAllBytes(file);
+            if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+            {
+                bomFiles.Add(Path.GetRelativePath(root, file));
+            }
+        }
+    }
+
+    AssertTrue(bomFiles.Count == 0, $"Godot text resources must not start with UTF-8 BOM: {string.Join(", ", bomFiles)}");
+}
+
 internal static GridCellSurface AddNonWalkableFoundation(
     BattleGridMap grid,
     int x,
@@ -153,7 +188,7 @@ internal static StrategicWorldState BuildHeroCorpsV0AssaultState(StrategicWorldD
     bonefield.Garrison.Add(new GarrisonState
     {
         UnitTypeId = HeroCorpsV0PlayableSliceIds.EnemyLeaderUnit,
-        Count = 1,
+        Count = HeroCorpsV0PlayableSliceIds.EnemyLeaderCount,
         Morale = 35
     });
     bonefield.UnitPlacements.Clear();

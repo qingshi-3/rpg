@@ -12,7 +12,7 @@ internal static void BattleLauncherCancelsHandoffAndRestoresSiteOnActivationFail
     BattleSessionHandoff.CancelBattle();
     StrategicWorldState state = new() { WorldTick = 7 };
     WorldSiteState site = BuildDeploymentSite();
-    site.SiteMode = WorldSiteMode.Alert;
+    site.SiteMode = WorldSiteMode.Peacetime;
     state.SiteStates[site.SiteId] = site;
 
     WorldSiteBattleLauncher launcher = new();
@@ -45,7 +45,7 @@ internal static void BattleLauncherCancelsHandoffAndRestoresSiteOnActivationFail
     AssertEqual(1, applyCalls, "apply start request call count");
     AssertEqual(2, cleanupCalls, "cleanup callbacks should run during rollback");
     AssertEqual(1, runtimeDisableCalls, "runtime should be disabled during rollback");
-    AssertEqual(WorldSiteMode.Alert, site.SiteMode, "site mode should be restored");
+    AssertEqual(WorldSiteMode.Peacetime, site.SiteMode, "site mode should be restored");
 
     BattleSessionHandoff.CancelBattle();
 }

@@ -9,7 +9,6 @@ gameplay-design/     what the game should be
 system-design/       how accepted systems should be structured
 gameplay-alignment/  what is currently out of alignment and how repair progresses
 design-proposals/    local proposal copies used before changing authority documents
-docs/                existing project documentation and historical implementation material
 ```
 
 ## Use
@@ -17,6 +16,7 @@ docs/                existing project documentation and historical implementatio
 Use this directory for:
 
 - gap tracking;
+- implementation proposals and acceptance records;
 - migration workstream boundaries;
 - acceptance checklists;
 - old-document cleanup lists;
@@ -33,3 +33,4 @@ Do not use it for:
 
 - Authority map: `authority-map.md`
 - Gap register: `gap-register.md`
+- Implementation proposals: `implementation-proposals/`

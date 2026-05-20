@@ -6,5 +6,6 @@ public static class HeroCorpsV0PlayableSliceIds
     public const string DefaultCorpsUnit = "f1_azuritelion";
     public const string EnemyLeaderUnit = "f6_draugarlord";
 
-    public const int DefaultCorpsCount = 1;
+    public const int DefaultCorpsCount = 3;
+    public const int EnemyLeaderCount = 4;
 }

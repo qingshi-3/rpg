@@ -56,6 +56,10 @@ Initial architecture documents should be created through proposals for:
 - `battle-ai-boundary-architecture.md`: tactical autonomy, player-intent precedence, and LimboAI behavior-tree boundary.
 - `battle-result-settlement-architecture.md`: snapshot/result contracts, settlement, report attribution, recovery, rollback, and campaign writeback rules.
 - `battle-content-progression-architecture.md`: ability/effect definitions, battle content resourceization, and resource/progression loops.
+- `emotion-system-architecture.md`: character emotional traits, relationships, memories, social gates, and decision support.
 - `presentation-ui-layout-architecture.md`: Presentation/UI layout hosts, UI mode boundaries, and authority rules.
 - `semantic-map-marker-architecture.md`: reusable editor-authored semantic map regions for building slots, deployment, entrances, events, and future tactical battle markers.
 - `scene-transition-router-architecture.md`: root scene transition ownership, handoff boundaries, loading overlay, and conservative root-scene preload cache rules.
+- `strategic-world-runtime-architecture.md`: world tick, resources, army movement, opportunities, and normal battle-ready paths.
+- `world-battle-entry-architecture.md`: strategic-to-battle request building, pre-battle handoff, deployment preparation, and battle result writeback.
+- `world-site-management-architecture.md`: site detail, facilities, garrison, placements, and site management Application/UI contract.

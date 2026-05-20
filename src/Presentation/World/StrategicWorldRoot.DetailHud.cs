@@ -18,19 +18,19 @@ public partial class StrategicWorldRoot
     {
         Stopwatch stopwatch = Stopwatch.StartNew();
         StrategicWorldDefinitionQueries queries = new(Definition);
-        RefreshWorldIntel();
         RefreshResources();
         RefreshSiteButtons(queries);
         RefreshCurrentStrategicWorldPanel(queries);
         RefreshWorldClockLabel();
         _noticeLabel.Text = StrategicWorldRuntime.LastNotice;
+        RefreshStrategicFog();
         QueueStrategicOverlayRedraw();
         stopwatch.Stop();
         if (stopwatch.ElapsedMilliseconds >= 16)
         {
             GameLog.Info(
                 nameof(StrategicWorldRoot),
-                $"StrategicRefreshAllCost selectedSite={_selectedSiteId} selectedThreat={_selectedThreatId} selectedOpportunity={_selectedOpportunityId} elapsedMs={stopwatch.ElapsedMilliseconds}");
+                $"StrategicRefreshAllCost selectedSite={_selectedSiteId} selectedOpportunity={_selectedOpportunityId} elapsedMs={stopwatch.ElapsedMilliseconds}");
         }
     }
 
@@ -57,14 +57,12 @@ public partial class StrategicWorldRoot
     private void BindStrategicSelectionPanel(StrategicWorldDefinitionQueries queries)
     {
         RefreshDetail(queries);
-        RefreshThreats(queries);
         RefreshActions();
     }
 
     private void BindExpeditionDraftPanel(StrategicWorldDefinitionQueries queries)
     {
         RefreshDetail(queries);
-        RefreshThreats(queries);
         RefreshActions();
     }
 
@@ -84,30 +82,11 @@ public partial class StrategicWorldRoot
 
         SetSiteDetailSectionsVisible(true);
         WorldSiteDefinition definition = queries.GetSite(_selectedSiteId);
-        WorldIntelVisibility siteVisibility = GetSiteIntelVisibility(definition);
-        if (siteVisibility == WorldIntelVisibility.Unknown)
-        {
-            _selectedSiteId = "";
-            HideWorldDetailSections();
-            return;
-        }
-
-        if (siteVisibility == WorldIntelVisibility.Revealed &&
-            TryRefreshStaleSiteDetail(queries, definition))
-        {
-            return;
-        }
-        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
-            State,
-            Definition,
-            definition.Id,
-            WorldIntelVisibility.Visible);
         List<string> detailLines = new()
         {
             definition.Description,
             ""
         };
-        detailLines.AddRange(WorldSiteIntelPresenter.BuildSummaryLines(intelView));
         detailLines.AddRange(new[]
         {
             $"状态：{GetControlStateLabel(site.ControlState)}",
@@ -139,19 +118,13 @@ public partial class StrategicWorldRoot
         }
 
         ClearChildren(_garrisonList);
-        AddSiteGarrisonLines(_garrisonList, site, intelView);
+        AddSiteGarrisonLines(_garrisonList, site);
     }
 
-    private void AddSiteGarrisonLines(VBoxContainer list, WorldSiteState site, WorldSiteIntelViewModel intelView)
+    private void AddSiteGarrisonLines(VBoxContainer list, WorldSiteState site)
     {
         if (list == null)
         {
-            return;
-        }
-
-        if (!CanRevealSiteGarrison(site, intelView))
-        {
-            AddMutedLine(list, "驻军情报不足，需侦察确认。");
             return;
         }
 
@@ -168,85 +141,15 @@ public partial class StrategicWorldRoot
         }
     }
 
-    private bool CanRevealSiteGarrison(WorldSiteState site, WorldSiteIntelViewModel intelView)
-    {
-        return site != null &&
-               (site.OwnerFactionId == State?.PlayerFactionId ||
-                intelView?.CanInspectFullTacticalLayout == true);
-    }
-
     private bool TryRefreshStaleSiteDetail(StrategicWorldDefinitionQueries queries, WorldSiteDefinition definition)
     {
-        if (definition == null ||
-            State?.Intel?.KnownSites == null ||
-            !State.Intel.KnownSites.TryGetValue(definition.Id, out WorldSiteIntelSnapshot snapshot))
-        {
-            return false;
-        }
-
-        if (_siteSummaryCard != null)
-        {
-            _siteSummaryCard.Visible = true;
-        }
-
-        if (_facilityCard != null)
-        {
-            _facilityCard.Visible = false;
-        }
-
-        if (_defenseCard != null)
-        {
-            _defenseCard.Visible = false;
-        }
-
-        if (_actionCard != null)
-        {
-            _actionCard.Visible = false;
-        }
-
-        if (_opportunityCard != null)
-        {
-            _opportunityCard.Visible = false;
-        }
-
-        if (_opportunityDetailPanel != null)
-        {
-            _opportunityDetailPanel.Visible = false;
-        }
-
-        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildViewFromSnapshot(
-            snapshot,
-            WorldIntelVisibility.Revealed);
-        List<string> detailLines = new()
-        {
-            definition.Description,
-            ""
-        };
-        detailLines.AddRange(WorldSiteIntelPresenter.BuildSummaryLines(intelView));
-        detailLines.AddRange(new[]
-        {
-            $"状态：{GetControlStateLabel(snapshot.ControlState)}",
-            $"模式：{GetSiteModeLabel(snapshot.SiteMode)}",
-            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, snapshot.OwnerFactionId)}",
-            $"受损：{snapshot.DamageLevel}",
-            "当前信息可能已经变化。"
-        });
-
-        _siteTitleLabel.Text = $"旧情报：{snapshot.DisplayName}  ·  {GetSiteKindLabel(definition.SiteKind)}";
-        _siteBodyLabel.Text = string.Join("\n", detailLines);
-        return true;
+        return false;
     }
 
     private bool TryRefreshOpportunityDetail(StrategicWorldDefinitionQueries queries)
     {
         if (!TryGetSelectedActiveOpportunity(out WorldOpportunityState opportunity))
         {
-            return false;
-        }
-
-        if (!IsMapPositionVisible(opportunity.WorldPosition))
-        {
-            _selectedOpportunityId = "";
             return false;
         }
 
@@ -316,103 +219,12 @@ public partial class StrategicWorldRoot
         }
     }
 
-    private void RefreshThreats(StrategicWorldDefinitionQueries queries)
-    {
-        ClearChildren(_threatList);
-        EnemyThreatPlan[] activeThreats = State.ThreatPlans.Values
-            .Where(threat => threat.Stage != ThreatStage.Resolved)
-            .OrderBy(threat => threat.Stage == ThreatStage.Attacking ? 0 : 1)
-            .ThenBy(threat => threat.CountdownTicks)
-            .ToArray();
-
-        if (activeThreats.Length == 0)
-        {
-            AddMutedLine(_threatList, "暂无");
-            return;
-        }
-
-        foreach (EnemyThreatPlan threat in activeThreats)
-        {
-            string source = queries.GetSite(threat.SourceSiteId)?.DisplayName ?? threat.SourceSiteId;
-            string target = queries.GetSite(threat.TargetSiteId)?.DisplayName ?? threat.TargetSiteId;
-            WorldArmyState threatArmy = !string.IsNullOrWhiteSpace(threat.WorldArmyId) &&
-                                        State.ArmyStates.TryGetValue(threat.WorldArmyId, out WorldArmyState army)
-                ? army
-                : null;
-            string threatFactionId = !string.IsNullOrWhiteSpace(threatArmy?.OwnerFactionId)
-                ? threatArmy.OwnerFactionId
-                : State.SiteStates.TryGetValue(threat.SourceSiteId, out WorldSiteState sourceSite)
-                    ? sourceSite.OwnerFactionId
-                    : StrategicWorldIds.FactionUndead;
-            string threatLabel = $"{StrategicWorldDisplayNames.GetFactionLabel(queries, threatFactionId)}袭击";
-            string movingText = threatArmy != null
-                ? BuildThreatArmyProgressText(threatArmy, threat)
-                : $"{threat.CountdownTicks} 步后到达";
-            WorldBattleState worldBattle = WorldBattleProgressionService.FindActiveBattleForThreat(State, threat.Id);
-            Button button = GameUiSceneFactory.CreateWorldSecondaryActionButton(nameof(StrategicWorldRoot));
-            if (button == null)
-            {
-                continue;
-            }
-
-            button.Text = worldBattle != null
-                ? $"世界战斗：{source} -> {target}  {WorldBattleProgressionService.GetPhaseLabel(worldBattle.CurrentPhase)}  剩余 {WorldBattleProgressionService.GetRemainingTicks(State, worldBattle)} 步"
-                : threat.Stage == ThreatStage.Attacking
-                ? $"{threatLabel}：{source} -> {target}  正在攻击"
-                : $"{threatLabel}：{source} -> {target}  {movingText}";
-            button.Disabled = false;
-            button.Pressed += () => SelectThreat(threat.Id);
-            _threatList.AddChild(button);
-
-            if (worldBattle != null)
-            {
-                AddWorldBattleInterventionButton(worldBattle);
-            }
-        }
-    }
-
-    private void AddWorldBattleInterventionButton(WorldBattleState worldBattle)
-    {
-        if (worldBattle == null)
-        {
-            return;
-        }
-
-        Button interveneButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
-        if (interveneButton == null)
-        {
-            return;
-        }
-
-        interveneButton.Text =
-            $"介入战斗\n{WorldBattleProgressionService.GetOutcomeLabel(worldBattle.ProjectedOutcome)}  {WorldBattleProgressionService.GetPhaseLabel(worldBattle.CurrentPhase)}";
-        interveneButton.Disabled = false;
-        interveneButton.Pressed += () => TryEnterWorldBattleIntervention(worldBattle.BattleId);
-        _threatList.AddChild(interveneButton);
-    }
-
     private string BuildArmyArrivalText(WorldArmyState army)
     {
         float remainingDistance = army.WorldPosition.DistanceTo(army.Destination);
         double movementSpeed = System.Math.Max(1.0, army.MoveSpeed * WorldClockSpeedMultipliers[_worldClockSpeedIndex]);
         double etaSeconds = System.Math.Ceiling(remainingDistance / movementSpeed);
         return $"敌军行军中  预计 {etaSeconds:0}s 抵达";
-    }
-
-    private string BuildThreatArmyProgressText(WorldArmyState army, EnemyThreatPlan threat)
-    {
-        if (army == null)
-        {
-            return $"{threat?.CountdownTicks ?? 0} 步后到达";
-        }
-
-        return army.Status switch
-        {
-            WorldArmyStatus.Moving => BuildArmyArrivalText(army),
-            WorldArmyStatus.NavigationBlocked => "战略导航阻塞",
-            WorldArmyStatus.Attacking => "正在攻击",
-            _ => $"状态：{army.Status}"
-        };
     }
 
     private void RefreshActions()
@@ -437,7 +249,7 @@ public partial class StrategicWorldRoot
 
         IReadOnlyList<WorldActionViewModel> actions = string.IsNullOrWhiteSpace(_selectedSiteId)
             ? System.Array.Empty<WorldActionViewModel>()
-            : _actionResolver.GetAvailableActions(State, Definition, _selectedSiteId, _selectedThreatId);
+            : _actionResolver.GetAvailableActions(State, Definition, _selectedSiteId);
         foreach (WorldActionViewModel action in actions)
         {
             if (!ShouldShowStrategicAction(action))

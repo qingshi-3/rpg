@@ -1,6 +1,5 @@
-using System.Linq;
+﻿using System.Linq;
 using Godot;
-using Rpg.Application.Battle;
 using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
@@ -38,46 +37,18 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        StrategicWorldRuntime.LastNotice = "无法进入场域。";
-        GameLog.Warn(
-            nameof(StrategicWorldRoot),
-            $"Cannot enter site detail site={_selectedSiteId} path={SiteScenePath} error={transition.Error} reason={transition.FailureReason}");
+        StrategicWorldRuntime.LastNotice = "无法进入场地。";
+        GameLog.Warn(nameof(StrategicWorldRoot), $"Cannot enter site detail site={_selectedSiteId} path={SiteScenePath} error={transition.Error} reason={transition.FailureReason}");
         RefreshAll();
     }
 
     private bool CanEnterSelectedSiteDetail(out string failureReason)
     {
         failureReason = "";
-        if (HasAttackingThreat())
-        {
-            failureReason = "attacking_threat_pending";
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(_selectedSiteId) ||
-            !State.SiteStates.TryGetValue(_selectedSiteId, out WorldSiteState site))
+        if (string.IsNullOrWhiteSpace(_selectedSiteId) || !State.SiteStates.TryGetValue(_selectedSiteId, out WorldSiteState site))
         {
             failureReason = "missing_site";
             return false;
-        }
-
-        WorldSiteDefinition definition = new StrategicWorldDefinitionQueries(Definition).GetSite(site.SiteId);
-        WorldIntelVisibility visibility = GetSiteIntelVisibility(definition);
-        if (visibility != WorldIntelVisibility.Visible)
-        {
-            failureReason = "site_not_visible";
-            return false;
-        }
-
-        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
-            State,
-            Definition,
-            site.SiteId,
-            WorldIntelVisibility.Visible);
-
-        if (site.OwnerFactionId != State.PlayerFactionId && intelView.CanInspectFullTacticalLayout)
-        {
-            return true;
         }
 
         if (site.OwnerFactionId != State.PlayerFactionId ||
@@ -92,29 +63,9 @@ public partial class StrategicWorldRoot
 
     private bool CanShowSelectedSiteDetailEntry(WorldSiteState site)
     {
-        if (site == null)
-        {
-            return false;
-        }
-
-        WorldSiteDefinition definition = new StrategicWorldDefinitionQueries(Definition).GetSite(site.SiteId);
-        if (GetSiteIntelVisibility(definition) != WorldIntelVisibility.Visible)
-        {
-            return false;
-        }
-
-        if (site.OwnerFactionId == State.PlayerFactionId &&
-            site.ControlState is SiteControlState.PlayerHeld or SiteControlState.Damaged)
-        {
-            return true;
-        }
-
-        WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
-            State,
-            Definition,
-            site.SiteId,
-            WorldIntelVisibility.Visible);
-        return intelView.CanInspectFullTacticalLayout;
+        return site != null &&
+               site.OwnerFactionId == State.PlayerFactionId &&
+               site.ControlState is SiteControlState.PlayerHeld or SiteControlState.Damaged;
     }
 
     private bool TryGetSelectedArrivedAssaultArmy(out WorldArmyState army)
@@ -136,14 +87,13 @@ public partial class StrategicWorldRoot
     private void AddArrivedAssaultChoiceButtons(WorldArmyState army)
     {
         AddMutedLine(_actionList, $"部队已抵达{ResolveSiteDisplayName(army.TargetSiteId)}，请选择进入方式。");
-
         Button assaultButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
         if (assaultButton == null)
         {
             return;
         }
 
-        assaultButton.Text = $"{WorldSiteIntelPresenter.GetDirectAssaultLabel()}\n进入攻占战";
+        assaultButton.Text = "进入攻占战";
         assaultButton.Pressed += () => TryEnterBattleForArrivedArmy(army.ArmyId);
         _actionList.AddChild(assaultButton);
     }
@@ -156,8 +106,7 @@ public partial class StrategicWorldRoot
             ActorFactionId = State.PlayerFactionId,
             SourceSiteId = _selectedSiteId,
             TargetSiteId = viewModel.TargetSiteId,
-            TargetSlotId = viewModel.TargetSlotId,
-            ThreatId = viewModel.ThreatId
+            TargetSlotId = viewModel.TargetSlotId
         };
 
         string returnScenePath = string.IsNullOrWhiteSpace(SceneFilePath)
@@ -173,11 +122,6 @@ public partial class StrategicWorldRoot
         }
 
         _worldClockAccumulator = 0.0;
-        if (HasAttackingThreat())
-        {
-            _worldClockPaused = true;
-        }
-
         if (result.BattleStartRequest != null)
         {
             TryEnterBattle(result.BattleStartRequest, result.Events);

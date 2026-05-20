@@ -39,7 +39,7 @@ transparent_bg = true
 
 [node name="UnitRoot" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport"]
 script = ExtResource("19_battle_unit_root")
-UnitMoveDuration = 0.16
+UnitMoveDuration = 0.27
 
 [node name="OverlayRoot" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport"]
 

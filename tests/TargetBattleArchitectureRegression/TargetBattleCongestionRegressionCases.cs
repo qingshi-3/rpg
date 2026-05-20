@@ -58,6 +58,23 @@ internal static class TargetBattleCongestionRegressionCases
         AssertEqual(0, invalidOverlapMoves.Length, "backline should not move onto the frontline actor's occupied combat cell");
     }
 
+    public static void RuntimeTriesAlternateSameTickReservationCandidate()
+    {
+        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession()
+            .Begin(BuildSameTickAlternateReservationSnapshot())
+            .AdvanceNextTick();
+
+        BattleEvent[] playerMoves = tick.Events
+            .Where(item =>
+                item.Kind == BattleEventKind.MovementCompleted &&
+                item.ActorId.StartsWith("player_", StringComparison.Ordinal))
+            .ToArray();
+        AssertEqual(2, playerMoves.Length, "both ready movers should move when one can take a valid alternate next step");
+        AssertTrue(
+            playerMoves.Select(item => $"{item.ToGridX},{item.ToGridY},{item.ToGridHeight}").Distinct().Count() == 2,
+            "alternate same-tick reservation should keep movers from choosing the same destination");
+    }
+
     private static BattleStartSnapshot BuildSingleLaneBlockedFrontlineSnapshot()
     {
         BattleStartSnapshot snapshot = new()
@@ -145,6 +162,31 @@ internal static class TargetBattleCongestionRegressionCases
         return snapshot;
     }
 
+    private static BattleStartSnapshot BuildSameTickAlternateReservationSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_battle_same_tick_alternate_reservation",
+            BattleId = "battle_same_tick_alternate_reservation",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player_top", "player", "player_top", 0, 0, 80),
+                BuildGroup("group_player_bottom", "player", "player_bottom", 0, 1, 80),
+                BuildGroup("group_enemy", "enemy", "enemy", 3, 0, 160, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int x = 0; x <= 3; x++)
+        {
+            AddSurface(snapshot, x, 0);
+            AddSurface(snapshot, x, 1);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
     private static void AddSurface(BattleStartSnapshot snapshot, int x, int y)
     {
         snapshot.LocationContext.NavigationSurfaces.Add(new BattleNavigationSurfaceSnapshot
@@ -162,7 +204,8 @@ internal static class TargetBattleCongestionRegressionCases
         string sourceForceId,
         int cellX,
         int cellY,
-        int hitPoints)
+        int hitPoints,
+        string initialCommandId = "")
     {
         return new BattleGroupSnapshot
         {
@@ -176,7 +219,8 @@ internal static class TargetBattleCongestionRegressionCases
             CorpsStrength = hitPoints,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
-            CellY = cellY
+            CellY = cellY,
+            InitialCorpsCommandId = initialCommandId
         };
     }
 

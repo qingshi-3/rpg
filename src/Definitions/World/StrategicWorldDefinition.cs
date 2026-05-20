@@ -17,6 +17,5 @@ public sealed class StrategicWorldDefinition
     public List<OpportunitySpawnPointDefinition> OpportunitySpawnPoints { get; set; } = new();
     public List<OpportunitySpawnRuleDefinition> OpportunitySpawnRules { get; set; } = new();
     public List<WorldActionDefinition> ActionDefinitions { get; set; } = new();
-    public List<ThreatRuleDefinition> ThreatRules { get; set; } = new();
     public List<ResourceAmountDefinition> InitialResources { get; set; } = new();
 }

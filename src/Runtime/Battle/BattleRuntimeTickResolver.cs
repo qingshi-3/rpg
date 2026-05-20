@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle;
+using Rpg.Infrastructure.Diagnostics;
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
@@ -8,7 +9,7 @@ using Rpg.Runtime.Battle.Navigation;
 
 namespace Rpg.Runtime.Battle;
 
-internal sealed class BattleRuntimeTickResolver
+internal sealed partial class BattleRuntimeTickResolver
 {
     private const double MaxAttackCharge = 1.0;
     private const string CommandAssault = "Assault";
@@ -31,10 +32,10 @@ internal sealed class BattleRuntimeTickResolver
 
     private sealed class TickContext
     {
-        public BattleRuntimeActionProposal Proposal { get; init; }
-        public BattleRuntimeAiActionRequest Request { get; init; }
+        public BattleRuntimeActionProposal Proposal { get; set; }
+        public BattleRuntimeAiActionRequest Request { get; set; }
         public TickStartActorFact ActorFact { get; init; }
-        public TickStartActorFact? TargetFact { get; init; }
+        public TickStartActorFact? TargetFact { get; set; }
         public BattleRuntimeAiActionResult Result { get; set; }
     }
 
@@ -43,7 +44,7 @@ internal sealed class BattleRuntimeTickResolver
         public TickContext Context { get; init; }
         public BattleGridCoord From { get; init; }
         public BattleGridCoord To { get; init; }
-        public HashSet<BattleGridCoord> CoveredCells { get; init; } = new();
+        public IReadOnlyList<BattleGridCoord> OrderedMoves { get; init; } = new List<BattleGridCoord>();
     }
 
     private readonly record struct PendingAttack(TickContext Context, int DeclaredDamage);
@@ -56,13 +57,15 @@ internal sealed class BattleRuntimeTickResolver
         int tick,
         double currentTimeSeconds,
         BattleNavigationGraph navigationGraph,
-        HashSet<string> navigationFailureDiagnostics)
+        HashSet<string> navigationFailureDiagnostics,
+        BattlePerformanceCounters performanceCounters = null)
     {
         if (state?.Actors == null || stream == null || navigationGraph == null)
         {
             return;
         }
 
+        performanceCounters?.RecordRuntimeTick();
         foreach (BattleRuntimeActor actor in state.Actors.Where(item => item.Kind == BattleRuntimeActorKind.Corps))
         {
             BattleRuntimeActorStateMachine.AdvanceTimeBoundary(actor, currentTimeSeconds);
@@ -89,10 +92,11 @@ internal sealed class BattleRuntimeTickResolver
             System.StringComparer.Ordinal);
 
         BattleDynamicOccupancy occupancy = BattleDynamicOccupancy.FromActors(livingCorps);
-        BattleFlowFieldCache flowFields = new();
+        BattleFlowFieldCache flowFields = new(performanceCounters);
         BattleRuntimeActor[] decisionReadyCorps = livingCorps
             .Where(item => item.Phase == BattleRuntimeActorPhase.AnchoredDecision)
             .ToArray();
+        performanceCounters?.RecordDecisionReadyActors(decisionReadyCorps.Length);
         if (decisionReadyCorps.Length == 0)
         {
             return;
@@ -176,7 +180,8 @@ internal sealed class BattleRuntimeTickResolver
             tick,
             currentTimeSeconds,
             navigationGraph,
-            navigationFailureDiagnostics);
+            navigationFailureDiagnostics,
+            performanceCounters);
 
         foreach (TickContext context in contexts.OrderBy(item => item.ActorFact.Actor.ActorId, System.StringComparer.Ordinal))
         {
@@ -207,7 +212,12 @@ internal sealed class BattleRuntimeTickResolver
         HashSet<string> navigationFailureDiagnostics)
     {
         TickStartActorFact actorFact = facts[actor.ActorId];
-        TickStartActorFact? preferredTarget = FindEnemyCorpsForCommand(facts, actorFact);
+        TickStartActorFact? preferredTarget = FindEnemyCorpsForCommand(
+            facts,
+            actorFact,
+            navigationGraph,
+            occupancy,
+            flowFields);
         BattleRuntimeAiActionRequest request = BuildCommandScopedAiActionRequest(actorFact, preferredTarget);
         TickStartActorFact? requestedTarget = ResolveRequestedTarget(facts, actorFact, preferredTarget, request);
 
@@ -256,12 +266,19 @@ internal sealed class BattleRuntimeTickResolver
             BattleRuntimeActor tickStartActor = BuildTickStartProjection(actorFact);
             BattleRuntimeActor tickStartTarget = BuildTickStartProjection(requestedTarget.Value);
             bool preferSupport = IsTargetEngagedBySameFactionActor(facts, actorFact, requestedTarget.Value);
-            // Support preference prevents distant helpers from taking a far flank
-            // away from an engaged target. Once a helper is beside attack range,
-            // the next decision must still close into a legal 8-direction attack.
-            bool preferSupportSlots = preferSupport && gap > attackRange + 1;
+            // Default assault is attack-opportunity first. Support slots are only
+            // a fallback when no attack slot is reachable from the current facts.
+            bool preferSupportSlots = preferSupport &&
+                                      gap > attackRange + 1 &&
+                                      !HasReachableAttackSlot(
+                                          tickStartActor,
+                                          tickStartTarget,
+                                          actorFact.Anchor,
+                                          navigationGraph,
+                                          occupancy,
+                                          flowFields);
             bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && gap == attackRange + 1;
-            if (!BattleCrowdMovementPlanner.TryFindNextStepTowardTarget(
+            IReadOnlyList<BattleGridCoord> moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardTarget(
                     tickStartActor,
                     tickStartTarget,
                     navigationGraph,
@@ -269,8 +286,8 @@ internal sealed class BattleRuntimeTickResolver
                     new BattleMovementReservationMap(),
                     flowFields,
                     preferSupportSlots,
-                    avoidOpeningNewAxisGapNearEngagedTarget,
-                    out BattleGridCoord next))
+                    avoidOpeningNewAxisGapNearEngagedTarget);
+            if (moveOptions.Count == 0)
             {
                 LogAdvanceFailureDiagnostic(
                     battleId,
@@ -295,8 +312,9 @@ internal sealed class BattleRuntimeTickResolver
                 actorFact,
                 requestedTarget,
                 hasMoveTo: true,
-                moveTo: next,
-                failureReason: "");
+                moveTo: moveOptions[0],
+                failureReason: "",
+                moveOptions: moveOptions);
         }
 
         if (request.Kind == BattleRuntimeAiActionKind.AttackTarget ||
@@ -320,7 +338,8 @@ internal sealed class BattleRuntimeTickResolver
         TickStartActorFact? targetFact,
         bool hasMoveTo,
         BattleGridCoord moveTo,
-        string failureReason)
+        string failureReason,
+        IReadOnlyList<BattleGridCoord> moveOptions = null)
     {
         return new TickContext
         {
@@ -336,6 +355,7 @@ internal sealed class BattleRuntimeTickResolver
                 TargetStart = targetFact?.Anchor ?? default,
                 HasMoveTo = hasMoveTo,
                 MoveTo = moveTo,
+                MoveOptions = moveOptions ?? new List<BattleGridCoord>(),
                 FailureReason = failureReason ?? ""
             }
         };
@@ -517,7 +537,8 @@ internal sealed class BattleRuntimeTickResolver
         int tick,
         double currentTimeSeconds,
         BattleNavigationGraph navigationGraph,
-        HashSet<string> navigationFailureDiagnostics)
+        HashSet<string> navigationFailureDiagnostics,
+        BattlePerformanceCounters performanceCounters)
     {
         List<MoveCandidate> moveCandidates = new();
         foreach (TickContext context in contexts
@@ -547,17 +568,30 @@ internal sealed class BattleRuntimeTickResolver
 
             if (context.TargetFact.Value.Actor.HitPoints <= 0)
             {
-                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "target_defeated_before_move");
-                continue;
+                if (!TryRetargetStaleAdvanceContext(
+                        context,
+                        tickStartFacts,
+                        occupancy,
+                        navigationGraph,
+                        battleId,
+                        tick,
+                        navigationFailureDiagnostics))
+                {
+                    context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "target_defeated_before_move");
+                    continue;
+                }
             }
+
+            IReadOnlyList<BattleGridCoord> orderedMoves = context.Proposal.MoveOptions?.Count > 0
+                ? context.Proposal.MoveOptions
+                : new[] { context.Proposal.MoveTo };
 
             moveCandidates.Add(new MoveCandidate
             {
                 Context = context,
                 From = context.ActorFact.Anchor,
                 To = context.Proposal.MoveTo,
-                CoveredCells = BattleActorFootprint.Enumerate(context.ActorFact.Actor, context.Proposal.MoveTo)
-                    .ToHashSet()
+                OrderedMoves = orderedMoves
             });
         }
 
@@ -574,7 +608,21 @@ internal sealed class BattleRuntimeTickResolver
                      .ThenBy(item => item.From.X)
                      .ThenBy(item => item.Context.ActorFact.Actor.BattleGroupId, System.StringComparer.Ordinal))
         {
-            if (!reservations.TryReserveMoveAllowingReleasedCells(candidate.Context.ActorFact.Actor, candidate.From, candidate.To, occupancy, releasedCells))
+            bool reserved = false;
+            BattleGridCoord selectedMove = candidate.To;
+            foreach (BattleGridCoord move in candidate.OrderedMoves)
+            {
+                if (!reservations.TryReserveMoveAllowingReleasedCells(candidate.Context.ActorFact.Actor, candidate.From, move, occupancy, releasedCells))
+                {
+                    continue;
+                }
+
+                selectedMove = move;
+                reserved = true;
+                break;
+            }
+
+            if (!reserved)
             {
                 candidate.Context.Result = BattleRuntimeAiActionResult.Failed(candidate.Context.Request, "reservation_rejected");
                 RecordAdvanceFailure(candidate.Context.ActorFact.Actor, "reservation_rejected");
@@ -600,10 +648,10 @@ internal sealed class BattleRuntimeTickResolver
             }
 
             candidate.Context.ActorFact.Actor.HasReservedGridCell = true;
-            candidate.Context.ActorFact.Actor.ReservedGridX = candidate.To.X;
-            candidate.Context.ActorFact.Actor.ReservedGridY = candidate.To.Y;
-            candidate.Context.ActorFact.Actor.ReservedGridHeight = candidate.To.Height;
-            BattleRuntimeActorStateMachine.MarkMovementCommitted(candidate.Context.ActorFact.Actor, candidate.To, currentTimeSeconds);
+            candidate.Context.ActorFact.Actor.ReservedGridX = selectedMove.X;
+            candidate.Context.ActorFact.Actor.ReservedGridY = selectedMove.Y;
+            candidate.Context.ActorFact.Actor.ReservedGridHeight = selectedMove.Height;
+            BattleRuntimeActorStateMachine.MarkMovementCommitted(candidate.Context.ActorFact.Actor, selectedMove, currentTimeSeconds);
             ResetAdvanceFailureState(candidate.Context.ActorFact.Actor);
             candidate.Context.Result = BattleRuntimeAiActionResult.Succeeded(candidate.Context.Request, "advanced");
             stream.Add(new BattleEvent
@@ -622,11 +670,58 @@ internal sealed class BattleRuntimeTickResolver
                 FromGridX = candidate.From.X,
                 FromGridY = candidate.From.Y,
                 FromGridHeight = candidate.From.Height,
-                ToGridX = candidate.To.X,
-                ToGridY = candidate.To.Y,
-                ToGridHeight = candidate.To.Height
+                ToGridX = selectedMove.X,
+                ToGridY = selectedMove.Y,
+                ToGridHeight = selectedMove.Height
             });
+            performanceCounters?.RecordMovementEvent();
         }
+    }
+
+    private bool TryRetargetStaleAdvanceContext(
+        TickContext context,
+        IReadOnlyDictionary<string, TickStartActorFact> tickStartFacts,
+        BattleDynamicOccupancy occupancy,
+        BattleNavigationGraph navigationGraph,
+        string battleId,
+        int tick,
+        HashSet<string> navigationFailureDiagnostics)
+    {
+        if (context == null ||
+            context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget ||
+            context.ActorFact.Actor.HitPoints <= 0)
+        {
+            return false;
+        }
+
+        BattleFlowFieldCache flowFields = new();
+        TickContext refreshed = BuildTickContext(
+            context.ActorFact.Actor,
+            tickStartFacts,
+            navigationGraph,
+            occupancy,
+            flowFields,
+            battleId,
+            tick,
+            navigationFailureDiagnostics);
+        if (refreshed.TargetFact == null ||
+            refreshed.TargetFact.Value.Actor.HitPoints <= 0 ||
+            refreshed.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget ||
+            !refreshed.Proposal.HasMoveTo ||
+            !string.IsNullOrWhiteSpace(refreshed.Proposal.FailureReason))
+        {
+            return false;
+        }
+
+        // Movement intents are built before same-tick damage is applied. If a
+        // different actor kills that target first, this actor keeps its action
+        // boundary and immediately spends it on the next live assault target.
+        context.Request = refreshed.Request;
+        context.TargetFact = refreshed.TargetFact;
+        context.Proposal = refreshed.Proposal;
+        context.ActorFact.Actor.TargetActorId = refreshed.TargetFact.Value.Actor.ActorId;
+        ResetAdvanceFailureState(context.ActorFact.Actor);
+        return true;
     }
 
     private BattleRuntimeAiActionRequest BuildCommandScopedAiActionRequest(
@@ -656,132 +751,6 @@ internal sealed class BattleRuntimeTickResolver
             AttackRange = System.Math.Max(1, actorFact.Actor.AttackRange),
             CanAttackNow = actorFact.AttackCharge >= 1.0
         };
-    }
-
-    private static TickStartActorFact? FindEnemyCorpsForCommand(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact)
-    {
-        if (IsFocusFireCommand(actorFact.CommandId))
-        {
-            return FindLowestHealthEnemyCorps(facts, actorFact);
-        }
-
-        return FindRetainedEnemyCorps(facts, actorFact) ?? FindNearestEnemyCorps(facts, actorFact);
-    }
-
-    private static TickStartActorFact? FindRetainedEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact)
-    {
-        if (string.IsNullOrWhiteSpace(actorFact.TargetActorId) ||
-            !facts.TryGetValue(actorFact.TargetActorId, out TickStartActorFact retained))
-        {
-            return null;
-        }
-
-        return retained.HitPoints > 0 && !SameFaction(actorFact.Actor, retained.Actor)
-            ? retained
-            : null;
-    }
-
-    private static TickStartActorFact? FindNearestEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact)
-    {
-        TickStartActorFact? selected = null;
-        int selectedGap = int.MaxValue;
-        foreach (TickStartActorFact candidate in facts.Values)
-        {
-            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
-                candidate.HitPoints <= 0 ||
-                SameFaction(candidate.Actor, actorFact.Actor))
-            {
-                continue;
-            }
-
-            int gap = GetSquareGridDistance(actorFact, candidate);
-            if (selected == null ||
-                gap < selectedGap ||
-                gap == selectedGap && string.CompareOrdinal(candidate.Actor.ActorId, selected.Value.Actor.ActorId) < 0)
-            {
-                selected = candidate;
-                selectedGap = gap;
-            }
-        }
-
-        return selected;
-    }
-
-    private static TickStartActorFact? FindLowestHealthEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact)
-    {
-        TickStartActorFact? selected = null;
-        foreach (TickStartActorFact candidate in facts.Values)
-        {
-            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
-                candidate.HitPoints <= 0 ||
-                SameFaction(candidate.Actor, actorFact.Actor))
-            {
-                continue;
-            }
-
-            if (selected == null)
-            {
-                selected = candidate;
-                continue;
-            }
-
-            int compare = candidate.HitPoints.CompareTo(selected.Value.HitPoints);
-            if (compare < 0)
-            {
-                selected = candidate;
-                continue;
-            }
-
-            if (compare > 0)
-            {
-                continue;
-            }
-
-            int gapCompare = GetSquareGridDistance(actorFact, candidate)
-                .CompareTo(GetSquareGridDistance(actorFact, selected.Value));
-            if (gapCompare < 0 ||
-                gapCompare == 0 && string.CompareOrdinal(candidate.Actor.ActorId, selected.Value.Actor.ActorId) < 0)
-            {
-                selected = candidate;
-            }
-        }
-
-        return selected;
-    }
-
-    private static bool IsTargetEngagedBySameFactionActor(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact,
-        TickStartActorFact targetFact)
-    {
-        foreach (TickStartActorFact candidate in facts.Values)
-        {
-            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
-                candidate.HitPoints <= 0 ||
-                !SameFaction(candidate.Actor, actorFact.Actor))
-            {
-                continue;
-            }
-
-            if (BattleActorFootprint.GetGap(
-                    candidate.Actor,
-                    candidate.Anchor,
-                    targetFact.Actor,
-                    targetFact.Anchor) <= System.Math.Max(1, candidate.Actor.AttackRange))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static int GetSquareGridDistance(TickStartActorFact first, TickStartActorFact second)

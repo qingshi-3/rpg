@@ -5,11 +5,6 @@ namespace Rpg.Application.World;
 
 public sealed class WorldSiteModeTransitionService
 {
-    public GameEvent EnterAlert(WorldSiteState site, int tick, string reason, string triggerId = "")
-    {
-        return SetMode(site, WorldSiteMode.Alert, tick, reason, triggerId);
-    }
-
     public GameEvent EnterWartime(WorldSiteState site, int tick, string reason, string triggerId = "")
     {
         return SetMode(site, WorldSiteMode.Wartime, tick, reason, triggerId);
@@ -49,9 +44,7 @@ public sealed class WorldSiteModeTransitionService
                 continue;
             }
 
-            GameEvent gameEvent = site.PendingThreatIds.Count > 0
-                ? EnterAlert(site, state.WorldTick, "aftermath_cleared")
-                : EnterPeacetime(site, state.WorldTick, "aftermath_cleared");
+            GameEvent gameEvent = EnterPeacetime(site, state.WorldTick, "aftermath_cleared");
             AddEvent(result, gameEvent);
         }
     }

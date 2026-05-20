@@ -52,9 +52,9 @@ The router and cache do not own:
 - hero, corps, battle group, city, strategic-location, equipment, or resource truth;
 - battle runtime execution, damage, movement, outcome, settlement, or report truth;
 - command validation or battle-entry gameplay rules;
-- tactical AI, world threat planning, expedition navigation, or enemy intent prediction;
+- tactical AI, expedition navigation, or enemy intent prediction;
 - UI layout authority beyond showing a transition/loading overlay;
-- save-file schema;
+- long-term state schema;
 - instantiated scene-node pooling;
 - automatic background scanning of the whole world to guess future gameplay.
 
@@ -64,7 +64,7 @@ Scene transition state is not persistent save state in the first phase.
 
 Persistent campaign state remains owned by Domain and Application services. If a transition fails, the router must restore or cancel the operation without fabricating persistent outcomes.
 
-Future mid-battle save or scene-resume support requires a separate proposal that defines which snapshot, event boundary, and runtime state are persistable.
+Future scene-resume support requires a separate proposal that defines which snapshot, event boundary, and runtime state are persistable.
 
 ## Runtime State
 
@@ -199,7 +199,7 @@ Recommended V0 hint sources:
 | Site detail or battle scene is active | strategic world scene | Medium | Returning to strategic world is likely. |
 | Settlement report is visible | strategic world scene | High | Return should be responsive. |
 
-Do not preload every visible strategic location. Do not let the cache poll all armies, threats, and opportunities by itself.
+Do not preload every visible strategic location. Do not let the cache poll all armies and opportunities by itself.
 
 ## Cache Budget And Eviction
 

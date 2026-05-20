@@ -7,9 +7,7 @@ This file stores stable project-level rules for AI-assisted work on this Godot R
 - `gameplay-design/`: accepted player-facing gameplay and content-system rules.
 - `system-design/`: accepted implementation architecture, system ownership, data flow, and contracts.
 - `design-proposals/`: local proposal copies used before changing accepted design or architecture.
-- `gameplay-alignment/`: gap tracking and steady repair work against the new direction.
-- `docs/50-production/technical-changes/`: implementation proposals, implementation plans, and post-implementation acceptance records.
-- `docs/`: existing project documentation and historical implementation material; use it as reference, but do not let it override `gameplay-design/` or `system-design/`.
+- `gameplay-alignment/`: gap tracking, implementation proposals, acceptance records, and steady repair work against the new direction.
 
 When documents conflict, follow `gameplay-alignment/authority-map.md`.
 
@@ -22,7 +20,7 @@ When a session starts in this repository:
 3. Read `gameplay-design/README.md` and the relevant gameplay authority document for the task.
 4. Read `system-design/README.md` only when the task touches implementation architecture.
 5. Check `design-proposals/active/` for active proposals related to the task.
-6. Treat `docs/` as legacy/reference material after current authority is clear.
+6. Check `gameplay-alignment/implementation-proposals/` for active implementation proposals related to the task.
 7. Do not read archived proposal bodies unless the user explicitly requests them.
 
 ## Design-First Gate
@@ -49,7 +47,7 @@ Work one requirement at a time. Each design proposal must expose its requirement
 
 ## Implementation Proposal Gate
 
-After the design proposal is archived and the authority documents are current, create or update a focused implementation proposal under `docs/50-production/technical-changes/` before code changes begin.
+After the design proposal is archived and the authority documents are current, create or update a focused implementation proposal under `gameplay-alignment/implementation-proposals/` before code changes begin.
 
 The implementation proposal must reference the accepted authority documents and define scope, non-goals, touched systems, tests, diagnostics, manual QA, and acceptance evidence. Code work must follow that implementation proposal. If implementation reveals a design conflict, stop coding and return to the Design Proposal Gate.
 

@@ -49,9 +49,67 @@ internal static void BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary()
     string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
 
     AssertTrue(
-        runtime.Contains("ObserveRuntimeMovementEvent(runtimeEvent, presentationState.EntitiesByRuntimeActor)", StringComparison.Ordinal) &&
+        runtime.Contains("ObserveRuntimeMovementEventAsync", StringComparison.Ordinal) &&
         playback.Contains("returnToIdleOnComplete: false", StringComparison.Ordinal),
         "live movement observation should not close the move loop after every single runtime step");
+}
+
+internal static void BattleRuntimeLiveMovementUsesActorMotionLane()
+{
+    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+
+    AssertTrue(
+        runtime.Contains("ObserveRuntimeMovementEventAsync", StringComparison.Ordinal) &&
+        runtime.Contains("presentationState.TrackActorAction(\n                    runtimeEvent.ActorId", StringComparison.Ordinal) &&
+        runtime.Contains("await WaitSiteBattlePresentationSeconds(movementSeconds)", StringComparison.Ordinal),
+        "live movement should serialize same-actor visual steps so consecutive runtime movement events feed one actor motion lane");
+    AssertTrue(
+        runtime.Contains("_ = ObserveRuntimeEventsOnPresentationAsync", StringComparison.Ordinal),
+        "same-actor movement serialization must not globally await presentation before advancing the runtime clock");
+    AssertTrue(
+        unitRoot.Contains("MovementLane", StringComparison.Ordinal) &&
+        unitRoot.Contains("_movementLanes", StringComparison.Ordinal) &&
+        unitRoot.Contains("public override void _Process(double delta)", StringComparison.Ordinal),
+        "battle unit root should drive live movement through actor-local motion lanes advanced every frame");
+    AssertTrue(
+        unitRoot.Contains("VisualMoveSmoothingSeconds", StringComparison.Ordinal) &&
+        unitRoot.Contains("ResolveVisualMoveStepDurationSeconds", StringComparison.Ordinal),
+        "actor motion lanes should include a small presentation-only smoothing buffer so runtime spikes do not empty the visual lane");
+    AssertTrue(
+        !unitRoot.Contains("TweenMethod(Callable.From<float>(progress =>", StringComparison.Ordinal) &&
+        !unitRoot.Contains("RecordBattleMovementTweenCreated", StringComparison.Ordinal),
+        "live movement should not create one Godot tween per movement step");
+}
+
+internal static void BattleRuntimeRegistersGodotPerformanceMonitors()
+{
+    string runtime = string.Join("\n", Directory
+        .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot*.cs")
+        .OrderBy(path => path, StringComparer.Ordinal)
+        .Select(File.ReadAllText));
+    string adapter = File.ReadAllText(Path.Combine("src", "Application", "World", "WorldSiteBattleGroupRuntimeAdapter.cs"));
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string monitorRegistry = File.ReadAllText(Path.Combine("src", "Presentation", "Debug", "BattlePerformanceMonitorRegistry.cs"));
+
+    AssertTrue(
+        runtime.Contains("BattlePerformanceMonitorRegistry.Register", StringComparison.Ordinal) &&
+        runtime.Contains("BattlePerformanceMonitorRegistry.Unregister", StringComparison.Ordinal) &&
+        runtime.Contains("_battlePerformanceCounters.Reset()", StringComparison.Ordinal),
+        "world site root should register pure-code Godot performance monitors and reset battle counters at runtime start");
+    AssertTrue(
+        adapter.Contains("BattlePerformanceCounters performanceCounters", StringComparison.Ordinal) &&
+        adapter.Contains("new(performanceCounters: performanceCounters)", StringComparison.Ordinal),
+        "battle runtime adapter should pass monitor counters into the runtime session");
+    AssertTrue(
+        unitRoot.Contains("ActiveMovementTweenCount", StringComparison.Ordinal),
+        "battle unit root should expose active movement tween count for the monitor");
+    AssertTrue(
+        monitorRegistry.Contains("Performance.AddCustomMonitor", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/RuntimeAdvanceMsLast", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/MovementTweensInterrupted", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/ActiveMovementTweens", StringComparison.Ordinal),
+        "battle monitor registry should expose battle movement and runtime counters to Godot Debugger > Monitors");
 }
 
 internal static void BattleRuntimePlaybackDelaysDamageUntilSameTickTargetMovementSettles()

@@ -61,6 +61,7 @@ WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation 
 WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation drag preview does not reset idle", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootBattlePreparationDragPreviewDoesNotResetIdle);
 WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation uses dedicated ui containers", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootBattlePreparationUsesDedicatedUiContainers);
 WorldSiteDeploymentCacheRegressionCases.Run("presentation ui scene paths preserve code bindings", WorldSiteDeploymentCacheRegressionCases.PresentationUiScenePathsPreserveCodeBindings);
+WorldSiteDeploymentCacheRegressionCases.Run("godot text resources do not use utf8 bom", WorldSiteDeploymentCacheRegressionCases.GodotTextResourcesDoNotUseUtf8Bom);
 WorldSiteDeploymentCacheRegressionCases.Run("strategic world map viewport starts after left panel", WorldSiteDeploymentCacheRegressionCases.StrategicWorldMapViewportStartsAfterLeftPanel);
 WorldSiteDeploymentCacheRegressionCases.Run("world viewport layout uses resolved control rects", WorldSiteDeploymentCacheRegressionCases.WorldViewportLayoutUsesResolvedControlRects);
 WorldSiteDeploymentCacheRegressionCases.Run("strategic world uses dedicated main world viewport", WorldSiteDeploymentCacheRegressionCases.StrategicWorldUsesDedicatedMainWorldViewport);
@@ -91,6 +92,8 @@ WorldSiteDeploymentCacheRegressionCases.Run("world site scene detaches legacy ma
 WorldSiteDeploymentCacheRegressionCases.Run("legacy manual battle code files are deleted", WorldSiteDeploymentCacheRegressionCases.LegacyManualBattleCodeFilesAreDeleted);
 WorldSiteDeploymentCacheRegressionCases.Run("legacy combat AP authoring fields are deleted", WorldSiteDeploymentCacheRegressionCases.LegacyCombatApAuthoringFieldsAreDeleted);
 WorldSiteDeploymentCacheRegressionCases.Run("site exploration runtime is deleted", WorldSiteDeploymentCacheRegressionCases.SiteExplorationRuntimeIsDeleted);
+WorldSiteDeploymentCacheRegressionCases.Run("strategic save intel and raid runtime are deleted", WorldSiteDeploymentCacheRegressionCases.StrategicSaveIntelAndRaidRuntimeAreDeleted);
+WorldSiteDeploymentCacheRegressionCases.Run("strategic fog remains map visibility only", WorldSiteDeploymentCacheRegressionCases.StrategicFogRemainsMapVisibilityOnly);
 WorldSiteDeploymentCacheRegressionCases.Run("scene transition router begins and clears site visit on scene failure", WorldSiteDeploymentCacheRegressionCases.SceneTransitionRouterBeginsAndClearsSiteVisitOnSceneFailure);
 WorldSiteDeploymentCacheRegressionCases.Run("scene transition router begins battle and cancels handoff on scene failure", WorldSiteDeploymentCacheRegressionCases.SceneTransitionRouterBeginsBattleAndCancelsHandoffOnSceneFailure);
 WorldSiteDeploymentCacheRegressionCases.Run("scene transition router rejects overlapping transitions", WorldSiteDeploymentCacheRegressionCases.SceneTransitionRouterRejectsOverlappingTransitions);

@@ -33,7 +33,7 @@ Summarize the expected state that needs user acceptance.
 
 ## Follow-Up Implementation Scope
 
-List likely code, resource, scene, old-doc, or QA impact. This section is planning context only; actual implementation requires a focused proposal under `docs/50-production/technical-changes/` after this design proposal is archived.
+List likely code, resource, scene, old-document, or QA impact. This section is planning context only; actual implementation requires a focused proposal under `gameplay-alignment/implementation-proposals/` after this design proposal is archived.
 
 ## Acceptance
 

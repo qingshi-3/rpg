@@ -157,7 +157,6 @@ public sealed class WorldSiteBattleDeploymentPreparer
                 placementKind,
                 deploymentDirection,
                 candidates,
-                request.ThreatId,
                 entranceId,
                 out string forceFailureReason))
         {
@@ -359,7 +358,6 @@ public sealed class WorldSiteBattleDeploymentPreparer
         return request?.BattleKind switch
         {
             BattleKind.AssaultSite => side == SemanticDeploymentSide.Player,
-            BattleKind.DefenseRaid => side == SemanticDeploymentSide.Enemy,
             BattleKind.FieldIntercept => side == SemanticDeploymentSide.Player,
             _ => side == SemanticDeploymentSide.Enemy
         };

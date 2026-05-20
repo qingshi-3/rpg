@@ -63,13 +63,6 @@ public partial class StrategicWorldRoot
         if (CanShowSelectedSiteDetailEntry(selectedSite))
         {
             bool canEnter = CanEnterSelectedSiteDetail(out string enterFailureReason);
-            WorldIntelVisibility visibility = GetSiteIntelVisibility(new StrategicWorldDefinitionQueries(Definition).GetSite(selectedSite.SiteId));
-            WorldSiteIntelViewModel intelView = WorldSiteIntelService.BuildCurrentView(
-                State,
-                Definition,
-                selectedSite.SiteId,
-                visibility);
-            string entryLabel = WorldSiteIntelPresenter.GetSiteEntryLabel(intelView);
             Button enterButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
             if (enterButton == null)
             {
@@ -77,8 +70,8 @@ public partial class StrategicWorldRoot
             }
 
             enterButton.Text = canEnter
-                ? $"{entryLabel}\n查看详细地图"
-                : $"{entryLabel}\n{WorldActionResolver.FormatFailureReason(enterFailureReason)}";
+                ? "查看场地详情"
+                : $"查看场地详情\n{WorldActionResolver.FormatFailureReason(enterFailureReason)}";
             enterButton.Disabled = !canEnter;
             if (canEnter)
             {

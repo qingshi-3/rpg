@@ -76,7 +76,7 @@ Use progressive disclosure. Read the smallest authority document that matches th
 | Battle Group | Binds 1 hero and 1 main corps; owns stationing, sortie state, battle selection identity, result ownership. | Hero/corps definitions, battle simulation, direct city resource mutation. |
 | City / Strategic Location | Owns large-map locations, control, garrison relations, resources, facility capacity, defense context, and lightweight non-city states. | Hero growth, internal corps growth, live battle behavior. |
 | Equipment And Armament | Owns hero equipment, token/command items, corps equipment level, equipment origin, build contribution. | Hero base attributes, battle skill execution, random-affix loot as a main loop. |
-| Combat Runtime | Runs the real-time battle from snapshots and emits semantic events/results. | Long-term save state, city/hero/corps writeback, final settlement. |
+| Combat Runtime | Runs the real-time battle from snapshots and emits semantic events/results. | Long-term campaign state, city/hero/corps writeback, final settlement. |
 | Command | Defines hero, corps, and combined command contracts; validates player intent; converts intent into runtime orders. | UI selection state, pathfinding execution, long-term state mutation. |
 | Report And Settlement | Consumes runtime events/results; creates state deltas and player-readable battle reports. | Simulating combat, redefining content, recomputing runtime facts independently. |
 | Content Definition | Provides static definitions for heroes, corps, equipment, abilities, tags, locations, maps, rewards, and text. | Player progress, runtime actors, UI layout state. |
@@ -88,11 +88,11 @@ Non-city strategic locations share a strategic-location interface but must not i
 | Layer | Responsibility | Constraint |
 |---|---|---|
 | Definitions / Content | Static definitions, Godot resources, resource references, tags, text keys, growth templates, battle map entry data. | No player progress or runtime state. |
-| Domain / State | Long-term save authority and core invariants for heroes, corps, battle groups, cities, resources, equipment, and location control. | No Godot scene nodes, animation state, runtime target locks, frame cooldown state, or path data. |
+| Domain / State | Long-term campaign authority and core invariants for heroes, corps, battle groups, cities, resources, equipment, and location control. | No Godot scene nodes, animation state, runtime target locks, frame cooldown state, or path data. |
 | Application / Services | Use-case orchestration: create battle groups, station, sortie, build snapshots, validate command entry, settle results, generate reports. | No UI authority. Long-term writes happen through explicit services. |
-| Runtime / StateMachine | Battle and scene runtime state machines; consumes snapshots and emits semantic events/results. | Does not directly mutate Domain. Runtime state is discardable unless explicitly persisted through a safe runtime save boundary. |
+| Runtime / StateMachine | Battle and scene runtime state machines; consumes snapshots and emits semantic events/results. | Does not directly mutate Domain. Runtime state is discardable unless a future accepted runtime-resume boundary says otherwise. |
 | Presentation / UI | Displays heroes, corps, battle groups, cities, commands, HUD feedback, reports, and settlement results. | UI sends commands and requests. It does not own rules, settlement, pathfinding, or campaign truth. |
-| Infrastructure | Save/load, resource loading, logging, IDs, random seed, time, scene switching, diagnostics, test fixtures. | No business rules. It supports systems without deciding gameplay outcomes. |
+| Infrastructure | Resource loading, logging, IDs, random seed, time, scene switching, diagnostics, test fixtures. | No business rules. It supports systems without deciding gameplay outcomes. |
 
 ## Key Flows
 

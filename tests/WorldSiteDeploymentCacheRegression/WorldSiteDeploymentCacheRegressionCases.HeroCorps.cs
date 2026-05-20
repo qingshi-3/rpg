@@ -16,7 +16,9 @@ internal static void HeroCorpsV0PlayableSliceUsesAuthoredUnitResources()
     AssertTrue(idsSource.Contains("HeroUnit = \"f1_grandmasterzir\"", StringComparison.Ordinal), "v0 hero id should be grandmaster Zir");
     AssertTrue(idsSource.Contains("DefaultCorpsUnit = \"f1_azuritelion\"", StringComparison.Ordinal), "v0 default corps id should be azurite lion");
     AssertTrue(idsSource.Contains("EnemyLeaderUnit = \"f6_draugarlord\"", StringComparison.Ordinal), "v0 enemy leader id should be draugar lord");
-    AssertTrue(idsSource.Contains("DefaultCorpsCount = 1", StringComparison.Ordinal), "v0 should deploy one player corps case unit");
+    AssertTrue(idsSource.Contains("DefaultCorpsCount = 3", StringComparison.Ordinal), "v0 should deploy three player corps units for 4v4 battle coverage");
+    AssertTrue(idsSource.Contains("EnemyLeaderCount = 4", StringComparison.Ordinal), "v0 should deploy four enemy leader units for 4v4 battle coverage");
+    AssertTrue(initialState.Contains("Count = 4", StringComparison.Ordinal), "initial enemy garrison should start with four enemy units");
     AssertTrue(initialState.Contains("res://assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", StringComparison.Ordinal), "initial player hero should use authored grandmaster Zir resource");
     AssertTrue(initialState.Contains("res://assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", StringComparison.Ordinal), "initial enemy leader should use authored draugar lord resource");
     AssertUnitFootprint("assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres", 2, 1, "azurite lion corps");
@@ -53,6 +55,8 @@ internal static void HeroCorpsV0AssaultRequestUsesPlayerHeroCorpsAndEnemyLeader(
         "army_v0");
 
     AssertEqual(2, request.PlayerForces.Count, "v0 assault should contain one hero force and one default corps force");
+    AssertEqual(4, request.PlayerForces.Sum(force => force.Count), "v0 assault should field four player battle units");
+    AssertEqual(4, request.EnemyForces.Sum(force => force.Count), "v0 assault should field four enemy battle units");
     AssertTrue(
         request.PlayerForces.Any(force => force.UnitDefinitionId == HeroCorpsV0PlayableSliceIds.HeroUnit && force.Count == 1),
         "v0 assault should read the player hero from the source army");
@@ -60,7 +64,7 @@ internal static void HeroCorpsV0AssaultRequestUsesPlayerHeroCorpsAndEnemyLeader(
         request.PlayerForces.Any(force => force.UnitDefinitionId == HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit && force.Count == HeroCorpsV0PlayableSliceIds.DefaultCorpsCount),
         "v0 assault should read the attached default corps from the source army");
     AssertTrue(
-        request.EnemyForces.Any(force => force.UnitDefinitionId == HeroCorpsV0PlayableSliceIds.EnemyLeaderUnit && force.Count == 1),
+        request.EnemyForces.Any(force => force.UnitDefinitionId == HeroCorpsV0PlayableSliceIds.EnemyLeaderUnit && force.Count == HeroCorpsV0PlayableSliceIds.EnemyLeaderCount),
         "v0 assault should read the enemy leader from the target site garrison");
     AssertTrue(
         request.EnemyForces.All(force => force.UnitDefinitionId != HeroCorpsV0PlayableSliceIds.HeroUnit),
@@ -331,7 +335,7 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
         rootSource.Contains("AddBattleRuntimeCommandDraftButton", StringComparison.Ordinal),
         "selecting a runtime hero company should highlight matching units and bind separate placeholder command sections without mutating runtime truth.");
     AssertTrue(
-        worldSiteScene.Contains("UnitMoveDuration = 0.16", StringComparison.Ordinal),
+        worldSiteScene.Contains("UnitMoveDuration = 0.27", StringComparison.Ordinal),
         "runtime unit movement should be slowed in the site scene for readable realtime command evaluation.");
 }
 

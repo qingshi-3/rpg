@@ -33,7 +33,7 @@ UI may:
 - Read definitions and current state for display through existing query services during migration.
 - Build derived display-only view models.
 - Disable buttons for basic local availability hints.
-- Submit Application requests such as expedition, site entry, deployment confirmation, and save/load.
+- Submit Application requests such as expedition, site entry, and deployment confirmation.
 - Submit typed scene transition requests instead of calling root scene-change APIs directly.
 - Submit `CommandRequest` when light-RTS command UI is implemented.
 
@@ -115,7 +115,7 @@ Does not own:
 
 Owns compact, collapsible notices:
 
-- event alerts;
+- event notices;
 - warnings;
 - task prompts;
 - state-transition messages;
@@ -154,7 +154,7 @@ Overlay content must be transient and must not become a permanent management pan
 Owns blocking dialogs:
 
 - confirmation;
-- save/load errors;
+- scene entry, battle entry, and action errors;
 - battle gate dialogs;
 - unrecoverable failure explanations.
 

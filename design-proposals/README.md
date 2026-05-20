@@ -11,14 +11,14 @@ authority document
 + user acceptance
 + merge expected copy back to authority
 + archive proposal
-+ focused implementation proposal under docs/50-production/technical-changes/
++ focused implementation proposal under gameplay-alignment/implementation-proposals/
 + implementation
 + implementation acceptance record
 ```
 
 Design proposals change accepted documents. They do not authorize code, scene, resource, or data implementation directly.
 
-Implementation proposals live under `docs/50-production/technical-changes/` after the originating design proposal has been merged into authority documents and archived.
+Implementation proposals live under `gameplay-alignment/implementation-proposals/` after the originating design proposal has been merged into authority documents and archived.
 
 ## Relationship Metadata
 
@@ -111,7 +111,7 @@ Status meanings:
 6. Create an active proposal with `current/` and `expected/` copies.
 7. Merge the accepted `expected/` copies into authority documents.
 8. Move the proposal to `archived/` and update `archived/README.md`.
-9. Start implementation work only through a focused proposal under `docs/50-production/technical-changes/`.
+9. Start implementation work only through a focused proposal under `gameplay-alignment/implementation-proposals/`.
 
 If implementation later proves the accepted design wrong, create a new amendment or supersession proposal. Do not edit archived proposal bodies. Update only index or relationship metadata needed for future agents to follow the chain.
 

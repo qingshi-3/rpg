@@ -23,7 +23,7 @@ Runtime does not own:
 - long-term Domain state or campaign writeback;
 - Godot scene node truth, animation timing, UI selection, or visual interpolation;
 - map authoring, TileMapLayer parsing, or topology compilation;
-- final settlement, report text, or save-file schema;
+- final settlement, report text, or long-term state schema;
 - LimboAI behavior-tree blackboard as authoritative combat state.
 
 ## Runtime State
@@ -141,7 +141,7 @@ Detailed path legality, topology, and movement planning rules live in `battle-na
 - Failed or incomplete runtime output must enter explicit safe rollback, failed handoff, or pending manual-resolution state.
 - Settlement accepts only complete results with consistent event boundaries and explicit termination reason.
 
-If later user-facing mid-battle save is added, it must persist the battle snapshot, necessary runtime state, and confirmed event stream boundary.
+If later user-facing battle resume is added, it must preserve the battle snapshot, necessary runtime state, and confirmed event stream boundary through a separate accepted architecture.
 
 ## Acceptance
 
