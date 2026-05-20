@@ -9,9 +9,6 @@ namespace Rpg.Presentation.Battle;
 public static class GridMapReader
 {
     private const string WalkableCustomData = "Walkable";
-    private const string MoveCostCustomData = "MoveCost";
-    private const string CanStandOnCustomData = "CanStandOn";
-    private const string IsObstacleCustomData = "IsObstacle";
     private const string TerrainTagCustomData = "TerrainTag";
 
     public static BattleGridMap Read(BattleMapView mapView)
@@ -51,7 +48,9 @@ public static class GridMapReader
             GridCell cell = gridMap.GetOrCreateCell(position);
             Vector2I atlasCoords = layer.GetCellAtlasCoords(tilePosition);
             TileData tileData = layer.GetCellTileData(tilePosition);
-            bool isObjectObstacle = ReadBool(tileData, customDataAvailability.IsObstacleKey, false);
+            // Navigation input is intentionally simple: only foundation-like layers read Walkable.
+            // Object-layer blocking comes from authored layer semantics, not per-tile obstacle flags.
+            bool isObjectObstacle = layer.Role == LayerRole.Object && layer.AffectsWalkability;
             bool affectsWalkability = layer.Role == LayerRole.Object
                 ? isObjectObstacle
                 : layer.AffectsWalkability;
@@ -68,8 +67,8 @@ public static class GridMapReader
                 layer.IsHeightTransitionLayer,
                 layer.IsVisualOnly || layer.Role == LayerRole.Detail,
                 walkable,
-                ReadInt(tileData, customDataAvailability.MoveCostKey, 1),
-                ReadBool(tileData, customDataAvailability.CanStandOnKey, false),
+                1,
+                false,
                 isObjectObstacle,
                 ReadString(tileData, customDataAvailability.TerrainTagKey, ""),
                 layer.GetCellSourceId(tilePosition),
@@ -260,13 +259,6 @@ public static class GridMapReader
             : tileData.GetCustomData(key).AsBool();
     }
 
-    private static int ReadInt(TileData tileData, string key, int defaultValue)
-    {
-        return tileData == null || string.IsNullOrEmpty(key)
-            ? defaultValue
-            : System.Math.Max(1, tileData.GetCustomData(key).AsInt32());
-    }
-
     private static string ReadString(TileData tileData, string key, string defaultValue)
     {
         return tileData == null || string.IsNullOrEmpty(key)
@@ -278,31 +270,19 @@ public static class GridMapReader
     {
         private TileCustomDataAvailability(
             string walkableKey,
-            string moveCostKey,
-            string canStandOnKey,
-            string isObstacleKey,
             string terrainTagKey)
         {
             WalkableKey = walkableKey;
-            MoveCostKey = moveCostKey;
-            CanStandOnKey = canStandOnKey;
-            IsObstacleKey = isObstacleKey;
             TerrainTagKey = terrainTagKey;
         }
 
         public string WalkableKey { get; }
-        public string MoveCostKey { get; }
-        public string CanStandOnKey { get; }
-        public string IsObstacleKey { get; }
         public string TerrainTagKey { get; }
 
         public static TileCustomDataAvailability From(TileSet tileSet)
         {
             return new TileCustomDataAvailability(
                 ResolveLayerName(tileSet, WalkableCustomData),
-                ResolveLayerName(tileSet, MoveCostCustomData),
-                ResolveLayerName(tileSet, CanStandOnCustomData),
-                ResolveLayerName(tileSet, IsObstacleCustomData),
                 ResolveLayerName(tileSet, TerrainTagCustomData));
         }
 

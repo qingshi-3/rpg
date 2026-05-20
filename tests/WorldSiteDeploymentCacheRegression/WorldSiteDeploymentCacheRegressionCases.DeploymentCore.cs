@@ -1,5 +1,6 @@
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.Maps;
 using Rpg.Application.World;
 using Rpg.Definitions.Maps;
@@ -137,6 +138,52 @@ internal static void DeploymentCacheRoutesAuthoredDeploymentZonesBySemanticSide(
     AssertEqual(new Vector2I(2, 0), enemyCandidates[0].Cell, "enemy side should not depend on marker id or faction id");
 }
 
+internal static void DeploymentMarkerDuplicateIdsAreDiagnosticNotRoutingAuthority()
+{
+    string extractor = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Application", "Maps", "SemanticMapMarkerExtractor.cs"));
+    string duplicateBody = ExtractIfBody(extractor, "if (!usedIds.Add(marker.MarkerId))");
+
+    AssertTrue(
+        duplicateBody.Contains("semantic_marker_duplicate", StringComparison.Ordinal),
+        "duplicate marker ids should still produce diagnostics for authors");
+    AssertTrue(
+        duplicateBody.Contains("marker.MarkerType != SemanticMapMarkerType.DeploymentZone", StringComparison.Ordinal),
+        "deployment zone routing should not depend on marker id uniqueness");
+    AssertTrue(
+        duplicateBody.Contains("continue;", StringComparison.Ordinal),
+        "non-deployment semantic markers should keep strict duplicate-id rejection");
+
+    BattleGridMap grid = new();
+    AddWalkableSurface(grid, 0, 0, terrainTag: "player_zone_a");
+    AddWalkableSurface(grid, 0, 1, terrainTag: "player_zone_b");
+    var markers = new[]
+    {
+        new SemanticMapMarkerData
+        {
+            MarkerId = "copied_player_zone",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            DeploymentSide = SemanticDeploymentSide.Player,
+            AnchorCell = new Vector2I(0, 0),
+            Width = 1,
+            Height = 1
+        },
+        new SemanticMapMarkerData
+        {
+            MarkerId = "copied_player_zone",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            DeploymentSide = SemanticDeploymentSide.Player,
+            AnchorCell = new Vector2I(0, 1),
+            Width = 1,
+            Height = 1
+        }
+    };
+
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder()
+        .Build("site_under_test", grid, markers);
+
+    AssertEqual(2, cache.GetDeploymentZoneCandidatesForSide(SemanticDeploymentSide.Player, "player", WorldSiteAttackDirection.Any).Count, "side deployment candidates should include copied zones even when marker labels match");
+}
+
 internal static void DeploymentCacheHandlesMissingGridAsEmptyCache()
 {
     WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder().Build("missing_grid_site", null);
@@ -266,6 +313,41 @@ internal static void DeploymentTerrainReconcilerSyncsPlacementHeight()
     AssertTrue(result.Success, $"height sync should succeed reason={result.LastFailureReason}");
     AssertEqual(1, result.HeightSynced, "height sync count");
     AssertEqual(2, placement.CellHeight, "placement height should sync to top surface");
+}
+
+internal static void BattleNavigationSnapshotSyncsStaleRequestPlacementHeightToCurrentTopLand()
+{
+    BattleGridMap grid = new();
+    AddNonWalkableFoundation(grid, 2, 0, height: -1, terrainTag: "water");
+    AddWalkableSurface(grid, 2, 0, height: 0, terrainTag: "plain");
+    grid.RebuildTopSurfaceIndex();
+
+    BattleForcePlacementRequest placement = new()
+    {
+        PlacementId = "player_hero",
+        CellX = 2,
+        CellY = 0,
+        CellHeight = 1
+    };
+    BattleStartRequest request = new();
+    request.PlayerForces.Add(new BattleForceRequest
+    {
+        ForceId = "player_force",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 1,
+        PreferredPlacements = { placement }
+    });
+
+    int synced = BattleNavigationSnapshotBuilder.SyncPreferredPlacementHeightsToCurrentNavigationSurfaces(
+        request,
+        grid,
+        CanForceEnterWater);
+    BattleNavigationSnapshotBuilder.ApplyToRequest(request, grid);
+
+    AssertEqual(1, synced, "stale placement height should be synced once");
+    AssertEqual(0, placement.CellHeight, "request placement should use current land height");
+    AssertTrue(request.NavigationSurfaces.Any(item => item.X == 2 && item.Y == 0 && item.Height == 0), "land surface should be exported");
+    AssertTrue(!request.NavigationSurfaces.Any(item => item.X == 2 && item.Y == 0 && item.Height == -1), "underwater surface should not be exported");
 }
 
 internal static void DeploymentTerrainReconcilerRelocatesBlockedNonWaterPlacement()
@@ -548,5 +630,31 @@ internal static void BattleDeploymentPreparerUsesKnownEntranceBeforeDesiredAppro
 private static string FormatCells(IEnumerable<GridPosition> cells)
 {
     return string.Join("|", cells.Select(cell => $"{cell.X},{cell.Y}"));
+}
+
+private static string ExtractIfBody(string source, string ifHeader)
+{
+    int start = source.IndexOf(ifHeader, StringComparison.Ordinal);
+    AssertTrue(start >= 0, $"source missing if header {ifHeader}");
+    int open = source.IndexOf('{', start);
+    AssertTrue(open >= 0, $"source missing if body {ifHeader}");
+    int depth = 0;
+    for (int index = open; index < source.Length; index++)
+    {
+        if (source[index] == '{')
+        {
+            depth++;
+        }
+        else if (source[index] == '}')
+        {
+            depth--;
+            if (depth == 0)
+            {
+                return source[open..(index + 1)];
+            }
+        }
+    }
+
+    throw new Exception($"source missing closed if body {ifHeader}");
 }
 }

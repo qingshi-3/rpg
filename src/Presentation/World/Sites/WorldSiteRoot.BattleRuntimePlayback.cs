@@ -10,58 +10,137 @@ namespace Rpg.Presentation.World.Sites;
 
 public partial class WorldSiteRoot
 {
-    private async Task PlayRuntimeMovementEventAsync(
+    private double ObserveRuntimeMovementEvent(
         BattleEvent runtimeEvent,
         IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
     {
-        if (!entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out BattleEntity actor) ||
+        return ObserveRuntimeMovementEvent(
+            runtimeEvent,
+            entitiesByRuntimeActor,
+            returnToIdleOnComplete: false);
+    }
+
+    private double ObserveRuntimeMovementEvent(
+        BattleEvent runtimeEvent,
+        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor,
+        bool returnToIdleOnComplete)
+    {
+        if (_unitRoot == null ||
+            runtimeEvent == null ||
+            entitiesByRuntimeActor == null ||
+            !entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out BattleEntity actor) ||
             !runtimeEvent.HasMovementCells)
         {
-            return;
+            return 0;
         }
 
         GridOccupantComponent actorGrid = actor.GetComponent<GridOccupantComponent>();
         if (actorGrid == null)
         {
-            return;
+            return 0;
         }
 
         GridSurfacePosition nextStep = new(runtimeEvent.ToGridX, runtimeEvent.ToGridY, runtimeEvent.ToGridHeight);
+        // Runtime emits one committed grid step per live tick. Presentation keeps
+        // the move loop open while later ticks may retarget the same actor.
         _unitRoot.MoveEntityTo(
             actor,
             new[] { actorGrid.SurfacePosition, nextStep },
             restartMoveAnimation: false,
-            returnToIdleOnComplete: false);
-        await WaitSiteBattlePresentationSeconds(_unitRoot.UnitMoveDuration);
+            returnToIdleOnComplete: returnToIdleOnComplete,
+            stepDurationSeconds: runtimeEvent.ActionDurationSeconds);
+        return System.Math.Max(0, runtimeEvent.ActionDurationSeconds > 0 ? runtimeEvent.ActionDurationSeconds : _unitRoot.UnitMoveDuration);
     }
 
-    private async Task PlayRuntimeDamageEventAsync(
+    private async Task ObserveRuntimeDamageEventAsync(
         BattleEvent runtimeEvent,
         IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
     {
-        if (!entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out BattleEntity actor) ||
+        await ObserveRuntimeDamageEventCoreAsync(runtimeEvent, entitiesByRuntimeActor);
+    }
+
+    private async Task<double> ObserveRuntimeDamageEventCoreAsync(
+        BattleEvent runtimeEvent,
+        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
+    {
+        if (_unitRoot == null ||
+            runtimeEvent == null ||
+            entitiesByRuntimeActor == null ||
+            !entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out BattleEntity actor) ||
             !entitiesByRuntimeActor.TryGetValue(runtimeEvent.TargetId ?? "", out BattleEntity target))
         {
-            return;
+            return 0;
         }
 
         int damage = System.Math.Max(0, -runtimeEvent.CorpsStrengthDelta);
         HealthComponent health = target.GetComponent<HealthComponent>();
-        int applied = health?.ApplyDamage(damage, actor) ?? 0;
-        bool defeated = BattleRuleQueries.IsDefeated(target);
+        int targetHpBeforeHit = health?.Hp ?? 0;
+        int previewApplied = health == null
+            ? damage
+            : System.Math.Min(System.Math.Max(0, targetHpBeforeHit), damage);
+        bool previewDefeated = health != null && targetHpBeforeHit > 0 && targetHpBeforeHit - previewApplied <= 0;
         double attackAnimationSeconds = _unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded(
             actor,
             target,
-            applied,
-            defeated,
+            previewApplied,
+            previewDefeated,
             runtimeEvent.ReasonCode));
-        if (defeated)
+
+        // Runtime remains authoritative for outcome, but presentation health and
+        // defeat feedback must land at attack impact, not at attack start.
+        Task impactDamageTask = ApplyRuntimeDamageAtImpactAsync(
+            actor,
+            target,
+            health,
+            damage,
+            attackAnimationSeconds,
+            runtimeEvent.ActionImpactDelaySeconds);
+
+        // Runtime events are semantic combat facts. Live presentation waits for
+        // this actor's own attack task in the background, without blocking the
+        // shared simulation clock or unrelated units.
+        double runtimeActionSeconds = runtimeEvent.ActionDurationSeconds > 0
+            ? runtimeEvent.ActionDurationSeconds
+            : attackAnimationSeconds;
+        double attackPresentationSeconds = System.Math.Max(0.42, runtimeActionSeconds);
+        Task attackPresentationTask = WaitSiteBattlePresentationSeconds(attackPresentationSeconds);
+        await impactDamageTask;
+        await attackPresentationTask;
+        return attackPresentationSeconds;
+    }
+
+    private async Task ApplyRuntimeDamageAtImpactAsync(
+        BattleEntity actor,
+        BattleEntity target,
+        HealthComponent health,
+        int damage,
+        double attackAnimationSeconds,
+        double runtimeImpactDelaySeconds)
+    {
+        if (health == null || damage <= 0)
+        {
+            return;
+        }
+
+        UnitAnimationComponent actorAnimation = actor.GetComponent<UnitAnimationComponent>();
+        double impactDelaySeconds = runtimeImpactDelaySeconds > 0
+            ? runtimeImpactDelaySeconds
+            : System.Math.Max(0, actorAnimation?.ResolveAttackImpactDelaySeconds() ?? 0);
+        double clampedImpactDelaySeconds = System.Math.Min(impactDelaySeconds, System.Math.Max(0, attackAnimationSeconds));
+        if (clampedImpactDelaySeconds > 0)
+        {
+            await WaitSiteBattlePresentationSeconds(clampedImpactDelaySeconds);
+        }
+
+        int applied = health.ApplyDamage(damage, actor);
+        if (applied <= 0)
+        {
+            return;
+        }
+
+        if (BattleRuleQueries.IsDefeated(target))
         {
             _unitRoot.MarkEntityDefeated(target);
         }
-
-        // Runtime events are semantic combat facts, but playback must pace them
-        // by the authored attack animation so long sprites are not restarted early.
-        await WaitSiteBattlePresentationSeconds(System.Math.Max(0.42, attackAnimationSeconds));
     }
 }

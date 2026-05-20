@@ -6,6 +6,7 @@ using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
+using Rpg.Infrastructure.Scenes;
 using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Common;
 
@@ -103,6 +104,7 @@ public partial class StrategicWorldRoot : Control
 	private readonly WorldTickService _worldTickService = new();
 	private readonly WorldBattleProgressionService _worldBattleProgressionService = new();
 	private readonly BattleUnitFactory _battleUnitFactory = new();
+	private readonly SceneTransitionRouter _sceneTransitionRouter;
 
 	private readonly Dictionary<string, Button> _siteButtons = new();
 	private readonly Dictionary<string, Label> _siteLabels = new();
@@ -166,7 +168,6 @@ public partial class StrategicWorldRoot : Control
 	private bool _worldMapOverlaySignalsConnected;
 	private BattleStartRequest _pendingBattleRequest;
 	private PendingBattleLaunchRollback _pendingBattleRollback;
-	private AcceptDialog _battleAlertDialog;
 	private AcceptDialog _preBattleDialog;
 	private string _activeBattleGateDialog = "";
 	private Vector2 _lastWorldMapRootPosition = new(float.NaN, float.NaN);
@@ -180,6 +181,7 @@ public partial class StrategicWorldRoot : Control
 	public StrategicWorldRoot()
 	{
 		_actionResolver = new WorldActionResolver(_battleUnitFactory.ResolveUnitDisplayName);
+		_sceneTransitionRouter = new SceneTransitionRouter(new GodotSceneTransitionGateway(() => GetTree()));
 	}
 
 	public override void _Ready()
@@ -193,6 +195,7 @@ public partial class StrategicWorldRoot : Control
 		ResolveMainWorldViewportNodes();
 		ResolveWorldMapNodes();
 		ResolveWorldCamera();
+		_worldCamera?.ResetNavigationInputState("strategic_world_ready");
 		BuildStrategicFogOverlay();
 		ConfigureStrategicNavigationContext();
 		SyncDefinitionMapPositionsFromAnchors();

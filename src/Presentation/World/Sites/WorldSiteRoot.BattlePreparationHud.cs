@@ -32,6 +32,8 @@ public partial class WorldSiteRoot
         // player adjust player-side placements before committing to the auto runtime.
         _isBattlePreparationActive = true;
         _battlePreparationRequest = request;
+        _selectedBattleCorpsCommand = ResolveBattleCorpsCommand(request.InitialCorpsCommandId);
+        ApplyBattleRuntimeCommandToRequest(request, BuildBattleRuntimeCommandRequest(_selectedBattleCorpsCommand));
         SetBattleRuntimeEnabled(false, keepBattlePresentation: true);
         StrategicWorldRuntime.EnsureInitialized();
         _siteHudSiteId = ResolveRequestSiteId(request);
@@ -73,6 +75,21 @@ public partial class WorldSiteRoot
         }
 
         StrategicWorldRuntime.EnsureInitialized();
+        if (_siteHudTopBar != null)
+        {
+            _siteHudTopBar.Visible = true;
+        }
+
+        if (_siteBottomCommandHost != null)
+        {
+            _siteBottomCommandHost.Visible = false;
+        }
+
+        if (_battleRuntimeCommandBar != null)
+        {
+            _battleRuntimeCommandBar.Visible = false;
+        }
+
         WorldSiteState site = ResolveSiteState(_siteHudSiteId);
         WorldSiteDefinition definition = ResolveSiteDefinition(_siteHudSiteId);
         EnsureSitePlacementsRespectTerrain(site, definition);

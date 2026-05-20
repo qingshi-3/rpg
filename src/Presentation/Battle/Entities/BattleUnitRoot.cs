@@ -16,6 +16,7 @@ using Rpg.Presentation.Common;
 namespace Rpg.Presentation.Battle.Entities;
 
 public delegate bool TryResolveCellGlobalPosition(GridPosition position, out Vector2 globalPosition);
+public delegate bool TryResolveFootprintGlobalPosition(GridPosition anchor, Vector2I footprintSize, out Vector2 globalPosition);
 public delegate void ApplyEntityRenderSort(BattleEntity entity, GridSurfacePosition surfacePosition);
 
 public partial class BattleUnitRoot : Node2D
@@ -45,10 +46,12 @@ public partial class BattleUnitRoot : Node2D
     private readonly Dictionary<BattleEntity, BattleIntentMarker> _intentMarkers = new();
     private readonly Dictionary<BattleEntity, BattleActionCue> _actionCues = new();
     private readonly HashSet<BattleEntity> _hitOutlinedEntities = new();
+    private readonly HashSet<BattleEntity> _commandSelectedEntities = new();
     private readonly HashSet<BattleEntity> _defeatedEntities = new();
     private readonly HashSet<BattleEntity> _pendingDefeatedPresentations = new();
     private readonly List<TaskCompletionSource<bool>> _defeatedPresentationWaiters = new();
     private TryResolveCellGlobalPosition _tryResolveCellGlobalPosition;
+    private TryResolveFootprintGlobalPosition _tryResolveFootprintGlobalPosition;
     private ApplyEntityRenderSort _applyEntityRenderSort;
 
     public bool HasActiveMovementTweens => _movementTweens.Count > 0;
@@ -65,6 +68,7 @@ public partial class BattleUnitRoot : Node2D
         // Movement tweens own frame callbacks that close over BattleEntity; stop them before entities are freed.
         KillAllMovementTweens();
         ClearAllActionCues();
+        ClearCommandSelection();
         SetHitOutlines(_hitOutlinedEntities.ToArray(), visible: false);
         _pendingDefeatedPresentations.Clear();
         CompleteDefeatedPresentationWaiters();
@@ -72,11 +76,13 @@ public partial class BattleUnitRoot : Node2D
 
     public void Initialize(
         TryResolveCellGlobalPosition tryResolveCellGlobalPosition,
+        TryResolveFootprintGlobalPosition tryResolveFootprintGlobalPosition,
         ApplyEntityRenderSort applyEntityRenderSort = null)
     {
         _tryResolveCellGlobalPosition = tryResolveCellGlobalPosition;
+        _tryResolveFootprintGlobalPosition = tryResolveFootprintGlobalPosition;
         _applyEntityRenderSort = applyEntityRenderSort;
-        GameLog.Info(nameof(BattleUnitRoot), $"Initialized path={GetPath()} hasCellResolver={_tryResolveCellGlobalPosition != null} hasRenderSort={_applyEntityRenderSort != null}");
+        GameLog.Info(nameof(BattleUnitRoot), $"Initialized path={GetPath()} hasCellResolver={_tryResolveCellGlobalPosition != null} hasFootprintResolver={_tryResolveFootprintGlobalPosition != null} hasRenderSort={_applyEntityRenderSort != null}");
     }
 
     public IReadOnlyList<BattleEntity> GetEntitiesSnapshot()
@@ -151,7 +157,8 @@ public partial class BattleUnitRoot : Node2D
         BattleEntity entity,
         IReadOnlyList<GridSurfacePosition> path,
         bool restartMoveAnimation = true,
-        bool returnToIdleOnComplete = true)
+        bool returnToIdleOnComplete = true,
+        double stepDurationSeconds = -1)
     {
         GridOccupantComponent gridOccupant = entity?.GetComponent<GridOccupantComponent>();
         if (gridOccupant == null)
@@ -166,20 +173,26 @@ public partial class BattleUnitRoot : Node2D
         Vector2 previousGlobal = entity.GlobalPosition;
         gridOccupant.SetSurfacePosition(targetPosition);
         ApplyRenderSort(entity, previousPosition);
-        if (TryBuildMovementGlobalPath(path, previousGlobal, previousPosition, out Vector2[] globalPath, out GridSurfacePosition[] surfacePath))
+        if (TryBuildMovementGlobalPath(
+                path,
+                gridOccupant,
+                previousGlobal,
+                previousPosition,
+                out Vector2[] globalPath,
+                out GridSurfacePosition[] surfacePath))
         {
             UnitAnimationComponent animation = entity.GetComponent<UnitAnimationComponent>();
             FaceAlongSegment(animation, globalPath[0], globalPath[1]);
             animation?.PlayMove(restartMoveAnimation);
             entity.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Move);
-            AnimateEntityMove(entity, globalPath, surfacePath, returnToIdleOnComplete);
+            AnimateEntityMove(entity, globalPath, surfacePath, returnToIdleOnComplete, stepDurationSeconds);
             GameLog.Info(
                 nameof(BattleUnitRoot),
-                $"Entity visual move id={entity.EntityId} fromCell={previousPosition} toCell={targetPosition} steps={System.Math.Max(0, globalPath.Length - 1)} fromGlobal={previousGlobal} toGlobal={globalPath[^1]} stepDuration={UnitMoveDuration:0.00}");
+                $"Entity visual move id={entity.EntityId} fromCell={previousPosition} toCell={targetPosition} footprint={gridOccupant.FootprintWidth}x{gridOccupant.FootprintHeight} steps={System.Math.Max(0, globalPath.Length - 1)} fromGlobal={previousGlobal} toGlobal={globalPath[^1]} stepDuration={ResolveMoveStepDurationSeconds(stepDurationSeconds):0.00}");
             return;
         }
 
-        if (_tryResolveCellGlobalPosition?.Invoke(targetPosition.Position, out Vector2 fallbackGlobal) == true)
+        if (TryResolveMovementGlobalPosition(gridOccupant, targetPosition, out Vector2 fallbackGlobal))
         {
             entity.GetComponent<UnitAnimationComponent>()?.FaceToward(fallbackGlobal);
             entity.GlobalPosition = fallbackGlobal;
@@ -440,6 +453,45 @@ public partial class BattleUnitRoot : Node2D
         GameLog.Info(nameof(BattleUnitRoot), $"Active unit animations set to idle count={count}");
     }
 
+    public int SetCommandSelectionByEntityIds(ISet<string> entityIds)
+    {
+        HashSet<string> selectedIds = entityIds == null
+            ? new HashSet<string>(System.StringComparer.Ordinal)
+            : new HashSet<string>(entityIds.Where(id => !string.IsNullOrWhiteSpace(id)), System.StringComparer.Ordinal);
+        BattleEntity[] nextSelection = GetEntitiesSnapshot()
+            .Where(entity =>
+                entity != null &&
+                GodotObject.IsInstanceValid(entity) &&
+                selectedIds.Contains(entity.EntityId ?? ""))
+            .ToArray();
+        SetCommandSelection(nextSelection);
+        return nextSelection.Length;
+    }
+
+    public void ClearCommandSelection()
+    {
+        SetCommandSelection(System.Array.Empty<BattleEntity>());
+    }
+
+    private void SetCommandSelection(IReadOnlyList<BattleEntity> nextSelection)
+    {
+        HashSet<BattleEntity> next = (nextSelection ?? System.Array.Empty<BattleEntity>())
+            .Where(entity => entity != null && GodotObject.IsInstanceValid(entity))
+            .ToHashSet();
+
+        foreach (BattleEntity entity in _commandSelectedEntities.Where(entity => !next.Contains(entity)).ToArray())
+        {
+            entity.GetComponent<BattleUnitPresentationComponent>()?.SetSelected(false);
+            _commandSelectedEntities.Remove(entity);
+        }
+
+        foreach (BattleEntity entity in next)
+        {
+            entity.GetComponent<BattleUnitPresentationComponent>()?.SetSelected(true);
+            _commandSelectedEntities.Add(entity);
+        }
+    }
+
     public Task WaitForDefeatedPresentationsAsync()
     {
         if (!HasPendingDefeatedPresentations)
@@ -525,6 +577,7 @@ public partial class BattleUnitRoot : Node2D
 
     private bool TryBuildMovementGlobalPath(
         IReadOnlyList<GridSurfacePosition> path,
+        GridOccupantComponent gridOccupant,
         Vector2 currentGlobal,
         GridSurfacePosition currentSurfacePosition,
         out Vector2[] globalPath,
@@ -542,7 +595,7 @@ public partial class BattleUnitRoot : Node2D
 
         for (int index = 1; index < path.Count; index++)
         {
-            if (_tryResolveCellGlobalPosition?.Invoke(path[index].Position, out Vector2 globalPosition) != true)
+            if (!TryResolveMovementGlobalPosition(gridOccupant, path[index], out Vector2 globalPosition))
             {
                 globalPath = points.ToArray();
                 surfacePath = surfaces.ToArray();
@@ -561,11 +614,34 @@ public partial class BattleUnitRoot : Node2D
         return globalPath.Length > 1;
     }
 
+    private bool TryResolveMovementGlobalPosition(
+        GridOccupantComponent gridOccupant,
+        GridSurfacePosition surfacePosition,
+        out Vector2 globalPosition)
+    {
+        globalPosition = default;
+        if (gridOccupant == null)
+        {
+            return false;
+        }
+
+        if (_tryResolveFootprintGlobalPosition?.Invoke(
+                surfacePosition.Position,
+                new Vector2I(gridOccupant.FootprintWidth, gridOccupant.FootprintHeight),
+                out globalPosition) == true)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private void AnimateEntityMove(
         BattleEntity entity,
         IReadOnlyList<Vector2> globalPath,
         IReadOnlyList<GridSurfacePosition> surfacePath,
-        bool returnToIdleOnComplete)
+        bool returnToIdleOnComplete,
+        double stepDurationSeconds)
     {
         if (_movementTweens.Remove(entity, out Tween previousTween))
         {
@@ -577,7 +653,8 @@ public partial class BattleUnitRoot : Node2D
             return;
         }
 
-        if (!IsInsideTree() || UnitMoveDuration <= 0)
+        double resolvedStepDurationSeconds = ResolveMoveStepDurationSeconds(stepDurationSeconds);
+        if (!IsInsideTree() || resolvedStepDurationSeconds <= 0)
         {
             entity.GlobalPosition = globalPath[^1];
             if (surfacePath?.Count > 0)
@@ -594,7 +671,7 @@ public partial class BattleUnitRoot : Node2D
 
         int lastSegmentIndex = -1;
         int stepCount = System.Math.Max(1, globalPath.Count - 1);
-        double totalDuration = UnitMoveDuration * stepCount;
+        double totalDuration = resolvedStepDurationSeconds * stepCount;
         tween.TweenMethod(Callable.From<float>(progress =>
         {
             if (!IsInsideTree() || !IsEntityAlive(entity))
@@ -649,6 +726,11 @@ public partial class BattleUnitRoot : Node2D
         }
 
         _movementTweens.Clear();
+    }
+
+    private double ResolveMoveStepDurationSeconds(double stepDurationSeconds)
+    {
+        return stepDurationSeconds > 0 ? stepDurationSeconds : UnitMoveDuration;
     }
 
     private void KillTrackedMovementTween(BattleEntity entity)

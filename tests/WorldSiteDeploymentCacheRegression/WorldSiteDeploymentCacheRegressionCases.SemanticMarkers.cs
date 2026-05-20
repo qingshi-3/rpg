@@ -112,18 +112,34 @@ internal static void SemanticMapMarkerEditorPreviewDrawsOnlyOuterBorder()
         "semantic marker preview should not draw per-cell borders because that creates internal grid lines");
 }
 
-internal static void BonefieldBuildingSlotsAreAuthoredAsSemanticMarkers()
+internal static void WorldSiteRootUsesDemoSiteAsBattleMap()
 {
-    string scene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "world", "sites", "impl", "BonefieldSite.tscn"));
+    string worldSiteRootScene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "world", "sites", "WorldSiteRoot.tscn"));
+    string demoScene = ReadDemoSiteScene();
+    string rootNode = ExtractSceneNodeBlock(demoScene, "[node name=\"DemoSite\" type=\"Node2D\"]");
+
+    AssertTrue(
+        worldSiteRootScene.Contains("path=\"res://scenes/world/sites/impl/demo_site.tscn\"", StringComparison.Ordinal) &&
+        worldSiteRootScene.Contains("SiteMapScene = ExtResource", StringComparison.Ordinal),
+        "WorldSiteRoot should load the demo site as the battle map for the V0 combat validation slice.");
+    AssertTrue(
+        demoScene.Contains("BattleMapView.cs", StringComparison.Ordinal) &&
+        rootNode.Contains("script = ExtResource", StringComparison.Ordinal),
+        "demo site should be a BattleMapView-backed map so combat can build grid runtime data.");
+}
+
+internal static void DemoSiteBuildingSlotsAreAuthoredAsSemanticMarkers()
+{
+    string scene = ReadDemoSiteScene();
     string markerSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "Maps", "BuildingSlotMapMarker.cs"));
-    string mineSlotNode = ExtractSceneNodeBlock(scene, "[node name=\"mine_slot_01\" parent=\"SemanticMarkers\" instance=ExtResource(\"13_building_marker\")");
-    string towerSlotNode = ExtractSceneNodeBlock(scene, "[node name=\"tower_slot_01\" parent=\"SemanticMarkers\" instance=ExtResource(\"13_building_marker\")");
+    string mineSlotNode = ExtractSceneNodeBlock(scene, "[node name=\"mine_slot_01\" parent=\"SemanticMarkers\"");
+    string towerSlotNode = ExtractSceneNodeBlock(scene, "[node name=\"tower_slot_01\" parent=\"SemanticMarkers\"");
     bool markerSourceUsesBuildingSlotDefault =
         markerSource.Contains("ResolvedMarkerType => SemanticMapMarkerType.BuildingSlot;", StringComparison.Ordinal);
 
-    AssertTrue(scene.Contains("[node name=\"SemanticMarkers\" type=\"Node2D\" parent=\".\"]", StringComparison.Ordinal), "bonefield should have SemanticMarkers root");
-    AssertTrue(scene.Contains("parent=\"SemanticMarkers\" instance=ExtResource", StringComparison.Ordinal), "bonefield should place marker child scene instances under SemanticMarkers");
-    AssertTrue(scene.Contains("BuildingSlotMapMarker.tscn", StringComparison.Ordinal), "bonefield building slots should instance the building slot marker child scene");
+    AssertTrue(scene.Contains("[node name=\"SemanticMarkers\" type=\"Node2D\" parent=\".\"]", StringComparison.Ordinal), "demo site should have SemanticMarkers root");
+    AssertTrue(scene.Contains("parent=\"SemanticMarkers\" instance=ExtResource", StringComparison.Ordinal), "demo site should place marker child scene instances under SemanticMarkers");
+    AssertTrue(scene.Contains("BuildingSlotMapMarker.tscn", StringComparison.Ordinal), "demo site building slots should instance the building slot marker child scene");
     AssertTrue(
         mineSlotNode.Contains("MarkerType = 0", StringComparison.Ordinal) ||
         (!mineSlotNode.Contains("MarkerType =", StringComparison.Ordinal) && markerSourceUsesBuildingSlotDefault),
@@ -138,11 +154,11 @@ internal static void BonefieldBuildingSlotsAreAuthoredAsSemanticMarkers()
     AssertTrue(scene.Contains("Width = 2", StringComparison.Ordinal) && scene.Contains("Height = 2", StringComparison.Ordinal), "tower slot footprint should be visible as 2x2");
 }
 
-internal static void BonefieldDeploymentZonesAreAuthoredAsSemanticMarkers()
+internal static void DemoSiteDeploymentZonesAreAuthoredAsSemanticMarkers()
 {
-    string scene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "world", "sites", "impl", "BonefieldSite.tscn"));
-    string playerNode = ExtractSceneNodeBlock(scene, "[node name=\"player_deployment_zone_west\" parent=\"SemanticMarkers\" instance=ExtResource(\"14_deployment_marker\")");
-    string enemyNode = ExtractSceneNodeBlock(scene, "[node name=\"undead_deployment_zone_east\" parent=\"SemanticMarkers\" instance=ExtResource(\"14_deployment_marker\")");
+    string scene = ReadDemoSiteScene();
+    string playerNode = ExtractSceneNodeBlock(scene, "[node name=\"player_deployment_zone_west\" parent=\"SemanticMarkers\"");
+    string enemyNode = ExtractSceneNodeBlock(scene, "[node name=\"undead_deployment_zone_east\" parent=\"SemanticMarkers\"");
 
     AssertTrue(scene.Contains("MarkerId = \"player_deployment_zone_west\"", StringComparison.Ordinal), "player deployment zone marker should be authored");
     AssertTrue(scene.Contains("MarkerId = \"undead_deployment_zone_east\"", StringComparison.Ordinal), "enemy deployment zone marker should be authored");
@@ -246,5 +262,10 @@ private static string ExtractSceneNodeBlock(string scene, string nodeHeader)
 
     int next = scene.IndexOf("\n[node ", start + nodeHeader.Length, StringComparison.Ordinal);
     return next < 0 ? scene[start..] : scene[start..next];
+}
+
+private static string ReadDemoSiteScene()
+{
+    return File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "world", "sites", "impl", "demo_site.tscn"));
 }
 }

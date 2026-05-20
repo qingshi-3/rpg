@@ -9,10 +9,30 @@ authority document
 + current copy
 + expected copy
 + user acceptance
-+ implementation
-+ final acceptance
 + merge expected copy back to authority
 + archive proposal
++ focused implementation proposal under docs/50-production/technical-changes/
++ implementation
++ implementation acceptance record
+```
+
+Design proposals change accepted documents. They do not authorize code, scene, resource, or data implementation directly.
+
+Implementation proposals live under `docs/50-production/technical-changes/` after the originating design proposal has been merged into authority documents and archived.
+
+## Relationship Metadata
+
+Every default AI-readable proposal entry must expose:
+
+```text
+Requirement Id
+Parent Proposal
+Supersedes
+Superseded By
+Amends
+Amended By
+Affected Authority Documents
+Related Implementation Proposals
 ```
 
 ## Scope
@@ -43,7 +63,6 @@ design-proposals/
       expected/
         gameplay-design/...
         system-design/...
-      implementation-notes.md
       acceptance.md
   archived/
     README.md
@@ -53,7 +72,6 @@ design-proposals/
       proposal.md
       current/
       expected/
-      implementation-notes.md
       acceptance.md
 ```
 
@@ -70,8 +88,6 @@ Every `proposal.md` must use one status:
 ```text
 Draft
 Accepted
-Implementing
-Implemented
 Merged
 Archived
 ```
@@ -81,10 +97,8 @@ Status meanings:
 | Status | Meaning |
 |---|---|
 | Draft | Current and expected design are still being discussed. |
-| Accepted | User approved expected design; implementation may start. |
-| Implementing | Code, resources, or old docs are being changed against expected design. |
-| Implemented | Implementation is done and waiting for final acceptance. |
-| Merged | Expected copies have replaced authority documents. |
+| Accepted | User approved expected design; authority merge may proceed. |
+| Merged | Expected copies have replaced authority documents; proposal may be archived. |
 | Archived | Proposal was moved to `archived/` and is no longer an active reference. |
 
 ## Fixed Flow
@@ -95,15 +109,17 @@ Status meanings:
 4. Present expected design or architecture to the user.
 5. Wait for user acceptance.
 6. Create an active proposal with `current/` and `expected/` copies.
-7. Implement against `expected/`, not against unstated conversation memory.
-8. If expected design changes during implementation, pause and request acceptance again.
-9. After implementation acceptance, merge `expected/` into authority documents.
-10. Move the proposal to `archived/` and update `archived/README.md`.
+7. Merge the accepted `expected/` copies into authority documents.
+8. Move the proposal to `archived/` and update `archived/README.md`.
+9. Start implementation work only through a focused proposal under `docs/50-production/technical-changes/`.
+
+If implementation later proves the accepted design wrong, create a new amendment or supersession proposal. Do not edit archived proposal bodies. Update only index or relationship metadata needed for future agents to follow the chain.
 
 ## Hard Rules
 
 - Do not replace authority documents with unaccepted expected copies.
 - Do not directly edit authority design or architecture documents for proposal-scoped changes.
+- Do not use active design proposals as implementation authority.
 - Do not treat archived proposal bodies as active design input.
 - Do not use archived proposal bodies for context unless the user explicitly requests a specific archive read.
 - Active proposals are valid working references. Archived summaries are valid orientation references.

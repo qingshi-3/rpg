@@ -26,18 +26,13 @@ public sealed class BattleGroupSessionProbeService
 	// launch data can enter the target architecture without touching legacy handoff.
 	public BattleGroupSessionProbeResult Probe(BattleStartRequest request)
 	{
-		if (request == null)
+		BattleGroupSessionProbeResult prepared = PrepareSnapshot(request);
+		if (!prepared.Success)
 		{
-			return Reject("missing_battle_request", null, null);
+			return prepared;
 		}
 
-		ProbeSeed seed = BuildSeed(request);
-		BattleStartSnapshot snapshot = _snapshotAdapter.ToSnapshot(
-			request,
-			seed.Groups,
-			seed.Heroes,
-			seed.Corps);
-		ApplyProbeMetadata(snapshot, seed);
+		BattleStartSnapshot snapshot = prepared.Snapshot;
 		BattleGroupBattleFlowResult flowResult = _flowService.RunSnapshot(snapshot);
 		if (!flowResult.SettlementPlan.Accepted)
 		{
@@ -58,6 +53,27 @@ public sealed class BattleGroupSessionProbeService
 			Success = true,
 			Snapshot = snapshot,
 			FlowResult = flowResult
+		};
+	}
+
+	public BattleGroupSessionProbeResult PrepareSnapshot(BattleStartRequest request)
+	{
+		if (request == null)
+		{
+			return Reject("missing_battle_request", null, null);
+		}
+
+		ProbeSeed seed = BuildSeed(request);
+		BattleStartSnapshot snapshot = _snapshotAdapter.ToSnapshot(
+			request,
+			seed.Groups,
+			seed.Heroes,
+			seed.Corps);
+		ApplyProbeMetadata(snapshot, seed);
+		return new BattleGroupSessionProbeResult
+		{
+			Success = true,
+			Snapshot = snapshot
 		};
 	}
 
@@ -82,8 +98,8 @@ public sealed class BattleGroupSessionProbeService
 			? request.SourceSiteId
 			: request.TargetSiteId ?? "";
 		int groupIndex = 0;
-		AddForces(seed, request.PlayerForces, "player", sourceLocationId, ref groupIndex);
-		AddForces(seed, request.EnemyForces, "enemy", request.TargetSiteId ?? sourceLocationId, ref groupIndex);
+		AddForces(seed, request.PlayerForces, "player", sourceLocationId, request.InitialCorpsCommandId, ref groupIndex);
+		AddForces(seed, request.EnemyForces, "enemy", request.TargetSiteId ?? sourceLocationId, "", ref groupIndex);
 
 		return seed;
 	}
@@ -93,6 +109,7 @@ public sealed class BattleGroupSessionProbeService
 		IEnumerable<BattleForceRequest> forces,
 		string fallbackFactionId,
 		string sourceLocationId,
+		string initialCorpsCommandId,
 		ref int groupIndex)
 	{
 		foreach (BattleForceRequest force in forces ?? Enumerable.Empty<BattleForceRequest>())
@@ -148,7 +165,14 @@ public sealed class BattleGroupSessionProbeService
 					CellHeight = placement?.CellHeight ?? 0,
 					FootprintWidth = force.FootprintWidth,
 					FootprintHeight = force.FootprintHeight,
-					AttackSpeed = force.AttackSpeed
+					MaxHitPoints = force.MaxHitPoints,
+					AttackDamage = force.AttackDamage,
+					AttackRange = force.AttackRange,
+					AttackSpeed = force.AttackSpeed,
+					MoveStepSeconds = force.MoveStepSeconds,
+					AttackActionSeconds = force.AttackActionSeconds,
+					AttackImpactDelaySeconds = force.AttackImpactDelaySeconds,
+					InitialCorpsCommandId = initialCorpsCommandId ?? ""
 				};
 				seed.Heroes[hero.HeroId] = hero;
 				seed.Corps[corps.CorpsId] = corps;
@@ -181,7 +205,14 @@ public sealed class BattleGroupSessionProbeService
 			group.CellHeight = metadata.CellHeight;
 			group.FootprintWidth = metadata.FootprintWidth;
 			group.FootprintHeight = metadata.FootprintHeight;
+			group.MaxHitPoints = metadata.MaxHitPoints;
+			group.AttackDamage = metadata.AttackDamage;
+			group.AttackRange = metadata.AttackRange;
 			group.AttackSpeed = metadata.AttackSpeed;
+			group.MoveStepSeconds = metadata.MoveStepSeconds;
+			group.AttackActionSeconds = metadata.AttackActionSeconds;
+			group.AttackImpactDelaySeconds = metadata.AttackImpactDelaySeconds;
+			group.InitialCorpsCommandId = metadata.InitialCorpsCommandId;
 		}
 	}
 
@@ -207,6 +238,13 @@ public sealed class BattleGroupSessionProbeService
 		public int CellHeight { get; init; }
 		public int FootprintWidth { get; init; } = 1;
 		public int FootprintHeight { get; init; } = 1;
+		public int MaxHitPoints { get; init; }
+		public int AttackDamage { get; init; }
+		public int AttackRange { get; init; } = 1;
 		public double AttackSpeed { get; init; } = 1.0;
+		public double MoveStepSeconds { get; init; } = BattleActionTimingPolicy.DefaultMoveStepSeconds;
+		public double AttackActionSeconds { get; init; }
+		public double AttackImpactDelaySeconds { get; init; }
+		public string InitialCorpsCommandId { get; init; } = "";
 	}
 }

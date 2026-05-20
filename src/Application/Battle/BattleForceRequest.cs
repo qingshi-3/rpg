@@ -11,7 +11,13 @@ public sealed class BattleForceRequest
     public int Count { get; set; }
     public int FootprintWidth { get; set; } = 1;
     public int FootprintHeight { get; set; } = 1;
+    public int MaxHitPoints { get; set; }
+    public int AttackDamage { get; set; }
+    public int AttackRange { get; set; } = 1;
     public double AttackSpeed { get; set; } = 1.0;
+    public double MoveStepSeconds { get; set; } = BattleActionTimingPolicy.DefaultMoveStepSeconds;
+    public double AttackActionSeconds { get; set; }
+    public double AttackImpactDelaySeconds { get; set; }
     public string FactionId { get; set; } = "";
     public string PreferredEntranceId { get; set; } = "";
     public List<BattleForcePlacementRequest> PreferredPlacements { get; set; } = new();

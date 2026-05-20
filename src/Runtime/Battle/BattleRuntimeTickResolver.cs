@@ -1,0 +1,920 @@
+using System.Collections.Generic;
+using System.Linq;
+using Rpg.Application.Battle;
+using Rpg.Infrastructure.Logging;
+using Rpg.Runtime.Battle.AI;
+using Rpg.Runtime.Battle.Events;
+using Rpg.Runtime.Battle.Navigation;
+
+namespace Rpg.Runtime.Battle;
+
+internal sealed class BattleRuntimeTickResolver
+{
+    private const double MaxAttackCharge = 1.0;
+    private const string CommandAssault = "Assault";
+    private const string CommandFocusFire = "FocusFire";
+    private const string CommandHoldLine = "HoldLine";
+    private readonly IBattleRuntimeAiExecutor _aiExecutor;
+
+    internal BattleRuntimeTickResolver(IBattleRuntimeAiExecutor aiExecutor)
+    {
+        _aiExecutor = aiExecutor ?? new DefaultBattleRuntimeAiExecutor();
+    }
+
+    private readonly record struct TickStartActorFact(
+        BattleRuntimeActor Actor,
+        BattleGridCoord Anchor,
+        int HitPoints,
+        double AttackCharge,
+        string TargetActorId,
+        string CommandId);
+
+    private sealed class TickContext
+    {
+        public BattleRuntimeActionProposal Proposal { get; init; }
+        public BattleRuntimeAiActionRequest Request { get; init; }
+        public TickStartActorFact ActorFact { get; init; }
+        public TickStartActorFact? TargetFact { get; init; }
+        public BattleRuntimeAiActionResult Result { get; set; }
+    }
+
+    private sealed class MoveCandidate
+    {
+        public TickContext Context { get; init; }
+        public BattleGridCoord From { get; init; }
+        public BattleGridCoord To { get; init; }
+        public HashSet<BattleGridCoord> CoveredCells { get; init; } = new();
+    }
+
+    private readonly record struct PendingAttack(TickContext Context, int DeclaredDamage);
+    private readonly record struct AttackApplication(TickContext Context, int AppliedDamage, bool IsFinishingHit);
+
+    internal void ResolveTick(
+        BattleRuntimeState state,
+        BattleEventStream stream,
+        string battleId,
+        int tick,
+        double currentTimeSeconds,
+        BattleNavigationGraph navigationGraph,
+        HashSet<string> navigationFailureDiagnostics)
+    {
+        if (state?.Actors == null || stream == null || navigationGraph == null)
+        {
+            return;
+        }
+
+        foreach (BattleRuntimeActor actor in state.Actors.Where(item => item.Kind == BattleRuntimeActorKind.Corps))
+        {
+            BattleRuntimeActorStateMachine.AdvanceTimeBoundary(actor, currentTimeSeconds);
+        }
+
+        BattleRuntimeActor[] livingCorps = state.Actors
+            .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
+            .OrderBy(item => item.ActorId, System.StringComparer.Ordinal)
+            .ToArray();
+        if (livingCorps.Length == 0)
+        {
+            return;
+        }
+
+        Dictionary<string, TickStartActorFact> tickStartFacts = livingCorps.ToDictionary(
+            item => item.ActorId,
+            item => new TickStartActorFact(
+                item,
+                new BattleGridCoord(item.GridX, item.GridY, item.GridHeight),
+                item.HitPoints,
+                item.AttackCharge,
+                item.TargetActorId ?? "",
+                item.CommandId ?? ""),
+            System.StringComparer.Ordinal);
+
+        BattleDynamicOccupancy occupancy = BattleDynamicOccupancy.FromActors(livingCorps);
+        BattleFlowFieldCache flowFields = new();
+        BattleRuntimeActor[] decisionReadyCorps = livingCorps
+            .Where(item => item.Phase == BattleRuntimeActorPhase.AnchoredDecision)
+            .ToArray();
+        if (decisionReadyCorps.Length == 0)
+        {
+            return;
+        }
+
+        List<TickContext> contexts = decisionReadyCorps
+            .Select(item => BuildTickContext(
+                item,
+                tickStartFacts,
+                navigationGraph,
+                occupancy,
+                flowFields,
+                battleId,
+                tick,
+                navigationFailureDiagnostics))
+            .ToList();
+
+        foreach (TickContext context in contexts)
+        {
+            if (context.Request.Kind == BattleRuntimeAiActionKind.Hold)
+            {
+                context.ActorFact.Actor.TargetActorId = "";
+                ResetAdvanceFailureState(context.ActorFact.Actor);
+                BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
+                context.Result = BattleRuntimeAiActionResult.Succeeded(context.Request, "held");
+                continue;
+            }
+
+            if (context.TargetFact == null)
+            {
+                context.ActorFact.Actor.TargetActorId = "";
+                ResetAdvanceFailureState(context.ActorFact.Actor);
+                BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "invalid_target");
+                continue;
+            }
+
+            bool targetChanged = !string.Equals(
+                context.ActorFact.Actor.TargetActorId,
+                context.TargetFact.Value.Actor.ActorId,
+                System.StringComparison.Ordinal);
+            context.ActorFact.Actor.TargetActorId = context.TargetFact.Value.Actor.ActorId;
+            if (targetChanged)
+            {
+                ResetAdvanceFailureState(context.ActorFact.Actor);
+            }
+
+            if (!string.IsNullOrWhiteSpace(context.Proposal.FailureReason))
+            {
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, context.Proposal.FailureReason);
+                BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
+                if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget)
+                {
+                    RecordAdvanceFailure(context.ActorFact.Actor, context.Proposal.FailureReason);
+                }
+
+                continue;
+            }
+
+            if (context.Request.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge)
+            {
+                ResetAdvanceFailureState(context.ActorFact.Actor);
+                BattleRuntimeActorStateMachine.MarkWaitingForCharge(context.ActorFact.Actor, currentTimeSeconds);
+                context.Result = BattleRuntimeAiActionResult.Succeeded(context.Request, "attack_charge_wait");
+            }
+            else if (context.Request.Kind != BattleRuntimeAiActionKind.AttackTarget &&
+                     context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget)
+            {
+                BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "unsupported_action");
+            }
+        }
+
+        ResolveAttackProposals(contexts, tickStartFacts, stream, battleId, tick, currentTimeSeconds);
+        ResolveMovementProposals(
+            contexts,
+            tickStartFacts,
+            occupancy,
+            stream,
+            battleId,
+            tick,
+            currentTimeSeconds,
+            navigationGraph,
+            navigationFailureDiagnostics);
+
+        foreach (TickContext context in contexts.OrderBy(item => item.ActorFact.Actor.ActorId, System.StringComparer.Ordinal))
+        {
+            if (context.Result == null)
+            {
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "unresolved_action");
+            }
+
+            LogRuntimeActionResult(
+                battleId,
+                tick,
+                currentTimeSeconds,
+                context.ActorFact.Actor,
+                context.TargetFact?.Actor,
+                context.Request,
+                context.Result);
+        }
+    }
+
+    private TickContext BuildTickContext(
+        BattleRuntimeActor actor,
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        BattleNavigationGraph navigationGraph,
+        BattleDynamicOccupancy occupancy,
+        BattleFlowFieldCache flowFields,
+        string battleId,
+        int tick,
+        HashSet<string> navigationFailureDiagnostics)
+    {
+        TickStartActorFact actorFact = facts[actor.ActorId];
+        TickStartActorFact? preferredTarget = FindEnemyCorpsForCommand(facts, actorFact);
+        BattleRuntimeAiActionRequest request = BuildCommandScopedAiActionRequest(actorFact, preferredTarget);
+        TickStartActorFact? requestedTarget = ResolveRequestedTarget(facts, actorFact, preferredTarget, request);
+
+        if (!string.Equals(request.ActorId, actor.ActorId, System.StringComparison.Ordinal))
+        {
+            return CreateContext(
+                request,
+                actorFact,
+                requestedTarget,
+                hasMoveTo: false,
+                moveTo: default,
+                failureReason: "invalid_actor");
+        }
+
+        if (request.Kind == BattleRuntimeAiActionKind.Hold)
+        {
+            return CreateContext(request, actorFact, requestedTarget, false, default, request.FailureReason);
+        }
+
+        if (requestedTarget == null)
+        {
+            return CreateContext(
+                request,
+                actorFact,
+                requestedTarget,
+                hasMoveTo: false,
+                moveTo: default,
+                failureReason: "invalid_target");
+        }
+
+        if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget)
+        {
+            int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
+            int gap = BattleActorFootprint.GetGap(actorFact.Actor, actorFact.Anchor, requestedTarget.Value.Actor, requestedTarget.Value.Anchor);
+            if (gap <= attackRange)
+            {
+                return CreateContext(
+                    request,
+                    actorFact,
+                    requestedTarget,
+                    hasMoveTo: false,
+                    moveTo: default,
+                    failureReason: "target_already_in_range");
+            }
+
+            BattleRuntimeActor tickStartActor = BuildTickStartProjection(actorFact);
+            BattleRuntimeActor tickStartTarget = BuildTickStartProjection(requestedTarget.Value);
+            bool preferSupport = IsTargetEngagedBySameFactionActor(facts, actorFact, requestedTarget.Value);
+            // Support preference prevents distant helpers from taking a far flank
+            // away from an engaged target. Once a helper is beside attack range,
+            // the next decision must still close into a legal 8-direction attack.
+            bool preferSupportSlots = preferSupport && gap > attackRange + 1;
+            bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && gap == attackRange + 1;
+            if (!BattleCrowdMovementPlanner.TryFindNextStepTowardTarget(
+                    tickStartActor,
+                    tickStartTarget,
+                    navigationGraph,
+                    occupancy,
+                    new BattleMovementReservationMap(),
+                    flowFields,
+                    preferSupportSlots,
+                    avoidOpeningNewAxisGapNearEngagedTarget,
+                    out BattleGridCoord next))
+            {
+                LogAdvanceFailureDiagnostic(
+                    battleId,
+                    tick,
+                    actorFact,
+                    requestedTarget.Value,
+                    navigationGraph,
+                    "path_not_found",
+                    default,
+                    navigationFailureDiagnostics);
+                return CreateContext(
+                    request,
+                    actorFact,
+                    requestedTarget,
+                    hasMoveTo: false,
+                    moveTo: default,
+                    failureReason: "path_not_found");
+            }
+
+            return CreateContext(
+                request,
+                actorFact,
+                requestedTarget,
+                hasMoveTo: true,
+                moveTo: next,
+                failureReason: "");
+        }
+
+        if (request.Kind == BattleRuntimeAiActionKind.AttackTarget ||
+            request.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge)
+        {
+            return CreateContext(request, actorFact, requestedTarget, false, default, "");
+        }
+
+        return CreateContext(
+            request,
+            actorFact,
+            requestedTarget,
+            hasMoveTo: false,
+            moveTo: default,
+            failureReason: "unsupported_action");
+    }
+
+    private static TickContext CreateContext(
+        BattleRuntimeAiActionRequest request,
+        TickStartActorFact actorFact,
+        TickStartActorFact? targetFact,
+        bool hasMoveTo,
+        BattleGridCoord moveTo,
+        string failureReason)
+    {
+        return new TickContext
+        {
+            Request = request,
+            ActorFact = actorFact,
+            TargetFact = targetFact,
+            Proposal = new BattleRuntimeActionProposal
+            {
+                Request = request,
+                Actor = actorFact.Actor,
+                Target = targetFact?.Actor,
+                ActorStart = actorFact.Anchor,
+                TargetStart = targetFact?.Anchor ?? default,
+                HasMoveTo = hasMoveTo,
+                MoveTo = moveTo,
+                FailureReason = failureReason ?? ""
+            }
+        };
+    }
+
+    private static BattleRuntimeActor BuildTickStartProjection(TickStartActorFact fact)
+    {
+        return new BattleRuntimeActor
+        {
+            ActorId = fact.Actor.ActorId,
+            FactionId = fact.Actor.FactionId,
+            Kind = fact.Actor.Kind,
+            FootprintWidth = fact.Actor.FootprintWidth,
+            FootprintHeight = fact.Actor.FootprintHeight,
+            GridX = fact.Anchor.X,
+            GridY = fact.Anchor.Y,
+            GridHeight = fact.Anchor.Height,
+            AttackRange = fact.Actor.AttackRange,
+            AttackDamage = fact.Actor.AttackDamage,
+            HitPoints = fact.HitPoints
+        };
+    }
+
+    private static TickStartActorFact? ResolveRequestedTarget(
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        TickStartActorFact actorFact,
+        TickStartActorFact? fallbackTarget,
+        BattleRuntimeAiActionRequest request)
+    {
+        if (request == null ||
+            request.Kind == BattleRuntimeAiActionKind.Hold ||
+            request.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge && fallbackTarget == null)
+        {
+            return fallbackTarget;
+        }
+
+        if (string.IsNullOrWhiteSpace(request.TargetActorId))
+        {
+            return fallbackTarget;
+        }
+
+        if (!facts.TryGetValue(request.TargetActorId, out TickStartActorFact requestedTarget) ||
+            requestedTarget.HitPoints <= 0 ||
+            SameFaction(actorFact.Actor, requestedTarget.Actor))
+        {
+            return fallbackTarget;
+        }
+
+        return requestedTarget;
+    }
+
+    private void ResolveAttackProposals(
+        List<TickContext> contexts,
+        IReadOnlyDictionary<string, TickStartActorFact> tickStartFacts,
+        BattleEventStream stream,
+        string battleId,
+        int tick,
+        double currentTimeSeconds)
+    {
+        List<PendingAttack> pendingAttacks = new();
+        foreach (TickContext context in contexts
+                     .Where(item =>
+                         item.Request.Kind == BattleRuntimeAiActionKind.AttackTarget &&
+                         item.Result == null))
+        {
+            if (context.TargetFact == null)
+            {
+                BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "invalid_target");
+                continue;
+            }
+
+            if (BattleActorFootprint.GetGap(
+                    context.ActorFact.Actor,
+                    context.ActorFact.Anchor,
+                    context.TargetFact.Value.Actor,
+                    context.TargetFact.Value.Anchor) > System.Math.Max(1, context.ActorFact.Actor.AttackRange))
+            {
+                BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "target_out_of_range");
+                continue;
+            }
+
+            if (context.ActorFact.AttackCharge < 1.0)
+            {
+                BattleRuntimeActorStateMachine.MarkWaitingForCharge(context.ActorFact.Actor, currentTimeSeconds);
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "attack_charge_empty");
+                continue;
+            }
+
+            pendingAttacks.Add(new PendingAttack(
+                context,
+                ResolveAttackDamage(context.ActorFact.Actor.AttackDamage)));
+        }
+
+        Dictionary<string, int> postAttackHitPoints = tickStartFacts.Values.ToDictionary(
+            item => item.Actor.ActorId,
+            item => System.Math.Max(0, item.HitPoints),
+            System.StringComparer.Ordinal);
+
+        List<AttackApplication> applications = new();
+        foreach (IGrouping<string, PendingAttack> targetGroup in pendingAttacks
+                     .GroupBy(item => item.Context.TargetFact!.Value.Actor.ActorId, System.StringComparer.Ordinal))
+        {
+            int remaining = postAttackHitPoints[targetGroup.Key];
+            foreach (PendingAttack pending in targetGroup.OrderBy(
+                         item => item.Context.ActorFact.Actor.ActorId,
+                         System.StringComparer.Ordinal))
+            {
+                int applied = System.Math.Min(pending.DeclaredDamage, remaining);
+                remaining = System.Math.Max(0, remaining - applied);
+                applications.Add(new AttackApplication(
+                    pending.Context,
+                    applied,
+                    IsFinishingHit: applied > 0 && remaining == 0));
+            }
+
+            postAttackHitPoints[targetGroup.Key] = remaining;
+        }
+
+        foreach (AttackApplication application in applications.OrderBy(
+                     item => item.Context.ActorFact.Actor.ActorId,
+                     System.StringComparer.Ordinal))
+        {
+            stream.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:tick_{tick}:{application.Context.ActorFact.Actor.ActorId}:attack:{application.Context.TargetFact!.Value.Actor.ActorId}",
+                BattleId = battleId,
+                BattleGroupId = application.Context.ActorFact.Actor.BattleGroupId,
+                ActorId = application.Context.ActorFact.Actor.ActorId,
+                TargetId = application.Context.TargetFact.Value.Actor.ActorId,
+                Kind = BattleEventKind.DamageApplied,
+                ReasonCode = application.IsFinishingHit
+                    ? "auto_attack_target_defeated"
+                    : "auto_attack",
+                RuntimeTick = tick,
+                RuntimeTimeSeconds = currentTimeSeconds,
+                ActionDurationSeconds = application.Context.ActorFact.Actor.AttackActionSeconds,
+                ActionImpactDelaySeconds = application.Context.ActorFact.Actor.AttackImpactDelaySeconds,
+                CorpsStrengthDelta = -application.AppliedDamage,
+                HasActorCells = true,
+                ActorGridX = application.Context.ActorFact.Anchor.X,
+                ActorGridY = application.Context.ActorFact.Anchor.Y,
+                ActorGridHeight = application.Context.ActorFact.Anchor.Height,
+                HasTargetCells = true,
+                TargetGridX = application.Context.TargetFact.Value.Anchor.X,
+                TargetGridY = application.Context.TargetFact.Value.Anchor.Y,
+                TargetGridHeight = application.Context.TargetFact.Value.Anchor.Height
+            });
+        }
+
+        foreach (PendingAttack pending in pendingAttacks)
+        {
+            pending.Context.ActorFact.Actor.AttackCharge = System.Math.Max(0, pending.Context.ActorFact.Actor.AttackCharge - 1.0);
+            ResetAdvanceFailureState(pending.Context.ActorFact.Actor);
+            BattleRuntimeActorStateMachine.MarkAttackRecovery(pending.Context.ActorFact.Actor, currentTimeSeconds);
+            pending.Context.Result = BattleRuntimeAiActionResult.Succeeded(pending.Context.Request, "attacked");
+        }
+
+        foreach (KeyValuePair<string, int> pair in postAttackHitPoints)
+        {
+            if (tickStartFacts.TryGetValue(pair.Key, out TickStartActorFact targetFact))
+            {
+                targetFact.Actor.HitPoints = System.Math.Max(0, pair.Value);
+                if (targetFact.Actor.HitPoints <= 0)
+                {
+                    BattleRuntimeActorStateMachine.MarkDefeated(targetFact.Actor);
+                }
+            }
+        }
+    }
+
+    private void ResolveMovementProposals(
+        List<TickContext> contexts,
+        IReadOnlyDictionary<string, TickStartActorFact> tickStartFacts,
+        BattleDynamicOccupancy occupancy,
+        BattleEventStream stream,
+        string battleId,
+        int tick,
+        double currentTimeSeconds,
+        BattleNavigationGraph navigationGraph,
+        HashSet<string> navigationFailureDiagnostics)
+    {
+        List<MoveCandidate> moveCandidates = new();
+        foreach (TickContext context in contexts
+                     .Where(item =>
+                         item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget &&
+                         item.Result == null))
+        {
+            if (context.TargetFact == null)
+            {
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "invalid_target");
+                continue;
+            }
+
+            if (!context.Proposal.HasMoveTo)
+            {
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "advance_failed");
+                RecordAdvanceFailure(context.ActorFact.Actor, context.Proposal.FailureReason);
+                BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
+                continue;
+            }
+
+            if (context.ActorFact.Actor.HitPoints <= 0)
+            {
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "actor_defeated_before_move");
+                continue;
+            }
+
+            if (context.TargetFact.Value.Actor.HitPoints <= 0)
+            {
+                context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "target_defeated_before_move");
+                continue;
+            }
+
+            moveCandidates.Add(new MoveCandidate
+            {
+                Context = context,
+                From = context.ActorFact.Anchor,
+                To = context.Proposal.MoveTo,
+                CoveredCells = BattleActorFootprint.Enumerate(context.ActorFact.Actor, context.Proposal.MoveTo)
+                    .ToHashSet()
+            });
+        }
+
+        BattleMovementReservationMap reservations = new();
+        HashSet<BattleGridCoord> releasedCells = new();
+        foreach (MoveCandidate candidate in moveCandidates
+                     .OrderBy(item => BattleActorFootprint.GetGap(
+                         item.Context.ActorFact.Actor,
+                         item.Context.ActorFact.Anchor,
+                         item.Context.TargetFact!.Value.Actor,
+                         item.Context.TargetFact.Value.Anchor))
+                     .ThenBy(item => item.From.Height)
+                     .ThenBy(item => item.From.Y)
+                     .ThenBy(item => item.From.X)
+                     .ThenBy(item => item.Context.ActorFact.Actor.BattleGroupId, System.StringComparer.Ordinal))
+        {
+            if (!reservations.TryReserveMoveAllowingReleasedCells(candidate.Context.ActorFact.Actor, candidate.From, candidate.To, occupancy, releasedCells))
+            {
+                candidate.Context.Result = BattleRuntimeAiActionResult.Failed(candidate.Context.Request, "reservation_rejected");
+                RecordAdvanceFailure(candidate.Context.ActorFact.Actor, "reservation_rejected");
+                BattleRuntimeActorStateMachine.MarkHolding(candidate.Context.ActorFact.Actor, currentTimeSeconds);
+                LogAdvanceFailureDiagnostic(
+                    battleId,
+                    tick,
+                    candidate.Context.ActorFact,
+                    candidate.Context.TargetFact!.Value,
+                    navigationGraph,
+                    "reservation_rejected",
+                    candidate.To,
+                    navigationFailureDiagnostics);
+                continue;
+            }
+
+            // Front-to-back ordering lets a formation follow into cells that
+            // accepted movers are vacating in this tick, while reservations
+            // still reject duplicates and opposite-edge swaps.
+            foreach (BattleGridCoord cell in BattleActorFootprint.Enumerate(candidate.Context.ActorFact.Actor, candidate.From))
+            {
+                releasedCells.Add(cell);
+            }
+
+            candidate.Context.ActorFact.Actor.HasReservedGridCell = true;
+            candidate.Context.ActorFact.Actor.ReservedGridX = candidate.To.X;
+            candidate.Context.ActorFact.Actor.ReservedGridY = candidate.To.Y;
+            candidate.Context.ActorFact.Actor.ReservedGridHeight = candidate.To.Height;
+            BattleRuntimeActorStateMachine.MarkMovementCommitted(candidate.Context.ActorFact.Actor, candidate.To, currentTimeSeconds);
+            ResetAdvanceFailureState(candidate.Context.ActorFact.Actor);
+            candidate.Context.Result = BattleRuntimeAiActionResult.Succeeded(candidate.Context.Request, "advanced");
+            stream.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:tick_{tick}:{candidate.Context.ActorFact.Actor.ActorId}:move",
+                BattleId = battleId,
+                BattleGroupId = candidate.Context.ActorFact.Actor.BattleGroupId,
+                ActorId = candidate.Context.ActorFact.Actor.ActorId,
+                TargetId = candidate.Context.TargetFact!.Value.Actor.ActorId,
+                Kind = BattleEventKind.MovementCompleted,
+                ReasonCode = "auto_advance",
+                RuntimeTick = tick,
+                RuntimeTimeSeconds = currentTimeSeconds,
+                ActionDurationSeconds = candidate.Context.ActorFact.Actor.MoveStepSeconds,
+                HasMovementCells = true,
+                FromGridX = candidate.From.X,
+                FromGridY = candidate.From.Y,
+                FromGridHeight = candidate.From.Height,
+                ToGridX = candidate.To.X,
+                ToGridY = candidate.To.Y,
+                ToGridHeight = candidate.To.Height
+            });
+        }
+    }
+
+    private BattleRuntimeAiActionRequest BuildCommandScopedAiActionRequest(
+        TickStartActorFact actorFact,
+        TickStartActorFact? targetFact)
+    {
+        if (IsHoldLineCommand(actorFact.CommandId) &&
+            (targetFact == null || GetSquareGridDistance(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
+        {
+            return BattleRuntimeAiActionRequest.Hold(actorFact.Actor.ActorId, "hold_line_out_of_range");
+        }
+
+        return _aiExecutor.ChooseAction(BuildAiDecisionFacts(actorFact, targetFact)) ??
+               BattleRuntimeAiActionRequest.Hold(actorFact.Actor.ActorId, "missing_ai_request");
+    }
+
+    private static BattleRuntimeAiDecisionFacts BuildAiDecisionFacts(
+        TickStartActorFact actorFact,
+        TickStartActorFact? targetFact)
+    {
+        return new BattleRuntimeAiDecisionFacts
+        {
+            ActorId = actorFact.Actor.ActorId ?? "",
+            TargetActorId = targetFact?.Actor.ActorId ?? "",
+            HasTarget = targetFact != null,
+            DistanceToTarget = targetFact == null ? int.MaxValue : GetSquareGridDistance(actorFact, targetFact.Value),
+            AttackRange = System.Math.Max(1, actorFact.Actor.AttackRange),
+            CanAttackNow = actorFact.AttackCharge >= 1.0
+        };
+    }
+
+    private static TickStartActorFact? FindEnemyCorpsForCommand(
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        TickStartActorFact actorFact)
+    {
+        if (IsFocusFireCommand(actorFact.CommandId))
+        {
+            return FindLowestHealthEnemyCorps(facts, actorFact);
+        }
+
+        return FindRetainedEnemyCorps(facts, actorFact) ?? FindNearestEnemyCorps(facts, actorFact);
+    }
+
+    private static TickStartActorFact? FindRetainedEnemyCorps(
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        TickStartActorFact actorFact)
+    {
+        if (string.IsNullOrWhiteSpace(actorFact.TargetActorId) ||
+            !facts.TryGetValue(actorFact.TargetActorId, out TickStartActorFact retained))
+        {
+            return null;
+        }
+
+        return retained.HitPoints > 0 && !SameFaction(actorFact.Actor, retained.Actor)
+            ? retained
+            : null;
+    }
+
+    private static TickStartActorFact? FindNearestEnemyCorps(
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        TickStartActorFact actorFact)
+    {
+        TickStartActorFact? selected = null;
+        int selectedGap = int.MaxValue;
+        foreach (TickStartActorFact candidate in facts.Values)
+        {
+            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
+                candidate.HitPoints <= 0 ||
+                SameFaction(candidate.Actor, actorFact.Actor))
+            {
+                continue;
+            }
+
+            int gap = GetSquareGridDistance(actorFact, candidate);
+            if (selected == null ||
+                gap < selectedGap ||
+                gap == selectedGap && string.CompareOrdinal(candidate.Actor.ActorId, selected.Value.Actor.ActorId) < 0)
+            {
+                selected = candidate;
+                selectedGap = gap;
+            }
+        }
+
+        return selected;
+    }
+
+    private static TickStartActorFact? FindLowestHealthEnemyCorps(
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        TickStartActorFact actorFact)
+    {
+        TickStartActorFact? selected = null;
+        foreach (TickStartActorFact candidate in facts.Values)
+        {
+            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
+                candidate.HitPoints <= 0 ||
+                SameFaction(candidate.Actor, actorFact.Actor))
+            {
+                continue;
+            }
+
+            if (selected == null)
+            {
+                selected = candidate;
+                continue;
+            }
+
+            int compare = candidate.HitPoints.CompareTo(selected.Value.HitPoints);
+            if (compare < 0)
+            {
+                selected = candidate;
+                continue;
+            }
+
+            if (compare > 0)
+            {
+                continue;
+            }
+
+            int gapCompare = GetSquareGridDistance(actorFact, candidate)
+                .CompareTo(GetSquareGridDistance(actorFact, selected.Value));
+            if (gapCompare < 0 ||
+                gapCompare == 0 && string.CompareOrdinal(candidate.Actor.ActorId, selected.Value.Actor.ActorId) < 0)
+            {
+                selected = candidate;
+            }
+        }
+
+        return selected;
+    }
+
+    private static bool IsTargetEngagedBySameFactionActor(
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        TickStartActorFact actorFact,
+        TickStartActorFact targetFact)
+    {
+        foreach (TickStartActorFact candidate in facts.Values)
+        {
+            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
+                candidate.HitPoints <= 0 ||
+                !SameFaction(candidate.Actor, actorFact.Actor))
+            {
+                continue;
+            }
+
+            if (BattleActorFootprint.GetGap(
+                    candidate.Actor,
+                    candidate.Anchor,
+                    targetFact.Actor,
+                    targetFact.Anchor) <= System.Math.Max(1, candidate.Actor.AttackRange))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int GetSquareGridDistance(TickStartActorFact first, TickStartActorFact second)
+    {
+        return BattleActorFootprint.GetGap(first.Actor, first.Anchor, second.Actor, second.Anchor);
+    }
+
+    private static int ResolveAttackDamage(int attackDamage)
+    {
+        return attackDamage > 0 ? attackDamage : 1;
+    }
+
+    private static void RecordAdvanceFailure(BattleRuntimeActor actor, string failureReason)
+    {
+        if (actor == null)
+        {
+            return;
+        }
+
+        actor.ConsecutiveAdvanceFailures++;
+        actor.LastAdvanceFailureReason = string.IsNullOrWhiteSpace(failureReason)
+            ? "advance_failed"
+            : failureReason;
+    }
+
+    private static void ResetAdvanceFailureState(BattleRuntimeActor actor)
+    {
+        if (actor == null)
+        {
+            return;
+        }
+
+        actor.ConsecutiveAdvanceFailures = 0;
+        actor.LastAdvanceFailureReason = "";
+    }
+
+    private static void LogAdvanceFailureDiagnostic(
+        string battleId,
+        int tick,
+        TickStartActorFact actorFact,
+        TickStartActorFact targetFact,
+        BattleNavigationGraph navigationGraph,
+        string failureReason,
+        BattleGridCoord attemptedNext,
+        HashSet<string> loggedDiagnostics)
+    {
+        string actorCell = $"{actorFact.Anchor.X},{actorFact.Anchor.Y},{actorFact.Anchor.Height}";
+        string targetCell = $"{targetFact.Anchor.X},{targetFact.Anchor.Y},{targetFact.Anchor.Height}";
+        string reason = string.IsNullOrWhiteSpace(failureReason) ? "advance_failed" : failureReason;
+        string attempted = string.Equals(reason, "path_not_found", System.StringComparison.Ordinal)
+            ? "none"
+            : attemptedNext.ToString();
+        string key = $"{actorFact.Actor.ActorId}|{targetFact.Actor.ActorId}|{actorCell}|{targetCell}|{reason}|{attempted}";
+        if (loggedDiagnostics != null && !loggedDiagnostics.Add(key))
+        {
+            return;
+        }
+
+        GameLog.Warn(
+            nameof(BattleRuntimeTickResolver),
+            $"BattleRuntimeAdvanceDiagnostic battle={battleId ?? ""} tick={tick} actor={actorFact.Actor.ActorId} target={targetFact.Actor.ActorId} reason={reason} actorCell={actorCell} targetCell={targetCell} attemptedNext={attempted} {navigationGraph?.DescribeStaticReachability(actorFact.Actor, targetFact.Actor, actorFact.Actor.AttackRange) ?? "graph=missing"}");
+    }
+
+    private static void LogRuntimeActionResult(
+        string battleId,
+        int tick,
+        double currentTimeSeconds,
+        BattleRuntimeActor actor,
+        BattleRuntimeActor target,
+        BattleRuntimeAiActionRequest request,
+        BattleRuntimeAiActionResult result)
+    {
+        if (actor == null || request == null)
+        {
+            return;
+        }
+
+        if (request.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge && result?.Success == true)
+        {
+            return;
+        }
+
+        string outcome = result?.Success == true
+            ? result.Status
+            : string.IsNullOrWhiteSpace(result?.FailureReason) ? "failed" : result.FailureReason;
+        string targetId = target?.ActorId ?? request.TargetActorId ?? "";
+        string targetHp = target == null ? "-" : target.HitPoints.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        string targetCell = target == null ? "-" : $"{target.GridX},{target.GridY},{target.GridHeight}";
+        string distance = target == null
+            ? "-"
+            : BattleActorFootprint.GetGap(actor, target).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        GameLog.Info(
+            nameof(BattleRuntimeTickResolver),
+            $"BattleRuntimeAction battle={battleId ?? ""} tick={tick} time={currentTimeSeconds:0.00} actor={actor.ActorId} action={request.Kind} outcome={outcome} target={targetId} actorCell={actor.GridX},{actor.GridY},{actor.GridHeight} targetCell={targetCell} distance={distance} actorHp={actor.HitPoints} readyAt={actor.ActionReadyAtSeconds:0.00} targetHp={targetHp}");
+    }
+
+    private static bool IsFocusFireCommand(string commandId)
+    {
+        return string.Equals(NormalizeCorpsCommandId(commandId), CommandFocusFire, System.StringComparison.Ordinal);
+    }
+
+    private static bool IsHoldLineCommand(string commandId)
+    {
+        return string.Equals(NormalizeCorpsCommandId(commandId), CommandHoldLine, System.StringComparison.Ordinal);
+    }
+
+    private static string NormalizeCorpsCommandId(string commandId)
+    {
+        string value = commandId?.Trim() ?? "";
+        if (string.Equals(value, CommandFocusFire, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return CommandFocusFire;
+        }
+
+        if (string.Equals(value, CommandHoldLine, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return CommandHoldLine;
+        }
+
+        return CommandAssault;
+    }
+
+    private static bool SameFaction(BattleRuntimeActor first, BattleRuntimeActor second)
+    {
+        return string.Equals(
+            NormalizeFaction(first?.FactionId),
+            NormalizeFaction(second?.FactionId),
+            System.StringComparison.Ordinal);
+    }
+
+    private static string NormalizeFaction(string factionId)
+    {
+        return string.IsNullOrWhiteSpace(factionId) ? "player" : factionId.Trim();
+    }
+}

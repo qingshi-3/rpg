@@ -10,8 +10,10 @@ using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
+using Rpg.Infrastructure.Scenes;
 using Rpg.Presentation.Battle;
 using Rpg.Presentation.Battle.Entities;
+using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Preview;
 using Rpg.Presentation.Battle.Rules;
 using Rpg.Presentation.Common;
@@ -19,15 +21,11 @@ using Rpg.Presentation.World;
 
 namespace Rpg.Presentation.World.Sites;
 
-public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
+public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 {
 	private const float SitePlacementPickRadiusPixels = 42.0f;
 	private const int DeploymentDragZIndex = 4096;
-	private const string SiteExplorationHudScenePath = "res://scenes/world/sites/SiteExplorationHud.tscn";
 	private const string FacilitySlotsRootName = "FacilitySlots";
-	private const string SiteExplorationPauseReady = "exploration_ready";
-	private const string SiteExplorationPauseMovePreview = "exploration_move_preview";
-	private const string SiteExplorationPauseAlertRadius = "exploration_alert_radius";
 
 	[Signal]
 	public delegate void SiteMapLoadedEventHandler(Node activeSiteMap);
@@ -72,12 +70,26 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 	private Control _siteHudRoot;
 	private Control _siteHudTopBar;
 	private Control _sitePeacetimePanel;
+	private Control _siteBottomCommandHost;
+	private Control _battleRuntimeCommandBar;
+	private Control _battleRuntimeCommandPanel;
+	private Control _siteOverviewCard;
 	private Node2D _sitePlacementEntityRoot;
 	private Label _siteHudTitle;
 	private Label _siteHudBody;
 	private Label _siteResourceLabel;
 	private Label _siteNoticeLabel;
 	private Label _siteSelectionLabel;
+	private Label _battleRuntimeCommandLabel;
+	private Label _battleRuntimePauseHintLabel;
+	private Label _battleRuntimeSelectedHeroLabel;
+	private Label _battleRuntimeCorpsLabel;
+	private Label _battleRuntimeCombinedLabel;
+	private HBoxContainer _battleRuntimeCommandButtonRow;
+	private HBoxContainer _battleRuntimeHeroButtonRow;
+	private Button _battleRuntimeAssaultButton;
+	private Button _battleRuntimeFocusFireButton;
+	private Button _battleRuntimeHoldLineButton;
 	private Control _siteFacilityBuildCard;
 	private Control _siteFacilityCard;
 	private Control _siteDefenseCard;
@@ -89,42 +101,37 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 	private Label _siteBattlePreparationEnemySummary;
 	private Label _siteBattlePreparationStatus;
 	private VBoxContainer _siteBattlePreparationActionList;
+	private VBoxContainer _battleRuntimeHeroCommandList;
+	private VBoxContainer _battleRuntimeCorpsCommandList;
+	private VBoxContainer _battleRuntimeCombinedCommandList;
 	private Button _returnMapButton;
 	private VBoxContainer _siteFacilityList;
 	private VBoxContainer _siteGarrisonList;
 	private VBoxContainer _siteThreatList;
 	private VBoxContainer _siteActionList;
 	private readonly Dictionary<string, Node2D> _sitePlacementEntities = new();
-	private readonly Dictionary<string, Node2D> _siteExplorationPatrolMarkers = new(System.StringComparer.Ordinal);
 	private readonly Dictionary<string, WorldFacilitySlotEntity> _siteFacilitySlotEntities = new();
 	private readonly Dictionary<string, WorldFacilitySlotRuntimeLayout> _siteFacilitySlotLayouts = new();
 	private SemanticMapMarkerExtractionResult _semanticMapMarkers = new();
 	private WorldSiteRuntimeDeploymentCache _deploymentCache;
 	private bool _battleRuntimeEnabled = true;
+	private bool _battleRuntimeCommandPauseActive;
 	private string _battleStartBlockedReason = "";
 	private bool _isBattlePreparationActive;
 	private BattleStartRequest _battlePreparationRequest;
+	private BattleStartRequest _battleRuntimeRequest;
 	private string _siteHudReturnScenePath = "";
 	private string _siteHudSiteId = "";
 	private string _selectedPlacementId = "";
 	private string _selectedFacilitySlotId = "";
+	private BattleCorpsCommand _selectedBattleCorpsCommand = BattleCorpsCommand.Assault;
+	private string _selectedBattleRuntimeGroupKey = "";
 	private string _draggedPlacementId = "";
 	private Vector2 _draggedPlacementOriginGlobalPosition;
 	private string _draggedBattleForceId = "";
 	private int _draggedBattleForceIndex = -1;
 	private BattleFaction _draggedBattleForceFallbackFaction = BattleFaction.Neutral;
 	private BattleEntity _draggedBattleRosterEntity;
-	private Node2D _siteExplorationPartyMarker;
-	private Node2D _siteExplorationAlertRangeRoot;
-	private Control _siteExplorationHud;
-	private Control _siteExplorationHudPanel;
-	private Control _siteExplorationAlertActions;
-	private Label _siteExplorationAlertLabel;
-	private Button _siteExplorationWaitButton;
-	private Button _siteExplorationEngageButton;
-	private Button _siteExplorationRetreatButton;
-	private string _lastSiteExplorationButtonRole = "";
-	private ulong _lastSiteExplorationButtonMsec;
 	private readonly BattleUnitFactory _battleUnitFactory = new();
 	private readonly WorldBattleResultApplier _worldBattleResultApplier = new();
 	private readonly WorldActionResolver _worldActionResolver;
@@ -137,6 +144,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 	private readonly WorldSiteBattleGroupRuntimeAdapter _battleGroupRuntimeAdapter = new();
 	private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
 	private readonly SemanticMapMarkerExtractor _semanticMapMarkerExtractor = new();
+	private readonly SceneTransitionRouter _sceneTransitionRouter;
 
 	public Node ActiveSiteMap => _activeSiteMap;
 	public Node ActiveBattleMap => _activeSiteMap;
@@ -150,11 +158,14 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 	public WorldSiteRoot()
 	{
 		_worldActionResolver = new WorldActionResolver(_battleUnitFactory.ResolveUnitDisplayName);
+		_sceneTransitionRouter = new SceneTransitionRouter(new GodotSceneTransitionGateway(() => GetTree()));
 	}
 
 	public override void _Ready()
 	{
 		GameLog.StartSession(nameof(WorldSiteRoot));
+		MouseFilter = MouseFilterEnum.Stop;
+		SetFullRect(this);
 
 		ResolveMainWorldViewportNodes();
 		_mapRoot = GetNode<Node>(MapRootPath);
@@ -170,7 +181,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 		bool hasActiveBattleLaunch = BattleSessionHandoff.HasActiveLaunch;
 		if (_unitRoot != null)
 		{
-			_unitRoot.Initialize(TryGetCellGlobalPosition, ApplyEntityRenderSort);
+			_unitRoot.Initialize(TryGetCellGlobalPosition, TryGetFootprintCenterGlobalPosition, ApplyEntityRenderSort);
 		}
 		else
 		{
@@ -206,13 +217,6 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 	public override void _Process(double delta)
 	{
 		WorldSiteRuntimeMode runtimeMode = RuntimeMode;
-		if (runtimeMode == WorldSiteRuntimeMode.Exploration)
-		{
-			ContinueConfirmedSiteExplorationMoveIfReady();
-			UpdateSiteMapEntities();
-			return;
-		}
-
 		if (runtimeMode == WorldSiteRuntimeMode.Management)
 		{
 			UpdateSiteMapEntities();
@@ -225,12 +229,11 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 		WorldSiteRuntimeMode runtimeMode = RuntimeMode;
 		if (runtimeMode == WorldSiteRuntimeMode.Battle)
 		{
-			return;
-		}
+			if (TryHandleBattleRuntimePauseInput(@event))
+			{
+				return;
+			}
 
-		if (runtimeMode == WorldSiteRuntimeMode.Exploration)
-		{
-			TryHandleSiteExplorationInput(@event);
 			return;
 		}
 
@@ -254,11 +257,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 			return WorldSiteRuntimeMode.Battle;
 		}
 
-		WorldSiteState site = ResolveSiteState(_siteHudSiteId);
-		WorldSiteDefinition definition = ResolveSiteDefinition(_siteHudSiteId);
-		return IsSiteExplorationActive(site, definition)
-			? WorldSiteRuntimeMode.Exploration
-			: WorldSiteRuntimeMode.Management;
+		return WorldSiteRuntimeMode.Management;
 	}
 
 	private void ResolveMainWorldViewportNodes()
@@ -274,6 +273,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 		}
 
 		_mainWorldViewportHost.MouseFilter = Control.MouseFilterEnum.Pass;
+		_mainWorldViewportHost.ClipContents = true;
 	}
 
 	private void UpdateMainWorldViewportLayout(string reason)
@@ -288,8 +288,7 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 
 		// The site/battle map is a separate world viewport. HUD and modal UI stay on
 		// the outer CanvasLayer, so root mouse positions must cross this boundary.
-		_mainWorldViewportHost.Position = worldViewportRect.Position;
-		_mainWorldViewportHost.Size = worldViewportRect.Size;
+		SetFixedRect(_mainWorldViewportHost, worldViewportRect);
 		Vector2I viewportSize = new(Mathf.RoundToInt(worldViewportRect.Size.X), Mathf.RoundToInt(worldViewportRect.Size.Y));
 		if (_mainWorldViewport.Size != viewportSize)
 		{
@@ -305,20 +304,97 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 	private Rect2 ResolveMainWorldViewportRect()
 	{
 		Vector2 rootViewportSize = GetViewportRect().Size;
-		if (_siteHudRoot?.Visible != true || _sitePeacetimePanel == null)
+		if (_siteHudRoot?.Visible == true)
 		{
-			return new Rect2(Vector2.Zero, rootViewportSize);
+			return ResolveWorldSiteHudViewportRect(rootViewportSize);
+		}
+
+		return ResolveAuthoredMainWorldViewportRect(rootViewportSize);
+	}
+
+	private Rect2 ResolveWorldSiteHudViewportRect(Vector2 rootViewportSize)
+	{
+		Rect2 authoredWorldRect = ResolveAuthoredMainWorldViewportRect(rootViewportSize);
+		if (_sitePeacetimePanel == null || _siteHudTopBar == null)
+		{
+			return authoredWorldRect;
 		}
 
 		Rect2 panelRect = _sitePeacetimePanel.GetGlobalRect();
-		float sideMargin = Mathf.Max(0.0f, panelRect.Position.X);
-		float bottomMargin = Mathf.Max(0.0f, rootViewportSize.Y - panelRect.End.Y);
-		Vector2 position = new(panelRect.End.X + sideMargin, panelRect.Position.Y);
-		Vector2 size = new(
-			Mathf.Max(1.0f, rootViewportSize.X - position.X - sideMargin),
-			Mathf.Max(1.0f, rootViewportSize.Y - position.Y - bottomMargin));
+		Rect2 topBarRect = _siteHudTopBar.GetGlobalRect();
+		if (panelRect.Size.X <= 1.0f || panelRect.Size.Y <= 1.0f ||
+			topBarRect.Size.X <= 1.0f || topBarRect.Size.Y <= 1.0f)
+		{
+			return authoredWorldRect;
+		}
 
-		return new Rect2(position, size);
+		float sideMargin = Mathf.Max(0.0f, panelRect.Position.X);
+		float gapAfterPanel = Mathf.Max(sideMargin, authoredWorldRect.Position.X - panelRect.End.X);
+		float topGap = Mathf.Max(0.0f, panelRect.Position.Y - topBarRect.End.Y);
+		float topOffset = Mathf.Max(0.0f, authoredWorldRect.Position.Y - panelRect.Position.Y);
+		float bottomMargin = Mathf.Max(sideMargin, topGap * 2.0f);
+		Vector2 position = new(panelRect.End.X + gapAfterPanel, topBarRect.End.Y + topGap + topOffset);
+		float bottomLimit = rootViewportSize.Y - bottomMargin;
+
+		if (_battleRuntimeCommandBar?.Visible == true)
+		{
+			Rect2 commandRect = _battleRuntimeCommandBar.GetGlobalRect();
+			if (commandRect.Size.Y > 1.0f && commandRect.Position.Y > position.Y)
+			{
+				bottomLimit = Mathf.Min(bottomLimit, commandRect.Position.Y - bottomMargin);
+			}
+		}
+
+		// The field map follows the same right-side workspace as the strategic map.
+		// Battle UI may reserve extra bottom space, but it must not make the world
+		// viewport expand back into the HUD canvas.
+		return new Rect2(
+			position,
+			new Vector2(
+				Mathf.Max(1.0f, rootViewportSize.X - position.X - sideMargin),
+				Mathf.Max(1.0f, bottomLimit - position.Y)));
+	}
+
+	private Rect2 ResolveAuthoredMainWorldViewportRect(Vector2 rootViewportSize)
+	{
+		Rect2 hostRect = _mainWorldViewportHost?.GetGlobalRect() ?? new Rect2(Vector2.Zero, rootViewportSize);
+		return hostRect.Size.X > 1.0f && hostRect.Size.Y > 1.0f
+			? hostRect
+			: new Rect2(Vector2.Zero, rootViewportSize);
+	}
+
+	private static void SetFullRect(Control control)
+	{
+		if (control == null)
+		{
+			return;
+		}
+
+		control.AnchorLeft = 0.0f;
+		control.AnchorTop = 0.0f;
+		control.AnchorRight = 1.0f;
+		control.AnchorBottom = 1.0f;
+		control.OffsetLeft = 0.0f;
+		control.OffsetTop = 0.0f;
+		control.OffsetRight = 0.0f;
+		control.OffsetBottom = 0.0f;
+	}
+
+	private static void SetFixedRect(Control control, Rect2 rect)
+	{
+		if (control == null)
+		{
+			return;
+		}
+
+		control.AnchorLeft = 0.0f;
+		control.AnchorTop = 0.0f;
+		control.AnchorRight = 0.0f;
+		control.AnchorBottom = 0.0f;
+		control.OffsetLeft = rect.Position.X;
+		control.OffsetTop = rect.Position.Y;
+		control.OffsetRight = rect.End.X;
+		control.OffsetBottom = rect.End.Y;
 	}
 
 	private Vector2 GetWorldViewportMousePosition()
@@ -463,11 +539,15 @@ public partial class WorldSiteRoot : Node2D, IBattleMapBoundsSource
 			return;
 		}
 
-		StrategicWorldRuntime.MarkWorldResumeAfterSiteReturn();
-		Error error = GetTree().ChangeSceneToFile(scenePath);
-		if (error != Error.Ok)
+		SceneTransitionResult transition = _sceneTransitionRouter.ReturnFromSite(new SceneTransitionReturnRequest
 		{
-			GameLog.Warn(nameof(WorldSiteRoot), $"Cannot return to campaign scene path={scenePath} error={error}");
+			TargetScenePath = scenePath
+		});
+		if (!transition.Success)
+		{
+			GameLog.Warn(
+				nameof(WorldSiteRoot),
+				$"Cannot return to campaign scene path={scenePath} error={transition.Error} reason={transition.FailureReason}");
 		}
 	}
 

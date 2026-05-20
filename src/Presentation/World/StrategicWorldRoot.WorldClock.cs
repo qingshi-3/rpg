@@ -255,16 +255,11 @@ public partial class StrategicWorldRoot
 
             if (result.BattleReadyArmyIds.Count > 0)
             {
-                WorldArmyState readyArmy = State.ArmyStates.TryGetValue(result.BattleReadyArmyIds[0], out WorldArmyState value)
-                    ? value
-                    : null;
-                if (readyArmy != null)
+                // Battle-ready assault arrivals open the modal battle gate immediately;
+                // the left action panel is not an intermediate battle-start step.
+                if (TryEnterBattleForArrivedArmy(result.BattleReadyArmyIds[0]))
                 {
-                    _selectedSiteId = readyArmy.TargetSiteId;
-                    _selectedThreatId = "";
-                    _worldClockPaused = true;
-                    StrategicWorldRuntime.LastNotice = $"部队已抵达{ResolveSiteDisplayName(readyArmy.TargetSiteId)}，请选择进攻或潜入。";
-                    RefreshAll();
+                    return false;
                 }
 
                 return true;

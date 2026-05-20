@@ -50,6 +50,12 @@ Battle movement is realtime presentation over grid authority:
 - Each unit has an anchored square cell and may reserve a next square cell while moving.
 - Movement is displayed as smooth travel between cell centers.
 - A unit may path toward targets in any valid square-grid direction. The first expected implementation uses 8-neighbor movement unless map data forbids diagonal transitions.
+- Runtime builds the static navigation graph once for the battle handoff. Static graph legality owns terrain, walkable surfaces, height-specific surfaces, and authored height connections.
+- Runtime may plan several cells ahead, but it commits only the next neighbor cell. The next tick recalculates from current actor, target, occupancy, reservations, and command posture.
+- Ordinary assault keeps the acquired live target while rerouting, so a unit does not switch targets merely because another enemy becomes temporarily closer on the detour.
+- When the target is already engaged, nearby support should reinforce the local fight before taking a distant flank route that initially moves away from the target.
+- Living-unit occupancy is layered: the immediate next footprint is a hard blocker, while future occupied cells are soft route cost. This keeps a moving actor from treating another unit as a permanent wall, while still making comparable open routes more attractive.
+- Same-tick reservations are hard blockers for the next committed footprint and reject opposite-edge swaps.
 - A unit cannot perform a basic attack while in transit between cells.
 - A unit may attack once it is anchored and the target actor is within the ability's grid range.
 
@@ -72,7 +78,9 @@ The first implementation only needs basic actor-target attacks and the data-cont
 
 Future larger units may use grid footprints while keeping the square-grid realtime model. A unit footprint is a rectangular set of occupied cells such as `1x1`, `1x2`, `2x1`, `2x2`, or `3x3`.
 
-The anchor cell is always the footprint's top-left cell. Movement still evaluates neighboring anchor cells, but a move is valid only when every cell covered by the new footprint is legal. Other units cannot occupy or reserve any cell inside that footprint.
+The anchor cell is always the footprint's top-left cell. Default navigation and terrain legality evaluate the anchor cell against the static graph, so large units do not automatically make pathfinding more expensive or more restrictive. A future opt-in hard-navigation footprint may let special units require every covered terrain cell to be legal, but that is not the default rule.
+
+Unit body collision is stricter than terrain navigation. Other units cannot occupy or reserve any cell inside the committed candidate footprint. During a live movement tick, each actor proposes one next anchor cell, reserves the full candidate footprint, and cannot directly swap edges with another same-tick mover. Tick-start occupied cells remain blocked for the immediate step until the next tick, so a unit cannot step into a large unit's interior or tailgate through a just-vacated footprint during the same resolution step. Future projected cells may include occupied cells as soft cost, not hard legality, because those units may move before the actor reaches that part of the route.
 
 During pre-battle deployment, the existing hover selection frame should resize around every cell covered by the dragged unit's footprint. The dragged sprite should stay centered on that footprint and only move to the next anchor after the pointer crosses the half-cell threshold around the current footprint center. Drop validation uses that same covered-cell set.
 
@@ -85,6 +93,52 @@ Attacks and area effects should read the footprint instead of pretending the uni
 This makes large units readable as multi-cell bodies without forcing the runtime into expensive full-map multi-size pathfinding.
 
 Visual size supports this readability, but it is not the occupancy rule. Larger units should scale their sprite uniformly from a tuned footprint size signal instead of stretching differently on X and Y.
+
+## Spatial Tactical Mechanics Direction
+
+Combat is a low-frequency spatial realtime tactical battle. The player should make commander-level choices about local fronts, terrain, reserves, and skill timing. The player should not control individual soldiers or win through high-frequency input.
+
+Maps are the first combat asset. The same unit roster should play differently on bridges, mountain passes, forests, city gates, alleys, high ground, and multi-entrance maps. If terrain does not change tactical value, the combat design is failing its core direction.
+
+The first validation scene should be one strategy scenario before expanding content breadth. A bridge assault or bridge defense is the preferred slice because it can test chokepoint value, delay, reserve timing, ranged pressure, enemy telegraphing, retreat, and spatial skills in one readable setup.
+
+## Corps Tactical Roles
+
+Corps should stay low-complexity and readable through battlefield responsibility:
+
+- spear: chokepoint and anti-charge pressure;
+- shield: holding, protection, and frontline stability;
+- archer: ranged pressure and area denial;
+- cavalry: flank pressure, pursuit, and interruption;
+- mage: battlefield area changes and timing pressure.
+
+Individual corps types may gain special rules later, but a corps should not need several active skills to communicate its role.
+
+## Skill And Time Rules
+
+Hero and corps skills should change space, time, or battle state instead of acting as plain damage buttons.
+
+Useful skill categories:
+
+- terrain control such as ice wall, earth wall, fire field, and temporary blockers;
+- area suppression such as arrow rain, artillery, poison, and denial zones;
+- formation disruption such as charge, knockback, shock, and break-line effects;
+- tempo control such as slow, freeze, root, and delayed cast pressure;
+- frontline stabilization such as shields, war drums, guard stance, and recovery windows.
+
+Time is a tactical resource. Delaying should matter when it enables reinforcements, cooldown recovery, setup completion, flanking arrival, or a breakthrough elsewhere.
+
+## AI Telegraphing And Reports
+
+Enemy AI should be stable and readable before it is clever. Strong enemy behavior must telegraph intent, such as longbow preparation, cavalry charge setup, or mage channeling.
+
+The battle report should explain meaningful outcomes through terrain, timing, reserves, command, skill use, and local collapse. Reports should avoid source-less randomness when the real cause was a chokepoint failure, late retreat, unprotected ranged line, interrupted cast, or bad reserve timing.
+
+## Semantic Marker Dependency
+
+Spatial combat requires authored map semantics. Battle maps and strategic-location interiors should be able to define visible rectangular grid markers from an editor-placed anchor, extending right and down by `m*n` cells.
+
+Marker types may include deployment zone, chokepoint, lane, reserve point, flank route, ranged point, defend point, entrance, event spawn, and building slot. The marker data model and Godot authoring workflow belong to a separate semantic marker proposal and implementation.
 
 ## Non-Goals
 

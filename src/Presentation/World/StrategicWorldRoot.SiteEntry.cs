@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
@@ -6,7 +5,7 @@ using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
-using Rpg.Presentation.Battle.Entities;
+using Rpg.Infrastructure.Scenes;
 using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.World;
@@ -25,19 +24,24 @@ public partial class StrategicWorldRoot
         string returnScenePath = string.IsNullOrWhiteSpace(SceneFilePath)
             ? "res://scenes/world/StrategicWorldRoot.tscn"
             : SceneFilePath;
-        StrategicWorldRuntime.BeginSiteVisit(_selectedSiteId, returnScenePath);
         StrategicWorldRuntime.LastNotice = $"进入{ResolveSiteDisplayName(_selectedSiteId)}。";
         _worldClockPaused = true;
 
-        Error error = GetTree().ChangeSceneToFile(SiteScenePath);
-        if (error == Error.Ok)
+        SceneTransitionResult transition = _sceneTransitionRouter.EnterSiteDetail(new SceneTransitionSiteVisitRequest
+        {
+            SiteId = _selectedSiteId,
+            TargetScenePath = SiteScenePath,
+            ReturnScenePath = returnScenePath
+        });
+        if (transition.Success)
         {
             return;
         }
 
-        StrategicWorldRuntime.ClearPendingSiteVisit();
         StrategicWorldRuntime.LastNotice = "无法进入场域。";
-        GameLog.Warn(nameof(StrategicWorldRoot), $"Cannot enter site detail site={_selectedSiteId} path={SiteScenePath} error={error}");
+        GameLog.Warn(
+            nameof(StrategicWorldRoot),
+            $"Cannot enter site detail site={_selectedSiteId} path={SiteScenePath} error={transition.Error} reason={transition.FailureReason}");
         RefreshAll();
     }
 
@@ -113,17 +117,6 @@ public partial class StrategicWorldRoot
         return intelView.CanInspectFullTacticalLayout;
     }
 
-    private bool CanExploreSelectedSite(WorldSiteState site)
-    {
-        if (site == null)
-        {
-            return false;
-        }
-
-        WorldSiteDefinition definition = new StrategicWorldDefinitionQueries(Definition).GetSite(site.SiteId);
-        return definition?.ExplorationPatrols?.Count > 0;
-    }
-
     private bool TryGetSelectedArrivedAssaultArmy(out WorldArmyState army)
     {
         army = null;
@@ -142,97 +135,17 @@ public partial class StrategicWorldRoot
 
     private void AddArrivedAssaultChoiceButtons(WorldArmyState army)
     {
-        AddMutedLine(_actionList, $"部队已抵达{ResolveSiteDisplayName(army.TargetSiteId)}，选择进入方式。");
+        AddMutedLine(_actionList, $"部队已抵达{ResolveSiteDisplayName(army.TargetSiteId)}，请选择进入方式。");
 
         Button assaultButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
-        if (assaultButton != null)
-        {
-            assaultButton.Text = $"{WorldSiteIntelPresenter.GetDirectAssaultLabel()}\n进入攻占战";
-            assaultButton.Pressed += () => TryEnterBattleForArrivedArmy(army.ArmyId);
-            _actionList.AddChild(assaultButton);
-        }
-
-        int arrivedAssaultArmyCount = CountArrivedAssaultArmiesAtSite(army.TargetSiteId);
-        bool canInfiltrate = arrivedAssaultArmyCount == 1 &&
-                             GetArmyUnitCount(army) == 1 &&
-                             State.SiteStates.TryGetValue(army.TargetSiteId, out WorldSiteState site) &&
-                             CanExploreSelectedSite(site);
-        Button infiltrateButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
-        if (infiltrateButton != null)
-        {
-            infiltrateButton.Text = canInfiltrate ? "进入探索\n进入场域探索" : "进入探索\n该场域没有探索配置";
-            infiltrateButton.Disabled = !canInfiltrate;
-            if (canInfiltrate)
-            {
-                infiltrateButton.Pressed += () => EnterSelectedSiteInfiltration(army.ArmyId);
-            }
-
-            _actionList.AddChild(infiltrateButton);
-        }
-    }
-
-    private static int GetArmyUnitCount(WorldArmyState army)
-    {
-        return army?.GarrisonUnits?.Sum(unit => System.Math.Max(0, unit.Count)) ?? 0;
-    }
-
-    private void EnterSelectedSiteInfiltration(string armyId)
-    {
-        if (string.IsNullOrWhiteSpace(armyId) ||
-            !State.ArmyStates.TryGetValue(armyId, out WorldArmyState army) ||
-            army.Status != WorldArmyStatus.Attacking ||
-            army.Intent != WorldArmyIntent.AssaultSite)
-        {
-            StrategicWorldRuntime.LastNotice = "潜入部队状态已失效。";
-            RefreshAll();
-            return;
-        }
-
-        string returnScenePath = string.IsNullOrWhiteSpace(SceneFilePath)
-            ? "res://scenes/world/StrategicWorldRoot.tscn"
-            : SceneFilePath;
-        // Infiltration is a site visit with an army context; it must not enter battle or wartime mode here.
-        GameLog.Info(
-            nameof(StrategicWorldRoot),
-            $"SiteInfiltrationSelected army={army.ArmyId} target={army.TargetSiteId} status={army.Status} intent={army.Intent} units={FormatArmyUnitsForLog(army)} returnScene={returnScenePath}");
-        StrategicWorldRuntime.BeginSiteVisit(army.TargetSiteId, returnScenePath, army.ArmyId);
-        StrategicWorldRuntime.LastNotice = $"派出{BuildArmyUnitSummary(army)}潜入{ResolveSiteDisplayName(army.TargetSiteId)}。";
-        _worldClockPaused = true;
-
-        Error error = GetTree().ChangeSceneToFile(SiteScenePath);
-        if (error == Error.Ok)
+        if (assaultButton == null)
         {
             return;
         }
 
-        StrategicWorldRuntime.ClearPendingSiteVisit();
-        StrategicWorldRuntime.LastNotice = "无法进入潜入场域。";
-        GameLog.Warn(nameof(StrategicWorldRoot), $"Cannot enter site infiltration army={army.ArmyId} site={army.TargetSiteId} path={SiteScenePath} error={error}");
-        RefreshAll();
-    }
-
-    private int CountArrivedAssaultArmiesAtSite(string siteId)
-    {
-        if (string.IsNullOrWhiteSpace(siteId) || State?.ArmyStates == null)
-        {
-            return 0;
-        }
-
-        return State.ArmyStates.Values.Count(item =>
-            item.OwnerFactionId == State.PlayerFactionId &&
-            item.TargetSiteId == siteId &&
-            item.Status == WorldArmyStatus.Attacking &&
-            item.Intent == WorldArmyIntent.AssaultSite);
-    }
-
-    private string BuildArmyUnitSummary(WorldArmyState army)
-    {
-        if (army?.GarrisonUnits == null || army.GarrisonUnits.Count == 0)
-        {
-            return "部队";
-        }
-
-        return string.Join("、", army.GarrisonUnits.Select(unit => $"{GetUnitLabel(unit.UnitTypeId)}x{unit.Count}"));
+        assaultButton.Text = $"{WorldSiteIntelPresenter.GetDirectAssaultLabel()}\n进入攻占战";
+        assaultButton.Pressed += () => TryEnterBattleForArrivedArmy(army.ArmyId);
+        _actionList.AddChild(assaultButton);
     }
 
     private void ExecuteAction(WorldActionViewModel viewModel)

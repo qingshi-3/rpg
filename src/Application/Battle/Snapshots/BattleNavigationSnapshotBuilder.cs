@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using Rpg.Application.Battle.Navigation;
 using Rpg.Domain.Battle.Grid;
+using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Application.Battle.Snapshots;
 
@@ -15,6 +18,7 @@ public static class BattleNavigationSnapshotBuilder
 
         request.NavigationSurfaces.Clear();
         request.NavigationConnections.Clear();
+        request.NavigationTopology = new BattleNavigationTopology();
 
         if (gridMap == null)
         {
@@ -22,6 +26,12 @@ public static class BattleNavigationSnapshotBuilder
         }
 
         Build(gridMap, request.NavigationSurfaces, request.NavigationConnections);
+        request.NavigationTopology = BattleNavigationTopologyCompiler.Compile(
+            request.NavigationSurfaces,
+            request.NavigationConnections);
+        GameLog.Info(
+            nameof(BattleNavigationSnapshotBuilder),
+            BattleNavigationTopologyDiagnostics.DescribeRequestTopology(request, "apply_to_request"));
     }
 
     public static void CopyRequestToLocationContext(BattleStartRequest request, LocationBattleContext context)
@@ -33,6 +43,7 @@ public static class BattleNavigationSnapshotBuilder
 
         context.NavigationSurfaces.Clear();
         context.NavigationConnections.Clear();
+        context.NavigationTopology = new BattleNavigationTopology();
 
         if (request == null)
         {
@@ -51,7 +62,7 @@ public static class BattleNavigationSnapshotBuilder
                 X = surface.X,
                 Y = surface.Y,
                 Height = surface.Height,
-                MoveCost = System.Math.Max(1, surface.MoveCost)
+                MoveCost = 1
             });
         }
 
@@ -70,9 +81,57 @@ public static class BattleNavigationSnapshotBuilder
                 ToX = connection.ToX,
                 ToY = connection.ToY,
                 ToHeight = connection.ToHeight,
-                MoveCost = System.Math.Max(1, connection.MoveCost)
+                MoveCost = 1
             });
         }
+
+        context.NavigationTopology = request.NavigationTopology?.HasNodes == true
+            ? request.NavigationTopology.Clone()
+            : BattleNavigationTopologyCompiler.Compile(context.NavigationSurfaces, context.NavigationConnections);
+        GameLog.Info(
+            nameof(BattleNavigationSnapshotBuilder),
+            BattleNavigationTopologyDiagnostics.DescribeRequestTopology(request, "copy_request_to_context"));
+    }
+
+    public static int SyncPreferredPlacementHeightsToCurrentNavigationSurfaces(
+        BattleStartRequest request,
+        BattleGridMap gridMap,
+        Func<BattleForceRequest, bool> canForceEnterWater = null)
+    {
+        if (request == null || gridMap == null)
+        {
+            return 0;
+        }
+
+        int synced = 0;
+        foreach (BattleForceRequest force in EnumerateForces(request))
+        {
+            bool canEnterWater = canForceEnterWater?.Invoke(force) == true;
+            foreach (BattleForcePlacementRequest placement in force?.PreferredPlacements ?? Enumerable.Empty<BattleForcePlacementRequest>())
+            {
+                if (placement == null)
+                {
+                    continue;
+                }
+
+                var position = new GridPosition(placement.CellX, placement.CellY);
+                if (!TryGetCurrentNavigationSurface(gridMap, position, canEnterWater, out GridCellSurface surface))
+                {
+                    continue;
+                }
+
+                // Runtime navigation exports only current top walkable surfaces.
+                // A stale bridge height in the launch request would otherwise
+                // spawn an actor outside the graph and leave playback running in place.
+                if (placement.CellHeight != surface.Height)
+                {
+                    placement.CellHeight = surface.Height;
+                    synced++;
+                }
+            }
+        }
+
+        return synced;
     }
 
     private static void Build(
@@ -81,10 +140,7 @@ public static class BattleNavigationSnapshotBuilder
         List<BattleNavigationConnectionSnapshot> connections)
     {
         GridSurfacePosition[] included = gridMap.Surfaces.Values
-            .Where(surface => surface.HasFoundation &&
-                              surface.IsWalkable &&
-                              surface.MoveCost > 0 &&
-                              gridMap.IsTopSurface(surface.SurfacePosition))
+            .Where(surface => IsRuntimeNavigationExportSurface(gridMap, surface))
             .OrderBy(surface => surface.SurfacePosition.Height)
             .ThenBy(surface => surface.SurfacePosition.Y)
             .ThenBy(surface => surface.SurfacePosition.X)
@@ -95,7 +151,10 @@ public static class BattleNavigationSnapshotBuilder
                     X = surface.SurfacePosition.X,
                     Y = surface.SurfacePosition.Y,
                     Height = surface.SurfacePosition.Height,
-                    MoveCost = System.Math.Max(1, surface.MoveCost)
+                    // Runtime battle traversal is walkable-only. Keep MoveCost on the
+                    // snapshot contract for compatibility, but normalize every legal
+                    // surface to 1 so static/runtime navigation shares one authority.
+                    MoveCost = 1
                 });
                 return surface.SurfacePosition;
             })
@@ -121,9 +180,60 @@ public static class BattleNavigationSnapshotBuilder
                     ToX = edge.Target.X,
                     ToY = edge.Target.Y,
                     ToHeight = edge.Target.Height,
-                    MoveCost = System.Math.Max(1, edge.MoveCost)
+                    MoveCost = 1
                 });
             }
         }
+    }
+
+    private static IEnumerable<BattleForceRequest> EnumerateForces(BattleStartRequest request)
+    {
+        foreach (BattleForceRequest force in request?.PlayerForces ?? Enumerable.Empty<BattleForceRequest>())
+        {
+            yield return force;
+        }
+
+        foreach (BattleForceRequest force in request?.EnemyForces ?? Enumerable.Empty<BattleForceRequest>())
+        {
+            yield return force;
+        }
+    }
+
+    private static bool TryGetCurrentNavigationSurface(
+        BattleGridMap gridMap,
+        GridPosition position,
+        bool canEnterWater,
+        out GridCellSurface surface)
+    {
+        surface = null;
+        if (gridMap == null ||
+            !gridMap.TryGetTopSurface(position, out GridCellSurface topSurface) ||
+            !IsRuntimeNavigationSurface(gridMap, topSurface) ||
+            (!canEnterWater && BattleGridTerrainQueries.IsWater(topSurface)))
+        {
+            return false;
+        }
+
+        surface = topSurface;
+        return true;
+    }
+
+    private static bool IsRuntimeNavigationSurface(BattleGridMap gridMap, GridCellSurface surface)
+    {
+        // Runtime topology is the current land battle slice. Negative-height
+        // foundations are lower authored layers and must not become fallback
+        // graph nodes when the visible land layer is absent or untagged.
+        return surface is { HasFoundation: true, IsWalkable: true, MoveCost: > 0 } &&
+               surface.Height >= 0 &&
+               gridMap?.IsTopSurface(surface.SurfacePosition) == true;
+    }
+
+    private static bool IsRuntimeNavigationExportSurface(BattleGridMap gridMap, GridCellSurface surface)
+    {
+        // The topology data layer is land navigation for this battle slice. Water
+        // may sit under authored land as a visual/lower surface, but it must not
+        // become a fallback route when the land layer is absent.
+        return IsRuntimeNavigationSurface(gridMap, surface) &&
+               !BattleGridTerrainQueries.IsWater(surface);
     }
 }

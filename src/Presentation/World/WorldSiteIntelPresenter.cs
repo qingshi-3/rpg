@@ -53,12 +53,9 @@ public static class WorldSiteIntelPresenter
         return string.Join("\n", BuildSummaryLines(view));
     }
 
-    public static string GetSiteEntryLabel(WorldSiteIntelViewModel view, bool usesExplorationPath)
+    public static string GetSiteEntryLabel(WorldSiteIntelViewModel view)
     {
-        return usesExplorationPath &&
-               view?.Policy is WorldSiteIntelPolicy.Partial or WorldSiteIntelPolicy.Obscured
-            ? "进入探索"
-            : "查看场域";
+        return "查看场域";
     }
 
     public static string GetDirectAssaultLabel()

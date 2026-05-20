@@ -27,11 +27,9 @@ public sealed class WorldSiteIntelSnapshot
     public string TacticalSummary { get; set; } = "";
     public string HiddenTacticalSummary { get; set; } = "";
     public List<string> KnownEntranceIds { get; set; } = new();
-    public List<string> KnownExplorationPointIds { get; set; } = new();
     public List<string> UnknownIntelReasons { get; set; } = new();
     public List<string> ActiveObscurationSourceIds { get; set; } = new();
     public List<string> KnownTacticalTags { get; set; } = new();
-    public List<string> ExplorationAdvantageTags { get; set; } = new();
     public ResourceStore KnownLocalResources { get; set; } = new();
     public List<FacilityInstance> KnownFacilities { get; set; } = new();
     public List<GarrisonState> KnownGarrison { get; set; } = new();

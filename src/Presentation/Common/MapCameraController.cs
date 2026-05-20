@@ -66,14 +66,21 @@ public partial class MapCameraController : Camera2D
     private bool _moveLeftPressed;
     private bool _moveRightPressed;
     private bool _isMiddleMouseDragging;
+    private bool _suppressPolledKeyboardUntilRelease;
 
     public bool HasMapBounds => _hasMapBounds;
     public bool IsUserNavigationActive => _isMiddleMouseDragging || GetMoveDirection() != Vector2.Zero;
 
     public override void _Ready()
     {
+        ResetNavigationInputState("ready");
         Enabled = UseViewportCamera;
         ApplyConfiguredMapBoundsFallback("ready");
+    }
+
+    public override void _ExitTree()
+    {
+        ResetNavigationInputState("exit_tree");
     }
 
     public override void _Process(double delta)
@@ -96,9 +103,38 @@ public partial class MapCameraController : Camera2D
         ClampToMapBounds();
     }
 
+    public void ResetNavigationInputState(string reason)
+    {
+        bool hadInputState = _moveUpPressed ||
+                             _moveDownPressed ||
+                             _moveLeftPressed ||
+                             _moveRightPressed ||
+                             _isMiddleMouseDragging ||
+                             AnyPolledMoveKeyPressed();
+
+        // Scene transitions can miss key or mouse release events. The next scene must
+        // start with no camera intent, then re-enable global key polling after release.
+        _moveUpPressed = false;
+        _moveDownPressed = false;
+        _moveLeftPressed = false;
+        _moveRightPressed = false;
+        _isMiddleMouseDragging = false;
+        _suppressPolledKeyboardUntilRelease = true;
+
+        if (hadInputState)
+        {
+            GameLog.Info("Camera", $"NavigationInputStateReset reason={reason ?? ""}");
+        }
+    }
+
     public override void _Input(InputEvent @event)
     {
         if (!KeyboardMoveEnabled || @event is not InputEventKey keyEvent || keyEvent.Echo)
+        {
+            return;
+        }
+
+        if (ShouldIgnoreSuppressedMoveKeyEvent(keyEvent))
         {
             return;
         }
@@ -330,28 +366,84 @@ public partial class MapCameraController : Camera2D
     private Vector2 GetMoveDirection()
     {
         Vector2 direction = Vector2.Zero;
+        bool allowPolledKeyboard = !ShouldSuppressPolledKeyboard();
 
-        if (_moveUpPressed || Input.IsKeyPressed(Key.W))
+        if (_moveUpPressed || allowPolledKeyboard && Input.IsKeyPressed(Key.W))
         {
             direction.Y -= 1f;
         }
 
-        if (_moveDownPressed || Input.IsKeyPressed(Key.S))
+        if (_moveDownPressed || allowPolledKeyboard && Input.IsKeyPressed(Key.S))
         {
             direction.Y += 1f;
         }
 
-        if (_moveLeftPressed || Input.IsKeyPressed(Key.A))
+        if (_moveLeftPressed || allowPolledKeyboard && Input.IsKeyPressed(Key.A))
         {
             direction.X -= 1f;
         }
 
-        if (_moveRightPressed || Input.IsKeyPressed(Key.D))
+        if (_moveRightPressed || allowPolledKeyboard && Input.IsKeyPressed(Key.D))
         {
             direction.X += 1f;
         }
 
         return direction;
+    }
+
+    private bool ShouldSuppressPolledKeyboard()
+    {
+        if (!_suppressPolledKeyboardUntilRelease)
+        {
+            return false;
+        }
+
+        if (AnyPolledMoveKeyPressed())
+        {
+            return true;
+        }
+
+        _suppressPolledKeyboardUntilRelease = false;
+        return false;
+    }
+
+    private bool ShouldIgnoreSuppressedMoveKeyEvent(InputEventKey keyEvent)
+    {
+        if (!_suppressPolledKeyboardUntilRelease || !IsAnyMoveKey(keyEvent))
+        {
+            return false;
+        }
+
+        if (keyEvent.Pressed)
+        {
+            // Scene swaps may deliver a queued press after reset; accepting it would
+            // recreate a stuck event-backed camera pan before the matching release.
+            GameLog.Info("Camera", $"SuppressedMoveKeyPressAfterReset key={keyEvent.Keycode} physical={keyEvent.PhysicalKeycode}");
+            return true;
+        }
+
+        if (!AnyPolledMoveKeyPressed())
+        {
+            _suppressPolledKeyboardUntilRelease = false;
+        }
+
+        return false;
+    }
+
+    private static bool AnyPolledMoveKeyPressed()
+    {
+        return Input.IsKeyPressed(Key.W) ||
+               Input.IsKeyPressed(Key.S) ||
+               Input.IsKeyPressed(Key.A) ||
+               Input.IsKeyPressed(Key.D);
+    }
+
+    private static bool IsAnyMoveKey(InputEventKey keyEvent)
+    {
+        return IsMoveKey(keyEvent, Key.W) ||
+               IsMoveKey(keyEvent, Key.S) ||
+               IsMoveKey(keyEvent, Key.A) ||
+               IsMoveKey(keyEvent, Key.D);
     }
 
     private static bool IsMoveKey(InputEventKey keyEvent, Key key)

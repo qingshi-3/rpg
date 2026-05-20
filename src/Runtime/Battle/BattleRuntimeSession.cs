@@ -1,6 +1,9 @@
+using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Infrastructure.Logging;
+using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Results;
@@ -9,12 +12,27 @@ namespace Rpg.Runtime.Battle;
 
 public sealed class BattleRuntimeSession
 {
-    private const int MaxAutonomousCombatTicks = 128;
-    private const int MaxAttacksResolvedPerActorTick = 4;
-    private const int CorpsAttackDamage = 20;
+    internal const int MaxAutonomousCombatTicks = 128;
+    private const int LegacyCorpsAttackDamage = 20;
     private const int EngagementRange = 1;
+    private const string CommandAssault = "Assault";
+    private const string CommandFocusFire = "FocusFire";
+    private const string CommandHoldLine = "HoldLine";
+    private readonly BattleRuntimeTickResolver _tickResolver;
+
+    public BattleRuntimeSession(IBattleRuntimeAiExecutor aiExecutor = null)
+    {
+        IBattleRuntimeAiExecutor executor = aiExecutor ?? new DefaultBattleRuntimeAiExecutor();
+        _tickResolver = new BattleRuntimeTickResolver(executor);
+    }
 
     public BattleRuntimeSessionResult RunMinimal(BattleStartSnapshot snapshot)
+    {
+        BattleRuntimeSessionController controller = Begin(snapshot);
+        return controller.AdvanceToCompletion();
+    }
+
+    public BattleRuntimeSessionController Begin(BattleStartSnapshot snapshot)
     {
         BattleEventStream stream = new();
         string battleId = snapshot?.BattleId ?? "";
@@ -33,22 +51,16 @@ public sealed class BattleRuntimeSession
                 ReasonCode = "battle_snapshot_invalid"
             });
 
-            return new BattleRuntimeSessionResult
-            {
-                EventStream = stream,
-                FinalState = new BattleRuntimeState
+            return BattleRuntimeSessionController.CompletedInvalid(
+                snapshotId,
+                battleId,
+                stream,
+                new BattleRuntimeState
                 {
                     SnapshotId = snapshotId,
                     BattleId = battleId
                 },
-                Outcome = new BattleOutcomeResult
-                {
-                    SnapshotId = snapshotId,
-                    BattleId = battleId,
-                    IsComplete = false,
-                    TerminationReason = BattleTerminationReason.RuntimeException
-                }
-            };
+                BattleTerminationReason.RuntimeException);
         }
 
         stream.Add(new BattleEvent
@@ -73,24 +85,21 @@ public sealed class BattleRuntimeSession
         }
 
         BattleNavigationGraph navigationGraph = BattleNavigationGraph.Create(snapshot.LocationContext, state.Actors);
-        BattleTerminationReason terminationReason = ResolveAutonomousCombat(state, stream, battleId, navigationGraph);
-        stream.Add(new BattleEvent
-        {
-            EventId = $"{battleId}:ended",
-            BattleId = battleId,
-            Kind = BattleEventKind.BattleEnded,
-            ReasonCode = terminationReason.ToString()
-        });
+        LogNavigationGraphSummary(battleId, navigationGraph);
+        LogNavigationActorStarts(battleId, navigationGraph, state.Actors);
+        EmitInitialCommandEvents(stream, battleId, state);
 
-        return new BattleRuntimeSessionResult
-        {
-            EventStream = stream,
-            FinalState = state,
-            Outcome = BuildCompletedOutcome(snapshotId, battleId, state, terminationReason)
-        };
+        return new BattleRuntimeSessionController(
+            _tickResolver,
+            state,
+            stream,
+            battleId,
+            snapshotId,
+            navigationGraph,
+            MaxAutonomousCombatTicks);
     }
 
-    private static BattleRuntimeState BuildRuntimeState(BattleStartSnapshot snapshot)
+    internal static BattleRuntimeState BuildRuntimeState(BattleStartSnapshot snapshot)
     {
         BattleRuntimeState state = new()
         {
@@ -98,7 +107,7 @@ public sealed class BattleRuntimeSession
             BattleId = snapshot?.BattleId ?? ""
         };
 
-        var sourceForceIndexes = new System.Collections.Generic.Dictionary<string, int>();
+        var sourceForceIndexes = new Dictionary<string, int>();
         foreach (BattleGroupSnapshot group in snapshot?.BattleGroups ?? Enumerable.Empty<BattleGroupSnapshot>())
         {
             string sourceForceId = string.IsNullOrWhiteSpace(group.SourceForceId)
@@ -106,7 +115,10 @@ public sealed class BattleRuntimeSession
                 : group.SourceForceId;
             sourceForceIndexes.TryGetValue(sourceForceId, out int sourceForceIndex);
             sourceForceIndexes[sourceForceId] = sourceForceIndex + 1;
-            int corpsHitPoints = System.Math.Max(1, group.CorpsStrength);
+            double moveStepSeconds = ResolveMoveStepSeconds(group);
+            double attackActionSeconds = ResolveAttackActionSeconds(group);
+            double attackImpactDelaySeconds = ResolveAttackImpactDelaySeconds(group, attackActionSeconds);
+            int corpsHitPoints = ResolveCombatHitPoints(group);
             int corpsFootprintWidth = BattleActorFootprint.NormalizeSize(group.FootprintWidth);
             int corpsFootprintHeight = BattleActorFootprint.NormalizeSize(group.FootprintHeight);
             state.Actors.Add(new BattleRuntimeActor
@@ -123,8 +135,13 @@ public sealed class BattleRuntimeSession
                 GridY = group.CellY,
                 GridHeight = group.CellHeight,
                 MotionState = BattleRuntimeActorMotionState.Anchored,
+                Phase = BattleRuntimeActorPhase.AnchoredDecision,
                 AttackRange = EngagementRange,
-                AttackSpeed = BattleAttackSpeedPolicy.DefaultAttackSpeed
+                AttackDamage = ResolveAttackDamage(group.AttackDamage),
+                AttackSpeed = BattleAttackSpeedPolicy.DefaultAttackSpeed,
+                MoveStepSeconds = moveStepSeconds,
+                AttackActionSeconds = attackActionSeconds,
+                AttackImpactDelaySeconds = attackImpactDelaySeconds
             });
             state.Actors.Add(new BattleRuntimeActor
             {
@@ -142,211 +159,94 @@ public sealed class BattleRuntimeSession
                 FootprintWidth = corpsFootprintWidth,
                 FootprintHeight = corpsFootprintHeight,
                 MotionState = BattleRuntimeActorMotionState.Anchored,
-                AttackRange = EngagementRange,
-                AttackSpeed = BattleAttackSpeedPolicy.Normalize(group.AttackSpeed)
+                Phase = BattleRuntimeActorPhase.AnchoredDecision,
+                AttackRange = ResolveAttackRange(group.AttackRange),
+                AttackDamage = ResolveAttackDamage(group.AttackDamage),
+                AttackSpeed = BattleAttackSpeedPolicy.Normalize(group.AttackSpeed),
+                MoveStepSeconds = moveStepSeconds,
+                AttackActionSeconds = attackActionSeconds,
+                AttackImpactDelaySeconds = attackImpactDelaySeconds,
+                CommandId = NormalizeCorpsCommandId(group.InitialCorpsCommandId)
             });
         }
 
         return state;
     }
 
-    private static BattleTerminationReason ResolveAutonomousCombat(
+    internal BattleTerminationReason ResolveAutonomousCombat(
         BattleRuntimeState state,
         BattleEventStream stream,
         string battleId,
         BattleNavigationGraph navigationGraph)
     {
-        // V0 keeps combat authority inside Runtime: Application supplies frozen
-        // factions/actors, and settlement consumes only emitted events/results.
         if (state?.Actors == null)
         {
             return BattleTerminationReason.RuntimeException;
         }
 
+        var navigationFailureDiagnostics = new HashSet<string>(System.StringComparer.Ordinal);
+        double currentTimeSeconds = 0;
         for (int tick = 0; tick < MaxAutonomousCombatTicks; tick++)
         {
-            BattleDynamicOccupancy occupancy = BattleDynamicOccupancy.FromActors(state.Actors);
-            BattleMovementReservationMap reservations = new();
             BattleTerminationReason resolved = ResolveTermination(state);
             if (resolved != BattleTerminationReason.None)
             {
                 return resolved;
             }
 
-            foreach (BattleRuntimeActor actor in state.Actors
-                         .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
-                         .OrderBy(item => item.ActorId)
-                         .ToArray())
+            double? nextReady = state.Actors
+                .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
+                .Select(item => (double?)System.Math.Max(currentTimeSeconds, item.ActionReadyAtSeconds))
+                .DefaultIfEmpty(currentTimeSeconds)
+                .Min();
+            if (nextReady.HasValue && nextReady.Value > currentTimeSeconds)
             {
-                if (actor.HitPoints <= 0)
-                {
-                    continue;
-                }
-
-                BattleRuntimeActor target = FindNearestEnemyCorps(state, actor);
-                if (target == null)
-                {
-                    actor.TargetActorId = "";
-                    continue;
-                }
-
-                actor.TargetActorId = target.ActorId;
-                int distance = GetSquareGridDistance(actor, target);
-                if (distance > System.Math.Max(1, actor.AttackRange))
-                {
-                    if (!TryAdvanceOneSquareGridStep(
-                            actor,
-                            target,
-                            navigationGraph,
-                            occupancy,
-                            reservations,
-                            out (int FromX, int FromY, int FromHeight, int ToX, int ToY, int ToHeight) move))
-                    {
-                        continue;
-                    }
-
-                    stream.Add(new BattleEvent
-                    {
-                        EventId = $"{battleId}:tick_{tick}:{actor.ActorId}:move",
-                        BattleId = battleId,
-                        BattleGroupId = actor.BattleGroupId,
-                        ActorId = actor.ActorId,
-                        TargetId = target.ActorId,
-                        Kind = BattleEventKind.MovementCompleted,
-                        ReasonCode = "auto_advance",
-                        HasMovementCells = true,
-                        FromGridX = move.FromX,
-                        FromGridY = move.FromY,
-                        FromGridHeight = move.FromHeight,
-                        ToGridX = move.ToX,
-                        ToGridY = move.ToY,
-                        ToGridHeight = move.ToHeight
-                    });
-                    RechargeAttack(actor);
-                    continue;
-                }
-
-                if (!TryConsumeAttackCharge(actor))
-                {
-                    RechargeAttack(actor);
-                    continue;
-                }
-
-                int attacksResolved = 0;
-                do
-                {
-                    int damage = System.Math.Min(CorpsAttackDamage, System.Math.Max(0, target.HitPoints));
-                    target.HitPoints = System.Math.Max(0, target.HitPoints - damage);
-                    string attackEventKey = attacksResolved == 0 ? "attack" : $"attack_{attacksResolved + 1}";
-                    stream.Add(new BattleEvent
-                    {
-                        EventId = $"{battleId}:tick_{tick}:{actor.ActorId}:{attackEventKey}:{target.ActorId}",
-                        BattleId = battleId,
-                        BattleGroupId = actor.BattleGroupId,
-                        ActorId = actor.ActorId,
-                        TargetId = target.ActorId,
-                        Kind = BattleEventKind.DamageApplied,
-                        ReasonCode = target.HitPoints <= 0 ? "auto_attack_target_defeated" : "auto_attack",
-                        CorpsStrengthDelta = -damage
-                    });
-                    attacksResolved++;
-                }
-                while (target.HitPoints > 0 &&
-                       attacksResolved < MaxAttacksResolvedPerActorTick &&
-                       TryConsumeAttackCharge(actor));
-
-                RechargeAttack(actor);
+                currentTimeSeconds = nextReady.Value;
             }
+
+            _tickResolver.ResolveTick(
+                state,
+                stream,
+                battleId,
+                tick,
+                currentTimeSeconds,
+                navigationGraph,
+                navigationFailureDiagnostics);
         }
 
         return BattleTerminationReason.RuntimeException;
     }
 
-    private static BattleRuntimeActor FindNearestEnemyCorps(BattleRuntimeState state, BattleRuntimeActor actor)
+    internal static void LogNavigationGraphSummary(string battleId, BattleNavigationGraph navigationGraph)
     {
-        return state.Actors
-            .Where(item =>
-                item.Kind == BattleRuntimeActorKind.Corps &&
-                item.HitPoints > 0 &&
-                !SameFaction(item, actor))
-            .OrderBy(item => GetSquareGridDistance(item, actor))
-            .ThenBy(item => item.ActorId)
-            .FirstOrDefault();
+        GameLog.Info(
+            nameof(BattleRuntimeSession),
+            $"BattleRuntimeNavigationGraph battle={battleId ?? ""} {navigationGraph?.DescribeTopology() ?? "graph=missing"}");
     }
 
-    private static int GetSquareGridDistance(BattleRuntimeActor first, BattleRuntimeActor second)
-    {
-        return BattleActorFootprint.GetGap(first, second);
-    }
-
-    private static bool TryAdvanceOneSquareGridStep(
-        BattleRuntimeActor actor,
-        BattleRuntimeActor target,
+    internal static void LogNavigationActorStarts(
+        string battleId,
         BattleNavigationGraph navigationGraph,
-        BattleDynamicOccupancy occupancy,
-        BattleMovementReservationMap reservations,
-        out (int FromX, int FromY, int FromHeight, int ToX, int ToY, int ToHeight) move)
+        IEnumerable<BattleRuntimeActor> actors)
     {
-        move = default;
-        if (actor == null || target == null)
-        {
-            return false;
-        }
+        string starts = string.Join(";",
+            (actors ?? Enumerable.Empty<BattleRuntimeActor>())
+                .Where(actor => actor?.Kind == BattleRuntimeActorKind.Corps)
+                .OrderBy(actor => actor.ActorId, System.StringComparer.Ordinal)
+                .Select(actor =>
+                {
+                    BattleGridCoord anchor = new(actor.GridX, actor.GridY, actor.GridHeight);
+                    bool inGraph = navigationGraph?.Contains(anchor) == true;
+                    bool footprintLegal = navigationGraph?.CanPlaceFootprint(actor, anchor) == true;
+                    return $"{actor.ActorId}@{anchor}:inGraph={inGraph}:footprint={actor.FootprintWidth}x{actor.FootprintHeight}:footprintLegal={footprintLegal}";
+                }));
 
-        BattleGridCoord from = new(actor.GridX, actor.GridY, actor.GridHeight);
-        if (!BattlePathfinder.TryFindNextStepTowardAttackRange(
-                actor,
-                target,
-                navigationGraph,
-                occupancy,
-                reservations,
-                out BattleGridCoord next) ||
-            !reservations.TryReserveMove(actor, from, next, occupancy))
-        {
-            return false;
-        }
-
-        move = (actor.GridX, actor.GridY, actor.GridHeight, next.X, next.Y, next.Height);
-        actor.HasReservedGridCell = true;
-        actor.ReservedGridX = next.X;
-        actor.ReservedGridY = next.Y;
-        actor.ReservedGridHeight = next.Height;
-        actor.MotionState = BattleRuntimeActorMotionState.Moving;
-        actor.GridX = next.X;
-        actor.GridY = next.Y;
-        actor.GridHeight = next.Height;
-        actor.Position = actor.GridX;
-        actor.HasReservedGridCell = false;
-        actor.MotionState = BattleRuntimeActorMotionState.Anchored;
-        return true;
+        GameLog.Info(
+            nameof(BattleRuntimeSession),
+            $"BattleRuntimeNavigationActorStarts battle={battleId ?? ""} {starts}");
     }
 
-    private static bool TryConsumeAttackCharge(BattleRuntimeActor actor)
-    {
-        if (actor == null || actor.AttackCharge < 1.0)
-        {
-            return false;
-        }
-
-        actor.AttackCharge = System.Math.Max(0, actor.AttackCharge - 1.0);
-        return true;
-    }
-
-    private static void RechargeAttack(BattleRuntimeActor actor)
-    {
-        if (actor == null)
-        {
-            return;
-        }
-
-        actor.AttackSpeed = BattleAttackSpeedPolicy.Normalize(actor.AttackSpeed);
-        actor.AttackCharge = System.Math.Clamp(
-            actor.AttackCharge + actor.AttackSpeed,
-            0,
-            MaxAttacksResolvedPerActorTick);
-    }
-
-    private static BattleTerminationReason ResolveTermination(BattleRuntimeState state)
+    internal static BattleTerminationReason ResolveTermination(BattleRuntimeState state)
     {
         BattleRuntimeActor[] corps = state.Actors
             .Where(item => item.Kind == BattleRuntimeActorKind.Corps)
@@ -376,7 +276,7 @@ public sealed class BattleRuntimeSession
         return BattleTerminationReason.None;
     }
 
-    private static BattleOutcomeResult BuildCompletedOutcome(
+    internal static BattleOutcomeResult BuildCompletedOutcome(
         string snapshotId,
         string battleId,
         BattleRuntimeState state,
@@ -404,6 +304,56 @@ public sealed class BattleRuntimeSession
         return outcome;
     }
 
+    private static int ResolveCombatHitPoints(BattleGroupSnapshot group)
+    {
+        if (group?.MaxHitPoints > 0)
+        {
+            return group.MaxHitPoints;
+        }
+
+        return System.Math.Max(1, group?.CorpsStrength ?? 0);
+    }
+
+    private static int ResolveAttackDamage(int attackDamage)
+    {
+        return attackDamage > 0 ? attackDamage : LegacyCorpsAttackDamage;
+    }
+
+    private static int ResolveAttackRange(int attackRange)
+    {
+        return System.Math.Max(1, attackRange);
+    }
+
+    private static double ResolveMoveStepSeconds(BattleGroupSnapshot group)
+    {
+        return BattleActionTimingPolicy.NormalizeActionSeconds(
+            group?.MoveStepSeconds ?? BattleActionTimingPolicy.DefaultMoveStepSeconds,
+            BattleActionTimingPolicy.DefaultMoveStepSeconds);
+    }
+
+    private static double ResolveAttackActionSeconds(BattleGroupSnapshot group)
+    {
+        if (group?.AttackActionSeconds > 0)
+        {
+            return BattleActionTimingPolicy.NormalizeActionSeconds(
+                group.AttackActionSeconds,
+                BattleActionTimingPolicy.DefaultAttackActionSeconds);
+        }
+
+        return BattleActionTimingPolicy.ResolveAttackActionSeconds(
+            BattleActionTimingPolicy.DefaultAttackActionSeconds,
+            group?.AttackSpeed ?? BattleAttackSpeedPolicy.DefaultAttackSpeed);
+    }
+
+    private static double ResolveAttackImpactDelaySeconds(BattleGroupSnapshot group, double attackActionSeconds)
+    {
+        return group?.AttackImpactDelaySeconds > 0
+            ? BattleActionTimingPolicy.NormalizeAttackImpactDelaySeconds(group.AttackImpactDelaySeconds, attackActionSeconds)
+            : BattleActionTimingPolicy.ResolveAttackImpactDelaySeconds(
+                attackActionSeconds,
+                BattleActionTimingPolicy.DefaultAttackImpactNormalizedTime);
+    }
+
     private static bool HasRequiredGroupIdentity(BattleGroupSnapshot group)
     {
         return group != null &&
@@ -413,6 +363,44 @@ public sealed class BattleRuntimeSession
             !string.IsNullOrWhiteSpace(group.HeroDefinitionId) &&
             !string.IsNullOrWhiteSpace(group.CorpsDefinitionId) &&
             !string.IsNullOrWhiteSpace(group.SourceLocationId);
+    }
+
+    internal static void EmitInitialCommandEvents(
+        BattleEventStream stream,
+        string battleId,
+        BattleRuntimeState state)
+    {
+        foreach (BattleRuntimeActor actor in state?.Actors?.Where(item =>
+                     item.Kind == BattleRuntimeActorKind.Corps &&
+                     IsPlayerFaction(item.FactionId) &&
+                     !string.IsNullOrWhiteSpace(item.CommandId)) ?? Enumerable.Empty<BattleRuntimeActor>())
+        {
+            stream.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:{actor.ActorId}:initial_command",
+                BattleId = battleId,
+                BattleGroupId = actor.BattleGroupId,
+                ActorId = actor.ActorId,
+                Kind = BattleEventKind.CommandAccepted,
+                ReasonCode = actor.CommandId
+            });
+        }
+    }
+
+    private static string NormalizeCorpsCommandId(string commandId)
+    {
+        string value = commandId?.Trim() ?? "";
+        if (string.Equals(value, CommandFocusFire, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return CommandFocusFire;
+        }
+
+        if (string.Equals(value, CommandHoldLine, System.StringComparison.OrdinalIgnoreCase))
+        {
+            return CommandHoldLine;
+        }
+
+        return CommandAssault;
     }
 
     private static bool SameFaction(BattleRuntimeActor first, BattleRuntimeActor second)

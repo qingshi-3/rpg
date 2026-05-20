@@ -1,3 +1,5 @@
+using Rpg.Application.Battle;
+
 namespace Rpg.Application.Battle.Snapshots;
 
 public sealed class BattleGroupSnapshot
@@ -19,5 +21,12 @@ public sealed class BattleGroupSnapshot
     public int CellHeight { get; set; }
     public int FootprintWidth { get; set; } = 1;
     public int FootprintHeight { get; set; } = 1;
+    public int MaxHitPoints { get; set; }
+    public int AttackDamage { get; set; }
+    public int AttackRange { get; set; } = 1;
     public double AttackSpeed { get; set; } = 1.0;
+    public double MoveStepSeconds { get; set; } = BattleActionTimingPolicy.DefaultMoveStepSeconds;
+    public double AttackActionSeconds { get; set; }
+    public double AttackImpactDelaySeconds { get; set; }
+    public string InitialCorpsCommandId { get; set; } = "";
 }

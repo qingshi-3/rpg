@@ -10,6 +10,5 @@ public sealed class WorldSiteIntelDefinition
     public string HiddenTacticalSummary { get; set; } = "";
     public List<string> PublicEntranceIds { get; set; } = new();
     public List<string> PublicFacilitySlotIds { get; set; } = new();
-    public List<string> PublicExplorationPointIds { get; set; } = new();
     public List<WorldSiteObscurationDefinition> ObscurationSources { get; set; } = new();
 }

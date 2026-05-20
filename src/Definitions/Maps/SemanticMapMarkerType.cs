@@ -11,6 +11,5 @@ public enum SemanticMapMarkerType
     FlankRoute = 6,
     RangedPoint = 7,
     DefendPoint = 8,
-    ExplorationPoint = 9,
-    EventSpawn = 10
+    EventSpawn = 9
 }

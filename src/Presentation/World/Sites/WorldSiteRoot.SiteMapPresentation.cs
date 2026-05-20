@@ -47,14 +47,8 @@ public partial class WorldSiteRoot
         }
 
         int animatedCount = 0;
-        bool explorationActive = IsSiteExplorationActive(site, definition);
         foreach (WorldSiteUnitPlacement placement in site.UnitPlacements)
         {
-            if (explorationActive && IsPlayerArmySitePlacement(placement))
-            {
-                continue;
-            }
-
             BattleEntity entity = CreateSitePlacementUnitEntity(placement, site);
             if (entity == null)
             {
@@ -68,8 +62,6 @@ public partial class WorldSiteRoot
             _sitePlacementEntities[placementId] = entity;
             animatedCount++;
         }
-
-        RefreshSiteExplorationPresentation(site, definition);
 
         if (_unitRoot != null)
         {
@@ -348,8 +340,6 @@ public partial class WorldSiteRoot
         }
 
         RemoveDisposedSitePlacementEntityRefs();
-
-        SyncSiteExplorationMarkerPositions(site);
     }
 
     private BattleEntity CreateSitePlacementUnitEntity(WorldSiteUnitPlacement placement, WorldSiteState site)
@@ -780,5 +770,31 @@ public partial class WorldSiteRoot
         }
 
         return foundObjectLayer;
+    }
+
+    private static bool IsLiveNode(GodotObject node)
+    {
+        if (node == null || !GodotObject.IsInstanceValid(node))
+        {
+            return false;
+        }
+
+        return node is not Node queuedNode || !queuedNode.IsQueuedForDeletion();
+    }
+
+    private void RemoveDisposedSitePlacementEntityRefs()
+    {
+        if (_sitePlacementEntities.Count == 0)
+        {
+            return;
+        }
+
+        foreach (string placementId in _sitePlacementEntities
+                     .Where(item => !IsLiveNode(item.Value))
+                     .Select(item => item.Key)
+                     .ToArray())
+        {
+            _sitePlacementEntities.Remove(placementId);
+        }
     }
 }

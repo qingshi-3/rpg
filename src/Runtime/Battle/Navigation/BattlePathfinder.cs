@@ -4,7 +4,6 @@ namespace Rpg.Runtime.Battle.Navigation;
 
 internal static class BattlePathfinder
 {
-    private const int StepCost = 10;
     private const long CostPriorityScale = 1_000_000L;
     private const long HeuristicPriorityScale = 1_000L;
 
@@ -14,6 +13,7 @@ internal static class BattlePathfinder
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
+        bool preferSupportWhenFirstStepMovesAway,
         out BattleGridCoord nextStep)
     {
         nextStep = default;
@@ -37,7 +37,12 @@ internal static class BattlePathfinder
         };
         var closed = new HashSet<BattleGridCoord>();
         long sequence = 0;
-        frontier.Enqueue(start, BuildPriority(0, Estimate(actor, start, target, attackRange), sequence++));
+        int startEstimate = BattlePathCostPolicy.EstimateToAttackRange(actor, start, target, attackRange);
+        int bestSupportEstimate = startEstimate;
+        int bestSupportCost = int.MaxValue;
+        BattleGridCoord bestSupportAnchor = default;
+        bool hasBestSupportAnchor = false;
+        frontier.Enqueue(start, BuildPriority(0, startEstimate, sequence++));
 
         int searched = 0;
         while (frontier.Count > 0 && searched < graph.MaxSearchNodes)
@@ -51,18 +56,53 @@ internal static class BattlePathfinder
             searched++;
             if (current != start && IsAttackAnchor(actor, current, target, attackRange))
             {
-                return TryResolveFirstStep(start, current, cameFrom, out nextStep);
+                if (TryResolveFirstStep(start, current, cameFrom, out BattleGridCoord attackStep))
+                {
+                    if (ShouldPreferSupportStep(
+                            actor,
+                            target,
+                            start,
+                            attackStep,
+                            hasBestSupportAnchor,
+                            bestSupportAnchor,
+                            cameFrom,
+                            preferSupportWhenFirstStepMovesAway,
+                            out nextStep))
+                    {
+                        return true;
+                    }
+
+                    nextStep = attackStep;
+                    return true;
+                }
+
+                return false;
+            }
+
+            if (current != start)
+            {
+                int currentEstimate = BattlePathCostPolicy.EstimateToAttackRange(actor, current, target, attackRange);
+                int currentCost = costSoFar.TryGetValue(current, out int value) ? value : int.MaxValue;
+                if (currentEstimate < bestSupportEstimate ||
+                    currentEstimate == bestSupportEstimate && currentCost < bestSupportCost)
+                {
+                    bestSupportEstimate = currentEstimate;
+                    bestSupportCost = currentCost;
+                    bestSupportAnchor = current;
+                    hasBestSupportAnchor = true;
+                }
             }
 
             foreach (BattleGridCoord neighbor in graph.GetNeighbors(current))
             {
                 if (closed.Contains(neighbor) ||
-                    !CanEnterAnchor(actor, start, current, neighbor, graph, occupancy, reservations))
+                    !BattlePathStepRules.CanUseAnchor(actor, start, current, neighbor, graph, occupancy, reservations))
                 {
                     continue;
                 }
 
-                int newCost = costSoFar[current] + graph.GetStepCost(current, neighbor, StepCost);
+                int newCost = costSoFar[current] +
+                              BattlePathCostPolicy.GetTraversalCost(actor, start, current, neighbor, graph, occupancy);
                 if (costSoFar.TryGetValue(neighbor, out int knownCost) && newCost >= knownCost)
                 {
                     continue;
@@ -70,31 +110,61 @@ internal static class BattlePathfinder
 
                 costSoFar[neighbor] = newCost;
                 cameFrom[neighbor] = current;
-                int heuristic = Estimate(actor, neighbor, target, attackRange);
+                int heuristic = BattlePathCostPolicy.EstimateToAttackRange(actor, neighbor, target, attackRange);
                 frontier.Enqueue(neighbor, BuildPriority(newCost, heuristic, sequence++));
             }
+        }
+
+        // If the actual attack anchors are occupied by the frontline, still let
+        // backline actors close to the best reachable support cell instead of
+        // idling at their spawn until the blocker dies or moves.
+        if (hasBestSupportAnchor)
+        {
+            return TryResolveFirstStep(start, bestSupportAnchor, cameFrom, out nextStep);
         }
 
         return false;
     }
 
-    private static bool CanEnterAnchor(
+    private static bool ShouldPreferSupportStep(
         BattleRuntimeActor actor,
+        BattleRuntimeActor target,
         BattleGridCoord start,
-        BattleGridCoord current,
-        BattleGridCoord neighbor,
-        BattleNavigationGraph graph,
-        BattleDynamicOccupancy occupancy,
-        BattleMovementReservationMap reservations)
+        BattleGridCoord attackStep,
+        bool hasBestSupportAnchor,
+        BattleGridCoord bestSupportAnchor,
+        IReadOnlyDictionary<BattleGridCoord, BattleGridCoord> cameFrom,
+        bool preferSupportWhenFirstStepMovesAway,
+        out BattleGridCoord supportStep)
     {
-        if (!graph.Contains(neighbor))
+        supportStep = default;
+        if (!preferSupportWhenFirstStepMovesAway || !hasBestSupportAnchor)
         {
             return false;
         }
 
-        return current == start
-            ? reservations.CanReserveMove(actor, start, neighbor, occupancy)
-            : reservations.CanReserveFootprint(actor, neighbor, occupancy);
+        int startGap = BattleActorFootprint.GetGap(actor, start, target, new BattleGridCoord(target.GridX, target.GridY, target.GridHeight));
+        int attackStepGap = BattleActorFootprint.GetGap(actor, attackStep, target, new BattleGridCoord(target.GridX, target.GridY, target.GridHeight));
+        if (attackStepGap <= startGap)
+        {
+            return false;
+        }
+
+        if (!TryResolveFirstStep(start, bestSupportAnchor, cameFrom, out BattleGridCoord candidateSupportStep))
+        {
+            return false;
+        }
+
+        int supportStepGap = BattleActorFootprint.GetGap(actor, candidateSupportStep, target, new BattleGridCoord(target.GridX, target.GridY, target.GridHeight));
+        if (supportStepGap >= startGap)
+        {
+            return false;
+        }
+
+        // When another ally is already in contact, V0 should reinforce the
+        // local fight instead of sending support units away on a long flank.
+        supportStep = candidateSupportStep;
+        return true;
     }
 
     private static bool IsAttackAnchor(
@@ -104,16 +174,6 @@ internal static class BattlePathfinder
         int attackRange)
     {
         return BattleActorFootprint.GetGap(actor, anchor, target, new BattleGridCoord(target.GridX, target.GridY, target.GridHeight)) <= attackRange;
-    }
-
-    private static int Estimate(
-        BattleRuntimeActor actor,
-        BattleGridCoord anchor,
-        BattleRuntimeActor target,
-        int attackRange)
-    {
-        int gap = BattleActorFootprint.GetGap(actor, anchor, target, new BattleGridCoord(target.GridX, target.GridY, target.GridHeight));
-        return System.Math.Max(0, gap - attackRange) * StepCost;
     }
 
     private static long BuildPriority(int cost, int heuristic, long sequence)

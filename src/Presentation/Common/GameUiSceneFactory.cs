@@ -11,7 +11,6 @@ public static class GameUiSceneFactory
 {
     public const string StrategicWorldHudScenePath = "res://scenes/world/ui/StrategicWorldHud.tscn";
     public const string WorldSitePeacetimeHudScenePath = "res://scenes/world/ui/WorldSitePeacetimeHud.tscn";
-    public const string BattleAlertDialogScenePath = "res://scenes/world/ui/BattleAlertDialog.tscn";
     public const string PreBattleDialogScenePath = "res://scenes/world/ui/PreBattleDialog.tscn";
     public const string WorldSiteHitButtonScenePath = "res://scenes/world/ui/WorldSiteHitButton.tscn";
     public const string WorldSiteLabelScenePath = "res://scenes/world/ui/WorldSiteLabel.tscn";

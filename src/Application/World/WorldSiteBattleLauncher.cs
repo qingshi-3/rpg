@@ -12,11 +12,6 @@ public sealed class WorldSiteBattleLaunchRollback
     public string SiteId { get; set; } = "";
     public bool HasPreviousSiteMode { get; set; }
     public WorldSiteMode PreviousSiteMode { get; set; } = WorldSiteMode.Peacetime;
-    public bool HasPreviousExplorationState { get; set; }
-    public bool PreviousExplorationPaused { get; set; }
-    public string PreviousExplorationPauseReason { get; set; } = "";
-    public string PreviousActiveAlertPatrolId { get; set; } = "";
-    public List<string> PreviousPendingPathCellKeys { get; } = new();
 }
 
 public sealed class WorldSiteBattleLaunchResult
@@ -53,15 +48,6 @@ public sealed class WorldSiteBattleLauncher
 
         rollback.HasPreviousSiteMode = true;
         rollback.PreviousSiteMode = site.SiteMode;
-        if (site.Exploration != null)
-        {
-            rollback.HasPreviousExplorationState = true;
-            rollback.PreviousExplorationPaused = site.Exploration.IsSimulationPaused;
-            rollback.PreviousExplorationPauseReason = site.Exploration.PauseReason ?? "";
-            rollback.PreviousActiveAlertPatrolId = site.Exploration.ActiveAlertPatrolId ?? "";
-            rollback.PreviousPendingPathCellKeys.Clear();
-            rollback.PreviousPendingPathCellKeys.AddRange(site.Exploration.PendingPathCellKeys);
-        }
 
         return rollback;
     }
@@ -177,15 +163,6 @@ public sealed class WorldSiteBattleLauncher
                 state?.WorldTick ?? site.LastModeChangedTick,
                 "battle_launch_rollback",
                 request?.RequestId ?? "");
-        }
-
-        if (rollback?.HasPreviousExplorationState == true && site.Exploration != null)
-        {
-            site.Exploration.IsSimulationPaused = rollback.PreviousExplorationPaused;
-            site.Exploration.PauseReason = rollback.PreviousExplorationPauseReason;
-            site.Exploration.ActiveAlertPatrolId = rollback.PreviousActiveAlertPatrolId;
-            site.Exploration.PendingPathCellKeys.Clear();
-            site.Exploration.PendingPathCellKeys.AddRange(rollback.PreviousPendingPathCellKeys);
         }
 
         clearBattleEntities?.Invoke();

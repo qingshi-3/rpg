@@ -15,6 +15,28 @@ public partial class BattleAiFacade : Node
         LastDecision = null;
     }
 
+    public bool has_battle_command(string expectedCommand, GodotObject blackboard)
+    {
+        if (_facts is not { HasValidContext: true, ActorCanAct: true } ||
+            string.IsNullOrWhiteSpace(expectedCommand))
+        {
+            return false;
+        }
+
+        string command = !string.IsNullOrWhiteSpace(_facts.Command)
+            ? _facts.Command
+            : ReadBlackboardString(blackboard, new StringName("command"), "");
+        return string.Equals(command, expectedCommand, System.StringComparison.Ordinal);
+    }
+
+    public bool has_ranged_battle_ability(StringName abilityVar, GodotObject blackboard)
+    {
+        return CanUseFacts() &&
+               _facts.HasPrimaryAbility &&
+               _facts.PrimaryAbilityRange > 1 &&
+               (string.IsNullOrWhiteSpace(abilityVar.ToString()) || HasBlackboardValue(blackboard, abilityVar));
+    }
+
     // LimboAI custom tasks call this snake_case method from GDScript. It writes
     // only blackboard decision facts; C# planners and resolvers still own action truth.
     public bool select_battle_target(string mode, StringName targetVar, GodotObject blackboard)
@@ -40,7 +62,11 @@ public partial class BattleAiFacade : Node
 
     public bool can_strike_battle_target(StringName targetVar, StringName abilityVar, GodotObject blackboard)
     {
-        return CanUseFacts() && _facts.HasPrimaryAbility && _facts.CanStrikeNow && blackboard != null;
+        return CanUseFacts() &&
+               _facts.HasPrimaryAbility &&
+               _facts.CanStrikeNow &&
+               HasBlackboardValue(blackboard, targetVar) &&
+               (string.IsNullOrWhiteSpace(abilityVar.ToString()) || HasBlackboardValue(blackboard, abilityVar));
     }
 
     public bool emit_battle_intent(StringName templateId, StringName powerVar, string reason, GodotObject blackboard)
@@ -76,5 +102,26 @@ public partial class BattleAiFacade : Node
         return value.VariantType == Variant.Type.Int
             ? System.Math.Max(0, value.AsInt32())
             : System.Math.Max(0, fallback);
+    }
+
+    private static bool HasBlackboardValue(GodotObject blackboard, StringName key)
+    {
+        return !string.IsNullOrWhiteSpace(ReadBlackboardString(blackboard, key, ""));
+    }
+
+    private static string ReadBlackboardString(GodotObject blackboard, StringName key, string fallback)
+    {
+        if (blackboard == null || string.IsNullOrWhiteSpace(key.ToString()))
+        {
+            return fallback ?? "";
+        }
+
+        Variant value = blackboard.Call("get_var", key, fallback ?? "");
+        if (value.VariantType == Variant.Type.Nil)
+        {
+            return fallback ?? "";
+        }
+
+        return value.ToString();
     }
 }

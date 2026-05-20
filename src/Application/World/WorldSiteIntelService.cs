@@ -11,13 +11,13 @@ namespace Rpg.Application.World;
 public static class WorldSiteIntelService
 {
     private const string MissingIntelReason = "missing_intel_definition: 场域情报定义缺失。";
-    private static readonly object MissingIntelLogSync = new();
-    private static readonly HashSet<string> MissingIntelLoggedSiteIds = new(StringComparer.Ordinal);
-
     private const string MissingSiteDisplayName = "未知场域";
     private const string MissingSiteReason = "场域定义缺失。";
     private const string UnknownSiteReason = "尚未发现该场域。";
     private const string DefaultHiddenTacticalSummary = "内侧布阵尚未确认。";
+
+    private static readonly object MissingIntelLogSync = new();
+    private static readonly HashSet<string> MissingIntelLoggedSiteIds = new(StringComparer.Ordinal);
 
     public static WorldSiteIntelViewModel BuildCurrentView(
         StrategicWorldState state,
@@ -59,11 +59,9 @@ public static class WorldSiteIntelService
             TacticalSummary = view.TacticalSummary,
             HiddenTacticalSummary = view.HiddenTacticalSummary,
             KnownEntranceIds = view.KnownEntranceIds.ToList(),
-            KnownExplorationPointIds = view.KnownExplorationPointIds.ToList(),
             UnknownIntelReasons = view.UnknownIntelReasons.ToList(),
             ActiveObscurationSourceIds = view.ActiveObscurationSourceIds.ToList(),
             KnownTacticalTags = view.KnownTacticalTags.ToList(),
-            ExplorationAdvantageTags = view.ExplorationAdvantageTags.ToList(),
             KnownLocalResources = CloneResourceStore(state?.LocalResources),
             KnownFacilities = state?.Facilities.Select(CloneFacility).ToList() ?? new List<FacilityInstance>(),
             KnownGarrison = state?.Garrison.Select(CloneGarrison).ToList() ?? new List<GarrisonState>(),
@@ -80,15 +78,14 @@ public static class WorldSiteIntelService
             return BuildMissingView("", visibility);
         }
 
-        WorldIntelVisibility effectiveVisibility = visibility;
         WorldSiteIntelPolicy policy = ParsePolicy(snapshot.IntelPolicy);
-        if (effectiveVisibility == WorldIntelVisibility.Unknown)
+        if (visibility == WorldIntelVisibility.Unknown)
         {
             return new WorldSiteIntelViewModel
             {
                 SiteId = snapshot.SiteId,
                 DisplayName = snapshot.DisplayName,
-                Visibility = effectiveVisibility,
+                Visibility = visibility,
                 LastSeenWorldTick = snapshot.LastSeenWorldTick,
                 Policy = policy,
                 UnknownIntelReasons = { UnknownSiteReason }
@@ -99,28 +96,25 @@ public static class WorldSiteIntelService
         {
             SiteId = snapshot.SiteId,
             DisplayName = snapshot.DisplayName,
-            Visibility = effectiveVisibility,
-            IsStale = effectiveVisibility == WorldIntelVisibility.Revealed,
+            Visibility = visibility,
+            IsStale = visibility == WorldIntelVisibility.Revealed,
             LastSeenWorldTick = snapshot.LastSeenWorldTick,
             Policy = policy,
             StrategicSummary = snapshot.StrategicSummary,
             TacticalSummary = snapshot.TacticalSummary,
             HiddenTacticalSummary = snapshot.HiddenTacticalSummary,
             KnownEntranceIds = snapshot.KnownEntranceIds.ToList(),
-            KnownExplorationPointIds = snapshot.KnownExplorationPointIds.ToList(),
             UnknownIntelReasons = snapshot.UnknownIntelReasons.ToList(),
             ActiveObscurationSourceIds = snapshot.ActiveObscurationSourceIds.ToList(),
-            KnownTacticalTags = snapshot.KnownTacticalTags.ToList(),
-            ExplorationAdvantageTags = snapshot.ExplorationAdvantageTags.ToList()
+            KnownTacticalTags = snapshot.KnownTacticalTags.ToList()
         };
 
         view.CanInspectStrategicSummary = true;
         view.CanInspectSiteMap = true;
         view.CanInspectFullTacticalLayout = CanInspectFullTacticalLayout(
-            effectiveVisibility,
+            visibility,
             view.Policy,
             view.ActiveObscurationSourceIds.Count);
-
         view.AvailableApproaches = BuildApproaches(view.Policy, view.CanInspectFullTacticalLayout);
         return view;
     }
@@ -149,8 +143,6 @@ public static class WorldSiteIntelService
         request.KnownTacticalTags.AddRange(view.KnownTacticalTags);
         request.ActiveObscurationSourceIds.Clear();
         request.ActiveObscurationSourceIds.AddRange(view.ActiveObscurationSourceIds);
-        request.ExplorationAdvantageTags.Clear();
-        request.ExplorationAdvantageTags.AddRange(view.ExplorationAdvantageTags);
     }
 
     private static WorldSiteIntelViewModel BuildCurrentView(
@@ -197,15 +189,11 @@ public static class WorldSiteIntelService
             .Distinct(StringComparer.Ordinal)
             .ToList();
         view.KnownTacticalTags = state.Memory.KnownTacticalTags.ToList();
-        view.ExplorationAdvantageTags = state.Memory.ExplorationAdvantageTags.ToList();
-
         view.CanInspectFullTacticalLayout = CanInspectFullTacticalLayout(
             visibility,
             intel.Policy,
             view.ActiveObscurationSourceIds.Count);
-
         view.KnownEntranceIds = BuildKnownEntranceIds(definition, state, intel, view.CanInspectFullTacticalLayout);
-        view.KnownExplorationPointIds = BuildKnownExplorationPointIds(definition, state, intel);
         view.UnknownIntelReasons = BuildUnknownIntelReasons(intel, state, view.CanInspectFullTacticalLayout);
         view.AvailableApproaches = BuildApproaches(intel.Policy, view.CanInspectFullTacticalLayout);
         return view;
@@ -264,13 +252,7 @@ public static class WorldSiteIntelService
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Distinct(StringComparer.Ordinal)
             .ToList();
-        view.KnownExplorationPointIds = state.Memory.RevealedExplorationPointIds
-            .Concat(state.Memory.ResolvedPointIds)
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
         view.KnownTacticalTags = state.Memory.KnownTacticalTags.ToList();
-        view.ExplorationAdvantageTags = state.Memory.ExplorationAdvantageTags.ToList();
         view.AvailableApproaches = BuildApproaches(view.Policy, view.CanInspectFullTacticalLayout);
         return view;
     }
@@ -309,21 +291,6 @@ public static class WorldSiteIntelService
         return known;
     }
 
-    private static List<string> BuildKnownExplorationPointIds(
-        WorldSiteDefinition definition,
-        WorldSiteState state,
-        WorldSiteIntelDefinition intel)
-    {
-        List<string> known = new();
-        AddRangeUnique(known, definition.ExplorationPoints
-            .Where(point => point.InitiallyRevealed)
-            .Select(point => point.Id));
-        AddRangeUnique(known, intel.PublicExplorationPointIds);
-        AddRangeUnique(known, state.Memory.RevealedExplorationPointIds);
-        AddRangeUnique(known, state.Memory.ResolvedPointIds);
-        return known;
-    }
-
     private static List<string> BuildUnknownIntelReasons(
         WorldSiteIntelDefinition intel,
         WorldSiteState state,
@@ -334,7 +301,7 @@ public static class WorldSiteIntelService
         {
             string displayName = string.IsNullOrWhiteSpace(source.DisplayName) ? source.Id : source.DisplayName;
             string description = string.IsNullOrWhiteSpace(source.Description) ? DefaultHiddenTacticalSummary : source.Description;
-            reasons.Add($"{displayName}：{description}");
+            reasons.Add($"{displayName}: {description}");
         }
 
         if (!canInspectFullTacticalLayout && intel.Policy == WorldSiteIntelPolicy.Partial)
@@ -367,20 +334,11 @@ public static class WorldSiteIntelService
         {
             approaches.Add(new WorldSiteApproachViewModel
             {
-                ActionId = "enter_exploration",
-                DisplayName = "探索侦察",
-                Description = "进入场域探索，确认入口、隐蔽点和内侧布阵。",
-                IsRecommended = !canInspectFullTacticalLayout
-            });
-        }
-
-        if (policy == WorldSiteIntelPolicy.Partial)
-        {
-            approaches.Add(new WorldSiteApproachViewModel
-            {
                 ActionId = "direct_assault",
-                DisplayName = "直接强攻",
-                Description = "依据已知入口直接发起战斗，未确认战术信息会保留风险。",
+                DisplayName = "直接进攻",
+                Description = canInspectFullTacticalLayout
+                    ? "依据已确认的战术信息进入战斗。"
+                    : "依据已知入口进入战斗，未确认的战术信息仍会保留风险。",
                 IsRecommended = canInspectFullTacticalLayout
             });
         }

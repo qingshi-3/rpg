@@ -69,10 +69,7 @@ public partial class StrategicWorldRoot
                 Definition,
                 selectedSite.SiteId,
                 visibility);
-            bool usesExplorationPath = selectedSite.OwnerFactionId != State.PlayerFactionId &&
-                                       !intelView.CanInspectFullTacticalLayout &&
-                                       CanExploreSelectedSite(selectedSite);
-            string entryLabel = WorldSiteIntelPresenter.GetSiteEntryLabel(intelView, usesExplorationPath);
+            string entryLabel = WorldSiteIntelPresenter.GetSiteEntryLabel(intelView);
             Button enterButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
             if (enterButton == null)
             {
@@ -80,7 +77,7 @@ public partial class StrategicWorldRoot
             }
 
             enterButton.Text = canEnter
-                ? $"{entryLabel}\n{(usesExplorationPath ? "确认入口和布阵" : "查看详细地图")}"
+                ? $"{entryLabel}\n查看详细地图"
                 : $"{entryLabel}\n{WorldActionResolver.FormatFailureReason(enterFailureReason)}";
             enterButton.Disabled = !canEnter;
             if (canEnter)

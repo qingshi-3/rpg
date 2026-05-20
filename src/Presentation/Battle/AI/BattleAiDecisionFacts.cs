@@ -13,4 +13,5 @@ public sealed class BattleAiDecisionFacts
     public int? MoveRange { get; init; }
     public string NearestHostileTargetId { get; init; } = "";
     public string LowestHealthHostileTargetId { get; init; } = "";
+    public string Command { get; init; } = "";
 }

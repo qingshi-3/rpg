@@ -10,7 +10,6 @@ public sealed class WorldSiteState
     public WorldSiteMode SiteMode { get; set; } = WorldSiteMode.Peacetime;
     public int DamageLevel { get; set; }
     public ResourceStore LocalResources { get; set; } = new();
-    public WorldSiteExplorationState Exploration { get; set; } = new();
     public WorldSiteMemoryState Memory { get; set; } = new();
     public List<FacilityInstance> Facilities { get; set; } = new();
     public List<GarrisonState> Garrison { get; set; } = new();

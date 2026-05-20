@@ -1,7 +1,10 @@
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Adapters;
 using Rpg.Application.Battle.Reports;
+using Rpg.Application.Battle.Settlement;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Logging;
+using Rpg.Runtime.Battle;
 
 namespace Rpg.Application.World;
 
@@ -13,14 +16,32 @@ public sealed class WorldSiteBattleGroupRuntimeResolveResult
     public BattleResult BattleResult { get; init; }
     public BattleReportRecord Report { get; init; }
     public BattleGroupBattleFlowResult FlowResult { get; init; }
+    public BattleStartSnapshot Snapshot { get; init; }
+    public BattleRuntimeSessionController RuntimeController { get; init; }
 }
 
 public sealed class WorldSiteBattleGroupRuntimeAdapter
 {
     private readonly BattleGroupSessionProbeService _sessionService = new();
+    private readonly BattleRuntimeSession _runtimeSession = new();
+    private readonly BattleSettlementService _settlementService = new();
+    private readonly BattleReportBuilder _reportBuilder = new();
     private readonly LegacyBattleResultAdapter _legacyResultAdapter = new();
 
     public bool TryResolveActiveBattle(out WorldSiteBattleGroupRuntimeResolveResult result)
+    {
+        if (!TryStartActiveBattle(out WorldSiteBattleGroupRuntimeResolveResult started))
+        {
+            result = started;
+            return false;
+        }
+
+        started.RuntimeController.AdvanceToCompletion();
+        result = CompleteResolvedBattle(started);
+        return result.Success;
+    }
+
+    public bool TryStartActiveBattle(out WorldSiteBattleGroupRuntimeResolveResult result)
     {
         if (!BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request) || request == null)
         {
@@ -28,32 +49,102 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             return false;
         }
 
-        BattleGroupSessionProbeResult sessionResult = _sessionService.Probe(request);
+        BattleGroupSessionProbeResult sessionResult = _sessionService.PrepareSnapshot(request);
         if (!sessionResult.Success)
         {
             result = Reject(sessionResult.FailureReason, request, sessionResult.FlowResult);
             return false;
         }
 
-        BattleResult legacyResult = _legacyResultAdapter.ToLegacyResult(
-            request,
-            sessionResult.FlowResult.RuntimeResult.Outcome);
-        CopyObjectiveResults(request, legacyResult);
-        BattleSessionHandoff.CompleteBattle(legacyResult);
-        BattleSessionHandoff.TryConsumeLastBattleResult(out _, out _);
+        BattleRuntimeSessionController runtimeController = _runtimeSession.Begin(sessionResult.Snapshot);
+        if (runtimeController.IsComplete && !runtimeController.Outcome.IsComplete)
+        {
+            result = Reject("battle_group_runtime_start_failed", request, new BattleGroupBattleFlowResult
+            {
+                Snapshot = sessionResult.Snapshot,
+                RuntimeResult = runtimeController.BuildResult()
+            });
+            return false;
+        }
 
         result = new WorldSiteBattleGroupRuntimeResolveResult
         {
             Success = true,
             Request = request,
-            BattleResult = legacyResult,
-            Report = sessionResult.FlowResult.Report,
-            FlowResult = sessionResult.FlowResult
+            Snapshot = sessionResult.Snapshot,
+            RuntimeController = runtimeController,
+            FlowResult = new BattleGroupBattleFlowResult
+            {
+                Snapshot = sessionResult.Snapshot,
+                RuntimeResult = runtimeController.BuildResult()
+            }
         };
         GameLog.Info(
             nameof(WorldSiteBattleGroupRuntimeAdapter),
-            $"BattleGroupRuntimeResolved request={request.RequestId} snapshot={sessionResult.Snapshot.SnapshotId} outcome={legacyResult.Outcome} events={sessionResult.FlowResult.RuntimeResult.EventStream.Events.Count}");
+            $"BattleGroupRuntimeStarted request={request.RequestId} snapshot={sessionResult.Snapshot.SnapshotId} initialEvents={runtimeController.EventStream.Events.Count}");
         return true;
+    }
+
+    public WorldSiteBattleGroupRuntimeResolveResult CompleteResolvedBattle(WorldSiteBattleGroupRuntimeResolveResult started)
+    {
+        BattleStartRequest request = started?.Request;
+        BattleRuntimeSessionController runtimeController = started?.RuntimeController;
+        if (request == null || runtimeController == null)
+        {
+            return Reject("battle_group_runtime_completion_missing", request, started?.FlowResult);
+        }
+
+        if (!runtimeController.IsComplete)
+        {
+            runtimeController.AdvanceToCompletion();
+        }
+
+        BattleRuntimeSessionResult runtimeResult = runtimeController.BuildResult();
+        BattleStartSnapshot snapshot = started.Snapshot ?? started.FlowResult?.Snapshot ?? new BattleStartSnapshot();
+        SettlementPlan settlementPlan = _settlementService.BuildPlan(
+            snapshot.SnapshotId,
+            runtimeResult.Outcome,
+            runtimeResult.EventStream);
+        BattleReportRecord report = _reportBuilder.Build(
+            runtimeResult.Outcome,
+            runtimeResult.EventStream,
+            settlementPlan);
+        BattleGroupBattleFlowResult flowResult = new()
+        {
+            Snapshot = snapshot,
+            RuntimeResult = runtimeResult,
+            SettlementPlan = settlementPlan,
+            Report = report
+        };
+        if (!settlementPlan.Accepted)
+        {
+            string reason = string.IsNullOrWhiteSpace(settlementPlan.RejectionReason)
+                ? "battle_group_runtime_settlement_rejected"
+                : settlementPlan.RejectionReason;
+            return Reject(reason, request, flowResult);
+        }
+
+        BattleResult legacyResult = _legacyResultAdapter.ToLegacyResult(
+            request,
+            runtimeResult.Outcome);
+        CopyObjectiveResults(request, legacyResult);
+        BattleSessionHandoff.CompleteBattle(legacyResult);
+        BattleSessionHandoff.TryConsumeLastBattleResult(out _, out _);
+
+        WorldSiteBattleGroupRuntimeResolveResult result = new()
+        {
+            Success = true,
+            Request = request,
+            BattleResult = legacyResult,
+            Report = report,
+            FlowResult = flowResult,
+            Snapshot = snapshot,
+            RuntimeController = runtimeController
+        };
+        GameLog.Info(
+            nameof(WorldSiteBattleGroupRuntimeAdapter),
+            $"BattleGroupRuntimeResolved request={request.RequestId} snapshot={snapshot.SnapshotId} outcome={legacyResult.Outcome} events={runtimeResult.EventStream.Events.Count}");
+        return result;
     }
 
     private static void CopyObjectiveResults(BattleStartRequest request, BattleResult result)

@@ -24,6 +24,8 @@ public partial class HealthComponent : BattleEntityComponent
 
     public event System.Action<HealthDamageEvent> Defeated;
 
+    public event System.Action HealthChanged;
+
     public int ApplyDamage(int amount, BattleEntity source = null)
     {
         int damage = System.Math.Max(0, amount);
@@ -36,6 +38,7 @@ public partial class HealthComponent : BattleEntityComponent
         }
 
         var damageEvent = new HealthDamageEvent(Entity, source, damageApplied, previousHp, Hp);
+        HealthChanged?.Invoke();
         Damaged?.Invoke(damageEvent);
         if (previousHp > 0 && Hp <= 0)
         {
@@ -51,6 +54,11 @@ public partial class HealthComponent : BattleEntityComponent
     public void Heal(int amount)
     {
         int healing = System.Math.Max(0, amount);
+        int previousHp = Hp;
         Hp = System.Math.Clamp(Hp + healing, 0, MaxHp);
+        if (Hp != previousHp)
+        {
+            HealthChanged?.Invoke();
+        }
     }
 }

@@ -3,9 +3,17 @@
 Status: Draft
 Created: YYYY-MM-DD
 Accepted:
-Implemented:
 Merged:
 Archived:
+
+Requirement Id:
+Parent Proposal:
+Supersedes:
+Superseded By:
+Amends:
+Amended By:
+Affected Authority Documents:
+Related Implementation Proposals:
 
 ## Reason
 
@@ -23,13 +31,13 @@ Summarize the accepted current state before this proposal.
 
 Summarize the expected state that needs user acceptance.
 
-## Implementation Scope
+## Follow-Up Implementation Scope
 
-List expected code, resource, scene, old-doc, or QA impact.
+List likely code, resource, scene, old-doc, or QA impact. This section is planning context only; actual implementation requires a focused proposal under `docs/50-production/technical-changes/` after this design proposal is archived.
 
 ## Acceptance
 
-List observable checks required before merge.
+List checks required before merging `expected/` copies into authority documents.
 
 ## Merge Plan
 

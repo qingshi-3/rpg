@@ -19,11 +19,9 @@ public sealed class WorldSiteIntelViewModel
     public string TacticalSummary { get; set; } = "";
     public string HiddenTacticalSummary { get; set; } = "";
     public List<string> KnownEntranceIds { get; set; } = new();
-    public List<string> KnownExplorationPointIds { get; set; } = new();
     public List<string> UnknownIntelReasons { get; set; } = new();
     public List<string> ActiveObscurationSourceIds { get; set; } = new();
     public List<string> KnownTacticalTags { get; set; } = new();
-    public List<string> ExplorationAdvantageTags { get; set; } = new();
     public List<WorldSiteApproachViewModel> AvailableApproaches { get; set; } = new();
 }
 

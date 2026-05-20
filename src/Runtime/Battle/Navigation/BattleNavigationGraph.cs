@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Rpg.Application.Battle.Navigation;
 using Rpg.Application.Battle.Snapshots;
 
 namespace Rpg.Runtime.Battle.Navigation;
@@ -21,39 +22,108 @@ internal sealed class BattleNavigationGraph
         new(-1, -1)
     };
 
-    private readonly Dictionary<BattleGridCoord, int> _authoredSurfaceMoveCosts;
-    private readonly Dictionary<BattleGridCoord, List<BattleNavigationEdge>> _authoredEdges;
+    private readonly Dictionary<BattleGridCoord, int> _topologyNodeMoveCosts;
+    private readonly Dictionary<BattleGridCoord, List<GraphEdge>> _topologyEdges;
+    private readonly Dictionary<BattleGridCoord, List<GraphEdge>> _reverseTopologyEdges;
 
     private BattleNavigationGraph(
         int minX,
         int maxX,
         int minY,
         int maxY,
-        Dictionary<BattleGridCoord, int> authoredSurfaceMoveCosts = null,
-        Dictionary<BattleGridCoord, List<BattleNavigationEdge>> authoredEdges = null)
+        Dictionary<BattleGridCoord, int> topologyNodeMoveCosts = null,
+        Dictionary<BattleGridCoord, List<GraphEdge>> topologyEdges = null,
+        Dictionary<BattleGridCoord, List<GraphEdge>> reverseTopologyEdges = null)
     {
         MinX = minX;
         MaxX = maxX;
         MinY = minY;
         MaxY = maxY;
-        _authoredSurfaceMoveCosts = authoredSurfaceMoveCosts ?? new Dictionary<BattleGridCoord, int>();
-        _authoredEdges = authoredEdges ?? new Dictionary<BattleGridCoord, List<BattleNavigationEdge>>();
+        _topologyNodeMoveCosts = topologyNodeMoveCosts ?? new Dictionary<BattleGridCoord, int>();
+        _topologyEdges = topologyEdges ?? new Dictionary<BattleGridCoord, List<GraphEdge>>();
+        _reverseTopologyEdges = reverseTopologyEdges ?? new Dictionary<BattleGridCoord, List<GraphEdge>>();
     }
 
     public int MinX { get; }
     public int MaxX { get; }
     public int MinY { get; }
     public int MaxY { get; }
-    public bool UsesAuthoredSurfaces => _authoredSurfaceMoveCosts.Count > 0;
-    public int MaxSearchNodes => UsesAuthoredSurfaces
-        ? _authoredSurfaceMoveCosts.Count
+    public bool UsesTopology => _topologyNodeMoveCosts.Count > 0;
+    public int MaxSearchNodes => UsesTopology
+        ? _topologyNodeMoveCosts.Count
         : System.Math.Max(1, (MaxX - MinX + 1) * (MaxY - MinY + 1));
+
+    public string DescribeTopology()
+    {
+        if (!UsesTopology)
+        {
+            return $"authored=False bounds=({MinX},{MinY})-({MaxX},{MaxY}) maxSearchNodes={MaxSearchNodes}";
+        }
+
+        NavigationTopologySummary summary = BuildTopologySummary();
+        int edgeCount = _topologyEdges.Values.Sum(outgoing => outgoing.Count);
+        return $"authored=True topologyNodes={_topologyNodeMoveCosts.Count} topologyEdges={edgeCount} components={summary.ComponentCount} largestComponent={summary.LargestComponentSize}";
+    }
+
+    public string DescribeStaticReachability(
+        BattleRuntimeActor actor,
+        BattleRuntimeActor target,
+        int attackRange)
+    {
+        BattleGridCoord start = new(actor?.GridX ?? 0, actor?.GridY ?? 0, actor?.GridHeight ?? 0);
+        BattleGridCoord targetAnchor = new(target?.GridX ?? 0, target?.GridY ?? 0, target?.GridHeight ?? 0);
+        bool startInGraph = Contains(start);
+        bool targetInGraph = Contains(targetAnchor);
+
+        if (!UsesTopology)
+        {
+            return $"authored=False start={start} target={targetAnchor} startInGraph={startInGraph} targetInGraph={targetInGraph}";
+        }
+
+        HashSet<BattleGridCoord> reachable = startInGraph
+            ? CollectReachable(start)
+            : new HashSet<BattleGridCoord>();
+        bool staticTargetReachable = reachable.Contains(targetAnchor);
+        int normalizedRange = System.Math.Max(1, attackRange);
+        int attackAnchors = 0;
+        int reachableAttackAnchors = 0;
+        int nearestGap = int.MaxValue;
+        BattleGridCoord nearestReachable = default;
+        bool hasNearestReachable = false;
+
+        foreach (BattleGridCoord coord in _topologyNodeMoveCosts.Keys)
+        {
+            int gap = BattleActorFootprint.GetGap(actor, coord, target, targetAnchor);
+            if (gap <= normalizedRange)
+            {
+                attackAnchors++;
+                if (reachable.Contains(coord))
+                {
+                    reachableAttackAnchors++;
+                }
+            }
+
+            if (reachable.Contains(coord) &&
+                (gap < nearestGap ||
+                 gap == nearestGap && IsBefore(coord, nearestReachable)))
+            {
+                nearestGap = gap;
+                nearestReachable = coord;
+                hasNearestReachable = true;
+            }
+        }
+
+        string nearest = hasNearestReachable
+            ? $"{nearestReachable}:gap={nearestGap}"
+            : "none";
+        return $"authored=True start={start} target={targetAnchor} startInGraph={startInGraph} targetInGraph={targetInGraph} staticComponentSize={reachable.Count} staticTargetReachable={staticTargetReachable} attackAnchors={attackAnchors} reachableAttackAnchors={reachableAttackAnchors} nearestReachable={nearest}";
+    }
 
     public static BattleNavigationGraph Create(LocationBattleContext context, IEnumerable<BattleRuntimeActor> actors)
     {
-        if (context?.NavigationSurfaces?.Count > 0)
+        if (context?.NavigationTopology?.HasNodes == true)
         {
-            return CreateFromLocationContext(context);
+            return CreateFromTopology(context.NavigationTopology);
         }
 
         return CreateFromActors(actors);
@@ -80,90 +150,89 @@ internal sealed class BattleNavigationGraph
         return new BattleNavigationGraph(minX, maxX, minY, maxY);
     }
 
-    private static BattleNavigationGraph CreateFromLocationContext(LocationBattleContext context)
+    private static BattleNavigationGraph CreateFromTopology(BattleNavigationTopology topology)
     {
-        var surfaces = new Dictionary<BattleGridCoord, int>();
-        foreach (BattleNavigationSurfaceSnapshot surface in context.NavigationSurfaces ?? Enumerable.Empty<BattleNavigationSurfaceSnapshot>())
+        var nodes = new Dictionary<BattleGridCoord, int>();
+        foreach (BattleNavigationNode node in topology?.Nodes ?? Enumerable.Empty<BattleNavigationNode>())
         {
-            if (surface == null)
+            if (node == null)
             {
                 continue;
             }
 
-            BattleGridCoord coord = new(surface.X, surface.Y, surface.Height);
-            surfaces[coord] = System.Math.Max(DefaultMoveCost, surface.MoveCost);
+            BattleGridCoord coord = new(node.X, node.Y, node.Height);
+            nodes[coord] = System.Math.Max(DefaultMoveCost, node.MoveCost);
         }
 
-        if (surfaces.Count == 0)
+        if (nodes.Count == 0)
         {
             return CreateFromActors(System.Array.Empty<BattleRuntimeActor>());
         }
 
-        var edges = new Dictionary<BattleGridCoord, List<BattleNavigationEdge>>();
-        var seenEdges = new HashSet<BattleNavigationEdge>();
-        foreach (BattleGridCoord surface in surfaces.Keys)
+        var edges = new Dictionary<BattleGridCoord, List<GraphEdge>>();
+        var reverseEdges = new Dictionary<BattleGridCoord, List<GraphEdge>>();
+        var seenEdges = new HashSet<GraphEdge>();
+        foreach (BattleNavigationEdge edge in topology?.Edges ?? Enumerable.Empty<BattleNavigationEdge>())
         {
-            foreach (BattleGridCoord offset in NeighborOffsets)
-            {
-                BattleGridCoord neighbor = new(surface.X + offset.X, surface.Y + offset.Y, surface.Height);
-                if (surfaces.TryGetValue(neighbor, out int neighborMoveCost))
-                {
-                    AddEdge(edges, seenEdges, surface, neighbor, neighborMoveCost);
-                }
-            }
-        }
-
-        foreach (BattleNavigationConnectionSnapshot connection in context.NavigationConnections ?? Enumerable.Empty<BattleNavigationConnectionSnapshot>())
-        {
-            if (connection == null)
+            if (edge == null)
             {
                 continue;
             }
 
-            BattleGridCoord from = new(connection.FromX, connection.FromY, connection.FromHeight);
-            BattleGridCoord to = new(connection.ToX, connection.ToY, connection.ToHeight);
-            if (surfaces.ContainsKey(from) && surfaces.ContainsKey(to))
+            BattleGridCoord from = new(edge.FromX, edge.FromY, edge.FromHeight);
+            BattleGridCoord to = new(edge.ToX, edge.ToY, edge.ToHeight);
+            if (nodes.ContainsKey(from) && nodes.ContainsKey(to))
             {
-                AddEdge(edges, seenEdges, from, to, System.Math.Max(DefaultMoveCost, connection.MoveCost));
+                AddEdge(edges, reverseEdges, seenEdges, from, to, System.Math.Max(DefaultMoveCost, edge.MoveCost));
             }
         }
 
         return new BattleNavigationGraph(
-            surfaces.Keys.Min(coord => coord.X),
-            surfaces.Keys.Max(coord => coord.X),
-            surfaces.Keys.Min(coord => coord.Y),
-            surfaces.Keys.Max(coord => coord.Y),
-            surfaces,
-            edges);
+            nodes.Keys.Min(coord => coord.X),
+            nodes.Keys.Max(coord => coord.X),
+            nodes.Keys.Min(coord => coord.Y),
+            nodes.Keys.Max(coord => coord.Y),
+            nodes,
+            edges,
+            reverseEdges);
     }
 
     private static void AddEdge(
-        Dictionary<BattleGridCoord, List<BattleNavigationEdge>> edges,
-        HashSet<BattleNavigationEdge> seenEdges,
+        Dictionary<BattleGridCoord, List<GraphEdge>> edges,
+        Dictionary<BattleGridCoord, List<GraphEdge>> reverseEdges,
+        HashSet<GraphEdge> seenEdges,
         BattleGridCoord from,
         BattleGridCoord to,
         int moveCost)
     {
-        BattleNavigationEdge edge = new(from, to, System.Math.Max(DefaultMoveCost, moveCost));
+        GraphEdge edge = new(from, to, System.Math.Max(DefaultMoveCost, moveCost));
         if (!seenEdges.Add(edge))
         {
             return;
         }
 
-        if (!edges.TryGetValue(from, out List<BattleNavigationEdge> outgoing))
+        if (!edges.TryGetValue(from, out List<GraphEdge> outgoing))
         {
-            outgoing = new List<BattleNavigationEdge>();
+            outgoing = new List<GraphEdge>();
             edges[from] = outgoing;
         }
 
         outgoing.Add(edge);
+
+        if (!reverseEdges.TryGetValue(to, out List<GraphEdge> incoming))
+        {
+            incoming = new List<GraphEdge>();
+            reverseEdges[to] = incoming;
+        }
+
+        incoming.Add(edge);
     }
 
     public bool Contains(BattleGridCoord anchor)
     {
-        if (UsesAuthoredSurfaces)
+        if (UsesTopology)
         {
-            return _authoredSurfaceMoveCosts.ContainsKey(anchor);
+            return _topologyNodeMoveCosts.ContainsKey(anchor);
         }
 
         // Legacy requests without map context keep a bounded grid so architecture
@@ -176,11 +245,11 @@ internal sealed class BattleNavigationGraph
 
     public IEnumerable<BattleGridCoord> GetNeighbors(BattleGridCoord anchor)
     {
-        if (UsesAuthoredSurfaces)
+        if (UsesTopology)
         {
-            if (_authoredEdges.TryGetValue(anchor, out List<BattleNavigationEdge> outgoing))
+            if (_topologyEdges.TryGetValue(anchor, out List<GraphEdge> outgoing))
             {
-                foreach (BattleNavigationEdge edge in outgoing)
+                foreach (GraphEdge edge in outgoing)
                 {
                     yield return edge.To;
                 }
@@ -199,29 +268,130 @@ internal sealed class BattleNavigationGraph
         }
     }
 
+    public IEnumerable<BattleGridCoord> GetIncomingNeighbors(BattleGridCoord anchor)
+    {
+        if (UsesTopology)
+        {
+            if (_reverseTopologyEdges.TryGetValue(anchor, out List<GraphEdge> incoming))
+            {
+                foreach (GraphEdge edge in incoming)
+                {
+                    yield return edge.From;
+                }
+            }
+
+            yield break;
+        }
+
+        foreach (BattleGridCoord neighbor in GetNeighbors(anchor))
+        {
+            yield return neighbor;
+        }
+    }
+
+    public IEnumerable<BattleGridCoord> GetAnchors()
+    {
+        if (UsesTopology)
+        {
+            foreach (BattleGridCoord coord in _topologyNodeMoveCosts.Keys)
+            {
+                yield return coord;
+            }
+
+            yield break;
+        }
+
+        for (int y = MinY; y <= MaxY; y++)
+        {
+            for (int x = MinX; x <= MaxX; x++)
+            {
+                yield return new BattleGridCoord(x, y, 0);
+            }
+        }
+    }
+
+    public bool CanPlaceFootprint(BattleRuntimeActor actor, BattleGridCoord anchor)
+    {
+        // Runtime owns actor-specific footprint legality over topology nodes.
+        // Tile layers and height-link authoring were already compiled away.
+        foreach (BattleGridCoord cell in BattleActorFootprint.Enumerate(actor, anchor))
+        {
+            if (!Contains(cell))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public bool CanTraverseStep(BattleRuntimeActor actor, BattleGridCoord from, BattleGridCoord to)
+    {
+        return CanPlaceFootprint(actor, to);
+    }
+
     public int GetStepCost(BattleGridCoord from, BattleGridCoord to, int baseStepCost)
     {
         int normalizedBaseCost = System.Math.Max(1, baseStepCost);
-        if (!UsesAuthoredSurfaces)
+        // Runtime traversal is uniform over final topology. Authored terrain
+        // costs are not a second pathfinding authority in this battle slice.
+        return normalizedBaseCost;
+    }
+
+    private NavigationTopologySummary BuildTopologySummary()
+    {
+        var unvisited = new HashSet<BattleGridCoord>(_topologyNodeMoveCosts.Keys);
+        int componentCount = 0;
+        int largestComponentSize = 0;
+        while (unvisited.Count > 0)
         {
-            return normalizedBaseCost;
+            BattleGridCoord start = unvisited.First();
+            HashSet<BattleGridCoord> reachable = CollectReachable(start);
+            foreach (BattleGridCoord coord in reachable)
+            {
+                unvisited.Remove(coord);
+            }
+
+            componentCount++;
+            largestComponentSize = System.Math.Max(largestComponentSize, reachable.Count);
         }
 
-        if (_authoredEdges.TryGetValue(from, out List<BattleNavigationEdge> outgoing))
+        return new NavigationTopologySummary(componentCount, largestComponentSize);
+    }
+
+    private HashSet<BattleGridCoord> CollectReachable(BattleGridCoord start)
+    {
+        var reachable = new HashSet<BattleGridCoord>();
+        if (!Contains(start))
         {
-            foreach (BattleNavigationEdge edge in outgoing)
+            return reachable;
+        }
+
+        var frontier = new Queue<BattleGridCoord>();
+        reachable.Add(start);
+        frontier.Enqueue(start);
+        while (frontier.Count > 0)
+        {
+            BattleGridCoord current = frontier.Dequeue();
+            foreach (BattleGridCoord neighbor in GetNeighbors(current))
             {
-                if (edge.To == to)
+                if (reachable.Add(neighbor))
                 {
-                    return normalizedBaseCost * System.Math.Max(DefaultMoveCost, edge.MoveCost);
+                    frontier.Enqueue(neighbor);
                 }
             }
         }
 
-        return _authoredSurfaceMoveCosts.TryGetValue(to, out int moveCost)
-            ? normalizedBaseCost * System.Math.Max(DefaultMoveCost, moveCost)
-            : normalizedBaseCost;
+        return reachable;
     }
 
-    private readonly record struct BattleNavigationEdge(BattleGridCoord From, BattleGridCoord To, int MoveCost);
+    private static bool IsBefore(BattleGridCoord candidate, BattleGridCoord known)
+    {
+        return candidate.Height < known.Height ||
+               candidate.Height == known.Height && candidate.Y < known.Y ||
+               candidate.Height == known.Height && candidate.Y == known.Y && candidate.X < known.X;
+    }
+
+    private readonly record struct GraphEdge(BattleGridCoord From, BattleGridCoord To, int MoveCost);
+    private readonly record struct NavigationTopologySummary(int ComponentCount, int LargestComponentSize);
 }

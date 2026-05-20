@@ -186,14 +186,15 @@ internal static void BattleUnitFactoryScalesSpritesUniformlyByFootprint()
 
 internal static void WorldSiteRuntimeCopiesDefinitionFootprintToBattleRequests()
 {
-    string source = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntime.cs"));
+    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntime.cs"));
+    string deployment = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRequestDeployment.cs"));
 
     AssertTrue(
-        source.Contains("ApplyBattleRequestForceFootprints(request);", StringComparison.Ordinal),
+        runtime.Contains("ApplyBattleRequestForceFootprints(request);", StringComparison.Ordinal),
         "site battle runtime should enrich battle requests with definition footprints before probe");
     AssertTrue(
-        source.Contains("force.FootprintWidth = definition.FootprintWidth;", StringComparison.Ordinal) &&
-        source.Contains("force.FootprintHeight = definition.FootprintHeight;", StringComparison.Ordinal),
+        deployment.Contains("force.FootprintWidth = definition.FootprintWidth;", StringComparison.Ordinal) &&
+        deployment.Contains("force.FootprintHeight = definition.FootprintHeight;", StringComparison.Ordinal),
         "site battle runtime should copy configured footprint width and height from unit definitions");
 }
 
@@ -315,33 +316,81 @@ internal static void BattleRuntimePlaybackConsumesRuntimeMovementCells()
         "presentation must not run a separate visual pathfinder for runtime combat");
 }
 
-internal static void BattleRuntimePlaybackKeepsMoveLoopAcrossRuntimeSteps()
+internal static void BattleRuntimePlaybackKeepsMoveLoopAcrossConsecutiveMoveSteps()
 {
     string source = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
-    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntime.cs"));
+    string runtime = string.Join("\n", Directory
+        .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
+        .OrderBy(path => path, StringComparer.Ordinal)
+        .Select(File.ReadAllText));
 
     AssertTrue(
         source.Contains("restartMoveAnimation: false", StringComparison.Ordinal) &&
-        source.Contains("returnToIdleOnComplete: false", StringComparison.Ordinal),
-        "runtime movement playback should keep the move loop alive across adjacent step events instead of restarting and returning to idle per cell");
+        source.Contains("returnToIdleOnComplete: returnToIdleOnComplete", StringComparison.Ordinal) &&
+        !source.Contains("returnToIdleOnComplete: true", StringComparison.Ordinal),
+        "runtime movement presentation should keep the move loop unless a caller explicitly closes it");
     AssertTrue(
-        runtime.Contains("_unitRoot.PlayIdleForActiveEntities();", StringComparison.Ordinal),
-        "runtime playback should return surviving units to idle after the event stream finishes");
+        runtime.Contains("ObserveRuntimeMovementEvent(runtimeEvent, presentationState.EntitiesByRuntimeActor)", StringComparison.Ordinal) &&
+        runtime.Contains("AdvanceBattleGroupRuntimeOnLiveClockAsync", StringComparison.Ordinal),
+        "live runtime observation should keep movement open during battle instead of toggling idle between single-tick move events");
+    AssertTrue(
+        runtime.Contains("_unitRoot?.PlayIdleForActiveEntities();", StringComparison.Ordinal),
+        "runtime presentation should return surviving units to idle after the live battle finishes");
 }
 
 internal static void BattleRuntimePlaybackWaitsForAttackAnimationDuration()
 {
     string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string runtime = string.Join("\n", Directory
+        .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
+        .OrderBy(path => path, StringComparer.Ordinal)
+        .Select(File.ReadAllText));
 
     AssertTrue(
         unitRoot.Contains("public double PlayActionResultAnimation(BattleActionResult result)", StringComparison.Ordinal) &&
         unitRoot.Contains("ResolveAttackDurationSeconds()", StringComparison.Ordinal),
-        "battle action playback should expose the resolved attack animation duration to the runtime event player");
+        "battle action presentation should expose the resolved attack animation duration to the runtime event observer");
     AssertTrue(
         playback.Contains("double attackAnimationSeconds = _unitRoot.PlayActionResultAnimation", StringComparison.Ordinal) &&
-        playback.Contains("WaitSiteBattlePresentationSeconds(System.Math.Max(0.42, attackAnimationSeconds))", StringComparison.Ordinal),
-        "runtime damage playback should wait for the full attack animation instead of advancing after a fixed short delay");
+        playback.Contains("double runtimeActionSeconds = runtimeEvent.ActionDurationSeconds", StringComparison.Ordinal) &&
+        playback.Contains("double attackPresentationSeconds = System.Math.Max(0.42, runtimeActionSeconds)", StringComparison.Ordinal) &&
+        playback.Contains("Task attackPresentationTask = WaitSiteBattlePresentationSeconds(attackPresentationSeconds)", StringComparison.Ordinal) &&
+        playback.Contains("await attackPresentationTask", StringComparison.Ordinal) &&
+        runtime.Contains("TrackActorAction", StringComparison.Ordinal),
+        "runtime damage presentation should serialize one actor's attack visuals by runtime action seconds without blocking unrelated simulation ticks");
+}
+
+internal static void BattleRuntimePresentationPauseWaitsWithoutTreePause()
+{
+    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntime.cs"));
+    string commandUi = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
+
+    AssertTrue(
+        runtime.Contains("while (_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
+        runtime.Contains("BattleRuntimePresentationWaitPaused", StringComparison.Ordinal),
+        "runtime event playback waits should stop advancing while the command pause overlay is active.");
+    AssertTrue(
+        !runtime.Contains("GetTree().Paused = true", StringComparison.Ordinal) &&
+        !commandUi.Contains("GetTree().Paused = true", StringComparison.Ordinal),
+        "battle command pause should not pause the whole SceneTree because the command UI must remain interactive.");
+}
+
+internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
+{
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string presentation = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitPresentationComponent.cs"));
+
+    AssertTrue(
+        unitRoot.Contains("_commandSelectedEntities", StringComparison.Ordinal) &&
+        unitRoot.Contains("SetCommandSelectionByEntityIds", StringComparison.Ordinal) &&
+        unitRoot.Contains("SetSelected(true)", StringComparison.Ordinal) &&
+        unitRoot.Contains("SetSelected(false)", StringComparison.Ordinal),
+        "battle command selection should be a public unit-root presentation API that toggles selected outlines on matching entities.");
+    AssertTrue(
+        presentation.Contains("unit_selection_outline.gdshader", StringComparison.Ordinal) &&
+        presentation.Contains("SetSelected(bool selected)", StringComparison.Ordinal),
+        "command selection should reuse the authored unit selection shader instead of adding a separate hardcoded shader path.");
 }
 
 internal static void RealtimeDamageReactionDoesNotPlayHitAnimation()
@@ -367,6 +416,7 @@ internal static void UnitAttackSpeedContract()
     string snapshot = File.ReadAllText(Path.Combine("src", "Application", "Battle", "Snapshots", "BattleGroupSnapshot.cs"));
     string runtimeActor = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeActor.cs"));
     string runtimeSession = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeSession.cs"));
+    string runtimeTickResolver = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeTickResolver.cs"));
     string unitFactory = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"));
     string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
 
@@ -379,11 +429,14 @@ internal static void UnitAttackSpeedContract()
         "battle handoff contracts should carry attack speed from request to snapshot");
     AssertTrue(
         runtimeActor.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal) &&
+        runtimeActor.Contains("public double AttackActionSeconds", StringComparison.Ordinal) &&
+        runtimeActor.Contains("public double ActionReadyAtSeconds", StringComparison.Ordinal) &&
         runtimeSession.Contains("AttackSpeed = BattleAttackSpeedPolicy.Normalize(group.AttackSpeed)", StringComparison.Ordinal),
-        "runtime actors should consume snapshot attack speed");
+        "runtime actors should consume snapshot attack speed and actor-local action timing");
     AssertTrue(
-        runtimeSession.Contains("actor.AttackCharge", StringComparison.Ordinal),
-        "runtime attack cadence should be gated by attack speed rather than attacking every tick unconditionally");
+        runtimeSession.Contains("ResolveAttackActionSeconds", StringComparison.Ordinal) &&
+        runtimeTickResolver.Contains("RuntimeTimeSeconds = currentTimeSeconds", StringComparison.Ordinal),
+        "runtime attack cadence should be gated by action seconds on the central timeline rather than attacking every integer tick");
     AssertTrue(
         unitFactory.Contains("attack.AttackSpeed = definition.AttackSpeed;", StringComparison.Ordinal) &&
         unitFactory.Contains("animationComponent.AttackSpeed = definition.AttackSpeed;", StringComparison.Ordinal),
@@ -391,6 +444,61 @@ internal static void UnitAttackSpeedContract()
     AssertTrue(
         animationComponent.Contains("BattleAttackSpeedPolicy.ScaleTargetSeconds(targetSeconds, AttackSpeed)", StringComparison.Ordinal),
         "attack animation target duration should be scaled by the configured attack speed");
+}
+
+internal static void UnitCombatStatsSnapshotContract()
+{
+    string forceRequest = File.ReadAllText(Path.Combine("src", "Application", "Battle", "BattleForceRequest.cs"));
+    string snapshot = File.ReadAllText(Path.Combine("src", "Application", "Battle", "Snapshots", "BattleGroupSnapshot.cs"));
+    string probe = File.ReadAllText(Path.Combine("src", "Application", "Battle", "BattleGroupSessionProbeService.cs"));
+    string runtimeActor = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeActor.cs"));
+    string runtimeSession = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeSession.cs"));
+    string siteRuntime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRequestDeployment.cs"));
+
+    AssertTrue(
+        forceRequest.Contains("public int MaxHitPoints { get; set; }", StringComparison.Ordinal) &&
+        forceRequest.Contains("public int AttackDamage { get; set; }", StringComparison.Ordinal) &&
+        forceRequest.Contains("public int AttackRange { get; set; }", StringComparison.Ordinal),
+        "battle force requests should carry combat stats copied from unit definitions");
+    AssertTrue(
+        snapshot.Contains("public int MaxHitPoints { get; set; }", StringComparison.Ordinal) &&
+        snapshot.Contains("public int AttackDamage { get; set; }", StringComparison.Ordinal) &&
+        snapshot.Contains("public int AttackRange { get; set; }", StringComparison.Ordinal),
+        "battle snapshots should freeze combat stats for runtime");
+    AssertTrue(
+        siteRuntime.Contains("force.MaxHitPoints = definition.MaxHp;", StringComparison.Ordinal) &&
+        siteRuntime.Contains("force.AttackDamage = definition.AttackDamage;", StringComparison.Ordinal) &&
+        siteRuntime.Contains("force.AttackRange = definition.AttackRange;", StringComparison.Ordinal),
+        "site battle runtime should copy definition hp, damage, and range into the request before probing");
+    AssertTrue(
+        probe.Contains("MaxHitPoints = force.MaxHitPoints", StringComparison.Ordinal) &&
+        probe.Contains("AttackDamage = force.AttackDamage", StringComparison.Ordinal) &&
+        probe.Contains("AttackRange = force.AttackRange", StringComparison.Ordinal),
+        "battle group probe should copy request combat stats into snapshot metadata");
+    AssertTrue(
+        runtimeActor.Contains("public int AttackDamage { get; set; }", StringComparison.Ordinal) &&
+        runtimeSession.Contains("HitPoints = ResolveCombatHitPoints(group)", StringComparison.Ordinal) &&
+        runtimeSession.Contains("AttackDamage = ResolveAttackDamage(group.AttackDamage)", StringComparison.Ordinal),
+        "runtime actors should use snapshot combat hp and attack damage instead of hardcoded combat values");
+}
+
+internal static void BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation()
+{
+    string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));
+    string healthBar = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitHealthBarComponent.cs"));
+
+    AssertTrue(
+        scene.Contains("BattleUnitHealthBarComponent.cs", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"HealthBarRoot\" type=\"Control\" parent=\".\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"HealthFill\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal),
+        "battle unit base scene should author a visible health bar resource tree");
+    AssertTrue(
+        scene.Contains("EnableProceduralFallback = true", StringComparison.Ordinal),
+        "battle unit base should keep a procedural attack fallback when a visual resource lacks configured animations");
+    AssertTrue(
+        healthBar.Contains("HealthChanged", StringComparison.Ordinal) &&
+        healthBar.Contains("QueueRedraw", StringComparison.Ordinal),
+        "health bar component should update from health events instead of polling every frame");
 }
 
 internal static void BattleUnitBaseSceneAuthorsInteractionCollisionShape()

@@ -8,6 +8,7 @@ This file stores stable project-level rules for AI-assisted work on this Godot R
 - `system-design/`: accepted implementation architecture, system ownership, data flow, and contracts.
 - `design-proposals/`: local proposal copies used before changing accepted design or architecture.
 - `gameplay-alignment/`: gap tracking and steady repair work against the new direction.
+- `docs/50-production/technical-changes/`: implementation proposals, implementation plans, and post-implementation acceptance records.
 - `docs/`: existing project documentation and historical implementation material; use it as reference, but do not let it override `gameplay-design/` or `system-design/`.
 
 When documents conflict, follow `gameplay-alignment/authority-map.md`.
@@ -24,6 +25,12 @@ When a session starts in this repository:
 6. Treat `docs/` as legacy/reference material after current authority is clear.
 7. Do not read archived proposal bodies unless the user explicitly requests them.
 
+## Design-First Gate
+
+Design and documentation are the first implementation step. Do not write or edit code for product/gameplay rules, system architecture, persistent state, runtime ownership, cross-system contracts, scene/resource taxonomy, or future-agent behavior until the accepted authority documents describe the intended rule.
+
+If current code, active proposals, old docs, and accepted authority documents disagree, stop and repair the documentation chain first. Do not use local code or active proposals to reinterpret the design.
+
 ## Design Proposal Gate
 
 For changes that affect product/gameplay rules, system architecture, persistent state, runtime ownership, cross-system contracts, resource/scene taxonomy, or future-agent behavior:
@@ -33,11 +40,22 @@ For changes that affect product/gameplay rules, system architecture, persistent 
 3. Present the expected design or architecture to the user.
 4. Wait for user acceptance.
 5. Create a `design-proposals/active/<date>-<slug>/` proposal with `current/` and `expected/` copies.
-6. Implement against the accepted `expected/` copy.
-7. If the expected design changes during implementation, pause and get acceptance again.
-8. After implementation acceptance, merge `expected/` into the authority documents and archive the proposal.
+6. Merge the accepted `expected/` copy into the authority documents.
+7. Archive the design proposal after the authority documents are updated.
 
-Do not directly edit accepted design or architecture documents for proposal-scoped changes.
+Design proposals change documents, not code. Do not implement directly from an active design proposal. Do not directly edit accepted design or architecture documents for proposal-scoped changes before the proposal is accepted.
+
+Work one requirement at a time. Each design proposal must expose its requirement id, parent/superseded/amended proposal links, affected authority documents, and follow-up implementation proposal links in the default AI-readable entry document. Archived proposals stay immutable except for minimal index metadata that records these relationships.
+
+## Implementation Proposal Gate
+
+After the design proposal is archived and the authority documents are current, create or update a focused implementation proposal under `docs/50-production/technical-changes/` before code changes begin.
+
+The implementation proposal must reference the accepted authority documents and define scope, non-goals, touched systems, tests, diagnostics, manual QA, and acceptance evidence. Code work must follow that implementation proposal. If implementation reveals a design conflict, stop coding and return to the Design Proposal Gate.
+
+Archive or mark the implementation proposal accepted only after tests, diagnostics, and requested manual QA pass.
+
+Each implementation proposal must implement exactly one accepted requirement or a clearly named slice of one requirement, and its default AI-readable entry document must link the originating design proposal, authority documents, amendment proposals, blocking issues, and verification records.
 
 ## Archive Rule
 

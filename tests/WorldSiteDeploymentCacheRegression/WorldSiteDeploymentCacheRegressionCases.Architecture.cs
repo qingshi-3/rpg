@@ -109,8 +109,11 @@ internal static void WorldSiteRootUsesBattleGroupRuntimeActivationThroughAdapter
         !rootSource.Contains("UseAutoBattleRuntime", StringComparison.Ordinal),
         "WorldSiteRoot should not keep the dead auto battle runtime switch after manual fallback removal");
     AssertTrue(
-        rootSource.Contains("_battleGroupRuntimeAdapter.TryResolveActiveBattle", StringComparison.Ordinal),
-        "WorldSiteRoot should delegate live battle resolution to the battle-group runtime adapter");
+        rootSource.Contains("_battleGroupRuntimeAdapter.TryStartActiveBattle", StringComparison.Ordinal),
+        "WorldSiteRoot should delegate live battle startup to the battle-group runtime adapter");
+    AssertTrue(
+        rootSource.Contains("_battleGroupRuntimeAdapter.CompleteResolvedBattle", StringComparison.Ordinal),
+        "WorldSiteRoot should delegate live battle completion to the battle-group runtime adapter");
     AssertTrue(
         rootSource.Contains("ActivateBattleGroupRuntime", StringComparison.Ordinal),
         "WorldSiteRoot should keep battle-group runtime activation in a focused helper");
@@ -121,6 +124,23 @@ internal static void WorldSiteRootUsesBattleGroupRuntimeActivationThroughAdapter
         !rootSource.Contains("WorldSiteAutoBattleAdapter", StringComparison.Ordinal) &&
         !rootSource.Contains("AutoBattleRuntimeController", StringComparison.Ordinal),
         "WorldSiteRoot should not instantiate or own the old auto battle runtime directly");
+}
+
+internal static void WorldSiteRootSyncsRequestPlacementHeightsBeforeRuntimeSnapshot()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string methodBody = ExtractMethodBody(rootSource, "private void ApplyBattleNavigationSnapshot(BattleStartRequest request)");
+
+    AssertTrue(
+        methodBody.Contains("SyncPreferredPlacementHeightsToCurrentNavigationSurfaces", StringComparison.Ordinal),
+        "battle runtime handoff should sync preferred placement heights against the current navigation surface");
+    AssertTrue(
+        methodBody.IndexOf("SyncPreferredPlacementHeightsToCurrentNavigationSurfaces", StringComparison.Ordinal) <
+        methodBody.IndexOf("BattleNavigationSnapshotBuilder.ApplyToRequest", StringComparison.Ordinal),
+        "placement height sync must happen before exporting the navigation snapshot");
+    AssertTrue(
+        methodBody.Contains("ResolveForceCanEnterWater", StringComparison.Ordinal),
+        "placement height sync should preserve force water-entry rules");
 }
 
 internal static void PerformanceDebugOverlayIsHiddenByDefault()
@@ -135,6 +155,7 @@ internal static void PerformanceDebugOverlayIsHiddenByDefault()
 internal static void LegacyManualBattleAuthorityDocsStayDeleted()
 {
     string root = ProjectRoot();
+    string docsRoot = Path.Combine(root, "docs");
     string[] deletedDocs =
     {
         Path.Combine(root, "docs", "20-game-design", "tactical-battle", "mechanism-battle-slice.md"),
@@ -160,23 +181,27 @@ internal static void LegacyManualBattleAuthorityDocsStayDeleted()
         AssertTrue(!File.Exists(path), $"stale manual battle authority should be deleted path={path}");
     }
 
-    string gameplayReadme = File.ReadAllText(Path.Combine(root, "docs", "20-game-design", "tactical-battle", "README.md"));
-    string technicalReadme = File.ReadAllText(Path.Combine(root, "docs", "30-technical-design", "battle", "README.md"));
-    string combined = gameplayReadme + "\n" + technicalReadme;
-    AssertTrue(!combined.Contains("mechanism-battle-slice", StringComparison.Ordinal), "gameplay README should not route to manual mechanism slice");
-    AssertTrue(!combined.Contains("battle-ui-interaction-review", StringComparison.Ordinal), "gameplay README should not route to manual action menu review");
-    AssertTrue(!combined.Contains("enemy-intent-design", StringComparison.Ordinal), "gameplay README should not route to old turn intent design");
-    AssertTrue(!combined.Contains("battle-action-architecture", StringComparison.Ordinal), "technical README should not route to AP action architecture");
-    AssertTrue(!combined.Contains("battle-input-command-architecture", StringComparison.Ordinal), "technical README should not route to manual command architecture");
-    AssertTrue(!combined.Contains("battle-runtime-responsibility-review", StringComparison.Ordinal), "technical README should not route to manual runtime review");
-    AssertTrue(!combined.Contains("intent-system", StringComparison.Ordinal), "technical README should not route to legacy intent system");
-    AssertTrue(!combined.Contains("card-system", StringComparison.Ordinal), "technical README should not route to legacy AP card system");
-    AssertTrue(!combined.Contains("targeting-and-preview", StringComparison.Ordinal), "technical README should not route to manual targeting preview vocabulary");
+    AssertTrue(!Directory.Exists(docsRoot), "legacy docs root should stay deleted after authority consolidation");
 
-    string sceneArchitecture = File.ReadAllText(Path.Combine(root, "docs", "30-technical-design", "battle", "battle-scene-architecture.md"));
-    AssertTrue(!sceneArchitecture.Contains("Current manual-map flow", StringComparison.Ordinal), "battle scene architecture should not describe manual map flow as current authority");
-    AssertTrue(!sceneArchitecture.Contains("BattleCommandController", StringComparison.Ordinal), "battle scene architecture should not route future work through manual command controller");
-    AssertTrue(sceneArchitecture.Contains("hero-led light RTS", StringComparison.OrdinalIgnoreCase), "battle scene architecture should route future work to the accepted light RTS direction");
+    string combinedAuthority = string.Join("\n", new[]
+    {
+        File.ReadAllText(Path.Combine(root, "gameplay-design", "details", "combat-command", "README.md")),
+        File.ReadAllText(Path.Combine(root, "system-design", "hero-led-light-rts-system-architecture.md")),
+        File.ReadAllText(Path.Combine(root, "system-design", "battle-runtime-architecture.md")),
+        File.ReadAllText(Path.Combine(root, "system-design", "battle-command-architecture.md"))
+    });
+    AssertTrue(!combinedAuthority.Contains("mechanism-battle-slice", StringComparison.Ordinal), "current authority should not route to manual mechanism slice");
+    AssertTrue(!combinedAuthority.Contains("battle-ui-interaction-review", StringComparison.Ordinal), "current authority should not route to manual action menu review");
+    AssertTrue(!combinedAuthority.Contains("enemy-intent-design", StringComparison.Ordinal), "current authority should not route to old turn intent design");
+    AssertTrue(!combinedAuthority.Contains("battle-action-architecture", StringComparison.Ordinal), "current authority should not route to AP action architecture");
+    AssertTrue(!combinedAuthority.Contains("battle-input-command-architecture", StringComparison.Ordinal), "current authority should not route to manual command architecture");
+    AssertTrue(!combinedAuthority.Contains("battle-runtime-responsibility-review", StringComparison.Ordinal), "current authority should not route to manual runtime review");
+    AssertTrue(!combinedAuthority.Contains("intent-system", StringComparison.Ordinal), "current authority should not route to legacy intent system");
+    AssertTrue(!combinedAuthority.Contains("card-system", StringComparison.Ordinal), "current authority should not route to legacy AP card system");
+    AssertTrue(!combinedAuthority.Contains("targeting-and-preview", StringComparison.Ordinal), "current authority should not route to manual targeting preview vocabulary");
+    AssertTrue(!combinedAuthority.Contains("Current manual-map flow", StringComparison.Ordinal), "current authority should not describe manual map flow as current authority");
+    AssertTrue(!combinedAuthority.Contains("BattleCommandController", StringComparison.Ordinal), "current authority should not route future work through manual command controller");
+    AssertTrue(combinedAuthority.Contains("hero-led light RTS", StringComparison.OrdinalIgnoreCase), "current authority should route future work to the accepted light RTS direction");
 }
 
 internal static void WorldSiteRootHasNoDeadAutoBattleRuntimeSwitch()

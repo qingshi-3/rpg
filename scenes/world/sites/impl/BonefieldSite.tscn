@@ -118,7 +118,7 @@ Id = "tutorial_southeast_stair"
 SideA = SubResource("BattleMapConnectionSide_southeast_low")
 SideB = SubResource("BattleMapConnectionSide_southeast_high")
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_tkein"]
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1jsvx"]
 texture = ExtResource("3_6n3s5")
 texture_region_size = Vector2i(592, 208)
 0:0/animation_columns = 1
@@ -131,15 +131,15 @@ texture_region_size = Vector2i(592, 208)
 0:0/animation_frame_5/duration = 1.0
 0:0/0 = 0
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_622lv"]
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_stjkb"]
 texture = ExtResource("6_tksfm")
 texture_region_size = Vector2i(576, 192)
 0:0/0 = 0
 
 [sub_resource type="TileSet" id="TileSet_r47rr"]
 tile_size = Vector2i(576, 192)
-sources/0 = SubResource("TileSetAtlasSource_tkein")
-sources/1 = SubResource("TileSetAtlasSource_622lv")
+sources/0 = SubResource("TileSetAtlasSource_1jsvx")
+sources/1 = SubResource("TileSetAtlasSource_stjkb")
 
 [sub_resource type="TileMapPattern" id="TileMapPattern_voub1"]
 tile_data = PackedInt32Array(393216, 65544, 7, 458752, 65544, 8, 65537, 131080, 2, 131073, 131080, 3, 196609, 131080, 4, 262145, 131080, 5, 327681, 131080, 6, 393217, 131080, 7, 458753, 131080, 8, 65538, 196616, 2, 131074, 196616, 3, 196610, 196616, 4, 262146, 196616, 5, 327682, 196616, 6, 393218, 196616, 7, 458754, 196616, 8, 3, 262152, 1, 65539, 262152, 2, 131075, 262152, 3, 196611, 262152, 4, 262147, 262152, 5, 327683, 262152, 6, 393219, 262152, 7, 458755, 262152, 8, 4, 327688, 1, 65540, 327688, 2, 131076, 327688, 3, 196612, 327688, 4, 262148, 327688, 5, 327684, 327688, 6, 65541, 393224, 2, 131077, 393224, 3, 196613, 393224, 4, 262149, 393224, 5, 327685, 393224, 6, 65542, 458760, 2, 131078, 458760, 3, 196614, 458760, 4, 262150, 458760, 5)
@@ -384,7 +384,7 @@ tile_data = PackedInt32Array(0, 458759, 45, 65536, 458759, 46, 1, 524295, 45, 65
 [sub_resource type="TileMapPattern" id="TileMapPattern_1qncl"]
 tile_data = PackedInt32Array(0, 1179655, 4, 65536, 1179655, 5, 131072, 1179655, 6, 1, 1245191, 4, 65537, 1245191, 5, 131073, 1245191, 6, 2, 1310727, 4, 65538, 1310727, 5, 131074, 1310727, 6)
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_dixxo"]
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_w8siv"]
 texture = ExtResource("10_7ggnt")
 1:1/0 = 0
 2:1/0 = 0
@@ -1127,7 +1127,7 @@ texture = ExtResource("10_7ggnt")
 25:1/size_in_atlas = Vector2i(50, 1)
 25:1/0 = 0
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_2dx0c"]
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_jx6tl"]
 texture = ExtResource("11_o0x6w")
 4:1/animation_columns = 6
 4:1/animation_separation = Vector2i(6, 0)
@@ -2744,8 +2744,8 @@ texture = ExtResource("11_o0x6w")
 [sub_resource type="TileSet" id="TileSet_1jsvx"]
 custom_data_layer_0/name = "IsObstacle "
 custom_data_layer_0/type = 1
-sources/7 = SubResource("TileSetAtlasSource_dixxo")
-sources/8 = SubResource("TileSetAtlasSource_2dx0c")
+sources/7 = SubResource("TileSetAtlasSource_w8siv")
+sources/8 = SubResource("TileSetAtlasSource_jx6tl")
 pattern_0 = SubResource("TileMapPattern_voub1")
 pattern_1 = SubResource("TileMapPattern_qsx7x")
 pattern_2 = SubResource("TileMapPattern_x282j")

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Rpg.Application.Battle.Navigation;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Domain.BattleGroups;
 using Rpg.Domain.Corps;
@@ -30,6 +31,9 @@ public sealed class LegacyBattleStartSnapshotAdapter
             corps);
 
         BattleNavigationSnapshotBuilder.CopyRequestToLocationContext(request, snapshot.LocationContext);
+        GameLog.Info(
+            nameof(LegacyBattleStartSnapshotAdapter),
+            BattleNavigationTopologyDiagnostics.DescribeSnapshotTopology(snapshot, "legacy_request_to_snapshot"));
         GameLog.Info(nameof(LegacyBattleStartSnapshotAdapter), $"Converted legacy battle request to snapshot request={request?.RequestId ?? ""} snapshot={snapshot.SnapshotId}");
         return snapshot;
     }

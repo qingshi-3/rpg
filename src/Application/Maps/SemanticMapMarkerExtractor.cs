@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using Rpg.Definitions.Maps;
 
 namespace Rpg.Application.Maps;
 
@@ -40,7 +41,12 @@ public sealed class SemanticMapMarkerExtractor
             if (!usedIds.Add(marker.MarkerId))
             {
                 result.Diagnostics.Add($"semantic_marker_duplicate id={marker.MarkerId} source={marker.SourcePath}");
-                continue;
+                // Deployment routing is side/footprint based; copied deployment
+                // labels should warn authors without deleting valid zone cells.
+                if (marker.MarkerType != SemanticMapMarkerType.DeploymentZone)
+                {
+                    continue;
+                }
             }
 
             result.Markers.Add(marker);

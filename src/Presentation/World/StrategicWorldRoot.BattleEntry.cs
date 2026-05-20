@@ -6,6 +6,7 @@ using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
+using Rpg.Infrastructure.Scenes;
 using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Common;
 
@@ -371,43 +372,8 @@ public partial class StrategicWorldRoot
         FocusWorldMapOn(focusPosition);
         StrategicWorldRuntime.LastNotice = "发生了战斗。";
         RefreshAll();
-        ShowBattleAlertDialog();
+        ShowPreBattleDialog();
         GameLog.Info(nameof(StrategicWorldRoot), $"BattleAnnouncement request={request.RequestId} kind={request.BattleKind} focus={focusPosition}");
-    }
-
-    private void ShowBattleAlertDialog()
-    {
-        EnsureBattleAlertDialog();
-        if (_battleAlertDialog == null)
-        {
-            return;
-        }
-
-        _battleAlertDialog.DialogText = "发生了战斗。";
-        _activeBattleGateDialog = "alert";
-        _battleAlertDialog.PopupCentered(new Vector2I(360, 150));
-    }
-
-    private void EnsureBattleAlertDialog()
-    {
-        if (_battleAlertDialog != null)
-        {
-            return;
-        }
-
-        _battleAlertDialog = GameUiSceneFactory.Instantiate<AcceptDialog>(
-            GameUiSceneFactory.BattleAlertDialogScenePath,
-            nameof(StrategicWorldRoot));
-        if (_battleAlertDialog == null)
-        {
-            return;
-        }
-
-        GameUiSkin.ApplyDialog(_battleAlertDialog);
-        ConfigureBattleGateDialog(_battleAlertDialog);
-        _battleAlertDialog.CloseRequested += OnBattleGateDialogCloseRequested;
-        _battleAlertDialog.Confirmed += ShowPreBattleDialog;
-        AddChild(_battleAlertDialog);
     }
 
     private void ShowPreBattleDialog()
@@ -486,7 +452,7 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        ShowBattleAlertDialog();
+        ShowPreBattleDialog();
     }
 
     private void LaunchPendingBattle()
@@ -499,18 +465,21 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        BattleSessionHandoff.BeginBattle(request);
-        Error error = GetTree().ChangeSceneToFile(request.SiteScenePath);
-        if (error == Error.Ok)
+        SceneTransitionResult transition = _sceneTransitionRouter.EnterBattlePreparation(new SceneTransitionBattleRequest
         {
-            ClearPendingBattleLaunchRollback();
+            Request = request,
+            OnSuccess = ClearPendingBattleLaunchRollback,
+            RollbackOnFailure = RollbackPendingBattleLaunch
+        });
+        if (transition.Success)
+        {
             return;
         }
 
-        BattleSessionHandoff.CancelBattle();
-        RollbackPendingBattleLaunch($"scene_change_failed:{error}");
         StrategicWorldRuntime.LastNotice = "无法进入自动战斗。";
-        GameLog.Warn(nameof(StrategicWorldRoot), $"Cannot enter site path={request.SiteScenePath} error={error}");
+        GameLog.Warn(
+            nameof(StrategicWorldRoot),
+            $"Cannot enter site path={request.SiteScenePath} error={transition.Error} reason={transition.FailureReason}");
         RefreshAll();
     }
 

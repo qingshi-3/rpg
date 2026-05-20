@@ -14,7 +14,9 @@ using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle;
 using Rpg.Presentation.Battle.Actions;
 using Rpg.Presentation.Battle.Entities;
+using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Rules;
+using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
 
 namespace Rpg.Presentation.World.Sites;
@@ -69,11 +71,14 @@ public partial class WorldSiteRoot
 
         if (BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request))
         {
+            _battleRuntimeRequest = request;
             ApplyBattleNavigationSnapshot(request);
         }
 
         _isBattlePreparationActive = false;
         _battlePreparationRequest = null;
+        _battleRuntimeCommandPauseActive = false;
+        _selectedBattleRuntimeGroupKey = "";
         // Preparation can start runtime directly after the player confirms deployment,
         // so this boundary must own the UI transition instead of relying on launch callbacks.
         SetBattleRuntimeEnabled(true);
@@ -83,23 +88,64 @@ public partial class WorldSiteRoot
 
     private void ApplyBattleNavigationSnapshot(BattleStartRequest request)
     {
+        int syncedPlacementHeights = BattleNavigationSnapshotBuilder.SyncPreferredPlacementHeightsToCurrentNavigationSurfaces(
+            request,
+            _activeGridMap,
+            ResolveForceCanEnterWater);
         BattleNavigationSnapshotBuilder.ApplyToRequest(request, _activeGridMap);
         GameLog.Info(
             nameof(WorldSiteRoot),
-            $"Battle navigation snapshot applied request={request?.RequestId ?? ""} surfaces={request?.NavigationSurfaces.Count ?? 0} connections={request?.NavigationConnections.Count ?? 0}");
+            $"Battle navigation snapshot applied request={request?.RequestId ?? ""} surfaces={request?.NavigationSurfaces.Count ?? 0} connections={request?.NavigationConnections.Count ?? 0} syncedPlacementHeights={syncedPlacementHeights}");
     }
 
     private void BindBattleRuntimeHud()
     {
-        // Battle runtime UI is currently presentation-only playback. Future command
-        // controls belong behind this binder and must submit CommandRequest.
+        // Battle commands live in the post-start HUD so deployment keeps Start
+        // Battle as the primary action and the bottom bar can reserve viewport space.
         SetBattlePreparationContentVisible(false);
+        _selectedFacilitySlotId = "";
+        if (_siteHudRoot != null)
+        {
+            _siteHudRoot.Visible = true;
+            ApplySiteHudFullRect("battle_runtime_hud");
+        }
+
+        if (_siteHudTopBar != null)
+        {
+            _siteHudTopBar.Visible = false;
+        }
+
+        if (_sitePeacetimePanel != null)
+        {
+            _sitePeacetimePanel.Visible = false;
+        }
+
         UpdateSitePeacetimePanelVisibility("battle_runtime");
+        ShowBattleRuntimeCommandHud(runtimeLocked: true);
+        UpdateMainWorldViewportLayout("battle_runtime_hud");
+    }
+
+    private void ShowBattleRuntimeCommandHud(bool runtimeLocked)
+    {
+        if (_siteBottomCommandHost != null)
+        {
+            _siteBottomCommandHost.Visible = true;
+        }
+
+        if (_battleRuntimeCommandBar != null)
+        {
+            _battleRuntimeCommandBar.Visible = true;
+        }
+
+        RefreshBattleRuntimeCommandControls(runtimeLocked);
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"BattleRuntimeCommandHudShown locked={runtimeLocked} bottomVisible={_siteBottomCommandHost?.Visible == true} commandVisible={_battleRuntimeCommandBar?.Visible == true}");
     }
 
     private bool ActivateBattleGroupRuntime()
     {
-        if (!_battleGroupRuntimeAdapter.TryResolveActiveBattle(out WorldSiteBattleGroupRuntimeResolveResult resolution))
+        if (!_battleGroupRuntimeAdapter.TryStartActiveBattle(out WorldSiteBattleGroupRuntimeResolveResult resolution))
         {
             _battleStartBlockedReason = string.IsNullOrWhiteSpace(resolution?.FailureReason)
                 ? "battle_group_runtime_activation_failed"
@@ -118,11 +164,23 @@ public partial class WorldSiteRoot
         WorldActionResult applyResult = null;
         try
         {
-            await PlayBattleGroupRuntimeEventsAsync(resolution);
+            await AdvanceBattleGroupRuntimeOnLiveClockAsync(resolution);
         }
         catch (System.Exception ex)
         {
             GameLog.Warn(nameof(WorldSiteRoot), $"Battle runtime presentation failed request={resolution?.Request?.RequestId ?? ""} error={ex.Message}");
+        }
+
+        resolution = _battleGroupRuntimeAdapter.CompleteResolvedBattle(resolution);
+        if (resolution?.Success != true)
+        {
+            _battleStartBlockedReason = string.IsNullOrWhiteSpace(resolution?.FailureReason)
+                ? "battle_group_runtime_completion_failed"
+                : resolution.FailureReason;
+            GameLog.Warn(nameof(WorldSiteRoot), $"Battle group runtime completion blocked reason={_battleStartBlockedReason}");
+            ClearBattleEntities();
+            SetBattleRuntimeEnabled(false);
+            return;
         }
 
         applyResult = ApplyBattleResultToWorld(resolution.Request, resolution.BattleResult);
@@ -154,44 +212,9 @@ public partial class WorldSiteRoot
             resolution.Request?.ReturnScenePath ?? "");
     }
 
-    private async Task PlayBattleGroupRuntimeEventsAsync(WorldSiteBattleGroupRuntimeResolveResult resolution)
+    private double ResolveRuntimePlaybackTickSeconds()
     {
-        IReadOnlyList<BattleEvent> events = resolution?.FlowResult?.RuntimeResult?.EventStream?.Events;
-        if (_unitRoot == null || events == null || events.Count == 0)
-        {
-            return;
-        }
-
-        Dictionary<string, BattleEntity> entitiesByRuntimeActor = _unitRoot.GetEntitiesSnapshot()
-            .Where(entity => entity != null && GodotObject.IsInstanceValid(entity))
-            .GroupBy(entity => entity.EntityId)
-            .ToDictionary(group => group.Key, group => group.First());
-
-        // Presentation consumes runtime events only as playback instructions. The
-        // authoritative result still comes from runtime outcome and settlement.
-        foreach (BattleEvent runtimeEvent in events)
-        {
-            if (runtimeEvent == null)
-            {
-                continue;
-            }
-
-            switch (runtimeEvent.Kind)
-            {
-                case BattleEventKind.MovementCompleted:
-                    await PlayRuntimeMovementEventAsync(runtimeEvent, entitiesByRuntimeActor);
-                    break;
-                case BattleEventKind.DamageApplied:
-                    await PlayRuntimeDamageEventAsync(runtimeEvent, entitiesByRuntimeActor);
-                    break;
-            }
-        }
-
-        _unitRoot.PlayIdleForActiveEntities();
-        if (_unitRoot.HasPendingDefeatedPresentations)
-        {
-            await _unitRoot.WaitForDefeatedPresentationsAsync();
-        }
+        return System.Math.Max(0.05, _unitRoot?.UnitMoveDuration ?? 0.16);
     }
 
     private async Task WaitSiteBattlePresentationSeconds(double seconds)
@@ -201,7 +224,28 @@ public partial class WorldSiteRoot
             return;
         }
 
-        await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
+        double remainingSeconds = seconds;
+        while (IsInsideTree() && remainingSeconds > 0)
+        {
+            bool loggedPauseWait = false;
+            while (_battleRuntimeCommandPauseActive && IsInsideTree())
+            {
+                if (!loggedPauseWait)
+                {
+                    GameLog.Info(nameof(WorldSiteRoot), "BattleRuntimePresentationWaitPaused");
+                    loggedPauseWait = true;
+                }
+
+                await ToSignal(GetTree().CreateTimer(0.05), SceneTreeTimer.SignalName.Timeout);
+            }
+
+            double stepSeconds = System.Math.Min(0.05, remainingSeconds);
+            await ToSignal(GetTree().CreateTimer(stepSeconds), SceneTreeTimer.SignalName.Timeout);
+            if (!_battleRuntimeCommandPauseActive)
+            {
+                remainingSeconds -= stepSeconds;
+            }
+        }
     }
 
     private static string BuildBattleGroupRuntimeReturnNotice(WorldActionResult applyResult, BattleReportRecord report)
@@ -242,253 +286,6 @@ public partial class WorldSiteRoot
                 ? ""
                 : $"战斗结束：{report.OutcomeSummary}"
         };
-    }
-
-    private bool EnsureBattleRequestSiteDeployments(BattleStartRequest request)
-    {
-        if (request == null || string.IsNullOrWhiteSpace(request.TargetSiteId))
-        {
-            GameLog.Error(nameof(WorldSiteRoot), "Cannot prepare battle deployments because request target site is missing.");
-            return false;
-        }
-
-        if (StrategicWorldRuntime.State?.SiteStates.TryGetValue(request.TargetSiteId, out WorldSiteState site) != true)
-        {
-            GameLog.Error(nameof(WorldSiteRoot), $"Cannot prepare battle deployments because WorldSiteState is missing site={request.TargetSiteId}");
-            return false;
-        }
-
-        if (StrategicWorldRuntime.Definition == null)
-        {
-            GameLog.Error(nameof(WorldSiteRoot), $"Cannot prepare battle deployments because StrategicWorldDefinition is missing site={site.SiteId}");
-            return false;
-        }
-
-        WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(StrategicWorldRuntime.Definition).GetSite(site.SiteId);
-        if (siteDefinition == null)
-        {
-            GameLog.Error(nameof(WorldSiteRoot), $"Cannot prepare battle deployments because WorldSiteDefinition is missing site={site.SiteId}");
-            return false;
-        }
-
-        if (_deploymentCache == null || _deploymentCache.SiteId != site.SiteId)
-        {
-            RebuildSiteDeploymentRuntimeCache(site.SiteId);
-        }
-
-        if (_deploymentCache == null ||
-            _deploymentCache.GetCandidates(WorldSiteAttackDirection.Any).Count == 0)
-        {
-            GameLog.Error(nameof(WorldSiteRoot), $"Cannot prepare battle deployments because deployment cache is empty site={site.SiteId}");
-            return false;
-        }
-
-        return _battleDeploymentPreparer.Prepare(
-            request,
-            site,
-            siteDefinition,
-            _deploymentCache,
-            _activeGridMap,
-            ResolveForceCanEnterWater,
-            ResolvePlacementCanEnterWater,
-            out _);
-    }
-
-    private bool ResolveForceCanEnterWater(BattleForceRequest force)
-    {
-        if (!_battleUnitFactory.TryGetUnitDefinition(force?.UnitDefinitionId, out BattleUnitDefinition definition))
-        {
-            return false;
-        }
-
-        return definition.CanEnterWater;
-    }
-
-    private void ApplyBattleRequestForceFootprints(BattleStartRequest request)
-    {
-        IEnumerable<BattleForceRequest> playerForces = request?.PlayerForces ?? Enumerable.Empty<BattleForceRequest>();
-        IEnumerable<BattleForceRequest> enemyForces = request?.EnemyForces ?? Enumerable.Empty<BattleForceRequest>();
-        foreach (BattleForceRequest force in playerForces.Concat(enemyForces))
-        {
-            if (!_battleUnitFactory.TryGetUnitDefinition(force?.UnitDefinitionId, out BattleUnitDefinition definition))
-            {
-                continue;
-            }
-
-            force.FootprintWidth = definition.FootprintWidth;
-            force.FootprintHeight = definition.FootprintHeight;
-            force.AttackSpeed = definition.AttackSpeed;
-        }
-    }
-
-    private static bool CanUseDeploymentCell(WorldSiteDeploymentCell candidate, bool canEnterWater)
-    {
-        return canEnterWater || !candidate.IsWater;
-    }
-
-    private bool EnsureSitePlacementsRespectTerrain(WorldSiteState site, WorldSiteDefinition definition)
-    {
-        if (site == null || definition == null)
-        {
-            return false;
-        }
-
-        if (_deploymentCache == null || _deploymentCache.SiteId != site.SiteId)
-        {
-            RebuildSiteDeploymentRuntimeCache(site.SiteId);
-        }
-
-        WorldSiteDeploymentTerrainReconcileResult result = _deploymentTerrainReconciler.Reconcile(
-            _activeGridMap,
-            _deploymentCache,
-            site,
-            definition,
-            ResolvePlacementCanEnterWater);
-        return result.Success;
-    }
-
-    private bool ResolvePlacementCanEnterWater(WorldSiteUnitPlacement placement)
-    {
-        if (!_battleUnitFactory.TryGetUnitDefinition(placement?.UnitTypeId, out BattleUnitDefinition definition))
-        {
-            return false;
-        }
-
-        return definition.CanEnterWater;
-    }
-
-    private void AddRequestedForces(
-        IEnumerable<BattleForceRequest> forces,
-        BattleFaction fallbackFaction,
-        BattleStartRequest request,
-        ISet<GridSurfacePosition> reservedDeploymentSurfaces,
-        bool requireAllPlacements = true)
-    {
-        foreach (BattleForceRequest force in forces ?? System.Array.Empty<BattleForceRequest>())
-        {
-            if (force.Count <= 0)
-            {
-                continue;
-            }
-
-            for (int i = 0; i < force.Count; i++)
-            {
-                BattleForcePlacementRequest placement = i < force.PreferredPlacements.Count
-                    ? force.PreferredPlacements[i]
-                    : null;
-                if (placement == null)
-                {
-                    if (requireAllPlacements)
-                    {
-                        GameLog.Error(
-                            nameof(WorldSiteRoot),
-                            $"Skip battle unit without prepared placement force={force.ForceId} unit={force.UnitDefinitionId} index={i}");
-                    }
-
-                    continue;
-                }
-
-                GridPosition fallbackPosition = new(placement.CellX, placement.CellY);
-                BattleEntity entity = _battleUnitFactory.Create(force, i, fallbackFaction, fallbackPosition);
-                if (entity == null)
-                {
-                    GameLog.Warn(nameof(WorldSiteRoot), $"Skip battle unit force={force.ForceId} unit={force.UnitDefinitionId} index={i}");
-                    continue;
-                }
-
-                ApplyBattleRequestDeployment(entity, force, i, fallbackFaction, request, reservedDeploymentSurfaces);
-                RegisterBattlePreparationPlacement(entity, force, i, fallbackFaction);
-                _unitRoot.AddChild(entity);
-            }
-        }
-    }
-
-    private void RegisterBattlePreparationPlacement(
-        BattleEntity entity,
-        BattleForceRequest force,
-        int forceIndex,
-        BattleFaction fallbackFaction)
-    {
-        if (!_isBattlePreparationActive ||
-            entity == null ||
-            forceIndex >= (force?.PreferredPlacements?.Count ?? 0))
-        {
-            return;
-        }
-
-        string placementId = force.PreferredPlacements[forceIndex]?.PlacementId ?? "";
-        if (!string.IsNullOrWhiteSpace(placementId))
-        {
-            // Both sides are indexed from the same prepared placement data so
-            // preview and runtime start positions cannot drift apart. Battle
-            // preparation can tune both sides, but runtime disables all drag before start.
-            SetDeploymentDragComponent(entity, placementId, IsBattlePreparationPlacementDragEnabled(fallbackFaction));
-            _sitePlacementEntities[placementId] = entity;
-        }
-    }
-
-    private static bool IsBattlePreparationPlacementDragEnabled(BattleFaction fallbackFaction)
-    {
-        return fallbackFaction is BattleFaction.Player or BattleFaction.Enemy;
-    }
-
-    private void ApplyBattleRequestDeployment(
-        BattleEntity entity,
-        BattleForceRequest force,
-        int forceIndex,
-        BattleFaction fallbackFaction,
-        BattleStartRequest request,
-        ISet<GridSurfacePosition> reservedDeploymentSurfaces)
-    {
-        GridOccupantComponent gridOccupant = entity?.GetComponent<GridOccupantComponent>();
-        if (gridOccupant == null)
-        {
-            return;
-        }
-
-        BattleForcePlacementRequest placement = forceIndex < (force?.PreferredPlacements?.Count ?? 0)
-            ? force.PreferredPlacements[forceIndex]
-            : null;
-        if (placement != null)
-        {
-            gridOccupant.GridX = placement.CellX;
-            gridOccupant.GridY = placement.CellY;
-            gridOccupant.FootprintWidth = BattleFootprintCells.NormalizeSize(force?.FootprintWidth ?? gridOccupant.FootprintWidth);
-            gridOccupant.FootprintHeight = BattleFootprintCells.NormalizeSize(force?.FootprintHeight ?? gridOccupant.FootprintHeight);
-            if (placement.CellHeight > 0)
-            {
-                gridOccupant.GridHeight = placement.CellHeight;
-                gridOccupant.UseExplicitHeight = true;
-            }
-
-            ResolveEntitySurfaceHeight(gridOccupant);
-            reservedDeploymentSurfaces?.Add(gridOccupant.SurfacePosition);
-            GameLog.Info(
-                nameof(WorldSiteRoot),
-                $"Battle unit placed from WorldSiteState entity={entity.EntityId} force={force?.ForceId} placement={placement.PlacementId} surface={gridOccupant.SurfacePosition}");
-            return;
-        }
-
-        ResolveEntitySurfaceHeight(gridOccupant);
-        reservedDeploymentSurfaces?.Add(gridOccupant.SurfacePosition);
-        GameLog.Error(
-            nameof(WorldSiteRoot),
-            $"Battle unit missing WorldSiteState placement entity={entity.EntityId} force={force?.ForceId} faction={fallbackFaction} fallbackSurface={gridOccupant.SurfacePosition}");
-    }
-
-    private void ClearBattleEntities()
-    {
-        if (_unitRoot == null)
-        {
-            return;
-        }
-
-        foreach (BattleEntity entity in _unitRoot.GetEntitiesSnapshot())
-        {
-            entity.GetParent()?.RemoveChild(entity);
-            entity.QueueFree();
-        }
-
     }
 
     private void ApplyBattleModifiers(BattleStartRequest request)

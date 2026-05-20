@@ -1,0 +1,140 @@
+# Battle Content And Progression Architecture
+
+Status: Accepted Architecture
+
+## Gameplay Authority
+
+This document supports hero-led light RTS combat by defining how content definitions, ability/effect primitives, resources, and progression feed battle without becoming runtime hardcoding.
+
+## Responsibility
+
+This architecture owns:
+
+- ability and effect definition boundaries;
+- combat content resourceization;
+- hero, corps, equipment, and armament progression inputs;
+- resource source, sink, conversion, cap, loss, and recovery loops.
+
+## Does Not Own
+
+This architecture does not own:
+
+- individual skill content balance;
+- exact UI layout;
+- runtime movement legality or topology;
+- final settlement writeback mechanics;
+- save-file schema details.
+
+## Ability And Effect Definitions
+
+Abilities and effects are content definitions. Runtime instantiates execution state from snapshots; it does not hardcode individual content rules.
+
+Definitions / Content owns:
+
+- `Skill`: display text, tags, channel availability, and content identity.
+- `Cost`: mana, limited use, battle resource, condition, or other cost rules.
+- `Cooldown`: cooldown timing and reset boundary.
+- `Targeting`: target kind, range, valid target rules, area rules.
+- `Effect`: damage, healing, control, movement, summon, shield, morale, resource, or other effect primitives.
+- `Tag`: profession, combat class, form, element, faction, equipment, city, origin, or fantasy hook.
+- `Modifier`: stat, behavior, cooldown, cost, target, settlement, or report-explanation modifier.
+
+Layer rules:
+
+- Domain saves unlocks, assignments, levels, equipment, and long-term state. It does not duplicate full definitions.
+- Application validates whether abilities and effects may enter a snapshot.
+- Runtime handles cooldown, cost payment, hit/application, effect state, and emitted events.
+- UI displays definitions and availability, but it does not calculate final battle truth.
+- Infrastructure loads resources and reports missing or invalid references.
+
+Adding a specific skill, equipment effect, or corps trait should usually require only Resource authoring. A system change is needed only when a new effect primitive, target type, or cross-system rule is introduced.
+
+## Ability Spatial Contracts
+
+Ability spatial contracts should support these extension points:
+
+| Contract | Purpose |
+|---|---|
+| Target mode | Unit target, cell target, direction target, or self-centered execution. |
+| Direction mode | Free angle, 8-way snap, 4-way snap, or forward arc. |
+| Area shape | Single actor, single cell, line, cone, circle radius, or grid radius. |
+| Range metric | Square-grid range rule used by the selected target and area mode. |
+| Resolution source | Actor facts and grid facts owned by Runtime, not UI or presentation-only collision callbacks. |
+
+The first square-grid realtime implementation only needs actor-target basic attacks and the contract fields required to avoid hardcoding future skills into the wrong model.
+
+## Resource And Progression Flow
+
+Resource and progression flow must be modelable before code:
+
+```text
+sources -> converters -> caps -> sinks -> battle loss -> recovery -> settlement writeback
+```
+
+Sources:
+
+- city production: Food, Money, BuildingMaterials, SpecialResources;
+- resource sites, ruins, dungeons, and opportunities;
+- battle rewards, occupation rewards, defense rewards;
+- facility, control, and strategic-location outputs.
+
+Sinks:
+
+- corps level training;
+- corps equipment level upgrades;
+- hero equipment forging, maintenance, or upgrades;
+- post-battle recovery, replenishment, repair, and healing;
+- defense, garrison, facilities, and special unlocks.
+
+Converters:
+
+- `TrainingCapacity`: resources and time into corps level growth or supported cap.
+- `WorkshopCapacity`: resources and facility capacity into corps equipment level.
+- battle: risk into experience, reward, losses, and campaign state changes.
+- facilities: city identity into efficiency, caps, unlocks, or cost modifiers.
+
+Caps and timing:
+
+- Resource caps come from storage, facilities, control state, and strategic-location links.
+- Garrison, training, workshop, and defense each use city capability limits.
+- Application freezes battle input before battle.
+- Runtime does not write long-term resources.
+- Settlement writes rewards, losses, experience, recovery entry points, and city/location changes.
+
+Negative feedback entry points belong in capacity, maintenance, recovery cost, training efficiency, workshop efficiency, post-battle losses, and city defense pressure. This document does not define balance values.
+
+## First-Phase Content Scope
+
+Recommended content scope:
+
+```text
+1 core city
+1-2 resource sites
+1 ruin or dungeon
+3 heroes
+3 corps classes
+1 city light-RTS battle
+1 equipment sample set
+1 corps level and equipment-level progression sample
+basic battle report
+```
+
+Explicit non-goals:
+
+- AP, TurnSystem, or old tactical chess loop;
+- pure post-deployment auto-battle;
+- individual soldier long-term growth;
+- one hero with multiple main corps;
+- large-scale RTS box selection and high-frequency micro;
+- full diplomacy or government simulation;
+- public order, intelligence, or city damage as first-phase core city attributes;
+- non-city locations inheriting the full city model.
+
+## Acceptance
+
+This architecture is acceptable when:
+
+- specific skills and equipment effects can usually be added as resources;
+- new runtime primitives require explicit architecture proposals;
+- progression, resource cost, loss, and recovery have clear ownership;
+- Runtime consumes snapshots and emits facts instead of owning long-term progression.

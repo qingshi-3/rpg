@@ -13,22 +13,11 @@ internal static void BattleLauncherCancelsHandoffAndRestoresSiteOnActivationFail
     StrategicWorldState state = new() { WorldTick = 7 };
     WorldSiteState site = BuildDeploymentSite();
     site.SiteMode = WorldSiteMode.Alert;
-    site.Exploration = new WorldSiteExplorationState
-    {
-        IsSimulationPaused = true,
-        PauseReason = "exploration_ready",
-        ActiveAlertPatrolId = "patrol_a"
-    };
-    site.Exploration.PendingPathCellKeys.Add("1:2:0");
     state.SiteStates[site.SiteId] = site;
 
     WorldSiteBattleLauncher launcher = new();
     WorldSiteBattleLaunchRollback rollback = launcher.CaptureRollback(site);
     site.SiteMode = WorldSiteMode.Wartime;
-    site.Exploration.IsSimulationPaused = false;
-    site.Exploration.PauseReason = "exploration_battle";
-    site.Exploration.ActiveAlertPatrolId = "patrol_b";
-    site.Exploration.PendingPathCellKeys.Clear();
 
     int applyCalls = 0;
     int cleanupCalls = 0;
@@ -57,10 +46,6 @@ internal static void BattleLauncherCancelsHandoffAndRestoresSiteOnActivationFail
     AssertEqual(2, cleanupCalls, "cleanup callbacks should run during rollback");
     AssertEqual(1, runtimeDisableCalls, "runtime should be disabled during rollback");
     AssertEqual(WorldSiteMode.Alert, site.SiteMode, "site mode should be restored");
-    AssertTrue(site.Exploration.IsSimulationPaused, "exploration pause should be restored");
-    AssertEqual("exploration_ready", site.Exploration.PauseReason, "exploration pause reason should be restored");
-    AssertEqual("patrol_a", site.Exploration.ActiveAlertPatrolId, "active alert patrol should be restored");
-    AssertEqual("1:2:0", site.Exploration.PendingPathCellKeys[0], "pending path should be restored");
 
     BattleSessionHandoff.CancelBattle();
 }

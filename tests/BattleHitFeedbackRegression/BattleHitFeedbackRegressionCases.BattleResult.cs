@@ -209,6 +209,132 @@ internal static void BattleResultApplierKeepsSurvivingDefendingGarrisonAfterDefe
     AssertEqual(2, targetSite.Garrison.Where(item => item.UnitTypeId == StrategicWorldIds.UnitMilitia).Sum(item => item.Count), "defending site garrison should lose only defeated units");
 }
 
+internal static void BattleResultApplierClearsDefenseRaidAttackerPlacementsAfterVictory()
+{
+    const string threatId = "threat:defense-placement-test";
+    const string threatArmyId = "threat:defense-placement-test:army";
+    const string otherThreatId = "threat:other";
+
+    StrategicWorldDefinition definition = BuildBattleResultApplierTestDefinition();
+    StrategicWorldState state = new StrategicWorldService().CreateInitialState(definition);
+    WorldSiteState targetSite = state.SiteStates[StrategicWorldIds.SiteBonefield];
+    targetSite.OwnerFactionId = state.PlayerFactionId;
+    targetSite.ControlState = SiteControlState.PlayerHeld;
+    targetSite.PendingThreatIds.Add(threatId);
+    targetSite.Garrison.Clear();
+    targetSite.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 2 });
+    targetSite.UnitPlacements.Add(new WorldSiteUnitPlacement
+    {
+        PlacementId = "battle:ThreatArmy:threat:defense-placement-test:army:grave_shadow:1",
+        UnitTypeId = StrategicWorldIds.UnitGraveShadow,
+        UnitIndex = 1,
+        FactionId = StrategicWorldIds.FactionUndead,
+        PlacementKind = WorldSiteUnitPlacementKind.Attacker,
+        SourceKind = "ThreatArmy",
+        SourceId = threatArmyId,
+        ArmyId = threatArmyId,
+        ThreatId = threatId,
+        CellX = 4,
+        CellY = 2
+    });
+    targetSite.UnitPlacements.Add(new WorldSiteUnitPlacement
+    {
+        PlacementId = "battle:ThreatRule:graveyard_raid:grave_shadow:1",
+        UnitTypeId = StrategicWorldIds.UnitGraveShadow,
+        UnitIndex = 1,
+        FactionId = StrategicWorldIds.FactionUndead,
+        PlacementKind = WorldSiteUnitPlacementKind.Attacker,
+        SourceKind = "ThreatRule",
+        SourceId = "graveyard_raid",
+        ThreatId = threatId,
+        CellX = 5,
+        CellY = 2
+    });
+    targetSite.UnitPlacements.Add(new WorldSiteUnitPlacement
+    {
+        PlacementId = "battle:ThreatArmy:other:grave_shadow:1",
+        UnitTypeId = StrategicWorldIds.UnitGraveShadow,
+        UnitIndex = 1,
+        FactionId = StrategicWorldIds.FactionUndead,
+        PlacementKind = WorldSiteUnitPlacementKind.Attacker,
+        SourceKind = "ThreatArmy",
+        SourceId = "other:army",
+        ArmyId = "other:army",
+        ThreatId = otherThreatId,
+        CellX = 6,
+        CellY = 2
+    });
+    state.ThreatPlans[threatId] = new EnemyThreatPlan
+    {
+        Id = threatId,
+        RuleId = "graveyard_raid",
+        EnemyGroupId = "graveyard_raid",
+        SourceSiteId = StrategicWorldIds.SiteGraveyard,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        WorldArmyId = threatArmyId,
+        Stage = ThreatStage.Attacking
+    };
+    state.ArmyStates[threatArmyId] = new WorldArmyState
+    {
+        ArmyId = threatArmyId,
+        OwnerFactionId = StrategicWorldIds.FactionUndead,
+        SourceSiteId = StrategicWorldIds.SiteGraveyard,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        Status = WorldArmyStatus.Attacking,
+        Intent = WorldArmyIntent.Raid,
+        RelatedThreatId = threatId,
+        GarrisonUnits = { new GarrisonState { UnitTypeId = StrategicWorldIds.UnitGraveShadow, Count = 1 } }
+    };
+
+    BattleStartRequest request = new()
+    {
+        RequestId = "defense-placement-clear-request",
+        BattleKind = BattleKind.DefenseRaid,
+        TargetSiteId = StrategicWorldIds.SiteBonefield,
+        ThreatId = threatId,
+        AttackerFactionId = StrategicWorldIds.FactionUndead,
+        DefenderFactionId = state.PlayerFactionId
+    };
+    request.ObjectiveIds.Add("defend_bonefield");
+    request.PlayerForces.Add(new BattleForceRequest
+    {
+        ForceId = $"garrison:{StrategicWorldIds.UnitMilitia}",
+        SourceKind = "Garrison",
+        SourceId = StrategicWorldIds.SiteBonefield,
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 2,
+        FactionId = state.PlayerFactionId
+    });
+    request.EnemyForces.Add(new BattleForceRequest
+    {
+        ForceId = $"{threatArmyId}:{StrategicWorldIds.UnitGraveShadow}",
+        SourceKind = "ThreatArmy",
+        SourceId = threatArmyId,
+        UnitDefinitionId = StrategicWorldIds.UnitGraveShadow,
+        Count = 1,
+        FactionId = StrategicWorldIds.FactionUndead
+    });
+
+    WorldActionResult actionResult = new WorldBattleResultApplier().Apply(
+        state,
+        definition,
+        request,
+        BuildVictoryResult(request, "defend_bonefield"));
+
+    AssertTrue(actionResult.Success, "defense victory should apply successfully");
+    AssertTrue(
+        !targetSite.UnitPlacements.Any(placement =>
+            placement.ThreatId == threatId ||
+            placement.SourceKind == "ThreatArmy" && placement.SourceId == threatArmyId ||
+            placement.SourceKind == "ThreatRule" && placement.SourceId == "graveyard_raid"),
+        "defense victory should remove transient attacker placements for the resolved raid");
+    AssertTrue(
+        targetSite.UnitPlacements.Any(placement => placement.ThreatId == otherThreatId),
+        "defense victory should not remove unrelated threat placements");
+    AssertEqual(ThreatStage.Resolved, state.ThreatPlans[threatId].Stage, "resolved raid should be marked resolved");
+    AssertTrue(!targetSite.PendingThreatIds.Contains(threatId), "resolved raid should leave no pending threat id on the site");
+}
+
 internal static StrategicWorldDefinition BuildBattleResultApplierTestDefinition()
 {
     return new StrategicWorldDefinition

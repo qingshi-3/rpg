@@ -63,7 +63,8 @@ public sealed class GreedyAlliedIntentPlanner
             CanStrikeNow = canStrikeNow,
             MoveRange = actor.GetComponent<MovementComponent>()?.MoveRange,
             NearestHostileTargetId = target.EntityId,
-            LowestHealthHostileTargetId = corpsCommand == BattleCorpsCommand.FocusFire ? target.EntityId : ""
+            LowestHealthHostileTargetId = corpsCommand == BattleCorpsCommand.FocusFire ? target.EntityId : "",
+            Command = corpsCommand.ToString()
         }, corpsCommand);
         return decision.ToIntent(actor, ability);
     }

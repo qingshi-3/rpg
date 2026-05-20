@@ -1,7 +1,21 @@
 # Active Proposals
 
-This directory contains proposal work that may be used as current working context.
+This directory contains design proposals that have not yet been merged into authority documents and archived.
 
-Read active proposals only when they are relevant to the current task. A proposal becomes implementation authority only after its `proposal.md` status is `Accepted` or `Implementing`.
+Read active proposals only when they are relevant to the current task. Active proposals are design-change working context, not implementation authority.
 
-Do not merge `expected/` copies into authority documents until implementation has passed final user acceptance.
+## Active Index
+
+| Proposal | Requirement | Status | Archive Readiness |
+|---|---|---|---|
+| None | - | - | - |
+
+## Rules
+
+- Merge `expected/` copies into authority documents only after user design acceptance.
+- Archive the design proposal after authority documents are updated.
+- Start code, scene, resource, data, or old-doc implementation only through `docs/50-production/technical-changes/`.
+- If implementation reveals a design problem, create an amendment or supersession proposal instead of editing archived proposal bodies.
+- The default proposal entry must expose relationship metadata: requirement id, parent, supersedes/superseded-by, amends/amended-by, affected authority documents, and related implementation proposal links.
+
+Archived proposal bodies are historical records. Use `design-proposals/archived/README.md` for orientation unless the user explicitly requests a specific archived proposal body.

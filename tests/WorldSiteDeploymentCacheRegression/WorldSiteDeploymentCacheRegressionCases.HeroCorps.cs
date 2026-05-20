@@ -236,6 +236,122 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         "runtime event playback should consume authoritative runtime cells instead of presentation pathfinding");
 }
 
+internal static void WorldSiteRootBattleRuntimeCommandUiRoutesInitialCommand()
+{
+    string root = ProjectRoot();
+    string rootSource = ReadWorldSiteRootSource();
+    string battlePreparationSource = File.ReadAllText(Path.Combine(
+        root,
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.BattlePreparationHud.cs"));
+    string battleRuntimeSource = ReadWorldSiteRootSource();
+    string siteScene = File.ReadAllText(Path.Combine(
+        root,
+        "scenes",
+        "world",
+        "ui",
+        "WorldSitePeacetimeHud.tscn"));
+    string requestSource = File.ReadAllText(Path.Combine(root, "src", "Application", "Battle", "BattleStartRequest.cs"));
+    string snapshotSource = File.ReadAllText(Path.Combine(root, "src", "Application", "Battle", "Snapshots", "BattleGroupSnapshot.cs"));
+    string probeSource = File.ReadAllText(Path.Combine(root, "src", "Application", "Battle", "BattleGroupSessionProbeService.cs"));
+
+    AssertTrue(
+        siteScene.Contains("BottomCommandHost", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeCommandBar", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeCommandButtonRow", StringComparison.Ordinal),
+        "world site HUD scene should author a bottom battle command bar instead of building the runtime UI tree ad hoc");
+    AssertTrue(
+        rootSource.Contains("_siteBottomCommandHost", StringComparison.Ordinal) &&
+        rootSource.Contains("_battleRuntimeCommandLabel", StringComparison.Ordinal) &&
+        rootSource.Contains("_battleRuntimeCommandButtonRow", StringComparison.Ordinal),
+        "WorldSiteRoot should bind authored runtime command UI nodes");
+    AssertTrue(
+        !battlePreparationSource.Contains("RefreshBattleRuntimeCommandControls", StringComparison.Ordinal),
+        "battle preparation should keep runtime command buttons out of the pre-start action list");
+    AssertTrue(
+        battleRuntimeSource.Contains("BindBattleRuntimeHud", StringComparison.Ordinal) &&
+        battleRuntimeSource.Contains("ShowBattleRuntimeCommandHud(runtimeLocked: true)", StringComparison.Ordinal) &&
+        battleRuntimeSource.IndexOf("UpdateSitePeacetimePanelVisibility(\"battle_runtime\")", StringComparison.Ordinal) <
+        battleRuntimeSource.IndexOf("ShowBattleRuntimeCommandHud(runtimeLocked: true)", StringComparison.Ordinal) &&
+        battleRuntimeSource.Contains("RefreshBattleRuntimeCommandControls", StringComparison.Ordinal) &&
+        battleRuntimeSource.Contains("CommandRequest", StringComparison.Ordinal) &&
+        battleRuntimeSource.Contains("BuildBattleRuntimeCommandRequest", StringComparison.Ordinal) &&
+        battleRuntimeSource.Contains("BattleRuntimeCommandSelected", StringComparison.Ordinal),
+        "battle runtime HUD should show the bottom command bar after mode visibility refreshes, route player intent through a CommandRequest-shaped boundary, and leave a low-noise diagnostic");
+    AssertTrue(
+        requestSource.Contains("InitialCorpsCommandId", StringComparison.Ordinal) &&
+        snapshotSource.Contains("InitialCorpsCommandId", StringComparison.Ordinal) &&
+        probeSource.Contains("InitialCorpsCommandId", StringComparison.Ordinal),
+        "initial corps command should be copied from legacy battle request into the target battle snapshot");
+}
+
+internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
+{
+    string root = ProjectRoot();
+    string rootSource = ReadWorldSiteRootSource();
+    string siteScene = File.ReadAllText(Path.Combine(
+        root,
+        "scenes",
+        "world",
+        "ui",
+        "WorldSitePeacetimeHud.tscn"));
+    string worldSiteScene = File.ReadAllText(Path.Combine(
+        root,
+        "scenes",
+        "world",
+        "sites",
+        "WorldSiteRoot.tscn"));
+
+    AssertTrue(
+        siteScene.Contains("BattleRuntimeHeroButtonRow", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeCommandPanel", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeHeroCommandList", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeCorpsCommandList", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeCombinedCommandList", StringComparison.Ordinal),
+        "battle runtime command UI should be authored as bottom hero selection plus left hero/corps/combined command containers.");
+    AssertTrue(
+        rootSource.Contains("TryHandleBattleRuntimePauseInput", StringComparison.Ordinal) &&
+        rootSource.Contains("Key.Space", StringComparison.Ordinal) &&
+        rootSource.Contains("_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
+        rootSource.Contains("ToggleBattleRuntimeCommandPause", StringComparison.Ordinal),
+        "WorldSiteRoot should treat Space as a presentation-only battle command pause toggle.");
+    AssertTrue(
+        rootSource.Contains("RefreshBattleRuntimeHeroBar", StringComparison.Ordinal) &&
+        rootSource.Contains("SelectBattleRuntimeCommandGroup", StringComparison.Ordinal) &&
+        rootSource.Contains("ResolveBattleRuntimeGroupKey", StringComparison.Ordinal) &&
+        rootSource.Contains("SourceKind", StringComparison.Ordinal) &&
+        rootSource.Contains("SourceId", StringComparison.Ordinal),
+        "battle runtime hero buttons should group request forces by their shared source so a hero and attached corps select together.");
+    AssertTrue(
+        rootSource.Contains("SetCommandSelectionByEntityIds", StringComparison.Ordinal) &&
+        rootSource.Contains("RefreshBattleRuntimeSelectedCommandPanel", StringComparison.Ordinal) &&
+        rootSource.Contains("AddBattleRuntimeCommandDraftButton", StringComparison.Ordinal),
+        "selecting a runtime hero company should highlight matching units and bind separate placeholder command sections without mutating runtime truth.");
+    AssertTrue(
+        worldSiteScene.Contains("UnitMoveDuration = 0.16", StringComparison.Ordinal),
+        "runtime unit movement should be slowed in the site scene for readable realtime command evaluation.");
+}
+
+internal static void BattlePreparationKeepsStartBattlePrimary()
+{
+    string battlePreparationSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.BattlePreparationHud.cs"));
+    string refreshActionsBody = ExtractMethodBody(battlePreparationSource, "private void RefreshBattlePreparationActions()");
+
+    AssertTrue(
+        !refreshActionsBody.Contains("RefreshBattleRuntimeCommandControls", StringComparison.Ordinal) &&
+        refreshActionsBody.Contains("LaunchPreparedBattle", StringComparison.Ordinal),
+        "battle preparation action list should keep Start Battle as the primary action; runtime command buttons belong after battle starts.");
+}
+
 internal static void WorldSiteRootBattlePreparationDragUsesTemporaryHighZAndSurfaceSort()
 {
     string rootSource = ReadWorldSiteRootSource();
@@ -551,9 +667,22 @@ internal static void WorldSiteUsesDedicatedMainWorldViewport()
     string rootSource = ReadWorldSiteRootSource();
 
     AssertTrue(
+        scene.Contains("[node name=\"WorldSiteRoot\" type=\"Control\"]", StringComparison.Ordinal) &&
+        rootSource.Contains("public partial class WorldSiteRoot : Control", StringComparison.Ordinal),
+        "world site root should use the same Control-root layout contract as strategic world.");
+    AssertTrue(
+        scene.Contains("[node name=\"MainWorldViewportHost\" type=\"SubViewportContainer\" parent=\".\"]", StringComparison.Ordinal) &&
+        scene.Contains("offset_left =", StringComparison.Ordinal) &&
+        scene.Contains("offset_top =", StringComparison.Ordinal),
+        "world site viewport host should be authored as a right-side workspace, not a full-screen map behind HUD.");
+    AssertTrue(
         scene.Contains("node name=\"MainWorldViewportHost\" type=\"SubViewportContainer\" parent=\".\"", StringComparison.Ordinal) &&
         scene.Contains("node name=\"MainWorldViewport\" type=\"SubViewport\" parent=\"MainWorldViewportHost\"", StringComparison.Ordinal),
         "world site scene should define a real main world SubViewport under a viewport container.");
+    AssertTrue(
+        scene.Contains("clip_contents = true", StringComparison.Ordinal) &&
+        rootSource.Contains("_mainWorldViewportHost.ClipContents = true", StringComparison.Ordinal),
+        "world site viewport host must clip the SubViewport texture so the battle map cannot draw behind screen-space HUD.");
     AssertTrue(
         scene.Contains("node name=\"MapRoot\" type=\"Node2D\" parent=\"MainWorldViewportHost/MainWorldViewport\"", StringComparison.Ordinal) &&
         scene.Contains("node name=\"UnitRoot\" type=\"Node2D\" parent=\"MainWorldViewportHost/MainWorldViewport\"", StringComparison.Ordinal) &&
@@ -629,7 +758,7 @@ internal static void PresentationUiModeBindersStayInPresentation()
     string strategicSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.DetailHud.cs"));
     string siteManagementSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteManagementHud.cs"));
     string battlePreparationSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattlePreparationHud.cs"));
-    string battleRuntimeSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntime.cs"));
+    string battleRuntimeSource = ReadWorldSiteRootSource();
 
     AssertTrue(
         uiModeSource.Contains("namespace Rpg.Presentation.World", StringComparison.Ordinal) &&
@@ -637,7 +766,6 @@ internal static void PresentationUiModeBindersStayInPresentation()
         uiModeSource.Contains("StrategicSelection", StringComparison.Ordinal) &&
         uiModeSource.Contains("ExpeditionDraft", StringComparison.Ordinal) &&
         uiModeSource.Contains("SiteManagement", StringComparison.Ordinal) &&
-        uiModeSource.Contains("SiteExploration", StringComparison.Ordinal) &&
         uiModeSource.Contains("BattlePreparation", StringComparison.Ordinal) &&
         uiModeSource.Contains("BattleRuntime", StringComparison.Ordinal) &&
         uiModeSource.Contains("SettlementReport", StringComparison.Ordinal),

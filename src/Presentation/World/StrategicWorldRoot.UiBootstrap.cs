@@ -39,7 +39,6 @@ public partial class StrategicWorldRoot
             GameUiSceneFactory.WorldSecondaryActionButtonScenePath,
             GameUiSceneFactory.WorldCompactMarkerButtonScenePath,
             GameUiSceneFactory.WorldExpeditionCountRowScenePath,
-            GameUiSceneFactory.BattleAlertDialogScenePath,
             GameUiSceneFactory.PreBattleDialogScenePath);
 
         Node warmupRoot = new() { Name = "StrategicUiWarmup" };

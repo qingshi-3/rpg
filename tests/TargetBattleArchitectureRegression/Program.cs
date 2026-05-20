@@ -12,9 +12,7 @@ using Rpg.Domain.Heroes;
 using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Results;
-
 Environment.SetEnvironmentVariable("RPG_GAMELOG_DIR", Path.Combine(Path.GetTempPath(), "rpg-test-logs"));
-
 Run("corps strength clamps and visible soldiers are derived", CorpsStrengthClampsAndVisibleSoldiersAreDerived);
 Run("runtime source stays isolated from domain and presentation owners", RuntimeSourceStaysIsolated);
 Run("oversized code files are tracked and no new ones are introduced", OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced);
@@ -23,15 +21,56 @@ Run("runtime auto battle resolves opposing factions from actor state", RuntimeAu
 Run("runtime uses 8-neighbor square-grid movement", RuntimeUsesEightNeighborSquareGridMovement);
 Run("runtime diagonal adjacency is in basic attack range", RuntimeDiagonalAdjacencyIsInBasicAttackRange);
 Run("runtime attack speed gates attack cadence", RuntimeAttackSpeedGatesAttackCadence);
+Run("runtime adjacent opponents resolve same-tick attacks without actor-id initiative", TargetBattleAttackCadenceRegressionCases.RuntimeAdjacentOpponentsResolveSameTickAttacksWithoutActorIdInitiative);
+Run("runtime mover cannot attack until anchored on later tick", TargetBattleAttackCadenceRegressionCases.RuntimeMoverCannotAttackUntilAnchoredOnLaterTick);
+Run("runtime defeated actor move proposal is discarded after same-tick damage", TargetBattleAttackCadenceRegressionCases.RuntimeDefeatedActorMoveProposalIsDiscardedAfterSameTickDamage);
+Run("runtime does not burst stored attack charge after approach", TargetBattleAttackCadenceRegressionCases.RuntimeDoesNotBurstStoredAttackChargeAfterApproach);
+Run("runtime attack recovery prevents consecutive tick damage", TargetBattleAttackCadenceRegressionCases.RuntimeAttackRecoveryPreventsConsecutiveTickDamage);
+Run("runtime attack cadence uses actor action seconds", TargetBattleAttackCadenceRegressionCases.RuntimeAttackCadenceUsesActorActionSeconds);
+Run("runtime movement cadence uses move step seconds", TargetBattleAttackCadenceRegressionCases.RuntimeMovementCadenceUsesMoveStepSeconds);
+Run("runtime movement phase allows next-tick movement continuation", TargetBattleAttackCadenceRegressionCases.RuntimeMovementPhaseAllowsNextTickMovementContinuation);
+Run("runtime session begin defers combat resolution until advance", TargetBattleAttackCadenceRegressionCases.RuntimeSessionBeginDefersCombatResolutionUntilAdvance);
+Run("runtime action diagnostics are logged", TargetBattleAttackCadenceRegressionCases.RuntimeActionDiagnosticsAreLogged);
+Run("runtime uses snapshot combat hit points and attack damage", TargetBattleAttackCadenceRegressionCases.RuntimeUsesSnapshotCombatHitPointsAndAttackDamage);
 Run("runtime movement events carry authoritative cells", RuntimeMovementEventsCarryAuthoritativeCells);
+Run("runtime hold-line command keeps player corps from advancing", TargetBattleCommandRegressionCases.RuntimeHoldLineCommandKeepsPlayerCorpsFromAdvancing);
+Run("runtime focus-fire command targets lowest-health enemy corps", TargetBattleCommandRegressionCases.RuntimeFocusFireCommandTargetsLowestHealthEnemyCorps);
+Run("runtime AI executor boundary uses typed requests", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorBoundaryUsesTypedRequests);
+Run("runtime AI executor consumes facts without mutable runtime authority", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorConsumesFactsWithoutMutableRuntimeAuthority);
+Run("battle grid map reader does not consume complex tileset navigation data", TargetBattleNavigationRegressionCases.BattleGridMapReaderDoesNotConsumeComplexTileSetNavigationData);
+Run("battle tilesets only expose walkable navigation custom data", TargetBattleNavigationRegressionCases.BattleTileSetsOnlyExposeWalkableNavigationCustomData);
+Run("battle navigation topology compiler produces final edges before runtime", TargetBattleNavigationRegressionCases.BattleNavigationTopologyCompilerProducesFinalEdgesBeforeRuntime);
+Run("runtime navigation graph consumes topology data layer only", TargetBattleNavigationRegressionCases.RuntimeNavigationGraphConsumesTopologyDataLayerOnly);
+Run("runtime navigation main loop uses crowd flow planner instead of actor astar", TargetBattleNavigationRegressionCases.RuntimeNavigationMainLoopUsesCrowdFlowPlannerInsteadOfActorAStar);
+Run("battle navigation topology diagnostics print nodes edges and placements", TargetBattleNavigationRegressionCases.BattleNavigationTopologyDiagnosticsPrintNodesEdgesAndPlacements);
+Run("battle navigation snapshot builder excludes underground water from topology", TargetBattleNavigationRegressionCases.BattleNavigationSnapshotBuilderExcludesUndergroundWaterFromTopology);
+Run("battle navigation snapshot builder excludes negative height fallback surfaces", TargetBattleNavigationRegressionCases.BattleNavigationSnapshotBuilderExcludesNegativeHeightFallbackSurfaces);
 Run("runtime navigation consumes authored surface snapshot", TargetBattleNavigationRegressionCases.RuntimeNavigationConsumesAuthoredSurfaceSnapshot);
 Run("runtime navigation changes height only through authored connections", TargetBattleNavigationRegressionCases.RuntimeNavigationChangesHeightOnlyThroughAuthoredConnections);
+Run("runtime navigation diagnostics explain unreachable advance", TargetBattleNavigationRegressionCases.RuntimeNavigationDiagnosticsExplainUnreachableAdvance);
+Run("battle navigation snapshot builder exports uniform cost for walkable surfaces", TargetBattleNavigationRegressionCases.BattleNavigationSnapshotBuilderExportsUniformCostForWalkableSurfaces);
+Run("runtime navigation rejects diagonal corner cutting", TargetBattleNavigationRegressionCases.RuntimeNavigationRejectsDiagonalCornerCutting);
+Run("runtime navigation rejects projected diagonal corner cutting", TargetBattleNavigationRegressionCases.RuntimeNavigationRejectsProjectedDiagonalCornerCutting);
+Run("runtime navigation keeps top corridor instead of dipping into lower protrusion", TargetBattleNavigationRegressionCases.RuntimeNavigationKeepsTopCorridorInsteadOfDippingIntoLowerProtrusion);
+Run("runtime navigation keeps second ally on top corridor instead of lower protrusion", TargetBattleNavigationRegressionCases.RuntimeNavigationKeepsSecondAllyOnTopCorridorInsteadOfLowerProtrusion);
 Run("runtime square-grid combat avoids physics and full-map pathfinding authority", RuntimeSquareGridCombatAvoidsPhysicsAndFullMapPathfindingAuthority);
 Run("runtime copies snapshot footprint to corps actors", TargetBattleFootprintRegressionCases.RuntimeCopiesSnapshotFootprintToCorpsActors);
 Run("runtime footprint range uses rectangle edges", TargetBattleFootprintRegressionCases.RuntimeFootprintRangeUsesRectangleEdges);
 Run("runtime footprint occupancy blocks covered cells", TargetBattleFootprintRegressionCases.RuntimeFootprintOccupancyBlocksCoveredCells);
 Run("runtime pathfinder routes around blocked anchor", TargetBattleFootprintRegressionCases.RuntimePathfinderRoutesAroundBlockedAnchor);
 Run("runtime pathfinder routes around large unit interior", TargetBattleFootprintRegressionCases.RuntimePathfinderRoutesAroundLargeUnitInterior);
+Run("runtime large footprint cannot move onto anchor with missing covered surface", TargetBattleFootprintRegressionCases.RuntimeLargeFootprintCannotMoveOntoAnchorWithMissingCoveredSurface);
+Run("runtime backline advances behind blocked frontline", TargetBattleCongestionRegressionCases.RuntimeBacklineAdvancesBehindBlockedFrontline);
+Run("runtime future occupancy does not force immediate detour", TargetBattleCongestionRegressionCases.RuntimeFutureOccupancyDoesNotForceImmediateDetour);
+Run("runtime projected occupancy allows direct first step then replans", TargetBattleCongestionRegressionCases.RuntimeProjectedOccupancyAllowsDirectFirstStepThenReplans);
+Run("runtime keeps assault target intent while rerouting", TargetBattleMovementIntentRegressionCases.RuntimeKeepsAssaultTargetIntentWhileRerouting);
+Run("runtime support unit does not move away from engaged target for far flank", TargetBattleMovementIntentRegressionCases.RuntimeSupportUnitDoesNotMoveAwayFromEngagedTargetForFarFlank);
+Run("runtime many allies converge on single holdline enemy without overlap", TargetBattleMultiUnitNavigationRegressionCases.RuntimeManyAlliesConvergeOnSingleHoldlineEnemyWithoutOverlap);
+Run("runtime many enemies converge on single holdline defender without overlap", TargetBattleMultiUnitNavigationRegressionCases.RuntimeManyEnemiesConvergeOnSingleHoldlineDefenderWithoutOverlap);
+Run("runtime many vs many open field closes without illegal positions", TargetBattleMultiUnitNavigationRegressionCases.RuntimeManyVsManyOpenFieldClosesWithoutIllegalPositions);
+Run("runtime same-lane crowd advances as chain in one tick", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSameLaneCrowdAdvancesAsChainInOneTick);
+Run("runtime support queue advances chain behind engaged frontline", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportQueueAdvancesChainBehindEngagedFrontline);
+Run("runtime support unit continues into diagonal attack range against engaged target", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportUnitContinuesIntoDiagonalAttackRangeAgainstEngagedTarget);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
 Run("snapshot copies battle group facts", SnapshotCopiesBattleGroupFacts);
@@ -45,6 +84,7 @@ Run("rejected settlement report is diagnostic", RejectedSettlementReportIsDiagno
 Run("report and settlement consume the same event ids", ReportAndSettlementConsumeSameEventIds);
 Run("legacy garrison adapter creates explicit battle groups", LegacyGarrisonAdapterCreatesExplicitBattleGroups);
 Run("battle group session probe snapshots player and enemy forces", BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces);
+Run("battle group session probe copies initial corps command to player snapshot", TargetBattleCommandRegressionCases.BattleGroupSessionProbeCopiesInitialCorpsCommandToPlayerSnapshot);
 Run("legacy result adapter preserves request and outcome ids", LegacyResultAdapterPreservesRequestAndOutcomeIds);
 Run("legacy result adapter copies runtime survival into force results", LegacyResultAdapterCopiesRuntimeSurvivalIntoForceResults);
 Run("legacy result adapter maps failed handoff to disaster", LegacyResultAdapterMapsFailedHandoffToDisaster);
@@ -62,7 +102,6 @@ static void CorpsStrengthClampsAndVisibleSoldiersAreDerived()
     corps.CorpsStrength = 80;
     AssertEqual(4, CorpsStrengthPolicy.CalculateVisibleSoldiers(corps.CorpsStrength, 5), "derived visible soldiers");
 }
-
 static void RuntimeSourceStaysIsolated()
 {
     string source = CombinedSource("src", "Runtime", "Battle");
@@ -80,7 +119,6 @@ static void RuntimeSourceStaysIsolated()
     AssertTrue(!source.Contains("AutoBattle", StringComparison.Ordinal), "runtime must not reference old auto battle");
     AssertTrue(!source.Contains("Temporary", StringComparison.OrdinalIgnoreCase), "runtime source must not describe core flow as temporary");
 }
-
 static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
 {
     string root = ProjectRoot();
@@ -104,7 +142,6 @@ static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
         unexpected.Count == 0,
         $"new oversized code files must be split or added to the decomposition proposal: {string.Join(", ", unexpected)}");
 }
-
 static void RuntimeOwnsStableInMemoryActorState()
 {
     BattleStartSnapshot snapshot = new()
@@ -228,19 +265,17 @@ static void RuntimeAttackSpeedGatesAttackCadence()
 
     BattleRuntimeActor playerActor = result.FinalState.Actors.Single(item => item.ActorId == "force_player:1");
     AssertEqual(0.5, playerActor.AttackSpeed, "runtime actor should copy attack speed from snapshot");
+    AssertEqual(2.4, playerActor.AttackActionSeconds, "runtime actor should derive slower action seconds from attack speed");
 
     BattleEvent[] playerDamageEvents = result.EventStream.Events
         .Where(item => item.Kind == BattleEventKind.DamageApplied && item.ActorId == "force_player:1")
         .ToArray();
 
     AssertTrue(playerDamageEvents.Length >= 2, "slow attack speed should still eventually attack more than once");
-    AssertTrue(playerDamageEvents[0].EventId.Contains(":tick_0:", StringComparison.Ordinal), "initial attack should be ready at contact");
+    AssertTrue(Math.Abs(playerDamageEvents[0].RuntimeTimeSeconds) <= 0.0001, "initial attack should be ready at contact");
     AssertTrue(
-        playerDamageEvents.Skip(1).First().EventId.Contains(":tick_2:", StringComparison.Ordinal),
-        "0.5 attack speed should skip tick one before the second attack");
-    AssertTrue(
-        playerDamageEvents.All(item => !item.EventId.Contains(":tick_1:", StringComparison.Ordinal)),
-        "0.5 attack speed should not attack every runtime tick");
+        playerDamageEvents.Skip(1).First().RuntimeTimeSeconds >= 2.4 - 0.0001,
+        "0.5 attack speed should wait for the slower action duration before the second attack");
 }
 
 static void RuntimeMovementEventsCarryAuthoritativeCells()
@@ -933,6 +968,7 @@ static void AssertEqual<T>(T expected, T actual, string message)
     }
 }
 
+
 static void AssertThrows<T>(Action action, string message)
     where T : Exception
 {
@@ -951,7 +987,6 @@ static void AssertThrows<T>(Action action, string message)
 
     throw new Exception($"{message}: expected={typeof(T).Name} actual=no exception");
 }
-
 static void AssertSequence<T>(IReadOnlyList<T> expected, IReadOnlyList<T> actual, string message)
 {
     if (!expected.SequenceEqual(actual))

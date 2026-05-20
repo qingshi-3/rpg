@@ -27,8 +27,16 @@ internal static void WorldViewportLayoutUsesResolvedControlRects()
         "world-site viewport layout should not duplicate HUD dimensions as root constants");
     AssertTrue(
         siteRootSource.Contains("ResolveMainWorldViewportRect", StringComparison.Ordinal) &&
-        siteRootSource.Contains("_sitePeacetimePanel.GetGlobalRect()", StringComparison.Ordinal),
-        "world-site viewport layout should derive the world rect from the actual left primary panel rect");
+        siteRootSource.Contains("_sitePeacetimePanel.GetGlobalRect()", StringComparison.Ordinal) &&
+        siteRootSource.Contains("_siteHudTopBar.GetGlobalRect()", StringComparison.Ordinal),
+        "world-site viewport layout should derive the world rect from the actual top bar and left primary panel rects");
+    AssertTrue(
+        siteRootSource.Contains("ResolveWorldSiteHudViewportRect", StringComparison.Ordinal) &&
+        !siteRootSource.Contains("ResolveBattleRuntimeViewportRect", StringComparison.Ordinal),
+        "world-site battle viewport layout should reuse the same HUD workspace calculation instead of a separate full-width battle branch");
+    AssertTrue(
+        siteRootSource.Contains("SetFixedRect(_mainWorldViewportHost", StringComparison.Ordinal),
+        "world-site viewport layout should pin the SubViewportContainer with the same fixed-rect Control contract as strategic world");
     AssertTrue(
         !strategicSource.Contains("float mapLeft = DetailWidth + OuterMargin * 2.0f", StringComparison.Ordinal),
         "strategic viewport bounds should not duplicate left-panel dimensions in geometry code");

@@ -698,19 +698,6 @@ public partial class WorldSiteRoot
                 IsScreenPointInsideControl(_sitePeacetimePanel, screenPosition));
     }
 
-    private bool IsPointerOverSiteExplorationHud(InputEvent @event)
-    {
-        Vector2 screenPosition = @event switch
-        {
-            InputEventMouseButton mouseButton => mouseButton.Position,
-            InputEventMouseMotion mouseMotion => mouseMotion.Position,
-            _ => new Vector2(float.NaN, float.NaN)
-        };
-
-        return !float.IsNaN(screenPosition.X) &&
-               IsScreenPointInsideControl(_siteExplorationHudPanel, screenPosition);
-    }
-
     private static bool IsScreenPointInsideControl(Control control, Vector2 screenPosition)
     {
         if (!IsLiveNode(control))

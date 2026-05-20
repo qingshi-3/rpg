@@ -92,6 +92,40 @@ internal static class TargetBattleFootprintRegressionCases
             "small units must not route into a 2x2 unit interior");
     }
 
+    public static void RuntimeLargeFootprintCannotMoveOntoAnchorWithMissingCoveredSurface()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_battle_missing_covered_surface",
+            BattleId = "battle_missing_covered_surface",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "player", "a_player", "hero_player", "corps_player", 0, 0, 2, 1),
+                BuildGroup("group_enemy", "enemy", "z_enemy", "hero_enemy", "corps_enemy", 4, 0)
+            }
+        };
+        snapshot.LocationContext.NavigationSurfaces.AddRange(new[]
+        {
+            new BattleNavigationSurfaceSnapshot { X = 0, Y = 0, Height = 0, MoveCost = 1 },
+            new BattleNavigationSurfaceSnapshot { X = 1, Y = 0, Height = 0, MoveCost = 1 },
+            new BattleNavigationSurfaceSnapshot { X = 4, Y = 0, Height = 0, MoveCost = 1 }
+        });
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+
+        BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+        BattleEvent? tickZeroPlayerMove = result.EventStream.Events.FirstOrDefault(item =>
+            item.ActorId == "a_player:1" &&
+            item.Kind == BattleEventKind.MovementCompleted &&
+            item.EventId.Contains(":tick_0:", StringComparison.Ordinal));
+        AssertTrue(
+            tickZeroPlayerMove == null ||
+            tickZeroPlayerMove.ToGridX != 1 ||
+            tickZeroPlayerMove.ToGridY != 0,
+            "2x1 footprint should not commit onto an anchor whose covered surface is missing");
+    }
+
     private static BattleStartSnapshot BuildOpposedSnapshot(
         string battleId,
         int enemyCellX = 6,

@@ -76,4 +76,55 @@ internal static void StrategicWorldForwardsMiddleMouseCameraNavigation()
         strategicRoot.Contains("_worldCamera.TryHandlePointerNavigationAndZoomInput(@event)", StringComparison.Ordinal),
         "strategic world root should delegate middle mouse navigation and wheel zoom to MapCameraController");
 }
+
+internal static void StrategicWorldResetsCameraNavigationInputOnSceneEntry()
+{
+    string strategicRoot = ReadStrategicWorldRootSource();
+    string readyBody = ExtractMethodBlock(strategicRoot, "public override void _Ready()");
+    string cameraController = File.ReadAllText(Path.Combine("src", "Presentation", "Common", "MapCameraController.cs"));
+    string resetBody = ExtractMethodBlock(cameraController, "public void ResetNavigationInputState");
+    string exitTreeBody = ExtractMethodBlock(cameraController, "public override void _ExitTree()");
+    string moveDirectionBody = ExtractMethodBlock(cameraController, "private Vector2 GetMoveDirection()");
+    string suppressionBody = ExtractMethodBlock(cameraController, "private bool ShouldSuppressPolledKeyboard()");
+
+    AssertTrue(
+        readyBody.Contains("_worldCamera.ResetNavigationInputState(\"strategic_world_ready\")", StringComparison.Ordinal) ||
+        readyBody.Contains("_worldCamera?.ResetNavigationInputState(\"strategic_world_ready\")", StringComparison.Ordinal),
+        "strategic world entry should clear camera navigation state before the first world-camera update");
+    AssertTrue(
+        resetBody.Contains("_moveUpPressed = false", StringComparison.Ordinal) &&
+        resetBody.Contains("_moveDownPressed = false", StringComparison.Ordinal) &&
+        resetBody.Contains("_moveLeftPressed = false", StringComparison.Ordinal) &&
+        resetBody.Contains("_moveRightPressed = false", StringComparison.Ordinal) &&
+        resetBody.Contains("_isMiddleMouseDragging = false", StringComparison.Ordinal),
+        "map camera reset should clear event-backed keyboard and middle-drag state");
+    AssertTrue(
+        resetBody.Contains("_suppressPolledKeyboardUntilRelease = true", StringComparison.Ordinal) &&
+        moveDirectionBody.Contains("ShouldSuppressPolledKeyboard()", StringComparison.Ordinal) &&
+        suppressionBody.Contains("_suppressPolledKeyboardUntilRelease", StringComparison.Ordinal),
+        "map camera reset should ignore already-held or stale polled movement keys until they are released");
+    AssertTrue(
+        exitTreeBody.Contains("ResetNavigationInputState(\"exit_tree\")", StringComparison.Ordinal),
+        "map camera should clear transient navigation state when leaving the scene tree");
+}
+
+internal static void MapCameraIgnoresStaleMovePressEventsAfterSceneReset()
+{
+    string cameraController = File.ReadAllText(Path.Combine("src", "Presentation", "Common", "MapCameraController.cs"));
+    string inputBody = ExtractMethodBlock(cameraController, "public override void _Input(InputEvent @event)");
+    string stalePressGuardBody = ExtractMethodBlock(cameraController, "private bool ShouldIgnoreSuppressedMoveKeyEvent");
+
+    AssertTrue(
+        inputBody.Contains("ShouldIgnoreSuppressedMoveKeyEvent(keyEvent)", StringComparison.Ordinal),
+        "map camera input should reject queued move-key press events while scene-entry suppression is active");
+    AssertTrue(
+        stalePressGuardBody.Contains("_suppressPolledKeyboardUntilRelease", StringComparison.Ordinal) &&
+        stalePressGuardBody.Contains("keyEvent.Pressed", StringComparison.Ordinal) &&
+        stalePressGuardBody.Contains("IsAnyMoveKey(keyEvent)", StringComparison.Ordinal),
+        "stale move-key guard should only suppress already-held movement press events after a reset");
+    AssertTrue(
+        stalePressGuardBody.Contains("_suppressPolledKeyboardUntilRelease = false", StringComparison.Ordinal) &&
+        stalePressGuardBody.Contains("!AnyPolledMoveKeyPressed()", StringComparison.Ordinal),
+        "move-key suppression should end after all movement keys are released so normal camera control still works");
+}
 }

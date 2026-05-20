@@ -49,6 +49,20 @@ internal sealed class BattleDynamicOccupancy
         return true;
     }
 
+    public int CountOtherOccupiedCells(BattleRuntimeActor actor, BattleGridCoord anchor)
+    {
+        int count = 0;
+        foreach (BattleGridCoord cell in BattleActorFootprint.Enumerate(actor, anchor))
+        {
+            if (IsOccupiedByOther(actor, cell))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     public bool IsOccupiedByOther(BattleRuntimeActor actor, BattleGridCoord cell)
     {
         if (!_tickStartOccupants.TryGetValue(cell, out HashSet<string> actorIds))
@@ -58,5 +72,18 @@ internal sealed class BattleDynamicOccupancy
 
         string actorId = actor?.ActorId ?? "";
         return actorIds.Any(item => !string.Equals(item, actorId, System.StringComparison.Ordinal));
+    }
+
+    public IReadOnlyCollection<string> GetOtherOccupants(BattleRuntimeActor actor, BattleGridCoord cell)
+    {
+        if (!_tickStartOccupants.TryGetValue(cell, out HashSet<string> actorIds))
+        {
+            return System.Array.Empty<string>();
+        }
+
+        string actorId = actor?.ActorId ?? "";
+        return actorIds
+            .Where(item => !string.Equals(item, actorId, System.StringComparison.Ordinal))
+            .ToArray();
     }
 }
