@@ -80,6 +80,7 @@ BattleHitFeedbackRegressionCases.Run("realtime damage reaction does not play hit
 BattleHitFeedbackRegressionCases.Run("unit attack speed is bound to runtime and attack animation speed", BattleHitFeedbackRegressionCases.UnitAttackSpeedContract);
 BattleHitFeedbackRegressionCases.Run("unit combat stats are bound into runtime snapshots", BattleHitFeedbackRegressionCases.UnitCombatStatsSnapshotContract);
 BattleHitFeedbackRegressionCases.Run("battle unit base authors health bar and fallback animation", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation);
+BattleHitFeedbackRegressionCases.Run("defeated unit presentation hides health bar before fast death animation", BattleHitFeedbackRegressionCases.DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimation);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors enemy greedy branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsEnemyGreedyBranches);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors allied command branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsAlliedCommandBranches);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle resource boundary is authored", BattleHitFeedbackRegressionCases.LimboAiBattleResourceBoundaryIsAuthored);

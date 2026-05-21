@@ -18,6 +18,9 @@ public static class BattlePerformanceMonitorRegistry
     private const string FlowFieldBuildMsMax = "Battle/FlowFieldBuildMsMax";
     private const string FlowFieldCacheHits = "Battle/FlowFieldCacheHits";
     private const string FlowFieldCacheMisses = "Battle/FlowFieldCacheMisses";
+    private const string OpenAttackFlowFieldRequests = "Battle/OpenAttackFlowFieldRequests";
+    private const string OpenAttackFlowFieldCacheHits = "Battle/OpenAttackFlowFieldCacheHits";
+    private const string OpenAttackFlowFieldBuilds = "Battle/OpenAttackFlowFieldBuilds";
     private const string CombatSlotScans = "Battle/CombatSlotScans";
     private const string CombatSlotAnchors = "Battle/CombatSlotAnchors";
     private const string CombatSlotScanMsLast = "Battle/CombatSlotScanMsLast";
@@ -67,6 +70,9 @@ public static class BattlePerformanceMonitorRegistry
         FlowFieldBuildMsMax,
         FlowFieldCacheHits,
         FlowFieldCacheMisses,
+        OpenAttackFlowFieldRequests,
+        OpenAttackFlowFieldCacheHits,
+        OpenAttackFlowFieldBuilds,
         CombatSlotScans,
         CombatSlotAnchors,
         CombatSlotScanMsLast,
@@ -124,6 +130,9 @@ public static class BattlePerformanceMonitorRegistry
         Add(FlowFieldBuildMsMax, () => ToMilliseconds(_counters?.MaxFlowFieldBuildElapsedTicks ?? 0));
         Add(FlowFieldCacheHits, () => _counters?.FlowFieldCacheHitCount ?? 0);
         Add(FlowFieldCacheMisses, () => _counters?.FlowFieldCacheMissCount ?? 0);
+        Add(OpenAttackFlowFieldRequests, () => _counters?.OpenAttackFlowFieldRequestCount ?? 0);
+        Add(OpenAttackFlowFieldCacheHits, () => _counters?.OpenAttackFlowFieldCacheHitCount ?? 0);
+        Add(OpenAttackFlowFieldBuilds, () => _counters?.OpenAttackFlowFieldBuildCount ?? 0);
         Add(CombatSlotScans, () => _counters?.CombatSlotScanCount ?? 0);
         Add(CombatSlotAnchors, () => _counters?.CombatSlotAnchorScanCount ?? 0);
         Add(CombatSlotScanMsLast, () => ToMilliseconds(_counters?.LastCombatSlotScanElapsedTicks ?? 0));

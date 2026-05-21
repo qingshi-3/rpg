@@ -51,7 +51,7 @@ public partial class BattleUnitAnimationSet : Resource
     public double TargetHitSeconds { get; set; } = 0.48;
 
     [Export]
-    public double TargetDefeatedSeconds { get; set; } = 0.8;
+    public double TargetDefeatedSeconds { get; set; } = 0.4;
 
     [ExportGroup("Combat Timing")]
 
@@ -62,7 +62,7 @@ public partial class BattleUnitAnimationSet : Resource
     public double HitMinimumAttackDurationRatio { get; set; } = 0.4;
 
     [Export(PropertyHint.Range, "0,1,0.05")]
-    public double DefeatedMinimumAttackDurationRatio { get; set; } = 0.4;
+    public double DefeatedMinimumAttackDurationRatio { get; set; } = 0.2;
 
     [ExportGroup("播放规则")]
 
@@ -73,5 +73,5 @@ public partial class BattleUnitAnimationSet : Resource
     public bool HideAfterDefeatedAnimation { get; set; } = true;
 
     [Export]
-    public double DefeatedFallbackSeconds { get; set; } = 0.65;
+    public double DefeatedFallbackSeconds { get; set; } = 0.35;
 }

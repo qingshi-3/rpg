@@ -201,6 +201,9 @@ internal static void BattleRuntimeRegistersGodotPerformanceMonitors()
         monitorRegistry.Contains("Battle/RuntimeAdvanceTickAtMax", StringComparison.Ordinal) &&
         monitorRegistry.Contains("Battle/FlowFieldBuildMsLast", StringComparison.Ordinal) &&
         monitorRegistry.Contains("Battle/FlowFieldBuildMsMax", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/OpenAttackFlowFieldRequests", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/OpenAttackFlowFieldCacheHits", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/OpenAttackFlowFieldBuilds", StringComparison.Ordinal) &&
         monitorRegistry.Contains("Battle/CombatSlotScanMsLast", StringComparison.Ordinal) &&
         monitorRegistry.Contains("Battle/CombatSlotScanMsMax", StringComparison.Ordinal) &&
         monitorRegistry.Contains("Battle/TargetScoringMsLast", StringComparison.Ordinal) &&

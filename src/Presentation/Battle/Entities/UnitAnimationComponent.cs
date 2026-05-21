@@ -138,7 +138,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
     public double ResolveMinimumDefeatedDurationSeconds(double attackDurationSeconds)
     {
-        double ratio = System.Math.Clamp(AnimationSet?.DefeatedMinimumAttackDurationRatio ?? 0.4, 0, 1);
+        double ratio = System.Math.Clamp(AnimationSet?.DefeatedMinimumAttackDurationRatio ?? 0.2, 0, 1);
         return System.Math.Max(0, attackDurationSeconds * ratio);
     }
 
@@ -572,7 +572,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             "move" => AnimationSet?.TargetMoveCycleSeconds ?? 0.5,
             "attack" => AnimationSet?.TargetAttackSeconds ?? 1.2,
             "hit" => AnimationSet?.TargetHitSeconds ?? 0.48,
-            "defeated" => AnimationSet?.TargetDefeatedSeconds ?? 0.8,
+            "defeated" => AnimationSet?.TargetDefeatedSeconds ?? 0.4,
             _ => 0
         };
 
@@ -639,9 +639,9 @@ public partial class UnitAnimationComponent : BattleEntityComponent
                 break;
 
             case "defeated":
-                _proceduralTween.TweenProperty(_visualRoot, "rotation", 0.18f, 0.16);
-                _proceduralTween.TweenProperty(_visualRoot, "scale", new Vector2(0.86f, 0.86f), 0.16);
-                _proceduralTween.Parallel().TweenProperty(_visualRoot, "modulate", new Color(1f, 1f, 1f, 0.38f), 0.28);
+                _proceduralTween.TweenProperty(_visualRoot, "rotation", 0.18f, 0.08);
+                _proceduralTween.TweenProperty(_visualRoot, "scale", new Vector2(0.86f, 0.86f), 0.08);
+                _proceduralTween.Parallel().TweenProperty(_visualRoot, "modulate", new Color(1f, 1f, 1f, 0.38f), 0.14);
                 break;
 
             default:
@@ -870,7 +870,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
     private double ResolveDefeatedFallbackSeconds()
     {
-        double configured = AnimationSet?.DefeatedFallbackSeconds ?? 0.65;
+        double configured = AnimationSet?.DefeatedFallbackSeconds ?? 0.35;
         double spriteLength = ResolveAnimatedSpriteAnimationSeconds(_defeatedAnimationName);
         if (spriteLength > 0)
         {

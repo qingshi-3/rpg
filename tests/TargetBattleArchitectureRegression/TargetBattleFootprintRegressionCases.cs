@@ -40,6 +40,46 @@ internal static class TargetBattleFootprintRegressionCases
         AssertEqual(BattleEventKind.DamageApplied, combatEvents[0].Kind, "footprint edge adjacency should attack before moving");
     }
 
+    public static void RuntimeFootprintCornerAdjacencyIsNotAttackRange()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot(
+            "battle_footprint_corner_attack",
+            enemyCellX: 2,
+            enemyCellY: 2,
+            enemyFootprintWidth: 2,
+            enemyFootprintHeight: 2);
+        snapshot.BattleGroups.Single(item => item.SourceForceId == "force_player").CellX = 1;
+        snapshot.BattleGroups.Single(item => item.SourceForceId == "force_player").CellY = 1;
+
+        BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+        BattleEvent[] combatEvents = result.EventStream.Events
+            .Where(item => item.Kind is BattleEventKind.MovementCompleted or BattleEventKind.DamageApplied)
+            .ToArray();
+
+        AssertTrue(combatEvents.Length > 0, "corner-adjacent footprints should still produce runtime events");
+        AssertEqual(BattleEventKind.MovementCompleted, combatEvents[0].Kind, "corner contact with a large footprint should not attack before moving to a side");
+    }
+
+    public static void RuntimeLargeAttackerUsesFootprintEdgeForOrthogonalAttack()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot(
+            "battle_large_attacker_edge_attack",
+            enemyCellX: 2,
+            enemyCellY: 1,
+            playerFootprintWidth: 2,
+            playerFootprintHeight: 2);
+
+        BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+        BattleEvent[] combatEvents = result.EventStream.Events
+            .Where(item => item.Kind is BattleEventKind.MovementCompleted or BattleEventKind.DamageApplied)
+            .ToArray();
+
+        AssertTrue(combatEvents.Length > 0, "large attacker side adjacency should produce runtime events");
+        AssertEqual(BattleEventKind.DamageApplied, combatEvents[0].Kind, "large attacker should use its full footprint edge, not only its anchor, for orthogonal attack");
+    }
+
     public static void RuntimeFootprintOccupancyBlocksCoveredCells()
     {
         BattleStartSnapshot snapshot = BuildFootprintBlockSnapshot();

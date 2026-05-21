@@ -501,6 +501,29 @@ internal static void BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation()
         "health bar component should update from health events instead of polling every frame");
 }
 
+internal static void DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimation()
+{
+    string healthBar = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitHealthBarComponent.cs"));
+    string animationSet = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Animation", "BattleUnitAnimationSet.cs"));
+    string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+
+    AssertTrue(
+        healthBar.Contains("_root.Visible = maxHp > 1 && !_health.IsDead;", StringComparison.Ordinal),
+        "health bar should disappear on the HealthChanged frame that drops HP to zero, before defeated animation starts");
+    AssertTrue(
+        animationSet.Contains("public double TargetDefeatedSeconds { get; set; } = 0.4;", StringComparison.Ordinal) &&
+        animationComponent.Contains("\"defeated\" => AnimationSet?.TargetDefeatedSeconds ?? 0.4", StringComparison.Ordinal),
+        "default defeated animation target should be twice as fast as the old 0.8 second target");
+    AssertTrue(
+        animationSet.Contains("public double DefeatedMinimumAttackDurationRatio { get; set; } = 0.2;", StringComparison.Ordinal) &&
+        animationComponent.Contains("AnimationSet?.DefeatedMinimumAttackDurationRatio ?? 0.2", StringComparison.Ordinal),
+        "defeated animation minimum duration should scale with the faster death cue");
+    AssertTrue(
+        animationSet.Contains("public double DefeatedFallbackSeconds { get; set; } = 0.35;", StringComparison.Ordinal) &&
+        animationComponent.Contains("AnimationSet?.DefeatedFallbackSeconds ?? 0.35", StringComparison.Ordinal),
+        "defeated fallback completion should not keep dead units visible after the faster death cue");
+}
+
 internal static void BattleUnitBaseSceneAuthorsInteractionCollisionShape()
 {
     string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));

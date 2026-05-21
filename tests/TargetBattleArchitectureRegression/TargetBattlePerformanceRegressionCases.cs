@@ -36,6 +36,11 @@ internal static class TargetBattlePerformanceRegressionCases
             AssertTrue(GetCounterValue(counters, "TargetScoringElapsedTicks") > 0, "target scoring elapsed ticks should be measured separately");
             AssertTrue(GetCounterValue(counters, "MovementResolveElapsedTicks") > 0, "movement resolve elapsed ticks should be measured separately");
             AssertTrue(GetCounterValue(counters, "RuntimeAdvanceTickAtMax") >= 0, "runtime advance max should record the tick that spiked");
+            AssertTrue(GetCounterValue(counters, "OpenAttackFlowFieldBuildCount") > 0, "open attack-slot flow-field builds should be counted");
+            AssertTrue(GetCounterValue(counters, "OpenAttackFlowFieldCacheHitCount") > 0, "duplicate open attack-slot flow fields should be reused within one runtime advance");
+            AssertTrue(
+                GetCounterValue(counters, "OpenAttackFlowFieldBuildCount") < GetCounterValue(counters, "OpenAttackFlowFieldRequestCount"),
+                "open attack-slot flow-field cache should reduce duplicate integration field builds");
             AssertTrue(GetCounterValue(counters, "MovementEventsLastAdvance") >= 0, "last advance movement event count should be exposed");
             AssertTrue(GetCounterValue(counters, "ReservationRejectedCount") >= 0, "reservation rejection count should be exposed");
             AssertTrue(GetCounterValue(counters, "ReservationRejectedLastAdvance") >= 0, "last advance reservation rejection count should be exposed");
@@ -128,6 +133,9 @@ internal static class TargetBattlePerformanceRegressionCases
                 log.Contains("BattleRuntimeSpike battle=battle_runtime_spike_diagnostics", StringComparison.Ordinal) &&
                 log.Contains("targetScoringMs=", StringComparison.Ordinal) &&
                 log.Contains("flowFieldBuildMs=", StringComparison.Ordinal) &&
+                log.Contains("openAttackFlowFieldRequests=", StringComparison.Ordinal) &&
+                log.Contains("openAttackFlowFieldCacheHits=", StringComparison.Ordinal) &&
+                log.Contains("openAttackFlowFieldBuilds=", StringComparison.Ordinal) &&
                 log.Contains("combatSlotScanMs=", StringComparison.Ordinal) &&
                 log.Contains("movementResolveMs=", StringComparison.Ordinal) &&
                 log.Contains("movementEvents=", StringComparison.Ordinal) &&

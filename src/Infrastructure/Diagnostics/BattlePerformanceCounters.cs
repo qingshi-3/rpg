@@ -14,6 +14,9 @@ public sealed class BattlePerformanceCounters
     private long _flowFieldCacheHitCount;
     private long _flowFieldCacheMissCount;
     private long _flowFieldBuildCount;
+    private long _openAttackFlowFieldRequestCount;
+    private long _openAttackFlowFieldCacheHitCount;
+    private long _openAttackFlowFieldBuildCount;
     private long _flowFieldBuildElapsedTicks;
     private long _flowFieldBuildElapsedTicksLastAdvance;
     private long _lastFlowFieldBuildElapsedTicks;
@@ -64,6 +67,9 @@ public sealed class BattlePerformanceCounters
     public long FlowFieldCacheHitCount => Interlocked.Read(ref _flowFieldCacheHitCount);
     public long FlowFieldCacheMissCount => Interlocked.Read(ref _flowFieldCacheMissCount);
     public long FlowFieldBuildCount => Interlocked.Read(ref _flowFieldBuildCount);
+    public long OpenAttackFlowFieldRequestCount => Interlocked.Read(ref _openAttackFlowFieldRequestCount);
+    public long OpenAttackFlowFieldCacheHitCount => Interlocked.Read(ref _openAttackFlowFieldCacheHitCount);
+    public long OpenAttackFlowFieldBuildCount => Interlocked.Read(ref _openAttackFlowFieldBuildCount);
     public long FlowFieldBuildElapsedTicks => Interlocked.Read(ref _flowFieldBuildElapsedTicks);
     public long FlowFieldBuildElapsedTicksLastAdvance => Interlocked.Read(ref _flowFieldBuildElapsedTicksLastAdvance);
     public long LastFlowFieldBuildElapsedTicks => Interlocked.Read(ref _lastFlowFieldBuildElapsedTicks);
@@ -150,6 +156,21 @@ public sealed class BattlePerformanceCounters
     public void RecordFlowFieldBuild()
     {
         Increment(ref _flowFieldBuildCount);
+    }
+
+    public void RecordOpenAttackFlowFieldRequest()
+    {
+        Increment(ref _openAttackFlowFieldRequestCount);
+    }
+
+    public void RecordOpenAttackFlowFieldCacheHit()
+    {
+        Increment(ref _openAttackFlowFieldCacheHitCount);
+    }
+
+    public void RecordOpenAttackFlowFieldBuild()
+    {
+        Increment(ref _openAttackFlowFieldBuildCount);
     }
 
     public void RecordFlowFieldBuildElapsedTicks(long elapsedTicks)
@@ -262,6 +283,9 @@ public sealed class BattlePerformanceCounters
         Interlocked.Exchange(ref _flowFieldCacheHitCount, 0);
         Interlocked.Exchange(ref _flowFieldCacheMissCount, 0);
         Interlocked.Exchange(ref _flowFieldBuildCount, 0);
+        Interlocked.Exchange(ref _openAttackFlowFieldRequestCount, 0);
+        Interlocked.Exchange(ref _openAttackFlowFieldCacheHitCount, 0);
+        Interlocked.Exchange(ref _openAttackFlowFieldBuildCount, 0);
         Interlocked.Exchange(ref _flowFieldBuildElapsedTicks, 0);
         Interlocked.Exchange(ref _flowFieldBuildElapsedTicksLastAdvance, 0);
         Interlocked.Exchange(ref _lastFlowFieldBuildElapsedTicks, 0);

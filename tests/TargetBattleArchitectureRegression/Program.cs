@@ -19,7 +19,7 @@ Run("oversized code files are tracked and no new ones are introduced", Oversized
 Run("runtime owns stable in-memory actor state", RuntimeOwnsStableInMemoryActorState);
 Run("runtime auto battle resolves opposing factions from actor state", RuntimeAutoBattleResolvesOpposingFactionsFromActorState);
 Run("runtime uses 8-neighbor square-grid movement", RuntimeUsesEightNeighborSquareGridMovement);
-Run("runtime diagonal adjacency is in basic attack range", RuntimeDiagonalAdjacencyIsInBasicAttackRange);
+Run("runtime diagonal adjacency is not in basic attack range", RuntimeDiagonalAdjacencyIsNotInBasicAttackRange);
 Run("runtime attack speed gates attack cadence", RuntimeAttackSpeedGatesAttackCadence);
 Run("runtime adjacent opponents resolve same-tick attacks without actor-id initiative", TargetBattleAttackCadenceRegressionCases.RuntimeAdjacentOpponentsResolveSameTickAttacksWithoutActorIdInitiative);
 Run("runtime mover cannot attack until anchored on later tick", TargetBattleAttackCadenceRegressionCases.RuntimeMoverCannotAttackUntilAnchoredOnLaterTick);
@@ -56,6 +56,8 @@ Run("runtime navigation keeps second ally on top corridor instead of lower protr
 Run("runtime square-grid combat avoids physics and full-map pathfinding authority", RuntimeSquareGridCombatAvoidsPhysicsAndFullMapPathfindingAuthority);
 Run("runtime copies snapshot footprint to corps actors", TargetBattleFootprintRegressionCases.RuntimeCopiesSnapshotFootprintToCorpsActors);
 Run("runtime footprint range uses rectangle edges", TargetBattleFootprintRegressionCases.RuntimeFootprintRangeUsesRectangleEdges);
+Run("runtime footprint corner adjacency is not attack range", TargetBattleFootprintRegressionCases.RuntimeFootprintCornerAdjacencyIsNotAttackRange);
+Run("runtime large attacker uses footprint edge for orthogonal attack", TargetBattleFootprintRegressionCases.RuntimeLargeAttackerUsesFootprintEdgeForOrthogonalAttack);
 Run("runtime footprint occupancy blocks covered cells", TargetBattleFootprintRegressionCases.RuntimeFootprintOccupancyBlocksCoveredCells);
 Run("runtime pathfinder routes around blocked anchor", TargetBattleFootprintRegressionCases.RuntimePathfinderRoutesAroundBlockedAnchor);
 Run("runtime pathfinder routes around large unit interior", TargetBattleFootprintRegressionCases.RuntimePathfinderRoutesAroundLargeUnitInterior);
@@ -76,8 +78,8 @@ Run("runtime same-lane crowd blocks same-tick chain follow", TargetBattleMultiUn
 Run("runtime support queue blocks same-tick chain behind engaged frontline", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportQueueBlocksSameTickChainBehindEngagedFrontline);
 Run("runtime same-tick follow cannot enter released footprint", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSameTickFollowCannotEnterReleasedFootprint);
 Run("runtime smaller units can surround large target attack slots", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSmallerUnitsCanSurroundLargeTargetAttackSlots);
-Run("runtime support below vertical engagement flanks to open attack slot", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportBelowVerticalEngagementFlanksToOpenAttackSlot);
-Run("runtime support unit continues into diagonal attack range against engaged target", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportUnitContinuesIntoDiagonalAttackRangeAgainstEngagedTarget);
+Run("runtime support below vertical engagement flanks to open attack slot", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportBelowVerticalEngagementFlanksToOpenAttackSlot); Run("runtime support behind engaged ally uses side approach when direct step occupied", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportBehindEngagedAllyUsesSideApproachWhenDirectStepOccupied);
+Run("runtime support unit continues into orthogonal attack range against engaged target", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportUnitContinuesIntoOrthogonalAttackRangeAgainstEngagedTarget);
 Run("runtime target choice uses reachable footprint attack slots", TargetBattleMovementIntentRegressionCases.RuntimeTargetChoiceUsesReachableFootprintAttackSlots);
 Run("runtime performance counters separate navigation and logging costs", TargetBattlePerformanceRegressionCases.RuntimePerformanceCountersSeparateNavigationAndLoggingCosts);
 Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology); Run("runtime spike diagnostics write automatic summary", TargetBattlePerformanceRegressionCases.RuntimeSpikeDiagnosticsWriteAutomaticSummary);
@@ -237,7 +239,6 @@ static void RuntimeUsesEightNeighborSquareGridMovement()
 {
     BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_diagonal_move", 80, 80, enemyCellX: 2, enemyCellY: 2);
     BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
-
     BattleEvent firstMove = result.EventStream.Events
         .FirstOrDefault(item => item.Kind == BattleEventKind.MovementCompleted);
 
@@ -250,17 +251,16 @@ static void RuntimeUsesEightNeighborSquareGridMovement()
         "first square-grid approach should use a diagonal neighbor when both axes need closing");
 }
 
-static void RuntimeDiagonalAdjacencyIsInBasicAttackRange()
+static void RuntimeDiagonalAdjacencyIsNotInBasicAttackRange()
 {
     BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_diagonal_attack", 80, 80, enemyCellX: 1, enemyCellY: 1);
     BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
-
     BattleEvent[] combatEvents = result.EventStream.Events
         .Where(item => item.Kind is BattleEventKind.MovementCompleted or BattleEventKind.DamageApplied)
         .ToArray();
 
     AssertTrue(combatEvents.Length > 0, "diagonal adjacency should produce combat events");
-    AssertEqual(BattleEventKind.DamageApplied, combatEvents[0].Kind, "diagonal adjacent units should attack before moving");
+    AssertEqual(BattleEventKind.MovementCompleted, combatEvents[0].Kind, "diagonal adjacent units should move into an orthogonal attack lane before attacking");
 }
 
 static void RuntimeAttackSpeedGatesAttackCadence()

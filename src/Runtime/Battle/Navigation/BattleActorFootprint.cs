@@ -54,6 +54,26 @@ internal static class BattleActorFootprint
             GetAxisGap(firstAnchor.Y, first.FootprintHeight, secondAnchor.Y, second.FootprintHeight));
     }
 
+    public static int GetOrthogonalGap(
+        BattleRuntimeActor first,
+        BattleGridCoord firstAnchor,
+        BattleRuntimeActor second,
+        BattleGridCoord secondAnchor)
+    {
+        GetAxisGaps(first, firstAnchor, second, secondAnchor, out int gapX, out int gapY);
+        if (gapX == 0)
+        {
+            return gapY;
+        }
+
+        if (gapY == 0)
+        {
+            return gapX;
+        }
+
+        return int.MaxValue;
+    }
+
     public static void GetAxisGaps(
         BattleRuntimeActor first,
         BattleGridCoord firstAnchor,

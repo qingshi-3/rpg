@@ -82,7 +82,9 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
             Mathf.Max(0f, (BarSize.X - 2f) * ratio),
             Mathf.Max(1f, BarSize.Y - 2f));
 
-        _root.Visible = maxHp > 1;
+        // Defeat is emitted after HealthChanged, so hiding here removes the HP bar
+        // on the zero-HP frame before BattleUnitRoot starts the death animation.
+        _root.Visible = maxHp > 1 && !_health.IsDead;
         _fill.Position = new Vector2(1f, 1f);
         _fill.Size = innerSize;
         _root.QueueRedraw();

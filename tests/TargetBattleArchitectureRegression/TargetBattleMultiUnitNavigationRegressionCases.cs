@@ -165,7 +165,25 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             "support should eventually attack from a side or upper footprint-valid slot");
     }
 
-    public static void RuntimeSupportUnitContinuesIntoDiagonalAttackRangeAgainstEngagedTarget()
+    public static void RuntimeSupportBehindEngagedAllyUsesSideApproachWhenDirectStepOccupied()
+    {
+        BattleStartSnapshot snapshot = BuildOneStepBehindEngagedAllySnapshot();
+
+        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession().Begin(snapshot).AdvanceNextTick();
+
+        BattleEvent? supportMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementCompleted &&
+            item.ActorId == "player_support:1");
+        AssertTrue(supportMove != null, "support one step behind an engaged ally should not idle on a blocked direct approach");
+        AssertTrue(
+            supportMove!.ToGridX != 3 || supportMove.ToGridY != 1,
+            "support must not choose the engaged ally's occupied attack cell as its next step");
+        AssertTrue(
+            (supportMove.ToGridX == 2 || supportMove.ToGridX == 4) && supportMove.ToGridY == 1,
+            $"support should side-step toward another orthogonal attack slot: actual=({supportMove.ToGridX},{supportMove.ToGridY})");
+    }
+
+    public static void RuntimeSupportUnitContinuesIntoOrthogonalAttackRangeAgainstEngagedTarget()
     {
         BattleStartSnapshot snapshot = BuildOpenFieldSnapshot("battle_support_joins_engaged_target");
         AddGroup(snapshot, "player_front", "player", "player_front", 2, 0, 120);
@@ -178,14 +196,14 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             item.Kind == BattleEventKind.MovementCompleted &&
             item.ActorId == "player_support:1");
         AssertTrue(supportMove != null, "support unit should not stop outside attack range just because the target is engaged");
-        AssertEqual(4, supportMove!.ToGridX, "support unit should close to diagonal attack x");
-        AssertEqual(-1, supportMove.ToGridY, "support unit should close to diagonal attack y");
+        AssertEqual(4, supportMove!.ToGridX, "support unit should close to orthogonal attack x");
+        AssertEqual(0, supportMove.ToGridY, "support unit should close to orthogonal attack y");
         AssertTrue(
             result.EventStream.Events.Any(item =>
                 item.Kind == BattleEventKind.DamageApplied &&
                 item.ActorId == "player_support:1" &&
                 item.TargetId == "enemy_anchor:1"),
-            "support unit should attack the already engaged target after reaching 8-direction range");
+            "support unit should attack the already engaged target after reaching orthogonal range");
     }
 
     private static BattleStartSnapshot BuildOpenFieldSnapshot(string battleId)
@@ -274,6 +292,31 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         AddGroup(snapshot, "group_player_front", "player", "player_front", 0, 1, 180);
         AddGroup(snapshot, "group_player_support", "player", "player_support", 0, 3, 180);
         AddGroup(snapshot, "group_enemy_anchor", "enemy", "enemy_anchor", 0, 0, 260, initialCommandId: "HoldLine");
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildOneStepBehindEngagedAllySnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_support_one_step_behind_engaged_ally",
+            BattleId = "battle_support_one_step_behind_engaged_ally",
+            TargetLocationId = "site_1"
+        };
+
+        for (int x = 2; x <= 4; x++)
+        {
+            for (int y = 0; y <= 2; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddGroup(snapshot, "group_player_front", "player", "player_front", 3, 1, 120);
+        AddGroup(snapshot, "group_player_support", "player", "player_support", 3, 2, 120);
+        AddGroup(snapshot, "group_enemy_anchor", "enemy", "enemy_anchor", 3, 0, 220, initialCommandId: "HoldLine");
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
         return snapshot;

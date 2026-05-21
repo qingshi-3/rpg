@@ -160,8 +160,9 @@ internal sealed partial class BattleRuntimeTickResolver
             return 100000 + fallbackGap;
         }
 
-        BattleFlowField field = (flowFields ?? new BattleFlowFieldCache()).GetOrBuild(actor, target, navigationGraph, preferSupportSlots: false);
-        field = BattleFlowFieldBuilder.PreferOpenAttackSlots(actor, navigationGraph, occupancy, field, performanceCounters);
+        BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
+        BattleFlowField field = cache.GetOrBuild(actor, target, navigationGraph, preferSupportSlots: false);
+        field = cache.PreferOpenAttackSlots(actor, navigationGraph, occupancy, field);
         if (!field.TryGetCost(actorAnchor, out int cost))
         {
             return 100000 + fallbackGap;
@@ -258,7 +259,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 continue;
             }
 
-            if (BattleActorFootprint.GetGap(
+            if (GetOrthogonalAttackGap(
                     candidate.Actor,
                     candidate.Anchor,
                     targetFact.Actor,

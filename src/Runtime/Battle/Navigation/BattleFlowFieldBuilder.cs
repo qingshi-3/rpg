@@ -97,30 +97,9 @@ internal static class BattleFlowFieldBuilder
         BattleFlowField field,
         BattlePerformanceCounters performanceCounters = null)
     {
-        if (actor == null || graph == null || occupancy == null || field?.GoalSlots == null)
-        {
-            return field;
-        }
-
-        BattleCombatSlot[] attackGoals = field.GoalSlots
-            .Where(item => item.Kind == BattleCombatSlotKind.Attack)
-            .ToArray();
-        if (attackGoals.Length == 0)
-        {
-            return field;
-        }
-
-        BattleCombatSlot[] openAttackGoals = attackGoals
-            .Where(item => occupancy.CountOtherOccupiedCells(actor, item.Anchor) == 0)
-            .ToArray();
-        if (openAttackGoals.Length == 0 || openAttackGoals.Length == attackGoals.Length)
-        {
-            return field;
-        }
-
-        // Occupied attack slots are not executable for this actor. Dynamic
-        // decision costs must point at open slots before support fallback.
-        return BuildFromGoalSlots(actor, graph, openAttackGoals, performanceCounters);
+        // Keep open attack-slot filtering under the cache owner so runtime callers
+        // do not grow a second uncached implementation of the same decision facts.
+        return new BattleFlowFieldCache(performanceCounters).PreferOpenAttackSlots(actor, graph, occupancy, field);
     }
 
     private static int GetStepCost(BattleGridCoord from, BattleGridCoord to)

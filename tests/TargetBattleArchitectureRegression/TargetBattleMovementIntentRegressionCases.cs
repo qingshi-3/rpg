@@ -36,8 +36,8 @@ internal static class TargetBattleMovementIntentRegressionCases
 
         AssertTrue(backlineMove != null, "backline should move toward a support position instead of idling");
         AssertTrue(
-            backlineMove!.ToGridX == 2 && backlineMove.ToGridY == 2,
-            $"backline should take the nearer support step when an ally already engages the target: actual=({backlineMove.ToGridX},{backlineMove.ToGridY})");
+            backlineMove!.ToGridX == 2 && backlineMove.ToGridY == 1,
+            $"backline should take the nearer orthogonal support step when an ally already engages the target: actual=({backlineMove.ToGridX},{backlineMove.ToGridY})");
     }
 
     public static void RuntimeAssaultTargetSelectionPrefersFastestAttackOpportunity()
@@ -138,6 +138,8 @@ internal static class TargetBattleMovementIntentRegressionCases
         AddSurface(snapshot, 0, 0);
         AddSurface(snapshot, 1, 0);
         AddSurface(snapshot, 3, 2);
+        AddSurface(snapshot, 3, 1);
+        AddSurface(snapshot, 2, 1);
         AddSurface(snapshot, 2, 2);
         AddSurface(snapshot, 4, 1);
         AddSurface(snapshot, 3, 0);

@@ -7,7 +7,7 @@ namespace Rpg.Runtime.Battle.Navigation;
 internal static class BattleCrowdMovementPlanner
 {
     private const int FlowCostWeight = 100;
-    private const int OccupiedPenalty = 1000;
+    private const int AxisGapPenalty = 10000;
 
     public static bool TryFindNextStepTowardTarget(
         BattleRuntimeActor actor,
@@ -63,10 +63,11 @@ internal static class BattleCrowdMovementPlanner
             return new List<BattleGridCoord>();
         }
 
-        BattleFlowField field = (flowFields ?? new BattleFlowFieldCache()).GetOrBuild(actor, target, graph, preferSupportSlots);
+        BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
+        BattleFlowField field = cache.GetOrBuild(actor, target, graph, preferSupportSlots);
         if (!preferSupportSlots)
         {
-            field = BattleFlowFieldBuilder.PreferOpenAttackSlots(actor, graph, occupancy, field, performanceCounters);
+            field = cache.PreferOpenAttackSlots(actor, graph, occupancy, field);
         }
         if (!field.HasCosts || !field.TryGetCost(start, out int startCost))
         {
@@ -77,19 +78,19 @@ internal static class BattleCrowdMovementPlanner
         foreach (BattleGridCoord neighbor in graph.GetNeighbors(start))
         {
             if (!BattlePathStepRules.CanUseStaticStep(actor, start, neighbor, graph) ||
-                reservations.CanReserveMove(actor, start, neighbor, occupancy) == false && occupancy.CountOtherOccupiedCells(actor, neighbor) == 0 ||
-                avoidOpeningNewAxisGapNearEngagedTarget && OpensNewAxisGap(actor, target, start, neighbor) ||
+                !reservations.CanReserveMove(actor, start, neighbor, occupancy) ||
                 !field.TryGetCost(neighbor, out int neighborCost) ||
                 neighborCost >= startCost)
             {
                 continue;
             }
 
-            // Occupied next cells are proposals only. The reservation resolver
-            // may accept them later when the occupant is also moving out in the
-            // same tick; open alternatives still win because of this penalty.
+            // The first committed step must already satisfy reservation authority:
+            // same-tick released cells are not treated as open. Axis-gap opening
+            // remains a preference near engaged targets, not a hard ban, so a
+            // support unit can flank when the straight approach is occupied.
             int score = neighborCost * FlowCostWeight +
-                        occupancy.CountOtherOccupiedCells(actor, neighbor) * OccupiedPenalty +
+                        (avoidOpeningNewAxisGapNearEngagedTarget && OpensNewAxisGap(actor, target, start, neighbor) ? AxisGapPenalty : 0) +
                         GetStepCost(start, neighbor);
             MoveOption option = new(neighbor, score, neighborCost);
             options.Add(option);

@@ -259,8 +259,9 @@ internal sealed partial class BattleRuntimeTickResolver
         if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget)
         {
             int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
-            int gap = BattleActorFootprint.GetGap(actorFact.Actor, actorFact.Anchor, requestedTarget.Value.Actor, requestedTarget.Value.Anchor);
-            if (gap <= attackRange)
+            int movementGap = BattleActorFootprint.GetGap(actorFact.Actor, actorFact.Anchor, requestedTarget.Value.Actor, requestedTarget.Value.Anchor);
+            int attackGap = GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, requestedTarget.Value.Actor, requestedTarget.Value.Anchor);
+            if (attackGap <= attackRange)
             {
                 return CreateContext(
                     request,
@@ -277,7 +278,7 @@ internal sealed partial class BattleRuntimeTickResolver
             // Default assault is attack-opportunity first. Support slots are only
             // a fallback when no attack slot is reachable from the current facts.
             bool preferSupportSlots = preferSupport &&
-                                      gap > attackRange + 1 &&
+                                      movementGap > attackRange + 1 &&
                                       !HasReachableAttackSlot(
                                           tickStartActor,
                                           tickStartTarget,
@@ -286,7 +287,7 @@ internal sealed partial class BattleRuntimeTickResolver
                                           occupancy,
                                           flowFields,
                                           performanceCounters);
-            bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && gap == attackRange + 1;
+            bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && movementGap == attackRange + 1;
             IReadOnlyList<BattleGridCoord> moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardTarget(
                     tickStartActor,
                     tickStartTarget,
@@ -438,7 +439,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 continue;
             }
 
-            if (BattleActorFootprint.GetGap(
+            if (GetOrthogonalAttackGap(
                     context.ActorFact.Actor,
                     context.ActorFact.Anchor,
                     context.TargetFact.Value.Actor,
@@ -739,7 +740,7 @@ internal sealed partial class BattleRuntimeTickResolver
         TickStartActorFact? targetFact)
     {
         if (IsHoldLineCommand(actorFact.CommandId) &&
-            (targetFact == null || GetSquareGridDistance(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
+            (targetFact == null || GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
         {
             return BattleRuntimeAiActionRequest.Hold(actorFact.Actor.ActorId, "hold_line_out_of_range");
         }
@@ -757,10 +758,24 @@ internal sealed partial class BattleRuntimeTickResolver
             ActorId = actorFact.Actor.ActorId ?? "",
             TargetActorId = targetFact?.Actor.ActorId ?? "",
             HasTarget = targetFact != null,
-            DistanceToTarget = targetFact == null ? int.MaxValue : GetSquareGridDistance(actorFact, targetFact.Value),
+            DistanceToTarget = targetFact == null ? int.MaxValue : GetOrthogonalAttackGap(actorFact, targetFact.Value),
             AttackRange = System.Math.Max(1, actorFact.Actor.AttackRange),
             CanAttackNow = actorFact.AttackCharge >= 1.0
         };
+    }
+
+    private static int GetOrthogonalAttackGap(TickStartActorFact first, TickStartActorFact second)
+    {
+        return GetOrthogonalAttackGap(first.Actor, first.Anchor, second.Actor, second.Anchor);
+    }
+
+    private static int GetOrthogonalAttackGap(
+        BattleRuntimeActor first,
+        BattleGridCoord firstAnchor,
+        BattleRuntimeActor second,
+        BattleGridCoord secondAnchor)
+    {
+        return BattleActorFootprint.GetOrthogonalGap(first, firstAnchor, second, secondAnchor);
     }
 
     private static int GetSquareGridDistance(TickStartActorFact first, TickStartActorFact second)

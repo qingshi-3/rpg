@@ -31,7 +31,7 @@ internal static class BattleCombatSlotAllocator
                 continue;
             }
 
-            int gap = BattleActorFootprint.GetGap(actor, anchor, target, targetAnchor);
+            int gap = BattleActorFootprint.GetOrthogonalGap(actor, anchor, target, targetAnchor);
             if (gap <= 0)
             {
                 continue;
