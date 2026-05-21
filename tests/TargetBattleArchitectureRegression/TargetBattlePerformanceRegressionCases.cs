@@ -31,6 +31,17 @@ internal static class TargetBattlePerformanceRegressionCases
                 $"open attack-slot checks should reuse flow-field goal slots instead of scanning slots again: scans={counters.CombatSlotScanCount} builds={counters.FlowFieldBuildCount}");
             AssertTrue(counters.LogWriteCount > 0, "runtime diagnostics should still write required logs");
             AssertTrue(counters.RuntimeAdvanceElapsedTicks > 0, "runtime advance elapsed ticks should be measured");
+            AssertTrue(GetCounterValue(counters, "FlowFieldBuildElapsedTicks") > 0, "flow-field build elapsed ticks should be measured separately");
+            AssertTrue(GetCounterValue(counters, "CombatSlotScanElapsedTicks") > 0, "combat slot scan elapsed ticks should be measured separately");
+            AssertTrue(GetCounterValue(counters, "TargetScoringElapsedTicks") > 0, "target scoring elapsed ticks should be measured separately");
+            AssertTrue(GetCounterValue(counters, "MovementResolveElapsedTicks") > 0, "movement resolve elapsed ticks should be measured separately");
+            AssertTrue(GetCounterValue(counters, "RuntimeAdvanceTickAtMax") >= 0, "runtime advance max should record the tick that spiked");
+            AssertTrue(GetCounterValue(counters, "MovementEventsLastAdvance") >= 0, "last advance movement event count should be exposed");
+            AssertTrue(GetCounterValue(counters, "ReservationRejectedCount") >= 0, "reservation rejection count should be exposed");
+            AssertTrue(GetCounterValue(counters, "ReservationRejectedLastAdvance") >= 0, "last advance reservation rejection count should be exposed");
+            AssertTrue(GetCounterValue(counters, "HoldDueReservationCount") >= 0, "reservation-hold count should be exposed");
+            AssertTrue(GetCounterValue(counters, "ActorsReadyNoMoveLastAdvance") >= 0, "last advance ready-without-move count should be exposed");
+            AssertTrue(GetCounterValue(counters, "MaxMovementEventGapMicroseconds") > 0, "movement-event runtime gap should be measured for cadence diagnosis");
             Console.WriteLine(
                 $"PERF battle_movement runtimeTicks={counters.RuntimeTickCount} decisionActors={counters.DecisionReadyActorCount} flowBuilds={counters.FlowFieldBuildCount} flowHits={counters.FlowFieldCacheHitCount} flowMisses={counters.FlowFieldCacheMissCount} slotScans={counters.CombatSlotScanCount} slotAnchors={counters.CombatSlotAnchorScanCount} movementEvents={counters.MovementEventCount} logWrites={counters.LogWriteCount} logTicks={counters.LogWriteElapsedTicks} runtimeTicksElapsed={counters.RuntimeAdvanceElapsedTicks}");
         }
@@ -96,6 +107,41 @@ internal static class TargetBattlePerformanceRegressionCases
         }
     }
 
+    public static void RuntimeSpikeDiagnosticsWriteAutomaticSummary()
+    {
+        const string ThresholdEnvironmentVariable = "RPG_BATTLE_RUNTIME_SPIKE_DIAGNOSTIC_MS";
+        string? previousThreshold = Environment.GetEnvironmentVariable(ThresholdEnvironmentVariable);
+        Environment.SetEnvironmentVariable(ThresholdEnvironmentVariable, "0");
+        BattlePerformanceCounters counters = new();
+        GameLog.SetPerformanceCounters(counters);
+
+        try
+        {
+            BattleRuntimeSessionResult result = new BattleRuntimeSession(performanceCounters: counters)
+                .RunMinimal(BuildSpikeDiagnosticSnapshot());
+
+            AssertTrue(result.Outcome.IsComplete, "spike diagnostic scenario should complete through normal runtime");
+            string log = File.Exists(GameLog.CurrentLogPath)
+                ? File.ReadAllText(GameLog.CurrentLogPath)
+                : "";
+            AssertTrue(
+                log.Contains("BattleRuntimeSpike battle=battle_runtime_spike_diagnostics", StringComparison.Ordinal) &&
+                log.Contains("targetScoringMs=", StringComparison.Ordinal) &&
+                log.Contains("flowFieldBuildMs=", StringComparison.Ordinal) &&
+                log.Contains("combatSlotScanMs=", StringComparison.Ordinal) &&
+                log.Contains("movementResolveMs=", StringComparison.Ordinal) &&
+                log.Contains("movementEvents=", StringComparison.Ordinal) &&
+                log.Contains("reservationRejected=", StringComparison.Ordinal) &&
+                log.Contains("actorsReadyNoMove=", StringComparison.Ordinal),
+                "runtime spike diagnostics should write one self-contained summary instead of requiring manual monitor reading");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ThresholdEnvironmentVariable, previousThreshold);
+            GameLog.SetPerformanceCounters(null);
+        }
+    }
+
     private static BattleStartSnapshot BuildManyVsManyOpenFieldSnapshot()
     {
         BattleStartSnapshot snapshot = new()
@@ -144,6 +190,14 @@ internal static class TargetBattlePerformanceRegressionCases
         AddGroup(snapshot, "group_enemy_large", "enemy", "enemy_perf_large", 8, 0, 80);
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildSpikeDiagnosticSnapshot()
+    {
+        BattleStartSnapshot snapshot = BuildManyVsManyOpenFieldSnapshot();
+        snapshot.SnapshotId = "snapshot_runtime_spike_diagnostics";
+        snapshot.BattleId = "battle_runtime_spike_diagnostics";
         return snapshot;
     }
 
@@ -196,6 +250,19 @@ internal static class TargetBattlePerformanceRegressionCases
         }
 
         return current?.FullName ?? throw new InvalidOperationException("project root not found");
+    }
+
+    private static long GetCounterValue(BattlePerformanceCounters counters, string propertyName)
+    {
+        object? value = typeof(BattlePerformanceCounters)
+            .GetProperty(propertyName)
+            ?.GetValue(counters);
+        return value switch
+        {
+            long longValue => longValue,
+            int intValue => intValue,
+            _ => throw new Exception($"missing long counter property: {propertyName}")
+        };
     }
 
     private static void AssertTrue(bool condition, string message)

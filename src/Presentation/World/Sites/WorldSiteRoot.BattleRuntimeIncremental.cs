@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -15,6 +16,7 @@ public partial class WorldSiteRoot
     {
         private readonly List<Task> _pendingPresentationTasks = new();
         private readonly Dictionary<string, Task> _actorActionTails = new(System.StringComparer.Ordinal);
+        private readonly Dictionary<string, Task> _actorMovementTails = new(System.StringComparer.Ordinal);
 
         public BattleRuntimeLivePresentationState(Dictionary<string, BattleEntity> entitiesByRuntimeActor)
         {
@@ -52,6 +54,55 @@ public partial class WorldSiteRoot
             Track(task);
         }
 
+        public void TrackActorDamage(string actorId, string targetId, System.Func<Task> createTask)
+        {
+            if (createTask == null)
+            {
+                return;
+            }
+
+            actorId ??= "";
+            targetId ??= "";
+            _actorActionTails.TryGetValue(actorId, out Task actorActionTail);
+            _actorMovementTails.TryGetValue(targetId, out Task targetMovementTail);
+            Task task = RunAfterActorDependenciesAsync(actorActionTail, targetMovementTail, createTask);
+            if (!string.IsNullOrWhiteSpace(actorId))
+            {
+                _actorActionTails[actorId] = task;
+            }
+
+            Track(task);
+        }
+
+        public void TrackActorMovement(string actorId, System.Func<double> observeMovement, System.Func<double, Task> wait)
+        {
+            if (observeMovement == null || wait == null)
+            {
+                return;
+            }
+
+            double movementSeconds = System.Math.Max(0, observeMovement());
+            if (movementSeconds <= 0)
+            {
+                return;
+            }
+
+            actorId ??= "";
+            _actorActionTails.TryGetValue(actorId, out Task previousTask);
+            // Movement completion is a separate dependency from this actor's
+            // action backlog. Incoming hits wait for movement, not for unrelated
+            // attack feedback already queued on the target.
+            Task movementTask = wait(movementSeconds);
+            Task tailTask = WaitForActorDependenciesAsync(previousTask, movementTask);
+            if (!string.IsNullOrWhiteSpace(actorId))
+            {
+                _actorActionTails[actorId] = tailTask;
+                _actorMovementTails[actorId] = movementTask;
+            }
+
+            Track(tailTask);
+        }
+
         public async Task WaitForAllAsync()
         {
             PruneCompleted();
@@ -81,6 +132,39 @@ public partial class WorldSiteRoot
             {
                 await task;
             }
+        }
+
+        private static Task RunAfterActorDependenciesAsync(
+            Task actorActionTail,
+            Task targetMovementTail,
+            System.Func<Task> createTask)
+        {
+            return RunAfterDependenciesAsync(new[] { actorActionTail, targetMovementTail }, createTask);
+        }
+
+        private static async Task RunAfterDependenciesAsync(
+            IReadOnlyList<Task> dependencies,
+            System.Func<Task> createTask)
+        {
+            await WaitForDependenciesAsync(dependencies);
+            Task task = createTask();
+            if (task != null)
+            {
+                await task;
+            }
+        }
+
+        private static Task WaitForActorDependenciesAsync(Task actorActionTail, Task movementTask)
+        {
+            return WaitForDependenciesAsync(new[] { actorActionTail, movementTask });
+        }
+
+        private static Task WaitForDependenciesAsync(IReadOnlyList<Task> dependencies)
+        {
+            Task[] pending = dependencies?
+                .Where(task => task != null)
+                .ToArray() ?? System.Array.Empty<Task>();
+            return pending.Length == 0 ? Task.CompletedTask : Task.WhenAll(pending);
         }
     }
 
@@ -115,103 +199,35 @@ public partial class WorldSiteRoot
         IReadOnlyList<BattleEvent> events,
         BattleRuntimeLivePresentationState presentationState)
     {
+        long observeStartedAt = Stopwatch.GetTimestamp();
         if (events == null || events.Count == 0 || presentationState == null)
         {
+            _battlePerformanceCounters.RecordPresentationObserveElapsedTicks(Stopwatch.GetTimestamp() - observeStartedAt);
             return Task.CompletedTask;
         }
 
-        Dictionary<string, double> sameTickMovingActors = events
-            .Where(runtimeEvent =>
-                runtimeEvent?.Kind == BattleEventKind.MovementCompleted &&
-                !string.IsNullOrWhiteSpace(runtimeEvent.ActorId))
-            .GroupBy(runtimeEvent => runtimeEvent.ActorId, System.StringComparer.Ordinal)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Max(runtimeEvent => System.Math.Max(0, runtimeEvent.ActionDurationSeconds)),
-                System.StringComparer.Ordinal);
-        foreach (BattleEvent runtimeEvent in events)
+        foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.MovementCompleted))
         {
-            if (runtimeEvent == null)
-            {
-                continue;
-            }
-
-            if (runtimeEvent.Kind == BattleEventKind.MovementCompleted)
-            {
-                presentationState.TrackActorAction(
-                    runtimeEvent.ActorId,
-                    () => ObserveRuntimeMovementEventAsync(
-                        runtimeEvent,
-                        presentationState.EntitiesByRuntimeActor));
-                continue;
-            }
-
-            if (runtimeEvent.Kind == BattleEventKind.DamageApplied)
-            {
-                double sameTickMovementDelaySeconds = ResolveSameTickMovementDelaySeconds(
-                    sameTickMovingActors,
-                    runtimeEvent.ActorId,
-                    runtimeEvent.TargetId);
-                presentationState.TrackActorAction(
-                    runtimeEvent.ActorId,
-                    () => ObserveRuntimeDamageEventAfterSameTickMovementAsync(
-                        runtimeEvent,
-                        presentationState.EntitiesByRuntimeActor,
-                        sameTickMovementDelaySeconds));
-            }
+            presentationState.TrackActorMovement(
+                runtimeEvent.ActorId,
+                () => ObserveRuntimeMovementEvent(
+                    runtimeEvent,
+                    presentationState.EntitiesByRuntimeActor),
+                WaitSiteBattlePresentationSeconds);
         }
 
+        foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.DamageApplied))
+        {
+            presentationState.TrackActorDamage(
+                runtimeEvent.ActorId,
+                runtimeEvent.TargetId,
+                () => ObserveRuntimeDamageEventAsync(
+                    runtimeEvent,
+                    presentationState.EntitiesByRuntimeActor));
+        }
+
+        _battlePerformanceCounters.RecordPresentationObserveElapsedTicks(Stopwatch.GetTimestamp() - observeStartedAt);
         return Task.CompletedTask;
-    }
-
-    private async Task ObserveRuntimeMovementEventAsync(
-        BattleEvent runtimeEvent,
-        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
-    {
-        double movementSeconds = ObserveRuntimeMovementEvent(runtimeEvent, entitiesByRuntimeActor);
-        if (movementSeconds > 0)
-        {
-            await WaitSiteBattlePresentationSeconds(movementSeconds);
-        }
-    }
-
-    private async Task ObserveRuntimeDamageEventAfterSameTickMovementAsync(
-        BattleEvent runtimeEvent,
-        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor,
-        double sameTickMovementDelaySeconds)
-    {
-        if (sameTickMovementDelaySeconds > 0)
-        {
-            await WaitSiteBattlePresentationSeconds(sameTickMovementDelaySeconds);
-        }
-
-        await ObserveRuntimeDamageEventAsync(runtimeEvent, entitiesByRuntimeActor);
-    }
-
-    private static double ResolveSameTickMovementDelaySeconds(
-        IReadOnlyDictionary<string, double> sameTickMovingActors,
-        string actorId,
-        string targetId)
-    {
-        double delaySeconds = 0;
-        if (sameTickMovingActors == null)
-        {
-            return delaySeconds;
-        }
-
-        if (!string.IsNullOrWhiteSpace(actorId) &&
-            sameTickMovingActors.TryGetValue(actorId, out double actorDelay))
-        {
-            delaySeconds = System.Math.Max(delaySeconds, actorDelay);
-        }
-
-        if (!string.IsNullOrWhiteSpace(targetId) &&
-            sameTickMovingActors.TryGetValue(targetId, out double targetDelay))
-        {
-            delaySeconds = System.Math.Max(delaySeconds, targetDelay);
-        }
-
-        return delaySeconds;
     }
 
     private Dictionary<string, BattleEntity> BuildRuntimePlaybackEntityMap()

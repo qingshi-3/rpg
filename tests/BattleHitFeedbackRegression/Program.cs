@@ -62,6 +62,10 @@ BattleHitFeedbackRegressionCases.Run("battle runtime live observation uses tick 
 BattleHitFeedbackRegressionCases.Run("battle runtime playback does not globally gate movement on attack animation", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackDoesNotGloballyGateMovementOnAttackAnimation);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback plans move idle only at sequence boundary", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement uses actor motion lane", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementUsesActorMotionLane);
+BattleHitFeedbackRegressionCases.Run("battle runtime live movement queues before actor visual tail waits", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits);
+BattleHitFeedbackRegressionCases.Run("battle runtime visual movement keeps runtime action duration", BattleHitFeedbackRegressionCases.BattleRuntimeVisualMovementKeepsRuntimeActionDuration);
+BattleHitFeedbackRegressionCases.Run("battle presentation timeline separates movement completion from action backlog", BattleHitFeedbackRegressionCases.BattlePresentationTimelineSeparatesMovementCompletionFromActionBacklog);
+BattleHitFeedbackRegressionCases.Run("battle presentation timeline waits target movement but not target attack backlog", BattleHitFeedbackRegressionCases.BattlePresentationTimelineWaitsTargetMovementButNotTargetAttackBacklog);
 BattleHitFeedbackRegressionCases.Run("battle runtime registers Godot performance monitors", BattleHitFeedbackRegressionCases.BattleRuntimeRegistersGodotPerformanceMonitors);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback delays damage until same tick target movement settles", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackDelaysDamageUntilSameTickTargetMovementSettles);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation waits for same tick movement before dependent attack", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationWaitsForSameTickMovementBeforeDependentAttack);

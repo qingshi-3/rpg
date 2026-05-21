@@ -72,7 +72,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             "4v4 battle should produce combat damage before completion");
     }
 
-    public static void RuntimeSameLaneCrowdAdvancesAsChainInOneTick()
+    public static void RuntimeSameLaneCrowdBlocksSameTickChainFollow()
     {
         BattleStartSnapshot snapshot = BuildSingleLaneSnapshot("battle_same_lane_chain");
         AddGroup(snapshot, "player_rear", "player", "player_rear", 0, 0, 90);
@@ -83,11 +83,11 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         BattleRuntimeAdvanceResult tick = new BattleRuntimeSession().Begin(snapshot).AdvanceNextTick();
 
         AssertMove(tick.Events, "player_front:1", 2, 0, 3, 0);
-        AssertMove(tick.Events, "player_mid:1", 1, 0, 2, 0);
-        AssertMove(tick.Events, "player_rear:1", 0, 0, 1, 0);
+        AssertNoMove(tick.Events, "player_mid:1");
+        AssertNoMove(tick.Events, "player_rear:1");
     }
 
-    public static void RuntimeSupportQueueAdvancesChainBehindEngagedFrontline()
+    public static void RuntimeSupportQueueBlocksSameTickChainBehindEngagedFrontline()
     {
         BattleStartSnapshot snapshot = BuildSingleLaneSnapshot("battle_support_chain");
         AddGroup(snapshot, "player_rear", "player", "player_rear", 2, 0, 90);
@@ -104,7 +104,65 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
                 item.TargetId == "enemy_anchor:1"),
             "engaged frontline should attack while support units advance behind it");
         AssertMove(tick.Events, "player_mid:1", 3, 0, 4, 0);
-        AssertMove(tick.Events, "player_rear:1", 2, 0, 3, 0);
+        AssertNoMove(tick.Events, "player_rear:1");
+    }
+
+    public static void RuntimeSameTickFollowCannotEnterReleasedFootprint()
+    {
+        BattleStartSnapshot snapshot = BuildSingleLaneSnapshot("battle_same_tick_released_footprint_block");
+        AddGroup(snapshot, "player_rear", "player", "player_rear", 1, 0, 90);
+        AddGroup(snapshot, "player_front", "player", "player_front", 2, 0, 90, footprintWidth: 2);
+        AddGroup(snapshot, "enemy_anchor", "enemy", "enemy_anchor", 6, 0, 120, initialCommandId: "HoldLine");
+
+        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession().Begin(snapshot).AdvanceNextTick();
+
+        AssertMove(tick.Events, "player_front:1", 2, 0, 3, 0);
+        AssertTrue(
+            tick.Events.All(item =>
+                item.Kind != BattleEventKind.MovementCompleted ||
+                item.ActorId != "player_rear:1"),
+            "rear support must not enter the frontline footprint released earlier in the same tick");
+    }
+
+    public static void RuntimeSmallerUnitsCanSurroundLargeTargetAttackSlots()
+    {
+        BattleStartSnapshot snapshot = BuildLargeTargetSurroundSnapshot();
+
+        BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+        BattleEvent[] attacks = result.EventStream.Events
+            .Where(item =>
+                item.Kind == BattleEventKind.DamageApplied &&
+                item.TargetId == "enemy_large:1")
+            .GroupBy(item => item.ActorId)
+            .Select(group => group.First())
+            .ToArray();
+        AssertEqual(2, attacks.Length, "two smaller attackers should damage the same larger footprint from distinct attack slots");
+        AssertTrue(
+            attacks.Any(item => item.ActorId == "player_left:1") &&
+            attacks.Any(item => item.ActorId == "player_top:1"),
+            $"large target should be attackable from multiple footprint-valid sides: actual=[{string.Join(",", attacks.Select(item => item.ActorId))}]");
+    }
+
+    public static void RuntimeSupportBelowVerticalEngagementFlanksToOpenAttackSlot()
+    {
+        BattleStartSnapshot snapshot = BuildVerticalEngagementSupportSnapshot();
+
+        BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
+
+        BattleEvent? firstSupportMove = result.EventStream.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementCompleted &&
+            item.ActorId == "player_support:1");
+        AssertTrue(firstSupportMove != null, "support below a vertical engagement should move toward an open attack slot");
+        AssertTrue(
+            firstSupportMove!.ToGridX != 0 || firstSupportMove.ToGridY != 2,
+            "support should not stay directly behind the engaged ally when side attack slots are open");
+        AssertTrue(
+            result.EventStream.Events.Any(item =>
+                item.Kind == BattleEventKind.DamageApplied &&
+                item.ActorId == "player_support:1" &&
+                item.TargetId == "enemy_anchor:1"),
+            "support should eventually attack from a side or upper footprint-valid slot");
     }
 
     public static void RuntimeSupportUnitContinuesIntoDiagonalAttackRangeAgainstEngagedTarget()
@@ -196,6 +254,56 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         return snapshot;
     }
 
+    private static BattleStartSnapshot BuildVerticalEngagementSupportSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_vertical_engagement_support",
+            BattleId = "battle_vertical_engagement_support",
+            TargetLocationId = "site_1"
+        };
+
+        for (int x = -1; x <= 1; x++)
+        {
+            for (int y = -1; y <= 3; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddGroup(snapshot, "group_player_front", "player", "player_front", 0, 1, 180);
+        AddGroup(snapshot, "group_player_support", "player", "player_support", 0, 3, 180);
+        AddGroup(snapshot, "group_enemy_anchor", "enemy", "enemy_anchor", 0, 0, 260, initialCommandId: "HoldLine");
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildLargeTargetSurroundSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_large_target_surround",
+            BattleId = "battle_large_target_surround",
+            TargetLocationId = "site_1"
+        };
+
+        for (int x = 0; x <= 5; x++)
+        {
+            for (int y = -2; y <= 3; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddGroup(snapshot, "group_player_left", "player", "player_left", 1, 0, 90);
+        AddGroup(snapshot, "group_player_top", "player", "player_top", 3, -2, 90);
+        AddGroup(snapshot, "group_enemy_large", "enemy", "enemy_large", 3, 0, 240, initialCommandId: "HoldLine", footprintWidth: 2, footprintHeight: 2);
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
     private static void AddSurface(BattleStartSnapshot snapshot, int x, int y)
     {
         snapshot.LocationContext.NavigationSurfaces.Add(new BattleNavigationSurfaceSnapshot
@@ -215,7 +323,9 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         int cellX,
         int cellY,
         int hitPoints,
-        string initialCommandId = "")
+        string initialCommandId = "",
+        int footprintWidth = 1,
+        int footprintHeight = 1)
     {
         snapshot.BattleGroups.Add(new BattleGroupSnapshot
         {
@@ -234,7 +344,9 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
             CellY = cellY,
-            InitialCorpsCommandId = initialCommandId
+            InitialCorpsCommandId = initialCommandId,
+            FootprintWidth = footprintWidth,
+            FootprintHeight = footprintHeight
         });
     }
 
@@ -318,6 +430,15 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         AssertEqual(fromY, movement.FromGridY, $"{actorId} movement from y");
         AssertEqual(toX, movement.ToGridX, $"{actorId} movement to x");
         AssertEqual(toY, movement.ToGridY, $"{actorId} movement to y");
+    }
+
+    private static void AssertNoMove(IReadOnlyList<BattleEvent> events, string actorId)
+    {
+        AssertTrue(
+            events.All(item =>
+                item.Kind != BattleEventKind.MovementCompleted ||
+                item.ActorId != actorId),
+            $"actor should not move in this tick: {actorId}");
     }
 
     private static void AssertTrue(bool condition, string message)

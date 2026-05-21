@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Rpg.Infrastructure.Diagnostics;
 
 namespace Rpg.Runtime.Battle.Navigation;
 
@@ -17,7 +18,8 @@ internal static class BattleCrowdMovementPlanner
         BattleFlowFieldCache flowFields,
         bool preferSupportSlots,
         bool avoidOpeningNewAxisGapNearEngagedTarget,
-        out BattleGridCoord nextStep)
+        out BattleGridCoord nextStep,
+        BattlePerformanceCounters performanceCounters = null)
     {
         nextStep = default;
         IReadOnlyList<BattleGridCoord> candidates = FindNextStepCandidatesTowardTarget(
@@ -28,7 +30,8 @@ internal static class BattleCrowdMovementPlanner
             reservations,
             flowFields,
             preferSupportSlots,
-            avoidOpeningNewAxisGapNearEngagedTarget);
+            avoidOpeningNewAxisGapNearEngagedTarget,
+            performanceCounters);
         if (candidates.Count == 0)
         {
             return false;
@@ -46,7 +49,8 @@ internal static class BattleCrowdMovementPlanner
         BattleMovementReservationMap reservations,
         BattleFlowFieldCache flowFields,
         bool preferSupportSlots,
-        bool avoidOpeningNewAxisGapNearEngagedTarget)
+        bool avoidOpeningNewAxisGapNearEngagedTarget,
+        BattlePerformanceCounters performanceCounters = null)
     {
         if (actor == null || target == null || graph == null || occupancy == null || reservations == null)
         {
@@ -60,6 +64,10 @@ internal static class BattleCrowdMovementPlanner
         }
 
         BattleFlowField field = (flowFields ?? new BattleFlowFieldCache()).GetOrBuild(actor, target, graph, preferSupportSlots);
+        if (!preferSupportSlots)
+        {
+            field = BattleFlowFieldBuilder.PreferOpenAttackSlots(actor, graph, occupancy, field, performanceCounters);
+        }
         if (!field.HasCosts || !field.TryGetCost(start, out int startCost))
         {
             return new List<BattleGridCoord>();

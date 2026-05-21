@@ -1,10 +1,10 @@
 # Battle Footprint Navigation And Attack Slots
 
-Status: Draft
+Status: Archived
 Created: 2026-05-21
-Accepted:
-Merged:
-Archived:
+Accepted: 2026-05-21
+Merged: 2026-05-21
+Archived: 2026-05-21
 
 Requirement Id: REQ-BATTLE-FOOTPRINT-NAV-ATTACK-SLOTS-2026-05-21
 Parent Proposal: `design-proposals/archived/2026-05-20-battle-navigation-topology-decoupling`
@@ -18,6 +18,7 @@ Affected Authority Documents:
 - `system-design/battle-runtime-architecture.md`
 - `system-design/battle-ai-boundary-architecture.md`
 Related Implementation Proposals:
+- Pending focused implementation proposal under `gameplay-alignment/implementation-proposals/`.
 
 ## Reason
 
@@ -58,7 +59,9 @@ Expected authority uses one footprint abstraction across movement and attack.
 - Same-level movement edges are valid only when the actor's footprint can move from source anchor to target anchor without corner cutting or passing through missing terrain.
 - Runtime pathfinding may use an anchor graph or flow field, but that graph is already footprint-aware for the actor size.
 - Same-tick movement reservation reserves the full candidate footprint, not only the anchor.
-- Dynamic living actors are hard blockers only for immediate committed movement and same-tick reservations; future projected occupancy remains soft cost.
+- Dynamic living actors are hard blockers for immediate committed movement unless an earlier accepted same-tick mover has already reserved its destination and released its old footprint.
+- Released same-tick cells may be entered only after that actor's move is accepted; duplicate reservations, direct opposite-edge swaps, and cells occupied by actors that have not accepted a move remain blocked.
+- Future projected occupancy remains soft cost.
 - Basic attack range is shortest square-grid distance between attacker footprint and target footprint.
 - A valid basic-attack opportunity is any legal attacker anchor whose footprint is within range of the target footprint without overlapping it.
 - Large targets naturally expose more valid attack slots and can be surrounded by multiple smaller units, subject to terrain, footprint placement, and reservation rules.
@@ -72,6 +75,7 @@ Likely implementation scope:
 - compile or cache footprint-aware placement legality / clearance from battle topology;
 - validate movement candidates with full covered cells and diagonal swept-footprint rules;
 - ensure reservation maps reserve full target footprints and reject duplicate cells, swaps, and invalid overlaps;
+- preserve deterministic same-tick follow movement into already released footprints while keeping unresolved tick-start occupants blocked;
 - generate combat slots from footprint-to-footprint range instead of hardcoded 8-neighbor cells;
 - make ordinary assault target scoring choose the fastest reachable valid attack slot;
 - add diagnostics that distinguish static footprint illegality, diagonal clearance failure, dynamic occupancy, reservation rejection, and no reachable attack slot;
@@ -84,6 +88,7 @@ This design proposal is acceptable when:
 - the old anchor-only default terrain legality rule is removed from gameplay authority;
 - all affected documents agree that anchor is a state identifier while legality uses the full footprint;
 - movement rules distinguish static footprint placement from dynamic reservation;
+- same-tick release rules explicitly allow follow movement only into footprints vacated by already accepted movers;
 - attack rules define combat slots generically for different attacker and target footprint sizes;
 - AI target choice references fastest reachable valid attack slot, not just nearest target actor;
 - implementation is explicitly deferred to a later technical-change proposal.

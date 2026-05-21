@@ -48,7 +48,7 @@ Player command owns:
 Tactical AI owns:
 
 - ordinary attack target choice;
-- without explicit AI override, ordinary assault chooses the enemy and attack slot that can enter valid basic-attack execution soonest; retained targets and support positioning are stability preferences, not permission to ignore a faster attack opportunity;
+- without explicit AI override, ordinary assault chooses the enemy and footprint-valid attack slot that can enter valid basic-attack execution soonest; retained targets and support positioning are stability preferences, not permission to ignore a faster attack opportunity;
 - command-scoped target retention, so movement does not jitter between incidental nearest enemies while rerouting;
 - protect, pursuit, retreat, and hold-position choice;
 - group spacing and formation maintenance where implemented;

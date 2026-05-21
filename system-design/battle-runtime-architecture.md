@@ -23,7 +23,7 @@ Runtime does not own:
 - long-term Domain state or campaign writeback;
 - Godot scene node truth, animation timing, UI selection, or visual interpolation;
 - map authoring, TileMapLayer parsing, or topology compilation;
-- final settlement, report text, or long-term state schema;
+- final settlement, report text, or save-file schema;
 - LimboAI behavior-tree blackboard as authoritative combat state.
 
 ## Runtime State
@@ -102,6 +102,8 @@ Actors that are not in an anchored decision phase do not replan movement, reacqu
 
 - Basic attacks target actors, not damage cells.
 - Basic attacks resolve from attacker anchored footprint to target anchored footprint using the ability's grid range.
+- A valid basic-attack opportunity is any legal attacker anchor whose footprint is within range of the target footprint and does not overlap it.
+- Larger targets naturally expose more valid attack opportunities. Multiple smaller units may attack the same larger unit from different legal footprint anchors when terrain, occupancy, and reservations allow it.
 - Runtime emits attack and damage events from the same authority used by settlement and reports.
 - Ranged attacks may use longer grid range, but still resolve as actor-target attacks in the first implementation.
 
@@ -110,6 +112,7 @@ Actors that are not in an anchored decision phase do not replan movement, reacqu
 - Each actor may define a rectangular footprint width and height in cells.
 - The actor anchor is always the top-left cell of that footprint.
 - `1x1`, `1x2`, `2x1`, `2x2`, and `3x3` are valid initial footprint targets.
+- The anchor is the stored runtime position, not a shortcut for movement or attack legality. Runtime expands the anchor into covered cells whenever it validates placement, occupancy, reservations, attack range, or area overlap.
 - Occupancy, reservations, attack range, and area-effect overlap use covered footprint cells.
 - Attack range is measured by shortest square-grid distance between actor footprints.
 - Area effects hit an actor when any covered footprint cell overlaps the resolved effect area.
@@ -141,7 +144,7 @@ Detailed path legality, topology, and movement planning rules live in `battle-na
 - Failed or incomplete runtime output must enter explicit safe rollback, failed handoff, or pending manual-resolution state.
 - Settlement accepts only complete results with consistent event boundaries and explicit termination reason.
 
-If later user-facing battle resume is added, it must preserve the battle snapshot, necessary runtime state, and confirmed event stream boundary through a separate accepted architecture.
+If later user-facing mid-battle save is added, it must persist the battle snapshot, necessary runtime state, and confirmed event stream boundary.
 
 ## Acceptance
 

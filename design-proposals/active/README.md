@@ -8,7 +8,7 @@ Read active proposals only when they are relevant to the current task. Active pr
 
 | Proposal | Requirement | Status | Archive Readiness |
 |---|---|---|---|
-| `2026-05-21-battle-footprint-navigation-attack-slots` | `REQ-BATTLE-FOOTPRINT-NAV-ATTACK-SLOTS-2026-05-21`; amends `2026-05-20-battle-navigation-topology-decoupling` | Draft | Pending user acceptance |
+| None |  |  |  |
 
 ## Rules
 

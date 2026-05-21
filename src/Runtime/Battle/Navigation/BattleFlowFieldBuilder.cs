@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Rpg.Infrastructure.Diagnostics;
 
@@ -28,47 +29,98 @@ internal static class BattleFlowFieldBuilder
                 .ToArray();
         }
 
-        Dictionary<BattleGridCoord, int> costs = new();
-        if (actor == null || graph == null || goals.Length == 0)
-        {
-            return new BattleFlowField(goals, costs);
-        }
+        return BuildFromGoalSlots(actor, graph, goals, performanceCounters);
+    }
 
-        var frontier = new PriorityQueue<BattleGridCoord, int>();
-        foreach (BattleCombatSlot goal in goals)
+    public static BattleFlowField BuildFromGoalSlots(
+        BattleRuntimeActor actor,
+        BattleNavigationGraph graph,
+        IEnumerable<BattleCombatSlot> goals,
+        BattlePerformanceCounters performanceCounters = null)
+    {
+        long startedAt = Stopwatch.GetTimestamp();
+        BattleCombatSlot[] goalArray = (goals ?? Enumerable.Empty<BattleCombatSlot>()).ToArray();
+        try
         {
-            if (!costs.TryAdd(goal.Anchor, 0))
+            Dictionary<BattleGridCoord, int> costs = new();
+            if (actor == null || graph == null || goalArray.Length == 0)
             {
-                continue;
+                return new BattleFlowField(goalArray, costs);
             }
 
-            frontier.Enqueue(goal.Anchor, 0);
-        }
-
-        int searched = 0;
-        while (frontier.Count > 0 && searched < graph.MaxSearchNodes)
-        {
-            BattleGridCoord current = frontier.Dequeue();
-            searched++;
-            foreach (BattleGridCoord incoming in graph.GetIncomingNeighbors(current))
+            var frontier = new PriorityQueue<BattleGridCoord, int>();
+            foreach (BattleCombatSlot goal in goalArray)
             {
-                if (!BattlePathStepRules.CanUseStaticStep(actor, incoming, current, graph))
+                if (!costs.TryAdd(goal.Anchor, 0))
                 {
                     continue;
                 }
 
-                int newCost = costs[current] + GetStepCost(incoming, current);
-                if (costs.TryGetValue(incoming, out int knownCost) && newCost >= knownCost)
-                {
-                    continue;
-                }
-
-                costs[incoming] = newCost;
-                frontier.Enqueue(incoming, newCost);
+                frontier.Enqueue(goal.Anchor, 0);
             }
+
+            int searched = 0;
+            while (frontier.Count > 0 && searched < graph.MaxSearchNodes)
+            {
+                BattleGridCoord current = frontier.Dequeue();
+                searched++;
+                foreach (BattleGridCoord incoming in graph.GetIncomingNeighbors(current))
+                {
+                    if (!BattlePathStepRules.CanUseStaticStep(actor, incoming, current, graph))
+                    {
+                        continue;
+                    }
+
+                    int newCost = costs[current] + GetStepCost(incoming, current);
+                    if (costs.TryGetValue(incoming, out int knownCost) && newCost >= knownCost)
+                    {
+                        continue;
+                    }
+
+                    costs[incoming] = newCost;
+                    frontier.Enqueue(incoming, newCost);
+                }
+            }
+
+            return new BattleFlowField(goalArray, costs);
+        }
+        finally
+        {
+            performanceCounters?.RecordFlowFieldBuildElapsedTicks(Stopwatch.GetTimestamp() - startedAt);
+        }
+    }
+
+    public static BattleFlowField PreferOpenAttackSlots(
+        BattleRuntimeActor actor,
+        BattleNavigationGraph graph,
+        BattleDynamicOccupancy occupancy,
+        BattleFlowField field,
+        BattlePerformanceCounters performanceCounters = null)
+    {
+        if (actor == null || graph == null || occupancy == null || field?.GoalSlots == null)
+        {
+            return field;
         }
 
-        return new BattleFlowField(goals, costs);
+        BattleCombatSlot[] attackGoals = field.GoalSlots
+            .Where(item => item.Kind == BattleCombatSlotKind.Attack)
+            .ToArray();
+        if (attackGoals.Length == 0)
+        {
+            return field;
+        }
+
+        BattleCombatSlot[] openAttackGoals = attackGoals
+            .Where(item => occupancy.CountOtherOccupiedCells(actor, item.Anchor) == 0)
+            .ToArray();
+        if (openAttackGoals.Length == 0 || openAttackGoals.Length == attackGoals.Length)
+        {
+            return field;
+        }
+
+        // Occupied attack slots are not executable for this actor. Dynamic
+        // decision costs must point at open slots before support fallback.
+        return BuildFromGoalSlots(actor, graph, openAttackGoals, performanceCounters);
     }
 
     private static int GetStepCost(BattleGridCoord from, BattleGridCoord to)

@@ -2971,7 +2971,7 @@ Width = 8
 Height = 4
 
 [node name="undead_deployment_zone_east3" parent="SemanticMarkers" instance=ExtResource("13_b4y6s")]
-position = Vector2(896, 64)
+position = Vector2(896, 32)
 DeploymentSide = 2
 MarkerId = "undead_deployment_zone_east"
 Width = 14

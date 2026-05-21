@@ -57,6 +57,24 @@ internal static class TargetBattleMovementIntentRegressionCases
             $"default assault target should be the fastest attack opportunity: actual={firstDamage.TargetId}");
     }
 
+    public static void RuntimeTargetChoiceUsesReachableFootprintAttackSlots()
+    {
+        RecordingBattleRuntimeAiExecutor executor = new(new DefaultBattleRuntimeAiExecutor());
+
+        _ = new BattleRuntimeSession(executor).RunMinimal(BuildBlockedNearLargeTargetSnapshot());
+
+        string[] firstTargets = executor.SeenFacts
+            .Where(item => item.ActorId == "force_player:1" && item.HasTarget)
+            .Take(3)
+            .Select(item => item.TargetActorId)
+            .ToArray();
+
+        AssertTrue(firstTargets.Length > 0, "player actor should receive target decisions");
+        AssertTrue(
+            firstTargets.All(item => item == "enemy_reachable:1"),
+            $"ordinary assault should choose the enemy with the reachable footprint-valid attack slot: actual=[{string.Join(",", firstTargets)}]");
+    }
+
     public static void RuntimeMoverRetargetsWhenTargetDiesBeforeMovementResolves()
     {
         BattleRuntimeAdvanceResult tick = new BattleRuntimeSession()
@@ -153,6 +171,34 @@ internal static class TargetBattleMovementIntentRegressionCases
         return snapshot;
     }
 
+    private static BattleStartSnapshot BuildBlockedNearLargeTargetSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_blocked_near_large_target",
+            BattleId = "battle_blocked_near_large_target",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "player", "force_player", 0, 2, 200),
+                BuildGroup("group_player_blocker", "player", "player_blocker", 0, 1, 200, initialCommandId: "HoldLine"),
+                BuildGroup("group_enemy_blocked", "enemy", "enemy_blocked", 0, 0, 200, initialCommandId: "HoldLine"),
+                BuildGroup("group_enemy_reachable", "enemy", "enemy_reachable", 0, 4, 200, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int x = -1; x <= 1; x++)
+        {
+            for (int y = 0; y <= 4; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
     private static BattleStartSnapshot BuildSameTickTargetDeathRetargetSnapshot()
     {
         BattleStartSnapshot snapshot = new()
@@ -188,7 +234,9 @@ internal static class TargetBattleMovementIntentRegressionCases
         int cellX,
         int cellY,
         int hitPoints,
-        string initialCommandId = "")
+        string initialCommandId = "",
+        int footprintWidth = 1,
+        int footprintHeight = 1)
     {
         return new BattleGroupSnapshot
         {
@@ -205,7 +253,9 @@ internal static class TargetBattleMovementIntentRegressionCases
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
             CellY = cellY,
-            InitialCorpsCommandId = initialCommandId
+            InitialCorpsCommandId = initialCommandId,
+            FootprintWidth = footprintWidth,
+            FootprintHeight = footprintHeight
         };
     }
 

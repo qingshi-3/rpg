@@ -52,8 +52,8 @@ Battle movement is realtime presentation over grid authority:
 - A unit may path toward targets in any valid square-grid direction. The first expected implementation uses 8-neighbor movement unless map data forbids diagonal transitions.
 - Runtime builds the static navigation graph once for the battle handoff. Static graph legality owns terrain, walkable surfaces, height-specific surfaces, and authored height connections.
 - Runtime may plan several cells ahead, but it commits only the next neighbor cell. The next tick recalculates from current actor, target, occupancy, reservations, and command posture.
-- Ordinary assault keeps the acquired live target while rerouting, so a unit does not switch targets merely because another enemy becomes temporarily closer on the detour.
-- When the target is already engaged, nearby support should reinforce the local fight before taking a distant flank route that initially moves away from the target.
+- Without explicit AI override, ordinary assault chooses the enemy and attack slot that can enter valid basic-attack execution soonest. Retained targets and nearby support positioning are stability preferences, not permission to ignore a faster reachable attack opportunity.
+- When the target is already engaged, nearby support should reinforce the local fight if a valid attack slot is reachable. Support positioning is a fallback when direct attack slots are unavailable or tactically constrained.
 - Living-unit occupancy is layered: the immediate next footprint is a hard blocker, while future occupied cells are soft route cost. This keeps a moving actor from treating another unit as a permanent wall, while still making comparable open routes more attractive.
 - Same-tick reservations are hard blockers for the next committed footprint and reject opposite-edge swaps.
 - A unit cannot perform a basic attack while in transit between cells.
@@ -76,11 +76,13 @@ The first implementation only needs basic actor-target attacks and the data-cont
 
 ## Unit Footprints
 
-Future larger units may use grid footprints while keeping the square-grid realtime model. A unit footprint is a rectangular set of occupied cells such as `1x1`, `1x2`, `2x1`, `2x2`, or `3x3`.
+Larger units may use grid footprints while keeping the square-grid realtime model. A unit footprint is a rectangular set of occupied cells such as `1x1`, `1x2`, `2x1`, `2x2`, or `3x3`.
 
-The anchor cell is always the footprint's top-left cell. Default navigation and terrain legality evaluate the anchor cell against the static graph, so large units do not automatically make pathfinding more expensive or more restrictive. A future opt-in hard-navigation footprint may let special units require every covered terrain cell to be legal, but that is not the default rule.
+The anchor cell is always the footprint's top-left cell. The anchor is a compact state identifier, not the terrain legality rule by itself. Movement, deployment, attack range, area overlap, occupancy, and reservation resolve by expanding the anchor into the full covered footprint.
 
-Unit body collision is stricter than terrain navigation. Other units cannot occupy or reserve any cell inside the committed candidate footprint. During a live movement tick, each actor proposes one next anchor cell, reserves the full candidate footprint, and cannot directly swap edges with another same-tick mover. Tick-start occupied cells remain blocked for the immediate step until the next tick, so a unit cannot step into a large unit's interior or tailgate through a just-vacated footprint during the same resolution step. Future projected cells may include occupied cells as soft cost, not hard legality, because those units may move before the actor reaches that part of the route.
+Static navigation legality is footprint-aware. A candidate anchor is legal only when every covered cell required by that footprint exists in the compiled battle topology. Same-level movement between anchors is legal only when the actor footprint can move from source anchor to target anchor without cutting blocked corners or passing through missing covered terrain. Runtime may still path over an anchor graph or flow field, but that graph must already represent valid footprint placement for the actor size.
+
+Unit body collision is stricter than terrain navigation. Other units cannot occupy or reserve any cell inside the committed candidate footprint. During a live movement tick, each actor proposes one next anchor cell, reserves the full candidate footprint, and cannot directly swap edges with another same-tick mover. Tick-start occupied cells remain blocked for immediate committed movement throughout that tick, even when the occupying actor also moves during the same tick. A released footprint may be entered only after Runtime advances to a later decision boundary with updated occupancy. Future projected cells may include occupied cells as soft cost, not hard legality, because those units may move before the actor reaches that part of the route.
 
 During pre-battle deployment, the existing hover selection frame should resize around every cell covered by the dragged unit's footprint. The dragged sprite should stay centered on that footprint and only move to the next anchor after the pointer crosses the half-cell threshold around the current footprint center. Drop validation uses that same covered-cell set.
 
@@ -88,9 +90,11 @@ Attacks and area effects should read the footprint instead of pretending the uni
 
 - Basic attack range uses shortest square-grid distance between attacker footprint and target footprint.
 - Actor-target attacks still lock onto an actor.
+- A valid basic-attack position is any legal attacker anchor whose full footprint is within range of the target footprint and does not overlap it.
+- Larger targets naturally expose more valid attack positions. Multiple smaller units may surround and attack a larger unit when terrain, placement legality, occupancy, and reservations allow it.
 - Area effects hit when at least one covered cell overlaps the target footprint.
 
-This makes large units readable as multi-cell bodies without forcing the runtime into expensive full-map multi-size pathfinding.
+This makes large units readable as multi-cell bodies without forcing the runtime into freeform physics movement. Navigation remains anchored, but every anchor represents a full footprint state.
 
 Visual size supports this readability, but it is not the occupancy rule. Larger units should scale their sprite uniformly from a tuned footprint size signal instead of stretching differently on X and Y.
 

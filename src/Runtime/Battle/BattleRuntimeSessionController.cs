@@ -96,7 +96,15 @@ public sealed class BattleRuntimeSessionController
             _navigationGraph,
             _navigationFailureDiagnostics,
             _performanceCounters);
-        _performanceCounters?.RecordRuntimeAdvanceElapsedTicks(Stopwatch.GetTimestamp() - resolveStartedAt);
+        long resolveElapsedTicks = Stopwatch.GetTimestamp() - resolveStartedAt;
+        bool isNewMaximum = _performanceCounters?.RecordRuntimeAdvanceElapsedTicks(resolveElapsedTicks, _nextTick) == true;
+        BattleRuntimeSpikeDiagnostics.LogIfNeeded(
+            BattleId,
+            _nextTick,
+            CurrentTimeSeconds,
+            resolveElapsedTicks,
+            isNewMaximum,
+            _performanceCounters);
         _nextTick++;
 
         BattleTerminationReason postTickTermination = BattleRuntimeSession.ResolveTermination(State);

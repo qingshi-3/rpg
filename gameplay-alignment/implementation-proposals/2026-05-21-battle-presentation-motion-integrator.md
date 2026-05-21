@@ -85,8 +85,8 @@ Implemented:
 - Movement events enqueue visual segments into the lane instead of creating a Godot movement `Tween`.
 - Existing `GridOccupantComponent` updates still happen from Runtime movement events before visual interpolation.
 - Render sort and facing update at segment boundaries.
-- `VisualMoveSmoothingSeconds` defaults to `0.06` and is clamped to `0..0.12`, adding only Presentation-side interpolation time.
-- `ObserveRuntimeMovementEvent` returns the visual movement duration so same-tick damage waits against the smoothed presentation movement.
+- Superseded by `gameplay-alignment/implementation-proposals/2026-05-21-battle-live-movement-queueing.md`: visual movement duration now stays equal to Runtime movement action duration, so `VisualMoveSmoothingSeconds` no longer adds per-step interpolation time.
+- `ObserveRuntimeMovementEvent` returns the visual movement duration so same-tick damage waits against the authoritative movement action duration.
 - `scenes/world/sites/WorldSiteRoot.tscn` tunes `UnitMoveDuration` from `0.16` to `0.27`, slowing movement by about 40% for easier visual inspection and a calmer live battle cadence.
 
 Verification:

@@ -330,7 +330,7 @@ internal static void BattleRuntimePlaybackKeepsMoveLoopAcrossConsecutiveMoveStep
         !source.Contains("returnToIdleOnComplete: true", StringComparison.Ordinal),
         "runtime movement presentation should keep the move loop unless a caller explicitly closes it");
     AssertTrue(
-        runtime.Contains("ObserveRuntimeMovementEventAsync", StringComparison.Ordinal) &&
+        runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
         runtime.Contains("AdvanceBattleGroupRuntimeOnLiveClockAsync", StringComparison.Ordinal),
         "live runtime observation should keep movement open during battle instead of toggling idle between single-tick move events");
     AssertTrue(

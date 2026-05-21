@@ -82,8 +82,9 @@ Actors that are already in `Moving`, `AttackRecovery`, casting, interruption, or
 - The actor anchor is a compact position key. It is not enough for only the anchor cell to be walkable.
 - Static placement legality is footprint-aware: a candidate anchor is valid only if every covered cell in the actor's footprint is present in topology.
 - Runtime pathfinding may use an anchor graph, cached placement map, clearance map, or flow field, but that navigation data must be derived from full-footprint placement legality for the actor size.
-- Candidate committed movement is valid only if every covered cell in the actor's next footprint is present in topology, unoccupied by other living actors except allowed same-tick released cells, and unreserved.
+- Candidate committed movement is valid only if every covered cell in the actor's next footprint is present in topology, unreserved, and unoccupied by other living actors except cells released by earlier accepted movers in the same deterministic reservation pass.
 - Occupancy and reservation are stored per covered cell.
+- A cell is same-tick released only after its occupying actor has successfully reserved a different destination; unresolved tick-start occupants remain hard blockers.
 - Projected future route cells must be statically legal by footprint, but may include occupied cells as extra cost because those units may move before the actor reaches that part of the route.
 - Direct same-tick edge swaps are rejected.
 - Missing covered topology nodes make that anchor illegal even when the actor's anchor cell itself exists.

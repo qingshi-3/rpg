@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Rpg.Application.Battle;
 using Rpg.Infrastructure.Diagnostics;
@@ -65,6 +66,7 @@ internal sealed partial class BattleRuntimeTickResolver
             return;
         }
 
+        performanceCounters?.BeginRuntimeAdvance();
         performanceCounters?.RecordRuntimeTick();
         foreach (BattleRuntimeActor actor in state.Actors.Where(item => item.Kind == BattleRuntimeActorKind.Corps))
         {
@@ -109,6 +111,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 navigationGraph,
                 occupancy,
                 flowFields,
+                performanceCounters,
                 battleId,
                 tick,
                 navigationFailureDiagnostics))
@@ -171,7 +174,8 @@ internal sealed partial class BattleRuntimeTickResolver
         }
 
         ResolveAttackProposals(contexts, tickStartFacts, stream, battleId, tick, currentTimeSeconds);
-        ResolveMovementProposals(
+        long movementResolveStartedAt = Stopwatch.GetTimestamp();
+        int movementEvents = ResolveMovementProposals(
             contexts,
             tickStartFacts,
             occupancy,
@@ -182,6 +186,8 @@ internal sealed partial class BattleRuntimeTickResolver
             navigationGraph,
             navigationFailureDiagnostics,
             performanceCounters);
+        performanceCounters?.RecordMovementResolveElapsedTicks(Stopwatch.GetTimestamp() - movementResolveStartedAt);
+        performanceCounters?.RecordActorsReadyNoMoveLastAdvance(decisionReadyCorps.Length - movementEvents);
 
         foreach (TickContext context in contexts.OrderBy(item => item.ActorFact.Actor.ActorId, System.StringComparer.Ordinal))
         {
@@ -207,6 +213,7 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters,
         string battleId,
         int tick,
         HashSet<string> navigationFailureDiagnostics)
@@ -217,7 +224,8 @@ internal sealed partial class BattleRuntimeTickResolver
             actorFact,
             navigationGraph,
             occupancy,
-            flowFields);
+            flowFields,
+            performanceCounters);
         BattleRuntimeAiActionRequest request = BuildCommandScopedAiActionRequest(actorFact, preferredTarget);
         TickStartActorFact? requestedTarget = ResolveRequestedTarget(facts, actorFact, preferredTarget, request);
 
@@ -276,7 +284,8 @@ internal sealed partial class BattleRuntimeTickResolver
                                           actorFact.Anchor,
                                           navigationGraph,
                                           occupancy,
-                                          flowFields);
+                                          flowFields,
+                                          performanceCounters);
             bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && gap == attackRange + 1;
             IReadOnlyList<BattleGridCoord> moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardTarget(
                     tickStartActor,
@@ -286,7 +295,8 @@ internal sealed partial class BattleRuntimeTickResolver
                     new BattleMovementReservationMap(),
                     flowFields,
                     preferSupportSlots,
-                    avoidOpeningNewAxisGapNearEngagedTarget);
+                    avoidOpeningNewAxisGapNearEngagedTarget,
+                    performanceCounters);
             if (moveOptions.Count == 0)
             {
                 LogAdvanceFailureDiagnostic(
@@ -528,7 +538,7 @@ internal sealed partial class BattleRuntimeTickResolver
         }
     }
 
-    private void ResolveMovementProposals(
+    private int ResolveMovementProposals(
         List<TickContext> contexts,
         IReadOnlyDictionary<string, TickStartActorFact> tickStartFacts,
         BattleDynamicOccupancy occupancy,
@@ -540,6 +550,7 @@ internal sealed partial class BattleRuntimeTickResolver
         HashSet<string> navigationFailureDiagnostics,
         BattlePerformanceCounters performanceCounters)
     {
+        int movementEvents = 0;
         List<MoveCandidate> moveCandidates = new();
         foreach (TickContext context in contexts
                      .Where(item =>
@@ -575,7 +586,8 @@ internal sealed partial class BattleRuntimeTickResolver
                         navigationGraph,
                         battleId,
                         tick,
-                        navigationFailureDiagnostics))
+                        navigationFailureDiagnostics,
+                        performanceCounters))
                 {
                     context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "target_defeated_before_move");
                     continue;
@@ -596,7 +608,6 @@ internal sealed partial class BattleRuntimeTickResolver
         }
 
         BattleMovementReservationMap reservations = new();
-        HashSet<BattleGridCoord> releasedCells = new();
         foreach (MoveCandidate candidate in moveCandidates
                      .OrderBy(item => BattleActorFootprint.GetGap(
                          item.Context.ActorFact.Actor,
@@ -612,8 +623,9 @@ internal sealed partial class BattleRuntimeTickResolver
             BattleGridCoord selectedMove = candidate.To;
             foreach (BattleGridCoord move in candidate.OrderedMoves)
             {
-                if (!reservations.TryReserveMoveAllowingReleasedCells(candidate.Context.ActorFact.Actor, candidate.From, move, occupancy, releasedCells))
+                if (!reservations.TryReserveMove(candidate.Context.ActorFact.Actor, candidate.From, move, occupancy))
                 {
+                    performanceCounters?.RecordReservationRejected();
                     continue;
                 }
 
@@ -626,6 +638,7 @@ internal sealed partial class BattleRuntimeTickResolver
             {
                 candidate.Context.Result = BattleRuntimeAiActionResult.Failed(candidate.Context.Request, "reservation_rejected");
                 RecordAdvanceFailure(candidate.Context.ActorFact.Actor, "reservation_rejected");
+                performanceCounters?.RecordHoldDueReservation();
                 BattleRuntimeActorStateMachine.MarkHolding(candidate.Context.ActorFact.Actor, currentTimeSeconds);
                 LogAdvanceFailureDiagnostic(
                     battleId,
@@ -637,14 +650,6 @@ internal sealed partial class BattleRuntimeTickResolver
                     candidate.To,
                     navigationFailureDiagnostics);
                 continue;
-            }
-
-            // Front-to-back ordering lets a formation follow into cells that
-            // accepted movers are vacating in this tick, while reservations
-            // still reject duplicates and opposite-edge swaps.
-            foreach (BattleGridCoord cell in BattleActorFootprint.Enumerate(candidate.Context.ActorFact.Actor, candidate.From))
-            {
-                releasedCells.Add(cell);
             }
 
             candidate.Context.ActorFact.Actor.HasReservedGridCell = true;
@@ -674,8 +679,11 @@ internal sealed partial class BattleRuntimeTickResolver
                 ToGridY = selectedMove.Y,
                 ToGridHeight = selectedMove.Height
             });
-            performanceCounters?.RecordMovementEvent();
+            movementEvents++;
+            performanceCounters?.RecordMovementEvent(currentTimeSeconds);
         }
+
+        return movementEvents;
     }
 
     private bool TryRetargetStaleAdvanceContext(
@@ -685,7 +693,8 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleNavigationGraph navigationGraph,
         string battleId,
         int tick,
-        HashSet<string> navigationFailureDiagnostics)
+        HashSet<string> navigationFailureDiagnostics,
+        BattlePerformanceCounters performanceCounters)
     {
         if (context == null ||
             context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget ||
@@ -694,13 +703,14 @@ internal sealed partial class BattleRuntimeTickResolver
             return false;
         }
 
-        BattleFlowFieldCache flowFields = new();
+        BattleFlowFieldCache flowFields = new(performanceCounters);
         TickContext refreshed = BuildTickContext(
             context.ActorFact.Actor,
             tickStartFacts,
             navigationGraph,
             occupancy,
             flowFields,
+            performanceCounters,
             battleId,
             tick,
             navigationFailureDiagnostics);

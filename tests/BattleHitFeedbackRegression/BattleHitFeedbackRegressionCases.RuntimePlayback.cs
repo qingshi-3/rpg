@@ -1,4 +1,5 @@
 using Rpg.Runtime.Battle.Events;
+using Rpg.Presentation.Battle.Flow;
 
 internal static partial class BattleHitFeedbackRegressionCases
 {
@@ -49,7 +50,7 @@ internal static void BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary()
     string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
 
     AssertTrue(
-        runtime.Contains("ObserveRuntimeMovementEventAsync", StringComparison.Ordinal) &&
+        runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
         playback.Contains("returnToIdleOnComplete: false", StringComparison.Ordinal),
         "live movement observation should not close the move loop after every single runtime step");
 }
@@ -60,10 +61,10 @@ internal static void BattleRuntimeLiveMovementUsesActorMotionLane()
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
 
     AssertTrue(
-        runtime.Contains("ObserveRuntimeMovementEventAsync", StringComparison.Ordinal) &&
-        runtime.Contains("presentationState.TrackActorAction(\n                    runtimeEvent.ActorId", StringComparison.Ordinal) &&
-        runtime.Contains("await WaitSiteBattlePresentationSeconds(movementSeconds)", StringComparison.Ordinal),
-        "live movement should serialize same-actor visual steps so consecutive runtime movement events feed one actor motion lane");
+        runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
+        runtime.Contains("ObserveRuntimeMovementEvent(", StringComparison.Ordinal) &&
+        runtime.Contains("WaitSiteBattlePresentationSeconds", StringComparison.Ordinal),
+        "live movement should enqueue same-actor visual steps immediately while extending the actor motion tail");
     AssertTrue(
         runtime.Contains("_ = ObserveRuntimeEventsOnPresentationAsync", StringComparison.Ordinal),
         "same-actor movement serialization must not globally await presentation before advancing the runtime clock");
@@ -75,11 +76,99 @@ internal static void BattleRuntimeLiveMovementUsesActorMotionLane()
     AssertTrue(
         unitRoot.Contains("VisualMoveSmoothingSeconds", StringComparison.Ordinal) &&
         unitRoot.Contains("ResolveVisualMoveStepDurationSeconds", StringComparison.Ordinal),
-        "actor motion lanes should include a small presentation-only smoothing buffer so runtime spikes do not empty the visual lane");
+        "actor motion lanes should expose movement timing through one duration resolver so Runtime and visual clocks stay aligned");
     AssertTrue(
         !unitRoot.Contains("TweenMethod(Callable.From<float>(progress =>", StringComparison.Ordinal) &&
         !unitRoot.Contains("RecordBattleMovementTweenCreated", StringComparison.Ordinal),
         "live movement should not create one Godot tween per movement step");
+}
+
+internal static void BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits()
+{
+    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
+
+    AssertTrue(
+        runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
+        runtime.Contains("ObserveRuntimeMovementEvent(", StringComparison.Ordinal) &&
+        runtime.Contains("WaitSiteBattlePresentationSeconds", StringComparison.Ordinal),
+        "live movement events should enqueue into the motion lane immediately while still extending the actor visual tail");
+    AssertTrue(
+        !runtime.Contains("() => ObserveRuntimeMovementEventAsync", StringComparison.Ordinal),
+        "same-actor visual tail waiting must not delay enqueueing the next runtime movement event into the actor lane");
+}
+
+internal static void BattleRuntimeVisualMovementKeepsRuntimeActionDuration()
+{
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+
+    AssertTrue(
+        unitRoot.Contains("public double ResolveVisualMoveStepDurationSeconds", StringComparison.Ordinal) &&
+        unitRoot.Contains("return System.Math.Max(0.01, baseSeconds);", StringComparison.Ordinal),
+        "visual movement duration should stay equal to the Runtime action duration instead of accumulating smoothing time per step");
+    AssertTrue(
+        playback.Contains("return _unitRoot.ResolveVisualMoveStepDurationSeconds(runtimeEvent.ActionDurationSeconds);", StringComparison.Ordinal),
+        "movement observer should report the same duration that is used for the visual segment and actor tail");
+}
+
+internal static void BattlePresentationTimelineSeparatesMovementCompletionFromActionBacklog()
+{
+    BattlePresentationTimeline timeline = new();
+
+    BattlePresentationActionSpan targetAttack = timeline.ScheduleAttack(
+        actorId: "target",
+        targetId: "other",
+        observedAtSeconds: 0,
+        actionDurationSeconds: 1.2,
+        impactDelaySeconds: 0.66);
+    BattlePresentationActionSpan targetMove = timeline.ScheduleMovement(
+        actorId: "target",
+        observedAtSeconds: 0.1,
+        actionDurationSeconds: 0.27);
+    BattlePresentationActionSpan incoming = timeline.ScheduleAttack(
+        actorId: "attacker",
+        targetId: "target",
+        observedAtSeconds: 0.2,
+        actionDurationSeconds: 1.2,
+        impactDelaySeconds: 0.66);
+
+    AssertFloatEqual(0f, (float)targetAttack.StartSeconds, 0.0001f, "target attack starts at observed time");
+    AssertFloatEqual(0.1f, (float)targetMove.StartSeconds, 0.0001f, "movement visual starts when the movement event is observed");
+    AssertFloatEqual(0.37f, (float)targetMove.EndSeconds, 0.0001f, "movement completion should not be delayed behind target attack backlog");
+    AssertFloatEqual(0.37f, (float)incoming.StartSeconds, 0.0001f, "incoming hit presentation should wait target movement completion");
+}
+
+internal static void BattlePresentationTimelineWaitsTargetMovementButNotTargetAttackBacklog()
+{
+    BattlePresentationTimeline timeline = new();
+
+    timeline.ScheduleAttack(
+        actorId: "target",
+        targetId: "other",
+        observedAtSeconds: 0,
+        actionDurationSeconds: 1.2,
+        impactDelaySeconds: 0.66);
+    BattlePresentationActionSpan incomingWithoutMovement = timeline.ScheduleAttack(
+        actorId: "attacker",
+        targetId: "target",
+        observedAtSeconds: 0.2,
+        actionDurationSeconds: 1.2,
+        impactDelaySeconds: 0.66);
+
+    BattlePresentationTimeline movementTimeline = new();
+    movementTimeline.ScheduleMovement(
+        actorId: "target",
+        observedAtSeconds: 0,
+        actionDurationSeconds: 0.27);
+    BattlePresentationActionSpan incomingWithMovement = movementTimeline.ScheduleAttack(
+        actorId: "attacker",
+        targetId: "target",
+        observedAtSeconds: 0.2,
+        actionDurationSeconds: 1.2,
+        impactDelaySeconds: 0.66);
+
+    AssertFloatEqual(0.2f, (float)incomingWithoutMovement.StartSeconds, 0.0001f, "target attack backlog must not delay incoming damage presentation");
+    AssertFloatEqual(0.27f, (float)incomingWithMovement.StartSeconds, 0.0001f, "target movement completion should delay incoming damage presentation");
 }
 
 internal static void BattleRuntimeRegistersGodotPerformanceMonitors()
@@ -106,10 +195,31 @@ internal static void BattleRuntimeRegistersGodotPerformanceMonitors()
         "battle unit root should expose active movement tween count for the monitor");
     AssertTrue(
         monitorRegistry.Contains("Performance.AddCustomMonitor", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Performance.GetMonitor", StringComparison.Ordinal) &&
         monitorRegistry.Contains("Battle/RuntimeAdvanceMsLast", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/PresentationObserveMsLast", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/RuntimeAdvanceTickAtMax", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/FlowFieldBuildMsLast", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/FlowFieldBuildMsMax", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/CombatSlotScanMsLast", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/CombatSlotScanMsMax", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/TargetScoringMsLast", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/TargetScoringMsMax", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/MovementResolveMsLast", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/MovementResolveMsMax", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/MovementEventsLastAdvance", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/ReservationRejectedCount", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/ReservationRejectedLastAdvance", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/HoldDueReservationCount", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/ActorsReadyNoMoveLastAdvance", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Battle/MovementEventGapMsMax", StringComparison.Ordinal) &&
         monitorRegistry.Contains("Battle/MovementTweensInterrupted", StringComparison.Ordinal) &&
-        monitorRegistry.Contains("Battle/ActiveMovementTweens", StringComparison.Ordinal),
-        "battle monitor registry should expose battle movement and runtime counters to Godot Debugger > Monitors");
+        monitorRegistry.Contains("Battle/ActiveMovementTweens", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Godot/FrameMs", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Godot/DrawCalls", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Godot/Nodes", StringComparison.Ordinal) &&
+        monitorRegistry.Contains("Godot/StaticMemoryMiB", StringComparison.Ordinal),
+        "battle monitor registry should expose battle, presentation, and Godot engine counters to Godot Debugger > Monitors");
 }
 
 internal static void BattleRuntimePlaybackDelaysDamageUntilSameTickTargetMovementSettles()
@@ -119,10 +229,10 @@ internal static void BattleRuntimePlaybackDelaysDamageUntilSameTickTargetMovemen
         .OrderBy(path => path, StringComparer.Ordinal)
         .Select(File.ReadAllText));
     AssertTrue(
-        runtime.Contains("sameTickMovingActors", StringComparison.Ordinal) &&
-        runtime.Contains("sameTickMovementDelaySeconds", StringComparison.Ordinal) &&
-        runtime.Contains("ObserveRuntimeDamageEventAfterSameTickMovementAsync", StringComparison.Ordinal),
-        "live presentation should delay only dependent same-tick damage tasks instead of globally gating simulation ticks");
+        runtime.Contains("TrackActorDamage", StringComparison.Ordinal) &&
+        runtime.Contains("_actorMovementTails", StringComparison.Ordinal) &&
+        runtime.Contains("ObserveRuntimeDamageEventAsync", StringComparison.Ordinal),
+        "live presentation should delay dependent damage through actor and target movement tails instead of a same-tick duration heuristic");
 }
 
 internal static void BattleRuntimeLiveObservationWaitsForSameTickMovementBeforeDependentAttack()
@@ -132,10 +242,11 @@ internal static void BattleRuntimeLiveObservationWaitsForSameTickMovementBeforeD
         .OrderBy(path => path, StringComparer.Ordinal)
         .Select(File.ReadAllText));
     AssertTrue(
-        runtime.Contains("sameTickMovingActors", StringComparison.Ordinal) &&
+        runtime.Contains("TrackActorDamage", StringComparison.Ordinal) &&
+        runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
         !runtime.Contains("WaitForRuntimePlaybackDependenciesAsync", StringComparison.Ordinal) &&
         !runtime.Contains("BattleRuntimeActorLaneProgress", StringComparison.Ordinal),
-        "live presentation should rely on the simulation clock and same-tick movement delay, not old target-lane playback dependencies");
+        "live presentation should rely on the simulation clock and explicit presentation tails, not old target-lane playback dependencies");
 }
 
 internal static void RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAttackBacklog()
@@ -145,10 +256,10 @@ internal static void RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAtta
         .OrderBy(path => path, StringComparer.Ordinal)
         .Select(File.ReadAllText));
     AssertTrue(
-        runtime.Contains("runtimeEvent?.Kind == BattleEventKind.MovementCompleted", StringComparison.Ordinal) &&
-        runtime.Contains("ResolveSameTickMovementDelaySeconds", StringComparison.Ordinal) &&
+        runtime.Contains("_actorMovementTails.TryGetValue(targetId", StringComparison.Ordinal) &&
+        !runtime.Contains("ResolveSameTickMovementDelaySeconds", StringComparison.Ordinal) &&
         runtime.Contains("targetId", StringComparison.Ordinal),
-        "live damage delay should depend on same-tick movement, not old target attack backlog");
+        "live damage delay should depend on target movement tail, not target attack backlog");
 }
 
 internal static void RuntimePlaybackMovementPathUsesFootprintCenterResolver()

@@ -28,7 +28,8 @@ public partial class BattleUnitRoot : Node2D
     public double UnitMoveDuration { get; set; } = 0.28;
 
     [Export]
-    // Presentation-only buffer keeps the visual lane from emptying during small Runtime spikes.
+    // Historical tuning slot kept for scene compatibility. Runtime action seconds
+    // remain the visual movement clock so damage and attack feedback stay aligned.
     public double VisualMoveSmoothingSeconds { get; set; } = 0.06;
 
     [ExportGroup("Hit Feedback")]
@@ -844,8 +845,7 @@ public partial class BattleUnitRoot : Node2D
     public double ResolveVisualMoveStepDurationSeconds(double stepDurationSeconds)
     {
         double baseSeconds = stepDurationSeconds > 0 ? stepDurationSeconds : UnitMoveDuration;
-        double smoothingSeconds = System.Math.Clamp(VisualMoveSmoothingSeconds, 0, 0.12);
-        return System.Math.Max(0.01, baseSeconds + smoothingSeconds);
+        return System.Math.Max(0.01, baseSeconds);
     }
 
     private static bool IsEntityAlive(BattleEntity entity)

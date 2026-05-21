@@ -29,7 +29,7 @@ Map topology compilation owns static map interpretation:
 Runtime pathfinding owns live movement decisions:
 
 - reading immutable `BattleNavigationTopology` nodes and edges;
-- actor footprint static legality against topology nodes;
+- actor footprint static placement legality against topology nodes;
 - dynamic occupancy and same-tick reservations;
 - A* or equivalent next-step search;
 - low-noise runtime path failure diagnostics.
@@ -70,7 +70,6 @@ Legacy raw `NavigationSurfaces` and `NavigationConnections` may remain only as c
 - Dynamic living-unit occupancy is layered over topology: immediate next-cell occupancy and same-tick reservations are hard blockers, while future projected occupancy is soft route cost.
 - Runtime may evaluate several cells ahead, but it commits only one neighbor move per actor action.
 - Every actor state-machine movement decision boundary recalculates pathfinding from current actor, target, topology, footprint, occupancy, reservations, and command facts.
-- Ordinary assault keeps the acquired live target as runtime intent while recalculating the path from live positions. Target loss, invalidation, or explicit command rules may force reacquisition.
 - Default assault target choice is attack-opportunity first: when no explicit tactical AI override exists, retained targets and nearby support steps must not override a clearly faster route to a valid attack slot.
 - Actors cannot perform basic attacks while moving between cells.
 
@@ -80,17 +79,35 @@ Actors that are already in `Moving`, `AttackRecovery`, casting, interruption, or
 
 ## Footprint Legality
 
-- Candidate committed movement is valid only if every covered cell in the actor's next footprint is present in topology, unoccupied by other living actors, and unreserved.
+- The actor anchor is a compact position key. It is not enough for only the anchor cell to be walkable.
+- Static placement legality is footprint-aware: a candidate anchor is valid only if every covered cell in the actor's footprint is present in topology.
+- Runtime pathfinding may use an anchor graph, cached placement map, clearance map, or flow field, but that navigation data must be derived from full-footprint placement legality for the actor size.
+- Candidate committed movement is valid only if every covered cell in the actor's next footprint is present in topology, unreserved, and unoccupied by other living actors at tick start.
 - Occupancy and reservation are stored per covered cell.
+- Tick-start occupied covered cells remain hard blockers for immediate movement for the whole tick. A cell released by another actor's same-tick movement may be entered only after Runtime reaches a later decision boundary with updated occupancy.
 - Projected future route cells must be statically legal by footprint, but may include occupied cells as extra cost because those units may move before the actor reaches that part of the route.
 - Direct same-tick edge swaps are rejected.
 - Missing covered topology nodes make that anchor illegal even when the actor's anchor cell itself exists.
+- When a reservation rejects the preferred neighbor, Runtime may try lower-ranked legal movement candidates produced by the same footprint-aware decision before choosing to hold.
 
 ## Diagonal And Height Links
 
-For generated same-level diagonal movement, the diagonal target and the relevant orthogonal side anchors must be legal for the actor footprint. This prevents corner cutting through blocked or missing terrain.
+For generated same-level diagonal movement, the diagonal target and the relevant orthogonal side anchors must be legal for the actor footprint. This is the square-grid swept-footprint rule that prevents large or small units from cutting through blocked corners, missing terrain, water gaps, walls, or narrow diagonal slits.
 
 Authored height transitions are explicit topology edges. Runtime may use them when the compiled topology exposes them; Runtime must not infer height transitions from raw authoring nodes.
+
+## Attack Slots
+
+Runtime movement toward an enemy does not path to the enemy anchor. It paths toward a valid attack slot.
+
+A valid basic-attack slot is an attacker anchor that satisfies all of these facts:
+
+- the attacker footprint can legally stand on that anchor;
+- the attacker footprint does not overlap the target footprint;
+- the shortest square-grid distance from attacker footprint to target footprint is within the attack range;
+- dynamic occupancy and same-tick reservation rules allow the committed next movement when moving toward that slot.
+
+Large targets naturally expose more potential attack slots than `1x1` targets. This is an intended body-size rule: a larger unit is more exposed to being surrounded by smaller units, while its own footprint may make movement through tight terrain harder.
 
 ## Path Invalidation
 

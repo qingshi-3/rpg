@@ -72,11 +72,15 @@ Run("runtime many allies converge on single holdline enemy without overlap", Tar
 Run("runtime many enemies converge on single holdline defender without overlap", TargetBattleMultiUnitNavigationRegressionCases.RuntimeManyEnemiesConvergeOnSingleHoldlineDefenderWithoutOverlap);
 Run("runtime many vs many open field closes without illegal positions", TargetBattleMultiUnitNavigationRegressionCases.RuntimeManyVsManyOpenFieldClosesWithoutIllegalPositions);
 Run("runtime four versus four battle does not timeout while both sides live", TargetBattleMultiUnitNavigationRegressionCases.RuntimeFourVersusFourBattleDoesNotTimeoutWhileBothSidesLive);
-Run("runtime same-lane crowd advances as chain in one tick", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSameLaneCrowdAdvancesAsChainInOneTick);
-Run("runtime support queue advances chain behind engaged frontline", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportQueueAdvancesChainBehindEngagedFrontline);
+Run("runtime same-lane crowd blocks same-tick chain follow", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSameLaneCrowdBlocksSameTickChainFollow);
+Run("runtime support queue blocks same-tick chain behind engaged frontline", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportQueueBlocksSameTickChainBehindEngagedFrontline);
+Run("runtime same-tick follow cannot enter released footprint", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSameTickFollowCannotEnterReleasedFootprint);
+Run("runtime smaller units can surround large target attack slots", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSmallerUnitsCanSurroundLargeTargetAttackSlots);
+Run("runtime support below vertical engagement flanks to open attack slot", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportBelowVerticalEngagementFlanksToOpenAttackSlot);
 Run("runtime support unit continues into diagonal attack range against engaged target", TargetBattleMultiUnitNavigationRegressionCases.RuntimeSupportUnitContinuesIntoDiagonalAttackRangeAgainstEngagedTarget);
+Run("runtime target choice uses reachable footprint attack slots", TargetBattleMovementIntentRegressionCases.RuntimeTargetChoiceUsesReachableFootprintAttackSlots);
 Run("runtime performance counters separate navigation and logging costs", TargetBattlePerformanceRegressionCases.RuntimePerformanceCountersSeparateNavigationAndLoggingCosts);
-Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology);
+Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology); Run("runtime spike diagnostics write automatic summary", TargetBattlePerformanceRegressionCases.RuntimeSpikeDiagnosticsWriteAutomaticSummary);
 Run("high-frequency battle presentation logs use trace channel", TargetBattlePerformanceRegressionCases.HighFrequencyBattlePresentationLogsUseTraceChannel);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
@@ -97,7 +101,6 @@ Run("legacy result adapter copies runtime survival into force results", LegacyRe
 Run("legacy result adapter maps failed handoff to disaster", LegacyResultAdapterMapsFailedHandoffToDisaster);
 Run("battle group vertical slice settles and reports from runtime facts", BattleGroupVerticalSliceSettlesAndReports);
 Run("mixed valid and missing hero handoff rejects settlement and normal report", MixedValidAndMissingHeroHandoffRejectsSettlementAndNormalReport);
-
 static void CorpsStrengthClampsAndVisibleSoldiersAreDerived()
 {
     CorpsState corps = new() { CorpsId = "corps_1", CorpsDefinitionId = "shield", CorpsStrength = 140 };
@@ -130,7 +133,6 @@ static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
 {
     string root = ProjectRoot();
     var allowedOversized = new HashSet<string>(StringComparer.Ordinal);
-
     List<string> oversized = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
         .Where(path => !IsIgnoredCodePath(root, path))
         .Select(path => new
@@ -141,7 +143,6 @@ static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
         .Where(item => item.LineCount > 1000)
         .Select(item => $"{item.RelativePath}:{item.LineCount}")
         .ToList();
-
     List<string> unexpected = oversized
         .Where(item => !allowedOversized.Contains(item.Split(':')[0]))
         .ToList();
@@ -176,7 +177,6 @@ static void RuntimeOwnsStableInMemoryActorState()
     };
 
     BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
-
     AssertTrue(result.Outcome.IsComplete, "valid snapshot should complete minimal runtime");
     AssertEqual("snapshot_1", result.FinalState.SnapshotId, "runtime state snapshot id");
     AssertEqual(2, result.FinalState.Actors.Count, "one battle group should create hero and corps runtime actors");

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Rpg.Infrastructure.Diagnostics;
 
@@ -17,6 +18,7 @@ internal static class BattleCombatSlotAllocator
             return System.Array.Empty<BattleCombatSlot>();
         }
 
+        long startedAt = Stopwatch.GetTimestamp();
         int attackRange = System.Math.Max(1, actor.AttackRange);
         BattleGridCoord targetAnchor = new(target.GridX, target.GridY, target.GridHeight);
         List<BattleCombatSlot> slots = new();
@@ -47,7 +49,7 @@ internal static class BattleCombatSlotAllocator
             }
         }
 
-        performanceCounters?.RecordCombatSlotScan(scannedAnchors);
+        performanceCounters?.RecordCombatSlotScan(scannedAnchors, Stopwatch.GetTimestamp() - startedAt);
         return slots
             .OrderBy(item => item.Kind)
             .ThenBy(item => item.Priority)

@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.Navigation;
 
 namespace Rpg.Runtime.Battle;
@@ -13,14 +15,15 @@ internal sealed partial class BattleRuntimeTickResolver
         TickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields)
+        BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters)
     {
         if (IsFocusFireCommand(actorFact.CommandId))
         {
             return FindLowestHealthEnemyCorps(facts, actorFact);
         }
 
-        return FindFastestAttackOpportunityEnemyCorps(facts, actorFact, navigationGraph, occupancy, flowFields) ??
+        return FindFastestAttackOpportunityEnemyCorps(facts, actorFact, navigationGraph, occupancy, flowFields, performanceCounters) ??
                FindRetainedEnemyCorps(facts, actorFact) ??
                FindNearestEnemyCorps(facts, actorFact);
     }
@@ -73,35 +76,45 @@ internal sealed partial class BattleRuntimeTickResolver
         TickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields)
+        BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters)
     {
+        long startedAt = Stopwatch.GetTimestamp();
         TickStartActorFact? retained = FindRetainedEnemyCorps(facts, actorFact);
         TickStartActorFact? selected = null;
         AssaultTargetScore selectedScore = default;
-        foreach (TickStartActorFact candidate in facts.Values)
+        try
         {
-            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
-                GetCurrentHitPoints(candidate) <= 0 ||
-                SameFaction(candidate.Actor, actorFact.Actor))
+            foreach (TickStartActorFact candidate in facts.Values)
             {
-                continue;
+                if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
+                    GetCurrentHitPoints(candidate) <= 0 ||
+                    SameFaction(candidate.Actor, actorFact.Actor))
+                {
+                    continue;
+                }
+
+                AssaultTargetScore score = ScoreAssaultTarget(
+                    actorFact,
+                    candidate,
+                    retained?.Actor.ActorId ?? "",
+                    navigationGraph,
+                    occupancy,
+                    flowFields,
+                    performanceCounters);
+                if (selected == null || IsBetterAssaultTarget(score, selectedScore))
+                {
+                    selected = candidate;
+                    selectedScore = score;
+                }
             }
 
-            AssaultTargetScore score = ScoreAssaultTarget(
-                actorFact,
-                candidate,
-                retained?.Actor.ActorId ?? "",
-                navigationGraph,
-                occupancy,
-                flowFields);
-            if (selected == null || IsBetterAssaultTarget(score, selectedScore))
-            {
-                selected = candidate;
-                selectedScore = score;
-            }
+            return selected;
         }
-
-        return selected;
+        finally
+        {
+            performanceCounters?.RecordTargetScoringElapsedTicks(Stopwatch.GetTimestamp() - startedAt);
+        }
     }
 
     private static AssaultTargetScore ScoreAssaultTarget(
@@ -110,7 +123,8 @@ internal sealed partial class BattleRuntimeTickResolver
         string retainedTargetId,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields)
+        BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters)
     {
         int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
         int gap = GetSquareGridDistance(actorFact, targetFact);
@@ -123,6 +137,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 navigationGraph,
                 occupancy,
                 flowFields,
+                performanceCounters,
                 gap);
         int retainedPriority = string.Equals(targetFact.Actor.ActorId, retainedTargetId, System.StringComparison.Ordinal)
             ? 0
@@ -137,6 +152,7 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters,
         int fallbackGap)
     {
         if (actor == null || target == null || navigationGraph == null)
@@ -145,15 +161,13 @@ internal sealed partial class BattleRuntimeTickResolver
         }
 
         BattleFlowField field = (flowFields ?? new BattleFlowFieldCache()).GetOrBuild(actor, target, navigationGraph, preferSupportSlots: false);
+        field = BattleFlowFieldBuilder.PreferOpenAttackSlots(actor, navigationGraph, occupancy, field, performanceCounters);
         if (!field.TryGetCost(actorAnchor, out int cost))
         {
             return 100000 + fallbackGap;
         }
 
-        bool hasOpenAttackSlot = field.GoalSlots
-            .Any(slot =>
-                slot.Kind == BattleCombatSlotKind.Attack &&
-                (occupancy?.CountOtherOccupiedCells(actor, slot.Anchor) ?? 0) == 0);
+        bool hasOpenAttackSlot = field.GoalSlots.Any(slot => slot.Kind == BattleCombatSlotKind.Attack);
         return hasOpenAttackSlot ? cost : cost + 5000;
     }
 
@@ -163,7 +177,8 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleGridCoord actorAnchor,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields)
+        BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters)
     {
         return ResolveAttackOpportunityTravelCost(
             actor,
@@ -172,6 +187,7 @@ internal sealed partial class BattleRuntimeTickResolver
             navigationGraph,
             occupancy,
             flowFields,
+            performanceCounters,
             fallbackGap: 0) < 5000;
     }
 

@@ -221,7 +221,15 @@ public sealed class BattleRuntimeSession
                 navigationGraph,
                 navigationFailureDiagnostics,
                 _performanceCounters);
-            _performanceCounters?.RecordRuntimeAdvanceElapsedTicks(Stopwatch.GetTimestamp() - resolveStartedAt);
+            long resolveElapsedTicks = Stopwatch.GetTimestamp() - resolveStartedAt;
+            bool isNewMaximum = _performanceCounters?.RecordRuntimeAdvanceElapsedTicks(resolveElapsedTicks, tick) == true;
+            BattleRuntimeSpikeDiagnostics.LogIfNeeded(
+                battleId,
+                tick,
+                currentTimeSeconds,
+                resolveElapsedTicks,
+                isNewMaximum,
+                _performanceCounters);
         }
 
         return BattleTerminationReason.RuntimeException;
