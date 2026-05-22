@@ -6,7 +6,7 @@ Created: 2026-05-21
 Originating Design Proposal: None
 Related Implementation Proposals:
 - `gameplay-alignment/implementation-proposals/2026-05-21-battle-movement-performance.md`
-- `gameplay-alignment/implementation-proposals/2026-05-21-battle-live-movement-queueing.md`
+- `gameplay-alignment/implementation-proposals/archived/2026-05-21-battle-live-movement-queueing.md`
 
 Authority Documents:
 - `system-design/battle-runtime-architecture.md`

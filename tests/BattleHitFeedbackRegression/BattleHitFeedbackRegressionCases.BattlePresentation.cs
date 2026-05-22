@@ -393,6 +393,36 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
         "command selection should reuse the authored unit selection shader instead of adding a separate hardcoded shader path.");
 }
 
+internal static void DeploymentZonesUseDedicatedOverlayShader()
+{
+    string shaderPath = Path.Combine("assets", "battle", "shaders", "deployment_zone_highlight.gdshader");
+    string deploymentOverlayPath = Path.Combine("src", "Presentation", "Battle", "BattleDeploymentZoneOverlay.cs");
+    string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+    string tileLayerRenderer = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Highlights", "BattleGridHighlightTileLayerRenderer.cs"));
+
+    AssertTrue(File.Exists(deploymentOverlayPath), "deployment zones should have a dedicated presentation overlay.");
+    AssertTrue(File.Exists(shaderPath), "deployment zones should use an authored canvas_item shader resource.");
+
+    string deploymentOverlay = File.ReadAllText(deploymentOverlayPath);
+    string shader = File.ReadAllText(shaderPath);
+    AssertTrue(
+        shader.Contains("shader_type canvas_item;", StringComparison.Ordinal) &&
+        shader.Contains("uniform float pulse_speed", StringComparison.Ordinal) &&
+        shader.Contains("uniform float pulse_strength", StringComparison.Ordinal) &&
+        shader.Contains("TIME", StringComparison.Ordinal),
+        "deployment zone shader should own time-based pulse for the dedicated overlay.");
+    AssertTrue(
+        deploymentOverlay.Contains("DeploymentZoneShaderPath", StringComparison.Ordinal) &&
+        deploymentOverlay.Contains("SetZones", StringComparison.Ordinal) &&
+        deploymentOverlay.Contains("DrawDeploymentZone", StringComparison.Ordinal),
+        "deployment-zone overlay should own the shader binding and zone drawing.");
+    AssertTrue(
+        !overlay.Contains("DeploymentZoneShaderPath", StringComparison.Ordinal) &&
+        !overlay.Contains("BuildDeploymentZoneMaterial", StringComparison.Ordinal) &&
+        !tileLayerRenderer.Contains("resolveMaterial", StringComparison.Ordinal),
+        "generic grid highlight tile layers must not own deployment-zone shader materials.");
+}
+
 internal static void RealtimeDamageReactionDoesNotPlayHitAnimation()
 {
     string damageReaction = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "DamageReactionComponent.cs"));

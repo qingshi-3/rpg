@@ -76,6 +76,7 @@ BattleHitFeedbackRegressionCases.Run("battle runtime live clock does not use loo
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation does not await movement or attack durations", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationDoesNotAwaitMovementOrAttackDurations);
 BattleHitFeedbackRegressionCases.Run("battle runtime presentation pause waits without tree pause", BattleHitFeedbackRegressionCases.BattleRuntimePresentationPauseWaitsWithoutTreePause);
 BattleHitFeedbackRegressionCases.Run("battle unit command selection uses unit outline shader", BattleHitFeedbackRegressionCases.BattleUnitCommandSelectionUsesUnitOutlineShader);
+BattleHitFeedbackRegressionCases.Run("deployment zones use dedicated overlay shader", BattleHitFeedbackRegressionCases.DeploymentZonesUseDedicatedOverlayShader);
 BattleHitFeedbackRegressionCases.Run("realtime damage reaction does not play hit animation", BattleHitFeedbackRegressionCases.RealtimeDamageReactionDoesNotPlayHitAnimation);
 BattleHitFeedbackRegressionCases.Run("unit attack speed is bound to runtime and attack animation speed", BattleHitFeedbackRegressionCases.UnitAttackSpeedContract);
 BattleHitFeedbackRegressionCases.Run("unit combat stats are bound into runtime snapshots", BattleHitFeedbackRegressionCases.UnitCombatStatsSnapshotContract);

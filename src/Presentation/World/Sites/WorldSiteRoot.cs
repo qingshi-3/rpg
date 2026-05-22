@@ -48,6 +48,9 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	public NodePath HighlightOverlayPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/OverlayRoot/GridHighlightOverlay");
 
 	[Export]
+	public NodePath DeploymentZoneOverlayPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/OverlayRoot/DeploymentZoneOverlay");
+
+	[Export]
 	public NodePath SelectionVignetteOverlayPath { get; set; } = new("CanvasLayer/SelectionVignetteOverlay");
 
 	[Export]
@@ -67,6 +70,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattleGridMap _activeGridMap;
 	private BattleMapLayer _coordinateLayer;
 	private BattleGridHighlightOverlay _highlightOverlay;
+	private BattleDeploymentZoneOverlay _deploymentZoneOverlay;
 	private BattleSelectionVignetteOverlay _selectionVignetteOverlay;
 	private BattleCameraController _battleCamera;
 	private Control _siteHudRoot;
@@ -177,6 +181,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		_mapRoot = GetNode<Node>(MapRootPath);
 		_unitRoot = GetNodeOrNull<BattleUnitRoot>(UnitRootPath);
 		_highlightOverlay = GetNodeOrNull<BattleGridHighlightOverlay>(HighlightOverlayPath);
+		_deploymentZoneOverlay = GetNodeOrNull<BattleDeploymentZoneOverlay>(DeploymentZoneOverlayPath);
 		_selectionVignetteOverlay = GetNodeOrNull<BattleSelectionVignetteOverlay>(SelectionVignetteOverlayPath);
 		_battleCamera = GetNodeOrNull<BattleCameraController>(BattleCameraPath);
 		GetViewport().SizeChanged += OnViewportSizeChanged;

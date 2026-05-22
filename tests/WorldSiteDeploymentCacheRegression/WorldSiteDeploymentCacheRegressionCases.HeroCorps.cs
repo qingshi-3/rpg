@@ -222,8 +222,8 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         "battle preparation should keep enemy and player preview entities indexed from prepared placements");
     AssertTrue(
         rootSource.Contains("ShowBattlePreparationDeploymentZone", StringComparison.Ordinal) &&
-        rootSource.Contains("BattleGridHighlightKind.FriendlyMove", StringComparison.Ordinal),
-        "battle preparation should highlight the player deployment zone");
+        rootSource.Contains("_deploymentZoneOverlay?.SetZones", StringComparison.Ordinal),
+        "battle preparation should show player deployment through the dedicated deployment-zone overlay");
     AssertTrue(
         rootSource.Contains("ActivateBattleRuntime();", StringComparison.Ordinal),
         "start battle should still commit into the existing runtime after preparation");

@@ -176,6 +176,7 @@ internal static void DemoSiteDeploymentZonesAreAuthoredAsSemanticMarkers()
 internal static void BattlePreparationShowsBothFactionDeploymentZones()
 {
     string source = ReadWorldSiteRootSource();
+    string scene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "world", "sites", "WorldSiteRoot.tscn"));
     string showBody = ExtractMethodBody(source, "private void ShowBattlePreparationDeploymentZone()");
     string activateBody = ExtractMethodBody(source, "private bool ActivateBattleRuntime()");
 
@@ -186,14 +187,19 @@ internal static void BattlePreparationShowsBothFactionDeploymentZones()
         showBody.Contains("ResolveBattlePreparationEnemyDeploymentFactionId", StringComparison.Ordinal),
         "battle preparation should also resolve the enemy deployment zone");
     AssertTrue(
-        showBody.Contains("BattleGridHighlightKind.FriendlyMove", StringComparison.Ordinal),
-        "player deployment zone should keep the friendly deployment highlight");
+        showBody.Contains("_deploymentZoneOverlay?.SetZones(playerCells, enemyCells)", StringComparison.Ordinal),
+        "battle preparation deployment zones should be presented by the dedicated deployment-zone overlay");
     AssertTrue(
-        showBody.Contains("BattleGridHighlightKind.EnemyDeployment", StringComparison.Ordinal),
-        "enemy deployment zone should be visible with a square deployment highlight, not threat telegraphing");
+        !showBody.Contains("BattleGridHighlightKind.FriendlyMove", StringComparison.Ordinal) &&
+        !showBody.Contains("BattleGridHighlightKind.EnemyDeployment", StringComparison.Ordinal),
+        "deployment zones must not be routed through generic movement or enemy-deployment grid highlights");
     AssertTrue(
-        activateBody.Contains("ClearCells(BattleGridHighlightKind.EnemyDeployment)", StringComparison.Ordinal),
-        "enemy deployment highlight should be cleared when battle runtime starts");
+        scene.Contains("BattleDeploymentZoneOverlay.cs", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"DeploymentZoneOverlay\" type=\"Node2D\" parent=\"MainWorldViewportHost/MainWorldViewport/OverlayRoot\"]", StringComparison.Ordinal),
+        "WorldSiteRoot scene should author a dedicated deployment-zone overlay node beside the generic grid highlight overlay");
+    AssertTrue(
+        activateBody.Contains("_deploymentZoneOverlay?.ClearZones()", StringComparison.Ordinal),
+        "dedicated deployment-zone overlay should be cleared when battle runtime starts");
 }
 
 internal static void BattlePreparationUsesDeploymentSideMarkersInsteadOfMarkerNames()

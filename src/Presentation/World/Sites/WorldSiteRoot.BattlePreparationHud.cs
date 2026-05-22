@@ -119,7 +119,6 @@ public partial class WorldSiteRoot
             playerSide,
             playerFactionId,
             ResolveBattlePreparationDeploymentDirection(playerSide, playerFactionId));
-        _highlightOverlay?.SetCells(BattleGridHighlightKind.FriendlyMove, playerCells);
 
         string enemyFactionId = ResolveBattlePreparationEnemyDeploymentFactionId();
         SemanticDeploymentSide enemySide = SemanticDeploymentSide.Enemy;
@@ -129,7 +128,8 @@ public partial class WorldSiteRoot
                 enemyFactionId,
                 ResolveBattlePreparationDeploymentDirection(enemySide, enemyFactionId))
             : System.Array.Empty<GridPosition>();
-        _highlightOverlay?.SetCells(BattleGridHighlightKind.EnemyDeployment, enemyCells);
+        // Deployment zones are semantic preparation regions, not generic movement or attack range highlights.
+        _deploymentZoneOverlay?.SetZones(playerCells, enemyCells);
     }
 
     private IEnumerable<GridPosition> BuildBattlePreparationDeploymentZoneCells(

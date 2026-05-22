@@ -55,8 +55,7 @@ public partial class WorldSiteRoot
 
     private bool ActivateBattleRuntime()
     {
-        _highlightOverlay?.ClearCells(BattleGridHighlightKind.FriendlyMove);
-        _highlightOverlay?.ClearCells(BattleGridHighlightKind.EnemyDeployment);
+        _deploymentZoneOverlay?.ClearZones();
         if (!string.IsNullOrWhiteSpace(_battleStartBlockedReason))
         {
             GameLog.Warn(nameof(WorldSiteRoot), $"Battle runtime activation blocked reason={_battleStartBlockedReason}");
