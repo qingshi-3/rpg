@@ -41,6 +41,12 @@ internal static class TargetBattlePerformanceRegressionCases
             AssertTrue(
                 GetCounterValue(counters, "OpenAttackFlowFieldBuildCount") < GetCounterValue(counters, "OpenAttackFlowFieldRequestCount"),
                 "open attack-slot flow-field cache should reduce duplicate integration field builds");
+            AssertTrue(
+                counters.FlowFieldBuildCount * 2 <= counters.DecisionReadyActorCount,
+                $"moving actors should retain targets instead of full target rescoring at every movement boundary: decisionActors={counters.DecisionReadyActorCount} flowBuilds={counters.FlowFieldBuildCount}");
+            AssertTrue(
+                counters.CombatSlotScanCount * 2 <= counters.DecisionReadyActorCount,
+                $"movement target acquisition should stay bounded below per-decision full rescans: decisionActors={counters.DecisionReadyActorCount} slotScans={counters.CombatSlotScanCount}");
             AssertTrue(GetCounterValue(counters, "MovementEventsLastAdvance") >= 0, "last advance movement event count should be exposed");
             AssertTrue(GetCounterValue(counters, "ReservationRejectedCount") >= 0, "reservation rejection count should be exposed");
             AssertTrue(GetCounterValue(counters, "ReservationRejectedLastAdvance") >= 0, "last advance reservation rejection count should be exposed");
@@ -133,12 +139,17 @@ internal static class TargetBattlePerformanceRegressionCases
                 log.Contains("BattleRuntimeSpike battle=battle_runtime_spike_diagnostics", StringComparison.Ordinal) &&
                 log.Contains("targetScoringMs=", StringComparison.Ordinal) &&
                 log.Contains("flowFieldBuildMs=", StringComparison.Ordinal) &&
+                log.Contains("flowFieldBuilds=", StringComparison.Ordinal) &&
+                log.Contains("flowFieldHits=", StringComparison.Ordinal) &&
+                log.Contains("flowFieldMisses=", StringComparison.Ordinal) &&
                 log.Contains("openAttackFlowFieldRequests=", StringComparison.Ordinal) &&
                 log.Contains("openAttackFlowFieldCacheHits=", StringComparison.Ordinal) &&
                 log.Contains("openAttackFlowFieldBuilds=", StringComparison.Ordinal) &&
                 log.Contains("combatSlotScanMs=", StringComparison.Ordinal) &&
                 log.Contains("movementResolveMs=", StringComparison.Ordinal) &&
                 log.Contains("movementEvents=", StringComparison.Ordinal) &&
+                log.Contains("presentationObserveMsMax=", StringComparison.Ordinal) &&
+                log.Contains("logWriteMsMax=", StringComparison.Ordinal) &&
                 log.Contains("reservationRejected=", StringComparison.Ordinal) &&
                 log.Contains("actorsReadyNoMove=", StringComparison.Ordinal),
                 "runtime spike diagnostics should write one self-contained summary instead of requiring manual monitor reading");

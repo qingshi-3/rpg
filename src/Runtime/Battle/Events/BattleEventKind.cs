@@ -9,5 +9,6 @@ public enum BattleEventKind
     MovementCompleted = 4,
     DamageApplied = 5,
     CorpsStrengthChanged = 6,
-    BattleEnded = 7
+    BattleEnded = 7,
+    MovementStarted = 8
 }

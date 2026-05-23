@@ -68,26 +68,14 @@ Legacy raw `NavigationSurfaces` and `NavigationConnections` may remain only as c
 - First implementation uses 8-neighbor movement unless topology data forbids diagonal transitions.
 - Occupancy and reservation prevent multiple living actors from owning the same committed cell.
 - Dynamic living-unit occupancy is layered over topology: immediate next-cell occupancy and same-tick reservations are hard blockers, while future projected occupancy is soft route cost.
-- Runtime may evaluate several cells ahead, but it commits movement across neighboring cells only through Runtime-owned movement progress, occupancy, and reservation boundaries.
-- Every actor state-machine movement decision boundary validates pathfinding from current actor, retained target, topology, footprint, occupancy, reservations, and command facts.
-- Default assault target acquisition is attack-opportunity first only when the actor has no live retained target or has an immediate attack opportunity. A moving actor retains a live target while marching so each movement boundary does not rescore every enemy and rebuild flow fields.
-- Retained targets must be dropped when they die, become invalid, or a command/runtime interrupt explicitly changes targeting. Immediate valid attack opportunities may still interrupt a retained far target so units do not walk past an enemy already in range.
+- Runtime may evaluate several cells ahead, but it commits only one neighbor move per actor action.
+- Every actor state-machine movement decision boundary recalculates pathfinding from current actor, target, topology, footprint, occupancy, reservations, and command facts.
+- Default assault target choice is attack-opportunity first: when no explicit tactical AI override exists, retained targets and nearby support steps must not override a clearly faster route to a valid attack slot.
 - Actors cannot perform basic attacks while moving between cells.
 
-Runtime replanning is a simulation concern, not a render-frame concern. Fixed simulation ticks may advance an actor's existing movement, attack, or recovery phase without creating a new path query. Godot `_Process`, animation frames, or Presentation playback must not call pathfinding to create new combat truth.
+Runtime replanning is a simulation concern, not a render-frame concern. A simulation tick may advance an actor's existing movement, attack, or recovery phase without creating a new path query. Godot `_Process`, animation frames, or Presentation playback must not call pathfinding to create new combat truth.
 
-Actors that are already in `Moving`, `AttackRecovery`, casting, interruption, or another non-decision phase do not replan just because another render frame elapsed. Moving actors may refresh the next legal neighbor at Runtime movement-continuation boundaries; attack recovery, casting, interruption, and other locked phases replan only when the Runtime state machine reaches the next valid anchored decision boundary or when a valid interrupt explicitly cancels the current action.
-
-## Continuous Movement And Flow Fields
-
-Mature RTS movement is a continuous runtime state over discrete navigation authority.
-
-- Flow fields, cached placement maps, and attack-slot fields provide movement direction or next-anchor ranking for groups of actors with compatible goals.
-- Runtime actors move by speed over fixed simulation ticks, not by treating each cell transition as a complete independent action.
-- Target acquisition and movement pathing are separate costs: target acquisition should be sticky and low-frequency, while movement continuation validates the retained target's next legal neighbor at runtime boundaries.
-- Cell occupancy remains authoritative at committed cell boundaries. Reservations protect immediate continuation targets and prevent same-tick overlap or direct edge swaps.
-- Runtime may continue a moving actor through multiple adjacent cells over time while still validating each cell boundary against topology, footprint, occupancy, reservations, target state, and command facts.
-- Presentation may interpolate between the last committed anchor and the current runtime movement target. It must not compute alternative paths, bypass reservations, or move an actor into visual attack range without Runtime facts.
+Actors that are already in `Moving`, `AttackRecovery`, casting, interruption, or another non-decision phase do not replan just because another tick elapsed. They replan when the Runtime state machine reaches the next valid anchored decision boundary or when a valid interrupt explicitly cancels the current action.
 
 ## Footprint Legality
 

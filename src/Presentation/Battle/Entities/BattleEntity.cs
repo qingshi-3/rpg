@@ -28,7 +28,7 @@ public partial class BattleEntity : Area2D
     {
         InputPickable = false;
         RegisterComponents();
-        GameLog.Info(nameof(BattleEntity), $"Ready id={EntityId} name={DisplayName} components={_components.Count} inputPickable={InputPickable}");
+        GameLog.Trace(nameof(BattleEntity), $"Ready id={EntityId} name={DisplayName} components={_components.Count} inputPickable={InputPickable}");
     }
 
     public override void _Draw()
@@ -87,7 +87,7 @@ public partial class BattleEntity : Area2D
 
             _components[component.GetType()] = component;
             component.AttachTo(this);
-            GameLog.Info(nameof(BattleEntity), $"Registered component entity={EntityId} component={component.GetType().Name}");
+            GameLog.Trace(nameof(BattleEntity), $"Registered component entity={EntityId} component={component.GetType().Name}");
         }
     }
 }

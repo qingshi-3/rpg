@@ -4,6 +4,7 @@ public static class BattleActionTimingPolicy
 {
     public const double MinActionSeconds = 0.05;
     public const double MaxActionSeconds = 10.0;
+    public const double DefaultSimulationTickSeconds = 0.04;
     public const double DefaultMoveStepSeconds = 0.16;
     public const double DefaultAttackActionSeconds = 1.2;
     public const double DefaultAttackImpactNormalizedTime = 0.55;

@@ -23,8 +23,14 @@ internal sealed partial class BattleRuntimeTickResolver
             return FindLowestHealthEnemyCorps(facts, actorFact);
         }
 
-        return FindFastestAttackOpportunityEnemyCorps(facts, actorFact, navigationGraph, occupancy, flowFields, performanceCounters) ??
+        // Mature RTS movement keeps target acquisition sticky while units are
+        // marching. Full attack-opportunity scoring builds flow fields, so doing
+        // it every movement step turns pathing into visible frame spikes. Units
+        // still snap to immediate melee opportunities and fully score when they
+        // do not yet have a live target.
+        return FindImmediateAttackOpportunityEnemyCorps(facts, actorFact) ??
                FindRetainedEnemyCorps(facts, actorFact) ??
+               FindFastestAttackOpportunityEnemyCorps(facts, actorFact, navigationGraph, occupancy, flowFields, performanceCounters) ??
                FindNearestEnemyCorps(facts, actorFact);
     }
 
@@ -41,6 +47,46 @@ internal sealed partial class BattleRuntimeTickResolver
         return GetCurrentHitPoints(retained) > 0 && !SameFaction(actorFact.Actor, retained.Actor)
             ? retained
             : null;
+    }
+
+    private static TickStartActorFact? FindImmediateAttackOpportunityEnemyCorps(
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        TickStartActorFact actorFact)
+    {
+        TickStartActorFact? selected = null;
+        int selectedGap = int.MaxValue;
+        int selectedHitPoints = int.MaxValue;
+        int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
+
+        foreach (TickStartActorFact candidate in facts.Values)
+        {
+            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
+                GetCurrentHitPoints(candidate) <= 0 ||
+                SameFaction(candidate.Actor, actorFact.Actor))
+            {
+                continue;
+            }
+
+            int gap = GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
+            if (gap > attackRange)
+            {
+                continue;
+            }
+
+            int hitPoints = GetCurrentHitPoints(candidate);
+            if (selected == null ||
+                gap < selectedGap ||
+                gap == selectedGap && hitPoints < selectedHitPoints ||
+                gap == selectedGap && hitPoints == selectedHitPoints &&
+                string.CompareOrdinal(candidate.Actor.ActorId, selected.Value.Actor.ActorId) < 0)
+            {
+                selected = candidate;
+                selectedGap = gap;
+                selectedHitPoints = hitPoints;
+            }
+        }
+
+        return selected;
     }
 
     private static TickStartActorFact? FindNearestEnemyCorps(

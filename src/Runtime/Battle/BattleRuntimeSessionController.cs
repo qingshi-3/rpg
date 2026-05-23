@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Rpg.Application.Battle;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
@@ -61,7 +62,22 @@ public sealed class BattleRuntimeSessionController
     public BattleOutcomeResult Outcome { get; private set; }
     public double CurrentTimeSeconds { get; private set; }
 
+    public BattleRuntimeAdvanceResult AdvanceFixedTick(double fixedDeltaSeconds = BattleActionTimingPolicy.DefaultSimulationTickSeconds)
+    {
+        double deltaSeconds = double.IsNaN(fixedDeltaSeconds) ||
+                              double.IsInfinity(fixedDeltaSeconds) ||
+                              fixedDeltaSeconds <= 0
+            ? BattleActionTimingPolicy.DefaultSimulationTickSeconds
+            : System.Math.Clamp(fixedDeltaSeconds, 0.001, BattleActionTimingPolicy.MaxActionSeconds);
+        return AdvanceNextTickCore(deltaSeconds, advanceToNextReadyActorTime: false);
+    }
+
     public BattleRuntimeAdvanceResult AdvanceNextTick()
+    {
+        return AdvanceNextTickCore(0, advanceToNextReadyActorTime: true);
+    }
+
+    private BattleRuntimeAdvanceResult AdvanceNextTickCore(double fixedDeltaSeconds, bool advanceToNextReadyActorTime)
     {
         int startIndex = EventStream.Events.Count;
         if (IsComplete)
@@ -82,7 +98,10 @@ public sealed class BattleRuntimeSessionController
             return BuildAdvanceResult(startIndex);
         }
 
-        AdvanceToNextReadyActorTime();
+        if (advanceToNextReadyActorTime)
+        {
+            AdvanceToNextReadyActorTime();
+        }
 
         // Presentation-backed battles call this one action-time slice at a time.
         // Runtime remains the only owner of damage, movement, target choice, and action readiness.
@@ -117,6 +136,13 @@ public sealed class BattleRuntimeSessionController
         if (_nextTick >= _maxTicks)
         {
             Complete(BattleTerminationReason.RuntimeException);
+        }
+
+        if (!advanceToNextReadyActorTime && !IsComplete)
+        {
+            // Live RTS presentation resolves the current fixed slice, then advances
+            // runtime time for the next slice so tick-zero actions still occur at 0.00.
+            CurrentTimeSeconds += fixedDeltaSeconds;
         }
 
         return BuildAdvanceResult(startIndex);

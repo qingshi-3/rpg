@@ -179,12 +179,10 @@ public partial class WorldSiteRoot
         BattleRuntimeLivePresentationState presentationState = new(BuildRuntimePlaybackEntityMap());
         while (!controller.IsComplete && IsInsideTree())
         {
-            BattleRuntimeAdvanceResult advance = controller.AdvanceNextTick();
+            double tickSeconds = ResolveRuntimePlaybackTickSeconds();
+            BattleRuntimeAdvanceResult advance = controller.AdvanceFixedTick(tickSeconds);
             _ = ObserveRuntimeEventsOnPresentationAsync(advance.Events, presentationState);
-            double waitSeconds = advance.NextAdvanceDelaySeconds > 0
-                ? advance.NextAdvanceDelaySeconds
-                : ResolveRuntimePlaybackTickSeconds();
-            await WaitSiteBattlePresentationSeconds(waitSeconds);
+            await WaitSiteBattlePresentationSeconds(tickSeconds);
         }
 
         await presentationState.WaitForAllAsync();
@@ -206,7 +204,7 @@ public partial class WorldSiteRoot
             return Task.CompletedTask;
         }
 
-        foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.MovementCompleted))
+        foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.MovementStarted))
         {
             presentationState.TrackActorMovement(
                 runtimeEvent.ActorId,

@@ -23,6 +23,16 @@ public sealed class BattleRuntimeActor
     public int ReservedGridX { get; set; }
     public int ReservedGridY { get; set; }
     public int ReservedGridHeight { get; set; }
+    public bool HasMovementTarget { get; set; }
+    public int MovementFromGridX { get; set; }
+    public int MovementFromGridY { get; set; }
+    public int MovementFromGridHeight { get; set; }
+    public int MovementToGridX { get; set; }
+    public int MovementToGridY { get; set; }
+    public int MovementToGridHeight { get; set; }
+    public double MovementStartedAtSeconds { get; set; }
+    public double MovementDurationSeconds { get; set; }
+    public double MovementProgress { get; set; }
     public int AttackRange { get; set; } = 1;
     public int AttackDamage { get; set; } = 1;
     public double AttackSpeed { get; set; } = 1.0;

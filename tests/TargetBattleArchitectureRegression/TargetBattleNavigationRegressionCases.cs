@@ -360,7 +360,7 @@ internal static class TargetBattleNavigationRegressionCases
 
         BattleEvent? tickZeroPlayerMove = result.EventStream.Events.FirstOrDefault(item =>
             item.ActorId == "a_player:1" &&
-            item.Kind == BattleEventKind.MovementCompleted &&
+            item.Kind == BattleEventKind.MovementStarted &&
             item.EventId.Contains(":tick_0:", StringComparison.Ordinal));
         AssertTrue(
             tickZeroPlayerMove == null ||
@@ -397,7 +397,7 @@ internal static class TargetBattleNavigationRegressionCases
 
         BattleEvent? tickZeroPlayerMove = result.EventStream.Events.FirstOrDefault(item =>
             item.ActorId == "a_player:1" &&
-            item.Kind == BattleEventKind.MovementCompleted &&
+            item.Kind == BattleEventKind.MovementStarted &&
             item.EventId.Contains(":tick_0:", StringComparison.Ordinal));
         AssertTrue(
             tickZeroPlayerMove == null ||

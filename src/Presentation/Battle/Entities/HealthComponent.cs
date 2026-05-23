@@ -45,7 +45,7 @@ public partial class HealthComponent : BattleEntityComponent
             Defeated?.Invoke(damageEvent);
         }
 
-        GameLog.Info(
+        GameLog.Trace(
             nameof(HealthComponent),
             $"Damage applied target={Entity?.EntityId} source={source?.EntityId} damage={damageApplied} hp={previousHp}->{Hp}");
         return damageApplied;

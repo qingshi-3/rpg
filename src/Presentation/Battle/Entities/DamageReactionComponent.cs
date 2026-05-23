@@ -30,7 +30,7 @@ public partial class DamageReactionComponent : BattleEntityComponent
         _health.Damaged += OnDamaged;
         _health.Defeated += OnDefeated;
 
-        GameLog.Info(
+        GameLog.Trace(
             nameof(DamageReactionComponent),
             $"Attached entity={Entity?.EntityId} health={_health != null} animation={_animation != null}");
     }
@@ -102,7 +102,7 @@ public partial class DamageReactionComponent : BattleEntityComponent
         _pendingDefeatedDelaySeconds = ResolveHitDelaySeconds(damage);
         _pendingDefeatedMinimumDurationSeconds = ResolveMinimumDefeatedDurationSeconds(damage);
         _hasPendingDefeatedPresentationTiming = true;
-        GameLog.Info(
+        GameLog.Trace(
             nameof(DamageReactionComponent),
             $"Defeated presentation timing prepared target={Entity?.EntityId} source={damage.Source?.EntityId} delay={_pendingDefeatedDelaySeconds:0.00} minDuration={_pendingDefeatedMinimumDurationSeconds:0.00}");
     }
@@ -162,7 +162,7 @@ public partial class DamageReactionComponent : BattleEntityComponent
         }
 
         Entity.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Hit);
-        GameLog.Info(
+        GameLog.Trace(
             nameof(DamageReactionComponent),
             $"Damage feedback played target={Entity?.EntityId} source={damage.Source?.EntityId} damage={damage.DamageApplied} hp={damage.HpBefore}->{damage.HpAfter} delay={delaySeconds:0.00}");
     }

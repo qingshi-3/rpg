@@ -68,9 +68,34 @@ internal sealed partial class BattleRuntimeTickResolver
 
         performanceCounters?.BeginRuntimeAdvance();
         performanceCounters?.RecordRuntimeTick();
+        BattleRuntimeActor[] preBoundaryLivingCorps = state.Actors
+            .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
+            .OrderBy(item => item.ActorId, System.StringComparer.Ordinal)
+            .ToArray();
+        BattleDynamicOccupancy occupancy = BattleDynamicOccupancy.FromActors(preBoundaryLivingCorps);
+        HashSet<string> movementCompletedActorIds = new(System.StringComparer.Ordinal);
         foreach (BattleRuntimeActor actor in state.Actors.Where(item => item.Kind == BattleRuntimeActorKind.Corps))
         {
-            BattleRuntimeActorStateMachine.AdvanceTimeBoundary(actor, currentTimeSeconds);
+            if (!BattleRuntimeActorStateMachine.AdvanceTimeBoundary(
+                    actor,
+                    currentTimeSeconds,
+                    out BattleGridCoord movementFrom,
+                    out BattleGridCoord movementTo))
+            {
+                continue;
+            }
+
+            stream.Add(BuildMovementEvent(
+                BattleEventKind.MovementCompleted,
+                battleId,
+                tick,
+                currentTimeSeconds,
+                actor,
+                actor.TargetActorId ?? "",
+                movementFrom,
+                    movementTo,
+                    "movement_committed"));
+            movementCompletedActorIds.Add(actor.ActorId ?? "");
         }
 
         BattleRuntimeActor[] livingCorps = state.Actors
@@ -93,10 +118,10 @@ internal sealed partial class BattleRuntimeTickResolver
                 item.CommandId ?? ""),
             System.StringComparer.Ordinal);
 
-        BattleDynamicOccupancy occupancy = BattleDynamicOccupancy.FromActors(livingCorps);
         BattleFlowFieldCache flowFields = new(performanceCounters);
         BattleRuntimeActor[] decisionReadyCorps = livingCorps
-            .Where(item => item.Phase == BattleRuntimeActorPhase.AnchoredDecision)
+            .Where(item => item.Phase == BattleRuntimeActorPhase.AnchoredDecision &&
+                           !movementCompletedActorIds.Contains(item.ActorId ?? ""))
             .ToArray();
         performanceCounters?.RecordDecisionReadyActors(decisionReadyCorps.Length);
         if (decisionReadyCorps.Length == 0)
@@ -660,31 +685,55 @@ internal sealed partial class BattleRuntimeTickResolver
             BattleRuntimeActorStateMachine.MarkMovementCommitted(candidate.Context.ActorFact.Actor, selectedMove, currentTimeSeconds);
             ResetAdvanceFailureState(candidate.Context.ActorFact.Actor);
             candidate.Context.Result = BattleRuntimeAiActionResult.Succeeded(candidate.Context.Request, "advanced");
-            stream.Add(new BattleEvent
-            {
-                EventId = $"{battleId}:tick_{tick}:{candidate.Context.ActorFact.Actor.ActorId}:move",
-                BattleId = battleId,
-                BattleGroupId = candidate.Context.ActorFact.Actor.BattleGroupId,
-                ActorId = candidate.Context.ActorFact.Actor.ActorId,
-                TargetId = candidate.Context.TargetFact!.Value.Actor.ActorId,
-                Kind = BattleEventKind.MovementCompleted,
-                ReasonCode = "auto_advance",
-                RuntimeTick = tick,
-                RuntimeTimeSeconds = currentTimeSeconds,
-                ActionDurationSeconds = candidate.Context.ActorFact.Actor.MoveStepSeconds,
-                HasMovementCells = true,
-                FromGridX = candidate.From.X,
-                FromGridY = candidate.From.Y,
-                FromGridHeight = candidate.From.Height,
-                ToGridX = selectedMove.X,
-                ToGridY = selectedMove.Y,
-                ToGridHeight = selectedMove.Height
-            });
+            stream.Add(BuildMovementEvent(
+                BattleEventKind.MovementStarted,
+                battleId,
+                tick,
+                currentTimeSeconds,
+                candidate.Context.ActorFact.Actor,
+                candidate.Context.TargetFact!.Value.Actor.ActorId,
+                candidate.From,
+                selectedMove,
+                "auto_advance"));
             movementEvents++;
             performanceCounters?.RecordMovementEvent(currentTimeSeconds);
         }
 
         return movementEvents;
+    }
+
+    private static BattleEvent BuildMovementEvent(
+        BattleEventKind kind,
+        string battleId,
+        int tick,
+        double currentTimeSeconds,
+        BattleRuntimeActor actor,
+        string targetId,
+        BattleGridCoord from,
+        BattleGridCoord to,
+        string reasonCode)
+    {
+        string suffix = kind == BattleEventKind.MovementStarted ? "move_start" : "move_complete";
+        return new BattleEvent
+        {
+            EventId = $"{battleId}:tick_{tick}:{actor.ActorId}:{suffix}",
+            BattleId = battleId,
+            BattleGroupId = actor.BattleGroupId,
+            ActorId = actor.ActorId,
+            TargetId = targetId ?? "",
+            Kind = kind,
+            ReasonCode = reasonCode,
+            RuntimeTick = tick,
+            RuntimeTimeSeconds = currentTimeSeconds,
+            ActionDurationSeconds = actor.MoveStepSeconds,
+            HasMovementCells = true,
+            FromGridX = from.X,
+            FromGridY = from.Y,
+            FromGridHeight = from.Height,
+            ToGridX = to.X,
+            ToGridY = to.Y,
+            ToGridHeight = to.Height
+        };
     }
 
     private bool TryRetargetStaleAdvanceContext(
@@ -868,7 +917,7 @@ internal sealed partial class BattleRuntimeTickResolver
             ? "-"
             : BattleActorFootprint.GetGap(actor, target).ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-        GameLog.Info(
+        GameLog.Trace(
             nameof(BattleRuntimeTickResolver),
             $"BattleRuntimeAction battle={battleId ?? ""} tick={tick} time={currentTimeSeconds:0.00} actor={actor.ActorId} action={request.Kind} outcome={outcome} target={targetId} actorCell={actor.GridX},{actor.GridY},{actor.GridHeight} targetCell={targetCell} distance={distance} actorHp={actor.HitPoints} readyAt={actor.ActionReadyAtSeconds:0.00} targetHp={targetHp}");
     }

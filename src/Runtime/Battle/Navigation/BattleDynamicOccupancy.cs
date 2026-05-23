@@ -23,17 +23,34 @@ internal sealed class BattleDynamicOccupancy
 
             foreach (BattleGridCoord cell in BattleActorFootprint.Enumerate(actor))
             {
-                if (!occupancy._tickStartOccupants.TryGetValue(cell, out HashSet<string> actorIds))
-                {
-                    actorIds = new HashSet<string>(System.StringComparer.Ordinal);
-                    occupancy._tickStartOccupants[cell] = actorIds;
-                }
+                occupancy.AddOccupant(actor, cell);
+            }
 
-                actorIds.Add(actor.ActorId ?? "");
+            if (actor.HasReservedGridCell)
+            {
+                BattleGridCoord reservedAnchor = new(
+                    actor.ReservedGridX,
+                    actor.ReservedGridY,
+                    actor.ReservedGridHeight);
+                foreach (BattleGridCoord cell in BattleActorFootprint.Enumerate(actor, reservedAnchor))
+                {
+                    occupancy.AddOccupant(actor, cell);
+                }
             }
         }
 
         return occupancy;
+    }
+
+    private void AddOccupant(BattleRuntimeActor actor, BattleGridCoord cell)
+    {
+        if (!_tickStartOccupants.TryGetValue(cell, out HashSet<string> actorIds))
+        {
+            actorIds = new HashSet<string>(System.StringComparer.Ordinal);
+            _tickStartOccupants[cell] = actorIds;
+        }
+
+        actorIds.Add(actor?.ActorId ?? "");
     }
 
     public bool CanPlaceFootprint(BattleRuntimeActor actor, BattleGridCoord anchor)

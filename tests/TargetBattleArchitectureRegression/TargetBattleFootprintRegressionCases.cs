@@ -88,7 +88,7 @@ internal static class TargetBattleFootprintRegressionCases
 
         BattleEvent tickZeroLargeMove = result.EventStream.Events.FirstOrDefault(item =>
             item.ActorId == "a_large:1" &&
-            item.Kind == BattleEventKind.MovementCompleted &&
+            item.Kind == BattleEventKind.MovementStarted &&
             item.EventId.Contains(":tick_0:", StringComparison.Ordinal));
         AssertTrue(
             tickZeroLargeMove == null ||
@@ -105,7 +105,7 @@ internal static class TargetBattleFootprintRegressionCases
 
         BattleEvent? playerMove = result.EventStream.Events.FirstOrDefault(item =>
             item.ActorId == "a_player:1" &&
-            item.Kind == BattleEventKind.MovementCompleted &&
+            item.Kind == BattleEventKind.MovementStarted &&
             item.EventId.Contains(":tick_0:", StringComparison.Ordinal));
         AssertTrue(playerMove != null, "pathfinder should route around a blocked direct anchor on tick zero");
         AssertTrue(
@@ -121,7 +121,7 @@ internal static class TargetBattleFootprintRegressionCases
 
         BattleEvent? playerMove = result.EventStream.Events.FirstOrDefault(item =>
             item.ActorId == "a_player:1" &&
-            item.Kind == BattleEventKind.MovementCompleted &&
+            item.Kind == BattleEventKind.MovementStarted &&
             item.EventId.Contains(":tick_0:", StringComparison.Ordinal));
         AssertTrue(playerMove != null, "pathfinder should route around a large unit's covered cells");
         AssertTrue(

@@ -209,7 +209,7 @@ public partial class WorldSiteRoot
 
     private double ResolveRuntimePlaybackTickSeconds()
     {
-        return System.Math.Max(0.05, _unitRoot?.UnitMoveDuration ?? 0.16);
+        return BattleActionTimingPolicy.DefaultSimulationTickSeconds;
     }
 
     private async Task WaitSiteBattlePresentationSeconds(double seconds)

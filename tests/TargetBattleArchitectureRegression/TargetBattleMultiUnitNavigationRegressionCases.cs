@@ -119,9 +119,23 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         AssertMove(tick.Events, "player_front:1", 2, 0, 3, 0);
         AssertTrue(
             tick.Events.All(item =>
-                item.Kind != BattleEventKind.MovementCompleted ||
+                item.Kind != BattleEventKind.MovementStarted ||
                 item.ActorId != "player_rear:1"),
             "rear support must not enter the frontline footprint released earlier in the same tick");
+
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        _ = controller.AdvanceNextTick();
+        BattleRuntimeAdvanceResult completionTick = controller.AdvanceNextTick();
+        AssertTrue(
+            completionTick.Events.Any(item =>
+                item.Kind == BattleEventKind.MovementCompleted &&
+                item.ActorId == "player_front:1"),
+            "frontline movement should complete on the next action boundary");
+        AssertTrue(
+            completionTick.Events.All(item =>
+                item.Kind != BattleEventKind.MovementStarted ||
+                item.ActorId != "player_rear:1"),
+            "rear support must not enter the frontline footprint released by a movement completion in the same resolver pass");
     }
 
     public static void RuntimeSmallerUnitsCanSurroundLargeTargetAttackSlots()
@@ -172,7 +186,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         BattleRuntimeAdvanceResult tick = new BattleRuntimeSession().Begin(snapshot).AdvanceNextTick();
 
         BattleEvent? supportMove = tick.Events.FirstOrDefault(item =>
-            item.Kind == BattleEventKind.MovementCompleted &&
+            item.Kind == BattleEventKind.MovementStarted &&
             item.ActorId == "player_support:1");
         AssertTrue(supportMove != null, "support one step behind an engaged ally should not idle on a blocked direct approach");
         AssertTrue(
@@ -466,7 +480,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         int toY)
     {
         BattleEvent? movement = events.FirstOrDefault(item =>
-            item.Kind == BattleEventKind.MovementCompleted &&
+            item.Kind == BattleEventKind.MovementStarted &&
             item.ActorId == actorId);
         AssertTrue(movement != null, $"actor should move in this tick: {actorId}");
         AssertEqual(fromX, movement!.FromGridX, $"{actorId} movement from x");
@@ -479,7 +493,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
     {
         AssertTrue(
             events.All(item =>
-                item.Kind != BattleEventKind.MovementCompleted ||
+                item.Kind != BattleEventKind.MovementStarted ||
                 item.ActorId != actorId),
             $"actor should not move in this tick: {actorId}");
     }

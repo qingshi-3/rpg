@@ -66,7 +66,7 @@ internal static class TargetBattleCongestionRegressionCases
 
         BattleEvent[] playerMoves = tick.Events
             .Where(item =>
-                item.Kind == BattleEventKind.MovementCompleted &&
+                item.Kind == BattleEventKind.MovementStarted &&
                 item.ActorId.StartsWith("player_", StringComparison.Ordinal))
             .ToArray();
         AssertEqual(2, playerMoves.Length, "both ready movers should move when one can take a valid alternate next step");

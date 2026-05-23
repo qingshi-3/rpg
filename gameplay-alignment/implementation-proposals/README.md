@@ -15,6 +15,7 @@ These proposal files remain in this directory because performance diagnosis or m
 | `2026-05-21-battle-movement-performance.md` | Archived - accepted with residual runtime-spike follow-up | Performance workstream remains a parent record for unresolved runtime-spike follow-up. |
 | `2026-05-21-battle-runtime-spike-diagnostics.md` | Implemented - pending manual QA | Performance diagnostics require manual QA evidence. |
 | `2026-05-21-battle-open-attack-flowfield-cache.md` | Implemented - pending manual QA | Performance optimization requires manual QA evidence. |
+| `2026-05-22-continuous-rts-movement.md` | Implemented - pending manual QA | Manual Godot playback is still needed to judge movement feel. |
 
 ## Archived Implementation Proposals
 

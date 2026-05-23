@@ -82,7 +82,7 @@ internal static class TargetBattleMovementIntentRegressionCases
             .AdvanceNextTick();
 
         BattleEvent? moverMove = tick.Events.FirstOrDefault(item =>
-            item.Kind == BattleEventKind.MovementCompleted &&
+            item.Kind == BattleEventKind.MovementStarted &&
             item.ActorId == "player_mover:1");
         AssertTrue(moverMove != null, "mover should not spend its decision slice on a target killed earlier in the same tick");
         AssertTrue(

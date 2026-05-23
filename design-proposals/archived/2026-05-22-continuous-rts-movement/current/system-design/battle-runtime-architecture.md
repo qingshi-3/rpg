@@ -71,13 +71,11 @@ Runtime resolution must be deterministic and explainable:
 
 ## Action Clock
 
-Runtime execution is driven by a fixed simulation cadence plus actor state-machine action boundaries, not by render frames and not by a precomputed full-battle event stream.
+Runtime execution is driven by actor state-machine action boundaries, not by render frames and not by a precomputed full-battle event stream.
 
-- Presentation-backed battles must not simulate the whole battle to completion before playback starts. Runtime should advance in deterministic fixed-time slices that may contain action decisions, movement progress, cell-boundary commits, impact points, attack recoveries, command interrupts, or battle termination.
+- Presentation-backed battles must not simulate the whole battle to completion before playback starts. Runtime should advance in deterministic slices bounded by action decisions, impact points, movement completions, attack recoveries, command interrupts, or battle termination.
 - Headless tests and reports may advance the same Runtime action clock without Godot playback, but they must use the same phase and action-duration rules as presentation-backed battle.
 - `Moving`, `AttackWindup`, `AttackRecovery`, `Casting`, `Holding`, `Interrupted`, and similar non-decision phases persist until their Runtime completion condition is reached. They must not be reset automatically at the start of each simulation tick.
-- Fixed simulation ticks advance the central battle clock at a stable cadence. Actor cooldowns and action locks decide whether an actor can choose another action; the outer battle loop does not wait for Presentation animation tasks or jump directly to the next actor-ready timestamp.
-- Movement is a continuing actor state. A moving actor may accumulate progress across multiple fixed ticks before crossing to a neighboring cell, and may continue into the next neighbor when runtime intent, topology, occupancy, and reservations still allow it.
 - Basic attacks emit at most one damage application per attack action, at the Runtime-defined impact or completion point. Attack speed and recovery determine when the actor can enter a later `AnchoredDecision`; they do not authorize repeated damage on consecutive ticks while the same attack animation is still being presented.
 - Presentation may acknowledge that a movement or attack animation has finished playing, but that acknowledgement only advances a Runtime-owned action boundary. Presentation does not create damage, movement, target choice, or pathfinding truth.
 
@@ -98,21 +96,7 @@ Decision boundaries include:
 
 At an anchored decision boundary, Runtime may ask AI or command logic for intent, then validates movement, attack, cast, hold, retreat, or failure through runtime rules. Cached movement data is non-authoritative and must be invalidated when command, target, actor anchor, target anchor, topology version, dynamic occupancy revision, or movement intent revision changes.
 
-Actors that are not in an anchored decision phase do not start another basic attack. Moving actors may continue their existing movement intent through fixed-tick progress and may refresh the next legal neighbor only at Runtime movement-continuation boundaries. Attack recovery, casting, holding, interrupted, and defeated phases continue until they complete, fail, or are explicitly interrupted by a valid command or runtime rule.
-
-Target acquisition is not the same as movement continuation. Default assault AI fully scores attack opportunities when acquiring a target, when the retained target is gone or invalid, or when an immediate attack opportunity is already in range. While marching toward a live retained target, Runtime keeps target ownership sticky and validates only the next movement boundary; it does not rebuild flow fields for every enemy on every movement step.
-
-## Continuous Movement
-
-Continuous movement keeps square-grid cells as combat truth while avoiding one-complete-action-per-cell presentation cadence.
-
-- Runtime stores each moving actor's committed anchor, intended next anchor, movement progress, speed-derived step duration, and movement intent revision.
-- A fixed simulation tick advances movement progress by `delta / MoveStepSeconds`.
-- When progress reaches the next anchor, Runtime commits the actor to that anchor, emits a movement event, updates occupancy/reservation facts, and either continues toward the next valid neighbor or returns to an anchored decision/hold/attack boundary.
-- Runtime may use flow fields, attack slots, local reservations, and command facts to choose the next neighbor at each continuation boundary. Presentation frames never choose movement targets.
-- A moving actor cannot basic-attack until Runtime reaches an anchored attack decision. Attack opportunity may stop continuation at the next legal anchor, then the attack action owns the next phase.
-- If continuation fails because of occupancy, reservation, topology, target death, command change, or path invalidation, Runtime emits a diagnostic event or failure reason and transitions through the appropriate anchored, hold, or interruption phase.
-- Presentation treats movement as a sustained state and keeps move animation active until Runtime stops movement, starts another action, marks defeat, or battle presentation finishes.
+Actors that are not in an anchored decision phase do not replan movement, reacquire targets, or start another basic attack. Their existing phase is advanced until it completes, fails, or is explicitly interrupted by a valid command or runtime rule.
 
 ## Attack Rules
 
@@ -170,7 +154,6 @@ This architecture is acceptable when:
 - Presentation can replay and visualize runtime facts without inventing alternate combat truth;
 - actors have explicit state-machine phases and decision boundaries;
 - presentation-backed runtime does not precompute the full battle outcome before playback consumes action events;
-- presentation-backed runtime uses a stable simulation cadence rather than a presentation-driven wait between actor action boundaries;
 - movement, attack, recovery, and cast phases persist across ticks until their Runtime completion boundary;
 - basic attacks produce no more than one damage application per attack action;
 - movement, attack, damage, defeat, interruption, and failure are emitted as semantic events;

@@ -48,6 +48,7 @@ public partial class BattleUnitRoot : Node2D
     public PackedScene ActionCueScene { get; set; }
 
     private readonly Dictionary<BattleEntity, MovementLane> _movementLanes = new();
+    private readonly Dictionary<BattleEntity, double> _pendingMovementIdleSeconds = new();
     private readonly Dictionary<BattleEntity, BattleIntentMarker> _intentMarkers = new();
     private readonly Dictionary<BattleEntity, BattleActionCue> _actionCues = new();
     private readonly HashSet<BattleEntity> _hitOutlinedEntities = new();
@@ -71,7 +72,7 @@ public partial class BattleUnitRoot : Node2D
 
     public override void _Process(double delta)
     {
-        if (_movementLanes.Count == 0 || delta <= 0)
+        if ((_movementLanes.Count == 0 && _pendingMovementIdleSeconds.Count == 0) || delta <= 0)
         {
             return;
         }
@@ -83,11 +84,14 @@ public partial class BattleUnitRoot : Node2D
                 _movementLanes.Remove(entity);
             }
         }
+
+        UpdatePendingMovementIdle(delta);
     }
 
     public override void _ExitTree()
     {
         _movementLanes.Clear();
+        _pendingMovementIdleSeconds.Clear();
         ClearAllActionCues();
         ClearCommandSelection();
         SetHitOutlines(_hitOutlinedEntities.ToArray(), visible: false);
@@ -204,6 +208,7 @@ public partial class BattleUnitRoot : Node2D
         {
             UnitAnimationComponent animation = entity.GetComponent<UnitAnimationComponent>();
             FaceAlongSegment(animation, globalPath[0], globalPath[1]);
+            _pendingMovementIdleSeconds.Remove(entity);
             animation?.PlayMove(restartMoveAnimation);
             entity.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Move);
             AnimateEntityMove(entity, globalPath, surfacePath, returnToIdleOnComplete, stepDurationSeconds);
@@ -736,10 +741,46 @@ public partial class BattleUnitRoot : Node2D
 
         if (lane.ReturnToIdleOnComplete)
         {
-            entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
+            // Fixed-clock RTS runtime can enqueue a continuation shortly after one segment drains.
+            // This grace window keeps move animation stable instead of flashing idle between cells.
+            _pendingMovementIdleSeconds[entity] = ResolveMovementIdleGraceSeconds();
         }
 
         return false;
+    }
+
+    private void UpdatePendingMovementIdle(double delta)
+    {
+        if (_pendingMovementIdleSeconds.Count == 0)
+        {
+            return;
+        }
+
+        foreach ((BattleEntity entity, double seconds) in _pendingMovementIdleSeconds.ToArray())
+        {
+            if (!IsEntityAlive(entity) || _movementLanes.ContainsKey(entity))
+            {
+                _pendingMovementIdleSeconds.Remove(entity);
+                continue;
+            }
+
+            double remaining = seconds - delta;
+            if (remaining > 0)
+            {
+                _pendingMovementIdleSeconds[entity] = remaining;
+                continue;
+            }
+
+            _pendingMovementIdleSeconds.Remove(entity);
+            entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
+        }
+    }
+
+    private double ResolveMovementIdleGraceSeconds()
+    {
+        return System.Math.Min(
+            0.04,
+            System.Math.Max(0.001, UnitMoveDuration * 0.35));
     }
 
     private sealed class MovementLane

@@ -62,10 +62,10 @@ internal static class TargetBattleAttackCadenceRegressionCases
         BattleEvent[] tickZeroCombatEvents = result.EventStream.Events
             .Where(item =>
                 item.RuntimeTick == 0 &&
-                item.Kind is BattleEventKind.MovementCompleted or BattleEventKind.DamageApplied)
+                item.Kind is BattleEventKind.MovementStarted or BattleEventKind.DamageApplied)
             .ToArray();
         AssertTrue(
-            tickZeroCombatEvents.Any(item => item.Kind == BattleEventKind.MovementCompleted),
+            tickZeroCombatEvents.Any(item => item.Kind == BattleEventKind.MovementStarted),
             "tick zero should include an approach movement");
         AssertTrue(
             tickZeroCombatEvents.All(item => item.Kind != BattleEventKind.DamageApplied),
@@ -298,15 +298,15 @@ internal static class TargetBattleAttackCadenceRegressionCases
         foreach (string actorId in new[] { "force_player:1", "force_enemy:1" })
         {
             int[] moveTicks = result.EventStream.Events
-                .Where(item => item.Kind == BattleEventKind.MovementCompleted && item.ActorId == actorId)
+                .Where(item => item.Kind == BattleEventKind.MovementStarted && item.ActorId == actorId)
                 .Select(item => item.RuntimeTick)
                 .OrderBy(item => item)
                 .ToArray();
 
             AssertTrue(moveTicks.Length >= 2, $"actor should need multiple approach steps for movement lock validation: actor={actorId}");
             AssertTrue(
-                moveTicks.Zip(moveTicks.Skip(1), (first, second) => second - first).Any(delta => delta == 1),
-                $"continuous movement should allow the next grid step on the next runtime tick: actor={actorId} ticks=[{string.Join(",", moveTicks)}]");
+                moveTicks.Zip(moveTicks.Skip(1), (first, second) => second - first).Any(delta => delta <= 2),
+                $"continuous movement should allow a new step soon after the previous movement boundary: actor={actorId} ticks=[{string.Join(",", moveTicks)}]");
         }
     }
 
@@ -334,6 +334,35 @@ internal static class TargetBattleAttackCadenceRegressionCases
             firstAdvance.Events.Any(item => item.Kind == BattleEventKind.DamageApplied && item.RuntimeTick == 0),
             "first runtime advance should produce the tick-zero combat events");
         AssertTrue(!controller.IsComplete, "high-hit-point battle should remain live after the first action slice");
+
+        BattleRuntimeSessionController movementController = new BattleRuntimeSession().Begin(BuildOpposedSnapshot("battle_deferred_move_commit", enemyCellX: 6, enemyCellY: 0));
+        BattleRuntimeAdvanceResult movementStart = movementController.AdvanceNextTick();
+        BattleRuntimeActor movingPlayer = movementController.State.Actors.Single(item => item.ActorId == "force_player:1");
+        AssertTrue(
+            movementStart.Events.Any(item => item.Kind == BattleEventKind.MovementStarted && item.ActorId == "force_player:1") &&
+            movementStart.Events.All(item => item.Kind != BattleEventKind.MovementCompleted || item.ActorId != "force_player:1"),
+            "movement start should launch movement without emitting a completed boundary event");
+        AssertEqual(0, movingPlayer.GridX, "movement start should not immediately commit the next runtime cell");
+        AssertTrue(
+            movingPlayer.Phase == BattleRuntimeActorPhase.Moving &&
+            movingPlayer.HasMovementTarget &&
+            movingPlayer.MovementProgress <= 0.0001,
+            "runtime should store in-progress movement until the action boundary commits the cell");
+        BattleRuntimeAdvanceResult movementComplete = movementController.AdvanceNextTick();
+        AssertTrue(
+            movementComplete.Events.Any(item => item.Kind == BattleEventKind.MovementCompleted && item.ActorId == "force_player:1"),
+            "movement completion should emit only after runtime reaches the committed cell boundary");
+        AssertEqual(1, movingPlayer.GridX, "movement completion should commit the runtime cell");
+
+        BattleRuntimeSessionController fixedClockController = new BattleRuntimeSession().Begin(BuildOpposedSnapshot("battle_fixed_runtime_clock", enemyCellX: 6, enemyCellY: 0));
+        BattleRuntimeAdvanceResult fixedClockFirst = fixedClockController.AdvanceFixedTick(0.04);
+        BattleRuntimeAdvanceResult fixedClockSecond = fixedClockController.AdvanceFixedTick(0.04);
+
+        AssertFloatEqual(0.04, fixedClockFirst.RuntimeTimeSeconds, 0.0001, "fixed runtime tick should advance by the configured simulation interval after resolving tick-zero actions");
+        AssertFloatEqual(0.08, fixedClockSecond.RuntimeTimeSeconds, 0.0001, "fixed runtime tick should not jump directly to the next actor-ready boundary");
+        AssertTrue(
+            fixedClockSecond.Events.All(item => item.Kind != BattleEventKind.MovementCompleted),
+            "actor-local movement lock should still prevent another cell commit before move step seconds expires");
     }
 
     internal static void RuntimeActionDiagnosticsAreLogged()

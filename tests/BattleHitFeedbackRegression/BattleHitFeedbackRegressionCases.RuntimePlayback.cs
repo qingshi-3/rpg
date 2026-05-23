@@ -16,9 +16,10 @@ internal static void BattleRuntimeLiveObservationUsesTickClock()
         .Select(File.ReadAllText));
     AssertTrue(
         runtime.Contains("AdvanceBattleGroupRuntimeOnLiveClockAsync", StringComparison.Ordinal) &&
-        runtime.Contains("advance.NextAdvanceDelaySeconds", StringComparison.Ordinal) &&
-        runtime.Contains("WaitSiteBattlePresentationSeconds(waitSeconds)", StringComparison.Ordinal),
-        "presentation-backed runtime should be paced by the live action timeline");
+        runtime.Contains("controller.AdvanceFixedTick(tickSeconds)", StringComparison.Ordinal) &&
+        runtime.Contains("WaitSiteBattlePresentationSeconds(tickSeconds)", StringComparison.Ordinal) &&
+        !runtime.Contains("WaitSiteBattlePresentationSeconds(waitSeconds)", StringComparison.Ordinal),
+        "presentation-backed runtime should be paced by a fixed RTS simulation tick");
 }
 
 internal static void BattleRuntimePlaybackDoesNotGloballyGateMovementOnAttackAnimation()
@@ -34,7 +35,7 @@ internal static void BattleRuntimePlaybackDoesNotGloballyGateMovementOnAttackAni
         "world site runtime should advance the simulation clock directly and let presentation observe events asynchronously");
     AssertTrue(
         runtime.Contains("ResolveRuntimePlaybackTickSeconds", StringComparison.Ordinal) &&
-        runtime.Contains("controller.AdvanceNextTick()", StringComparison.Ordinal) &&
+        runtime.Contains("controller.AdvanceFixedTick(tickSeconds)", StringComparison.Ordinal) &&
         !runtime.Contains("PlayRuntimeActorLaneAsync", StringComparison.Ordinal) &&
         !runtime.Contains("BuildTickBatches", StringComparison.Ordinal) &&
         !runtime.Contains("PlayRuntimeEventBatchAsync", StringComparison.Ordinal),
@@ -319,9 +320,10 @@ internal static void BattleRuntimeLiveClockDoesNotUseLookaheadBatches()
 
     AssertTrue(
         runtime.Contains("AdvanceBattleGroupRuntimeOnLiveClockAsync", StringComparison.Ordinal) &&
-        runtime.Contains("controller.AdvanceNextTick()", StringComparison.Ordinal) &&
-        runtime.Contains("advance.NextAdvanceDelaySeconds", StringComparison.Ordinal),
-        "battle runtime should advance one simulation slice per live action time boundary");
+        runtime.Contains("controller.AdvanceFixedTick(tickSeconds)", StringComparison.Ordinal) &&
+        runtime.Contains("WaitSiteBattlePresentationSeconds(tickSeconds)", StringComparison.Ordinal) &&
+        !runtime.Contains("advance.NextAdvanceDelaySeconds", StringComparison.Ordinal),
+        "battle runtime should advance one fixed simulation slice per live RTS tick");
     AssertTrue(
         !runtime.Contains("MaxRuntimePlaybackLookaheadTicks", StringComparison.Ordinal) &&
         !runtime.Contains("BuildRuntimePlaybackEventBatch", StringComparison.Ordinal) &&

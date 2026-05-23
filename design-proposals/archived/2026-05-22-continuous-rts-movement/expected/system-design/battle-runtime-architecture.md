@@ -100,8 +100,6 @@ At an anchored decision boundary, Runtime may ask AI or command logic for intent
 
 Actors that are not in an anchored decision phase do not start another basic attack. Moving actors may continue their existing movement intent through fixed-tick progress and may refresh the next legal neighbor only at Runtime movement-continuation boundaries. Attack recovery, casting, holding, interrupted, and defeated phases continue until they complete, fail, or are explicitly interrupted by a valid command or runtime rule.
 
-Target acquisition is not the same as movement continuation. Default assault AI fully scores attack opportunities when acquiring a target, when the retained target is gone or invalid, or when an immediate attack opportunity is already in range. While marching toward a live retained target, Runtime keeps target ownership sticky and validates only the next movement boundary; it does not rebuild flow fields for every enemy on every movement step.
-
 ## Continuous Movement
 
 Continuous movement keeps square-grid cells as combat truth while avoiding one-complete-action-per-cell presentation cadence.

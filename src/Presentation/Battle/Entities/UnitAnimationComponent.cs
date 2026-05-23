@@ -59,7 +59,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         TryConnectSpriteAnimationFinished();
         PlayIdle();
 
-        GameLog.Info(
+        GameLog.Trace(
             nameof(UnitAnimationComponent),
             $"Attached entity={Entity?.EntityId} hasSet={AnimationSet != null} hasPlayer={_animationPlayer != null} hasSprite={_animatedSprite != null} hasVisualRoot={_visualRoot != null}");
     }
