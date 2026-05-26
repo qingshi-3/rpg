@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.AI;
@@ -13,6 +14,7 @@ namespace Rpg.Runtime.Battle;
 internal sealed partial class BattleRuntimeTickResolver
 {
     private const double MaxAttackCharge = 1.0;
+    private const int PlannedLocalPerceptionRange = BattlePerceptionPolicy.DefaultLocalPerceptionRange;
     private const string CommandAssault = "Assault";
     private const string CommandFocusFire = "FocusFire";
     private const string CommandHoldLine = "HoldLine";
@@ -153,7 +155,8 @@ internal sealed partial class BattleRuntimeTickResolver
                 continue;
             }
 
-            if (context.TargetFact == null)
+            if (context.TargetFact == null &&
+                context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective)
             {
                 context.ActorFact.Actor.TargetActorId = "";
                 ResetAdvanceFailureState(context.ActorFact.Actor);
@@ -162,21 +165,45 @@ internal sealed partial class BattleRuntimeTickResolver
                 continue;
             }
 
-            bool targetChanged = !string.Equals(
-                context.ActorFact.Actor.TargetActorId,
-                context.TargetFact.Value.Actor.ActorId,
-                System.StringComparison.Ordinal);
-            context.ActorFact.Actor.TargetActorId = context.TargetFact.Value.Actor.ActorId;
-            if (targetChanged)
+            if (context.TargetFact != null)
             {
-                ResetAdvanceFailureState(context.ActorFact.Actor);
+                bool targetChanged = !string.Equals(
+                    context.ActorFact.Actor.TargetActorId,
+                    context.TargetFact.Value.Actor.ActorId,
+                    System.StringComparison.Ordinal);
+                context.ActorFact.Actor.TargetActorId = context.TargetFact.Value.Actor.ActorId;
+                if (targetChanged)
+                {
+                    ResetAdvanceFailureState(context.ActorFact.Actor);
+                    SetPlanState(
+                        stream,
+                        battleId,
+                        tick,
+                        currentTimeSeconds,
+                        context.ActorFact.Actor,
+                        BattleGroupPlanRuntimeState.TargetLocked,
+                        "target_locked");
+                }
+            }
+            else if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective)
+            {
+                context.ActorFact.Actor.TargetActorId = "";
+                SetPlanState(
+                    stream,
+                    battleId,
+                    tick,
+                    currentTimeSeconds,
+                    context.ActorFact.Actor,
+                    BattleGroupPlanRuntimeState.AdvancingToObjective,
+                    "objective_advance");
             }
 
             if (!string.IsNullOrWhiteSpace(context.Proposal.FailureReason))
             {
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, context.Proposal.FailureReason);
                 BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
-                if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget)
+                if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget ||
+                    context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective)
                 {
                     RecordAdvanceFailure(context.ActorFact.Actor, context.Proposal.FailureReason);
                 }
@@ -191,7 +218,8 @@ internal sealed partial class BattleRuntimeTickResolver
                 context.Result = BattleRuntimeAiActionResult.Succeeded(context.Request, "attack_charge_wait");
             }
             else if (context.Request.Kind != BattleRuntimeAiActionKind.AttackTarget &&
-                     context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget)
+                     context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget &&
+                     context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective)
             {
                 BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "unsupported_action");
@@ -268,6 +296,19 @@ internal sealed partial class BattleRuntimeTickResolver
         if (request.Kind == BattleRuntimeAiActionKind.Hold)
         {
             return CreateContext(request, actorFact, requestedTarget, false, default, request.FailureReason);
+        }
+
+        if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective)
+        {
+            return BuildObjectiveAdvanceContext(
+                request,
+                actorFact,
+                navigationGraph,
+                occupancy,
+                flowFields,
+                performanceCounters,
+                battleId,
+                tick);
         }
 
         if (requestedTarget == null)
@@ -411,7 +452,16 @@ internal sealed partial class BattleRuntimeTickResolver
             GridHeight = fact.Anchor.Height,
             AttackRange = fact.Actor.AttackRange,
             AttackDamage = fact.Actor.AttackDamage,
-            HitPoints = fact.HitPoints
+            HitPoints = fact.HitPoints,
+            EngagementRule = fact.Actor.EngagementRule,
+            PlanState = fact.Actor.PlanState,
+            HasObjectiveAnchor = fact.Actor.HasObjectiveAnchor,
+            ObjectiveZoneId = fact.Actor.ObjectiveZoneId,
+            ObjectiveGridX = fact.Actor.ObjectiveGridX,
+            ObjectiveGridY = fact.Actor.ObjectiveGridY,
+            ObjectiveGridHeight = fact.Actor.ObjectiveGridHeight,
+            ObjectiveWidth = fact.Actor.ObjectiveWidth,
+            ObjectiveHeight = fact.Actor.ObjectiveHeight
         };
     }
 
@@ -423,9 +473,12 @@ internal sealed partial class BattleRuntimeTickResolver
     {
         if (request == null ||
             request.Kind == BattleRuntimeAiActionKind.Hold ||
+            request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
             request.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge && fallbackTarget == null)
         {
-            return fallbackTarget;
+            return request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+                ? null
+                : fallbackTarget;
         }
 
         if (string.IsNullOrWhiteSpace(request.TargetActorId))
@@ -547,6 +600,14 @@ internal sealed partial class BattleRuntimeTickResolver
         {
             pending.Context.ActorFact.Actor.AttackCharge = System.Math.Max(0, pending.Context.ActorFact.Actor.AttackCharge - 1.0);
             ResetAdvanceFailureState(pending.Context.ActorFact.Actor);
+            SetPlanState(
+                stream,
+                battleId,
+                tick,
+                currentTimeSeconds,
+                pending.Context.ActorFact.Actor,
+                BattleGroupPlanRuntimeState.Attacking,
+                "attacking");
             BattleRuntimeActorStateMachine.MarkAttackRecovery(pending.Context.ActorFact.Actor, currentTimeSeconds);
             pending.Context.Result = BattleRuntimeAiActionResult.Succeeded(pending.Context.Request, "attacked");
         }
@@ -558,6 +619,14 @@ internal sealed partial class BattleRuntimeTickResolver
                 targetFact.Actor.HitPoints = System.Math.Max(0, pair.Value);
                 if (targetFact.Actor.HitPoints <= 0)
                 {
+                    SetPlanState(
+                        stream,
+                        battleId,
+                        tick,
+                        currentTimeSeconds,
+                        targetFact.Actor,
+                        BattleGroupPlanRuntimeState.Defeated,
+                        "defeated");
                     BattleRuntimeActorStateMachine.MarkDefeated(targetFact.Actor);
                 }
             }
@@ -580,10 +649,12 @@ internal sealed partial class BattleRuntimeTickResolver
         List<MoveCandidate> moveCandidates = new();
         foreach (TickContext context in contexts
                      .Where(item =>
-                         item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget &&
+                         (item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget ||
+                          item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective) &&
                          item.Result == null))
         {
-            if (context.TargetFact == null)
+            bool isObjectiveAdvance = context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective;
+            if (context.TargetFact == null && !isObjectiveAdvance)
             {
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "invalid_target");
                 continue;
@@ -603,7 +674,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 continue;
             }
 
-            if (context.TargetFact.Value.Actor.HitPoints <= 0)
+            if (!isObjectiveAdvance && context.TargetFact.Value.Actor.HitPoints <= 0)
             {
                 if (!TryRetargetStaleAdvanceContext(
                         context,
@@ -638,8 +709,8 @@ internal sealed partial class BattleRuntimeTickResolver
                      .OrderBy(item => BattleActorFootprint.GetGap(
                          item.Context.ActorFact.Actor,
                          item.Context.ActorFact.Anchor,
-                         item.Context.TargetFact!.Value.Actor,
-                         item.Context.TargetFact.Value.Anchor))
+                         item.Context.TargetFact?.Actor ?? item.Context.ActorFact.Actor,
+                         item.Context.TargetFact?.Anchor ?? GetObjectiveAnchor(item.Context.ActorFact.Actor)))
                      .ThenBy(item => item.From.Height)
                      .ThenBy(item => item.From.Y)
                      .ThenBy(item => item.From.X)
@@ -670,7 +741,7 @@ internal sealed partial class BattleRuntimeTickResolver
                     battleId,
                     tick,
                     candidate.Context.ActorFact,
-                    candidate.Context.TargetFact!.Value,
+                    candidate.Context.TargetFact,
                     navigationGraph,
                     "reservation_rejected",
                     candidate.To,
@@ -682,6 +753,18 @@ internal sealed partial class BattleRuntimeTickResolver
             candidate.Context.ActorFact.Actor.ReservedGridX = selectedMove.X;
             candidate.Context.ActorFact.Actor.ReservedGridY = selectedMove.Y;
             candidate.Context.ActorFact.Actor.ReservedGridHeight = selectedMove.Height;
+            SetPlanState(
+                stream,
+                battleId,
+                tick,
+                currentTimeSeconds,
+                candidate.Context.ActorFact.Actor,
+                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+                    ? BattleGroupPlanRuntimeState.AdvancingToObjective
+                    : BattleGroupPlanRuntimeState.MovingToAttackSlot,
+                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+                    ? "objective_advance"
+                    : "moving_to_attack_slot");
             BattleRuntimeActorStateMachine.MarkMovementCommitted(candidate.Context.ActorFact.Actor, selectedMove, currentTimeSeconds);
             ResetAdvanceFailureState(candidate.Context.ActorFact.Actor);
             candidate.Context.Result = BattleRuntimeAiActionResult.Succeeded(candidate.Context.Request, "advanced");
@@ -691,10 +774,12 @@ internal sealed partial class BattleRuntimeTickResolver
                 tick,
                 currentTimeSeconds,
                 candidate.Context.ActorFact.Actor,
-                candidate.Context.TargetFact!.Value.Actor.ActorId,
+                candidate.Context.TargetFact?.Actor.ActorId ?? candidate.Context.ActorFact.Actor.ObjectiveZoneId,
                 candidate.From,
                 selectedMove,
-                "auto_advance"));
+                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+                    ? "plan_objective_advance"
+                    : "auto_advance"));
             movementEvents++;
             performanceCounters?.RecordMovementEvent(currentTimeSeconds);
         }
@@ -788,6 +873,22 @@ internal sealed partial class BattleRuntimeTickResolver
         TickStartActorFact actorFact,
         TickStartActorFact? targetFact)
     {
+        if (actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst &&
+            actorFact.Actor.HasObjectiveAnchor &&
+            !IsObjectiveReached(actorFact) &&
+            (targetFact == null ||
+             GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
+        {
+            return BattleRuntimeAiActionRequest.AdvanceTowardObjective(actorFact.Actor.ActorId);
+        }
+
+        if (targetFact == null &&
+            actorFact.Actor.HasObjectiveAnchor &&
+            !IsObjectiveReached(actorFact))
+        {
+            return BattleRuntimeAiActionRequest.AdvanceTowardObjective(actorFact.Actor.ActorId);
+        }
+
         if (IsHoldLineCommand(actorFact.CommandId) &&
             (targetFact == null || GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
         {
@@ -835,91 +936,6 @@ internal sealed partial class BattleRuntimeTickResolver
     private static int ResolveAttackDamage(int attackDamage)
     {
         return attackDamage > 0 ? attackDamage : 1;
-    }
-
-    private static void RecordAdvanceFailure(BattleRuntimeActor actor, string failureReason)
-    {
-        if (actor == null)
-        {
-            return;
-        }
-
-        actor.ConsecutiveAdvanceFailures++;
-        actor.LastAdvanceFailureReason = string.IsNullOrWhiteSpace(failureReason)
-            ? "advance_failed"
-            : failureReason;
-    }
-
-    private static void ResetAdvanceFailureState(BattleRuntimeActor actor)
-    {
-        if (actor == null)
-        {
-            return;
-        }
-
-        actor.ConsecutiveAdvanceFailures = 0;
-        actor.LastAdvanceFailureReason = "";
-    }
-
-    private static void LogAdvanceFailureDiagnostic(
-        string battleId,
-        int tick,
-        TickStartActorFact actorFact,
-        TickStartActorFact targetFact,
-        BattleNavigationGraph navigationGraph,
-        string failureReason,
-        BattleGridCoord attemptedNext,
-        HashSet<string> loggedDiagnostics)
-    {
-        string actorCell = $"{actorFact.Anchor.X},{actorFact.Anchor.Y},{actorFact.Anchor.Height}";
-        string targetCell = $"{targetFact.Anchor.X},{targetFact.Anchor.Y},{targetFact.Anchor.Height}";
-        string reason = string.IsNullOrWhiteSpace(failureReason) ? "advance_failed" : failureReason;
-        string attempted = string.Equals(reason, "path_not_found", System.StringComparison.Ordinal)
-            ? "none"
-            : attemptedNext.ToString();
-        string key = $"{actorFact.Actor.ActorId}|{targetFact.Actor.ActorId}|{actorCell}|{targetCell}|{reason}|{attempted}";
-        if (loggedDiagnostics != null && !loggedDiagnostics.Add(key))
-        {
-            return;
-        }
-
-        GameLog.Warn(
-            nameof(BattleRuntimeTickResolver),
-            $"BattleRuntimeAdvanceDiagnostic battle={battleId ?? ""} tick={tick} actor={actorFact.Actor.ActorId} target={targetFact.Actor.ActorId} reason={reason} actorCell={actorCell} targetCell={targetCell} attemptedNext={attempted} {navigationGraph?.DescribeStaticReachability(actorFact.Actor, targetFact.Actor, actorFact.Actor.AttackRange) ?? "graph=missing"}");
-    }
-
-    private static void LogRuntimeActionResult(
-        string battleId,
-        int tick,
-        double currentTimeSeconds,
-        BattleRuntimeActor actor,
-        BattleRuntimeActor target,
-        BattleRuntimeAiActionRequest request,
-        BattleRuntimeAiActionResult result)
-    {
-        if (actor == null || request == null)
-        {
-            return;
-        }
-
-        if (request.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge && result?.Success == true)
-        {
-            return;
-        }
-
-        string outcome = result?.Success == true
-            ? result.Status
-            : string.IsNullOrWhiteSpace(result?.FailureReason) ? "failed" : result.FailureReason;
-        string targetId = target?.ActorId ?? request.TargetActorId ?? "";
-        string targetHp = target == null ? "-" : target.HitPoints.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        string targetCell = target == null ? "-" : $"{target.GridX},{target.GridY},{target.GridHeight}";
-        string distance = target == null
-            ? "-"
-            : BattleActorFootprint.GetGap(actor, target).ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-        GameLog.Trace(
-            nameof(BattleRuntimeTickResolver),
-            $"BattleRuntimeAction battle={battleId ?? ""} tick={tick} time={currentTimeSeconds:0.00} actor={actor.ActorId} action={request.Kind} outcome={outcome} target={targetId} actorCell={actor.GridX},{actor.GridY},{actor.GridHeight} targetCell={targetCell} distance={distance} actorHp={actor.HitPoints} readyAt={actor.ActionReadyAtSeconds:0.00} targetHp={targetHp}");
     }
 
     private static bool IsFocusFireCommand(string commandId)

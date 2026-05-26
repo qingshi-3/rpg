@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
@@ -88,6 +89,123 @@ internal static class TargetBattleMovementIntentRegressionCases
         AssertTrue(
             moverMove!.TargetId == "enemy_live:1",
             $"mover should retarget the next live attack opportunity in the same tick: actual={moverMove.TargetId}");
+    }
+
+    public static void RuntimeMoveFirstPlanAdvancesToObjectiveBeforeDistantEnemy()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildMoveFirstObjectiveSnapshot());
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+
+        BattleEvent? plan = controller.EventStream.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.BattleGroupPlanAccepted &&
+            item.ActorId == "force_player:1");
+        BattleEvent? move = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "force_player:1");
+
+        AssertTrue(plan != null, "runtime should emit the accepted battle-group plan before movement starts");
+        AssertTrue(move != null, "move-first plan should advance toward the objective when only distant enemies are present");
+        AssertTrue(
+            move!.TargetId == "objective_gate" &&
+            move.ReasonCode == "plan_objective_advance" &&
+            move.ToGridX == 1 &&
+            move.ToGridY == 0,
+            $"move-first plan should step toward the objective instead of distant target: target={move.TargetId} reason={move.ReasonCode} to=({move.ToGridX},{move.ToGridY})");
+    }
+
+    public static void RuntimePlanScopedMovementDoesNotScanFarAttackSlots()
+    {
+        BattlePerformanceCounters counters = new();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession(performanceCounters: counters)
+            .Begin(BuildMoveFirstObjectiveSnapshot());
+
+        _ = controller.AdvanceNextTick();
+
+        AssertTrue(
+            counters.CombatSlotScanCount == 0 &&
+            counters.OpenAttackFlowFieldBuildCount == 0,
+            $"objective-first movement should not scan far enemy attack slots: slotScans={counters.CombatSlotScanCount} openAttackBuilds={counters.OpenAttackFlowFieldBuildCount}");
+    }
+
+    public static void RuntimeEnemyMoveFirstPlanDoesNotScanFarAttackSlots()
+    {
+        BattlePerformanceCounters counters = new();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession(performanceCounters: counters)
+            .Begin(BuildEnemyMoveFirstObjectiveSnapshot());
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+
+        BattleEvent? move = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "enemy:1");
+        AssertTrue(move != null, "enemy move-first plan should advance toward player deployment objective");
+        AssertTrue(
+            move!.TargetId == "player_deployment" &&
+            move.ReasonCode == "plan_objective_advance",
+            $"enemy plan should move by objective before sensing contact: target={move.TargetId} reason={move.ReasonCode}");
+        AssertTrue(
+            counters.CombatSlotScanCount == 0 &&
+            counters.OpenAttackFlowFieldBuildCount == 0,
+            $"enemy objective-first movement should not scan far player attack slots: slotScans={counters.CombatSlotScanCount} openAttackBuilds={counters.OpenAttackFlowFieldBuildCount}");
+    }
+
+    public static void RuntimeEnemyAttackFirstPlanSensesLocalPlayerBeforeObjective()
+    {
+        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession()
+            .Begin(BuildEnemyAttackFirstObjectiveSnapshot())
+            .AdvanceNextTick();
+
+        BattleEvent? move = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "enemy:1");
+        AssertTrue(move != null, "enemy attack-first plan should act when the player enters local perception");
+        AssertTrue(
+            move!.TargetId == "force_player:1" &&
+            move.ReasonCode == "auto_advance",
+            $"enemy attack-first plan should pursue the locally sensed player instead of ignoring contact: target={move.TargetId} reason={move.ReasonCode}");
+    }
+
+    public static void RuntimeObjectiveZonePlanResolvesAnchorFromSnapshotZone()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildObjectiveZoneResolvedPlanSnapshot());
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+
+        BattleEvent? plan = controller.EventStream.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.BattleGroupPlanAccepted &&
+            item.ActorId == "force_player:1");
+        BattleEvent? move = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "force_player:1");
+
+        AssertTrue(plan != null, "runtime should accept objective-zone-only plan facts");
+        AssertTrue(move != null, "objective-zone-only plan should still advance after runtime resolves the anchor");
+        AssertTrue(
+            plan!.TargetId == "objective_gate" &&
+            move!.TargetId == "objective_gate" &&
+            move.ToGridX == 1 &&
+            move.ToGridY == 0,
+            $"runtime should resolve the movement anchor from snapshot ObjectiveZones: plan={plan.TargetId} move={move.TargetId} to=({move.ToGridX},{move.ToGridY})");
+    }
+
+    public static void RuntimeMoveFirstPlanSeeksEnemyAfterObjectiveReached()
+    {
+        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession()
+            .Begin(BuildObjectiveReachedThenSeekSnapshot())
+            .AdvanceNextTick();
+
+        BattleEvent? move = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "force_player:1");
+
+        AssertTrue(move != null, "move-first plan should not keep advancing to an already reached objective");
+        AssertTrue(
+            move!.TargetId == "enemy:1" &&
+            move.ReasonCode == "auto_advance" &&
+            move.ToGridX == 4 &&
+            move.ToGridY == 0,
+            $"after objective arrival, move-first plan should resume enemy pursuit: target={move.TargetId} reason={move.ReasonCode} to=({move.ToGridX},{move.ToGridY})");
     }
 
     private static BattleStartSnapshot BuildReroutePastSecondaryTargetSnapshot()
@@ -229,6 +347,217 @@ internal static class TargetBattleMovementIntentRegressionCases
         return snapshot;
     }
 
+    private static BattleStartSnapshot BuildMoveFirstObjectiveSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_move_first_objective",
+            BattleId = "battle_move_first_objective",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup(
+                    "group_player",
+                    "player",
+                    "force_player",
+                    0,
+                    0,
+                    160,
+                    plan: new BattleGroupPlanSnapshot
+                    {
+                        BattleGroupId = "group_player",
+                        ObjectiveZoneId = "objective_gate",
+                        EngagementRule = BattleEngagementRule.MoveFirst,
+                        HasObjectiveAnchor = true,
+                        ObjectiveCellX = 3,
+                        ObjectiveCellY = 0,
+                        ObjectiveCellHeight = 0,
+                        ObjectiveWidth = 1,
+                        ObjectiveHeight = 1
+                    }),
+                BuildGroup("group_enemy", "enemy", "enemy", 7, 0, 160, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int x = 0; x <= 7; x++)
+        {
+            AddSurface(snapshot, x, 0);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildEnemyMoveFirstObjectiveSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_enemy_move_first_objective",
+            BattleId = "battle_enemy_move_first_objective",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "player", "force_player", 0, 0, 160, initialCommandId: "HoldLine"),
+                BuildGroup(
+                    "group_enemy",
+                    "enemy",
+                    "enemy",
+                    7,
+                    0,
+                    160,
+                    plan: new BattleGroupPlanSnapshot
+                    {
+                        BattleGroupId = "group_enemy",
+                        ObjectiveZoneId = "player_deployment",
+                        EngagementRule = BattleEngagementRule.MoveFirst,
+                        HasObjectiveAnchor = true,
+                        ObjectiveCellX = 3,
+                        ObjectiveCellY = 0,
+                        ObjectiveCellHeight = 0,
+                        ObjectiveWidth = 1,
+                        ObjectiveHeight = 1
+                    })
+            }
+        };
+
+        for (int x = 0; x <= 7; x++)
+        {
+            AddSurface(snapshot, x, 0);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildEnemyAttackFirstObjectiveSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_enemy_attack_first_objective",
+            BattleId = "battle_enemy_attack_first_objective",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "player", "force_player", 4, 0, 160, initialCommandId: "HoldLine"),
+                BuildGroup(
+                    "group_enemy",
+                    "enemy",
+                    "enemy",
+                    7,
+                    0,
+                    160,
+                    plan: new BattleGroupPlanSnapshot
+                    {
+                        BattleGroupId = "group_enemy",
+                        ObjectiveZoneId = "player_deployment",
+                        EngagementRule = BattleEngagementRule.AttackFirst,
+                        HasObjectiveAnchor = true,
+                        ObjectiveCellX = 0,
+                        ObjectiveCellY = 0,
+                        ObjectiveCellHeight = 0,
+                        ObjectiveWidth = 1,
+                        ObjectiveHeight = 1
+                    })
+            }
+        };
+
+        for (int x = 0; x <= 7; x++)
+        {
+            AddSurface(snapshot, x, 0);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildObjectiveZoneResolvedPlanSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_objective_zone_resolved_plan",
+            BattleId = "battle_objective_zone_resolved_plan",
+            TargetLocationId = "site_1",
+            ObjectiveZones =
+            {
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "objective_gate",
+                    DisplayName = "正面入口",
+                    CellX = 3,
+                    CellY = 0,
+                    Width = 1,
+                    Height = 1
+                }
+            },
+            BattleGroups =
+            {
+                BuildGroup(
+                    "group_player",
+                    "player",
+                    "force_player",
+                    0,
+                    0,
+                    160,
+                    plan: new BattleGroupPlanSnapshot
+                    {
+                        BattleGroupId = "group_player",
+                        ObjectiveZoneId = "objective_gate",
+                        EngagementRule = BattleEngagementRule.MoveFirst
+                    }),
+                BuildGroup("group_enemy", "enemy", "enemy", 7, 0, 160, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int x = 0; x <= 7; x++)
+        {
+            AddSurface(snapshot, x, 0);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildObjectiveReachedThenSeekSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_objective_reached_then_seek",
+            BattleId = "battle_objective_reached_then_seek",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup(
+                    "group_player",
+                    "player",
+                    "force_player",
+                    3,
+                    0,
+                    160,
+                    plan: new BattleGroupPlanSnapshot
+                    {
+                        BattleGroupId = "group_player",
+                        ObjectiveZoneId = "objective_gate",
+                        EngagementRule = BattleEngagementRule.MoveFirst,
+                        HasObjectiveAnchor = true,
+                        ObjectiveCellX = 3,
+                        ObjectiveCellY = 0,
+                        ObjectiveCellHeight = 0,
+                        ObjectiveWidth = 1,
+                        ObjectiveHeight = 1
+                    }),
+                BuildGroup("group_enemy", "enemy", "enemy", 7, 0, 160, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int x = 3; x <= 7; x++)
+        {
+            AddSurface(snapshot, x, 0);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
     private static BattleGroupSnapshot BuildGroup(
         string groupId,
         string factionId,
@@ -238,7 +567,8 @@ internal static class TargetBattleMovementIntentRegressionCases
         int hitPoints,
         string initialCommandId = "",
         int footprintWidth = 1,
-        int footprintHeight = 1)
+        int footprintHeight = 1,
+        BattleGroupPlanSnapshot plan = null)
     {
         return new BattleGroupSnapshot
         {
@@ -257,7 +587,8 @@ internal static class TargetBattleMovementIntentRegressionCases
             CellY = cellY,
             InitialCorpsCommandId = initialCommandId,
             FootprintWidth = footprintWidth,
-            FootprintHeight = footprintHeight
+            FootprintHeight = footprintHeight,
+            Plan = plan ?? new BattleGroupPlanSnapshot()
         };
     }
 

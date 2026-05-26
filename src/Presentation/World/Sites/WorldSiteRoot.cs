@@ -76,6 +76,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Control _siteHudRoot;
 	private Control _siteHudTopBar;
 	private Control _sitePeacetimePanel;
+	private Control _siteModalHost;
 	private Control _siteBottomCommandHost;
 	private Control _battleRuntimeCommandBar;
 	private Control _battleRuntimeCommandPanel;
@@ -111,6 +112,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private VBoxContainer _battleRuntimeCorpsCommandList;
 	private VBoxContainer _battleRuntimeCombinedCommandList;
 	private Button _returnMapButton;
+	private BattleObjectiveMapDialog _battleObjectiveMapDialog;
 	private VBoxContainer _siteFacilityList;
 	private VBoxContainer _siteGarrisonList;
 	private VBoxContainer _siteActionList;
@@ -131,6 +133,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private string _selectedFacilitySlotId = "";
 	private BattleCorpsCommand _selectedBattleCorpsCommand = BattleCorpsCommand.Assault;
 	private string _selectedBattleRuntimeGroupKey = "";
+	private string _selectedBattlePreparationPlanGroupKey = "";
 	private string _draggedPlacementId = "";
 	private Vector2 _draggedPlacementOriginGlobalPosition;
 	private string _draggedBattleForceId = "";
@@ -249,6 +252,11 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		WorldSiteRuntimeMode runtimeMode = RuntimeMode;
 		if (runtimeMode == WorldSiteRuntimeMode.Battle)
 		{
+			if (TryHandleBattlePerceptionOverlayInput(@event))
+			{
+				return;
+			}
+
 			if (TryHandleBattleRuntimePauseInput(@event))
 			{
 				return;

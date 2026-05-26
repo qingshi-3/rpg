@@ -369,7 +369,15 @@ internal static class TargetBattleAttackCadenceRegressionCases
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_action_log", enemyCellX: 3, enemyCellY: 0);
 
-        _ = new BattleRuntimeSession().RunMinimal(snapshot);
+        GameLog.SetTraceCategoryEnabled("BattleRuntimeTickResolver", true);
+        try
+        {
+            _ = new BattleRuntimeSession().RunMinimal(snapshot);
+        }
+        finally
+        {
+            GameLog.SetTraceCategoryEnabled("BattleRuntimeTickResolver", false);
+        }
 
         AssertTrue(File.Exists(GameLog.CurrentLogPath), "runtime action diagnostics should write to the current game log");
         string log = File.ReadAllText(GameLog.CurrentLogPath);

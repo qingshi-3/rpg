@@ -43,6 +43,8 @@ public abstract partial class SemanticMapMarker : Node2D, ISemanticMapMarkerSour
 
     protected virtual SemanticDeploymentSide ResolvedDeploymentSide => SemanticDeploymentSide.Any;
 
+    protected virtual string ResolvedObjectiveRole => "";
+
     protected virtual string ResolvedFactionId => "";
 
     protected virtual int ResolvedPriority => 0;
@@ -111,6 +113,7 @@ public abstract partial class SemanticMapMarker : Node2D, ISemanticMapMarkerSour
             MarkerId = MarkerId,
             MarkerType = ResolvedMarkerType,
             DeploymentSide = ResolvedDeploymentSide,
+            ObjectiveRole = ResolvedObjectiveRole ?? "",
             AnchorCell = anchorCell,
             CellHeight = CellHeight,
             Width = ResolveSafeSize(Width),

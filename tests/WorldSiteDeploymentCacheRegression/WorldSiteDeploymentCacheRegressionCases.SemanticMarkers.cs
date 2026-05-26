@@ -229,6 +229,71 @@ internal static void BattlePreparationUsesDeploymentSideMarkersInsteadOfMarkerNa
         "runtime deployment code must not hardcode author marker ids or node names");
 }
 
+internal static void BattlePreparationObjectiveSelectionUsesMarkerBackedMapDialog()
+{
+    string root = ProjectRoot();
+    string siteSources = ReadWorldSiteRootSource();
+    string planningSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleObjectivePlanningHud.cs"));
+    string dialogSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleObjectiveMapDialog.cs"));
+    string previewSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleObjectiveMapPreview.cs"));
+    string dialogScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "BattleObjectiveMapDialog.tscn"));
+    string factorySource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs"));
+
+    AssertTrue(
+        siteSources.Contains("AddBattlePreparationObjectiveMapButton", StringComparison.Ordinal) &&
+        siteSources.Contains("OpenBattleObjectiveMapDialog", StringComparison.Ordinal) &&
+        !siteSources.Contains("BuildDefaultBattlePreparationObjectiveZones", StringComparison.Ordinal),
+        "battle preparation should open a tactical objective map instead of generating abstract objective buttons");
+    AssertTrue(
+        planningSource.Contains("SemanticMapMarkerType.ObjectiveZone", StringComparison.Ordinal) &&
+        planningSource.Contains("SemanticMapMarkerType.DeploymentZone", StringComparison.Ordinal) &&
+        planningSource.Contains("SemanticDeploymentSide.Enemy", StringComparison.Ordinal),
+        "objective choices should be sourced from semantic objective markers, with enemy deployment markers as the current authored V0 target regions");
+    AssertTrue(
+        planningSource.Contains("BuildBattleObjectiveMapRegions", StringComparison.Ordinal) &&
+        planningSource.Contains("SemanticDeploymentSide.Player", StringComparison.Ordinal) &&
+        planningSource.Contains("Selectable = selectable", StringComparison.Ordinal) &&
+        !planningSource.Contains(".GroupBy(marker => marker.MarkerId", StringComparison.Ordinal),
+        "the tactical thumbnail should show each deployment marker instance, including duplicate-id player/enemy zones, while only target regions are selectable");
+    AssertTrue(
+        planningSource.Contains("_activeGridMap.TopSurfacePositions", StringComparison.Ordinal) &&
+        planningSource.Contains("BattleGridTerrainQueries.IsWater", StringComparison.Ordinal) &&
+        previewSource.Contains("WaterColor", StringComparison.Ordinal) &&
+        previewSource.Contains("LandColor", StringComparison.Ordinal),
+        "the objective map preview should draw a simplified land/water thumbnail from TileMapLayer-derived grid data");
+    AssertTrue(
+        dialogSource.Contains("CompanySelected", StringComparison.Ordinal) &&
+        dialogSource.Contains("ObjectiveZoneSelected", StringComparison.Ordinal) &&
+        dialogScene.Contains("CompanyList", StringComparison.Ordinal) &&
+        dialogScene.Contains("MapPreview", StringComparison.Ordinal),
+        "the modal should expose a select-company then click-target workflow");
+    AssertTrue(
+        factorySource.Contains("BattleObjectiveMapDialogScenePath", StringComparison.Ordinal) &&
+        siteSources.Contains("ModalHost", StringComparison.Ordinal),
+        "the objective selector should be an authored UI scene hosted through ModalHost");
+}
+
+internal static void ObjectiveZoneMarkerAuthoringIsAvailable()
+{
+    string root = ProjectRoot();
+    string typeSource = File.ReadAllText(Path.Combine(root, "src", "Definitions", "Maps", "SemanticMapMarkerType.cs"));
+    string dataSource = File.ReadAllText(Path.Combine(root, "src", "Application", "Maps", "SemanticMapMarkerData.cs"));
+    string baseSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Maps", "SemanticMapMarker.cs"));
+    string objectiveSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Maps", "ObjectiveZoneMapMarker.cs"));
+    string objectiveScene = File.ReadAllText(Path.Combine(root, "scenes", "maps", "markers", "ObjectiveZoneMapMarker.tscn"));
+
+    AssertTrue(typeSource.Contains("ObjectiveZone", StringComparison.Ordinal), "semantic marker type enum should expose objective zones");
+    AssertTrue(dataSource.Contains("ObjectiveRole", StringComparison.Ordinal), "pure marker data should carry objective role");
+    AssertTrue(
+        baseSource.Contains("ResolvedObjectiveRole", StringComparison.Ordinal) &&
+        objectiveSource.Contains("ResolvedMarkerType => SemanticMapMarkerType.ObjectiveZone", StringComparison.Ordinal),
+        "objective marker authoring should use a business subclass instead of editing marker type per instance");
+    AssertTrue(
+        objectiveScene.Contains("ObjectiveZoneMapMarker.cs", StringComparison.Ordinal) &&
+        objectiveScene.Contains("instance=ExtResource(\"1_base_marker\")", StringComparison.Ordinal),
+        "objective zone marker scene should inherit from the semantic marker base scene");
+}
+
 internal static void WorldSiteRootPrefersSemanticBuildingSlotMarkers()
 {
     string source = ReadWorldSiteRootSource();

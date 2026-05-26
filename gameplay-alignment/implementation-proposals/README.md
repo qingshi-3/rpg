@@ -16,6 +16,7 @@ These proposal files remain in this directory because performance diagnosis or m
 | `2026-05-21-battle-runtime-spike-diagnostics.md` | Implemented - pending manual QA | Performance diagnostics require manual QA evidence. |
 | `2026-05-21-battle-open-attack-flowfield-cache.md` | Implemented - pending manual QA | Performance optimization requires manual QA evidence. |
 | `2026-05-22-continuous-rts-movement.md` | Implemented - pending manual QA | Manual Godot playback is still needed to judge movement feel. |
+| `2026-05-23-battle-plan-state-machine.md` | Phase 1 Implemented - pending manual QA and later UI/marker phases | Core runtime plan contracts and objective-first movement are implemented; polished battle-preparation UI and objective marker authoring remain follow-up phases. |
 
 ## Archived Implementation Proposals
 

@@ -1,3 +1,5 @@
+using Rpg.Application.Battle.Snapshots;
+
 namespace Rpg.Runtime.Battle;
 
 public sealed class BattleRuntimeActor
@@ -45,6 +47,17 @@ public sealed class BattleRuntimeActor
     public int ActionLockTicksRemaining { get; set; }
     public string ActionLockReason { get; set; } = "";
     public string CommandId { get; set; } = "";
+    // Battle-group plans keep player intent separate from target-specific pathing,
+    // so movement can advance toward an objective without globally rescoring enemies.
+    public BattleEngagementRule EngagementRule { get; set; } = BattleEngagementRule.AttackFirst;
+    public BattleGroupPlanRuntimeState PlanState { get; set; } = BattleGroupPlanRuntimeState.SensingContact;
+    public bool HasObjectiveAnchor { get; set; }
+    public string ObjectiveZoneId { get; set; } = "";
+    public int ObjectiveGridX { get; set; }
+    public int ObjectiveGridY { get; set; }
+    public int ObjectiveGridHeight { get; set; }
+    public int ObjectiveWidth { get; set; } = 1;
+    public int ObjectiveHeight { get; set; } = 1;
     // Keeps blocked movement diagnosable without letting presentation infer combat truth.
     public int ConsecutiveAdvanceFailures { get; set; }
     public string LastAdvanceFailureReason { get; set; } = "";

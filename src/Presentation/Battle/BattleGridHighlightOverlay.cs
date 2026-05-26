@@ -59,6 +59,14 @@ public partial class BattleGridHighlightOverlay : Node2D
     public Color EnemyDeploymentColor { get; set; } = new(1f, 0.62f, 0.12f, 0.26f);
 
     [Export]
+    // Debug-only local sensing range for player-side units.
+    public Color FriendlyPerceptionColor { get; set; } = new(0.08f, 0.66f, 1f, 0.16f);
+
+    [Export]
+    // Debug-only local sensing range for enemy-side units.
+    public Color EnemyPerceptionColor { get; set; } = new(1f, 0.18f, 0.08f, 0.16f);
+
+    [Export]
     // Friendly hover attack range is yellow to separate planning information from hostile threat red.
     public Color FriendlyAttackColor { get; set; } = new(1f, 0.82f, 0.12f, 0.28f);
 
@@ -817,6 +825,8 @@ public partial class BattleGridHighlightOverlay : Node2D
             BattleGridHighlightKind.Target => (TargetColor, WithAlpha(TargetColor, 0.98f), RangeBorderWidth + 0.75f),
             BattleGridHighlightKind.FriendlyMove => (FriendlyMoveColor, WithAlpha(FriendlyMoveColor, 0.78f), RangeBorderWidth),
             BattleGridHighlightKind.EnemyDeployment => (EnemyDeploymentColor, WithAlpha(EnemyDeploymentColor, 0.76f), RangeBorderWidth),
+            BattleGridHighlightKind.FriendlyPerception => (FriendlyPerceptionColor, WithAlpha(FriendlyPerceptionColor, 0.52f), RangeBorderWidth),
+            BattleGridHighlightKind.EnemyPerception => (EnemyPerceptionColor, WithAlpha(EnemyPerceptionColor, 0.52f), RangeBorderWidth),
             BattleGridHighlightKind.FriendlyAttack => (FriendlyAttackColor, WithAlpha(FriendlyAttackColor, 0.84f), RangeBorderWidth + 0.2f),
             BattleGridHighlightKind.Selected => (SelectedColor, WithAlpha(SelectedColor, 0.62f), RangeBorderWidth),
             BattleGridHighlightKind.Invalid => (InvalidColor, WithAlpha(InvalidColor, 0.45f), RangeBorderWidth),
@@ -863,6 +873,8 @@ public partial class BattleGridHighlightOverlay : Node2D
         yield return BattleGridHighlightKind.Attack;
         yield return BattleGridHighlightKind.FriendlyMove;
         yield return BattleGridHighlightKind.EnemyDeployment;
+        yield return BattleGridHighlightKind.FriendlyPerception;
+        yield return BattleGridHighlightKind.EnemyPerception;
         yield return BattleGridHighlightKind.FriendlyAttack;
         yield return BattleGridHighlightKind.Target;
         yield return BattleGridHighlightKind.Invalid;

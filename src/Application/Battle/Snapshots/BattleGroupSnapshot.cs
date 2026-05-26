@@ -29,4 +29,5 @@ public sealed class BattleGroupSnapshot
     public double AttackActionSeconds { get; set; }
     public double AttackImpactDelaySeconds { get; set; }
     public string InitialCorpsCommandId { get; set; } = "";
+    public BattleGroupPlanSnapshot Plan { get; set; } = new();
 }

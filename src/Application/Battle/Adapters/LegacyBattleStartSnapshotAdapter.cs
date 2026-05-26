@@ -31,10 +31,45 @@ public sealed class LegacyBattleStartSnapshotAdapter
             corps);
 
         BattleNavigationSnapshotBuilder.CopyRequestToLocationContext(request, snapshot.LocationContext);
+        CopyObjectiveZones(request, snapshot);
         GameLog.Info(
             nameof(LegacyBattleStartSnapshotAdapter),
             BattleNavigationTopologyDiagnostics.DescribeSnapshotTopology(snapshot, "legacy_request_to_snapshot"));
         GameLog.Info(nameof(LegacyBattleStartSnapshotAdapter), $"Converted legacy battle request to snapshot request={request?.RequestId ?? ""} snapshot={snapshot.SnapshotId}");
         return snapshot;
+    }
+
+    private static void CopyObjectiveZones(BattleStartRequest request, BattleStartSnapshot snapshot)
+    {
+        snapshot?.ObjectiveZones?.Clear();
+        if (request?.ObjectiveZones == null || snapshot?.ObjectiveZones == null)
+        {
+            return;
+        }
+
+        foreach (BattleObjectiveZoneSnapshot zone in request.ObjectiveZones)
+        {
+            if (zone == null || string.IsNullOrWhiteSpace(zone.ObjectiveZoneId))
+            {
+                continue;
+            }
+
+            // Objective zones are authored before runtime and copied once into
+            // the snapshot so runtime plan resolution does not depend on UI state.
+            snapshot.ObjectiveZones.Add(new BattleObjectiveZoneSnapshot
+            {
+                ObjectiveZoneId = zone.ObjectiveZoneId,
+                DisplayName = zone.DisplayName ?? "",
+                ObjectiveRole = zone.ObjectiveRole ?? "",
+                DeploymentSide = zone.DeploymentSide ?? "",
+                FactionId = zone.FactionId ?? "",
+                Priority = zone.Priority,
+                CellX = zone.CellX,
+                CellY = zone.CellY,
+                CellHeight = zone.CellHeight,
+                Width = zone.Width,
+                Height = zone.Height
+            });
+        }
     }
 }

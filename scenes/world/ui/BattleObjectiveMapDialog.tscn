@@ -1,0 +1,168 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapDialog.cs" id="1_dialog"]
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_preview"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dialog"]
+bg_color = Color(0.055, 0.07, 0.065, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.86, 0.7, 0.38, 0.95)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.105, 0.128, 0.118, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.38, 0.46, 0.39, 0.9)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="BattleObjectiveMapDialog" type="Control"]
+visible = false
+z_index = 680
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_dialog")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.01, 0.014, 0.014, 0.72)
+
+[node name="DialogPanel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -490.0
+offset_top = -310.0
+offset_right = 490.0
+offset_bottom = 310.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_dialog")
+
+[node name="DialogMargin" type="MarginContainer" parent="DialogPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="DialogStack" type="VBoxContainer" parent="DialogPanel/DialogMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="Header" type="HBoxContainer" parent="DialogPanel/DialogMargin/DialogStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="DialogPanel/DialogMargin/DialogStack/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 22
+text = "选择兵团进攻目标"
+vertical_alignment = 1
+
+[node name="CloseButton" type="Button" parent="DialogPanel/DialogMargin/DialogStack/Header"]
+custom_minimum_size = Vector2(86, 34)
+layout_mode = 2
+text = "关闭"
+focus_mode = 2
+
+[node name="MainContent" type="HBoxContainer" parent="DialogPanel/DialogMargin/DialogStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="CompanyPanel" type="PanelContainer" parent="DialogPanel/DialogMargin/DialogStack/MainContent"]
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="CompanyMargin" type="MarginContainer" parent="DialogPanel/DialogMargin/DialogStack/MainContent/CompanyPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="CompanyStack" type="VBoxContainer" parent="DialogPanel/DialogMargin/DialogStack/MainContent/CompanyPanel/CompanyMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="CompanyTitle" type="Label" parent="DialogPanel/DialogMargin/DialogStack/MainContent/CompanyPanel/CompanyMargin/CompanyStack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.86, 0.94, 0.88, 1)
+text = "我方兵团"
+
+[node name="CompanyList" type="VBoxContainer" parent="DialogPanel/DialogMargin/DialogStack/MainContent/CompanyPanel/CompanyMargin/CompanyStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
+
+[node name="PreviewPanel" type="PanelContainer" parent="DialogPanel/DialogMargin/DialogStack/MainContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="PreviewMargin" type="MarginContainer" parent="DialogPanel/DialogMargin/DialogStack/MainContent/PreviewPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="MapPreview" type="Control" parent="DialogPanel/DialogMargin/DialogStack/MainContent/PreviewPanel/PreviewMargin"]
+custom_minimum_size = Vector2(620, 420)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 0
+script = ExtResource("2_preview")
+
+[node name="StatusLabel" type="Label" parent="DialogPanel/DialogMargin/DialogStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.88, 0.55, 1)
+text = "未选择兵团 · 未选择目标区域"
+horizontal_alignment = 1
+
+[node name="DoneButton" type="Button" parent="DialogPanel/DialogMargin/DialogStack"]
+custom_minimum_size = Vector2(180, 38)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "完成"
+focus_mode = 2

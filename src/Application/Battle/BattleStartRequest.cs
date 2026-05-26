@@ -22,6 +22,13 @@ public sealed class BattleStartRequest
     public WorldSiteAttackDirection AttackDirection { get; set; } = WorldSiteAttackDirection.Any;
     public string MapDefinitionId { get; set; } = "";
     public List<string> ObjectiveIds { get; set; } = new();
+    public List<BattleObjectiveZoneSnapshot> ObjectiveZones { get; set; } = new();
+    public BattleGroupPlanSnapshot PlayerBattleGroupPlan { get; set; } = new();
+    public Dictionary<string, BattleGroupPlanSnapshot> PlayerBattleGroupPlans { get; set; } =
+        new(StringComparer.Ordinal);
+    public BattleGroupPlanSnapshot EnemyBattleGroupPlan { get; set; } = new();
+    public Dictionary<string, BattleGroupPlanSnapshot> EnemyBattleGroupPlans { get; set; } =
+        new(StringComparer.Ordinal);
     public List<BattleEntranceRequest> AvailableEntrances { get; set; } = new();
     public List<BattleForceRequest> PlayerForces { get; set; } = new();
     public List<BattleForceRequest> EnemyForces { get; set; } = new();

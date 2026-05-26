@@ -11,6 +11,7 @@ public sealed class SemanticMapMarkerData
     public string MarkerId { get; set; } = "";
     public SemanticMapMarkerType MarkerType { get; set; } = SemanticMapMarkerType.BuildingSlot;
     public SemanticDeploymentSide DeploymentSide { get; set; } = SemanticDeploymentSide.Any;
+    public string ObjectiveRole { get; set; } = "";
     public Vector2I AnchorCell { get; set; }
     public int CellHeight { get; set; }
     public int Width { get; set; } = 1;

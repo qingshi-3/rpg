@@ -57,6 +57,10 @@ public partial class WorldSiteRoot
             _siteHudRoot,
             "BottomCommandHost",
             nameof(WorldSiteRoot));
+        _siteModalHost = GameUiSceneFactory.GetRequiredNode<Control>(
+            _siteHudRoot,
+            "ModalHost",
+            nameof(WorldSiteRoot));
         _battleRuntimeCommandBar = GameUiSceneFactory.GetRequiredNode<Control>(
             _siteHudRoot,
             "BottomCommandHost/BattleRuntimeCommandBar",
@@ -258,6 +262,8 @@ public partial class WorldSiteRoot
             _returnMapButton.Pressed += () => ReturnToReturnScene(_siteHudReturnScenePath);
         }
 
+        BuildBattleObjectiveMapDialog();
+
         if (_battleRuntimeAssaultButton != null)
         {
             _battleRuntimeAssaultButton.Pressed += () => SubmitBattleRuntimeCommand(BattleCorpsCommand.Assault);
@@ -272,6 +278,25 @@ public partial class WorldSiteRoot
         {
             _battleRuntimeHoldLineButton.Pressed += () => SubmitBattleRuntimeCommand(BattleCorpsCommand.HoldLine);
         }
+    }
+
+    private void BuildBattleObjectiveMapDialog()
+    {
+        if (_battleObjectiveMapDialog != null)
+        {
+            return;
+        }
+
+        _battleObjectiveMapDialog = GameUiSceneFactory.CreateBattleObjectiveMapDialog(nameof(WorldSiteRoot));
+        if (_battleObjectiveMapDialog == null)
+        {
+            return;
+        }
+
+        (_siteModalHost ?? _siteHudRoot ?? (Node)this).AddChild(_battleObjectiveMapDialog);
+        _battleObjectiveMapDialog.CompanySelected += OnBattleObjectiveDialogCompanySelected;
+        _battleObjectiveMapDialog.ObjectiveZoneSelected += OnBattleObjectiveDialogObjectiveSelected;
+        _battleObjectiveMapDialog.Closed += () => RefreshBattlePreparationUi();
     }
 
     private void EnsureSitePlacementEntityRoot()
@@ -465,9 +490,11 @@ public partial class WorldSiteRoot
         else if (!enabled)
         {
             _battleRuntimeCommandPauseActive = false;
+            _battlePerceptionOverlayVisible = false;
             _selectedBattleRuntimeGroupKey = "";
             _battleRuntimeRequest = null;
             _unitRoot?.ClearCommandSelection();
+            ClearBattlePerceptionOverlay();
             SetBattleRuntimeCommandPanelVisible(false);
 
             if (_siteBottomCommandHost != null)

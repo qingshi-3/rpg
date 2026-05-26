@@ -29,6 +29,11 @@ public sealed class BattleRuntimeAiActionRequest
         return new BattleRuntimeAiActionRequest(BattleRuntimeAiActionKind.AdvanceTowardTarget, actorId, targetActorId, "");
     }
 
+    public static BattleRuntimeAiActionRequest AdvanceTowardObjective(string actorId)
+    {
+        return new BattleRuntimeAiActionRequest(BattleRuntimeAiActionKind.AdvanceTowardObjective, actorId, "", "");
+    }
+
     public static BattleRuntimeAiActionRequest WaitForAttackCharge(string actorId, string targetActorId)
     {
         return new BattleRuntimeAiActionRequest(BattleRuntimeAiActionKind.WaitForAttackCharge, actorId, targetActorId, "");

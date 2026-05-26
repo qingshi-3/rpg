@@ -214,6 +214,16 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("开战\\n确认部署并进入实时战斗", StringComparison.Ordinal),
         "battle preparation should show an explicit start battle button");
     AssertTrue(
+        rootSource.Contains("目标区域", StringComparison.Ordinal) &&
+        rootSource.Contains("SelectBattlePreparationObjectiveZone", StringComparison.Ordinal) &&
+        rootSource.Contains("BattlePreparationObjectiveSelected", StringComparison.Ordinal),
+        "battle preparation should expose an explicit objective-zone selection step before runtime activation");
+    AssertTrue(
+        rootSource.Contains("推进规则", StringComparison.Ordinal) &&
+        rootSource.Contains("SelectBattlePreparationEngagementRule", StringComparison.Ordinal) &&
+        rootSource.Contains("BattlePreparationEngagementRuleSelected", StringComparison.Ordinal),
+        "battle preparation should expose a player-selected engagement rule beside the selected objective zone");
+    AssertTrue(
         rootSource.Contains("RegisterBattlePreparationPlacement", StringComparison.Ordinal),
         "battle placements should be registered during preparation");
     AssertTrue(
@@ -227,6 +237,11 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
     AssertTrue(
         rootSource.Contains("ActivateBattleRuntime();", StringComparison.Ordinal),
         "start battle should still commit into the existing runtime after preparation");
+    AssertTrue(
+        rootSource.Contains("SyncBattlePreparationPlanToRequest(request)", StringComparison.Ordinal) &&
+        rootSource.Contains("BattlePreparationPlanSynced", StringComparison.Ordinal) &&
+        rootSource.Contains("PlayerBattleGroupPlan", StringComparison.Ordinal),
+        "start battle should sync the selected objective and engagement rule into the same BattleStartRequest before activating runtime");
     AssertTrue(
         rootSource.Contains("SetBattleRuntimeEnabled(true);", StringComparison.Ordinal) &&
         rootSource.Contains("Preparation can start runtime directly after the player confirms deployment", StringComparison.Ordinal),
@@ -290,6 +305,16 @@ internal static void WorldSiteRootBattleRuntimeCommandUiRoutesInitialCommand()
         snapshotSource.Contains("InitialCorpsCommandId", StringComparison.Ordinal) &&
         probeSource.Contains("InitialCorpsCommandId", StringComparison.Ordinal),
         "initial corps command should be copied from legacy battle request into the target battle snapshot");
+    AssertTrue(
+        requestSource.Contains("ObjectiveZones", StringComparison.Ordinal) &&
+        requestSource.Contains("PlayerBattleGroupPlan", StringComparison.Ordinal) &&
+        requestSource.Contains("PlayerBattleGroupPlans", StringComparison.Ordinal) &&
+        requestSource.Contains("EnemyBattleGroupPlan", StringComparison.Ordinal) &&
+        requestSource.Contains("EnemyBattleGroupPlans", StringComparison.Ordinal) &&
+        probeSource.Contains("ResolveBattleGroupPlan", StringComparison.Ordinal) &&
+        probeSource.Contains("BattlePlanSide.Enemy", StringComparison.Ordinal) &&
+        probeSource.Contains("CopyPlanForGroup", StringComparison.Ordinal),
+        "battle preparation should route objective-zone and engagement-rule selections for both sides through the request-to-snapshot probe boundary");
 }
 
 internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
@@ -352,8 +377,13 @@ internal static void BattlePreparationKeepsStartBattlePrimary()
 
     AssertTrue(
         !refreshActionsBody.Contains("RefreshBattleRuntimeCommandControls", StringComparison.Ordinal) &&
-        refreshActionsBody.Contains("LaunchPreparedBattle", StringComparison.Ordinal),
+        battlePreparationSource.Contains("LaunchPreparedBattle", StringComparison.Ordinal) &&
+        refreshActionsBody.Contains("AddBattlePreparationStartButton", StringComparison.Ordinal),
         "battle preparation action list should keep Start Battle as the primary action; runtime command buttons belong after battle starts.");
+    AssertTrue(
+        refreshActionsBody.IndexOf("AddBattlePreparationStartButton", StringComparison.Ordinal) <
+        refreshActionsBody.IndexOf("AddMutedLine(_siteBattlePreparationActionList, \"目标区域\")", StringComparison.Ordinal),
+        "Start Battle should stay visible above marker objective planning controls.");
 }
 
 internal static void WorldSiteRootBattlePreparationDragUsesTemporaryHighZAndSurfaceSort()

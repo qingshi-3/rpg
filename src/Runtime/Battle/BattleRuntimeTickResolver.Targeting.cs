@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.Navigation;
 
@@ -23,6 +24,35 @@ internal sealed partial class BattleRuntimeTickResolver
             return FindLowestHealthEnemyCorps(facts, actorFact);
         }
 
+        if (IsHoldLineCommand(actorFact.CommandId))
+        {
+            return FindImmediateAttackOpportunityEnemyCorps(facts, actorFact);
+        }
+
+        if (actorFact.Actor.EngagementRule == BattleEngagementRule.Hold)
+        {
+            // Hold-line player commands stay fixed, but an authored hold plan is
+            // a guard posture: it should wake on local contact without global
+            // attack-slot scoring across the whole map.
+            return FindPlanScopedEnemyCorps(facts, actorFact);
+        }
+
+        if (actorFact.Actor.HasObjectiveAnchor)
+        {
+            if (IsObjectiveReached(actorFact))
+            {
+                // Objective zones are rally/approach intent, not a final idle
+                // command. Once the group has reached the zone, normal contact
+                // acquisition resumes so it can push into combat.
+                return FindImmediateAttackOpportunityEnemyCorps(facts, actorFact) ??
+                       FindRetainedEnemyCorps(facts, actorFact) ??
+                       FindFastestAttackOpportunityEnemyCorps(facts, actorFact, navigationGraph, occupancy, flowFields, performanceCounters) ??
+                       FindNearestEnemyCorps(facts, actorFact);
+            }
+
+            return FindPlanScopedEnemyCorps(facts, actorFact);
+        }
+
         // Mature RTS movement keeps target acquisition sticky while units are
         // marching. Full attack-opportunity scoring builds flow fields, so doing
         // it every movement step turns pathing into visible frame spikes. Units
@@ -34,9 +64,43 @@ internal sealed partial class BattleRuntimeTickResolver
                FindNearestEnemyCorps(facts, actorFact);
     }
 
-    private static TickStartActorFact? FindRetainedEnemyCorps(
+    private static TickStartActorFact? FindPlanScopedEnemyCorps(
         IReadOnlyDictionary<string, TickStartActorFact> facts,
         TickStartActorFact actorFact)
+    {
+        // Once a battle group has an authored objective, local perception owns
+        // target acquisition. This preserves the player plan and prevents
+        // ordinary marching from rebuilding global attack-slot fields.
+        TickStartActorFact? immediate = FindImmediateAttackOpportunityEnemyCorps(facts, actorFact);
+        if (immediate != null)
+        {
+            return immediate;
+        }
+
+        if (actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst)
+        {
+            return null;
+        }
+
+        TickStartActorFact? retained = FindRetainedEnemyCorps(
+            facts,
+            actorFact,
+            PlannedLocalPerceptionRange);
+        if (retained != null)
+        {
+            return retained;
+        }
+
+        return FindNearestEnemyCorps(
+            facts,
+            actorFact,
+            PlannedLocalPerceptionRange);
+    }
+
+    private static TickStartActorFact? FindRetainedEnemyCorps(
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        TickStartActorFact actorFact,
+        int maxGap = int.MaxValue)
     {
         if (string.IsNullOrWhiteSpace(actorFact.TargetActorId) ||
             !facts.TryGetValue(actorFact.TargetActorId, out TickStartActorFact retained))
@@ -44,7 +108,9 @@ internal sealed partial class BattleRuntimeTickResolver
             return null;
         }
 
-        return GetCurrentHitPoints(retained) > 0 && !SameFaction(actorFact.Actor, retained.Actor)
+        return GetCurrentHitPoints(retained) > 0 &&
+               !SameFaction(actorFact.Actor, retained.Actor) &&
+               GetSquareGridDistance(actorFact, retained) <= maxGap
             ? retained
             : null;
     }
@@ -91,7 +157,8 @@ internal sealed partial class BattleRuntimeTickResolver
 
     private static TickStartActorFact? FindNearestEnemyCorps(
         IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact)
+        TickStartActorFact actorFact,
+        int maxGap = int.MaxValue)
     {
         TickStartActorFact? selected = null;
         int selectedGap = int.MaxValue;
@@ -105,6 +172,11 @@ internal sealed partial class BattleRuntimeTickResolver
             }
 
             int gap = GetSquareGridDistance(actorFact, candidate);
+            if (gap > maxGap)
+            {
+                continue;
+            }
+
             if (selected == null ||
                 gap < selectedGap ||
                 gap == selectedGap && string.CompareOrdinal(candidate.Actor.ActorId, selected.Value.Actor.ActorId) < 0)

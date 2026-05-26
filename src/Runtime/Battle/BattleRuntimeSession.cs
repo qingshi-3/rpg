@@ -94,6 +94,7 @@ public sealed class BattleRuntimeSession
         LogNavigationGraphSummary(battleId, navigationGraph);
         LogNavigationActorStarts(battleId, navigationGraph, state.Actors);
         EmitInitialCommandEvents(stream, battleId, state);
+        EmitInitialPlanEvents(stream, battleId, state);
 
         return new BattleRuntimeSessionController(
             _tickResolver,
@@ -128,6 +129,7 @@ public sealed class BattleRuntimeSession
             int corpsHitPoints = ResolveCombatHitPoints(group);
             int corpsFootprintWidth = BattleActorFootprint.NormalizeSize(group.FootprintWidth);
             int corpsFootprintHeight = BattleActorFootprint.NormalizeSize(group.FootprintHeight);
+            BattleGroupPlanSnapshot plan = ResolveBattleGroupPlan(group, snapshot?.ObjectiveZones);
             state.Actors.Add(new BattleRuntimeActor
             {
                 ActorId = $"{group.BattleGroupId}:hero",
@@ -173,7 +175,18 @@ public sealed class BattleRuntimeSession
                 MoveStepSeconds = moveStepSeconds,
                 AttackActionSeconds = attackActionSeconds,
                 AttackImpactDelaySeconds = attackImpactDelaySeconds,
-                CommandId = NormalizeCorpsCommandId(group.InitialCorpsCommandId)
+                CommandId = NormalizeCorpsCommandId(group.InitialCorpsCommandId),
+                EngagementRule = NormalizeEngagementRule(plan.EngagementRule, group.InitialCorpsCommandId),
+                HasObjectiveAnchor = plan.HasObjectiveAnchor,
+                ObjectiveZoneId = plan.ObjectiveZoneId ?? "",
+                ObjectiveGridX = plan.ObjectiveCellX,
+                ObjectiveGridY = plan.ObjectiveCellY,
+                ObjectiveGridHeight = plan.ObjectiveCellHeight,
+                ObjectiveWidth = System.Math.Max(1, plan.ObjectiveWidth),
+                ObjectiveHeight = System.Math.Max(1, plan.ObjectiveHeight),
+                PlanState = plan.HasObjectiveAnchor
+                    ? BattleGroupPlanRuntimeState.AdvancingToObjective
+                    : BattleGroupPlanRuntimeState.SensingContact
             });
         }
 
@@ -383,6 +396,68 @@ public sealed class BattleRuntimeSession
             !string.IsNullOrWhiteSpace(group.SourceLocationId);
     }
 
+    private static BattleGroupPlanSnapshot ResolveBattleGroupPlan(
+        BattleGroupSnapshot group,
+        IReadOnlyList<BattleObjectiveZoneSnapshot> objectiveZones)
+    {
+        BattleGroupPlanSnapshot source = group?.Plan ?? new BattleGroupPlanSnapshot();
+        BattleObjectiveZoneSnapshot zone = FindObjectiveZone(source.ObjectiveZoneId, objectiveZones);
+        BattleGroupPlanSnapshot resolved = new()
+        {
+            BattleGroupId = string.IsNullOrWhiteSpace(source.BattleGroupId)
+                ? group?.BattleGroupId ?? ""
+                : source.BattleGroupId,
+            ObjectiveZoneId = source.ObjectiveZoneId ?? "",
+            EngagementRule = NormalizeEngagementRule(source.EngagementRule, group?.InitialCorpsCommandId),
+            InitialFormationId = source.InitialFormationId ?? "",
+            HasObjectiveAnchor = source.HasObjectiveAnchor || zone != null,
+            ObjectiveCellX = source.HasObjectiveAnchor ? source.ObjectiveCellX : zone?.CellX ?? 0,
+            ObjectiveCellY = source.HasObjectiveAnchor ? source.ObjectiveCellY : zone?.CellY ?? 0,
+            ObjectiveCellHeight = source.HasObjectiveAnchor ? source.ObjectiveCellHeight : zone?.CellHeight ?? 0,
+            ObjectiveWidth = source.HasObjectiveAnchor ? source.ObjectiveWidth : zone?.Width ?? 1,
+            ObjectiveHeight = source.HasObjectiveAnchor ? source.ObjectiveHeight : zone?.Height ?? 1
+        };
+
+        if (string.IsNullOrWhiteSpace(resolved.ObjectiveZoneId) && zone != null)
+        {
+            resolved.ObjectiveZoneId = zone.ObjectiveZoneId ?? "";
+        }
+
+        return resolved;
+    }
+
+    private static BattleObjectiveZoneSnapshot FindObjectiveZone(
+        string objectiveZoneId,
+        IReadOnlyList<BattleObjectiveZoneSnapshot> objectiveZones)
+    {
+        if (string.IsNullOrWhiteSpace(objectiveZoneId))
+        {
+            return null;
+        }
+
+        return (objectiveZones ?? System.Array.Empty<BattleObjectiveZoneSnapshot>())
+            .FirstOrDefault(item => string.Equals(
+                item?.ObjectiveZoneId,
+                objectiveZoneId,
+                System.StringComparison.Ordinal));
+    }
+
+    private static BattleEngagementRule NormalizeEngagementRule(
+        BattleEngagementRule rule,
+        string initialCorpsCommandId)
+    {
+        // Legacy snapshots do not yet carry authored objective plans. Keep their
+        // attack-first behavior stable while the new battle-preparation UI is phased in.
+        if (IsHoldLineCommand(initialCorpsCommandId))
+        {
+            return BattleEngagementRule.Hold;
+        }
+
+        return System.Enum.IsDefined(typeof(BattleEngagementRule), rule)
+            ? rule
+            : BattleEngagementRule.AttackFirst;
+    }
+
     internal static void EmitInitialCommandEvents(
         BattleEventStream stream,
         string battleId,
@@ -405,6 +480,28 @@ public sealed class BattleRuntimeSession
         }
     }
 
+    internal static void EmitInitialPlanEvents(
+        BattleEventStream stream,
+        string battleId,
+        BattleRuntimeState state)
+    {
+        foreach (BattleRuntimeActor actor in state?.Actors?.Where(item =>
+                     item.Kind == BattleRuntimeActorKind.Corps &&
+                     IsPlayerFaction(item.FactionId)) ?? Enumerable.Empty<BattleRuntimeActor>())
+        {
+            stream.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:{actor.ActorId}:initial_plan",
+                BattleId = battleId,
+                BattleGroupId = actor.BattleGroupId,
+                ActorId = actor.ActorId,
+                TargetId = actor.ObjectiveZoneId ?? "",
+                Kind = BattleEventKind.BattleGroupPlanAccepted,
+                ReasonCode = actor.EngagementRule.ToString()
+            });
+        }
+    }
+
     private static string NormalizeCorpsCommandId(string commandId)
     {
         string value = commandId?.Trim() ?? "";
@@ -419,6 +516,11 @@ public sealed class BattleRuntimeSession
         }
 
         return CommandAssault;
+    }
+
+    private static bool IsHoldLineCommand(string commandId)
+    {
+        return string.Equals(NormalizeCorpsCommandId(commandId), CommandHoldLine, System.StringComparison.Ordinal);
     }
 
     private static bool SameFaction(BattleRuntimeActor first, BattleRuntimeActor second)

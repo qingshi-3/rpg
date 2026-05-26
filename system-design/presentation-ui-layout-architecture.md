@@ -169,7 +169,7 @@ Recommended modes:
 | `StrategicSelection` | selected location/army/opportunity detail and actions | Strategic state + definitions + Application queries | Application requests only |
 | `ExpeditionDraft` | source site, hero/battle-group selection, target selection actions | Strategic state + Application expedition availability | Application expedition request |
 | `SiteManagement` | city/strategic-location facilities, garrison, actions, feedback | Site state + definitions + Application view/query services | Application site action requests |
-| `BattlePreparation` | player roster, deployed/missing status, enemy preview summary, start battle | Application battle request/snapshot draft | Deployment draft confirmation only |
+| `BattlePreparation` | player roster, hero/corps deployment, objective-zone selection, engagement-rule selection, enemy preview summary, start battle | Application battle request/snapshot draft + battle-group plan draft | Deployment and plan draft confirmation only |
 | `BattleRuntime` | selected battle-group status and future commands | Runtime event stream/snapshot + command availability hints | `CommandRequest` only |
 | `SettlementReport` | report result and state-change explanation | Settlement/report output | return/acknowledge only |
 
@@ -230,12 +230,30 @@ World-site map, units, battle overlays, debug world nodes, and battle camera bel
 
 Battle preparation must stop presenting roster units through `_siteGarrisonList` as a long-term design.
 
+The target battle-preparation UI is a company-by-company planning workflow:
+
+```text
+hero company roster
+-> hero placement
+-> corps placement
+-> tactical zoom-out objective selection
+-> engagement-rule selection
+-> plan confirmation
+```
+
+The tactical objective-selection step belongs to Presentation, but only as a view and input surface. It displays objective-zone markers, route previews, and company geography from Application/runtime-ready data. It submits objective and rule choices back to the battle-entry Application boundary. It does not create pathfinding truth, runtime targets, or a separate battle snapshot.
+
+The target selector is a ModalHost-owned tactical overview, not a row of abstract buttons. The player selects a hero company / battle group in the modal, then clicks a marker-backed target region on a simplified whole-map thumbnail. The thumbnail is derived from the TileMapLayer-built grid data and may simplify art detail down to land/water color blocks, but objective regions must be actual semantic markers from the active map. V0 maps that have not authored dedicated `ObjectiveZone` markers may expose enemy-side deployment-zone markers as visible assault target regions; this is marker-backed and must not fabricate hidden target cells.
+
+The horizontal battlefield identity must stay visible through the planning flow. A zoomed-out objective view may compress the map into a tactical overview, but it should still read as a side-scrolling battlefield with lanes, height changes, gates, bridges, and route bands rather than an unrelated top-down board.
+
 Migration path:
 
 1. Keep existing behavior stable while the panel is moved left.
 2. Add a battle-preparation content area under the left primary workspace.
-3. Bind player roster, enemy preview summary, deployment status, and start-battle actions to battle-preparation-specific containers.
-4. Continue consuming the same battle request/snapshot source; do not create a separate UI unit pool.
+3. Bind player roster, enemy preview summary, deployment status, objective selection, engagement rules, and start-battle actions to battle-preparation-specific containers.
+4. Continue consuming the same battle request/snapshot and battle-group plan draft source; do not create a separate UI unit pool.
+5. Reserve `OverlayHost` for deployment highlights, drag previews, route previews, objective-zone outlines, and the zoom transition between local deployment and tactical overview.
 
 ### Battle Runtime
 

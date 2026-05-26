@@ -4,6 +4,7 @@ using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Feedback;
 using Rpg.Presentation.Battle.Intents;
 using Rpg.Presentation.World;
+using Rpg.Presentation.World.Sites;
 
 namespace Rpg.Presentation.Common;
 
@@ -11,6 +12,7 @@ public static class GameUiSceneFactory
 {
     public const string StrategicWorldHudScenePath = "res://scenes/world/ui/StrategicWorldHud.tscn";
     public const string WorldSitePeacetimeHudScenePath = "res://scenes/world/ui/WorldSitePeacetimeHud.tscn";
+    public const string BattleObjectiveMapDialogScenePath = "res://scenes/world/ui/BattleObjectiveMapDialog.tscn";
     public const string PreBattleDialogScenePath = "res://scenes/world/ui/PreBattleDialog.tscn";
     public const string WorldSiteHitButtonScenePath = "res://scenes/world/ui/WorldSiteHitButton.tscn";
     public const string WorldSiteLabelScenePath = "res://scenes/world/ui/WorldSiteLabel.tscn";
@@ -66,6 +68,11 @@ public static class GameUiSceneFactory
     public static WorldSiteHoverSummaryPanel CreateWorldSiteHoverSummaryPanel(string ownerName)
     {
         return Instantiate<WorldSiteHoverSummaryPanel>(WorldSiteHoverSummaryPanelScenePath, ownerName);
+    }
+
+    public static BattleObjectiveMapDialog CreateBattleObjectiveMapDialog(string ownerName)
+    {
+        return Instantiate<BattleObjectiveMapDialog>(BattleObjectiveMapDialogScenePath, ownerName);
     }
 
     public static Label CreateWorldMutedLine(string ownerName)

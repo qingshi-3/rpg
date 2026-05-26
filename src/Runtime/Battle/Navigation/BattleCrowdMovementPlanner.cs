@@ -102,6 +102,59 @@ internal static class BattleCrowdMovementPlanner
             .ToArray();
     }
 
+    public static IReadOnlyList<BattleGridCoord> FindNextStepCandidatesTowardObjective(
+        BattleRuntimeActor actor,
+        BattleNavigationGraph graph,
+        BattleDynamicOccupancy occupancy,
+        BattleMovementReservationMap reservations,
+        BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters = null)
+    {
+        if (actor == null || graph == null || occupancy == null || reservations == null || !actor.HasObjectiveAnchor)
+        {
+            return new List<BattleGridCoord>();
+        }
+
+        BattleGridCoord start = new(actor.GridX, actor.GridY, actor.GridHeight);
+        if (!graph.Contains(start))
+        {
+            return new List<BattleGridCoord>();
+        }
+
+        BattleGridCoord objectiveAnchor = new(actor.ObjectiveGridX, actor.ObjectiveGridY, actor.ObjectiveGridHeight);
+        BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
+        BattleFlowField field = cache.GetOrBuildObjective(
+            actor,
+            graph,
+            objectiveAnchor,
+            actor.ObjectiveWidth,
+            actor.ObjectiveHeight);
+        if (!field.HasCosts || !field.TryGetCost(start, out int startCost) || startCost == 0)
+        {
+            return new List<BattleGridCoord>();
+        }
+
+        List<MoveOption> options = new();
+        foreach (BattleGridCoord neighbor in graph.GetNeighbors(start))
+        {
+            if (!BattlePathStepRules.CanUseStaticStep(actor, start, neighbor, graph) ||
+                !reservations.CanReserveMove(actor, start, neighbor, occupancy) ||
+                !field.TryGetCost(neighbor, out int neighborCost) ||
+                neighborCost >= startCost)
+            {
+                continue;
+            }
+
+            int score = neighborCost * FlowCostWeight + GetStepCost(start, neighbor);
+            options.Add(new MoveOption(neighbor, score, neighborCost));
+        }
+
+        return options
+            .OrderBy(item => item, MoveOptionComparer.Instance)
+            .Select(item => item.Anchor)
+            .ToArray();
+    }
+
     private static bool OpensNewAxisGap(
         BattleRuntimeActor actor,
         BattleRuntimeActor target,

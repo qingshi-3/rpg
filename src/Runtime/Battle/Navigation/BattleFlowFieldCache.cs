@@ -77,6 +77,27 @@ internal sealed class BattleFlowFieldCache
         return openField;
     }
 
+    public BattleFlowField GetOrBuildObjective(
+        BattleRuntimeActor actor,
+        BattleNavigationGraph graph,
+        BattleGridCoord objectiveAnchor,
+        int objectiveWidth,
+        int objectiveHeight)
+    {
+        string key = BuildObjectiveKey(actor, objectiveAnchor, objectiveWidth, objectiveHeight);
+        if (_fields.TryGetValue(key, out BattleFlowField field))
+        {
+            _performanceCounters?.RecordFlowFieldCacheHit();
+            return field;
+        }
+
+        _performanceCounters?.RecordFlowFieldCacheMiss();
+        BattleCombatSlot[] goals = BuildObjectiveGoals(actor, graph, objectiveAnchor, objectiveWidth, objectiveHeight);
+        field = BattleFlowFieldBuilder.BuildFromGoalSlots(actor, graph, goals, _performanceCounters);
+        _fields[key] = field;
+        return field;
+    }
+
     private static string BuildKey(BattleRuntimeActor actor, BattleRuntimeActor target, bool preferSupportSlots)
     {
         return string.Join("|",
@@ -105,5 +126,54 @@ internal sealed class BattleFlowFieldCache
                         item.Anchor.X.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         item.Anchor.Y.ToString(System.Globalization.CultureInfo.InvariantCulture),
                         item.Anchor.Height.ToString(System.Globalization.CultureInfo.InvariantCulture)))));
+    }
+
+    private static BattleCombatSlot[] BuildObjectiveGoals(
+        BattleRuntimeActor actor,
+        BattleNavigationGraph graph,
+        BattleGridCoord objectiveAnchor,
+        int objectiveWidth,
+        int objectiveHeight)
+    {
+        if (actor == null || graph == null)
+        {
+            return System.Array.Empty<BattleCombatSlot>();
+        }
+
+        int width = System.Math.Max(1, objectiveWidth);
+        int height = System.Math.Max(1, objectiveHeight);
+        var goals = new List<BattleCombatSlot>();
+        for (int y = objectiveAnchor.Y; y < objectiveAnchor.Y + height; y++)
+        {
+            for (int x = objectiveAnchor.X; x < objectiveAnchor.X + width; x++)
+            {
+                BattleGridCoord anchor = new(x, y, objectiveAnchor.Height);
+                if (!graph.CanPlaceFootprint(actor, anchor))
+                {
+                    continue;
+                }
+
+                goals.Add(new BattleCombatSlot(anchor, BattleCombatSlotKind.Support, 0, goals.Count));
+            }
+        }
+
+        return goals.ToArray();
+    }
+
+    private static string BuildObjectiveKey(
+        BattleRuntimeActor actor,
+        BattleGridCoord objectiveAnchor,
+        int objectiveWidth,
+        int objectiveHeight)
+    {
+        return string.Join("|",
+            "objective",
+            objectiveAnchor.X.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            objectiveAnchor.Y.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            objectiveAnchor.Height.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            System.Math.Max(1, objectiveWidth).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            System.Math.Max(1, objectiveHeight).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            actor?.FootprintWidth.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "1",
+            actor?.FootprintHeight.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "1");
     }
 }

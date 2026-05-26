@@ -49,6 +49,7 @@ public partial class WorldSiteRoot
             restartMoveAnimation: false,
             returnToIdleOnComplete: returnToIdleOnComplete,
             stepDurationSeconds: runtimeEvent.ActionDurationSeconds);
+        RefreshBattlePerceptionOverlay();
         return _unitRoot.ResolveVisualMoveStepDurationSeconds(runtimeEvent.ActionDurationSeconds);
     }
 
@@ -141,6 +142,7 @@ public partial class WorldSiteRoot
         if (BattleRuleQueries.IsDefeated(target))
         {
             _unitRoot.MarkEntityDefeated(target);
+            RefreshBattlePerceptionOverlay();
         }
     }
 }

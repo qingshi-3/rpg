@@ -10,6 +10,8 @@ public enum BattleGridHighlightKind
     Target,
     FriendlyMove,
     EnemyDeployment,
+    FriendlyPerception,
+    EnemyPerception,
     FriendlyAttack,
     Selected,
     Invalid,

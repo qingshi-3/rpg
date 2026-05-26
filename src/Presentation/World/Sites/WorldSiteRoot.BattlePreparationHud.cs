@@ -3,6 +3,7 @@ using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
 using Rpg.Definitions.Maps;
@@ -12,6 +13,7 @@ using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle;
 using Rpg.Presentation.Battle.Entities;
+using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Preview;
 using Rpg.Presentation.Battle.Rules;
 using Rpg.Presentation.Common;
@@ -42,7 +44,9 @@ public partial class WorldSiteRoot
             : request.ReturnScenePath;
         _selectedPlacementId = "";
         _selectedFacilitySlotId = "";
+        _selectedBattlePreparationPlanGroupKey = "";
         ClearPlayerBattlePreparationPlacements(request);
+        EnsureBattlePreparationPlanDefaults(request);
 
         if (_returnMapButton != null)
         {
@@ -93,6 +97,7 @@ public partial class WorldSiteRoot
         WorldSiteState site = ResolveSiteState(_siteHudSiteId);
         WorldSiteDefinition definition = ResolveSiteDefinition(_siteHudSiteId);
         EnsureSitePlacementsRespectTerrain(site, definition);
+        EnsureBattlePreparationPlanDefaults(_battlePreparationRequest);
 
         _siteHudTitle.Text = $"{ResolveSiteName(_siteHudSiteId)} · 战前部署";
         _siteResourceLabel.Text = BuildResourceLine();
@@ -292,15 +297,17 @@ public partial class WorldSiteRoot
         {
             $"{siteName}即将发生战斗。",
             "左键拖动我方单位可调整部署位置。",
+            BuildBattlePreparationPlanSummary(_battlePreparationRequest),
             $"我方部署：{playerPlacementCount}    敌方部署：{enemyPlacementCount}"
         });
     }
 
     private string BuildBattlePreparationSelectionText()
     {
+        string planSummary = BuildBattlePreparationPlanSummary(_battlePreparationRequest);
         return string.IsNullOrWhiteSpace(_selectedPlacementId)
-            ? "当前未选中部署单位。"
-            : $"当前选中：{BuildPlacementDisplayName(_selectedPlacementId)}";
+            ? $"{planSummary}\n当前未选中部署单位。"
+            : $"{planSummary}\n当前选中：{BuildPlacementDisplayName(_selectedPlacementId)}";
     }
 
     private void RefreshBattlePreparationForceList()
@@ -369,6 +376,73 @@ public partial class WorldSiteRoot
         return forces?.Sum(force => force?.PreferredPlacements?.Count ?? 0) ?? 0;
     }
 
+    private void EnsureBattlePreparationPlanDefaults(BattleStartRequest request)
+    {
+        if (request == null)
+        {
+            return;
+        }
+
+        request.ObjectiveZones ??= new List<BattleObjectiveZoneSnapshot>();
+        IReadOnlyList<BattleObjectiveZoneSnapshot> markerZones = BuildMarkerBackedBattlePreparationObjectiveZones(request);
+        if (markerZones.Count > 0 || ContainsGeneratedBattlePreparationObjectiveZones(request.ObjectiveZones))
+        {
+            request.ObjectiveZones.Clear();
+            request.ObjectiveZones.AddRange(markerZones);
+        }
+
+        request.PlayerBattleGroupPlan ??= new BattleGroupPlanSnapshot();
+        request.PlayerBattleGroupPlans ??= new Dictionary<string, BattleGroupPlanSnapshot>(System.StringComparer.Ordinal);
+        EnsureSelectedBattlePreparationPlanGroup(request);
+        foreach (BattleRuntimeCommandGroupView group in BuildBattlePreparationPlayerGroups())
+        {
+            BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(request, group.GroupKey, create: true);
+            if (!IsBattleEngagementRuleDefined(plan.EngagementRule) ||
+                (plan.EngagementRule == BattleEngagementRule.AttackFirst && string.IsNullOrWhiteSpace(plan.ObjectiveZoneId)))
+            {
+                plan.EngagementRule = _selectedBattleCorpsCommand == BattleCorpsCommand.HoldLine
+                    ? BattleEngagementRule.Hold
+                    : BattleEngagementRule.MoveFirst;
+            }
+        }
+
+        EnsureBattlePreparationEnemyPlanDefaults(request);
+        SyncSelectedBattlePreparationPlanFallback(request);
+    }
+
+    private static bool IsBattleEngagementRuleDefined(BattleEngagementRule rule)
+    {
+        return System.Enum.IsDefined(typeof(BattleEngagementRule), rule);
+    }
+
+    private string BuildBattlePreparationPlanSummary(BattleStartRequest request)
+    {
+        BattleRuntimeCommandGroupView selectedGroup = BuildBattlePreparationPlayerGroups()
+            .FirstOrDefault(group => string.Equals(group.GroupKey, _selectedBattlePreparationPlanGroupKey, System.StringComparison.Ordinal));
+        BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(
+            request,
+            _selectedBattlePreparationPlanGroupKey,
+            create: false);
+        string objectiveName = TryResolveSelectedBattleObjectiveZone(request, out BattleObjectiveZoneSnapshot selectedZone)
+            ? BuildBattlePreparationObjectiveLabel(selectedZone)
+            : "未选择";
+        string ruleName = plan == null
+            ? "未选择"
+            : BuildBattlePreparationRuleLabel(plan.EngagementRule);
+        string groupName = selectedGroup?.DisplayName ?? "未选择兵团";
+        return $"兵团：{groupName}    目标区域：{objectiveName}    推进规则：{ruleName}";
+    }
+
+    private static string BuildBattlePreparationObjectiveLabel(BattleObjectiveZoneSnapshot zone)
+    {
+        if (!string.IsNullOrWhiteSpace(zone?.DisplayName))
+        {
+            return zone.DisplayName.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(zone?.ObjectiveZoneId) ? "目标区域" : zone.ObjectiveZoneId;
+    }
+
     private void RefreshBattlePreparationActions()
     {
         if (_siteBattlePreparationActionList == null)
@@ -377,6 +451,26 @@ public partial class WorldSiteRoot
         }
 
         ClearChildren(_siteBattlePreparationActionList);
+        EnsureBattlePreparationPlanDefaults(_battlePreparationRequest);
+        AddBattlePreparationStartButton(_siteBattlePreparationActionList);
+        AddMutedLine(_siteBattlePreparationActionList, "目标区域");
+        AddBattlePreparationObjectiveMapButton(_siteBattlePreparationActionList);
+
+        AddMutedLine(_siteBattlePreparationActionList, "推进规则");
+        AddBattlePreparationEngagementRuleButton(_siteBattlePreparationActionList, BattleEngagementRule.MoveFirst);
+        AddBattlePreparationEngagementRuleButton(_siteBattlePreparationActionList, BattleEngagementRule.AttackFirst);
+        AddBattlePreparationEngagementRuleButton(_siteBattlePreparationActionList, BattleEngagementRule.Hold);
+    }
+
+    private void AddBattlePreparationStartButton(Container targetList)
+    {
+        if (targetList == null)
+        {
+            return;
+        }
+
+        // Keep the launch action visible near the top of the planning controls;
+        // the objective map can grow as marker counts increase.
         Button startButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(WorldSiteRoot));
         if (startButton == null)
         {
@@ -385,7 +479,146 @@ public partial class WorldSiteRoot
 
         startButton.Text = "开战\n确认部署并进入实时战斗";
         startButton.Pressed += LaunchPreparedBattle;
-        _siteBattlePreparationActionList.AddChild(startButton);
+        targetList.AddChild(startButton);
+    }
+
+    private void AddBattlePreparationObjectiveMapButton(Container targetList)
+    {
+        if (targetList == null)
+        {
+            return;
+        }
+
+        Button button = GameUiSceneFactory.CreateWorldSecondaryActionButton(nameof(WorldSiteRoot));
+        if (button == null)
+        {
+            return;
+        }
+
+        int objectiveCount = _battlePreparationRequest?.ObjectiveZones?.Count ?? 0;
+        button.Text = objectiveCount == 0
+            ? "选择进攻目标\n当前地图没有可用目标 marker"
+            : $"打开战术缩略图\n{BuildBattlePreparationPlanSummary(_battlePreparationRequest)}";
+        button.TooltipText = "在地图缩略图中先选兵团，再点击敌方目标区域 marker。";
+        button.Pressed += OpenBattleObjectiveMapDialog;
+        targetList.AddChild(button);
+    }
+
+    private void AddBattlePreparationEngagementRuleButton(
+        Container targetList,
+        BattleEngagementRule rule)
+    {
+        if (targetList == null)
+        {
+            return;
+        }
+
+        Button button = GameUiSceneFactory.CreateWorldSecondaryActionButton(nameof(WorldSiteRoot));
+        if (button == null)
+        {
+            return;
+        }
+
+        BattleGroupPlanSnapshot selectedPlan = ResolveBattlePreparationGroupPlan(
+            _battlePreparationRequest,
+            _selectedBattlePreparationPlanGroupKey,
+            create: false);
+        bool selected = selectedPlan?.EngagementRule == rule;
+        button.Text = selected
+            ? $"已选 {BuildBattlePreparationRuleLabel(rule)}\n{BuildBattlePreparationRuleDetail(rule)}"
+            : $"{BuildBattlePreparationRuleLabel(rule)}\n{BuildBattlePreparationRuleDetail(rule)}";
+        button.TooltipText = BuildBattlePreparationRuleTooltip(rule);
+        button.Pressed += () => SelectBattlePreparationEngagementRule(rule);
+        targetList.AddChild(button);
+    }
+
+    private void SelectBattlePreparationObjectiveZone(string objectiveZoneId)
+    {
+        EnsureBattlePreparationPlanDefaults(_battlePreparationRequest);
+        BattleObjectiveZoneSnapshot zone = _battlePreparationRequest?.ObjectiveZones?
+            .FirstOrDefault(item => string.Equals(item?.ObjectiveZoneId, objectiveZoneId, System.StringComparison.Ordinal));
+        if (zone == null)
+        {
+            RefreshBattlePreparationUi("目标区域不存在。");
+            return;
+        }
+
+        ApplyBattlePreparationObjectiveZoneToPlan(_battlePreparationRequest, zone);
+        string label = BuildBattlePreparationObjectiveLabel(zone);
+        RefreshBattlePreparationUi($"目标区域已设为：{label}。");
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"BattlePreparationObjectiveSelected request={_battlePreparationRequest?.RequestId ?? ""} group={_selectedBattlePreparationPlanGroupKey} objective={zone.ObjectiveZoneId}");
+    }
+
+    private void SelectBattlePreparationEngagementRule(BattleEngagementRule rule)
+    {
+        EnsureBattlePreparationPlanDefaults(_battlePreparationRequest);
+        BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(
+            _battlePreparationRequest,
+            _selectedBattlePreparationPlanGroupKey,
+            create: true);
+        if (plan == null)
+        {
+            return;
+        }
+
+        plan.EngagementRule = rule;
+        SyncSelectedBattlePreparationPlanFallback(_battlePreparationRequest);
+        _selectedBattleCorpsCommand = rule == BattleEngagementRule.Hold
+            ? BattleCorpsCommand.HoldLine
+            : BattleCorpsCommand.Assault;
+        ApplyBattleRuntimeCommandToRequest(_battlePreparationRequest, BuildBattleRuntimeCommandRequest(_selectedBattleCorpsCommand));
+
+        string label = BuildBattlePreparationRuleLabel(rule);
+        RefreshBattlePreparationUi($"推进规则已设为：{label}。");
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"BattlePreparationEngagementRuleSelected request={_battlePreparationRequest.RequestId} group={_selectedBattlePreparationPlanGroupKey} rule={rule}");
+    }
+
+    private static string BuildBattlePreparationObjectiveDetail(BattleObjectiveZoneSnapshot zone)
+    {
+        return zone?.ObjectiveRole switch
+        {
+            "enemy_core" => "直指敌方核心",
+            "flank" => "侧翼推进路线",
+            _ => "正面推进路线"
+        };
+    }
+
+    private static string BuildBattlePreparationRuleLabel(BattleEngagementRule rule)
+    {
+        return rule switch
+        {
+            BattleEngagementRule.MoveFirst => "移动优先",
+            BattleEngagementRule.AttackFirst => "攻击优先",
+            BattleEngagementRule.Hold => "原地坚守",
+            BattleEngagementRule.FireOnTheMove => "边走边打",
+            BattleEngagementRule.RetreatFirst => "撤退优先",
+            BattleEngagementRule.ProtectHero => "保护英雄",
+            _ => "移动优先"
+        };
+    }
+
+    private static string BuildBattlePreparationRuleDetail(BattleEngagementRule rule)
+    {
+        return rule switch
+        {
+            BattleEngagementRule.AttackFirst => "发现敌人优先接战",
+            BattleEngagementRule.Hold => "等待敌人进入射程",
+            _ => "先推进到目标区"
+        };
+    }
+
+    private static string BuildBattlePreparationRuleTooltip(BattleEngagementRule rule)
+    {
+        return rule switch
+        {
+            BattleEngagementRule.AttackFirst => "推进途中感知到敌人时，优先完成接战。",
+            BattleEngagementRule.Hold => "不主动追击远处目标，适合守点或等待敌人进入射程。",
+            _ => "按目标区域推进，只处理近身或局部感知到的敌人。"
+        };
     }
 
     private void LaunchPreparedBattle()
@@ -403,10 +636,11 @@ public partial class WorldSiteRoot
         }
 
         SyncBattlePreparationRequestPlacements(request);
+        SyncBattlePreparationPlanToRequest(request);
         SetAllDeploymentDragEnabled(false);
         GameLog.Info(
             nameof(WorldSiteRoot),
-            $"BattlePreparationCommitted request={request?.RequestId ?? ""} site={_siteHudSiteId}");
+            $"BattlePreparationCommitted request={request?.RequestId ?? ""} site={_siteHudSiteId} groups={request?.PlayerBattleGroupPlans?.Count ?? 0} selectedGroup={_selectedBattlePreparationPlanGroupKey} objective={request?.PlayerBattleGroupPlan?.ObjectiveZoneId ?? ""} rule={request?.PlayerBattleGroupPlan?.EngagementRule.ToString() ?? ""}");
         ActivateBattleRuntime();
     }
 
@@ -458,6 +692,35 @@ public partial class WorldSiteRoot
             $"BattlePreparationPlacementsSynced request={request.RequestId} site={site.SiteId} placements={updated}");
     }
 
+    private void SyncBattlePreparationPlanToRequest(BattleStartRequest request)
+    {
+        EnsureBattlePreparationPlanDefaults(request);
+        if (request?.PlayerBattleGroupPlans == null)
+        {
+            return;
+        }
+
+        int synced = 0;
+        foreach (BattleRuntimeCommandGroupView group in BuildBattlePreparationPlayerGroups())
+        {
+            BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(request, group.GroupKey, create: true);
+            BattleObjectiveZoneSnapshot zone = request.ObjectiveZones?
+                .FirstOrDefault(item => string.Equals(item?.ObjectiveZoneId, plan.ObjectiveZoneId, System.StringComparison.Ordinal));
+            if (zone == null)
+            {
+                continue;
+            }
+
+            ApplyBattlePreparationObjectiveZoneToPlan(plan, zone);
+            synced++;
+        }
+
+        SyncSelectedBattlePreparationPlanFallback(request);
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"BattlePreparationPlanSynced request={request.RequestId} groups={synced} selectedGroup={_selectedBattlePreparationPlanGroupKey} objective={request.PlayerBattleGroupPlan?.ObjectiveZoneId ?? ""} rule={request.PlayerBattleGroupPlan?.EngagementRule.ToString() ?? ""}");
+    }
+
     private bool IsBattlePreparationUnitDeployed(BattleForceRequest force, int forceIndex)
     {
         return force != null &&
@@ -500,6 +763,37 @@ public partial class WorldSiteRoot
             if ((force.PreferredPlacements?.Count(placement => placement != null) ?? 0) < force.Count)
             {
                 failureReason = "还有我方单位未部署，不能开战。";
+                return false;
+            }
+        }
+
+        EnsureBattlePreparationPlanDefaults(request);
+        if ((request.ObjectiveZones?.Count ?? 0) == 0)
+        {
+            failureReason = "当前地图没有可选目标区域 marker，不能开战。";
+            return false;
+        }
+
+        foreach (BattleRuntimeCommandGroupView group in BuildBattlePreparationPlayerGroups())
+        {
+            BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(request, group.GroupKey, create: false);
+            if (plan == null || string.IsNullOrWhiteSpace(plan.ObjectiveZoneId))
+            {
+                failureReason = $"还有兵团未选择进攻目标：{group.DisplayName}。";
+                return false;
+            }
+
+            bool objectiveExists = request.ObjectiveZones.Any(zone =>
+                string.Equals(zone?.ObjectiveZoneId, plan.ObjectiveZoneId, System.StringComparison.Ordinal));
+            if (!objectiveExists)
+            {
+                failureReason = $"兵团目标区域已失效：{group.DisplayName}。";
+                return false;
+            }
+
+            if (!IsBattleEngagementRuleDefined(plan.EngagementRule))
+            {
+                failureReason = $"还有兵团未选择推进规则：{group.DisplayName}。";
                 return false;
             }
         }

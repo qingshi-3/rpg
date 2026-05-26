@@ -12,6 +12,7 @@ The semantic marker system defines reusable map regions for authored gameplay me
 
 - building slots in city or strategic-location interiors;
 - deployment zones and entrances for battle handoff;
+- objective zones and route hints for battle-group planning;
 - event spawns and direct strategic-location interaction markers;
 - tactical combat regions such as chokepoints, lanes, reserve points, flank routes, ranged points, and defend points.
 
@@ -39,6 +40,7 @@ Business semantics belong to subclasses:
 |---|---|---|
 | `BuildingSlotMapMarker.tscn` / `BuildingSlotMapMarker` | `BuildingSlot` | none in the first slice |
 | `DeploymentZoneMapMarker.tscn` / `DeploymentZoneMapMarker` | `DeploymentZone` | `DeploymentSide`, optional `FactionId`, `Priority` |
+| `ObjectiveZoneMapMarker.tscn` / `ObjectiveZoneMapMarker` | `ObjectiveZone` | `ObjectiveRole`, `DeploymentSide`, optional `FactionId`, `Priority` |
 
 The marker anchor is the top-left tile cell. Width and height extend right and down by `m*n` cells. The node draws the covered tile cells, outline, anchor, and label in the editor so authors can see the region while building the map. Authors should not need to edit raw cell coordinates for ordinary region placement.
 
@@ -57,6 +59,7 @@ MapId
 MarkerId
 MarkerType
 DeploymentSide
+ObjectiveRole
 AnchorCell
 CellHeight
 Width
@@ -77,6 +80,7 @@ Initial marker types are:
 |---|---|
 | `BuildingSlot` | Site facility presentation and build actions. |
 | `DeploymentZone` | Battle deployment preparation. |
+| `ObjectiveZone` | Battle-group target-area selection and plan handoff. |
 | `Entrance` | Battle handoff and known entrance selection. |
 | `ChokePoint` | Tactical AI and battle reports. |
 | `Lane` | Tactical AI movement and pressure templates. |
@@ -94,7 +98,7 @@ Definitions / Content owns stable marker IDs, marker type names, and marker-deri
 
 Presentation / Authoring owns the Godot `SemanticMapMarker` node, editor preview drawing, grid snapping, and scene placement.
 
-Application owns marker extraction and validation. It converts scene-authored markers into pure data for site management, deployment, entrance selection, event placement, and future battle setup.
+Application owns marker extraction and validation. It converts scene-authored markers into pure data for site management, deployment, objective selection, entrance selection, event placement, and future battle setup.
 
 Runtime / StateMachine consumes marker-derived facts only through snapshots or Application services. Runtime does not query scene marker nodes.
 
@@ -132,6 +136,25 @@ SemanticMapMarker(type=DeploymentZone, DeploymentSide=Player/Enemy/Any, optional
 
 If no authored deployment-zone markers exist, battle preparation may fall back to the full walkable-surface cache. If side markers exist, player-side and enemy-side force placement and drag validation should prefer their side's cells instead of treating the whole map as deployable. Runtime code must not hardcode author marker node names or marker IDs for deployment routing.
 
+## Objective Zone Consumption
+
+Battle preparation consumes `ObjectiveZone` markers as the player-selectable target areas for each battle group.
+
+Objective zones should be authored as readable tactical regions:
+
+```text
+SemanticMapMarker(type=ObjectiveZone, ObjectiveRole=GateApproach/HighGround/FlankRoute/Core/Reserve/DefendPoint, DeploymentSide=Player/Enemy/Any, optional FactionId=...)
+-> extracted marker data
+-> objective-zone candidate list
+-> battle-preparation tactical overview and route preview
+-> accepted BattleGroupPlan.ObjectiveZoneId
+-> Runtime objective-zone movement and report attribution
+```
+
+Objective zones are not deployment zones. A map may have a friendly deployment area on the left and several objective zones distributed across the horizontal battlefield. Objective-zone markers may overlap with lane, chokepoint, ranged point, reserve point, flank route, or defend point markers when that overlap is intentional map semantics.
+
+If a battle kind requires player-selected objectives and no valid objective-zone markers exist, battle preparation must fail explicitly instead of fabricating hidden target cells. If a simple field-intercept battle does not require objective choice, missing objective zones are valid and the runtime may use battle-kind defaults.
+
 ## Validation Rules
 
 - Marker IDs must be unique within one map.
@@ -150,6 +173,7 @@ Consumer failures should be explicit:
 
 - site facility layout reports missing or invalid `BuildingSlot` markers;
 - deployment preparation reports missing deployment or entrance markers when a map requires them;
+- battle preparation reports missing objective-zone markers when the battle kind requires player-selected objectives;
 - tactical AI treats missing optional tactical markers as unavailable tactical hints, not as hard failure.
 
 ## Acceptance
@@ -161,4 +185,5 @@ This architecture is acceptable when:
 - Application receives pure marker data without depending on editor drawing or scene node state during gameplay;
 - building-slot behavior remains stable after consuming semantic marker data;
 - battle-preparation deployment highlighting and validation can consume authored side-based `DeploymentZone` markers without restricting unrelated full-map placement consumers;
+- battle-preparation objective selection can consume authored `ObjectiveZone` markers and carry objective ids into battle-group plans;
 - deployment, entrance, event, and tactical marker consumers can be added without inventing separate coordinate systems.

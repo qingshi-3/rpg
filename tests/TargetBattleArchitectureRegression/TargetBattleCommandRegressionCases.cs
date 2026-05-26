@@ -124,6 +124,183 @@ internal static class TargetBattleCommandRegressionCases
         AssertEqual("", enemyGroup.InitialCorpsCommandId, "enemy force should not inherit the player's initial corps command");
     }
 
+    internal static void BattleGroupSessionProbeCopiesBattleGroupPlanToPlayerSnapshot()
+    {
+        BattleStartRequest request = new()
+        {
+            RequestId = "request_plan_1",
+            ContextId = "battle_plan_1",
+            TargetSiteId = "site_1",
+            PlayerBattleGroupPlan = new BattleGroupPlanSnapshot
+            {
+                ObjectiveZoneId = "objective_upper_flank",
+                EngagementRule = BattleEngagementRule.MoveFirst,
+                InitialFormationId = "default_line"
+            }
+        };
+        request.ObjectiveZones.Add(new BattleObjectiveZoneSnapshot
+        {
+            ObjectiveZoneId = "objective_upper_flank",
+            DisplayName = "上路侧翼",
+            ObjectiveRole = "flank",
+            CellX = 5,
+            CellY = -1,
+            Width = 2,
+            Height = 1
+        });
+        request.PlayerForces.Add(new BattleForceRequest
+        {
+            ForceId = "force_player",
+            UnitDefinitionId = "player_corps",
+            FactionId = "player",
+            Count = 1
+        });
+        request.EnemyForces.Add(new BattleForceRequest
+        {
+            ForceId = "force_enemy",
+            UnitDefinitionId = "enemy_corps",
+            FactionId = "enemy",
+            Count = 1
+        });
+
+        BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().PrepareSnapshot(request);
+
+        AssertTrue(result.Success, "probe snapshot preparation should accept opposed forces");
+        AssertEqual(1, result.Snapshot.ObjectiveZones.Count, "probe snapshot should preserve request objective zones");
+        AssertEqual("objective_upper_flank", result.Snapshot.ObjectiveZones[0].ObjectiveZoneId, "snapshot objective zone id");
+        BattleGroupSnapshot playerGroup = result.Snapshot.BattleGroups.Single(item => item.SourceForceId == "force_player");
+        BattleGroupSnapshot enemyGroup = result.Snapshot.BattleGroups.Single(item => item.SourceForceId == "force_enemy");
+        AssertEqual("objective_upper_flank", playerGroup.Plan.ObjectiveZoneId, "player force should receive selected objective zone");
+        AssertEqual(BattleEngagementRule.MoveFirst, playerGroup.Plan.EngagementRule, "player force should receive selected engagement rule");
+        AssertEqual("default_line", playerGroup.Plan.InitialFormationId, "player force should receive selected formation");
+        AssertEqual("", enemyGroup.Plan.ObjectiveZoneId, "enemy force should not inherit the player's objective zone");
+        AssertEqual(BattleEngagementRule.AttackFirst, enemyGroup.Plan.EngagementRule, "enemy force should keep default engagement");
+    }
+
+    internal static void BattleGroupSessionProbeAppliesPerCompanyObjectivePlans()
+    {
+        BattleStartRequest request = new()
+        {
+            RequestId = "request_plan_groups",
+            ContextId = "battle_plan_groups",
+            TargetSiteId = "site_1"
+        };
+        request.ObjectiveZones.Add(new BattleObjectiveZoneSnapshot
+        {
+            ObjectiveZoneId = "enemy_deployment_north",
+            DisplayName = "敌方部署区 1",
+            CellX = 8,
+            CellY = -2,
+            Width = 3,
+            Height = 2
+        });
+        request.ObjectiveZones.Add(new BattleObjectiveZoneSnapshot
+        {
+            ObjectiveZoneId = "enemy_deployment_south",
+            DisplayName = "敌方部署区 2",
+            CellX = 8,
+            CellY = 3,
+            Width = 3,
+            Height = 2
+        });
+        request.PlayerForces.Add(new BattleForceRequest
+        {
+            ForceId = "army_1:hero",
+            SourceKind = "PlayerArmy",
+            SourceId = "army_1",
+            UnitDefinitionId = "hero_corps",
+            FactionId = "player",
+            Count = 1
+        });
+        request.PlayerForces.Add(new BattleForceRequest
+        {
+            ForceId = "army_2:hero",
+            SourceKind = "PlayerArmy",
+            SourceId = "army_2",
+            UnitDefinitionId = "hero_corps",
+            FactionId = "player",
+            Count = 1
+        });
+        request.EnemyForces.Add(new BattleForceRequest
+        {
+            ForceId = "force_enemy",
+            UnitDefinitionId = "enemy_corps",
+            FactionId = "enemy",
+            Count = 1
+        });
+        request.PlayerBattleGroupPlans["PlayerArmy:army_1"] = new BattleGroupPlanSnapshot
+        {
+            ObjectiveZoneId = "enemy_deployment_north",
+            EngagementRule = BattleEngagementRule.MoveFirst,
+            InitialFormationId = "default_line"
+        };
+        request.PlayerBattleGroupPlans["PlayerArmy:army_2"] = new BattleGroupPlanSnapshot
+        {
+            ObjectiveZoneId = "enemy_deployment_south",
+            EngagementRule = BattleEngagementRule.Hold,
+            InitialFormationId = "default_line"
+        };
+
+        BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().PrepareSnapshot(request);
+
+        AssertTrue(result.Success, "probe snapshot preparation should accept per-company plans");
+        BattleGroupSnapshot first = result.Snapshot.BattleGroups.Single(item => item.SourceForceId == "army_1:hero");
+        BattleGroupSnapshot second = result.Snapshot.BattleGroups.Single(item => item.SourceForceId == "army_2:hero");
+        BattleGroupSnapshot enemy = result.Snapshot.BattleGroups.Single(item => item.SourceForceId == "force_enemy");
+        AssertEqual("enemy_deployment_north", first.Plan.ObjectiveZoneId, "first player company objective zone");
+        AssertEqual(BattleEngagementRule.MoveFirst, first.Plan.EngagementRule, "first player company rule");
+        AssertEqual("enemy_deployment_south", second.Plan.ObjectiveZoneId, "second player company objective zone");
+        AssertEqual(BattleEngagementRule.Hold, second.Plan.EngagementRule, "second player company rule");
+        AssertEqual("", enemy.Plan.ObjectiveZoneId, "enemy group should not inherit player company plans");
+    }
+
+    internal static void BattleGroupSessionProbeAppliesEnemyObjectivePlans()
+    {
+        BattleStartRequest request = new()
+        {
+            RequestId = "request_enemy_plan_groups",
+            ContextId = "battle_enemy_plan_groups",
+            TargetSiteId = "site_1"
+        };
+        request.PlayerForces.Add(new BattleForceRequest
+        {
+            ForceId = "force_player",
+            UnitDefinitionId = "player_corps",
+            FactionId = "player",
+            Count = 1
+        });
+        request.EnemyForces.Add(new BattleForceRequest
+        {
+            ForceId = "enemy_army:hero",
+            SourceKind = "EnemyArmy",
+            SourceId = "enemy_army",
+            UnitDefinitionId = "enemy_corps",
+            FactionId = "enemy",
+            Count = 1
+        });
+        request.EnemyBattleGroupPlans["EnemyArmy:enemy_army"] = new BattleGroupPlanSnapshot
+        {
+            ObjectiveZoneId = "player_deployment_west_1",
+            EngagementRule = BattleEngagementRule.MoveFirst,
+            InitialFormationId = "default_line",
+            HasObjectiveAnchor = true,
+            ObjectiveCellX = 1,
+            ObjectiveCellY = 0,
+            ObjectiveWidth = 3,
+            ObjectiveHeight = 2
+        };
+
+        BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().PrepareSnapshot(request);
+
+        AssertTrue(result.Success, "probe snapshot preparation should accept enemy-side objective plans");
+        BattleGroupSnapshot player = result.Snapshot.BattleGroups.Single(item => item.SourceForceId == "force_player");
+        BattleGroupSnapshot enemy = result.Snapshot.BattleGroups.Single(item => item.SourceForceId == "enemy_army:hero");
+        AssertEqual("", player.Plan.ObjectiveZoneId, "player group should not inherit enemy objective plan");
+        AssertEqual("player_deployment_west_1", enemy.Plan.ObjectiveZoneId, "enemy group objective zone");
+        AssertEqual(BattleEngagementRule.MoveFirst, enemy.Plan.EngagementRule, "enemy group rule");
+        AssertTrue(enemy.Plan.HasObjectiveAnchor, "enemy direct sortie plan should carry an objective anchor");
+    }
+
     private static BattleStartSnapshot BuildOpposedSnapshot(
         string battleId,
         int playerStrength,
