@@ -112,6 +112,22 @@ internal static void BattleRuntimeVisualMovementKeepsRuntimeActionDuration()
         "movement observer should report the same duration that is used for the visual segment and actor tail");
 }
 
+internal static void BattleRuntimeMovementPlaybackDoesNotUseLookaheadCorrectionPath()
+{
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+
+    AssertTrue(
+        !playback.Contains("BuildRuntimeMovementVisualPath", StringComparison.Ordinal) &&
+        !playback.Contains("MovementPreviewPath", StringComparison.Ordinal) &&
+        !playback.Contains("visualPath:", StringComparison.Ordinal),
+        "runtime playback should not consume future lookahead correction paths that can desync visuals from committed runtime cells");
+    AssertTrue(
+        unitRoot.Contains("GridSurfacePosition targetPosition = path", StringComparison.Ordinal) &&
+        unitRoot.Contains("TryBuildMovementGlobalPath(\n                path,", StringComparison.Ordinal),
+        "battle unit movement should sample the same committed path that updates grid occupancy");
+}
+
 internal static void BattlePresentationTimelineSeparatesMovementCompletionFromActionBacklog()
 {
     BattlePresentationTimeline timeline = new();

@@ -49,6 +49,7 @@ internal static class BattleFlowFieldBuilder
             }
 
             var frontier = new PriorityQueue<BattleGridCoord, int>();
+            var settled = new HashSet<BattleGridCoord>();
             foreach (BattleCombatSlot goal in goalArray)
             {
                 if (!costs.TryAdd(goal.Anchor, 0))
@@ -59,11 +60,14 @@ internal static class BattleFlowFieldBuilder
                 frontier.Enqueue(goal.Anchor, 0);
             }
 
-            int searched = 0;
-            while (frontier.Count > 0 && searched < graph.MaxSearchNodes)
+            while (frontier.Count > 0 && settled.Count < graph.MaxSearchNodes)
             {
                 BattleGridCoord current = frontier.Dequeue();
-                searched++;
+                if (!settled.Add(current))
+                {
+                    continue;
+                }
+
                 foreach (BattleGridCoord incoming in graph.GetIncomingNeighbors(current))
                 {
                     if (!BattlePathStepRules.CanUseStaticStep(actor, incoming, current, graph))

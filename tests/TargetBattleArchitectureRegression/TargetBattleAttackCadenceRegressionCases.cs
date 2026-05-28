@@ -310,6 +310,95 @@ internal static class TargetBattleAttackCadenceRegressionCases
         }
     }
 
+    internal static void RuntimeFixedClockWaitsOneTickAfterMovementBoundary()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_fixed_boundary_movement_continue", enemyCellX: 6, enemyCellY: 0);
+        foreach (BattleGroupSnapshot group in snapshot.BattleGroups)
+        {
+            group.MaxHitPoints = 80;
+            group.AttackDamage = 1;
+            group.AttackRange = 1;
+            group.AttackSpeed = 1.0;
+            group.MoveStepSeconds = 0.16;
+            group.AttackActionSeconds = 1.2;
+        }
+
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeAdvanceResult firstAdvance = controller.AdvanceFixedTick(0.04);
+        AssertTrue(
+            firstAdvance.Events.Any(item => item.Kind == BattleEventKind.MovementStarted && item.ActorId == "force_player:1"),
+            "fixed-clock runtime should start the first movement segment at tick zero");
+
+        BattleRuntimeAdvanceResult? boundaryAdvance = null;
+        for (int i = 0; i < 8; i++)
+        {
+            BattleRuntimeAdvanceResult advance = controller.AdvanceFixedTick(0.04);
+            if (advance.Events.Any(item => item.Kind == BattleEventKind.MovementCompleted && item.ActorId == "force_player:1"))
+            {
+                boundaryAdvance = advance;
+                break;
+            }
+        }
+
+        AssertTrue(boundaryAdvance != null, "fixed-clock runtime should reach the first movement boundary");
+        BattleEvent[] playerBoundaryEvents = boundaryAdvance!.Events
+            .Where(item => item.ActorId == "force_player:1")
+            .ToArray();
+        BattleEvent? completed = playerBoundaryEvents.FirstOrDefault(item => item.Kind == BattleEventKind.MovementCompleted);
+        AssertTrue(completed != null, "movement boundary tick should emit the completed cell boundary");
+        AssertTrue(
+            playerBoundaryEvents.All(item => item.Kind != BattleEventKind.MovementStarted),
+            "movement boundary tick should not immediately author the next movement segment because that advances presentation ahead of the committed visual step");
+
+        BattleRuntimeAdvanceResult nextAdvance = controller.AdvanceFixedTick(0.04);
+        BattleEvent? continued = nextAdvance.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "force_player:1");
+        AssertTrue(continued != null, "movement continuation should be available on the next runtime tick when movement intent is still valid");
+        AssertEqual(1, completed!.ToGridX, "first movement completion should commit the first approach cell");
+        AssertEqual(2, continued!.ToGridX, "next-tick continuation should move toward the next approach cell");
+    }
+
+    internal static void RuntimeFixedClockDefersAttackAfterMovementBoundary()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_fixed_boundary_attack_deferred", enemyCellX: 2, enemyCellY: 0);
+        foreach (BattleGroupSnapshot group in snapshot.BattleGroups)
+        {
+            group.MaxHitPoints = 80;
+            group.AttackDamage = 5;
+            group.AttackRange = 1;
+            group.AttackSpeed = 1.0;
+            group.MoveStepSeconds = 0.16;
+            group.AttackActionSeconds = 1.2;
+        }
+
+        snapshot.BattleGroups.Single(item => item.SourceForceId == "force_enemy").InitialCorpsCommandId = "HoldLine";
+
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        _ = controller.AdvanceFixedTick(0.04);
+
+        BattleRuntimeAdvanceResult? boundaryAdvance = null;
+        for (int i = 0; i < 8; i++)
+        {
+            BattleRuntimeAdvanceResult advance = controller.AdvanceFixedTick(0.04);
+            if (advance.Events.Any(item => item.Kind == BattleEventKind.MovementCompleted && item.ActorId == "force_player:1"))
+            {
+                boundaryAdvance = advance;
+                break;
+            }
+        }
+
+        AssertTrue(boundaryAdvance != null, "fixed-clock runtime should reach the approach movement boundary");
+        AssertTrue(
+            boundaryAdvance!.Events.All(item => item.ActorId != "force_player:1" || item.Kind != BattleEventKind.DamageApplied),
+            "an actor that just completed movement must not also attack in the same runtime tick");
+
+        BattleRuntimeAdvanceResult nextAdvance = controller.AdvanceFixedTick(0.04);
+        AssertTrue(
+            nextAdvance.Events.Any(item => item.Kind == BattleEventKind.DamageApplied && item.ActorId == "force_player:1"),
+            "deferred attack should be available on the next runtime tick after the movement boundary");
+    }
+
     internal static void RuntimeSessionBeginDefersCombatResolutionUntilAdvance()
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_incremental_runtime", enemyCellX: 1, enemyCellY: 0);

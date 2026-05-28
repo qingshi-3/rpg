@@ -114,6 +114,48 @@ internal static class TargetBattleMovementIntentRegressionCases
             $"move-first plan should step toward the objective instead of distant target: target={move.TargetId} reason={move.ReasonCode} to=({move.ToGridX},{move.ToGridY})");
     }
 
+    public static void RuntimeMovementStartedDoesNotPublishLookaheadCorrectionPath()
+    {
+        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession()
+            .Begin(BuildMoveFirstObjectiveSnapshot())
+            .AdvanceNextTick();
+
+        BattleEvent? move = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "force_player:1");
+
+        AssertTrue(move != null, "runtime should emit movement start for the move-first actor");
+        System.Reflection.PropertyInfo? previewProperty = typeof(BattleEvent).GetProperty("MovementPreviewPath");
+        object[] preview = ((System.Collections.IEnumerable?)previewProperty?.GetValue(move))
+            ?.Cast<object>()
+            .ToArray() ?? Array.Empty<object>();
+
+        AssertTrue(
+            preview.Length == 0,
+            $"movement start should not publish future lookahead correction anchors because they can desync visuals from runtime authority: count={preview.Length}");
+        AssertTrue(
+            move!.ToGridX == 1 &&
+            move.ToGridY == 0,
+            $"movement event should still carry only the committed next runtime step: to=({move.ToGridX},{move.ToGridY})");
+    }
+
+    public static void RuntimeMoveFirstPlanAdvancesAcrossLargeAuthoredTopology()
+    {
+        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession()
+            .Begin(BuildLargeObjectiveTopologySnapshot())
+            .AdvanceNextTick();
+
+        BattleEvent? move = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "force_player:1");
+
+        AssertTrue(move != null, "move-first plan should find a first objective step on the full battle-site topology");
+        AssertTrue(
+            move!.TargetId == "enemy_deployment" &&
+            move.ReasonCode == "plan_objective_advance",
+            $"large topology objective movement should use the plan target: target={move.TargetId} reason={move.ReasonCode}");
+    }
+
     public static void RuntimePlanScopedMovementDoesNotScanFarAttackSlots()
     {
         BattlePerformanceCounters counters = new();
@@ -382,6 +424,61 @@ internal static class TargetBattleMovementIntentRegressionCases
         for (int x = 0; x <= 7; x++)
         {
             AddSurface(snapshot, x, 0);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildLargeObjectiveTopologySnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_large_objective_topology",
+            BattleId = "battle_large_objective_topology",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup(
+                    "group_player",
+                    "player",
+                    "force_player",
+                    10,
+                    18,
+                    160,
+                    footprintWidth: 2,
+                    footprintHeight: 1,
+                    plan: new BattleGroupPlanSnapshot
+                    {
+                        BattleGroupId = "group_player",
+                        ObjectiveZoneId = "enemy_deployment",
+                        EngagementRule = BattleEngagementRule.MoveFirst,
+                        HasObjectiveAnchor = true,
+                        ObjectiveCellX = 51,
+                        ObjectiveCellY = 15,
+                        ObjectiveCellHeight = 0,
+                        ObjectiveWidth = 20,
+                        ObjectiveHeight = 12
+                    }),
+                BuildGroup(
+                    "group_enemy",
+                    "enemy",
+                    "enemy",
+                    70,
+                    20,
+                    160,
+                    initialCommandId: "HoldLine",
+                    footprintWidth: 2,
+                    footprintHeight: 2)
+            }
+        };
+
+        for (int y = 0; y < 27; y++)
+        {
+            for (int x = 0; x < 79; x++)
+            {
+                AddSurface(snapshot, x, y);
+            }
         }
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);

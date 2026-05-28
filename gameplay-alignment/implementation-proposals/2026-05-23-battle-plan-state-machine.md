@@ -179,6 +179,7 @@ Known warnings during test runs:
 - Corrected enemy direct-sortie defaults from `MoveFirst` to `AttackFirst`. Enemy groups still advance toward player deployment objectives, but now acquire player units through plan-scoped local sensing before reaching the objective.
 - Authored hold plans now wake on local contact through the same plan-scoped sensing path. Player `HoldLine` commands remain fixed and only attack immediate opportunities.
 - Added the battle runtime perception debug overlay:
+  - perception ranges show by default when battle runtime starts;
   - `E` toggles visibility while battle runtime is active;
   - player perception cells render through `FriendlyPerception`;
   - enemy perception cells render through `EnemyPerception`;
@@ -186,3 +187,22 @@ Known warnings during test runs:
 - Added regression coverage:
   - enemy attack-first objective plans sense a local player before continuing to objective;
   - battle runtime perception overlay shares the runtime range policy and is toggled through `Key.E`.
+
+## Objective Flow Field Correction
+
+- Root cause: large authored battle-site topology could report `objective_path_not_found` even when the graph was connected, because the objective flow-field builder counted duplicate priority-queue pops against the topology search limit.
+- Runtime now caps objective/target flow expansion by settled unique graph nodes, so far-side deployment objectives remain reachable on the full site topology.
+- Added regression coverage for a move-first battle group advancing across a large authored topology toward a marker-backed deployment objective.
+- Passed: `dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchitectureRegression.csproj -v:minimal`, including the large authored-topology objective regression.
+
+## Battle Entity Physics Presentation Cleanup
+
+- Battle movement and selection authority remains grid/footprint-driven; Godot `Area2D` and collision shapes must not become movement, sensing, or selection authority for battle units.
+- The base battle unit scene should use a plain `Node2D` entity root and should not author an interaction collision circle.
+- Defeated-state cleanup should update component state and visuals without disabling collision shapes, because battle units no longer own collision-shape interaction nodes.
+
+## Perception Overlay Style Correction
+
+- Runtime perception cells remain grid/footprint-derived debug information; the style change is presentation-only.
+- Friendly and enemy perception layers now use pale low-alpha colors, soft aura tiles, and a dedicated canvas shader for edge glow plus low-noise interior motion.
+- The generic tile highlight renderer can configure materials per runtime layer, while combat rules continue to read only authored navigation/grid data.

@@ -51,7 +51,7 @@ dotnet build-server shutdown
 - Split runtime movement events into `MovementStarted` for visual movement launch and `MovementCompleted` for committed runtime cell boundaries.
 - Added sticky target acquisition for default assault movement: actors still pick the fastest attack opportunity when acquiring a target and still snap to immediate attack opportunities, but they retain a live target while marching instead of rescoring all enemies and rebuilding flow fields every movement boundary.
 - Captured occupancy before movement-boundary commits, so cells released by a movement completion are not available to other actors in the same resolver pass.
-- Excluded actors that complete movement in the current resolver pass from starting a new attack or movement decision in that same runtime tick.
+- Actors that complete movement in the current resolver pass wait until a later runtime tick before authoring another movement or attack action. Same-tick continuation was rejected because it can push presentation state ahead of the visible committed step.
 - Updated live site battle runtime to call `AdvanceFixedTick(tickSeconds)` and wait the same fixed interval.
 - Kept `AdvanceNextTick` for headless/action-bound regression behavior while the continuous movement runtime is phased in.
 - Added a movement-idle grace window in `BattleUnitRoot` so consecutive runtime movement events do not flash idle between cells.
@@ -60,7 +60,8 @@ dotnet build-server shutdown
 ## Verification Evidence
 
 - Passed: `dotnet run --project tests/BattleHitFeedbackRegression/BattleHitFeedbackRegression.csproj -v:minimal`
-- Passed: `dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchitectureRegression.csproj -v:minimal`
+- Passed: `dotnet run --project tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegression.csproj -v:minimal`
+- Passed: `dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchitectureRegression.csproj -v:minimal`, including fixed-clock movement-boundary wait and attack deferral after movement completion.
 - Passed: `dotnet build rpg.csproj -maxcpucount:2 -v:minimal`
 - Passed: `dotnet build-server shutdown`
 
@@ -72,3 +73,18 @@ Known warnings during test runs:
 ## Residual QA
 
 Manual Godot playback should verify that multiple units no longer visibly pulse idle between movement cells and that attack recovery still reads as a deliberate pause.
+
+Added QA helper:
+
+- Starting battle now spawns a presentation-only copy of a player unit and moves it left-to-right across the map with one linear tween, then removes it. This is a visual comparison probe for judging whether remaining movement roughness comes from runtime cell stepping or from sprite/tween presentation.
+- The probe is not added under `UnitRoot`, so Runtime, targeting, perception, settlement, and unit enumeration do not treat it as a combat unit.
+
+## Rejected Long-Path Presentation Smoothing Correction
+
+- Presentation-side trailing buffers were tested and rejected. Sampling behind Runtime reduced some visible per-cell pauses but created an unacceptable visual/logic offset.
+- Movement presentation now uses only the committed two-cell Runtime path for each movement event, with no delayed sampling tail.
+
+## Rejected Runtime Lookahead Presentation Corridor
+
+- Runtime lookahead visual corridors were tested and rejected. They improved apparent smoothness but let Presentation run ahead of committed Runtime cells; the next Runtime event could then reconnect from the queued future endpoint back toward the committed step, causing visible reverse correction.
+- Movement presentation must consume only committed Runtime movement cells until a better continuous movement model preserves visual and logical authority together.
