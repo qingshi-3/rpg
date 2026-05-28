@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://ok1ty7de481t"]
+[gd_scene load_steps=17 format=3 uid="uid://ok1ty7de481t"]
 
 [ext_resource type="Script" uid="uid://kmyn63t5vy7" path="res://src/Presentation/Battle/Entities/BattleEntity.cs" id="1_entity"]
 [ext_resource type="Script" uid="uid://cxx2u5hct0pql" path="res://src/Presentation/Battle/Entities/FactionComponent.cs" id="2_faction"]
@@ -17,15 +17,9 @@
 [ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleUnitAudioComponent.cs" id="16_audio"]
 [ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleUnitHealthBarComponent.cs" id="17_health_bar"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
-radius = 28.0
-
-[node name="BattleEntity" type="Area2D"]
+[node name="BattleEntity" type="Node2D"]
 script = ExtResource("1_entity")
 DrawDebugMarker = false
-
-[node name="InteractionShape" type="CollisionShape2D" parent="."]
-shape = SubResource("CircleShape2D_interaction")
 
 [node name="SelectionSpotlight" type="Node2D" parent="."]
 script = ExtResource("15_selection_spotlight")

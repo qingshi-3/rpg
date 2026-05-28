@@ -36,7 +36,7 @@ BattleHitFeedbackRegressionCases.Run("hover info panel anchors to screen edge in
 BattleHitFeedbackRegressionCases.Run("map camera middle drag pans opposite to mouse motion", BattleHitFeedbackRegressionCases.MapCameraMiddleDragPansOppositeToMouseMotion);
 BattleHitFeedbackRegressionCases.Run("unit audio definition resolves cue variants deterministically", BattleHitFeedbackRegressionCases.UnitAudioDefinitionResolvesCueVariants);
 BattleHitFeedbackRegressionCases.Run("ability spatial contract defaults to unit target eight way single actor", BattleHitFeedbackRegressionCases.AbilitySpatialContractDefaults);
-BattleHitFeedbackRegressionCases.Run("battle unit base scene authors interaction collision shape", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAuthorsInteractionCollisionShape);
+BattleHitFeedbackRegressionCases.Run("battle unit base avoids physics interaction shape", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAvoidsPhysicsInteractionShape);
 BattleHitFeedbackRegressionCases.Run("battle unit preview workbench mirrors visual resources", BattleHitFeedbackRegressionCases.BattleUnitPreviewWorkbenchIsVisualResourceMirror);
 BattleHitFeedbackRegressionCases.Run("starter battle unit definitions reference audio profiles", BattleHitFeedbackRegressionCases.StarterUnitDefinitionsReferenceAudioProfiles);
 BattleHitFeedbackRegressionCases.Run("legacy starter unit packages are removed", BattleHitFeedbackRegressionCases.LegacyStarterUnitPackagesAreRemoved);

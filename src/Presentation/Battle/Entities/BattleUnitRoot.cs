@@ -561,8 +561,6 @@ public partial class BattleUnitRoot : Node2D
             targetable.IsTargetable = false;
         }
 
-        entity.InputPickable = false;
-        SetCollisionShapesDisabled(entity, true);
         entity.DebugMarkerColor = new Color(0.45f, 0.45f, 0.45f, 0.55f);
         entity.QueueRedraw();
 
@@ -958,19 +956,6 @@ public partial class BattleUnitRoot : Node2D
     private void ApplyRenderSort(BattleEntity entity, GridSurfacePosition surfacePosition)
     {
         _applyEntityRenderSort?.Invoke(entity, surfacePosition);
-    }
-
-    private static void SetCollisionShapesDisabled(Node node, bool disabled)
-    {
-        foreach (Node child in node.GetChildren())
-        {
-            if (child is CollisionShape2D collisionShape)
-            {
-                collisionShape.Disabled = disabled;
-            }
-
-            SetCollisionShapesDisabled(child, disabled);
-        }
     }
 
     private static IEnumerable<BattleEntity> EnumerateBattleEntities(Node root)

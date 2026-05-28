@@ -5,11 +5,8 @@ using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Presentation.Battle.Entities;
 
-public partial class BattleEntity : Area2D
+public partial class BattleEntity : Node2D
 {
-    [Signal]
-    public delegate void ClickedEventHandler(BattleEntity entity);
-
     [Export]
     public string EntityId { get; set; } = "";
 
@@ -26,9 +23,8 @@ public partial class BattleEntity : Area2D
 
     public override void _Ready()
     {
-        InputPickable = false;
         RegisterComponents();
-        GameLog.Trace(nameof(BattleEntity), $"Ready id={EntityId} name={DisplayName} components={_components.Count} inputPickable={InputPickable}");
+        GameLog.Trace(nameof(BattleEntity), $"Ready id={EntityId} name={DisplayName} components={_components.Count}");
     }
 
     public override void _Draw()
@@ -41,20 +37,6 @@ public partial class BattleEntity : Area2D
         DrawCircle(Vector2.Zero, 10f, new Color(0f, 0f, 0f, 0.42f));
         DrawCircle(Vector2.Zero, 7f, DebugMarkerColor);
         DrawArc(Vector2.Zero, 12f, 0f, Mathf.Tau, 32, new Color(1f, 1f, 1f, 0.72f), 1.4f, true);
-    }
-
-    public override void _InputEvent(Viewport viewport, InputEvent @event, int shapeIdx)
-    {
-        if (@event is not InputEventMouseButton mouseButton ||
-            !mouseButton.Pressed ||
-            mouseButton.ButtonIndex != MouseButton.Left)
-        {
-            return;
-        }
-
-        GameLog.Info(nameof(BattleEntity), $"Clicked id={EntityId} name={DisplayName} shape={shapeIdx} global={GlobalPosition}");
-        EmitSignal(SignalName.Clicked, this);
-        GetViewport().SetInputAsHandled();
     }
 
     public T GetComponent<T>() where T : BattleEntityComponent

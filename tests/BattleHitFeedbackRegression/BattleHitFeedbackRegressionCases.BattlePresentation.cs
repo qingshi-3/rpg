@@ -554,15 +554,24 @@ internal static void DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimat
         "defeated fallback completion should not keep dead units visible after the faster death cue");
 }
 
-internal static void BattleUnitBaseSceneAuthorsInteractionCollisionShape()
+internal static void BattleUnitBaseSceneAvoidsPhysicsInteractionShape()
 {
     string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));
+    string entity = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleEntity.cs"));
 
-    AssertTrue(scene.Contains("[sub_resource type=\"CircleShape2D\"", StringComparison.Ordinal), "battle unit base should author an interaction circle shape");
     AssertTrue(
-        scene.Contains("[node name=\"InteractionShape\" type=\"CollisionShape2D\" parent=\".\"]", StringComparison.Ordinal),
-        "battle unit base should include an authored interaction collision shape node");
-    AssertTrue(scene.Contains("shape = SubResource(", StringComparison.Ordinal), "interaction collision shape should reference authored shape resource");
+        scene.Contains("[node name=\"BattleEntity\" type=\"Node2D\"]", StringComparison.Ordinal),
+        "battle unit base should use a plain Node2D root instead of an Area2D interaction body");
+    AssertTrue(
+        !scene.Contains("CircleShape2D", StringComparison.Ordinal) &&
+        !scene.Contains("InteractionShape", StringComparison.Ordinal) &&
+        !scene.Contains("CollisionShape2D", StringComparison.Ordinal),
+        "battle unit base should not author physics collision shapes for RTS movement or selection");
+    AssertTrue(
+        entity.Contains("public partial class BattleEntity : Node2D", StringComparison.Ordinal) &&
+        !entity.Contains("InputPickable", StringComparison.Ordinal) &&
+        !entity.Contains("_InputEvent", StringComparison.Ordinal),
+        "battle entity presentation should not depend on Area2D pick callbacks after grid footprint selection owns interaction");
 }
 
 internal static void BattleUnitPreviewWorkbenchIsVisualResourceMirror()
