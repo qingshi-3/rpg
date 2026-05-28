@@ -391,7 +391,6 @@ public partial class WorldSiteRoot
             return;
         }
 
-        entity.InputPickable = false;
         SetDeploymentDragComponent(entity, placement.PlacementId, dragEnabled);
         entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
         entity.GetComponent<BattleUnitPresentationComponent>()?.SetSelected(placement.PlacementId == _selectedPlacementId);

@@ -78,7 +78,13 @@ public partial class WorldSiteRoot
         // so this boundary must own the UI transition instead of relying on launch callbacks.
         SetBattleRuntimeEnabled(true);
         BindBattleRuntimeHud();
-        return ActivateBattleGroupRuntime();
+        bool runtimeActivated = ActivateBattleGroupRuntime();
+        if (runtimeActivated)
+        {
+            PlayBattleMovementTweenProbe();
+        }
+
+        return runtimeActivated;
     }
 
     private void ApplyBattleNavigationSnapshot(BattleStartRequest request)

@@ -14,6 +14,14 @@ public partial class WorldSiteRoot
 {
     private bool _battlePerceptionOverlayVisible;
 
+    private void EnableBattlePerceptionOverlayForRuntime()
+    {
+        // Local sensing is visible by default during runtime tuning; E remains
+        // the escape hatch when the overlay obscures combat readability.
+        _battlePerceptionOverlayVisible = true;
+        RefreshBattlePerceptionOverlay();
+    }
+
     private bool TryHandleBattlePerceptionOverlayInput(InputEvent @event)
     {
         if (!_battleRuntimeEnabled ||

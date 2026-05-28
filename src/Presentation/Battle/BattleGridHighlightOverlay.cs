@@ -10,6 +10,14 @@ namespace Rpg.Presentation.Battle;
 
 public partial class BattleGridHighlightOverlay : Node2D
 {
+    private const string PerceptionRangeShaderPath = "res://assets/battle/shaders/perception_range_highlight.gdshader";
+    private const string PerceptionPulseSpeedParameter = "pulse_speed";
+    private const string PerceptionPulseStrengthParameter = "pulse_strength";
+    private const string PerceptionEdgeGlowParameter = "edge_glow";
+    private const string PerceptionEdgeAlphaBoostParameter = "edge_alpha_boost";
+    private const string PerceptionScanlineStrengthParameter = "scanline_strength";
+    private const string PerceptionScanlineScaleParameter = "scanline_scale";
+
     [ExportGroup("Layering")]
 
     [Export]
@@ -60,11 +68,12 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     [Export]
     // Debug-only local sensing range for player-side units.
-    public Color FriendlyPerceptionColor { get; set; } = new(0.08f, 0.66f, 1f, 0.16f);
+    // Perception is tuning information, so it stays pale and below combat-threat contrast.
+    public Color FriendlyPerceptionColor { get; set; } = new(0.62f, 0.88f, 1f, 0.095f);
 
     [Export]
     // Debug-only local sensing range for enemy-side units.
-    public Color EnemyPerceptionColor { get; set; } = new(1f, 0.18f, 0.08f, 0.16f);
+    public Color EnemyPerceptionColor { get; set; } = new(1f, 0.58f, 0.52f, 0.09f);
 
     [Export]
     // Friendly hover attack range is yellow to separate planning information from hostile threat red.
@@ -82,6 +91,26 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     [Export]
     public float RangeBorderWidth { get; set; } = 1.5f;
+
+    [ExportGroup("Perception Range Style")]
+
+    [Export(PropertyHint.Range, "0,6,0.1")]
+    public float PerceptionPulseSpeed { get; set; } = 1.15f;
+
+    [Export(PropertyHint.Range, "0,0.45,0.01")]
+    public float PerceptionPulseStrength { get; set; } = 0.12f;
+
+    [Export(PropertyHint.Range, "0,2,0.01")]
+    public float PerceptionEdgeGlow { get; set; } = 0.72f;
+
+    [Export(PropertyHint.Range, "0,0.35,0.01")]
+    public float PerceptionEdgeAlphaBoost { get; set; } = 0.08f;
+
+    [Export(PropertyHint.Range, "0,0.5,0.01")]
+    public float PerceptionScanlineStrength { get; set; } = 0.14f;
+
+    [Export(PropertyHint.Range, "2,40,0.5")]
+    public float PerceptionScanlineScale { get; set; } = 14f;
 
     [ExportGroup("Dynamic Range Style")]
 
@@ -408,7 +437,6 @@ public partial class BattleGridHighlightOverlay : Node2D
                 null,
                 null,
                 System.Array.Empty<BattleGridHighlightKind>(),
-                null,
                 null);
             return;
         }
@@ -423,8 +451,45 @@ public partial class BattleGridHighlightOverlay : Node2D
             _coordinateLayer,
             tileSetSpec,
             drawOrder,
-            ShouldPulse,
-            ApplyDynamicRangeStyle);
+            ConfigureHighlightLayer);
+    }
+
+    private void ConfigureHighlightLayer(TileMapLayer layer, BattleGridHighlightKind kind)
+    {
+        if (IsPerceptionKind(kind))
+        {
+            ApplyPerceptionRangeShader(layer);
+            return;
+        }
+
+        ApplyDynamicRangeStyle(layer, kind);
+    }
+
+    private void ApplyPerceptionRangeShader(TileMapLayer layer)
+    {
+        if (layer == null)
+        {
+            return;
+        }
+
+        Shader shader = GD.Load<Shader>(PerceptionRangeShaderPath);
+        if (shader == null)
+        {
+            GD.PushWarning($"BattleGridHighlightOverlay could not load perception shader: {PerceptionRangeShaderPath}.");
+            return;
+        }
+
+        var material = new ShaderMaterial
+        {
+            Shader = shader
+        };
+        material.SetShaderParameter(PerceptionPulseSpeedParameter, PerceptionPulseSpeed);
+        material.SetShaderParameter(PerceptionPulseStrengthParameter, PerceptionPulseStrength);
+        material.SetShaderParameter(PerceptionEdgeGlowParameter, PerceptionEdgeGlow);
+        material.SetShaderParameter(PerceptionEdgeAlphaBoostParameter, PerceptionEdgeAlphaBoost);
+        material.SetShaderParameter(PerceptionScanlineStrengthParameter, PerceptionScanlineStrength);
+        material.SetShaderParameter(PerceptionScanlineScaleParameter, PerceptionScanlineScale);
+        layer.Material = material;
     }
 
     private void ApplyAllCellLayers()
@@ -825,8 +890,8 @@ public partial class BattleGridHighlightOverlay : Node2D
             BattleGridHighlightKind.Target => (TargetColor, WithAlpha(TargetColor, 0.98f), RangeBorderWidth + 0.75f),
             BattleGridHighlightKind.FriendlyMove => (FriendlyMoveColor, WithAlpha(FriendlyMoveColor, 0.78f), RangeBorderWidth),
             BattleGridHighlightKind.EnemyDeployment => (EnemyDeploymentColor, WithAlpha(EnemyDeploymentColor, 0.76f), RangeBorderWidth),
-            BattleGridHighlightKind.FriendlyPerception => (FriendlyPerceptionColor, WithAlpha(FriendlyPerceptionColor, 0.52f), RangeBorderWidth),
-            BattleGridHighlightKind.EnemyPerception => (EnemyPerceptionColor, WithAlpha(EnemyPerceptionColor, 0.52f), RangeBorderWidth),
+            BattleGridHighlightKind.FriendlyPerception => (FriendlyPerceptionColor, WithAlpha(FriendlyPerceptionColor, 0.18f), 0f),
+            BattleGridHighlightKind.EnemyPerception => (EnemyPerceptionColor, WithAlpha(EnemyPerceptionColor, 0.17f), 0f),
             BattleGridHighlightKind.FriendlyAttack => (FriendlyAttackColor, WithAlpha(FriendlyAttackColor, 0.84f), RangeBorderWidth + 0.2f),
             BattleGridHighlightKind.Selected => (SelectedColor, WithAlpha(SelectedColor, 0.62f), RangeBorderWidth),
             BattleGridHighlightKind.Invalid => (InvalidColor, WithAlpha(InvalidColor, 0.45f), RangeBorderWidth),
@@ -841,13 +906,21 @@ public partial class BattleGridHighlightOverlay : Node2D
         foreach (BattleGridHighlightKind kind in kinds)
         {
             (Color fill, Color border, float borderWidth) = GetStyle(kind);
-            BattleGridHighlightTileShape shape = kind is BattleGridHighlightKind.FriendlyMove or BattleGridHighlightKind.EnemyDeployment
-                ? BattleGridHighlightTileShape.Square
-                : BattleGridHighlightTileShape.Diamond;
+            BattleGridHighlightTileShape shape = kind switch
+            {
+                BattleGridHighlightKind.FriendlyMove or BattleGridHighlightKind.EnemyDeployment => BattleGridHighlightTileShape.Square,
+                BattleGridHighlightKind.FriendlyPerception or BattleGridHighlightKind.EnemyPerception => BattleGridHighlightTileShape.SoftAura,
+                _ => BattleGridHighlightTileShape.Diamond
+            };
             styles[kind] = new BattleGridHighlightStyle(fill, border, borderWidth, shape);
         }
 
         return styles;
+    }
+
+    private static bool IsPerceptionKind(BattleGridHighlightKind kind)
+    {
+        return kind is BattleGridHighlightKind.FriendlyPerception or BattleGridHighlightKind.EnemyPerception;
     }
 
     private bool ShouldPulse(BattleGridHighlightKind kind)

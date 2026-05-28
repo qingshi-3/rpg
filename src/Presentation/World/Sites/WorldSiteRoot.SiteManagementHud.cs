@@ -472,6 +472,7 @@ public partial class WorldSiteRoot
         {
             _draggedPlacementId = "";
             ClearSiteDeploymentDragPreview(null);
+            EnableBattlePerceptionOverlayForRuntime();
         }
 
         if (enabled && _siteHudRoot != null)
@@ -493,6 +494,7 @@ public partial class WorldSiteRoot
             _battlePerceptionOverlayVisible = false;
             _selectedBattleRuntimeGroupKey = "";
             _battleRuntimeRequest = null;
+            ClearBattleMovementTweenProbe();
             _unitRoot?.ClearCommandSelection();
             ClearBattlePerceptionOverlay();
             SetBattleRuntimeCommandPanelVisible(false);

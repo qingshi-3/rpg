@@ -19,8 +19,7 @@ internal sealed class BattleGridHighlightTileLayerRenderer
         BattleMapLayer coordinateLayer,
         BattleGridHighlightTileSetSpec tileSetSpec,
         IReadOnlyList<BattleGridHighlightKind> drawOrder,
-        System.Func<BattleGridHighlightKind, bool> shouldPulse,
-        System.Action<TileMapLayer, BattleGridHighlightKind> applyPulse)
+        System.Action<TileMapLayer, BattleGridHighlightKind> configureLayer)
     {
         ClearAll();
         RemoveExistingLayers();
@@ -53,10 +52,7 @@ internal sealed class BattleGridHighlightTileLayerRenderer
 
             // Runtime highlight layers are presentation-only. They use a TileSet with no physics,
             // navigation, or custom map data, so battle rules continue to read the authored map.
-            if (shouldPulse?.Invoke(kind) == true)
-            {
-                applyPulse?.Invoke(layer, kind);
-            }
+            configureLayer?.Invoke(layer, kind);
         }
     }
 

@@ -71,6 +71,12 @@ internal static class BattleGridHighlightTileSetFactory
 
     private static void DrawHighlightTile(Image atlas, Vector2I tileSize, int tileIndex, BattleGridHighlightStyle style)
     {
+        if (style.Shape == BattleGridHighlightTileShape.SoftAura)
+        {
+            DrawSoftAuraHighlightTile(atlas, tileSize, tileIndex, style);
+            return;
+        }
+
         if (style.Shape == BattleGridHighlightTileShape.Square)
         {
             DrawSquareHighlightTile(atlas, tileSize, tileIndex, style);
@@ -78,6 +84,41 @@ internal static class BattleGridHighlightTileSetFactory
         }
 
         DrawDiamondHighlightTile(atlas, tileSize, tileIndex, style);
+    }
+
+    private static void DrawSoftAuraHighlightTile(Image atlas, Vector2I tileSize, int tileIndex, BattleGridHighlightStyle style)
+    {
+        int originX = tileIndex * tileSize.X;
+        float centerX = originX + (tileSize.X - 1) * 0.5f;
+        float centerY = (tileSize.Y - 1) * 0.5f;
+        float radiusX = System.Math.Max(1f, tileSize.X * 0.48f);
+        float radiusY = System.Math.Max(1f, tileSize.Y * 0.48f);
+
+        for (int y = 0; y < tileSize.Y; y++)
+        {
+            for (int x = 0; x < tileSize.X; x++)
+            {
+                float normalizedX = (originX + x + 0.5f - centerX) / radiusX;
+                float normalizedY = (y + 0.5f - centerY) / radiusY;
+                float distance = Mathf.Sqrt(normalizedX * normalizedX + normalizedY * normalizedY);
+                if (distance > 1f)
+                {
+                    continue;
+                }
+
+                float outerFade = 1f - SmoothStep(0.66f, 1f, distance);
+                float innerWeight = 0.68f + (1f - distance) * 0.22f;
+                float edgeWeight = SmoothStep(0.68f, 0.94f, distance) * (1f - SmoothStep(0.94f, 1f, distance));
+                float shimmer = 0.92f + 0.08f * Mathf.Sin((originX + x) * 0.17f + y * 0.29f);
+
+                Color color = style.Fill.Lerp(style.Border, edgeWeight * 0.36f);
+                color.A = Mathf.Clamp(
+                    style.Fill.A * outerFade * innerWeight * shimmer + style.Border.A * edgeWeight * 0.16f,
+                    0f,
+                    1f);
+                atlas.SetPixel(originX + x, y, color);
+            }
+        }
     }
 
     private static void DrawDiamondHighlightTile(Image atlas, Vector2I tileSize, int tileIndex, BattleGridHighlightStyle style)
@@ -129,5 +170,16 @@ internal static class BattleGridHighlightTileSetFactory
                 atlas.SetPixel(x, y, isBorder ? style.Border : style.Fill);
             }
         }
+    }
+
+    private static float SmoothStep(float edge0, float edge1, float value)
+    {
+        if (Mathf.IsEqualApprox(edge0, edge1))
+        {
+            return value < edge0 ? 0f : 1f;
+        }
+
+        float t = Mathf.Clamp((value - edge0) / (edge1 - edge0), 0f, 1f);
+        return t * t * (3f - 2f * t);
     }
 }
