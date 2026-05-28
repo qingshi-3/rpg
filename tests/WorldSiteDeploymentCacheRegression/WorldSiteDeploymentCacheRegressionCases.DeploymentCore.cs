@@ -581,6 +581,69 @@ internal static void BattleDeploymentPreparerUsesDeploymentSideMarkersWithoutFac
     AssertEqual(new Vector2I(2, 0), new Vector2I(enemyForce.PreferredPlacements[0].CellX, enemyForce.PreferredPlacements[0].CellY), "enemy force should use enemy-side marker without matching a concrete faction id");
 }
 
+internal static void BattleDeploymentPreparerMovesResidentDefenderIntoEnemyDeploymentZone()
+{
+    BattleGridMap grid = new();
+    AddWalkableSurface(grid, 0, 0, terrainTag: "legacy_garrison");
+    AddWalkableSurface(grid, 1, 0, terrainTag: "middle");
+    AddWalkableSurface(grid, 2, 0, terrainTag: "enemy_zone");
+    var markers = new[]
+    {
+        new SemanticMapMarkerData
+        {
+            MarkerId = "enemy_start",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            DeploymentSide = SemanticDeploymentSide.Enemy,
+            AnchorCell = new Vector2I(2, 0),
+            Width = 1,
+            Height = 1
+        }
+    };
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder()
+        .Build("site_under_test", grid, markers);
+    WorldSiteState site = BuildDeploymentSite();
+    site.OwnerFactionId = StrategicWorldIds.FactionUndead;
+    site.Garrison.Add(new GarrisonState
+    {
+        UnitTypeId = StrategicWorldIds.UnitMilitia,
+        Count = 1
+    });
+    WorldSiteDefinition definition = BuildDefaultZoneDefinition(new Vector2I(0, 0));
+    BattleStartRequest request = new()
+    {
+        TargetSiteId = site.SiteId,
+        BattleKind = BattleKind.AssaultSite,
+        AttackDirection = WorldSiteAttackDirection.West,
+        AttackerFactionId = StrategicWorldIds.FactionPlayer,
+        DefenderFactionId = StrategicWorldIds.FactionUndead
+    };
+    BattleForceRequest enemyForce = new()
+    {
+        ForceId = "resident_enemy",
+        SourceKind = "DefenderSite",
+        SourceId = site.SiteId,
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 1,
+        FactionId = StrategicWorldIds.FactionUndead
+    };
+    request.EnemyForces.Add(enemyForce);
+
+    bool prepared = new WorldSiteBattleDeploymentPreparer().Prepare(
+        request,
+        site,
+        definition,
+        cache,
+        grid,
+        CanForceEnterWater,
+        CanPlacementEnterWater,
+        out string failureReason);
+
+    WorldSiteUnitPlacement garrisonPlacement = site.UnitPlacements.Single(item => WorldSiteDeploymentService.IsGarrisonPlacement(item));
+    AssertTrue(prepared, $"resident defender deployment preparation should succeed failure={failureReason}");
+    AssertEqual(new Vector2I(2, 0), new Vector2I(enemyForce.PreferredPlacements[0].CellX, enemyForce.PreferredPlacements[0].CellY), "resident defender should start inside the enemy deployment marker");
+    AssertEqual(new Vector2I(2, 0), new Vector2I(garrisonPlacement.CellX, garrisonPlacement.CellY), "resident defender site placement should be moved with the prepared battle position so launch sync cannot undo it");
+}
+
 internal static void BattleDeploymentPreparerUsesKnownEntranceBeforeDesiredApproachDirection()
 {
     BattleGridMap grid = new();

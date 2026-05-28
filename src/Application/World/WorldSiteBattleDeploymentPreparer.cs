@@ -73,6 +73,15 @@ public sealed class WorldSiteBattleDeploymentPreparer
 
         foreach (BattleForceRequest force in request.PlayerForces ?? new List<BattleForceRequest>())
         {
+            success &= EnsureResidentForceUsesDeploymentZone(
+                request,
+                force,
+                SemanticDeploymentSide.Player,
+                site,
+                definition,
+                deploymentCache,
+                canForceEnterWater,
+                ref failureReason);
             success &= EnsureForceWorldSitePlacement(
                 request,
                 force,
@@ -85,6 +94,15 @@ public sealed class WorldSiteBattleDeploymentPreparer
 
         foreach (BattleForceRequest force in request.EnemyForces ?? new List<BattleForceRequest>())
         {
+            success &= EnsureResidentForceUsesDeploymentZone(
+                request,
+                force,
+                SemanticDeploymentSide.Enemy,
+                site,
+                definition,
+                deploymentCache,
+                canForceEnterWater,
+                ref failureReason);
             success &= EnsureForceWorldSitePlacement(
                 request,
                 force,
@@ -116,6 +134,78 @@ public sealed class WorldSiteBattleDeploymentPreparer
             nameof(WorldSiteBattleDeploymentPreparer),
             $"BattleDeploymentsPreparedFromWorldSite site={site.SiteId} request={request.RequestId} placements={site.UnitPlacements.Count} playerForces={request.PlayerForces.Count} enemyForces={request.EnemyForces.Count}");
         return success;
+    }
+
+    private bool EnsureResidentForceUsesDeploymentZone(
+        BattleStartRequest request,
+        BattleForceRequest force,
+        SemanticDeploymentSide side,
+        WorldSiteState site,
+        WorldSiteDefinition definition,
+        WorldSiteRuntimeDeploymentCache deploymentCache,
+        Func<BattleForceRequest, bool> canForceEnterWater,
+        ref string failureReason)
+    {
+        if (force == null ||
+            force.Count <= 0 ||
+            !IsResidentWorldSiteForceForSite(force, site) ||
+            deploymentCache?.HasAuthoredDeploymentZoneForSide(side, force.FactionId) != true)
+        {
+            return true;
+        }
+
+        WorldSiteAttackDirection desiredDirection = ResolveForceDeploymentDirection(request, force, side);
+        BattleEntranceRequest entrance = ResolveForceEntrance(request, force, desiredDirection);
+        WorldSiteAttackDirection deploymentDirection = entrance?.Direction ?? desiredDirection;
+        string entranceId = entrance?.EntranceId ?? force.PreferredEntranceId ?? "";
+        if (!string.IsNullOrWhiteSpace(entranceId))
+        {
+            force.PreferredEntranceId = entranceId;
+        }
+
+        bool canEnterWater = canForceEnterWater?.Invoke(force) == true;
+        WorldSiteDeploymentCell[] candidates = deploymentCache
+            .GetDeploymentZoneCandidatesForSide(side, force.FactionId, deploymentDirection)
+            .Where(candidate => CanUseDeploymentCell(candidate, canEnterWater))
+            .ToArray();
+        if (candidates.Length == 0)
+        {
+            failureReason = "deployment_candidates_missing";
+            return false;
+        }
+
+        WorldSiteUnitPlacement[] placements = ResolveWorldSitePlacementsForForce(site, force)
+            .OrderBy(placement => placement.UnitIndex)
+            .ThenBy(placement => placement.PlacementId)
+            .Take(force.Count)
+            .ToArray();
+        if (placements.Length < force.Count)
+        {
+            failureReason = "battle_force_world_site_placements_missing";
+            return false;
+        }
+
+        foreach (WorldSiteUnitPlacement placement in placements)
+        {
+            if (IsPlacementInCandidates(placement, candidates) ||
+                TryMovePlacementToDeploymentCandidate(site, definition, placement, candidates, out _))
+            {
+                // Resident defenders keep their site-local placement identity, but
+                // battle preparation must align that identity with authored start zones
+                // so later launch sync cannot snap them back to stale garrison cells.
+                placement.EntranceId = entranceId;
+                placement.AttackDirection = deploymentDirection;
+                continue;
+            }
+
+            failureReason = "deployment_cell_unavailable";
+            GameLog.Error(
+                nameof(WorldSiteBattleDeploymentPreparer),
+                $"ResidentBattleDeploymentPrepareFailed site={site?.SiteId ?? ""} request={request?.RequestId ?? ""} force={force.ForceId} unit={force.UnitDefinitionId} placement={placement.PlacementId} reason={failureReason} direction={deploymentDirection} canEnterWater={canEnterWater}");
+            return false;
+        }
+
+        return true;
     }
 
     private bool EnsureForceWorldSitePlacement(
@@ -435,6 +525,41 @@ public sealed class WorldSiteBattleDeploymentPreparer
     private static bool CanUseDeploymentCell(WorldSiteDeploymentCell candidate, bool canEnterWater)
     {
         return canEnterWater || !candidate.IsWater;
+    }
+
+    private static bool IsPlacementInCandidates(
+        WorldSiteUnitPlacement placement,
+        IEnumerable<WorldSiteDeploymentCell> candidates)
+    {
+        return placement != null &&
+               (candidates ?? Enumerable.Empty<WorldSiteDeploymentCell>()).Any(candidate =>
+                   candidate.Cell.X == placement.CellX &&
+                   candidate.Cell.Y == placement.CellY &&
+                   candidate.Height == placement.CellHeight);
+    }
+
+    private bool TryMovePlacementToDeploymentCandidate(
+        WorldSiteState site,
+        WorldSiteDefinition definition,
+        WorldSiteUnitPlacement placement,
+        IEnumerable<WorldSiteDeploymentCell> candidates,
+        out string failureReason)
+    {
+        failureReason = "";
+        foreach (WorldSiteDeploymentCell candidate in candidates ?? Enumerable.Empty<WorldSiteDeploymentCell>())
+        {
+            if (_deploymentService.TryMovePlacementToSurface(
+                    site,
+                    definition,
+                    placement.PlacementId,
+                    new GridSurfacePosition(candidate.Cell.X, candidate.Cell.Y, candidate.Height),
+                    out failureReason))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string ResolveForceSourceKind(BattleForceRequest force)
