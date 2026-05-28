@@ -36,7 +36,6 @@ Runtime state exists only during an active battle or recoverable runtime handoff
 | Actor phases | Anchored decision, moving, attack windup/recovery, casting, holding, interrupted, defeated. |
 | Battle-group plan execution | Active objective zone, engagement rule, formation intent, plan revision, current battle-group state. |
 | Command execution | Current command, accepted runtime order, target area, retreat/protect/follow state, plan supersession state. |
-| Tactical observations | Temporary local combat situations, tactical fact versions, dirty reasons, and bounded cached slot facts. |
 | Battle process | Event stream, skill impact, formation density, map-trigger facts received through snapshots. |
 
 Runtime cannot query or mutate Domain state directly. Application snapshots and result contracts isolate the two sides.
@@ -142,33 +141,6 @@ Engagement rules bias transitions:
 | Protect-hero | Target choice and corps movement are constrained by hero distance and threats to the hero. |
 
 Runtime events must include plan state changes when they materially affect movement, target choice, retreat, hold, or battle outcome. Reports should be able to say that a company advanced as planned, was delayed by a chokepoint, switched to attack-first contact, returned to objective, or retreated.
-
-## Local Combat Situations
-
-Runtime may build temporary `LocalCombatSituation` facts from authoritative battle state. These facts help AI reason about nearby active fights without giving behavior trees movement, damage, or settlement authority.
-
-A local combat situation records:
-
-- a stable situation id and center cell;
-- participating actors and nearby actors that satisfy join predicates;
-- hostile anchors and retained target facts;
-- open attack slots and occupied attack slots;
-- support slots that help join or pressure the local fight;
-- simple local imbalance facts, such as open attack-slot count, occupied attack-slot count, nearby friendly count, nearby hostile count, route-blocking status, and command-scope or leash boundaries;
-- version, dirty reason, and last built Runtime time.
-
-Local combat situations are refreshed by important Runtime events and lazy rebuilds, not by global full recomputation every simulation tick. Movement, recovery, casting, defeated, and other locked phases do not run behavior-tree decisions merely because the tactical cache changed.
-
-Runtime remains the only owner of actor anchors, reservations, movement progress, attack legality, damage application, defeat, events, and battle outcome. `LocalCombatSituation` facts are advisory inputs for action selection and diagnostics.
-
-Runtime local combat response must preserve battle-group identity:
-
-- a battle group has at most one active local combat assignment at a time;
-- a battle group does not switch local situations until target death, command change, leash break, or local inactivity;
-- objective, hold, and protect tasks retain budget unless a direct threat or explicit command overrides them;
-- actor decisions use anti-jitter locks for join, return, slot claim, and de-aggro transitions.
-
-Runtime diagnostics must include local-combat decision reasons so AI behavior can be explained without reading behavior-tree internals.
 
 ## Continuous Movement
 

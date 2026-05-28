@@ -142,31 +142,6 @@ A valid basic-attack slot is an attacker anchor that satisfies all of these fact
 
 Large targets naturally expose more potential attack slots than `1x1` targets. This is an intended body-size rule: a larger unit is more exposed to being surrounded by smaller units, while its own footprint may make movement through tight terrain harder.
 
-## Support Slots
-
-Runtime may derive support slots for a local combat situation when direct attack slots are occupied, blocked, reserved, outside command scope, or lower priority than maintaining local pressure.
-
-A support slot is not an arbitrary waiting cell. It is a legal anchor that:
-
-- can place the actor footprint on topology;
-- does not overlap occupied or reserved cells for the committed next step;
-- does not block an existing occupied attack slot;
-- improves the actor's ability to enter an attack slot, support a front line, or maintain pressure near the local fight;
-- respects the actor's objective, held area, defense leash, protect target, or retreat constraint;
-- can be ordered deterministically so multiple actors do not choose the same support position.
-
-Support slots are fallback and staging positions. They do not authorize attacks by themselves, and Presentation must not move a unit into visual attack range without Runtime movement facts.
-
-First-slice support slots should be limited to named, readable roles:
-
-| Support Slot | Purpose |
-|---|---|
-| Melee queue | Stand in a second-line anchor that can enter an attack slot within one or two legal steps when it opens. |
-| Line hold | Preserve a chokepoint or front-line shape without blocking an occupied attack slot. |
-| Ranged hold | Preserve distance or a future firing lane without blocking melee movement. |
-
-Generic support-slot scoring is not a first-slice requirement. The first implementation should prefer deterministic, explainable slot rules that can be diagnosed when a unit joins, waits, returns, or refuses to join.
-
 ## Path Invalidation
 
 Authoritative movement intent is not a full precomputed battle path. Cached path data, if any, is advisory only.

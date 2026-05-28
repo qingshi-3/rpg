@@ -72,27 +72,6 @@ The engagement rule tells the company how to behave while advancing and after co
 
 This plan does not turn battle into pure auto-playback. It gives each hero company an initial battle intention that can later be overridden by accepted hero, corps, or combined commands. Mature automatic behavior should be readable as execution of the player's plan, not as every unit independently searching the whole map for the globally best target or attack position.
 
-### Local Combat Response
-
-Automatic battle behavior should understand active local fights, not only global objectives and direct target pursuit. When combat starts near a company, nearby units that satisfy the local combat rules should evaluate whether they should join the local fight, take an open attack position, hold a named support position, or remain on their objective/defense task.
-
-This behavior should make enemies and allies read as battlefield participants with local awareness:
-
-- front-line units try to occupy valid attack positions when available;
-- support units do not idle beside a fight simply because direct attack positions are full;
-- defenders reinforce local fights inside their defense scope but do not chase indefinitely;
-- objective movement remains the plan's main direction, but active local combat may temporarily interrupt it according to engagement rule.
-
-Local combat response is not global per-unit target optimization. It is a scoped tactical reaction to nearby combat that preserves player plans, defensive leashes, readable support positions, and Runtime movement authority.
-
-Local response must remain readable by role:
-
-- shield and infantry units reinforce lines, chokepoints, and nearby attack positions;
-- ranged units prefer legal firing positions and avoid blocking the front;
-- cavalry or other mobile units should not clog chokepoints and should join mainly when a side or rear approach is available.
-
-Each hero company should preserve its command identity. Local response may temporarily redirect a company into a nearby fight, but it should not scatter visible soldiers into independent long-term behaviors or pull every nearby company into one fight without budget, leash, and return rules.
-
 ## Strategic Location Naming
 
 Use **strategic location** as the design umbrella for large-map locations.
