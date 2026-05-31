@@ -7,7 +7,7 @@ namespace Rpg.Runtime.Battle;
 
 internal sealed partial class BattleRuntimeTickResolver
 {
-    private static void RecordAdvanceFailure(BattleRuntimeActor actor, string failureReason)
+    internal static void RecordAdvanceFailure(BattleRuntimeActor actor, string failureReason)
     {
         if (actor == null)
         {
@@ -20,7 +20,7 @@ internal sealed partial class BattleRuntimeTickResolver
             : failureReason;
     }
 
-    private static void ResetAdvanceFailureState(BattleRuntimeActor actor)
+    internal static void ResetAdvanceFailureState(BattleRuntimeActor actor)
     {
         if (actor == null)
         {
@@ -31,7 +31,7 @@ internal sealed partial class BattleRuntimeTickResolver
         actor.LastAdvanceFailureReason = "";
     }
 
-    private static void LogAdvanceFailureDiagnostic(
+    internal static void LogAdvanceFailureDiagnostic(
         string battleId,
         int tick,
         BattleRuntimeTickStartActorFact actorFact,
@@ -98,4 +98,3 @@ internal sealed partial class BattleRuntimeTickResolver
             $"BattleRuntimeAction battle={battleId ?? ""} tick={tick} time={currentTimeSeconds:0.00} actor={actor.ActorId} action={request.Kind} outcome={outcome} target={targetId} actorCell={actor.GridX},{actor.GridY},{actor.GridHeight} targetCell={targetCell} distance={distance} actorHp={actor.HitPoints} readyAt={actor.ActionReadyAtSeconds:0.00} targetHp={targetHp}");
     }
 }
-

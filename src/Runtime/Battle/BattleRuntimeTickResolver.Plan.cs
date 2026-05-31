@@ -109,7 +109,7 @@ internal sealed partial class BattleRuntimeTickResolver
             regionMovementGoal: goal);
     }
 
-    private static BattleGridCoord GetObjectiveAnchor(BattleRuntimeActor actor)
+    internal static BattleGridCoord GetObjectiveAnchor(BattleRuntimeActor actor)
     {
         return new BattleGridCoord(
             actor?.ObjectiveGridX ?? 0,
@@ -117,7 +117,7 @@ internal sealed partial class BattleRuntimeTickResolver
             actor?.ObjectiveGridHeight ?? 0);
     }
 
-    private static string ResolveMovementEventTargetId(BattleRuntimeTickContext context)
+    internal static string ResolveMovementEventTargetId(BattleRuntimeTickContext context)
     {
         if (context?.Request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion)
         {
