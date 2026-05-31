@@ -89,7 +89,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 continue;
             }
 
-            stream.Add(BuildMovementEvent(
+            stream.Add(BattleRuntimeEventFactory.CreateMovementEvent(
                 BattleEventKind.MovementCompleted,
                 battleId,
                 tick,
@@ -652,31 +652,17 @@ internal sealed partial class BattleRuntimeTickResolver
                      item => item.Context.ActorFact.Actor.ActorId,
                      System.StringComparer.Ordinal))
         {
-            stream.Add(new BattleEvent
-            {
-                EventId = $"{battleId}:tick_{tick}:{application.Context.ActorFact.Actor.ActorId}:attack:{application.Context.TargetFact!.Value.Actor.ActorId}",
-                BattleId = battleId,
-                BattleGroupId = application.Context.ActorFact.Actor.BattleGroupId,
-                ActorId = application.Context.ActorFact.Actor.ActorId,
-                TargetId = application.Context.TargetFact.Value.Actor.ActorId,
-                Kind = BattleEventKind.DamageApplied,
-                ReasonCode = application.IsFinishingHit
-                    ? "auto_attack_target_defeated"
-                    : "auto_attack",
-                RuntimeTick = tick,
-                RuntimeTimeSeconds = currentTimeSeconds,
-                ActionDurationSeconds = application.Context.ActorFact.Actor.AttackActionSeconds,
-                ActionImpactDelaySeconds = application.Context.ActorFact.Actor.AttackImpactDelaySeconds,
-                CorpsStrengthDelta = -application.AppliedDamage,
-                HasActorCells = true,
-                ActorGridX = application.Context.ActorFact.Anchor.X,
-                ActorGridY = application.Context.ActorFact.Anchor.Y,
-                ActorGridHeight = application.Context.ActorFact.Anchor.Height,
-                HasTargetCells = true,
-                TargetGridX = application.Context.TargetFact.Value.Anchor.X,
-                TargetGridY = application.Context.TargetFact.Value.Anchor.Y,
-                TargetGridHeight = application.Context.TargetFact.Value.Anchor.Height
-            });
+            // The factory preserves RuntimeTimeSeconds = currentTimeSeconds; the resolver owns this stream position.
+            stream.Add(BattleRuntimeEventFactory.CreateDamageApplied(
+                battleId,
+                tick,
+                currentTimeSeconds,
+                application.Context.ActorFact.Actor,
+                application.Context.TargetFact!.Value.Actor,
+                application.Context.ActorFact.Anchor,
+                application.Context.TargetFact!.Value.Anchor,
+                application.AppliedDamage,
+                application.IsFinishingHit));
         }
 
         foreach (PendingAttack pending in pendingAttacks)
@@ -864,7 +850,7 @@ internal sealed partial class BattleRuntimeTickResolver
             BattleRuntimeActorStateMachine.MarkMovementCommitted(candidate.Context.ActorFact.Actor, selectedMove, currentTimeSeconds);
             ResetAdvanceFailureState(candidate.Context.ActorFact.Actor);
             candidate.Context.Result = BattleRuntimeAiActionResult.Succeeded(candidate.Context.Request, "advanced");
-            stream.Add(BuildMovementEvent(
+            stream.Add(BattleRuntimeEventFactory.CreateMovementEvent(
                 BattleEventKind.MovementStarted,
                 battleId,
                 tick,
