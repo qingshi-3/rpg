@@ -32,3 +32,24 @@ For code work, "pure engineering refactor" below means no design proposal is req
 4. Close TD-001 as the umbrella only after TD-002 and TD-003. The resolver-size guard should be added when the extracted boundaries are real, not as a cosmetic line-count cleanup.
 5. TD-004 after the UI guard, preferably one collaborator at a time: command HUD binder, battle-preparation presenter, objective-planning presenter, deployment drag controller, runtime playback presenter, then site-management binder. Stop and use the design proposal flow if any step changes host ownership or scene/resource taxonomy.
 6. TD-006, TD-007, and TD-008 can proceed independently after TD-005. Do TD-006 before deep animation/overlay work if live battle presentation is the active risk; do TD-007 first if hover/highlight behavior is changing; do TD-008 first only when animation authoring or fallback behavior is the current bottleneck.
+
+## Progress Log
+
+### 2026-05-31 — TD-005 closed, TD-003 partially extracted
+
+Completed this pass (each verified independently by reviewer: build + regression):
+- **TD-005 Closed.** Guard `presentation ui authoring stays resource backed` in `tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.PresentationResourceAuthoring.cs`.
+- **TD-003 slice 1.** `SetPlanState` extracted into `src/Runtime/Battle/BattlePlanStateEmitter.cs` (byte-for-byte; idempotence short-circuit preserved).
+- **TD-003 safety net.** `TargetBattleEventOrderGoldenRegressionCases` locks the battle event stream's relative order (EventIds + format-independent projection). Prior tests asserted event presence/counts but never order; `BattleGroupPlanStateChanged` had zero coverage. A reordering refactor with the same event-id set would have passed silently before this.
+- **TD-003 slice 2.** Event construction centralized into pure static `src/Runtime/Battle/BattleRuntimeEventFactory.cs` (`CreateDamageApplied` / `CreateMovementEvent`). `BattlePlanStateEmitter` kept separate because it also mutates plan state (not a pure factory).
+
+### TD-003 remaining work — read before resuming
+
+What is left is the hardest part: extracting `ResolveAttackProposals` and `ResolveMovementProposals` themselves. This is a byte-for-byte-equivalence minefield. Do NOT let an implementer free-hand a cut here. Known S-level risk points (from a deep read of the resolver):
+- Event order = `stream.Add` call order; no sequence counter. Any reordering breaks equivalence (the golden net now guards this).
+- Defeated events iterate a `Dictionary` with no explicit sort — a hidden order dependency; pin a sort if touched.
+- `ResolveAttackProposalsAndEngagementTriggers` slices the stream via `firstAttackEventIndex` to identify newly-added attack events; nothing else may write to the stream between attack resolution and that slice.
+- `TryRetargetStaleAdvanceContext` re-invokes `BuildTickContext` (AI + pathfinding), so movement resolution reverse-depends on context building — the hardest seam to cut cleanly. This is an architecture-ownership question (should a movement service call back into AI/pathfinding?), not just a refactor; resolve it via a design step first.
+- The four services must share one `BattleEventStream`, one `tickStartFacts` (live actor refs), and one `TickContext` list — not private copies.
+
+Decision: before resuming, have the implementer produce a design document for how to cut attack/movement resolution (explicitly answering the retarget reverse-dependency), reviewed against the 8-point checklist captured during the deep read. Consider widening the golden net (multi-target, reservation conflict, retarget) before the cut. Then extract in further small slices, not all at once.
