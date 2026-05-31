@@ -8,17 +8,12 @@ Use this directory only after the relevant accepted authority is current. If imp
 
 ## Active / Pending Index
 
-These proposal files remain in this directory because performance diagnosis or manual QA is still open:
+These proposal files remain in this directory because implementation or acceptance is still open:
 
 | Proposal | Status | Reason Kept Active |
 |---|---|---|
-| `2026-05-21-battle-movement-performance.md` | Archived - accepted with residual runtime-spike follow-up | Performance workstream remains a parent record for unresolved runtime-spike follow-up. |
-| `2026-05-21-battle-runtime-spike-diagnostics.md` | Implemented - pending manual QA | Performance diagnostics require manual QA evidence. |
-| `2026-05-21-battle-open-attack-flowfield-cache.md` | Implemented - pending manual QA | Performance optimization requires manual QA evidence. |
-| `2026-05-22-continuous-rts-movement.md` | Implemented - pending manual QA | Manual Godot playback is still needed to judge movement feel. |
-| `2026-05-23-battle-plan-state-machine.md` | Phase 1 Implemented - pending manual QA and later UI/marker phases | Core runtime plan contracts and objective-first movement are implemented; polished battle-preparation UI and objective marker authoring remain follow-up phases. |
-| `2026-05-28-local-combat-situation-ai.md` | Draft - pending implementation | Accepted local-combat design is merged; Runtime-owned local fight facts, support slots, engagement-rule predicates, diagnostics, and manual QA remain to implement. |
+| None |  |  |
 
 ## Archived Implementation Proposals
 
-Accepted battle and movement architecture proposals that no longer need active follow-up live under `archived/`.
+Archived battle and movement implementation records live under `archived/`. Archived records are historical evidence, not active implementation instructions.

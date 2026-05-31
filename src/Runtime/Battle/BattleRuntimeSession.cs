@@ -9,6 +9,7 @@ using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Results;
+using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
@@ -112,7 +113,10 @@ public sealed class BattleRuntimeSession
         BattleRuntimeState state = new()
         {
             SnapshotId = snapshot?.SnapshotId ?? "",
-            BattleId = snapshot?.BattleId ?? ""
+            BattleId = snapshot?.BattleId ?? "",
+            // Runtime owns group tactical truth; snapshots only seed battle-local intent at session start.
+            TacticalStateStore = BattleGroupTacticalStateStore
+                .FromBattleGroups(snapshot?.BattleGroups ?? Enumerable.Empty<BattleGroupSnapshot>(), snapshot?.BattleId ?? "")
         };
 
         var sourceForceIndexes = new Dictionary<string, int>();

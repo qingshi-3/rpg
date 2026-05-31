@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 
 namespace Rpg.Runtime.Battle.Navigation;
@@ -19,9 +20,10 @@ internal sealed class BattleFlowFieldCache
         BattleRuntimeActor actor,
         BattleRuntimeActor target,
         BattleNavigationGraph graph,
-        bool preferSupportSlots)
+        bool preferSupportSlots,
+        BattleTacticalRegionSnapshot localCombatRegion = null)
     {
-        string key = BuildKey(actor, target, preferSupportSlots);
+        string key = BuildKey(actor, target, preferSupportSlots, localCombatRegion);
         if (_fields.TryGetValue(key, out BattleFlowField field))
         {
             _performanceCounters?.RecordFlowFieldCacheHit();
@@ -29,7 +31,7 @@ internal sealed class BattleFlowFieldCache
         }
 
         _performanceCounters?.RecordFlowFieldCacheMiss();
-        field = BattleFlowFieldBuilder.Build(actor, target, graph, preferSupportSlots, _performanceCounters);
+        field = BattleFlowFieldBuilder.Build(actor, target, graph, preferSupportSlots, _performanceCounters, localCombatRegion);
         _fields[key] = field;
         return field;
     }
@@ -98,7 +100,11 @@ internal sealed class BattleFlowFieldCache
         return field;
     }
 
-    private static string BuildKey(BattleRuntimeActor actor, BattleRuntimeActor target, bool preferSupportSlots)
+    private static string BuildKey(
+        BattleRuntimeActor actor,
+        BattleRuntimeActor target,
+        bool preferSupportSlots,
+        BattleTacticalRegionSnapshot localCombatRegion)
     {
         return string.Join("|",
             preferSupportSlots ? "support" : "attack",
@@ -108,7 +114,14 @@ internal sealed class BattleFlowFieldCache
             target?.GridHeight.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0",
             actor?.FootprintWidth.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "1",
             actor?.FootprintHeight.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "1",
-            actor?.AttackRange.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "1");
+            actor?.AttackRange.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "1",
+            localCombatRegion?.RegionId ?? "",
+            localCombatRegion?.Version.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0",
+            localCombatRegion?.CenterCellX.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0",
+            localCombatRegion?.CenterCellY.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0",
+            localCombatRegion?.CenterCellHeight.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0",
+            localCombatRegion?.Width.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0",
+            localCombatRegion?.Height.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0");
     }
 
     private static string BuildOpenAttackKey(BattleRuntimeActor actor, IReadOnlyList<BattleCombatSlot> openAttackGoals)

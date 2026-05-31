@@ -134,6 +134,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattleCorpsCommand _selectedBattleCorpsCommand = BattleCorpsCommand.Assault;
 	private string _selectedBattleRuntimeGroupKey = "";
 	private string _selectedBattlePreparationPlanGroupKey = "";
+	private readonly HashSet<string> _explicitBattlePreparationRuleGroups = new(System.StringComparer.Ordinal);
 	private string _draggedPlacementId = "";
 	private Vector2 _draggedPlacementOriginGlobalPosition;
 	private string _draggedBattleForceId = "";

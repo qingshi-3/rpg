@@ -79,31 +79,31 @@ Runtime replanning is a simulation concern, not a render-frame concern. Fixed si
 
 Actors that are already in `Moving`, `AttackRecovery`, casting, interruption, or another non-decision phase do not replan just because another render frame elapsed. Moving actors may refresh the next legal neighbor at Runtime movement-continuation boundaries; attack recovery, casting, interruption, and other locked phases replan only when the Runtime state machine reaches the next valid anchored decision boundary or when a valid interrupt explicitly cancels the current action.
 
-## Objective-Zone Movement
+## Region-Directed Movement
 
-Objective zones are authored tactical regions carried into battle through accepted battle-group plans. Runtime pathfinding treats them as movement goals or route constraints, not as hidden target actors.
+Battle-group movement goals are tactical regions. Player groups normally use authored objective zones carried by accepted battle-group plans or live player commands. Enemy groups may use battle-group-owned target regions or temporary target regions chosen by enemy policy. Runtime pathfinding treats all of them as region goals or route constraints, not as hidden target actors.
 
-Objective-zone movement should be resolved before local attack-slot movement:
+Region-directed movement should be resolved before local attack-slot movement:
 
 ```text
-active BattleGroupPlan objective zone
--> objective-zone candidate anchors
+active battle-group objective, target, temporary, hold, protect, or retreat region
+-> region candidate anchors
 -> route hints from lanes, chokepoints, flank routes, reserve points, or defend points
 -> footprint-aware next-step ranking
 -> local occupancy and reservation validation
 ```
 
-When no enemy is locked, a battle group advances toward its objective zone. When a local target is locked, movement may temporarily switch to attack-slot approach. When that target dies, becomes invalid, exceeds pursuit limits, or cannot be reached under the engagement rule, movement returns to the objective zone, hold area, protect-hero area, or retreat path.
+When no enemy is locked, a battle group advances, holds, or withdraws toward its current region. When a local target is locked, movement may temporarily switch to attack-slot approach inside the group-owned local combat region. When that target dies, becomes invalid, exceeds pursuit limits, or cannot be reached under the engagement rule, movement returns to the current objective zone, target region, temporary target region, hold area, protect-hero area, or retreat path.
 
-Objective-zone route fields may be cached by objective zone, topology version, actor footprint, and relevant command posture. They must not include per-frame dynamic target facts. Attack-slot flow fields remain target-specific and should be built or refreshed only when a locked target requires approach scoring.
+Region route fields may be cached by region id, topology version, actor footprint, and relevant command posture. They must not include per-frame dynamic target facts. Attack-slot flow fields remain target-specific and should be built or refreshed only when a locked target requires approach scoring.
 
-This separation is a product rule as much as a performance rule: ordinary movement should read as executing the player's chosen plan, not as every unit independently searching the whole battlefield for the globally best attack anchor.
+This separation is a product rule as much as a performance rule: ordinary movement should read as executing the group plan or enemy region policy, not as every unit independently searching the whole battlefield for the globally best attack anchor.
 
 ## Continuous Movement And Flow Fields
 
 Mature RTS movement is a continuous runtime state over discrete navigation authority.
 
-- Objective-zone route fields, cached placement maps, and attack-slot fields provide movement direction or next-anchor ranking for groups of actors with compatible goals.
+- Region route fields, cached placement maps, and attack-slot fields provide movement direction or next-anchor ranking for groups of actors with compatible goals.
 - Runtime actors move by speed over fixed simulation ticks, not by treating each cell transition as a complete independent action.
 - Target acquisition and movement pathing are separate costs: target acquisition should be sticky and low-frequency, while movement continuation validates the retained target's next legal neighbor at runtime boundaries.
 - Cell occupancy remains authoritative at committed cell boundaries. Reservations protect immediate continuation targets and prevent same-tick overlap or direct edge swaps.

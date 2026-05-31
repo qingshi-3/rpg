@@ -1,10 +1,13 @@
 # Battle Plan State Machine Implementation Proposal
 
-Status: Phase 4 Perception Debug Overlay Implemented - pending manual QA and dedicated objective marker authoring
+Status: Archived - historical plan-state implementation record; enemy tactical-region behavior superseded by 2026-05-29 authority
 Created: 2026-05-23
 
 Originating Design Proposal:
 - `design-proposals/archived/2026-05-23-battle-plan-state-machine`
+
+Amendment Design Proposals:
+- `design-proposals/archived/2026-05-29-enemy-region-directed-combat-ai`
 
 Requirement Id:
 - REQ-BATTLE-PLAN-STATE-MACHINE-2026-05-23
@@ -19,7 +22,12 @@ Authority Documents:
 - `system-design/battle-runtime-architecture.md`
 - `system-design/battle-navigation-topology-architecture.md`
 - `system-design/battle-ai-boundary-architecture.md`
+- `system-design/battle-group-tactical-region-architecture.md`
 - `system-design/semantic-map-marker-architecture.md`
+
+## 2026-05-29 Authority Amendment Note
+
+Enemy objective-plan defaults recorded in Phase 3 and Phase 4 are historical implementation evidence, not the final enemy AI authority. The accepted `design-proposals/archived/2026-05-29-enemy-region-directed-combat-ai` proposal now requires enemy non-engaged movement to use battle-group-owned fixed or temporary target regions, engaged combat to use bounded local combat regions, and player groups to remain command-controlled. Do not use the older `nearest player deployment zone + AttackFirst` wording as future enemy AI design authority.
 
 ## Goal
 
@@ -114,7 +122,7 @@ Implementation is acceptable when:
 - Added runtime plan state:
   - `BattleGroupPlanRuntimeState`
   - corps actors now carry engagement rule, objective-zone anchor, objective size, and current plan state.
-- Runtime now resolves explicit default plans for legacy snapshots. Legacy battle groups without an authored objective keep attack-first behavior so existing battles remain stable until battle-preparation UI creates real plans.
+- Runtime resolves explicit default plans for legacy snapshots. This attack-first legacy fallback is implementation evidence only; future enemy behavior must follow the 2026-05-29 battle-group tactical-region authority.
 - Runtime emits low-noise plan facts:
   - `BattleGroupPlanAccepted`
   - `BattleGroupPlanStateChanged`
@@ -160,6 +168,8 @@ Known warnings during test runs:
 
 ## Phase 3 Enemy Objective Plan Correction
 
+This section records historical implementation evidence for the older objective-plan default. It is superseded for future enemy behavior by the 2026-05-29 battle-group tactical-region authority.
+
 - Added enemy-side plan request fields:
   - `BattleStartRequest.EnemyBattleGroupPlan`
   - `BattleStartRequest.EnemyBattleGroupPlans`
@@ -174,6 +184,8 @@ Known warnings during test runs:
   - enemy move-first objective plans do not scan far player attack slots while advancing.
 
 ## Phase 4 Local Perception Correction
+
+This section records historical implementation evidence for the older `AttackFirst` enemy default. It is superseded for future enemy behavior by the 2026-05-29 battle-group tactical-region authority.
 
 - Promoted the shared local perception radius to `BattlePerceptionPolicy.DefaultLocalPerceptionRange = 4` so Runtime and Presentation debug overlays read the same value.
 - Corrected enemy direct-sortie defaults from `MoveFirst` to `AttackFirst`. Enemy groups still advance toward player deployment objectives, but now acquire player units through plan-scoped local sensing before reaching the objective.

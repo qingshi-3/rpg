@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle.Adapters;
@@ -6,6 +7,7 @@ using Rpg.Domain.BattleGroups;
 using Rpg.Domain.Corps;
 using Rpg.Domain.Heroes;
 using Rpg.Infrastructure.Logging;
+using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Application.Battle;
 
@@ -70,6 +72,7 @@ public sealed class BattleGroupSessionProbeService
 			seed.Heroes,
 			seed.Corps);
 		ApplyProbeMetadata(snapshot, seed);
+		ApplyBattleEntryTacticalSeeds(snapshot, request, seed);
 		return new BattleGroupSessionProbeResult
 		{
 			Success = true,
@@ -163,6 +166,7 @@ public sealed class BattleGroupSessionProbeService
 				{
 					FactionId = factionId,
 					SourceForceId = forceId,
+					PlanSide = planSide,
 					CellX = placement?.CellX ?? ResolveFallbackCellX(fallbackFactionId),
 					CellY = placement?.CellY ?? index,
 					CellHeight = placement?.CellHeight ?? 0,
@@ -183,6 +187,220 @@ public sealed class BattleGroupSessionProbeService
 				groupIndex++;
 			}
 		}
+	}
+
+	private static void ApplyBattleEntryTacticalSeeds(
+		BattleStartSnapshot snapshot,
+		BattleStartRequest request,
+		ProbeSeed seed)
+	{
+		if (snapshot?.BattleGroups == null)
+		{
+			return;
+		}
+
+		foreach (BattleGroupSnapshot group in snapshot.BattleGroups)
+		{
+			if (group == null ||
+				!seed.GroupMetadata.TryGetValue(group.BattleGroupId ?? "", out ProbeGroupMetadata metadata))
+			{
+				continue;
+			}
+
+			if (metadata.PlanSide == BattlePlanSide.Player)
+			{
+				group.TacticalMode = BattleGroupTacticalMode.PlayerCommanded;
+				continue;
+			}
+
+			group.InitialTacticalRegions.Clear();
+
+			// Battle entry only writes immutable seed facts; Runtime owns all later
+			// mutation of enemy regions and player-commanded intent remains untouched.
+			if (IsHoldPosture(group))
+			{
+				group.TacticalMode = BattleGroupTacticalMode.EnemyHoldDefense;
+				group.InitialTacticalRegions.Add(BuildHoldRegionSeed(group));
+				continue;
+			}
+
+			if (MatchesFaction(group.FactionId, request?.AttackerFactionId))
+			{
+				group.TacticalMode = BattleGroupTacticalMode.EnemyOffense;
+				BattleTacticalRegionSnapshot fixedRegion = SelectFixedTargetRegionSeed(
+					group,
+					snapshot.BattleGroups,
+					snapshot.ObjectiveZones,
+					FixedTargetCandidateRole.Defensive);
+				if (fixedRegion != null)
+				{
+					group.InitialTacticalRegions.Add(fixedRegion);
+				}
+
+				continue;
+			}
+
+			if (MatchesFaction(group.FactionId, request?.DefenderFactionId))
+			{
+				group.TacticalMode = BattleGroupTacticalMode.EnemyActiveDefense;
+				BattleTacticalRegionSnapshot fixedRegion = SelectFixedTargetRegionSeed(
+					group,
+					snapshot.BattleGroups,
+					snapshot.ObjectiveZones,
+					FixedTargetCandidateRole.Offensive);
+				if (fixedRegion != null)
+				{
+					group.InitialTacticalRegions.Add(fixedRegion);
+				}
+			}
+		}
+	}
+
+	private static bool MatchesFaction(string actual, string expected)
+	{
+		return !string.IsNullOrWhiteSpace(expected) &&
+			string.Equals(actual ?? "", expected, StringComparison.Ordinal);
+	}
+
+	private static bool IsHoldPosture(BattleGroupSnapshot group)
+	{
+		return group?.Plan?.EngagementRule == BattleEngagementRule.Hold ||
+			IsHoldLineCommand(group?.InitialCorpsCommandId);
+	}
+
+	private static bool IsHoldLineCommand(string commandId)
+	{
+		string normalized = commandId ?? "";
+		return normalized.Equals("HoldLine", StringComparison.OrdinalIgnoreCase) ||
+			normalized.Equals("hold_line", StringComparison.OrdinalIgnoreCase) ||
+			normalized.Equals("hold-line", StringComparison.OrdinalIgnoreCase);
+	}
+
+	private static BattleTacticalRegionSnapshot BuildHoldRegionSeed(BattleGroupSnapshot group)
+	{
+		string regionId = $"{group.BattleGroupId}:hold_seed";
+		return new BattleTacticalRegionSnapshot
+		{
+			RegionId = regionId,
+			OwnerBattleGroupId = group.BattleGroupId ?? "",
+			Kind = BattleTacticalRegionKind.Hold,
+			SourceRegionId = string.IsNullOrWhiteSpace(group.Plan?.ObjectiveZoneId)
+				? regionId
+				: group.Plan.ObjectiveZoneId,
+			ReasonCode = BattleGroupTacticalReasonCode.RegionHoldSeededPosture,
+			CenterCellX = group.CellX,
+			CenterCellY = group.CellY,
+			CenterCellHeight = group.CellHeight,
+			Width = System.Math.Max(1, group.FootprintWidth),
+			Height = System.Math.Max(1, group.FootprintHeight)
+		};
+	}
+
+	private static BattleTacticalRegionSnapshot SelectFixedTargetRegionSeed(
+		BattleGroupSnapshot group,
+		IReadOnlyList<BattleGroupSnapshot> battleGroups,
+		IReadOnlyList<BattleObjectiveZoneSnapshot> objectiveZones,
+		FixedTargetCandidateRole candidateRole)
+	{
+		List<FixedTargetCandidate> candidates = (objectiveZones ?? Array.Empty<BattleObjectiveZoneSnapshot>())
+			.Where(zone => IsPlayerSideFixedTargetCandidate(zone, candidateRole))
+			.Select(zone => BuildFixedTargetCandidate(group, battleGroups, zone))
+			.OrderByDescending(candidate => candidate.Score)
+			.ThenBy(candidate => candidate.Distance)
+			.ThenBy(candidate => candidate.Zone.ObjectiveZoneId ?? "", StringComparer.Ordinal)
+			.ToList();
+
+		if (candidates.Count == 0)
+		{
+			return null;
+		}
+
+		FixedTargetCandidate selected = candidates[0];
+		bool densityDecided = candidates.Skip(1).All(candidate => selected.OpposingAliveActorsInsideRegion > candidate.OpposingAliveActorsInsideRegion);
+		return new BattleTacticalRegionSnapshot
+		{
+			RegionId = $"{group.BattleGroupId}:fixed:{selected.Zone.ObjectiveZoneId}",
+			OwnerBattleGroupId = group.BattleGroupId ?? "",
+			Kind = BattleTacticalRegionKind.FixedTarget,
+			SourceRegionId = selected.Zone.ObjectiveZoneId ?? "",
+			ReasonCode = densityDecided
+				? BattleGroupTacticalReasonCode.RegionFixedSelectedPlayerDensity
+				: BattleGroupTacticalReasonCode.RegionFixedSelectedPriority,
+			CenterCellX = selected.Zone.CellX,
+			CenterCellY = selected.Zone.CellY,
+			CenterCellHeight = selected.Zone.CellHeight,
+			Width = System.Math.Max(1, selected.Zone.Width),
+			Height = System.Math.Max(1, selected.Zone.Height)
+		};
+	}
+
+	private static FixedTargetCandidate BuildFixedTargetCandidate(
+		BattleGroupSnapshot group,
+		IReadOnlyList<BattleGroupSnapshot> battleGroups,
+		BattleObjectiveZoneSnapshot zone)
+	{
+		int density = (battleGroups ?? Array.Empty<BattleGroupSnapshot>())
+			.Count(candidate => candidate != null &&
+				!string.Equals(candidate.BattleGroupId, group.BattleGroupId, StringComparison.Ordinal) &&
+				candidate.CorpsStrength > 0 &&
+				!string.Equals(candidate.FactionId ?? "", group.FactionId ?? "", StringComparison.Ordinal) &&
+				IsGroupAnchorInsideZone(candidate, zone));
+		double distance = ApproximateDistanceToZoneCenter(group, zone);
+		return new FixedTargetCandidate
+		{
+			Zone = zone,
+			OpposingAliveActorsInsideRegion = density,
+			Distance = distance,
+			Score = density * 1000.0 + zone.Priority * 10.0 - distance
+		};
+	}
+
+	private static bool IsGroupAnchorInsideZone(BattleGroupSnapshot group, BattleObjectiveZoneSnapshot zone)
+	{
+		int width = System.Math.Max(1, zone.Width);
+		int height = System.Math.Max(1, zone.Height);
+		return group.CellHeight == zone.CellHeight &&
+			group.CellX >= zone.CellX &&
+			group.CellX < zone.CellX + width &&
+			group.CellY >= zone.CellY &&
+			group.CellY < zone.CellY + height;
+	}
+
+	private static double ApproximateDistanceToZoneCenter(BattleGroupSnapshot group, BattleObjectiveZoneSnapshot zone)
+	{
+		double centerX = zone.CellX + (System.Math.Max(1, zone.Width) - 1) / 2.0;
+		double centerY = zone.CellY + (System.Math.Max(1, zone.Height) - 1) / 2.0;
+		double deltaX = group.CellX - centerX;
+		double deltaY = group.CellY - centerY;
+		return System.Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
+	}
+
+	private static bool IsPlayerSideFixedTargetCandidate(BattleObjectiveZoneSnapshot zone, FixedTargetCandidateRole candidateRole)
+	{
+		if (zone == null || string.IsNullOrWhiteSpace(zone.ObjectiveZoneId))
+		{
+			return false;
+		}
+
+		if (!string.Equals(zone.DeploymentSide ?? "", "Player", StringComparison.OrdinalIgnoreCase))
+		{
+			return false;
+		}
+
+		string role = zone.ObjectiveRole ?? "";
+		if (role.Equals("player_deployment", StringComparison.OrdinalIgnoreCase))
+		{
+			return true;
+		}
+
+		return candidateRole == FixedTargetCandidateRole.Defensive
+			? ContainsAny(role, "defensive", "defense")
+			: ContainsAny(role, "offensive", "offense", "assault");
+	}
+
+	private static bool ContainsAny(string value, params string[] needles)
+	{
+		return needles.Any(needle => (value ?? "").IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0);
 	}
 
 	private static void ApplyProbeMetadata(BattleStartSnapshot snapshot, ProbeSeed seed)
@@ -323,10 +541,25 @@ public sealed class BattleGroupSessionProbeService
 		Enemy
 	}
 
+	private enum FixedTargetCandidateRole
+	{
+		Defensive,
+		Offensive
+	}
+
+	private sealed class FixedTargetCandidate
+	{
+		public BattleObjectiveZoneSnapshot Zone { get; init; } = new();
+		public int OpposingAliveActorsInsideRegion { get; init; }
+		public double Distance { get; init; }
+		public double Score { get; init; }
+	}
+
 	private sealed class ProbeGroupMetadata
 	{
 		public string FactionId { get; init; } = "";
 		public string SourceForceId { get; init; } = "";
+		public BattlePlanSide PlanSide { get; init; }
 		public int CellX { get; init; }
 		public int CellY { get; init; }
 		public int CellHeight { get; init; }

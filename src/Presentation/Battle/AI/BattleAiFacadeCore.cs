@@ -27,6 +27,7 @@ public sealed class BattleAiFacadeCore
         blackboard[targetVar] = targetId;
         blackboard["ability_id"] = facts.PrimaryAbilityId ?? "";
         blackboard["intent_power"] = System.Math.Max(0, facts.PrimaryAbilityPower);
+        WriteLocalCombatObservations(facts, blackboard);
         return true;
     }
 
@@ -53,7 +54,38 @@ public sealed class BattleAiFacadeCore
         string reason)
     {
         int power = ReadPower(blackboard, powerVar, facts?.PrimaryAbilityPower ?? 0);
-        return new BattleAiDecisionResult(ResolveTemplate(templateId), power, reason);
+        if (blackboard != null)
+        {
+            WriteLocalCombatObservations(facts, blackboard);
+        }
+
+        return new BattleAiDecisionResult(ResolveTemplate(templateId), power, reason, facts);
+    }
+
+    private static void WriteLocalCombatObservations(BattleAiDecisionFacts facts, IDictionary<string, object> blackboard)
+    {
+        if (facts?.HasLocalCombatObservation != true || blackboard == null)
+        {
+            return;
+        }
+
+        // Facade output is observation-only: Runtime owns region creation,
+        // validation, and mutation. Presentation/LimboAI only receive facts.
+        blackboard["local_combat_owner_group_id"] = facts.LocalCombatOwnerBattleGroupId ?? "";
+        blackboard["local_combat_region_id"] = facts.LocalCombatRegionId ?? "";
+        blackboard["local_combat_target_id"] = facts.LocalCombatTargetActorId ?? "";
+        blackboard["local_combat_center_x"] = facts.LocalCombatCenterCellX;
+        blackboard["local_combat_center_y"] = facts.LocalCombatCenterCellY;
+        blackboard["local_combat_center_height"] = facts.LocalCombatCenterCellHeight;
+        blackboard["local_combat_width"] = System.Math.Max(1, facts.LocalCombatWidth);
+        blackboard["local_combat_height"] = System.Math.Max(1, facts.LocalCombatHeight);
+        blackboard["local_combat_version"] = facts.LocalCombatVersion;
+        blackboard["local_combat_slot_kind"] = facts.LocalCombatSelectedSlotKind ?? "";
+        blackboard["local_combat_slot_role"] = facts.LocalCombatSelectedSlotRole ?? "";
+        blackboard["local_combat_slot_x"] = facts.LocalCombatSelectedSlotCellX;
+        blackboard["local_combat_slot_y"] = facts.LocalCombatSelectedSlotCellY;
+        blackboard["local_combat_slot_height"] = facts.LocalCombatSelectedSlotCellHeight;
+        blackboard["local_combat_reason_code"] = facts.LocalCombatReasonCode ?? "";
     }
 
     internal static BattleIntentTemplate ResolveTemplate(string templateId)

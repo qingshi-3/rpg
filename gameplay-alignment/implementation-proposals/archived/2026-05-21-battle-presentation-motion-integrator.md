@@ -9,7 +9,6 @@ Verified: 2026-05-21
 Originating Design Proposal: None
 Requirement Id: None
 Related Implementation Proposal:
-- `gameplay-alignment/implementation-proposals/2026-05-21-battle-movement-performance.md`
 
 Authority Documents:
 - `system-design/battle-runtime-architecture.md`

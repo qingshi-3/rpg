@@ -1,6 +1,6 @@
 # Resident Defender Deployment Zone Implementation Proposal
 
-Status: Implemented - pending manual QA
+Status: Archived - implemented resident defender deployment-zone alignment record
 Created: 2026-05-26
 
 Authority Documents:

@@ -37,9 +37,21 @@ Runtime state exists only during an active battle or recoverable runtime handoff
 | Battle-group plan execution | Active objective zone, engagement rule, formation intent, plan revision, current battle-group state. |
 | Command execution | Current command, accepted runtime order, target area, retreat/protect/follow state, plan supersession state. |
 | Tactical observations | Temporary local combat situations, tactical fact versions, dirty reasons, and bounded cached slot facts. |
+| Battle-group tactical regions | Group-owned target region, temporary region, local combat region, engagement state, perception summary, and replan timing. |
 | Battle process | Event stream, skill impact, formation density, map-trigger facts received through snapshots. |
 
 Runtime cannot query or mutate Domain state directly. Application snapshots and result contracts isolate the two sides.
+
+
+## Battle-Group Tactical Region Runtime State
+
+Runtime stores tactical-region state under battle-group ownership. A target region, temporary region, local combat region, or engagement state without an owner battle-group id is invalid for decisions.
+
+Runtime may maintain a global cache of region snapshots for query, diagnostics, and performance. The cache is indexed by battle-group id and stores immutable or versioned snapshots. It is not a global tactical director and must not update group intent by itself.
+
+Group engagement state is driven by decoupled facts: perception summaries, damage events, attack events, command changes, and region reachability. Unit-level action logic consumes the group state; it does not own the group state machine.
+
+Non-engaged groups request movement toward their current region. Engaged groups request local target, attack-slot, support-slot, or fallback actions inside their local combat region. Runtime remains the final validator for topology, occupancy, reservations, movement, attacks, damage, defeat, events, and outcome.
 
 ## Battle Space Authority
 
@@ -143,23 +155,23 @@ Engagement rules bias transitions:
 
 Runtime events must include plan state changes when they materially affect movement, target choice, retreat, hold, or battle outcome. Reports should be able to say that a company advanced as planned, was delayed by a chokepoint, switched to attack-first contact, returned to objective, or retreated.
 
-## Local Combat Situations
+## Local Combat Regions And Situations
 
-Runtime may build temporary `LocalCombatSituation` facts from authoritative battle state. These facts help AI reason about nearby active fights without giving behavior trees movement, damage, or settlement authority.
+Runtime may build temporary `LocalCombatSituation` facts from authoritative battle state. When those facts drive engaged movement or target choice, they are battle-group-owned local combat region snapshots, not global fight authority. These facts help AI reason about nearby active fights without giving behavior trees movement, damage, or settlement authority.
 
 A local combat situation records:
 
-- a stable situation id and center cell;
-- participating actors and nearby actors that satisfy join predicates;
+- owner battle-group id, stable situation id, center cell, and bounded region extent;
+- participating actors and nearby actors that satisfy join predicates inside the group-owned local combat region;
 - hostile anchors and retained target facts;
 - open attack slots and occupied attack slots;
 - support slots that help join or pressure the local fight;
 - simple local imbalance facts, such as open attack-slot count, occupied attack-slot count, nearby friendly count, nearby hostile count, route-blocking status, and command-scope or leash boundaries;
 - version, dirty reason, and last built Runtime time.
 
-Local combat situations are refreshed by important Runtime events and lazy rebuilds, not by global full recomputation every simulation tick. Movement, recovery, casting, defeated, and other locked phases do not run behavior-tree decisions merely because the tactical cache changed.
+Local combat situations are refreshed by important Runtime events and lazy rebuilds, not by global full recomputation every simulation tick. Their region extent is derived from the owning group's perception coverage with a configured cap, so overlap can raise local value without turning local combat into whole-map optimization. Movement, recovery, casting, defeated, and other locked phases do not run behavior-tree decisions merely because the tactical cache changed.
 
-Runtime remains the only owner of actor anchors, reservations, movement progress, attack legality, damage application, defeat, events, and battle outcome. `LocalCombatSituation` facts are advisory inputs for action selection and diagnostics.
+Runtime remains the only owner of actor anchors, reservations, movement progress, attack legality, damage application, defeat, events, and battle outcome. `LocalCombatSituation` facts are advisory inputs for action selection and diagnostics and must remain keyed by owning battle-group id when cached globally.
 
 Runtime local combat response must preserve battle-group identity:
 

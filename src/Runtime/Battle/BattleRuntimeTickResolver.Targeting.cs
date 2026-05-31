@@ -79,7 +79,7 @@ internal sealed partial class BattleRuntimeTickResolver
 
         if (actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst)
         {
-            return null;
+            return FindRouteBlockingEnemyCorps(facts, actorFact, PlannedLocalPerceptionRange);
         }
 
         TickStartActorFact? retained = FindRetainedEnemyCorps(
@@ -189,6 +189,64 @@ internal sealed partial class BattleRuntimeTickResolver
         return selected;
     }
 
+    private static TickStartActorFact? FindRouteBlockingEnemyCorps(
+        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        TickStartActorFact actorFact,
+        int maxGap)
+    {
+        if (actorFact.Actor.HasObjectiveAnchor == false)
+        {
+            return null;
+        }
+
+        TickStartActorFact? selected = null;
+        int selectedGap = int.MaxValue;
+        foreach (TickStartActorFact candidate in facts.Values)
+        {
+            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
+                GetCurrentHitPoints(candidate) <= 0 ||
+                SameFaction(candidate.Actor, actorFact.Actor) ||
+                !BlocksObjectiveRoute(actorFact.Actor, candidate.Actor))
+            {
+                continue;
+            }
+
+            int gap = GetSquareGridDistance(actorFact, candidate);
+            if (gap > maxGap)
+            {
+                continue;
+            }
+
+            if (selected == null ||
+                gap < selectedGap ||
+                gap == selectedGap && string.CompareOrdinal(candidate.Actor.ActorId, selected.Value.Actor.ActorId) < 0)
+            {
+                selected = candidate;
+                selectedGap = gap;
+            }
+        }
+
+        return selected;
+    }
+
+    private static bool BlocksObjectiveRoute(BattleRuntimeActor actor, BattleRuntimeActor target)
+    {
+        if (actor?.HasObjectiveAnchor != true || target == null)
+        {
+            return false;
+        }
+
+        bool horizontalCorridor = actor.GridY == actor.ObjectiveGridY && target.GridY == actor.GridY;
+        bool verticalCorridor = actor.GridX == actor.ObjectiveGridX && target.GridX == actor.GridX;
+        return horizontalCorridor && IsBetween(actor.GridX, actor.ObjectiveGridX, target.GridX) ||
+               verticalCorridor && IsBetween(actor.GridY, actor.ObjectiveGridY, target.GridY);
+    }
+
+    private static bool IsBetween(int first, int second, int value)
+    {
+        return value >= System.Math.Min(first, second) && value <= System.Math.Max(first, second);
+    }
+
     private static TickStartActorFact? FindFastestAttackOpportunityEnemyCorps(
         IReadOnlyDictionary<string, TickStartActorFact> facts,
         TickStartActorFact actorFact,
@@ -271,7 +329,8 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
-        int fallbackGap)
+        int fallbackGap,
+        BattleTacticalRegionSnapshot localCombatRegion = null)
     {
         if (actor == null || target == null || navigationGraph == null)
         {
@@ -279,7 +338,12 @@ internal sealed partial class BattleRuntimeTickResolver
         }
 
         BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
-        BattleFlowField field = cache.GetOrBuild(actor, target, navigationGraph, preferSupportSlots: false);
+        BattleFlowField field = cache.GetOrBuild(
+            actor,
+            target,
+            navigationGraph,
+            preferSupportSlots: false,
+            localCombatRegion: localCombatRegion);
         field = cache.PreferOpenAttackSlots(actor, navigationGraph, occupancy, field);
         if (!field.TryGetCost(actorAnchor, out int cost))
         {
@@ -297,7 +361,8 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
-        BattlePerformanceCounters performanceCounters)
+        BattlePerformanceCounters performanceCounters,
+        BattleTacticalRegionSnapshot localCombatRegion = null)
     {
         return ResolveAttackOpportunityTravelCost(
             actor,
@@ -307,7 +372,8 @@ internal sealed partial class BattleRuntimeTickResolver
             occupancy,
             flowFields,
             performanceCounters,
-            fallbackGap: 0) < 5000;
+            fallbackGap: 0,
+            localCombatRegion) < 5000;
     }
 
     private static bool IsBetterAssaultTarget(AssaultTargetScore candidate, AssaultTargetScore known)

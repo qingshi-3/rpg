@@ -57,6 +57,7 @@ public partial class BattleAiFacade : Node
         SetBlackboardString(blackboard, targetVar, targetId);
         SetBlackboardString(blackboard, new StringName("ability_id"), _facts.PrimaryAbilityId ?? "");
         SetBlackboardInt(blackboard, new StringName("intent_power"), _facts.PrimaryAbilityPower);
+        WriteLocalCombatObservations(_facts, blackboard);
         return true;
     }
 
@@ -72,7 +73,8 @@ public partial class BattleAiFacade : Node
     public bool emit_battle_intent(StringName templateId, StringName powerVar, string reason, GodotObject blackboard)
     {
         int power = ReadBlackboardInt(blackboard, powerVar, _facts.PrimaryAbilityPower);
-        LastDecision = new BattleAiDecisionResult(BattleAiFacadeCore.ResolveTemplate(templateId.ToString()), power, reason);
+        WriteLocalCombatObservations(_facts, blackboard);
+        LastDecision = new BattleAiDecisionResult(BattleAiFacadeCore.ResolveTemplate(templateId.ToString()), power, reason, _facts);
         return true;
     }
 
@@ -89,6 +91,37 @@ public partial class BattleAiFacade : Node
     private static void SetBlackboardInt(GodotObject blackboard, StringName key, int value)
     {
         blackboard.Call("set_var", key, System.Math.Max(0, value));
+    }
+
+    private static void WriteLocalCombatObservations(BattleAiDecisionFacts facts, GodotObject blackboard)
+    {
+        if (facts?.HasLocalCombatObservation != true || blackboard == null)
+        {
+            return;
+        }
+
+        // LimboAI receives Runtime-owned tactical facts as observations only.
+        // Region ownership and mutation remain outside Presentation.
+        SetBlackboardString(blackboard, new StringName("local_combat_owner_group_id"), facts.LocalCombatOwnerBattleGroupId);
+        SetBlackboardString(blackboard, new StringName("local_combat_region_id"), facts.LocalCombatRegionId);
+        SetBlackboardString(blackboard, new StringName("local_combat_target_id"), facts.LocalCombatTargetActorId);
+        SetBlackboardRawInt(blackboard, new StringName("local_combat_center_x"), facts.LocalCombatCenterCellX);
+        SetBlackboardRawInt(blackboard, new StringName("local_combat_center_y"), facts.LocalCombatCenterCellY);
+        SetBlackboardRawInt(blackboard, new StringName("local_combat_center_height"), facts.LocalCombatCenterCellHeight);
+        SetBlackboardRawInt(blackboard, new StringName("local_combat_width"), System.Math.Max(1, facts.LocalCombatWidth));
+        SetBlackboardRawInt(blackboard, new StringName("local_combat_height"), System.Math.Max(1, facts.LocalCombatHeight));
+        SetBlackboardRawInt(blackboard, new StringName("local_combat_version"), facts.LocalCombatVersion);
+        SetBlackboardString(blackboard, new StringName("local_combat_slot_kind"), facts.LocalCombatSelectedSlotKind);
+        SetBlackboardString(blackboard, new StringName("local_combat_slot_role"), facts.LocalCombatSelectedSlotRole);
+        SetBlackboardRawInt(blackboard, new StringName("local_combat_slot_x"), facts.LocalCombatSelectedSlotCellX);
+        SetBlackboardRawInt(blackboard, new StringName("local_combat_slot_y"), facts.LocalCombatSelectedSlotCellY);
+        SetBlackboardRawInt(blackboard, new StringName("local_combat_slot_height"), facts.LocalCombatSelectedSlotCellHeight);
+        SetBlackboardString(blackboard, new StringName("local_combat_reason_code"), facts.LocalCombatReasonCode);
+    }
+
+    private static void SetBlackboardRawInt(GodotObject blackboard, StringName key, int value)
+    {
+        blackboard.Call("set_var", key, value);
     }
 
     private static int ReadBlackboardInt(GodotObject blackboard, StringName key, int fallback)

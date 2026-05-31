@@ -87,6 +87,7 @@ BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors enem
 BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors allied command branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsAlliedCommandBranches);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle resource boundary is authored", BattleHitFeedbackRegressionCases.LimboAiBattleResourceBoundaryIsAuthored);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle facade writes blackboard and emits intent", BattleHitFeedbackRegressionCases.LimboAiBattleFacadeWritesBlackboardAndEmitsIntent);
+BattleHitFeedbackRegressionCases.Run("limbo ai battle facade exposes local combat observations read only", BattleHitFeedbackRegressionCases.LimboAiBattleFacadeExposesLocalCombatObservationsReadOnly);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle tasks pass blackboard through facade", BattleHitFeedbackRegressionCases.LimboAiBattleTasksPassBlackboardThroughFacade);
 BattleHitFeedbackRegressionCases.Run("limbo ai authored resources mirror planner branches", BattleHitFeedbackRegressionCases.LimboAiAuthoredResourcesMirrorPlannerBranches);
 BattleHitFeedbackRegressionCases.Run("limbo ai godot facade requires blackboard target before strike", BattleHitFeedbackRegressionCases.LimboAiGodotFacadeRequiresBlackboardTargetBeforeStrike);

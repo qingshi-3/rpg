@@ -25,4 +25,4 @@ Review Records:
 Merge Notes:
 
 - Expected copies were merged into authority documents on 2026-05-28.
-- Follow-up implementation proposal: `gameplay-alignment/implementation-proposals/2026-05-28-local-combat-situation-ai.md`.
+- Follow-up implementation proposal: `gameplay-alignment/implementation-proposals/archived/2026-05-28-local-combat-situation-ai.md`.

@@ -16,4 +16,6 @@ internal sealed class BattleRuntimeActionProposal
     public bool HasMoveTo { get; init; }
     public IReadOnlyList<BattleGridCoord> MoveOptions { get; init; } = new List<BattleGridCoord>();
     public string FailureReason { get; init; } = "";
+    public string MovementReasonCode { get; init; } = "";
+    public string LocalCombatSituationId { get; init; } = "";
 }

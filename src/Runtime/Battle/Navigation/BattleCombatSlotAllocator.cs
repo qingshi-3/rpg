@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
+using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle.Navigation;
 
@@ -11,7 +13,8 @@ internal static class BattleCombatSlotAllocator
         BattleRuntimeActor actor,
         BattleRuntimeActor target,
         BattleNavigationGraph graph,
-        BattlePerformanceCounters performanceCounters = null)
+        BattlePerformanceCounters performanceCounters = null,
+        BattleTacticalRegionSnapshot localCombatRegion = null)
     {
         if (actor == null || target == null || graph == null)
         {
@@ -26,6 +29,13 @@ internal static class BattleCombatSlotAllocator
         foreach (BattleGridCoord anchor in GetCandidateAnchors(actor, target, graph, targetAnchor, attackRange))
         {
             scannedAnchors++;
+            // Engaged local combat may narrow legal slot goals to the group's
+            // Runtime-owned local region; topology remains the final movement authority.
+            if (!IsInsideLocalCombatRegion(anchor, localCombatRegion))
+            {
+                continue;
+            }
+
             if (!graph.CanPlaceFootprint(actor, anchor))
             {
                 continue;
@@ -45,7 +55,12 @@ internal static class BattleCombatSlotAllocator
 
             if (gap == attackRange + 1)
             {
-                slots.Add(new BattleCombatSlot(anchor, BattleCombatSlotKind.Support, gap, GetPriority(anchor, targetAnchor) + 1000));
+                slots.Add(new BattleCombatSlot(
+                    anchor,
+                    BattleCombatSlotKind.Support,
+                    gap,
+                    GetPriority(anchor, targetAnchor) + 1000,
+                    ResolveSupportRole(actor, target, anchor, targetAnchor)));
             }
         }
 
@@ -81,10 +96,51 @@ internal static class BattleCombatSlotAllocator
         return graph.GetAnchorsInBounds(minX, maxX, minY, maxY);
     }
 
+    private static bool IsInsideLocalCombatRegion(
+        BattleGridCoord anchor,
+        BattleTacticalRegionSnapshot localCombatRegion)
+    {
+        if (localCombatRegion == null)
+        {
+            return true;
+        }
+
+        int width = System.Math.Max(1, localCombatRegion.Width);
+        int height = System.Math.Max(1, localCombatRegion.Height);
+        int minX = localCombatRegion.CenterCellX - (width - 1) / 2;
+        int minY = localCombatRegion.CenterCellY - (height - 1) / 2;
+        return anchor.Height == localCombatRegion.CenterCellHeight &&
+               anchor.X >= minX &&
+               anchor.X < minX + width &&
+               anchor.Y >= minY &&
+               anchor.Y < minY + height;
+    }
+
     private static int GetPriority(BattleGridCoord anchor, BattleGridCoord targetAnchor)
     {
         return System.Math.Abs(anchor.X - targetAnchor.X) +
                System.Math.Abs(anchor.Y - targetAnchor.Y) +
                System.Math.Abs(anchor.Height - targetAnchor.Height) * 4;
+    }
+
+    private static LocalCombatSupportSlotRole ResolveSupportRole(
+        BattleRuntimeActor actor,
+        BattleRuntimeActor target,
+        BattleGridCoord anchor,
+        BattleGridCoord targetAnchor)
+    {
+        if (actor?.AttackRange > 1)
+        {
+            return LocalCombatSupportSlotRole.RangedHold;
+        }
+
+        int targetYMin = targetAnchor.Y;
+        int targetYMax = targetAnchor.Y + BattleActorFootprint.NormalizeSize(target?.FootprintHeight ?? 1) - 1;
+        if (anchor.Y >= targetYMin && anchor.Y <= targetYMax)
+        {
+            return LocalCombatSupportSlotRole.MeleeQueue;
+        }
+
+        return LocalCombatSupportSlotRole.LineHold;
     }
 }

@@ -1,4 +1,5 @@
 using Rpg.Application.Battle;
+using System.Collections.Generic;
 
 namespace Rpg.Application.Battle.Snapshots;
 
@@ -30,4 +31,6 @@ public sealed class BattleGroupSnapshot
     public double AttackImpactDelaySeconds { get; set; }
     public string InitialCorpsCommandId { get; set; } = "";
     public BattleGroupPlanSnapshot Plan { get; set; } = new();
+    public BattleGroupTacticalMode TacticalMode { get; set; } = BattleGroupTacticalMode.PlayerCommanded;
+    public List<BattleTacticalRegionSnapshot> InitialTacticalRegions { get; set; } = new();
 }

@@ -45,6 +45,7 @@ public partial class WorldSiteRoot
         _selectedPlacementId = "";
         _selectedFacilitySlotId = "";
         _selectedBattlePreparationPlanGroupKey = "";
+        _explicitBattlePreparationRuleGroups.Clear();
         ClearPlayerBattlePreparationPlacements(request);
         EnsureBattlePreparationPlanDefaults(request);
 
@@ -397,8 +398,8 @@ public partial class WorldSiteRoot
         foreach (BattleRuntimeCommandGroupView group in BuildBattlePreparationPlayerGroups())
         {
             BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(request, group.GroupKey, create: true);
-            if (!IsBattleEngagementRuleDefined(plan.EngagementRule) ||
-                (plan.EngagementRule == BattleEngagementRule.AttackFirst && string.IsNullOrWhiteSpace(plan.ObjectiveZoneId)))
+            bool explicitRuleSelected = _explicitBattlePreparationRuleGroups.Contains(group.GroupKey);
+            if (ShouldDefaultBattlePreparationEngagementRule(plan, explicitRuleSelected))
             {
                 plan.EngagementRule = _selectedBattleCorpsCommand == BattleCorpsCommand.HoldLine
                     ? BattleEngagementRule.Hold
@@ -413,6 +414,20 @@ public partial class WorldSiteRoot
     private static bool IsBattleEngagementRuleDefined(BattleEngagementRule rule)
     {
         return System.Enum.IsDefined(typeof(BattleEngagementRule), rule);
+    }
+
+    private static bool ShouldDefaultBattlePreparationEngagementRule(BattleGroupPlanSnapshot plan, bool explicitRuleSelected)
+    {
+        if (plan == null || !IsBattleEngagementRuleDefined(plan.EngagementRule))
+        {
+            return true;
+        }
+
+        // AttackFirst is the blank snapshot default, so only normalize it before
+        // the player has explicitly clicked an engagement-rule button for this group.
+        return plan.EngagementRule == BattleEngagementRule.AttackFirst &&
+               !explicitRuleSelected &&
+               string.IsNullOrWhiteSpace(plan.ObjectiveZoneId);
     }
 
     private string BuildBattlePreparationPlanSummary(BattleStartRequest request)
@@ -564,6 +579,7 @@ public partial class WorldSiteRoot
         }
 
         plan.EngagementRule = rule;
+        _explicitBattlePreparationRuleGroups.Add(_selectedBattlePreparationPlanGroupKey ?? "");
         SyncSelectedBattlePreparationPlanFallback(_battlePreparationRequest);
         _selectedBattleCorpsCommand = rule == BattleEngagementRule.Hold
             ? BattleCorpsCommand.HoldLine

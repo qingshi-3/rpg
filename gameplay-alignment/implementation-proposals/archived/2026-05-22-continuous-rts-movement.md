@@ -1,11 +1,11 @@
 # Continuous RTS Movement Implementation Proposal
 
-Status: Implemented - pending manual QA
+Status: Archived - implemented; manual feel QA not retained as active work
 Created: 2026-05-22
 Implemented: 2026-05-22
 
 Originating Design Proposal:
-- `design-proposals/active/2026-05-22-continuous-rts-movement`
+- `design-proposals/archived/2026-05-22-continuous-rts-movement`
 
 Authority Documents:
 - `system-design/battle-runtime-architecture.md`

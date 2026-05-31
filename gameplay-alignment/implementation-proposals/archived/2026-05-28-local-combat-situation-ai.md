@@ -1,20 +1,25 @@
 # Local Combat Situation AI Implementation Proposal
 
-Status: Draft - pending implementation
+Status: Archived - historical local-combat slice; final enemy AI acceptance superseded by 2026-05-29 tactical-region authority
 Created: 2026-05-28
 
 Originating Design Proposal: `design-proposals/archived/2026-05-27-local-combat-situation-ai`
 Requirement Id: `battle-ai-local-combat-situation-v1`
-Related Design Proposals: none
-Amendment Proposals: none
-Blocking Issues: none known before implementation
-Verification Records: pending implementation
+Related Design Proposals: `design-proposals/archived/2026-05-29-enemy-region-directed-combat-ai`
+Amendment Proposals: `design-proposals/archived/2026-05-29-enemy-region-directed-combat-ai`
+Blocking Issues: 2026-05-29 tactical-region authority requires battle-group-owned target regions, temporary regions, local combat regions, and player/enemy policy separation before final enemy AI acceptance
+Verification Records: 2026-05-28 headless verification passed; 2026-05-29 manual QA superseded by accepted tactical-region authority amendment
 
 Authority Documents:
 - `gameplay-design/content-systems-long-term-design.md`
 - `system-design/battle-ai-boundary-architecture.md`
+- `system-design/battle-group-tactical-region-architecture.md`
 - `system-design/battle-runtime-architecture.md`
 - `system-design/battle-navigation-topology-architecture.md`
+
+## 2026-05-29 Authority Amendment Note
+
+This implementation proposal remains useful as evidence for the first local-combat slice, but it is no longer sufficient final acceptance authority for enemy AI behavior. The accepted `design-proposals/archived/2026-05-29-enemy-region-directed-combat-ai` proposal requires battle-group-owned target regions, temporary regions, local combat regions, group engagement state, enemy-only region policy, and player-command separation. Do not mark this proposal accepted or use its manual QA list as final enemy AI acceptance until a follow-up implementation proposal covers the new authority.
 
 ## Goal
 
@@ -142,8 +147,23 @@ This implementation proposal is acceptable when:
 
 ## Implementation Evidence
 
-No code has been changed under this implementation proposal yet.
+Implemented directly on `main` without creating a branch or committing:
+
+- Added Runtime-owned `LocalCombatSituation` facts, reason codes, and support-slot role types under `src/Runtime/Battle/Tactics/`.
+- Extended Runtime AI facts and typed action requests for `JoinLocalCombat`, `HoldSupport`, and `ReturnToObjective` while keeping Runtime movement, reservations, damage, and events authoritative.
+- Routed local-combat movement through existing tick resolver, target acquisition, navigation topology, occupancy, and same-tick reservation paths.
+- Added deterministic support-slot role tagging in navigation and preserved attack-slot preference before support movement.
+- Added regression coverage for route-blocking MoveFirst response, full attack-slot support movement, and Hold leash rejection.
+- Split resolver AI decision code and movement-intent registration to keep oversized-file guard passing.
 
 ## Verification Evidence
 
-Pending implementation. Record exact commands, pass/fail output, diagnostics reviewed, and manual QA notes here before changing status to implemented or accepted.
+2026-05-28 headless verification:
+
+- `dotnet run --project tests\AutoBattleRuntimeRegression\AutoBattleRuntimeRegression.csproj -v:minimal` passed.
+- `dotnet run --project tests\BattleHitFeedbackRegression\BattleHitFeedbackRegression.csproj -v:minimal` passed.
+- `dotnet run --project tests\TargetBattleArchitectureRegression\TargetBattleArchitectureRegression.csproj -v:minimal` passed, including local-combat regression cases and oversized-file guard.
+- `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` passed with `0` warnings and `0` errors.
+- `dotnet build-server shutdown` completed and closed MSBuild / compiler servers.
+
+Manual QA remains pending for the authored-scene readability checks listed above. Do not mark this proposal accepted or archive it until manual QA is completed or explicitly waived.

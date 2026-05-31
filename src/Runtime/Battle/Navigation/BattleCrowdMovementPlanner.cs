@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 
 namespace Rpg.Runtime.Battle.Navigation;
@@ -19,7 +20,8 @@ internal static class BattleCrowdMovementPlanner
         bool preferSupportSlots,
         bool avoidOpeningNewAxisGapNearEngagedTarget,
         out BattleGridCoord nextStep,
-        BattlePerformanceCounters performanceCounters = null)
+        BattlePerformanceCounters performanceCounters = null,
+        BattleTacticalRegionSnapshot localCombatRegion = null)
     {
         nextStep = default;
         IReadOnlyList<BattleGridCoord> candidates = FindNextStepCandidatesTowardTarget(
@@ -31,7 +33,8 @@ internal static class BattleCrowdMovementPlanner
             flowFields,
             preferSupportSlots,
             avoidOpeningNewAxisGapNearEngagedTarget,
-            performanceCounters);
+            performanceCounters,
+            localCombatRegion);
         if (candidates.Count == 0)
         {
             return false;
@@ -50,7 +53,8 @@ internal static class BattleCrowdMovementPlanner
         BattleFlowFieldCache flowFields,
         bool preferSupportSlots,
         bool avoidOpeningNewAxisGapNearEngagedTarget,
-        BattlePerformanceCounters performanceCounters = null)
+        BattlePerformanceCounters performanceCounters = null,
+        BattleTacticalRegionSnapshot localCombatRegion = null)
     {
         if (actor == null || target == null || graph == null || occupancy == null || reservations == null)
         {
@@ -64,7 +68,7 @@ internal static class BattleCrowdMovementPlanner
         }
 
         BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
-        BattleFlowField field = cache.GetOrBuild(actor, target, graph, preferSupportSlots);
+        BattleFlowField field = cache.GetOrBuild(actor, target, graph, preferSupportSlots, localCombatRegion);
         if (!preferSupportSlots)
         {
             field = cache.PreferOpenAttackSlots(actor, graph, occupancy, field);

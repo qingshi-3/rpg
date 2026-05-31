@@ -23,6 +23,9 @@ public sealed class BattleEvent
     public int TargetGridX { get; set; }
     public int TargetGridY { get; set; }
     public int TargetGridHeight { get; set; }
+    public string TacticalRegionId { get; set; } = "";
+    public string TacticalRegionKind { get; set; } = "";
+    public int TacticalRegionVersion { get; set; }
     public bool HasMovementCells { get; set; }
     public int FromGridX { get; set; }
     public int FromGridY { get; set; }

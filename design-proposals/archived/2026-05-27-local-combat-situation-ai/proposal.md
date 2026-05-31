@@ -23,7 +23,7 @@ Affected Authority Documents:
 
 Related Implementation Proposals:
 
-- `gameplay-alignment/implementation-proposals/2026-05-28-local-combat-situation-ai.md`
+- `gameplay-alignment/implementation-proposals/archived/2026-05-28-local-combat-situation-ai.md`
 
 ## Problem
 

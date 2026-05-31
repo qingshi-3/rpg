@@ -178,6 +178,76 @@ internal static void LimboAiBattleFacadeWritesBlackboardAndEmitsIntent()
     AssertEqual(5, result.Power, "facade should preserve blackboard power when emitting intent");
 }
 
+internal static void LimboAiBattleFacadeExposesLocalCombatObservationsReadOnly()
+{
+    Dictionary<string, object> blackboard = new(StringComparer.Ordinal);
+    BattleAiFacadeCore facade = new();
+    BattleAiDecisionFacts facts = new()
+    {
+        HasValidContext = true,
+        ActorCanAct = true,
+        HasTarget = true,
+        HasPrimaryAbility = true,
+        PrimaryAbilityId = "basic_attack",
+        PrimaryAbilityRange = 1,
+        PrimaryAbilityPower = 5,
+        CanStrikeNow = true,
+        NearestHostileTargetId = "enemy_a"
+    };
+    SetObjectProperty(facts, "HasLocalCombatObservation", true);
+    SetObjectProperty(facts, "LocalCombatOwnerBattleGroupId", "enemy_group");
+    SetObjectProperty(facts, "LocalCombatRegionId", "local:enemy_group:3");
+    SetObjectProperty(facts, "LocalCombatTargetActorId", "player_near:1");
+    SetObjectProperty(facts, "LocalCombatCenterCellX", 3);
+    SetObjectProperty(facts, "LocalCombatCenterCellY", 0);
+    SetObjectProperty(facts, "LocalCombatCenterCellHeight", 0);
+    SetObjectProperty(facts, "LocalCombatWidth", 4);
+    SetObjectProperty(facts, "LocalCombatHeight", 2);
+    SetObjectProperty(facts, "LocalCombatVersion", 7);
+    SetObjectProperty(facts, "LocalCombatSelectedSlotKind", "support");
+    SetObjectProperty(facts, "LocalCombatSelectedSlotRole", "MeleeQueue");
+    SetObjectProperty(facts, "LocalCombatSelectedSlotCellX", 2);
+    SetObjectProperty(facts, "LocalCombatSelectedSlotCellY", 0);
+    SetObjectProperty(facts, "LocalCombatSelectedSlotCellHeight", 0);
+    SetObjectProperty(facts, "LocalCombatReasonCode", "hold_support_attack_slots_full");
+
+    AssertTrue(
+        facade.SelectBattleTarget(facts, "nearest_hostile", blackboard, "target_id"),
+        "facade should still select the requested target when local combat facts are present");
+    AssertEqual("local:enemy_group:3", blackboard["local_combat_region_id"], "local combat region id should be exposed to the blackboard");
+    AssertEqual("enemy_group", blackboard["local_combat_owner_group_id"], "local combat owner should be exposed to the blackboard");
+    AssertEqual("player_near:1", blackboard["local_combat_target_id"], "local combat selected target should be exposed to the blackboard");
+    AssertEqual(3, blackboard["local_combat_center_x"], "local combat center x should be exposed to the blackboard");
+    AssertEqual(4, blackboard["local_combat_width"], "local combat width should be exposed to the blackboard");
+    AssertEqual(7, blackboard["local_combat_version"], "local combat version should be exposed to the blackboard");
+    AssertEqual("support", blackboard["local_combat_slot_kind"], "local combat slot kind should be exposed to the blackboard");
+    AssertEqual("MeleeQueue", blackboard["local_combat_slot_role"], "local combat slot role should be exposed to the blackboard");
+    AssertEqual(2, blackboard["local_combat_slot_x"], "local combat slot x should be exposed to the blackboard");
+    AssertEqual("hold_support_attack_slots_full", blackboard["local_combat_reason_code"], "local combat reason should be exposed to the blackboard");
+
+    BattleAiDecisionResult result = facade.EmitBattleIntent(facts, "direct_strike", blackboard, "intent_power", "join_recent_damage");
+    AssertEqual(true, GetObjectProperty(result, "HasLocalCombatObservation"), "decision result should mark local combat observations for overlays");
+    AssertEqual("local:enemy_group:3", GetObjectProperty(result, "LocalCombatRegionId"), "decision result should retain local combat region id for overlays");
+    AssertEqual("enemy_group", GetObjectProperty(result, "LocalCombatOwnerBattleGroupId"), "decision result should retain local combat owner for overlays");
+    AssertEqual("player_near:1", GetObjectProperty(result, "LocalCombatTargetActorId"), "decision result should retain local combat target for overlays");
+    AssertEqual(3, GetObjectProperty(result, "LocalCombatCenterCellX"), "decision result should retain local combat region center for overlays");
+    AssertEqual(4, GetObjectProperty(result, "LocalCombatWidth"), "decision result should retain local combat region width for overlays");
+    AssertEqual(7, GetObjectProperty(result, "LocalCombatVersion"), "decision result should retain local combat region version for overlays");
+    AssertEqual("support", GetObjectProperty(result, "LocalCombatSelectedSlotKind"), "decision result should retain local combat slot kind for overlays");
+    AssertEqual("MeleeQueue", GetObjectProperty(result, "LocalCombatSelectedSlotRole"), "decision result should retain local combat support role for overlays");
+    AssertEqual(2, GetObjectProperty(result, "LocalCombatSelectedSlotCellX"), "decision result should retain local combat slot anchor for overlays");
+    AssertEqual("hold_support_attack_slots_full", GetObjectProperty(result, "LocalCombatReasonCode"), "decision result should retain local combat reason for overlays");
+
+    string facadeSource =
+        File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "AI", "BattleAiDecisionFacts.cs")) +
+        File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "AI", "BattleAiDecisionResult.cs")) +
+        File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "AI", "BattleAiFacade.cs")) +
+        File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "AI", "BattleAiFacadeCore.cs"));
+    AssertTrue(!facadeSource.Contains("BattleGroupTacticalStateStore", StringComparison.Ordinal), "facade must not reference runtime tactical state store");
+    AssertTrue(!facadeSource.Contains("TrySetLocalCombatRegion", StringComparison.Ordinal), "facade must not mutate local combat regions");
+    AssertTrue(!facadeSource.Contains("BattleTacticalRegionSnapshot", StringComparison.Ordinal), "facade facts should stay primitive observations, not runtime region snapshots");
+}
+
 internal static void LimboAiBattleTasksPassBlackboardThroughFacade()
 {
     string host = File.ReadAllText(Path.Combine("scenes", "ai", "battle", "BattleAiAgentHost.tscn"));
@@ -197,5 +267,19 @@ internal static void LimboAiBattleTasksPassBlackboardThroughFacade()
     AssertTrue(
         emitTask.Contains("agent.emit_battle_intent(template_id, power_var, reason, blackboard)", StringComparison.Ordinal),
         "emit task should pass the LimboAI blackboard into the C# facade");
+}
+
+private static void SetObjectProperty(object target, string propertyName, object value)
+{
+    System.Reflection.PropertyInfo? property = target.GetType().GetProperty(propertyName);
+    AssertTrue(property != null, $"missing property: {propertyName}");
+    property!.SetValue(target, value);
+}
+
+private static object GetObjectProperty(object target, string propertyName)
+{
+    System.Reflection.PropertyInfo? property = target.GetType().GetProperty(propertyName);
+    AssertTrue(property != null, $"missing property: {propertyName}");
+    return property!.GetValue(target) ?? "";
 }
 }

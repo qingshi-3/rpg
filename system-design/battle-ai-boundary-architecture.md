@@ -78,14 +78,14 @@ Target reacquisition is allowed when the retained target dies, becomes invalid, 
 
 ## Local Combat Situation Decisions
 
-AI may consume Runtime-built `LocalCombatSituation` facts. A local combat situation is a temporary tactical observation that identifies an active nearby fight, its participating actors, open attack slots, occupied attack slots, support slots, local imbalance facts, and command-scope boundaries.
+AI may consume Runtime-built `LocalCombatSituation` facts for the owning battle group. A local combat situation is a temporary, group-owned tactical observation that identifies an active nearby fight inside a bounded local combat region, its participating actors, open attack slots, occupied attack slots, support slots, local imbalance facts, and command-scope boundaries. It is not a global tactical director or a whole-map target search cache.
 
 Local combat terms must be executable:
 
 - A fight is active when recent damage, recent attack intent, close threat, or objective-route blocking is present.
-- A fight is relevant to an actor only when the actor is decision-ready, inside command scope, able to reach an attack or support slot soon, not locked into another decision, and allowed by battle-group budget.
+- A fight is relevant to an actor only when the actor is decision-ready, inside command scope and the owning group local combat region, able to reach an attack or support slot soon, not locked into another decision, and allowed by battle-group budget.
 - Support positions are named staging roles, such as melee queue, line hold, or ranged hold. They are not generic waiting cells.
-- Generic pressure scoring is not a first-slice behavior authority. Use explicit facts such as open attack-slot count, occupied attack-slot count, nearby friendly count, nearby hostile count, leash status, and route-blocking status.
+- Generic pressure scoring is not a first-slice behavior authority. Use explicit facts such as open attack-slot count, occupied attack-slot count, nearby friendly count, nearby hostile count, leash status, route-blocking status, and perception-coverage weight inside the configured local region cap.
 
 Behavior trees use these facts to choose intent:
 
@@ -116,6 +116,25 @@ Local response should use anti-jitter locks: minimum join time, return lock, slo
 Behavior trees output typed intent such as attack, advance to target, advance to objective, join local combat, hold support, return to objective, retreat, or regroup. Runtime remains responsible for validating whether a requested attack or movement is legal.
 
 Behavior-tree and C# executor decisions must emit low-noise reason codes for diagnostics, such as `join_recent_damage`, `join_blocks_objective_route`, `hold_support_attack_slots_full`, `return_objective_threat_clear`, `reject_outside_leash`, `reject_join_budget_full`, or `reject_no_reachable_slot`.
+
+
+## Tactical Region Ownership
+
+Target regions, temporary target regions, local combat regions, and engagement state are owned by battle groups. Runtime may expose global lookup caches keyed by battle-group id, but those caches are not tactical authorities and must not mutate group intent.
+
+Reusable AI services may build perception facts, local combat regions, target candidates, attack-slot candidates, support-slot candidates, and degradation reasons. Side policy chooses how to use those services:
+
+- enemy offense and active defense may replan target regions automatically;
+- enemy hold defense may switch the whole group to active assault after damage, attack, or perception trigger;
+- player groups may reuse the same tactical solvers, but their target regions and posture are controlled by player commands or accepted battle plans.
+
+Non-engaged movement is region-directed. AI should not chase a moving actor as the ordinary out-of-combat movement target. Actor targets become valid when the group is engaged or when a command explicitly targets an actor.
+
+## Bounded Local-Optimal Combat
+
+Local combat optimization is scoped by a battle-group-owned local combat region. The region is built from the group's member perception coverage and capped by a performance-safe size limit. Cells perceived by multiple group members carry higher selection weight, allowing the chosen local region to favor overlapping group awareness without becoming a full-map tactical scan.
+
+Inside the local region, AI may choose the best available local combat target, open attack slot, support slot, or fallback. Outside the local region, AI returns to region movement, command constraints, or safe fallback.
 
 ## Tactical Fact Refresh
 

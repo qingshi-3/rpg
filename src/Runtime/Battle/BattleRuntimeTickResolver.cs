@@ -8,6 +8,7 @@ using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
+using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
@@ -39,6 +40,7 @@ internal sealed partial class BattleRuntimeTickResolver
         public BattleRuntimeAiActionRequest Request { get; set; }
         public TickStartActorFact ActorFact { get; init; }
         public TickStartActorFact? TargetFact { get; set; }
+        public LocalCombatSituation LocalCombatSituation { get; init; }
         public BattleRuntimeAiActionResult Result { get; set; }
     }
 
@@ -100,10 +102,7 @@ internal sealed partial class BattleRuntimeTickResolver
             movementCompletedActorIds.Add(actor.ActorId ?? "");
         }
 
-        BattleRuntimeActor[] livingCorps = state.Actors
-            .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
-            .OrderBy(item => item.ActorId, System.StringComparer.Ordinal)
-            .ToArray();
+        BattleRuntimeActor[] livingCorps = CaptureLivingCorpsAndRefreshPerceptionSummaries(state, stream, battleId, tick, currentTimeSeconds);
         if (livingCorps.Length == 0)
         {
             return;
@@ -140,22 +139,34 @@ internal sealed partial class BattleRuntimeTickResolver
                 flowFields,
                 performanceCounters,
                 battleId,
+                currentTimeSeconds,
                 tick,
-                navigationFailureDiagnostics))
+                navigationFailureDiagnostics,
+                state.TacticalStateStore))
             .ToList();
         foreach (TickContext context in contexts)
         {
             if (context.Request.Kind == BattleRuntimeAiActionKind.Hold)
             {
                 context.ActorFact.Actor.TargetActorId = "";
-                ResetAdvanceFailureState(context.ActorFact.Actor);
+                if (string.Equals(context.Request.FailureReason, LocalCombatDecisionReason.RejectOutsideLeash, System.StringComparison.Ordinal) ||
+                    string.Equals(context.Request.FailureReason, BattleGroupTacticalReasonCode.LocalRegionDegradeNoReachableSlot, System.StringComparison.Ordinal))
+                {
+                    RecordAdvanceFailure(context.ActorFact.Actor, context.Request.FailureReason);
+                }
+                else
+                {
+                    ResetAdvanceFailureState(context.ActorFact.Actor);
+                }
                 BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
                 context.Result = BattleRuntimeAiActionResult.Succeeded(context.Request, "held");
                 continue;
             }
 
             if (context.TargetFact == null &&
-                context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective)
+                context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective &&
+                context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardRegion &&
+                context.Request.Kind != BattleRuntimeAiActionKind.ReturnToObjective)
             {
                 context.ActorFact.Actor.TargetActorId = "";
                 ResetAdvanceFailureState(context.ActorFact.Actor);
@@ -184,7 +195,9 @@ internal sealed partial class BattleRuntimeTickResolver
                         "target_locked");
                 }
             }
-            else if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective)
+            else if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                     context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                     context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective)
             {
                 context.ActorFact.Actor.TargetActorId = "";
                 SetPlanState(
@@ -194,7 +207,11 @@ internal sealed partial class BattleRuntimeTickResolver
                     currentTimeSeconds,
                     context.ActorFact.Actor,
                     BattleGroupPlanRuntimeState.AdvancingToObjective,
-                    "objective_advance");
+                    context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
+                        ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
+                        : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
+                            ? context.Request.ReasonCode
+                        : "objective_advance");
             }
 
             if (!string.IsNullOrWhiteSpace(context.Proposal.FailureReason))
@@ -202,7 +219,11 @@ internal sealed partial class BattleRuntimeTickResolver
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, context.Proposal.FailureReason);
                 BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
                 if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget ||
-                    context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective)
+                    context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                    context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                    context.Request.Kind == BattleRuntimeAiActionKind.JoinLocalCombat ||
+                    context.Request.Kind == BattleRuntimeAiActionKind.HoldSupport ||
+                    context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective)
                 {
                     RecordAdvanceFailure(context.ActorFact.Actor, context.Proposal.FailureReason);
                 }
@@ -217,15 +238,19 @@ internal sealed partial class BattleRuntimeTickResolver
                 context.Result = BattleRuntimeAiActionResult.Succeeded(context.Request, "attack_charge_wait");
             }
             else if (context.Request.Kind != BattleRuntimeAiActionKind.AttackTarget &&
-                     context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget &&
-                     context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective)
+                      context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget &&
+                      context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective &&
+                      context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardRegion &&
+                      context.Request.Kind != BattleRuntimeAiActionKind.JoinLocalCombat &&
+                      context.Request.Kind != BattleRuntimeAiActionKind.HoldSupport &&
+                      context.Request.Kind != BattleRuntimeAiActionKind.ReturnToObjective)
             {
                 BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "unsupported_action");
             }
         }
 
-        ResolveAttackProposals(contexts, tickStartFacts, stream, battleId, tick, currentTimeSeconds);
+        ResolveAttackProposalsAndEngagementTriggers(contexts, tickStartFacts, stream, battleId, tick, currentTimeSeconds, state);
         long movementResolveStartedAt = Stopwatch.GetTimestamp();
         int movementEvents = ResolveMovementProposals(
             contexts,
@@ -267,18 +292,37 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         string battleId,
+        double currentTimeSeconds,
         int tick,
-        HashSet<string> navigationFailureDiagnostics)
+        HashSet<string> navigationFailureDiagnostics,
+        BattleGroupTacticalStateStore tacticalStateStore)
     {
         TickStartActorFact actorFact = facts[actor.ActorId];
-        TickStartActorFact? preferredTarget = FindEnemyCorpsForCommand(
-            facts,
-            actorFact,
-            navigationGraph,
-            occupancy,
-            flowFields,
-            performanceCounters);
-        BattleRuntimeAiActionRequest request = BuildCommandScopedAiActionRequest(actorFact, preferredTarget);
+        BattleRegionMovementGoal regionMovementGoal = ResolveRegionMovementGoal(actorFact, tacticalStateStore);
+        BattleTacticalRegionSnapshot localCombatRegion = ResolveEngagedLocalCombatRegion(actorFact, tacticalStateStore);
+        IReadOnlyDictionary<string, TickStartActorFact> targetFacts = localCombatRegion == null
+            ? facts
+            : FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
+        TickStartActorFact? preferredTarget = regionMovementGoal == null
+            ? FindEnemyCorpsForCommand(
+                targetFacts,
+                actorFact,
+                navigationGraph,
+                occupancy,
+                flowFields,
+                performanceCounters)
+            : FindRegionScopedEnemyCorps(targetFacts, actorFact);
+        LocalCombatSituation localCombatSituation = preferredTarget == null
+            ? null
+            : LocalCombatSituationBuilder.Build(
+                actorFact.Actor,
+                preferredTarget.Value.Actor,
+                facts.Values.Select(item => item.Actor).ToArray(),
+                navigationGraph,
+                occupancy,
+                currentTimeSeconds,
+                localCombatRegion);
+        BattleRuntimeAiActionRequest request = BuildCommandScopedAiActionRequest(actorFact, preferredTarget, localCombatSituation, regionMovementGoal);
         TickStartActorFact? requestedTarget = ResolveRequestedTarget(facts, actorFact, preferredTarget, request);
 
         if (!string.Equals(request.ActorId, actor.ActorId, System.StringComparison.Ordinal))
@@ -289,12 +333,27 @@ internal sealed partial class BattleRuntimeTickResolver
                 requestedTarget,
                 hasMoveTo: false,
                 moveTo: default,
-                failureReason: "invalid_actor");
+                failureReason: "invalid_actor",
+                localCombatSituation: localCombatSituation,
+                regionMovementGoal: regionMovementGoal);
         }
 
         if (request.Kind == BattleRuntimeAiActionKind.Hold)
         {
-            return CreateContext(request, actorFact, requestedTarget, false, default, request.FailureReason);
+            return CreateContext(request, actorFact, requestedTarget, false, default, request.FailureReason, localCombatSituation: localCombatSituation, regionMovementGoal: regionMovementGoal);
+        }
+
+        if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion)
+        {
+            return BuildRegionAdvanceContext(
+                request,
+                actorFact,
+                navigationGraph,
+                occupancy,
+                flowFields,
+                performanceCounters,
+                battleId,
+                tick);
         }
 
         if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective)
@@ -318,15 +377,19 @@ internal sealed partial class BattleRuntimeTickResolver
                 requestedTarget,
                 hasMoveTo: false,
                 moveTo: default,
-                failureReason: "invalid_target");
+                    failureReason: "invalid_target",
+                    localCombatSituation: localCombatSituation,
+                    regionMovementGoal: regionMovementGoal);
         }
 
-        if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget)
+        if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget ||
+            request.Kind == BattleRuntimeAiActionKind.JoinLocalCombat ||
+            request.Kind == BattleRuntimeAiActionKind.HoldSupport)
         {
             int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
             int movementGap = BattleActorFootprint.GetGap(actorFact.Actor, actorFact.Anchor, requestedTarget.Value.Actor, requestedTarget.Value.Anchor);
             int attackGap = GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, requestedTarget.Value.Actor, requestedTarget.Value.Anchor);
-            if (attackGap <= attackRange)
+            if (attackGap <= attackRange && request.Kind != BattleRuntimeAiActionKind.HoldSupport)
             {
                 return CreateContext(
                     request,
@@ -334,24 +397,28 @@ internal sealed partial class BattleRuntimeTickResolver
                     requestedTarget,
                     hasMoveTo: false,
                     moveTo: default,
-                    failureReason: "target_already_in_range");
+                    failureReason: "target_already_in_range",
+                    localCombatSituation: localCombatSituation);
             }
 
             BattleRuntimeActor tickStartActor = BuildTickStartProjection(actorFact);
             BattleRuntimeActor tickStartTarget = BuildTickStartProjection(requestedTarget.Value);
-            bool preferSupport = IsTargetEngagedBySameFactionActor(facts, actorFact, requestedTarget.Value);
+            bool preferSupport = request.Kind == BattleRuntimeAiActionKind.HoldSupport ||
+                                 IsTargetEngagedBySameFactionActor(facts, actorFact, requestedTarget.Value);
             // Default assault is attack-opportunity first. Support slots are only
             // a fallback when no attack slot is reachable from the current facts.
-            bool preferSupportSlots = preferSupport &&
+            bool preferSupportSlots = request.Kind == BattleRuntimeAiActionKind.HoldSupport ||
+                                      preferSupport &&
                                       movementGap > attackRange + 1 &&
                                       !HasReachableAttackSlot(
                                           tickStartActor,
                                           tickStartTarget,
-                                          actorFact.Anchor,
-                                          navigationGraph,
-                                          occupancy,
-                                          flowFields,
-                                          performanceCounters);
+                                      actorFact.Anchor,
+                                      navigationGraph,
+                                      occupancy,
+                                      flowFields,
+                                      performanceCounters,
+                                      localCombatRegion);
             bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && movementGap == attackRange + 1;
             IReadOnlyList<BattleGridCoord> moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardTarget(
                     tickStartActor,
@@ -362,7 +429,8 @@ internal sealed partial class BattleRuntimeTickResolver
                     flowFields,
                     preferSupportSlots,
                     avoidOpeningNewAxisGapNearEngagedTarget,
-                    performanceCounters);
+                    performanceCounters,
+                    localCombatRegion);
             if (moveOptions.Count == 0)
             {
                 LogAdvanceFailureDiagnostic(
@@ -380,7 +448,10 @@ internal sealed partial class BattleRuntimeTickResolver
                     requestedTarget,
                     hasMoveTo: false,
                     moveTo: default,
-                    failureReason: "path_not_found");
+                    failureReason: request.Kind == BattleRuntimeAiActionKind.HoldSupport
+                        ? LocalCombatDecisionReason.RejectNoReachableSlot
+                        : "path_not_found",
+                    localCombatSituation: localCombatSituation);
             }
 
             return CreateContext(
@@ -390,13 +461,15 @@ internal sealed partial class BattleRuntimeTickResolver
                 hasMoveTo: true,
                 moveTo: moveOptions[0],
                 failureReason: "",
-                moveOptions: moveOptions);
+                moveOptions: moveOptions,
+                localCombatSituation: localCombatSituation,
+                movementReasonCode: request.ReasonCode);
         }
 
         if (request.Kind == BattleRuntimeAiActionKind.AttackTarget ||
             request.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge)
         {
-            return CreateContext(request, actorFact, requestedTarget, false, default, "");
+            return CreateContext(request, actorFact, requestedTarget, false, default, "", localCombatSituation: localCombatSituation);
         }
 
         return CreateContext(
@@ -405,7 +478,8 @@ internal sealed partial class BattleRuntimeTickResolver
             requestedTarget,
             hasMoveTo: false,
             moveTo: default,
-            failureReason: "unsupported_action");
+            failureReason: "unsupported_action",
+            localCombatSituation: localCombatSituation);
     }
 
     private static TickContext CreateContext(
@@ -415,13 +489,17 @@ internal sealed partial class BattleRuntimeTickResolver
         bool hasMoveTo,
         BattleGridCoord moveTo,
         string failureReason,
-        IReadOnlyList<BattleGridCoord> moveOptions = null)
+        IReadOnlyList<BattleGridCoord> moveOptions = null,
+        LocalCombatSituation localCombatSituation = null,
+        string movementReasonCode = "",
+        BattleRegionMovementGoal regionMovementGoal = null)
     {
         return new TickContext
         {
             Request = request,
             ActorFact = actorFact,
             TargetFact = targetFact,
+            LocalCombatSituation = localCombatSituation,
             Proposal = new BattleRuntimeActionProposal
             {
                 Request = request,
@@ -432,7 +510,9 @@ internal sealed partial class BattleRuntimeTickResolver
                 HasMoveTo = hasMoveTo,
                 MoveTo = moveTo,
                 MoveOptions = moveOptions ?? new List<BattleGridCoord>(),
-                FailureReason = failureReason ?? ""
+                FailureReason = failureReason ?? "",
+                MovementReasonCode = movementReasonCode ?? "",
+                LocalCombatSituationId = localCombatSituation?.SituationId ?? ""
             }
         };
     }
@@ -473,9 +553,13 @@ internal sealed partial class BattleRuntimeTickResolver
         if (request == null ||
             request.Kind == BattleRuntimeAiActionKind.Hold ||
             request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+            request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+            request.Kind == BattleRuntimeAiActionKind.ReturnToObjective ||
             request.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge && fallbackTarget == null)
         {
-            return request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+            return request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                   request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                   request?.Kind == BattleRuntimeAiActionKind.ReturnToObjective
                 ? null
                 : fallbackTarget;
         }
@@ -649,10 +733,16 @@ internal sealed partial class BattleRuntimeTickResolver
         foreach (TickContext context in contexts
                      .Where(item =>
                          (item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget ||
-                          item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective) &&
-                         item.Result == null))
+                          item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                          item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                          item.Request.Kind == BattleRuntimeAiActionKind.JoinLocalCombat ||
+                          item.Request.Kind == BattleRuntimeAiActionKind.HoldSupport ||
+                          item.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective) &&
+                          item.Result == null))
         {
-            bool isObjectiveAdvance = context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective;
+            bool isObjectiveAdvance = context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                                      context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                                      context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective;
             if (context.TargetFact == null && !isObjectiveAdvance)
             {
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "invalid_target");
@@ -682,6 +772,7 @@ internal sealed partial class BattleRuntimeTickResolver
                         navigationGraph,
                         battleId,
                         tick,
+                        currentTimeSeconds,
                         navigationFailureDiagnostics,
                         performanceCounters))
                 {
@@ -758,11 +849,17 @@ internal sealed partial class BattleRuntimeTickResolver
                 tick,
                 currentTimeSeconds,
                 candidate.Context.ActorFact.Actor,
-                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                 candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                 candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
                     ? BattleGroupPlanRuntimeState.AdvancingToObjective
                     : BattleGroupPlanRuntimeState.MovingToAttackSlot,
                 candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
                     ? "objective_advance"
+                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
+                        ? candidate.Context.Request.ReasonCode
+                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
+                        ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
                     : "moving_to_attack_slot");
             BattleRuntimeActorStateMachine.MarkMovementCommitted(candidate.Context.ActorFact.Actor, selectedMove, currentTimeSeconds);
             ResetAdvanceFailureState(candidate.Context.ActorFact.Actor);
@@ -773,110 +870,23 @@ internal sealed partial class BattleRuntimeTickResolver
                 tick,
                 currentTimeSeconds,
                 candidate.Context.ActorFact.Actor,
-                candidate.Context.TargetFact?.Actor.ActorId ?? candidate.Context.ActorFact.Actor.ObjectiveZoneId,
+                ResolveMovementEventTargetId(candidate.Context),
                 candidate.From,
                 selectedMove,
-                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+                !string.IsNullOrWhiteSpace(candidate.Context.Proposal.MovementReasonCode)
+                    ? candidate.Context.Proposal.MovementReasonCode
+                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
                     ? "plan_objective_advance"
+                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
+                        ? candidate.Context.Request.ReasonCode
+                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
+                        ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
                     : "auto_advance"));
             movementEvents++;
             performanceCounters?.RecordMovementEvent(currentTimeSeconds);
         }
 
         return movementEvents;
-    }
-
-    private bool TryRetargetStaleAdvanceContext(
-        TickContext context,
-        IReadOnlyDictionary<string, TickStartActorFact> tickStartFacts,
-        BattleDynamicOccupancy occupancy,
-        BattleNavigationGraph navigationGraph,
-        string battleId,
-        int tick,
-        HashSet<string> navigationFailureDiagnostics,
-        BattlePerformanceCounters performanceCounters)
-    {
-        if (context == null ||
-            context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget ||
-            context.ActorFact.Actor.HitPoints <= 0)
-        {
-            return false;
-        }
-
-        BattleFlowFieldCache flowFields = new(performanceCounters);
-        TickContext refreshed = BuildTickContext(
-            context.ActorFact.Actor,
-            tickStartFacts,
-            navigationGraph,
-            occupancy,
-            flowFields,
-            performanceCounters,
-            battleId,
-            tick,
-            navigationFailureDiagnostics);
-        if (refreshed.TargetFact == null ||
-            refreshed.TargetFact.Value.Actor.HitPoints <= 0 ||
-            refreshed.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget ||
-            !refreshed.Proposal.HasMoveTo ||
-            !string.IsNullOrWhiteSpace(refreshed.Proposal.FailureReason))
-        {
-            return false;
-        }
-
-        // Movement intents are built before same-tick damage is applied. If a
-        // different actor kills that target first, this actor keeps its action
-        // boundary and immediately spends it on the next live assault target.
-        context.Request = refreshed.Request;
-        context.TargetFact = refreshed.TargetFact;
-        context.Proposal = refreshed.Proposal;
-        context.ActorFact.Actor.TargetActorId = refreshed.TargetFact.Value.Actor.ActorId;
-        ResetAdvanceFailureState(context.ActorFact.Actor);
-        return true;
-    }
-
-    private BattleRuntimeAiActionRequest BuildCommandScopedAiActionRequest(
-        TickStartActorFact actorFact,
-        TickStartActorFact? targetFact)
-    {
-        if (actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst &&
-            actorFact.Actor.HasObjectiveAnchor &&
-            !IsObjectiveReached(actorFact) &&
-            (targetFact == null ||
-             GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
-        {
-            return BattleRuntimeAiActionRequest.AdvanceTowardObjective(actorFact.Actor.ActorId);
-        }
-
-        if (targetFact == null &&
-            actorFact.Actor.HasObjectiveAnchor &&
-            !IsObjectiveReached(actorFact))
-        {
-            return BattleRuntimeAiActionRequest.AdvanceTowardObjective(actorFact.Actor.ActorId);
-        }
-
-        if (IsHoldLineCommand(actorFact.CommandId) &&
-            (targetFact == null || GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
-        {
-            return BattleRuntimeAiActionRequest.Hold(actorFact.Actor.ActorId, "hold_line_out_of_range");
-        }
-
-        return _aiExecutor.ChooseAction(BuildAiDecisionFacts(actorFact, targetFact)) ??
-               BattleRuntimeAiActionRequest.Hold(actorFact.Actor.ActorId, "missing_ai_request");
-    }
-
-    private static BattleRuntimeAiDecisionFacts BuildAiDecisionFacts(
-        TickStartActorFact actorFact,
-        TickStartActorFact? targetFact)
-    {
-        return new BattleRuntimeAiDecisionFacts
-        {
-            ActorId = actorFact.Actor.ActorId ?? "",
-            TargetActorId = targetFact?.Actor.ActorId ?? "",
-            HasTarget = targetFact != null,
-            DistanceToTarget = targetFact == null ? int.MaxValue : GetOrthogonalAttackGap(actorFact, targetFact.Value),
-            AttackRange = System.Math.Max(1, actorFact.Actor.AttackRange),
-            CanAttackNow = actorFact.AttackCharge >= 1.0
-        };
     }
 
     private static int GetOrthogonalAttackGap(TickStartActorFact first, TickStartActorFact second)

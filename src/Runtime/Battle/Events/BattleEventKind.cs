@@ -12,5 +12,10 @@ public enum BattleEventKind
     BattleEnded = 7,
     MovementStarted = 8,
     BattleGroupPlanAccepted = 9,
-    BattleGroupPlanStateChanged = 10
+    BattleGroupPlanStateChanged = 10,
+    BattleGroupTacticalRegionSelected = 11,
+    BattleGroupTacticalRegionRejected = 12,
+    BattleGroupEngagementStateChanged = 13,
+    BattleGroupTemporaryRegionSelected = 14,
+    BattleGroupLocalCombatRegionChanged = 15
 }
