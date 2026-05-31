@@ -26,34 +26,16 @@ internal sealed partial class BattleRuntimeTickResolver
         _aiExecutor = aiExecutor ?? new DefaultBattleRuntimeAiExecutor();
     }
 
-    private readonly record struct TickStartActorFact(
-        BattleRuntimeActor Actor,
-        BattleGridCoord Anchor,
-        int HitPoints,
-        double AttackCharge,
-        string TargetActorId,
-        string CommandId);
-
-    private sealed class TickContext
-    {
-        public BattleRuntimeActionProposal Proposal { get; set; }
-        public BattleRuntimeAiActionRequest Request { get; set; }
-        public TickStartActorFact ActorFact { get; init; }
-        public TickStartActorFact? TargetFact { get; set; }
-        public LocalCombatSituation LocalCombatSituation { get; init; }
-        public BattleRuntimeAiActionResult Result { get; set; }
-    }
-
     private sealed class MoveCandidate
     {
-        public TickContext Context { get; init; }
+        public BattleRuntimeTickContext Context { get; init; }
         public BattleGridCoord From { get; init; }
         public BattleGridCoord To { get; init; }
         public IReadOnlyList<BattleGridCoord> OrderedMoves { get; init; } = new List<BattleGridCoord>();
     }
 
-    private readonly record struct PendingAttack(TickContext Context, int DeclaredDamage);
-    private readonly record struct AttackApplication(TickContext Context, int AppliedDamage, bool IsFinishingHit);
+    private readonly record struct PendingAttack(BattleRuntimeTickContext Context, int DeclaredDamage);
+    private readonly record struct AttackApplication(BattleRuntimeTickContext Context, int AppliedDamage, bool IsFinishingHit);
 
     internal void ResolveTick(
         BattleRuntimeState state,
@@ -108,9 +90,9 @@ internal sealed partial class BattleRuntimeTickResolver
             return;
         }
 
-        Dictionary<string, TickStartActorFact> tickStartFacts = livingCorps.ToDictionary(
+        Dictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts = livingCorps.ToDictionary(
             item => item.ActorId,
-            item => new TickStartActorFact(
+            item => new BattleRuntimeTickStartActorFact(
                 item,
                 new BattleGridCoord(item.GridX, item.GridY, item.GridHeight),
                 item.HitPoints,
@@ -130,7 +112,7 @@ internal sealed partial class BattleRuntimeTickResolver
             return;
         }
 
-        List<TickContext> contexts = decisionReadyCorps
+        List<BattleRuntimeTickContext> contexts = decisionReadyCorps
             .Select(item => BuildTickContext(
                 item,
                 tickStartFacts,
@@ -144,7 +126,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 navigationFailureDiagnostics,
                 state.TacticalStateStore))
             .ToList();
-        foreach (TickContext context in contexts)
+        foreach (BattleRuntimeTickContext context in contexts)
         {
             if (context.Request.Kind == BattleRuntimeAiActionKind.Hold)
             {
@@ -266,7 +248,7 @@ internal sealed partial class BattleRuntimeTickResolver
         performanceCounters?.RecordMovementResolveElapsedTicks(Stopwatch.GetTimestamp() - movementResolveStartedAt);
         performanceCounters?.RecordActorsReadyNoMoveLastAdvance(decisionReadyCorps.Length - movementEvents);
 
-        foreach (TickContext context in contexts.OrderBy(item => item.ActorFact.Actor.ActorId, System.StringComparer.Ordinal))
+        foreach (BattleRuntimeTickContext context in contexts.OrderBy(item => item.ActorFact.Actor.ActorId, System.StringComparer.Ordinal))
         {
             if (context.Result == null)
             {
@@ -284,9 +266,9 @@ internal sealed partial class BattleRuntimeTickResolver
         }
     }
 
-    private TickContext BuildTickContext(
+    private BattleRuntimeTickContext BuildTickContext(
         BattleRuntimeActor actor,
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
@@ -297,13 +279,13 @@ internal sealed partial class BattleRuntimeTickResolver
         HashSet<string> navigationFailureDiagnostics,
         BattleGroupTacticalStateStore tacticalStateStore)
     {
-        TickStartActorFact actorFact = facts[actor.ActorId];
+        BattleRuntimeTickStartActorFact actorFact = facts[actor.ActorId];
         BattleRegionMovementGoal regionMovementGoal = ResolveRegionMovementGoal(actorFact, tacticalStateStore);
         BattleTacticalRegionSnapshot localCombatRegion = ResolveEngagedLocalCombatRegion(actorFact, tacticalStateStore);
-        IReadOnlyDictionary<string, TickStartActorFact> targetFacts = localCombatRegion == null
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> targetFacts = localCombatRegion == null
             ? facts
             : FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
-        TickStartActorFact? preferredTarget = regionMovementGoal == null
+        BattleRuntimeTickStartActorFact? preferredTarget = regionMovementGoal == null
             ? FindEnemyCorpsForCommand(
                 targetFacts,
                 actorFact,
@@ -323,7 +305,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 currentTimeSeconds,
                 localCombatRegion);
         BattleRuntimeAiActionRequest request = BuildCommandScopedAiActionRequest(actorFact, preferredTarget, localCombatSituation, regionMovementGoal);
-        TickStartActorFact? requestedTarget = ResolveRequestedTarget(facts, actorFact, preferredTarget, request);
+        BattleRuntimeTickStartActorFact? requestedTarget = ResolveRequestedTarget(facts, actorFact, preferredTarget, request);
 
         if (!string.Equals(request.ActorId, actor.ActorId, System.StringComparison.Ordinal))
         {
@@ -482,10 +464,10 @@ internal sealed partial class BattleRuntimeTickResolver
             localCombatSituation: localCombatSituation);
     }
 
-    private static TickContext CreateContext(
+    private static BattleRuntimeTickContext CreateContext(
         BattleRuntimeAiActionRequest request,
-        TickStartActorFact actorFact,
-        TickStartActorFact? targetFact,
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact? targetFact,
         bool hasMoveTo,
         BattleGridCoord moveTo,
         string failureReason,
@@ -494,7 +476,7 @@ internal sealed partial class BattleRuntimeTickResolver
         string movementReasonCode = "",
         BattleRegionMovementGoal regionMovementGoal = null)
     {
-        return new TickContext
+        return new BattleRuntimeTickContext
         {
             Request = request,
             ActorFact = actorFact,
@@ -517,7 +499,7 @@ internal sealed partial class BattleRuntimeTickResolver
         };
     }
 
-    private static BattleRuntimeActor BuildTickStartProjection(TickStartActorFact fact)
+    private static BattleRuntimeActor BuildTickStartProjection(BattleRuntimeTickStartActorFact fact)
     {
         return new BattleRuntimeActor
         {
@@ -544,10 +526,10 @@ internal sealed partial class BattleRuntimeTickResolver
         };
     }
 
-    private static TickStartActorFact? ResolveRequestedTarget(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact,
-        TickStartActorFact? fallbackTarget,
+    private static BattleRuntimeTickStartActorFact? ResolveRequestedTarget(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact? fallbackTarget,
         BattleRuntimeAiActionRequest request)
     {
         if (request == null ||
@@ -569,7 +551,7 @@ internal sealed partial class BattleRuntimeTickResolver
             return fallbackTarget;
         }
 
-        if (!facts.TryGetValue(request.TargetActorId, out TickStartActorFact requestedTarget) ||
+        if (!facts.TryGetValue(request.TargetActorId, out BattleRuntimeTickStartActorFact requestedTarget) ||
             requestedTarget.HitPoints <= 0 ||
             SameFaction(actorFact.Actor, requestedTarget.Actor))
         {
@@ -580,15 +562,15 @@ internal sealed partial class BattleRuntimeTickResolver
     }
 
     private void ResolveAttackProposals(
-        List<TickContext> contexts,
-        IReadOnlyDictionary<string, TickStartActorFact> tickStartFacts,
+        List<BattleRuntimeTickContext> contexts,
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts,
         BattleEventStream stream,
         string battleId,
         int tick,
         double currentTimeSeconds)
     {
         List<PendingAttack> pendingAttacks = new();
-        foreach (TickContext context in contexts
+        foreach (BattleRuntimeTickContext context in contexts
                      .Where(item =>
                          item.Request.Kind == BattleRuntimeAiActionKind.AttackTarget &&
                          item.Result == null))
@@ -683,7 +665,7 @@ internal sealed partial class BattleRuntimeTickResolver
 
         foreach (KeyValuePair<string, int> pair in postAttackHitPoints)
         {
-            if (tickStartFacts.TryGetValue(pair.Key, out TickStartActorFact targetFact))
+            if (tickStartFacts.TryGetValue(pair.Key, out BattleRuntimeTickStartActorFact targetFact))
             {
                 targetFact.Actor.HitPoints = System.Math.Max(0, pair.Value);
                 if (targetFact.Actor.HitPoints <= 0)
@@ -703,8 +685,8 @@ internal sealed partial class BattleRuntimeTickResolver
     }
 
     private int ResolveMovementProposals(
-        List<TickContext> contexts,
-        IReadOnlyDictionary<string, TickStartActorFact> tickStartFacts,
+        List<BattleRuntimeTickContext> contexts,
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts,
         BattleDynamicOccupancy occupancy,
         BattleEventStream stream,
         string battleId,
@@ -716,7 +698,7 @@ internal sealed partial class BattleRuntimeTickResolver
     {
         int movementEvents = 0;
         List<MoveCandidate> moveCandidates = new();
-        foreach (TickContext context in contexts
+        foreach (BattleRuntimeTickContext context in contexts
                      .Where(item =>
                          (item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget ||
                           item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
@@ -875,7 +857,7 @@ internal sealed partial class BattleRuntimeTickResolver
         return movementEvents;
     }
 
-    private static int GetOrthogonalAttackGap(TickStartActorFact first, TickStartActorFact second)
+    private static int GetOrthogonalAttackGap(BattleRuntimeTickStartActorFact first, BattleRuntimeTickStartActorFact second)
     {
         return GetOrthogonalAttackGap(first.Actor, first.Anchor, second.Actor, second.Anchor);
     }
@@ -889,7 +871,7 @@ internal sealed partial class BattleRuntimeTickResolver
         return BattleActorFootprint.GetOrthogonalGap(first, firstAnchor, second, secondAnchor);
     }
 
-    private static int GetSquareGridDistance(TickStartActorFact first, TickStartActorFact second)
+    private static int GetSquareGridDistance(BattleRuntimeTickStartActorFact first, BattleRuntimeTickStartActorFact second)
     {
         return BattleActorFootprint.GetGap(first.Actor, first.Anchor, second.Actor, second.Anchor);
     }

@@ -11,9 +11,9 @@ internal sealed partial class BattleRuntimeTickResolver
 {
     private readonly record struct AssaultTargetScore(int TravelCost, int RetainedPriority, int Gap, string ActorId);
 
-    private static TickStartActorFact? FindEnemyCorpsForCommand(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact,
+    private static BattleRuntimeTickStartActorFact? FindEnemyCorpsForCommand(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
@@ -64,14 +64,14 @@ internal sealed partial class BattleRuntimeTickResolver
                FindNearestEnemyCorps(facts, actorFact);
     }
 
-    private static TickStartActorFact? FindPlanScopedEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact)
+    private static BattleRuntimeTickStartActorFact? FindPlanScopedEnemyCorps(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact)
     {
         // Once a battle group has an authored objective, local perception owns
         // target acquisition. This preserves the player plan and prevents
         // ordinary marching from rebuilding global attack-slot fields.
-        TickStartActorFact? immediate = FindImmediateAttackOpportunityEnemyCorps(facts, actorFact);
+        BattleRuntimeTickStartActorFact? immediate = FindImmediateAttackOpportunityEnemyCorps(facts, actorFact);
         if (immediate != null)
         {
             return immediate;
@@ -82,7 +82,7 @@ internal sealed partial class BattleRuntimeTickResolver
             return FindRouteBlockingEnemyCorps(facts, actorFact, PlannedLocalPerceptionRange);
         }
 
-        TickStartActorFact? retained = FindRetainedEnemyCorps(
+        BattleRuntimeTickStartActorFact? retained = FindRetainedEnemyCorps(
             facts,
             actorFact,
             PlannedLocalPerceptionRange);
@@ -97,13 +97,13 @@ internal sealed partial class BattleRuntimeTickResolver
             PlannedLocalPerceptionRange);
     }
 
-    private static TickStartActorFact? FindRetainedEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact,
+    private static BattleRuntimeTickStartActorFact? FindRetainedEnemyCorps(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
         int maxGap = int.MaxValue)
     {
         if (string.IsNullOrWhiteSpace(actorFact.TargetActorId) ||
-            !facts.TryGetValue(actorFact.TargetActorId, out TickStartActorFact retained))
+            !facts.TryGetValue(actorFact.TargetActorId, out BattleRuntimeTickStartActorFact retained))
         {
             return null;
         }
@@ -115,16 +115,16 @@ internal sealed partial class BattleRuntimeTickResolver
             : null;
     }
 
-    private static TickStartActorFact? FindImmediateAttackOpportunityEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact)
+    private static BattleRuntimeTickStartActorFact? FindImmediateAttackOpportunityEnemyCorps(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact)
     {
-        TickStartActorFact? selected = null;
+        BattleRuntimeTickStartActorFact? selected = null;
         int selectedGap = int.MaxValue;
         int selectedHitPoints = int.MaxValue;
         int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
 
-        foreach (TickStartActorFact candidate in facts.Values)
+        foreach (BattleRuntimeTickStartActorFact candidate in facts.Values)
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
@@ -155,14 +155,14 @@ internal sealed partial class BattleRuntimeTickResolver
         return selected;
     }
 
-    private static TickStartActorFact? FindNearestEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact,
+    private static BattleRuntimeTickStartActorFact? FindNearestEnemyCorps(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
         int maxGap = int.MaxValue)
     {
-        TickStartActorFact? selected = null;
+        BattleRuntimeTickStartActorFact? selected = null;
         int selectedGap = int.MaxValue;
-        foreach (TickStartActorFact candidate in facts.Values)
+        foreach (BattleRuntimeTickStartActorFact candidate in facts.Values)
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
@@ -189,9 +189,9 @@ internal sealed partial class BattleRuntimeTickResolver
         return selected;
     }
 
-    private static TickStartActorFact? FindRouteBlockingEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact,
+    private static BattleRuntimeTickStartActorFact? FindRouteBlockingEnemyCorps(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
         int maxGap)
     {
         if (actorFact.Actor.HasObjectiveAnchor == false)
@@ -199,9 +199,9 @@ internal sealed partial class BattleRuntimeTickResolver
             return null;
         }
 
-        TickStartActorFact? selected = null;
+        BattleRuntimeTickStartActorFact? selected = null;
         int selectedGap = int.MaxValue;
-        foreach (TickStartActorFact candidate in facts.Values)
+        foreach (BattleRuntimeTickStartActorFact candidate in facts.Values)
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
@@ -247,21 +247,21 @@ internal sealed partial class BattleRuntimeTickResolver
         return value >= System.Math.Min(first, second) && value <= System.Math.Max(first, second);
     }
 
-    private static TickStartActorFact? FindFastestAttackOpportunityEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact,
+    private static BattleRuntimeTickStartActorFact? FindFastestAttackOpportunityEnemyCorps(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters)
     {
         long startedAt = Stopwatch.GetTimestamp();
-        TickStartActorFact? retained = FindRetainedEnemyCorps(facts, actorFact);
-        TickStartActorFact? selected = null;
+        BattleRuntimeTickStartActorFact? retained = FindRetainedEnemyCorps(facts, actorFact);
+        BattleRuntimeTickStartActorFact? selected = null;
         AssaultTargetScore selectedScore = default;
         try
         {
-            foreach (TickStartActorFact candidate in facts.Values)
+            foreach (BattleRuntimeTickStartActorFact candidate in facts.Values)
             {
                 if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                     GetCurrentHitPoints(candidate) <= 0 ||
@@ -294,8 +294,8 @@ internal sealed partial class BattleRuntimeTickResolver
     }
 
     private static AssaultTargetScore ScoreAssaultTarget(
-        TickStartActorFact actorFact,
-        TickStartActorFact targetFact,
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact targetFact,
         string retainedTargetId,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
@@ -385,12 +385,12 @@ internal sealed partial class BattleRuntimeTickResolver
                string.CompareOrdinal(candidate.ActorId, known.ActorId) < 0;
     }
 
-    private static TickStartActorFact? FindLowestHealthEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact)
+    private static BattleRuntimeTickStartActorFact? FindLowestHealthEnemyCorps(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact)
     {
-        TickStartActorFact? selected = null;
-        foreach (TickStartActorFact candidate in facts.Values)
+        BattleRuntimeTickStartActorFact? selected = null;
+        foreach (BattleRuntimeTickStartActorFact candidate in facts.Values)
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
@@ -430,11 +430,11 @@ internal sealed partial class BattleRuntimeTickResolver
     }
 
     private static bool IsTargetEngagedBySameFactionActor(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact,
-        TickStartActorFact targetFact)
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact targetFact)
     {
-        foreach (TickStartActorFact candidate in facts.Values)
+        foreach (BattleRuntimeTickStartActorFact candidate in facts.Values)
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
@@ -456,7 +456,7 @@ internal sealed partial class BattleRuntimeTickResolver
         return false;
     }
 
-    private static int GetCurrentHitPoints(TickStartActorFact fact)
+    private static int GetCurrentHitPoints(BattleRuntimeTickStartActorFact fact)
     {
         return fact.Actor?.HitPoints ?? fact.HitPoints;
     }

@@ -8,8 +8,8 @@ namespace Rpg.Runtime.Battle;
 internal sealed partial class BattleRuntimeTickResolver
 {
     private BattleRuntimeAiActionRequest BuildCommandScopedAiActionRequest(
-        TickStartActorFact actorFact,
-        TickStartActorFact? targetFact,
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact? targetFact,
         LocalCombatSituation localCombatSituation,
         BattleRegionMovementGoal regionMovementGoal = null)
     {
@@ -69,8 +69,8 @@ internal sealed partial class BattleRuntimeTickResolver
     }
 
     private static BattleRuntimeAiDecisionFacts BuildAiDecisionFacts(
-        TickStartActorFact actorFact,
-        TickStartActorFact? targetFact,
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact? targetFact,
         LocalCombatSituation localCombatSituation = null)
     {
         string joinReason = localCombatSituation?.BlocksObjectiveRoute == true
@@ -107,7 +107,7 @@ internal sealed partial class BattleRuntimeTickResolver
     }
 
     private static BattleTacticalRegionSnapshot ResolveEngagedLocalCombatRegion(
-        TickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact actorFact,
         BattleGroupTacticalStateStore tacticalStateStore)
     {
         if (tacticalStateStore == null || string.IsNullOrWhiteSpace(actorFact.Actor.BattleGroupId))
@@ -128,13 +128,13 @@ internal sealed partial class BattleRuntimeTickResolver
         }
     }
 
-    private static IReadOnlyDictionary<string, TickStartActorFact> FilterFactsToLocalCombatRegion(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact,
+    private static IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> FilterFactsToLocalCombatRegion(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
         BattleTacticalRegionSnapshot localCombatRegion)
     {
-        Dictionary<string, TickStartActorFact> filtered = new(System.StringComparer.Ordinal);
-        foreach (TickStartActorFact fact in facts?.Values ?? System.Array.Empty<TickStartActorFact>())
+        Dictionary<string, BattleRuntimeTickStartActorFact> filtered = new(System.StringComparer.Ordinal);
+        foreach (BattleRuntimeTickStartActorFact fact in facts?.Values ?? System.Array.Empty<BattleRuntimeTickStartActorFact>())
         {
             if (string.Equals(fact.Actor.ActorId ?? "", actorFact.Actor.ActorId ?? "", System.StringComparison.Ordinal) ||
                 SameFaction(fact.Actor, actorFact.Actor) ||
@@ -148,7 +148,7 @@ internal sealed partial class BattleRuntimeTickResolver
     }
 
     private static bool IsInsideLocalCombatRegion(
-        TickStartActorFact fact,
+        BattleRuntimeTickStartActorFact fact,
         BattleTacticalRegionSnapshot localCombatRegion)
     {
         if (localCombatRegion == null ||
@@ -168,7 +168,7 @@ internal sealed partial class BattleRuntimeTickResolver
     }
 
     private static BattleRegionMovementGoal ResolveRegionMovementGoal(
-        TickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact actorFact,
         BattleGroupTacticalStateStore tacticalStateStore)
     {
         if (tacticalStateStore == null || string.IsNullOrWhiteSpace(actorFact.Actor.BattleGroupId))
@@ -187,9 +187,9 @@ internal sealed partial class BattleRuntimeTickResolver
         }
     }
 
-    private static TickStartActorFact? FindRegionScopedEnemyCorps(
-        IReadOnlyDictionary<string, TickStartActorFact> facts,
-        TickStartActorFact actorFact)
+    private static BattleRuntimeTickStartActorFact? FindRegionScopedEnemyCorps(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact)
     {
         return FindImmediateAttackOpportunityEnemyCorps(facts, actorFact) ??
                FindRetainedEnemyCorps(facts, actorFact, PlannedLocalPerceptionRange) ??

@@ -8,8 +8,8 @@ namespace Rpg.Runtime.Battle;
 internal sealed partial class BattleRuntimeTickResolver
 {
     private bool TryRetargetStaleAdvanceContext(
-        TickContext context,
-        IReadOnlyDictionary<string, TickStartActorFact> tickStartFacts,
+        BattleRuntimeTickContext context,
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts,
         BattleDynamicOccupancy occupancy,
         BattleNavigationGraph navigationGraph,
         string battleId,
@@ -26,7 +26,7 @@ internal sealed partial class BattleRuntimeTickResolver
         }
 
         BattleFlowFieldCache flowFields = new(performanceCounters);
-        TickContext refreshed = BuildTickContext(
+        BattleRuntimeTickContext refreshed = BuildTickContext(
             context.ActorFact.Actor,
             tickStartFacts,
             navigationGraph,

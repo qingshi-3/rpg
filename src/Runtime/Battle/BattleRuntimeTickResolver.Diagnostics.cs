@@ -34,8 +34,8 @@ internal sealed partial class BattleRuntimeTickResolver
     private static void LogAdvanceFailureDiagnostic(
         string battleId,
         int tick,
-        TickStartActorFact actorFact,
-        TickStartActorFact? targetFact,
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact? targetFact,
         BattleNavigationGraph navigationGraph,
         string failureReason,
         BattleGridCoord attemptedNext,

@@ -10,9 +10,9 @@ namespace Rpg.Runtime.Battle;
 
 internal sealed partial class BattleRuntimeTickResolver
 {
-    private static TickContext BuildObjectiveAdvanceContext(
+    private static BattleRuntimeTickContext BuildObjectiveAdvanceContext(
         BattleRuntimeAiActionRequest request,
-        TickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
@@ -54,9 +54,9 @@ internal sealed partial class BattleRuntimeTickResolver
             moveOptions: moveOptions);
     }
 
-    private static TickContext BuildRegionAdvanceContext(
+    private static BattleRuntimeTickContext BuildRegionAdvanceContext(
         BattleRuntimeAiActionRequest request,
-        TickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
@@ -117,7 +117,7 @@ internal sealed partial class BattleRuntimeTickResolver
             actor?.ObjectiveGridHeight ?? 0);
     }
 
-    private static string ResolveMovementEventTargetId(TickContext context)
+    private static string ResolveMovementEventTargetId(BattleRuntimeTickContext context)
     {
         if (context?.Request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion)
         {
@@ -127,7 +127,7 @@ internal sealed partial class BattleRuntimeTickResolver
         return context?.TargetFact?.Actor.ActorId ?? context?.ActorFact.Actor.ObjectiveZoneId ?? "";
     }
 
-    private static bool IsObjectiveReached(TickStartActorFact actorFact)
+    private static bool IsObjectiveReached(BattleRuntimeTickStartActorFact actorFact)
     {
         BattleRuntimeActor actor = actorFact.Actor;
         if (actor?.HasObjectiveAnchor != true)
@@ -154,7 +154,7 @@ internal sealed partial class BattleRuntimeTickResolver
     private static void LogObjectiveAdvanceFailureDiagnostic(
         string battleId,
         int tick,
-        TickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         string failureReason)
     {

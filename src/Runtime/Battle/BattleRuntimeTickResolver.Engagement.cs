@@ -8,8 +8,8 @@ namespace Rpg.Runtime.Battle;
 internal sealed partial class BattleRuntimeTickResolver
 {
     private void ResolveAttackProposalsAndEngagementTriggers(
-        List<TickContext> contexts,
-        IReadOnlyDictionary<string, TickStartActorFact> tickStartFacts,
+        List<BattleRuntimeTickContext> contexts,
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts,
         BattleEventStream stream,
         string battleId,
         int tick,
