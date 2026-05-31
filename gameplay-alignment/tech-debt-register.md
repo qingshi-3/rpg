@@ -43,13 +43,21 @@ Completed this pass (each verified independently by reviewer: build + regression
 - **TD-003 safety net.** `TargetBattleEventOrderGoldenRegressionCases` locks the battle event stream's relative order (EventIds + format-independent projection). Prior tests asserted event presence/counts but never order; `BattleGroupPlanStateChanged` had zero coverage. A reordering refactor with the same event-id set would have passed silently before this.
 - **TD-003 slice 2.** Event construction centralized into pure static `src/Runtime/Battle/BattleRuntimeEventFactory.cs` (`CreateDamageApplied` / `CreateMovementEvent`). `BattlePlanStateEmitter` kept separate because it also mutates plan state (not a pure factory).
 
+### 2026-06-01 — TD-003 design reviewed, golden net widened, shared DTOs promoted
+
+Completed this pass (each verified independently by reviewer: build + regression):
+- **TD-003 design.** `gameplay-alignment/implementation-proposals/2026-06-01-td-003-attack-movement-resolver-extraction.md` — reviewed and approved. A sub-agent line-by-line fact-checked all 14 claims the design makes about current code; all accurate. Key decision: keep `BuildTickContext` and retarget ownership in the resolver via a callback so movement extraction does not silently expand into TD-002.
+- **TD-003 golden widening.** Added 5 targeted goldens in `TargetBattleEventOrderGoldenRegressionCases.Td003.cs` covering the extraction seams: multi-defeat same-tick order, attack-stream-slice, dead-target retarget, reservation tiebreak, failed attack contexts. Reviewer corrected two misleading comments (multi-defeat order comes from an upstream `OrderBy` in `Perception`, not dictionary comparer order; reservation tiebreak is decided by `From.Y` here, not `BattleGroupId`).
+- **TD-003 slice 3 (mechanical).** Promoted nested `TickStartActorFact`/`TickContext` into standalone internal `BattleRuntimeTickStartActorFact`/`BattleRuntimeTickContext` (110 rename sites, 7 partials; field order and init/set mutability unchanged). `MoveCandidate`/`PendingAttack`/`AttackApplication` stay private until a later slice needs them shared.
+
 ### TD-003 remaining work — read before resuming
 
-What is left is the hardest part: extracting `ResolveAttackProposals` and `ResolveMovementProposals` themselves. This is a byte-for-byte-equivalence minefield. Do NOT let an implementer free-hand a cut here. Known S-level risk points (from a deep read of the resolver):
-- Event order = `stream.Add` call order; no sequence counter. Any reordering breaks equivalence (the golden net now guards this).
-- Defeated events iterate a `Dictionary` with no explicit sort — a hidden order dependency; pin a sort if touched.
-- `ResolveAttackProposalsAndEngagementTriggers` slices the stream via `firstAttackEventIndex` to identify newly-added attack events; nothing else may write to the stream between attack resolution and that slice.
-- `TryRetargetStaleAdvanceContext` re-invokes `BuildTickContext` (AI + pathfinding), so movement resolution reverse-depends on context building — the hardest seam to cut cleanly. This is an architecture-ownership question (should a movement service call back into AI/pathfinding?), not just a refactor; resolve it via a design step first.
-- The four services must share one `BattleEventStream`, one `tickStartFacts` (live actor refs), and one `TickContext` list — not private copies.
+Design and safety net are now in place. Remaining: the two real logic extractions, per the design's cut sequence.
 
-Decision: before resuming, have the implementer produce a design document for how to cut attack/movement resolution (explicitly answering the retarget reverse-dependency), reviewed against the 8-point checklist captured during the deep read. Consider widening the golden net (multi-target, reservation conflict, retarget) before the cut. Then extract in further small slices, not all at once.
+Next step: extract **`BattleMovementCommitResolver`** first (movement validation, reservation/occupancy, commit, with the resolver-owned retarget callback). This is the first slice that moves real business logic and the hardest seam — it validates the retarget reverse-dependency decision while leaving attack batching and the engagement stream slice untouched. Then extract `BattleAttackResolver` (keeping `ResolveAttackProposalsAndEngagementTriggers` in the resolver). Finally add source-architecture guards: resolver no longer contains `ResolveAttackProposals`/`ResolveMovementProposals` and does not call `MarkMovementCommitted`/`MarkAttackRecovery` outside the phase services.
+
+Still-live S-level risks to honor during extraction (now guarded by the 6 event-order goldens):
+- Event order = `stream.Add` call order; no sequence counter.
+- Defeated events iterate `postAttackHitPoints` with no explicit sort; the order actually comes from the upstream `OrderBy(ActorId, Ordinal)` in `Perception` plus add-only dictionary insertion order — do not change either without a behavior-change proposal.
+- `firstAttackEventIndex` stream slice must stay immediately after attack resolution.
+- Movement must read live `Actor.HitPoints` (post-attack), share one stream/`tickStartFacts`/context list, and route retarget through the resolver-owned callback (no direct `BuildTickContext` in the movement service).
