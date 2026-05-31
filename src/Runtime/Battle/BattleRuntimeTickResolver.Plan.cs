@@ -163,32 +163,4 @@ internal sealed partial class BattleRuntimeTickResolver
             $"BattleRuntimeObjectiveAdvanceDiagnostic battle={battleId ?? ""} tick={tick} actor={actorFact.Actor.ActorId} objective={actorFact.Actor.ObjectiveZoneId} reason={failureReason ?? "objective_advance_failed"} actorCell={actorFact.Anchor.X},{actorFact.Anchor.Y},{actorFact.Anchor.Height} objectiveCell={actorFact.Actor.ObjectiveGridX},{actorFact.Actor.ObjectiveGridY},{actorFact.Actor.ObjectiveGridHeight} graph={navigationGraph?.DescribeTopology() ?? "missing"}");
     }
 
-    private static void SetPlanState(
-        BattleEventStream stream,
-        string battleId,
-        int tick,
-        double currentTimeSeconds,
-        BattleRuntimeActor actor,
-        BattleGroupPlanRuntimeState state,
-        string reasonCode)
-    {
-        if (stream == null || actor == null || actor.PlanState == state)
-        {
-            return;
-        }
-
-        actor.PlanState = state;
-        stream.Add(new BattleEvent
-        {
-            EventId = $"{battleId}:tick_{tick}:{actor.ActorId}:plan:{state}",
-            BattleId = battleId,
-            BattleGroupId = actor.BattleGroupId,
-            ActorId = actor.ActorId,
-            TargetId = actor.ObjectiveZoneId ?? "",
-            Kind = BattleEventKind.BattleGroupPlanStateChanged,
-            ReasonCode = string.IsNullOrWhiteSpace(reasonCode) ? state.ToString() : reasonCode,
-            RuntimeTick = tick,
-            RuntimeTimeSeconds = currentTimeSeconds
-        });
-    }
 }

@@ -12,3 +12,4 @@ These implementation proposals are historical records, not active work queues. S
 | `2026-05-26-resident-defender-deployment-zone.md` | Historical resident defender deployment-zone alignment implementation record. |
 | `2026-05-28-local-combat-situation-ai.md` | Historical local-combat implementation record; final enemy AI acceptance requires the 2026-05-29 tactical-region authority. |
 | `2026-05-29-enemy-region-directed-combat-ai.md` | Accepted enemy region-directed combat AI implementation record: group-owned tactical regions, temporary regions, local combat regions, engagement state, facade observations, and player-policy separation. |
+| `2026-05-31-td-003-plan-state-emitter.md` | Accepted TD-003 minimal Runtime extraction slice for moving plan-state emission into `BattlePlanStateEmitter` without behavior changes. |

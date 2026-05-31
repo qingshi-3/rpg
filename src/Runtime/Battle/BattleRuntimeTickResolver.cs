@@ -185,7 +185,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 if (targetChanged)
                 {
                     ResetAdvanceFailureState(context.ActorFact.Actor);
-                    SetPlanState(
+                    BattlePlanStateEmitter.SetPlanState(
                         stream,
                         battleId,
                         tick,
@@ -200,7 +200,7 @@ internal sealed partial class BattleRuntimeTickResolver
                      context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective)
             {
                 context.ActorFact.Actor.TargetActorId = "";
-                SetPlanState(
+                BattlePlanStateEmitter.SetPlanState(
                     stream,
                     battleId,
                     tick,
@@ -683,7 +683,7 @@ internal sealed partial class BattleRuntimeTickResolver
         {
             pending.Context.ActorFact.Actor.AttackCharge = System.Math.Max(0, pending.Context.ActorFact.Actor.AttackCharge - 1.0);
             ResetAdvanceFailureState(pending.Context.ActorFact.Actor);
-            SetPlanState(
+            BattlePlanStateEmitter.SetPlanState(
                 stream,
                 battleId,
                 tick,
@@ -702,7 +702,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 targetFact.Actor.HitPoints = System.Math.Max(0, pair.Value);
                 if (targetFact.Actor.HitPoints <= 0)
                 {
-                    SetPlanState(
+                    BattlePlanStateEmitter.SetPlanState(
                         stream,
                         battleId,
                         tick,
@@ -843,7 +843,7 @@ internal sealed partial class BattleRuntimeTickResolver
             candidate.Context.ActorFact.Actor.ReservedGridX = selectedMove.X;
             candidate.Context.ActorFact.Actor.ReservedGridY = selectedMove.Y;
             candidate.Context.ActorFact.Actor.ReservedGridHeight = selectedMove.Height;
-            SetPlanState(
+            BattlePlanStateEmitter.SetPlanState(
                 stream,
                 battleId,
                 tick,
