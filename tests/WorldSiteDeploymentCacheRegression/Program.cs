@@ -63,6 +63,7 @@ WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation 
 WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation drag snaps entity to footprint center", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootBattlePreparationDragSnapsEntityToFootprintCenter);
 WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation drag preview does not reset idle", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootBattlePreparationDragPreviewDoesNotResetIdle);
 WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation uses dedicated ui containers", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootBattlePreparationUsesDedicatedUiContainers);
+WorldSiteDeploymentCacheRegressionCases.Run("presentation ui authoring stays resource backed", WorldSiteDeploymentCacheRegressionCases.PresentationUiAuthoringStaysResourceBacked);
 WorldSiteDeploymentCacheRegressionCases.Run("presentation ui scene paths preserve code bindings", WorldSiteDeploymentCacheRegressionCases.PresentationUiScenePathsPreserveCodeBindings);
 WorldSiteDeploymentCacheRegressionCases.Run("godot text resources do not use utf8 bom", WorldSiteDeploymentCacheRegressionCases.GodotTextResourcesDoNotUseUtf8Bom);
 WorldSiteDeploymentCacheRegressionCases.Run("strategic world map viewport starts after left panel", WorldSiteDeploymentCacheRegressionCases.StrategicWorldMapViewportStartsAfterLeftPanel);
