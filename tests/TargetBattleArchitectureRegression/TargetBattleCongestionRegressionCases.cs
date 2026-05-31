@@ -162,7 +162,7 @@ internal static class TargetBattleCongestionRegressionCases
         return snapshot;
     }
 
-    private static BattleStartSnapshot BuildSameTickAlternateReservationSnapshot()
+    internal static BattleStartSnapshot BuildSameTickAlternateReservationSnapshot()
     {
         BattleStartSnapshot snapshot = new()
         {

@@ -361,7 +361,7 @@ internal static class TargetBattleMovementIntentRegressionCases
         return snapshot;
     }
 
-    private static BattleStartSnapshot BuildSameTickTargetDeathRetargetSnapshot()
+    internal static BattleStartSnapshot BuildSameTickTargetDeathRetargetSnapshot()
     {
         BattleStartSnapshot snapshot = new()
         {
