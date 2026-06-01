@@ -127,7 +127,7 @@ internal sealed partial class BattleRuntimeTickResolver
         return context?.TargetFact?.Actor.ActorId ?? context?.ActorFact.Actor.ObjectiveZoneId ?? "";
     }
 
-    private static bool IsObjectiveReached(BattleRuntimeTickStartActorFact actorFact)
+    internal static bool IsObjectiveReached(BattleRuntimeTickStartActorFact actorFact)
     {
         BattleRuntimeActor actor = actorFact.Actor;
         if (actor?.HasObjectiveAnchor != true)

@@ -187,12 +187,4 @@ internal sealed partial class BattleRuntimeTickResolver
         }
     }
 
-    private static BattleRuntimeTickStartActorFact? FindRegionScopedEnemyCorps(
-        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
-        BattleRuntimeTickStartActorFact actorFact)
-    {
-        return FindImmediateAttackOpportunityEnemyCorps(facts, actorFact) ??
-               FindRetainedEnemyCorps(facts, actorFact, PlannedLocalPerceptionRange) ??
-               FindNearestEnemyCorps(facts, actorFact, PlannedLocalPerceptionRange);
-    }
 }

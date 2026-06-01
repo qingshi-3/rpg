@@ -15,7 +15,6 @@ namespace Rpg.Runtime.Battle;
 internal sealed partial class BattleRuntimeTickResolver
 {
     private const double MaxAttackCharge = 1.0;
-    private const int PlannedLocalPerceptionRange = BattlePerceptionPolicy.DefaultLocalPerceptionRange;
     private const string CommandAssault = "Assault";
     private const string CommandFocusFire = "FocusFire";
     private const string CommandHoldLine = "HoldLine";
@@ -278,14 +277,14 @@ internal sealed partial class BattleRuntimeTickResolver
             ? facts
             : FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
         BattleRuntimeTickStartActorFact? preferredTarget = regionMovementGoal == null
-            ? FindEnemyCorpsForCommand(
+            ? BattleTargetSelectionService.FindEnemyCorpsForCommand(
                 targetFacts,
                 actorFact,
                 navigationGraph,
                 occupancy,
                 flowFields,
                 performanceCounters)
-            : FindRegionScopedEnemyCorps(targetFacts, actorFact);
+            : BattleTargetSelectionService.FindRegionScopedEnemyCorps(targetFacts, actorFact);
         LocalCombatSituation localCombatSituation = preferredTarget == null
             ? null
             : LocalCombatSituationBuilder.Build(
@@ -378,13 +377,13 @@ internal sealed partial class BattleRuntimeTickResolver
             BattleRuntimeActor tickStartActor = BuildTickStartProjection(actorFact);
             BattleRuntimeActor tickStartTarget = BuildTickStartProjection(requestedTarget.Value);
             bool preferSupport = request.Kind == BattleRuntimeAiActionKind.HoldSupport ||
-                                 IsTargetEngagedBySameFactionActor(facts, actorFact, requestedTarget.Value);
+                                 BattleTargetSelectionService.IsTargetEngagedBySameFactionActor(facts, actorFact, requestedTarget.Value);
             // Default assault is attack-opportunity first. Support slots are only
             // a fallback when no attack slot is reachable from the current facts.
             bool preferSupportSlots = request.Kind == BattleRuntimeAiActionKind.HoldSupport ||
                                       preferSupport &&
                                       movementGap > attackRange + 1 &&
-                                      !HasReachableAttackSlot(
+                                      !BattleTargetSelectionService.HasReachableAttackSlot(
                                           tickStartActor,
                                           tickStartTarget,
                                       actorFact.Anchor,
@@ -491,7 +490,7 @@ internal sealed partial class BattleRuntimeTickResolver
         };
     }
 
-    private static BattleRuntimeActor BuildTickStartProjection(BattleRuntimeTickStartActorFact fact)
+    internal static BattleRuntimeActor BuildTickStartProjection(BattleRuntimeTickStartActorFact fact)
     {
         return new BattleRuntimeActor
         {
@@ -567,22 +566,17 @@ internal sealed partial class BattleRuntimeTickResolver
         return BattleActorFootprint.GetOrthogonalGap(first, firstAnchor, second, secondAnchor);
     }
 
-    private static int GetSquareGridDistance(BattleRuntimeTickStartActorFact first, BattleRuntimeTickStartActorFact second)
-    {
-        return BattleActorFootprint.GetGap(first.Actor, first.Anchor, second.Actor, second.Anchor);
-    }
-
     internal static int ResolveAttackDamage(int attackDamage)
     {
         return attackDamage > 0 ? attackDamage : 1;
     }
 
-    private static bool IsFocusFireCommand(string commandId)
+    internal static bool IsFocusFireCommand(string commandId)
     {
         return string.Equals(NormalizeCorpsCommandId(commandId), CommandFocusFire, System.StringComparison.Ordinal);
     }
 
-    private static bool IsHoldLineCommand(string commandId)
+    internal static bool IsHoldLineCommand(string commandId)
     {
         return string.Equals(NormalizeCorpsCommandId(commandId), CommandHoldLine, System.StringComparison.Ordinal);
     }
@@ -603,7 +597,7 @@ internal sealed partial class BattleRuntimeTickResolver
         return CommandAssault;
     }
 
-    private static bool SameFaction(BattleRuntimeActor first, BattleRuntimeActor second)
+    internal static bool SameFaction(BattleRuntimeActor first, BattleRuntimeActor second)
     {
         return string.Equals(
             NormalizeFaction(first?.FactionId),
