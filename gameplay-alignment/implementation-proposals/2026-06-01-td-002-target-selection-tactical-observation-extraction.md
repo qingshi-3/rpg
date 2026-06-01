@@ -493,3 +493,17 @@ One harmless wording fix for the implementer (no plan impact): in slice A's comm
 Decision:
 - **Slices A and B are approved for phased implementation** (A first, then optionally B), each preceded by the focused selection / request-shaping tests listed in the Test Strategy. They are behavior-equivalent extractions guarded by new targeted tests plus the existing event-order goldens.
 - **Slice C is approved as a design** but is an architecture-ownership change. Before any slice C code, it needs an explicit ownership sign-off confirming: the updater becomes the Runtime-owned mutator for engagement / tactical-region store writes; store write APIs stay `internal`; engagement-exit target-lock clearing routes through `BattleTargetLockLifecycle`; and the slice-C goldens (region refresh, temporary region, engagement enter/exit, target-lock clearing, post-attack hold-defense activation) land before the code moves.
+
+## Slice C Ownership Sign-Off (2026-06-01)
+
+The user signed off on the slice-C ownership decision. Approved for implementation under these confirmed ownership rules:
+
+- `BattleTacticalObservationUpdater` becomes the single Runtime-owned mutator for tick-start tactical observation: group perception summary refresh, perception-driven engagement enter/exit transitions, post-attack member-action engagement transitions, local-combat-region refresh, and enemy temporary-target-region refresh.
+- `BattleGroupTacticalStateStore` write methods stay `internal`. The updater lives in the same Runtime assembly and calls them directly; no public tactical-state mutators are added as an extraction shortcut.
+- Engagement-exit target-lock clearing (currently `ClearTargetLocksForEngagementExits`) moves behind a narrow `BattleTargetLockLifecycle` boundary that owns the `actor.TargetActorId = ""` writes for engagement exits only. The engagement state machine returns events/transition facts and must not mutate actors; target selection must not mutate actors. Ordinary target-lock assignment and `target_locked` emission stay in the resolver orchestration layer (a later target-lock lifecycle extraction may revisit that).
+- The updater appends events to the original `BattleEventStream` at the current call sites and in the current order; no event buffering/reordering; nothing writes the stream between TD-003 attack resolution and the post-attack engagement slice except the current attack events.
+
+Execution order (per the design's cut sequence):
+1. Land the slice-C goldens first (region refresh, temporary region, engagement enter/exit, target-lock clearing, post-attack hold-defense activation).
+2. Extract `BattleTacticalObservationUpdater` in small steps, byte-for-byte equivalent, verified per step.
+3. Extend the decomposition guard so the resolver no longer directly calls the four tactical builders / engagement state machine, and no longer contains `CaptureLivingCorpsAndRefreshPerceptionSummaries`, `RefreshEngagedLocalCombatRegions`, `RefreshEnemyTemporaryTargetRegions`, or `ClearTargetLocksForEngagementExits`. That guard marks TD-002 Closed.
