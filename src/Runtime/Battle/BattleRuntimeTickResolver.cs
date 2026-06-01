@@ -295,7 +295,13 @@ internal sealed partial class BattleRuntimeTickResolver
                 occupancy,
                 currentTimeSeconds,
                 localCombatRegion);
-        BattleRuntimeAiActionRequest request = BuildCommandScopedAiActionRequest(actorFact, preferredTarget, localCombatSituation, regionMovementGoal);
+        BattleRuntimeAiActionRequest request = BattleAiActionRequestBuilder.BuildCommandScopedRequest(
+            actorFact,
+            preferredTarget,
+            localCombatSituation,
+            regionMovementGoal,
+            _aiExecutor,
+            RecordAdvanceFailure);
         BattleRuntimeTickStartActorFact? requestedTarget = ResolveRequestedTarget(facts, actorFact, preferredTarget, request);
 
         if (!string.Equals(request.ActorId, actor.ActorId, System.StringComparison.Ordinal))
