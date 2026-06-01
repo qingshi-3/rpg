@@ -17,7 +17,7 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleRuntimeState state)
     {
         int firstAttackEventIndex = stream?.Events?.Count ?? 0;
-        ResolveAttackProposals(contexts, tickStartFacts, stream, battleId, tick, currentTimeSeconds);
+        BattleAttackResolver.Resolve(contexts, tickStartFacts, stream, battleId, tick, currentTimeSeconds);
         BattleEvent[] attackEvents = (stream?.Events ?? System.Array.Empty<BattleEvent>())
             .Skip(firstAttackEventIndex)
             .Where(item => item.Kind == BattleEventKind.DamageApplied)
