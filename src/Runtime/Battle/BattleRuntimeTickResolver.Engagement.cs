@@ -22,28 +22,12 @@ internal sealed partial class BattleRuntimeTickResolver
             .Skip(firstAttackEventIndex)
             .Where(item => item.Kind == BattleEventKind.DamageApplied)
             .ToArray();
-        if (attackEvents.Length == 0 || state?.Actors == null)
-        {
-            return;
-        }
-
-        Dictionary<string, string> actorGroupIds = state.Actors
-            .Where(item => !string.IsNullOrWhiteSpace(item.ActorId) &&
-                           !string.IsNullOrWhiteSpace(item.BattleGroupId))
-            .ToDictionary(
-                item => item.ActorId,
-                item => item.BattleGroupId,
-                System.StringComparer.Ordinal);
-        IReadOnlyList<BattleEvent> engagementEvents = BattleGroupEngagementStateMachine.ApplyMemberActionTransitions(
-            state.TacticalStateStore,
+        BattleTacticalObservationUpdater.ApplyPostAttackEngagementTriggers(
+            state,
             attackEvents,
-            actorGroupIds,
+            stream,
             battleId,
             tick,
             currentTimeSeconds);
-        foreach (BattleEvent engagementEvent in engagementEvents)
-        {
-            stream.Add(engagementEvent);
-        }
     }
 }

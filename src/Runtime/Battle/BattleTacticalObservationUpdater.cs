@@ -6,9 +6,11 @@ using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
-internal sealed partial class BattleRuntimeTickResolver
+internal static class BattleTacticalObservationUpdater
 {
-    private static BattleRuntimeActor[] CaptureLivingCorpsAndRefreshPerceptionSummaries(
+    // Owns the Runtime tactical-observation mutation order while preserving
+    // the existing stream append points.
+    internal static BattleRuntimeActor[] RefreshAtTickStart(
         BattleRuntimeState state,
         BattleEventStream stream,
         string battleId,
@@ -29,7 +31,7 @@ internal sealed partial class BattleRuntimeTickResolver
             battleId,
             tick,
             currentTimeSeconds);
-        ClearTargetLocksForEngagementExits(livingCorps, engagementEvents);
+        BattleTargetLockLifecycle.ClearForEngagementExits(livingCorps, engagementEvents);
         foreach (BattleEvent engagementEvent in engagementEvents)
         {
             stream.Add(engagementEvent);
@@ -38,6 +40,39 @@ internal sealed partial class BattleRuntimeTickResolver
         RefreshEngagedLocalCombatRegions(state, livingCorps, stream, tick);
         RefreshEnemyTemporaryTargetRegions(state, livingCorps, stream, tick);
         return livingCorps;
+    }
+
+    internal static void ApplyPostAttackEngagementTriggers(
+        BattleRuntimeState state,
+        IReadOnlyList<BattleEvent> attackEvents,
+        BattleEventStream stream,
+        string battleId,
+        int tick,
+        double currentTimeSeconds)
+    {
+        if (attackEvents.Count == 0 || state?.Actors == null)
+        {
+            return;
+        }
+
+        Dictionary<string, string> actorGroupIds = state.Actors
+            .Where(item => !string.IsNullOrWhiteSpace(item.ActorId) &&
+                           !string.IsNullOrWhiteSpace(item.BattleGroupId))
+            .ToDictionary(
+                item => item.ActorId,
+                item => item.BattleGroupId,
+                System.StringComparer.Ordinal);
+        IReadOnlyList<BattleEvent> engagementEvents = BattleGroupEngagementStateMachine.ApplyMemberActionTransitions(
+            state.TacticalStateStore,
+            attackEvents,
+            actorGroupIds,
+            battleId,
+            tick,
+            currentTimeSeconds);
+        foreach (BattleEvent engagementEvent in engagementEvents)
+        {
+            stream.Add(engagementEvent);
+        }
     }
 
     private static void RefreshEngagedLocalCombatRegions(
@@ -150,7 +185,7 @@ internal sealed partial class BattleRuntimeTickResolver
     {
         string[] ownerFactions = (livingCorps ?? System.Array.Empty<BattleRuntimeActor>())
             .Where(item => string.Equals(item.BattleGroupId ?? "", ownerBattleGroupId ?? "", System.StringComparison.Ordinal))
-            .Select(item => NormalizeFaction(item.FactionId))
+            .Select(item => BattleRuntimeTickResolver.NormalizeFaction(item.FactionId))
             .Distinct(System.StringComparer.Ordinal)
             .ToArray();
         if (ownerFactions.Length == 0)
@@ -167,33 +202,11 @@ internal sealed partial class BattleRuntimeTickResolver
         return (livingCorps ?? System.Array.Empty<BattleRuntimeActor>())
             .Any(actor => actor != null &&
                           actor.HitPoints > 0 &&
-                          !ownerFactions.Contains(NormalizeFaction(actor.FactionId)) &&
+                          !ownerFactions.Contains(BattleRuntimeTickResolver.NormalizeFaction(actor.FactionId)) &&
                           actor.GridHeight == (region?.CenterCellHeight ?? 0) &&
                           actor.GridX >= minX &&
                           actor.GridX < maxXExclusive &&
                           actor.GridY >= minY &&
                           actor.GridY < maxYExclusive);
-    }
-
-    private static void ClearTargetLocksForEngagementExits(
-        BattleRuntimeActor[] livingCorps,
-        IReadOnlyList<BattleEvent> engagementEvents)
-    {
-        string[] exitedGroups = (engagementEvents ?? System.Array.Empty<BattleEvent>())
-            .Where(item => item.Kind == BattleEventKind.BattleGroupEngagementStateChanged &&
-                           item.ReasonCode == BattleGroupTacticalReasonCode.EngagementExitNoGroupPerception)
-            .Select(item => item.BattleGroupId ?? "")
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Distinct(System.StringComparer.Ordinal)
-            .ToArray();
-        if (exitedGroups.Length == 0)
-        {
-            return;
-        }
-
-        foreach (BattleRuntimeActor actor in livingCorps.Where(actor => exitedGroups.Contains(actor.BattleGroupId ?? "")))
-        {
-            actor.TargetActorId = "";
-        }
     }
 }

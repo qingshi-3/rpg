@@ -72,7 +72,7 @@ internal sealed partial class BattleRuntimeTickResolver
             movementCompletedActorIds.Add(actor.ActorId ?? "");
         }
 
-        BattleRuntimeActor[] livingCorps = CaptureLivingCorpsAndRefreshPerceptionSummaries(state, stream, battleId, tick, currentTimeSeconds);
+        BattleRuntimeActor[] livingCorps = BattleTacticalObservationUpdater.RefreshAtTickStart(state, stream, battleId, tick, currentTimeSeconds);
         if (livingCorps.Length == 0)
         {
             return;
@@ -611,7 +611,7 @@ internal sealed partial class BattleRuntimeTickResolver
             System.StringComparison.Ordinal);
     }
 
-    private static string NormalizeFaction(string factionId)
+    internal static string NormalizeFaction(string factionId)
     {
         return string.IsNullOrWhiteSpace(factionId) ? "player" : factionId.Trim();
     }
