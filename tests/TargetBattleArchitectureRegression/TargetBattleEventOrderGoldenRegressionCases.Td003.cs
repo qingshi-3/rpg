@@ -337,9 +337,10 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
         int damage,
         int attackRange = 1,
         string initialCommandId = "",
-        BattleGroupTacticalMode tacticalMode = BattleGroupTacticalMode.PlayerCommanded)
+        BattleGroupTacticalMode tacticalMode = BattleGroupTacticalMode.PlayerCommanded,
+        BattleTacticalRegionSnapshot initialRegion = null)
     {
-        return new BattleGroupSnapshot
+        BattleGroupSnapshot group = new()
         {
             BattleGroupId = groupId,
             FactionId = factionId,
@@ -361,6 +362,12 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
             InitialCorpsCommandId = initialCommandId,
             TacticalMode = tacticalMode
         };
+        if (initialRegion != null)
+        {
+            group.InitialTacticalRegions.Add(initialRegion);
+        }
+
+        return group;
     }
 
     private static void AddRectSurfaces(BattleStartSnapshot snapshot, int minX, int minY, int maxX, int maxY)
