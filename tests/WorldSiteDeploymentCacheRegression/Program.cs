@@ -64,6 +64,8 @@ WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation 
 WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation drag preview does not reset idle", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootBattlePreparationDragPreviewDoesNotResetIdle);
 WorldSiteDeploymentCacheRegressionCases.Run("world site root battle preparation uses dedicated ui containers", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootBattlePreparationUsesDedicatedUiContainers);
 WorldSiteDeploymentCacheRegressionCases.Run("presentation ui authoring stays resource backed", WorldSiteDeploymentCacheRegressionCases.PresentationUiAuthoringStaysResourceBacked);
+WorldSiteDeploymentCacheRegressionCases.Run("world site root partial set stays below anti-rot line budget", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootPartialSetStaysBelowAntiRotLineBudget);
+WorldSiteDeploymentCacheRegressionCases.Run("presentation does not construct battle runtime session", WorldSiteDeploymentCacheRegressionCases.PresentationDoesNotConstructBattleRuntimeSession);
 WorldSiteDeploymentCacheRegressionCases.Run("presentation ui scene paths preserve code bindings", WorldSiteDeploymentCacheRegressionCases.PresentationUiScenePathsPreserveCodeBindings);
 WorldSiteDeploymentCacheRegressionCases.Run("godot text resources do not use utf8 bom", WorldSiteDeploymentCacheRegressionCases.GodotTextResourcesDoNotUseUtf8Bom);
 WorldSiteDeploymentCacheRegressionCases.Run("strategic world map viewport starts after left panel", WorldSiteDeploymentCacheRegressionCases.StrategicWorldMapViewportStartsAfterLeftPanel);

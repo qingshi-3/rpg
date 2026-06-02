@@ -49,12 +49,11 @@ internal static partial class WorldSiteDeploymentCacheRegressionCases
             "Application",
             "Battle",
             "BattlePerceptionPolicy.cs"));
-        string runtimeSource = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "Runtime",
-            "Battle",
-            "BattleRuntimeTickResolver.cs"));
+        string runtimeSource = string.Join(
+            "\n",
+            Directory.GetFiles(Path.Combine(root, "src", "Runtime", "Battle"), "*.cs", SearchOption.AllDirectories)
+                .OrderBy(path => path)
+                .Select(File.ReadAllText));
 
         AssertTrue(
             policySource.Contains("DefaultLocalPerceptionRange = 4", StringComparison.Ordinal) &&
