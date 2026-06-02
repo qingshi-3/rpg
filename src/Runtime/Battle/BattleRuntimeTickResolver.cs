@@ -42,35 +42,13 @@ internal sealed partial class BattleRuntimeTickResolver
 
         performanceCounters?.BeginRuntimeAdvance();
         performanceCounters?.RecordRuntimeTick();
-        BattleRuntimeActor[] preBoundaryLivingCorps = state.Actors
-            .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
-            .OrderBy(item => item.ActorId, System.StringComparer.Ordinal)
-            .ToArray();
-        BattleDynamicOccupancy occupancy = BattleDynamicOccupancy.FromActors(preBoundaryLivingCorps);
-        HashSet<string> movementCompletedActorIds = new(System.StringComparer.Ordinal);
-        foreach (BattleRuntimeActor actor in state.Actors.Where(item => item.Kind == BattleRuntimeActorKind.Corps))
-        {
-            if (!BattleRuntimeActorStateMachine.AdvanceTimeBoundary(
-                    actor,
-                    currentTimeSeconds,
-                    out BattleGridCoord movementFrom,
-                    out BattleGridCoord movementTo))
-            {
-                continue;
-            }
-
-            stream.Add(BattleRuntimeEventFactory.CreateMovementEvent(
-                BattleEventKind.MovementCompleted,
-                battleId,
-                tick,
-                currentTimeSeconds,
-                actor,
-                actor.TargetActorId ?? "",
-                movementFrom,
-                    movementTo,
-                    "movement_committed"));
-            movementCompletedActorIds.Add(actor.ActorId ?? "");
-        }
+        BattleDynamicOccupancy occupancy = AdvanceMovementBoundaries(
+            state,
+            stream,
+            battleId,
+            tick,
+            currentTimeSeconds,
+            out HashSet<string> movementCompletedActorIds);
 
         BattleRuntimeActor[] livingCorps = BattleTacticalObservationUpdater.RefreshAtTickStart(state, stream, battleId, tick, currentTimeSeconds);
         if (livingCorps.Length == 0)
@@ -114,6 +92,78 @@ internal sealed partial class BattleRuntimeTickResolver
                 navigationFailureDiagnostics,
                 state.TacticalStateStore))
             .ToList();
+        ApplyDecisionOutcomes(contexts, stream, battleId, tick, currentTimeSeconds);
+
+        // Attack resolution still emits damage with RuntimeTimeSeconds = currentTimeSeconds;
+        // the resolver owns the engagement stream slice immediately around that service call.
+        ResolveAttackProposalsAndEngagementTriggers(contexts, tickStartFacts, stream, battleId, tick, currentTimeSeconds, state);
+        long movementResolveStartedAt = Stopwatch.GetTimestamp();
+        int movementEvents = BattleMovementCommitResolver.Resolve(
+            contexts,
+            tickStartFacts,
+            occupancy,
+            stream,
+            battleId,
+            tick,
+            currentTimeSeconds,
+            navigationGraph,
+            navigationFailureDiagnostics,
+            performanceCounters,
+            TryRetargetStaleAdvanceContext);
+        performanceCounters?.RecordMovementResolveElapsedTicks(Stopwatch.GetTimestamp() - movementResolveStartedAt);
+        performanceCounters?.RecordActorsReadyNoMoveLastAdvance(decisionReadyCorps.Length - movementEvents);
+
+        LogTickActionResults(contexts, battleId, tick, currentTimeSeconds);
+    }
+
+    private BattleDynamicOccupancy AdvanceMovementBoundaries(
+        BattleRuntimeState state,
+        BattleEventStream stream,
+        string battleId,
+        int tick,
+        double currentTimeSeconds,
+        out HashSet<string> movementCompletedActorIds)
+    {
+        BattleRuntimeActor[] preBoundaryLivingCorps = state.Actors
+            .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
+            .OrderBy(item => item.ActorId, System.StringComparer.Ordinal)
+            .ToArray();
+        BattleDynamicOccupancy occupancy = BattleDynamicOccupancy.FromActors(preBoundaryLivingCorps);
+        movementCompletedActorIds = new(System.StringComparer.Ordinal);
+        foreach (BattleRuntimeActor actor in state.Actors.Where(item => item.Kind == BattleRuntimeActorKind.Corps))
+        {
+            if (!BattleRuntimeActorStateMachine.AdvanceTimeBoundary(
+                    actor,
+                    currentTimeSeconds,
+                    out BattleGridCoord movementFrom,
+                    out BattleGridCoord movementTo))
+            {
+                continue;
+            }
+
+            stream.Add(BattleRuntimeEventFactory.CreateMovementEvent(
+                BattleEventKind.MovementCompleted,
+                battleId,
+                tick,
+                currentTimeSeconds,
+                actor,
+                actor.TargetActorId ?? "",
+                movementFrom,
+                    movementTo,
+                    "movement_committed"));
+            movementCompletedActorIds.Add(actor.ActorId ?? "");
+        }
+
+        return occupancy;
+    }
+
+    private void ApplyDecisionOutcomes(
+        List<BattleRuntimeTickContext> contexts,
+        BattleEventStream stream,
+        string battleId,
+        int tick,
+        double currentTimeSeconds)
+    {
         foreach (BattleRuntimeTickContext context in contexts)
         {
             if (context.Request.Kind == BattleRuntimeAiActionKind.Hold)
@@ -219,26 +269,14 @@ internal sealed partial class BattleRuntimeTickResolver
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "unsupported_action");
             }
         }
+    }
 
-        // Attack resolution still emits damage with RuntimeTimeSeconds = currentTimeSeconds;
-        // the resolver owns the engagement stream slice immediately around that service call.
-        ResolveAttackProposalsAndEngagementTriggers(contexts, tickStartFacts, stream, battleId, tick, currentTimeSeconds, state);
-        long movementResolveStartedAt = Stopwatch.GetTimestamp();
-        int movementEvents = BattleMovementCommitResolver.Resolve(
-            contexts,
-            tickStartFacts,
-            occupancy,
-            stream,
-            battleId,
-            tick,
-            currentTimeSeconds,
-            navigationGraph,
-            navigationFailureDiagnostics,
-            performanceCounters,
-            TryRetargetStaleAdvanceContext);
-        performanceCounters?.RecordMovementResolveElapsedTicks(Stopwatch.GetTimestamp() - movementResolveStartedAt);
-        performanceCounters?.RecordActorsReadyNoMoveLastAdvance(decisionReadyCorps.Length - movementEvents);
-
+    private void LogTickActionResults(
+        List<BattleRuntimeTickContext> contexts,
+        string battleId,
+        int tick,
+        double currentTimeSeconds)
+    {
         foreach (BattleRuntimeTickContext context in contexts.OrderBy(item => item.ActorFact.Actor.ActorId, System.StringComparer.Ordinal))
         {
             if (context.Result == null)
