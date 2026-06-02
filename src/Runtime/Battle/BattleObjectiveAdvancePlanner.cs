@@ -1,16 +1,14 @@
 using System.Collections.Generic;
 using Rpg.Infrastructure.Diagnostics;
-using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.AI;
-using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
-internal sealed partial class BattleRuntimeTickResolver
+internal static class BattleObjectiveAdvancePlanner
 {
-    private static BattleRuntimeTickContext BuildObjectiveAdvanceContext(
+    internal static BattleRuntimeTickContext BuildObjectiveAdvanceContext(
         BattleRuntimeAiActionRequest request,
         BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
@@ -22,10 +20,10 @@ internal sealed partial class BattleRuntimeTickResolver
     {
         if (!actorFact.Actor.HasObjectiveAnchor)
         {
-            return CreateContext(request, actorFact, null, false, default, "objective_missing");
+            return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "objective_missing");
         }
 
-        BattleRuntimeActor tickStartActor = BuildTickStartProjection(actorFact);
+        BattleRuntimeActor tickStartActor = BattleRuntimeTickResolver.BuildTickStartProjection(actorFact);
         IReadOnlyList<BattleGridCoord> moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardObjective(
             tickStartActor,
             navigationGraph,
@@ -35,16 +33,16 @@ internal sealed partial class BattleRuntimeTickResolver
             performanceCounters);
         if (moveOptions.Count == 0)
         {
-            LogObjectiveAdvanceFailureDiagnostic(
+            BattleRuntimeAdvanceDiagnostics.LogObjectiveAdvanceFailureDiagnostic(
                 battleId,
                 tick,
                 actorFact,
                 navigationGraph,
                 "objective_path_not_found");
-            return CreateContext(request, actorFact, null, false, default, "objective_path_not_found");
+            return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "objective_path_not_found");
         }
 
-        return CreateContext(
+        return BattleRuntimeTickResolver.CreateContext(
             request,
             actorFact,
             null,
@@ -54,7 +52,7 @@ internal sealed partial class BattleRuntimeTickResolver
             moveOptions: moveOptions);
     }
 
-    private static BattleRuntimeTickContext BuildRegionAdvanceContext(
+    internal static BattleRuntimeTickContext BuildRegionAdvanceContext(
         BattleRuntimeAiActionRequest request,
         BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
@@ -67,10 +65,10 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleRegionMovementGoal goal = request?.RegionMovementGoal;
         if (goal == null || string.IsNullOrWhiteSpace(goal.RegionId))
         {
-            return CreateContext(request, actorFact, null, false, default, "region_missing");
+            return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "region_missing");
         }
 
-        BattleRuntimeActor projectedActor = BuildTickStartProjection(actorFact);
+        BattleRuntimeActor projectedActor = BattleRuntimeTickResolver.BuildTickStartProjection(actorFact);
         projectedActor.HasObjectiveAnchor = true;
         projectedActor.ObjectiveZoneId = goal.RegionId;
         projectedActor.ObjectiveGridX = goal.CenterCellX;
@@ -88,16 +86,16 @@ internal sealed partial class BattleRuntimeTickResolver
             performanceCounters);
         if (moveOptions.Count == 0)
         {
-            LogObjectiveAdvanceFailureDiagnostic(
+            BattleRuntimeAdvanceDiagnostics.LogObjectiveAdvanceFailureDiagnostic(
                 battleId,
                 tick,
                 actorFact,
                 navigationGraph,
                 "region_path_not_found");
-            return CreateContext(request, actorFact, null, false, default, "region_path_not_found", regionMovementGoal: goal);
+            return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "region_path_not_found", regionMovementGoal: goal);
         }
 
-        return CreateContext(
+        return BattleRuntimeTickResolver.CreateContext(
             request,
             actorFact,
             null,
@@ -150,17 +148,4 @@ internal sealed partial class BattleRuntimeTickResolver
             objective,
             GetObjectiveAnchor(actor)) <= 1;
     }
-
-    private static void LogObjectiveAdvanceFailureDiagnostic(
-        string battleId,
-        int tick,
-        BattleRuntimeTickStartActorFact actorFact,
-        BattleNavigationGraph navigationGraph,
-        string failureReason)
-    {
-        GameLog.Warn(
-            nameof(BattleRuntimeTickResolver),
-            $"BattleRuntimeObjectiveAdvanceDiagnostic battle={battleId ?? ""} tick={tick} actor={actorFact.Actor.ActorId} objective={actorFact.Actor.ObjectiveZoneId} reason={failureReason ?? "objective_advance_failed"} actorCell={actorFact.Anchor.X},{actorFact.Anchor.Y},{actorFact.Anchor.Height} objectiveCell={actorFact.Actor.ObjectiveGridX},{actorFact.Actor.ObjectiveGridY},{actorFact.Actor.ObjectiveGridHeight} graph={navigationGraph?.DescribeTopology() ?? "missing"}");
-    }
-
 }

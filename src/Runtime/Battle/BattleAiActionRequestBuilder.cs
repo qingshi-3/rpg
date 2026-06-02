@@ -43,7 +43,7 @@ internal static class BattleAiActionRequestBuilder
 
         if (actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst &&
             actorFact.Actor.HasObjectiveAnchor &&
-            !BattleRuntimeTickResolver.IsObjectiveReached(actorFact) &&
+            !BattleObjectiveAdvancePlanner.IsObjectiveReached(actorFact) &&
             (targetFact == null ||
              BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
         {
@@ -58,7 +58,7 @@ internal static class BattleAiActionRequestBuilder
 
         if (targetFact == null &&
             actorFact.Actor.HasObjectiveAnchor &&
-            !BattleRuntimeTickResolver.IsObjectiveReached(actorFact))
+            !BattleObjectiveAdvancePlanner.IsObjectiveReached(actorFact))
         {
             return BattleRuntimeAiActionRequest.AdvanceTowardObjective(actorFact.Actor.ActorId);
         }

@@ -31,7 +31,7 @@ internal static class BattleCombatSlotAllocator
             scannedAnchors++;
             // Engaged local combat may narrow legal slot goals to the group's
             // Runtime-owned local region; topology remains the final movement authority.
-            if (!IsInsideLocalCombatRegion(anchor, localCombatRegion))
+            if (!IsAnchorInsideLocalCombatRegion(anchor, localCombatRegion))
             {
                 continue;
             }
@@ -96,7 +96,7 @@ internal static class BattleCombatSlotAllocator
         return graph.GetAnchorsInBounds(minX, maxX, minY, maxY);
     }
 
-    private static bool IsInsideLocalCombatRegion(
+    private static bool IsAnchorInsideLocalCombatRegion(
         BattleGridCoord anchor,
         BattleTacticalRegionSnapshot localCombatRegion)
     {

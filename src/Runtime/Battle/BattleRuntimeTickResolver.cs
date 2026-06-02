@@ -271,11 +271,11 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleGroupTacticalStateStore tacticalStateStore)
     {
         BattleRuntimeTickStartActorFact actorFact = facts[actor.ActorId];
-        BattleRegionMovementGoal regionMovementGoal = ResolveRegionMovementGoal(actorFact, tacticalStateStore);
-        BattleTacticalRegionSnapshot localCombatRegion = ResolveEngagedLocalCombatRegion(actorFact, tacticalStateStore);
+        BattleRegionMovementGoal regionMovementGoal = BattleLocalCombatRegionResolver.ResolveRegionMovementGoal(actorFact, tacticalStateStore);
+        BattleTacticalRegionSnapshot localCombatRegion = BattleLocalCombatRegionResolver.ResolveEngagedLocalCombatRegion(actorFact, tacticalStateStore);
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> targetFacts = localCombatRegion == null
             ? facts
-            : FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
+            : BattleLocalCombatRegionResolver.FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
         BattleRuntimeTickStartActorFact? preferredTarget = regionMovementGoal == null
             ? BattleTargetSelectionService.FindEnemyCorpsForCommand(
                 targetFacts,
@@ -324,7 +324,7 @@ internal sealed partial class BattleRuntimeTickResolver
 
         if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion)
         {
-            return BuildRegionAdvanceContext(
+            return BattleObjectiveAdvancePlanner.BuildRegionAdvanceContext(
                 request,
                 actorFact,
                 navigationGraph,
@@ -337,7 +337,7 @@ internal sealed partial class BattleRuntimeTickResolver
 
         if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective)
         {
-            return BuildObjectiveAdvanceContext(
+            return BattleObjectiveAdvancePlanner.BuildObjectiveAdvanceContext(
                 request,
                 actorFact,
                 navigationGraph,
@@ -412,7 +412,7 @@ internal sealed partial class BattleRuntimeTickResolver
                     localCombatRegion);
             if (moveOptions.Count == 0)
             {
-                LogAdvanceFailureDiagnostic(
+                BattleRuntimeAdvanceDiagnostics.LogAdvanceFailureDiagnostic(
                     battleId,
                     tick,
                     actorFact,
@@ -461,7 +461,7 @@ internal sealed partial class BattleRuntimeTickResolver
             localCombatSituation: localCombatSituation);
     }
 
-    private static BattleRuntimeTickContext CreateContext(
+    internal static BattleRuntimeTickContext CreateContext(
         BattleRuntimeAiActionRequest request,
         BattleRuntimeTickStartActorFact actorFact,
         BattleRuntimeTickStartActorFact? targetFact,

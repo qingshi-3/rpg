@@ -42,7 +42,7 @@ internal static class BattleTargetSelectionService
 
         if (actorFact.Actor.HasObjectiveAnchor)
         {
-            if (BattleRuntimeTickResolver.IsObjectiveReached(actorFact))
+            if (BattleObjectiveAdvancePlanner.IsObjectiveReached(actorFact))
             {
                 // Objective zones are rally/approach intent, not a final idle
                 // command. Once the group has reached the zone, normal contact

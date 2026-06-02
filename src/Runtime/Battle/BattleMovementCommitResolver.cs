@@ -116,7 +116,7 @@ internal static class BattleMovementCommitResolver
                          item.Context.ActorFact.Actor,
                          item.Context.ActorFact.Anchor,
                          item.Context.TargetFact?.Actor ?? item.Context.ActorFact.Actor,
-                         item.Context.TargetFact?.Anchor ?? BattleRuntimeTickResolver.GetObjectiveAnchor(item.Context.ActorFact.Actor)))
+                         item.Context.TargetFact?.Anchor ?? BattleObjectiveAdvancePlanner.GetObjectiveAnchor(item.Context.ActorFact.Actor)))
                      .ThenBy(item => item.From.Height)
                      .ThenBy(item => item.From.Y)
                      .ThenBy(item => item.From.X)
@@ -143,7 +143,7 @@ internal static class BattleMovementCommitResolver
                 BattleRuntimeTickResolver.RecordAdvanceFailure(candidate.Context.ActorFact.Actor, "reservation_rejected");
                 performanceCounters?.RecordHoldDueReservation();
                 BattleRuntimeActorStateMachine.MarkHolding(candidate.Context.ActorFact.Actor, currentTimeSeconds);
-                BattleRuntimeTickResolver.LogAdvanceFailureDiagnostic(
+                BattleRuntimeAdvanceDiagnostics.LogAdvanceFailureDiagnostic(
                     battleId,
                     tick,
                     candidate.Context.ActorFact,
@@ -186,7 +186,7 @@ internal static class BattleMovementCommitResolver
                 tick,
                 currentTimeSeconds,
                 candidate.Context.ActorFact.Actor,
-                BattleRuntimeTickResolver.ResolveMovementEventTargetId(candidate.Context),
+                BattleObjectiveAdvancePlanner.ResolveMovementEventTargetId(candidate.Context),
                 candidate.From,
                 selectedMove,
                 !string.IsNullOrWhiteSpace(candidate.Context.Proposal.MovementReasonCode)

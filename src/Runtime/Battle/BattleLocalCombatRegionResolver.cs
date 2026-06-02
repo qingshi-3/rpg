@@ -4,9 +4,9 @@ using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
-internal sealed partial class BattleRuntimeTickResolver
+internal static class BattleLocalCombatRegionResolver
 {
-    private static BattleTacticalRegionSnapshot ResolveEngagedLocalCombatRegion(
+    internal static BattleTacticalRegionSnapshot ResolveEngagedLocalCombatRegion(
         BattleRuntimeTickStartActorFact actorFact,
         BattleGroupTacticalStateStore tacticalStateStore)
     {
@@ -28,7 +28,7 @@ internal sealed partial class BattleRuntimeTickResolver
         }
     }
 
-    private static IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> FilterFactsToLocalCombatRegion(
+    internal static IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> FilterFactsToLocalCombatRegion(
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleRuntimeTickStartActorFact actorFact,
         BattleTacticalRegionSnapshot localCombatRegion)
@@ -37,7 +37,7 @@ internal sealed partial class BattleRuntimeTickResolver
         foreach (BattleRuntimeTickStartActorFact fact in facts?.Values ?? System.Array.Empty<BattleRuntimeTickStartActorFact>())
         {
             if (string.Equals(fact.Actor.ActorId ?? "", actorFact.Actor.ActorId ?? "", System.StringComparison.Ordinal) ||
-                SameFaction(fact.Actor, actorFact.Actor) ||
+                BattleRuntimeTickResolver.SameFaction(fact.Actor, actorFact.Actor) ||
                 IsInsideLocalCombatRegion(fact, localCombatRegion))
             {
                 filtered[fact.Actor.ActorId ?? ""] = fact;
@@ -47,7 +47,7 @@ internal sealed partial class BattleRuntimeTickResolver
         return filtered;
     }
 
-    private static bool IsInsideLocalCombatRegion(
+    internal static bool IsInsideLocalCombatRegion(
         BattleRuntimeTickStartActorFact fact,
         BattleTacticalRegionSnapshot localCombatRegion)
     {
@@ -67,7 +67,7 @@ internal sealed partial class BattleRuntimeTickResolver
                fact.Actor.GridY < minY + height;
     }
 
-    private static BattleRegionMovementGoal ResolveRegionMovementGoal(
+    internal static BattleRegionMovementGoal ResolveRegionMovementGoal(
         BattleRuntimeTickStartActorFact actorFact,
         BattleGroupTacticalStateStore tacticalStateStore)
     {
@@ -86,5 +86,4 @@ internal sealed partial class BattleRuntimeTickResolver
             return null;
         }
     }
-
 }
