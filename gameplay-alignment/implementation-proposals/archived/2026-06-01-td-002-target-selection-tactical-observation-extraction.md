@@ -1,6 +1,6 @@
 # TD-002 Target Selection, Tactical Observation, And Engagement Extraction
 
-Status: Reviewed - slices A/B approved for phased implementation; slice C approved as design but requires explicit ownership sign-off before coding (reviewer: Claude, 2026-06-01)
+Status: Accepted - implemented and Closed (slices A/B/C all landed byte-for-byte; slice C ownership signed off; TD-002 Closed in tech-debt-register; archived 2026-06-01)
 
 ## Requirement / Authority
 
@@ -507,3 +507,18 @@ Execution order (per the design's cut sequence):
 1. Land the slice-C goldens first (region refresh, temporary region, engagement enter/exit, target-lock clearing, post-attack hold-defense activation).
 2. Extract `BattleTacticalObservationUpdater` in small steps, byte-for-byte equivalent, verified per step.
 3. Extend the decomposition guard so the resolver no longer directly calls the four tactical builders / engagement state machine, and no longer contains `CaptureLivingCorpsAndRefreshPerceptionSummaries`, `RefreshEngagedLocalCombatRegions`, `RefreshEnemyTemporaryTargetRegions`, or `ClearTargetLocksForEngagementExits`. That guard marks TD-002 Closed.
+
+## Implementation Evidence (Closed 2026-06-01)
+
+Implemented in slices, each byte-for-byte equivalent, verified per slice by sub-agent review plus reviewer-run build + regression. Slice C ownership was signed off before coding (see Slice C Ownership Sign-Off above).
+
+- `0aecd101` slice A safety net — 4 target-selection regression tests (fastest-assault, plan-scoped, route-blocking, retained-target).
+- `d6fee859` slice A — extract `BattleTargetSelectionService` (12 selection methods + closure helpers).
+- `caedbaa7` slice B — extract `BattleAiActionRequestBuilder` (AI executor parameterized; advance-failure via explicit callback).
+- `bc955b8d` slice C goldens — region refresh, temporary region, engagement enter/exit, target-lock clearing, post-attack hold-defense activation.
+- `f1dfa16c` slice C — extract `BattleTacticalObservationUpdater` (single Runtime-owned tactical-observation mutator) + `BattleTargetLockLifecycle` (engagement-exit lock clearing).
+- `81a3e235` — decomposition guard extended with TD-002 assertions (blocks regrowth by literal revert and by new-name re-implementation); marks TD-002 Closed.
+- `527f4247` — TD-002 marked Closed in `gameplay-alignment/tech-debt-register.md`.
+- Follow-up `f90ffd90` — fixed a stale source-scan test (perception policy reference moved out of the resolver by slice A); behavior unchanged.
+
+Final state: target selection, AI request shaping, and tactical observation/engagement all extracted; tactical-store writes stay `internal`; the engagement state machine no longer mutates `TargetActorId`; TD-003 invariants (firstAttackEventIndex slice, attack-before-movement) preserved.

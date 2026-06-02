@@ -1,6 +1,6 @@
 # TD-003 Attack And Movement Resolver Extraction
 
-Status: Reviewed - approved for phased implementation (reviewer: Claude, 2026-06-01)
+Status: Accepted - implemented and Closed (all slices landed byte-for-byte; TD-003 Closed in tech-debt-register; archived 2026-06-01)
 
 ## Requirement / Authority
 
@@ -384,3 +384,19 @@ Approved with one implementation note that the design's wording under-specifies:
 - The "phase/timing mutation stays behind `BattleRuntimeActorStateMachine`" rule covers phase/motion/timing/recovery/holding/defeated fields only. Two writes already bypass the state machine in the extracted scope and must move WITH their service, not be forced behind the state machine: reserved-cell fields (`HasReservedGridCell`/`ReservedGridX/Y/Height`, `:828-831`) belong to `BattleMovementCommitResolver`; `TargetActorId` (`Retargeting.cs:56`) is written by the retarget callback. The design already lists "set live actor reservation fields" as a movement-service authority, so this is consistent — but the implementer must not be misled by the "only via state machine" phrasing into routing these through the state machine.
 
 Decision: proceed to implementation following the Suggested Cut Sequence. Start with widening the golden net (multi-defeat dictionary order, retarget order, attack-stream-slice), then the mechanical shared-DTO slice, then `BattleMovementCommitResolver`, then `BattleAttackResolver`. Each slice is independently verified (build + regression + golden) and reverted on any equivalence failure.
+
+## Implementation Evidence (Closed 2026-06-01)
+
+Implemented in slices, each byte-for-byte equivalent, verified per slice by sub-agent static review plus reviewer-run build + regression:
+
+- `b7dabf69` slice 1 — extract `BattlePlanStateEmitter`.
+- `308730b0` — event-order golden safety net.
+- `c1bc7245` slice 2 — `BattleRuntimeEventFactory` (event construction).
+- `59b26d33` — widen the golden net (multi-defeat, retarget, attack-stream-slice, reservation tiebreak, failed-attack).
+- `b693dbc4` slice 3 — promote shared tick DTOs (`BattleRuntimeTickStartActorFact` / `BattleRuntimeTickContext`).
+- `d506c818` slice 4 — `BattleMovementCommitResolver` (retarget via `TryRetargetStaleAdvanceContextCallback`).
+- `90637e90` slice 5 — `BattleAttackResolver` (engagement slice kept in resolver).
+- `6f75c44d` — `TargetBattleTickResolverDecompositionGuard` blocks regrowth.
+- `bd7a8a82` — TD-003 marked Closed in `gameplay-alignment/tech-debt-register.md`.
+
+Final state: `BattleRuntimeTickResolver` is orchestration-only for attack/movement; the `firstAttackEventIndex` slice and attack-before-movement order are preserved; all goldens + decomposition guard green.
