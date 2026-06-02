@@ -15,7 +15,7 @@ using Rpg.Runtime.Battle.Results;
 Environment.SetEnvironmentVariable("RPG_GAMELOG_DIR", Path.Combine(Path.GetTempPath(), "rpg-test-logs"));
 TargetBattleGroupTacticalRegionRegressionCases.Register(Run);
 Run("corps strength clamps and visible soldiers are derived", CorpsStrengthClampsAndVisibleSoldiersAreDerived);
-Run("runtime source stays isolated from domain and presentation owners", RuntimeSourceStaysIsolated); Run("runtime tick resolver delegates attack and movement mutation to services", TargetBattleTickResolverDecompositionGuard.RuntimeTickResolverDelegatesAttackAndMovementMutationToServices);
+Run("runtime source stays isolated from domain and presentation owners", RuntimeSourceStaysIsolated); Run("runtime tick resolver stays slim after TD-001 decomposition", TargetBattleTickResolverDecompositionGuard.RuntimeTickResolverStaysSlimAfterTd001Decomposition); Run("runtime tick resolver delegates attack and movement mutation to services", TargetBattleTickResolverDecompositionGuard.RuntimeTickResolverDelegatesAttackAndMovementMutationToServices);
 Run("oversized code files are tracked and no new ones are introduced", OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced);
 Run("runtime owns stable in-memory actor state", RuntimeOwnsStableInMemoryActorState);
 Run("runtime auto battle resolves opposing factions from actor state", RuntimeAutoBattleResolvesOpposingFactionsFromActorState);
