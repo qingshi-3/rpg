@@ -124,14 +124,16 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
             "battle_td002_engagement_exit_target_lock_golden:tick_1:td002_enemy_exit:1:move_complete",
             "battle_td002_engagement_exit_target_lock_golden:tick_1:td002_enemy_keep:1:move_complete",
             "battle_td002_engagement_exit_target_lock_golden:tick_1:group_td002_enemy_exit:engagement:engagement_exit_no_group_perception",
-            "battle_td002_engagement_exit_target_lock_golden:group_td002_enemy_keep:group_td002_enemy_keep:local:11:0:tick_1:local_region_built_perception_single:4"
+            "battle_td002_engagement_exit_target_lock_golden:group_td002_enemy_keep:group_td002_enemy_keep:local:11:0:tick_1:local_region_built_perception_single:4",
+            "battle_td002_engagement_exit_target_lock_golden:tick_1:td002_enemy_keep:1:move_start"
         };
         string[] expectedStableProjection =
         {
             "1:MovementCompleted:td002_enemy_exit:1->td002_player_exit:1:movement_committed",
             "1:MovementCompleted:td002_enemy_keep:1->td002_player_keep:1:movement_committed",
             "1:BattleGroupEngagementStateChanged:->:engagement_exit_no_group_perception",
-            "-1:BattleGroupLocalCombatRegionChanged:->:local_region_built_perception_single"
+            "-1:BattleGroupLocalCombatRegionChanged:->:local_region_built_perception_single",
+            "1:MovementStarted:td002_enemy_keep:1->td002_player_keep:1:join_recent_damage"
         };
 
         AssertSequence(expectedEventIds, exitTick.Events.Select(item => item.EventId).ToArray(), "td002 engagement exit target lock event id order golden");

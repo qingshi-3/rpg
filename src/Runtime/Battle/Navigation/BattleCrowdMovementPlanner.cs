@@ -83,6 +83,7 @@ internal static class BattleCrowdMovementPlanner
         {
             if (!BattlePathStepRules.CanUseStaticStep(actor, start, neighbor, graph) ||
                 !reservations.CanReserveMove(actor, start, neighbor, occupancy) ||
+                IsImmediateReverseOfPreviousCombatStep(actor, start, neighbor) ||
                 !field.TryGetCost(neighbor, out int neighborCost) ||
                 neighborCost >= startCost)
             {
@@ -100,10 +101,106 @@ internal static class BattleCrowdMovementPlanner
             options.Add(option);
         }
 
-        return options
+        BattleGridCoord[] ordered = options
             .OrderBy(item => item, MoveOptionComparer.Instance)
             .Select(item => item.Anchor)
             .ToArray();
+        if (ordered.Length > 0)
+        {
+            return ordered;
+        }
+
+        // Combat ingress sometimes needs one temporary detour when live
+        // footprints occupy every step that directly lowers the shared flow
+        // cost. This remains a fallback; shared flow fields are still the
+        // normal battle navigation authority.
+        if (localCombatRegion == null)
+        {
+            return System.Array.Empty<BattleGridCoord>();
+        }
+
+        return BattlePathfinder.TryFindNextStepTowardAttackRange(
+            actor,
+            target,
+            graph,
+            occupancy,
+            reservations,
+            preferSupportWhenFirstStepMovesAway: false,
+            out BattleGridCoord detourStep,
+            localCombatRegion)
+            && !IsImmediateReverseOfPreviousCombatStep(actor, start, detourStep)
+            ? new[] { detourStep }
+            : System.Array.Empty<BattleGridCoord>();
+    }
+
+    public static IReadOnlyList<BattleGridCoord> FindNextStepCandidatesTowardCombatSlot(
+        BattleRuntimeActor actor,
+        BattleGridCoord combatSlotAnchor,
+        BattleCombatSlotKind combatSlotKind,
+        BattleNavigationGraph graph,
+        BattleDynamicOccupancy occupancy,
+        BattleMovementReservationMap reservations,
+        BattlePerformanceCounters performanceCounters = null,
+        BattleTacticalRegionSnapshot localCombatRegion = null)
+    {
+        if (actor == null || graph == null || occupancy == null || reservations == null)
+        {
+            return new List<BattleGridCoord>();
+        }
+
+        BattleGridCoord start = new(actor.GridX, actor.GridY, actor.GridHeight);
+        if (!graph.Contains(start) || start == combatSlotAnchor)
+        {
+            return new List<BattleGridCoord>();
+        }
+
+        BattleCombatSlot goal = new(combatSlotAnchor, combatSlotKind, 0, 0);
+        BattleFlowField field = BattleFlowFieldBuilder.BuildFromGoalSlots(
+            actor,
+            graph,
+            new[] { goal },
+            performanceCounters);
+        if (!field.HasCosts || !field.TryGetCost(start, out int startCost))
+        {
+            return new List<BattleGridCoord>();
+        }
+
+        List<MoveOption> options = new();
+        foreach (BattleGridCoord neighbor in graph.GetNeighbors(start))
+        {
+            if (!BattlePathStepRules.CanUseStaticStep(actor, start, neighbor, graph) ||
+                !reservations.CanReserveMove(actor, start, neighbor, occupancy) ||
+                IsImmediateReverseOfPreviousCombatStep(actor, start, neighbor) ||
+                !field.TryGetCost(neighbor, out int neighborCost) ||
+                neighborCost >= startCost)
+            {
+                continue;
+            }
+
+            int score = neighborCost * FlowCostWeight + GetStepCost(start, neighbor);
+            options.Add(new MoveOption(neighbor, score, neighborCost));
+        }
+
+        BattleGridCoord[] ordered = options
+            .OrderBy(item => item, MoveOptionComparer.Instance)
+            .Select(item => item.Anchor)
+            .ToArray();
+        if (ordered.Length > 0)
+        {
+            return ordered;
+        }
+
+        return BattlePathfinder.TryFindNextStepTowardAnchor(
+            actor,
+            combatSlotAnchor,
+            graph,
+            occupancy,
+            reservations,
+            out BattleGridCoord detourStep,
+            localCombatRegion)
+            && !IsImmediateReverseOfPreviousCombatStep(actor, start, detourStep)
+            ? new[] { detourStep }
+            : System.Array.Empty<BattleGridCoord>();
     }
 
     public static IReadOnlyList<BattleGridCoord> FindNextStepCandidatesTowardObjective(
@@ -190,6 +287,36 @@ internal static class BattleCrowdMovementPlanner
         return from.X != to.X && from.Y != to.Y
             ? BattlePathCostPolicy.DiagonalStepCost
             : BattlePathCostPolicy.StepCost;
+    }
+
+    private static bool IsImmediateReverseOfPreviousCombatStep(
+        BattleRuntimeActor actor,
+        BattleGridCoord start,
+        BattleGridCoord candidate)
+    {
+        if (actor == null)
+        {
+            return false;
+        }
+
+        BattleGridCoord previousFrom = new(
+            actor.MovementFromGridX,
+            actor.MovementFromGridY,
+            actor.MovementFromGridHeight);
+        BattleGridCoord previousTo = new(
+            actor.MovementToGridX,
+            actor.MovementToGridY,
+            actor.MovementToGridHeight);
+        if (previousFrom == previousTo)
+        {
+            return false;
+        }
+
+        // A combat-slot segment that immediately undoes the last committed
+        // combat-slot segment is not progress. Reject it here and let local
+        // combat either keep the current slot, choose another slot, or report
+        // the blocked state explicitly.
+        return previousTo == start && previousFrom == candidate;
     }
 
     private readonly record struct MoveOption(BattleGridCoord Anchor, int Score, int FlowCost);

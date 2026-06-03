@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.Navigation;
+using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
@@ -21,7 +22,7 @@ internal static class BattleRuntimeAdvanceDiagnostics
             ? $"{actorFact.Actor.ObjectiveGridX},{actorFact.Actor.ObjectiveGridY},{actorFact.Actor.ObjectiveGridHeight}"
             : $"{targetFact.Value.Anchor.X},{targetFact.Value.Anchor.Y},{targetFact.Value.Anchor.Height}";
         string reason = string.IsNullOrWhiteSpace(failureReason) ? "advance_failed" : failureReason;
-        string attempted = string.Equals(reason, "path_not_found", System.StringComparison.Ordinal)
+        string attempted = IsNoAttemptReason(reason)
             ? "none"
             : attemptedNext.ToString();
         string targetId = targetFact?.Actor.ActorId ?? actorFact.Actor.ObjectiveZoneId ?? "";
@@ -37,6 +38,12 @@ internal static class BattleRuntimeAdvanceDiagnostics
         GameLog.Warn(
             nameof(BattleRuntimeTickResolver),
             $"BattleRuntimeAdvanceDiagnostic battle={battleId ?? ""} tick={tick} actor={actorFact.Actor.ActorId} target={targetId} reason={reason} actorCell={actorCell} targetCell={targetCell} attemptedNext={attempted} {reachability}");
+    }
+
+    private static bool IsNoAttemptReason(string reason)
+    {
+        return string.Equals(reason, "path_not_found", System.StringComparison.Ordinal) ||
+               string.Equals(reason, LocalCombatDecisionReason.RejectNoReachableSlot, System.StringComparison.Ordinal);
     }
 
     internal static void LogObjectiveAdvanceFailureDiagnostic(

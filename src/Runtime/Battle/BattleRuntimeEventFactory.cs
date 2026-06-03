@@ -1,3 +1,4 @@
+using Rpg.Application.Battle;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
 
@@ -67,7 +68,7 @@ internal static class BattleRuntimeEventFactory
             ReasonCode = reasonCode,
             RuntimeTick = tick,
             RuntimeTimeSeconds = currentTimeSeconds,
-            ActionDurationSeconds = actor.MoveStepSeconds,
+            ActionDurationSeconds = ResolveMovementEventDuration(actor),
             HasMovementCells = true,
             FromGridX = from.X,
             FromGridY = from.Y,
@@ -78,5 +79,17 @@ internal static class BattleRuntimeEventFactory
         };
 
         return movementEvent;
+    }
+
+    private static double ResolveMovementEventDuration(BattleRuntimeActor actor)
+    {
+        if (actor?.MovementDurationSeconds > 0)
+        {
+            return actor.MovementDurationSeconds;
+        }
+
+        return BattleActionTimingPolicy.NormalizeMoveStepSeconds(
+            actor?.MoveStepSeconds ?? BattleActionTimingPolicy.DefaultMoveStepSeconds,
+            BattleActionTimingPolicy.DefaultMoveStepSeconds);
     }
 }

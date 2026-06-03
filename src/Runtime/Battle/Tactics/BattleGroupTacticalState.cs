@@ -6,6 +6,7 @@ public sealed class BattleGroupTacticalState
 {
     public string BattleGroupId { get; set; } = "";
     public BattleGroupTacticalMode TacticalMode { get; set; } = BattleGroupTacticalMode.PlayerCommanded;
+    public bool AllowPlayerScopedEngagement { get; set; }
     public BattleGroupEngagementState EngagementState { get; set; } = BattleGroupEngagementState.NotEngaged;
     public BattleTacticalRegionSnapshot SelectedRegion { get; set; }
     public BattleTacticalRegionSnapshot LocalCombatRegion { get; set; }

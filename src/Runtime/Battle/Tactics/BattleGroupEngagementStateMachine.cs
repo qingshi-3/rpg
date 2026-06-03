@@ -62,7 +62,7 @@ public static class BattleGroupEngagementStateMachine
 
             store.ResetNoPerceivedHostileTicks(summary.BattleGroupId);
             if (state.EngagementState == BattleGroupEngagementState.Engaged ||
-                !CanEnterEngagementFromPerception(state.TacticalMode))
+                !CanEnterEngagementFromPerception(state))
             {
                 continue;
             }
@@ -272,10 +272,13 @@ public static class BattleGroupEngagementStateMachine
                runtimeTick - lastTriggerTick <= BattleGroupTacticalPolicySettings.DefaultDisengageGraceTicks;
     }
 
-    private static bool CanEnterEngagementFromPerception(BattleGroupTacticalMode mode)
+    private static bool CanEnterEngagementFromPerception(BattleGroupTacticalState state)
     {
-        return mode is BattleGroupTacticalMode.EnemyOffense
+        BattleGroupTacticalMode mode = state?.TacticalMode ?? BattleGroupTacticalMode.PlayerCommanded;
+        bool enemyPolicyCanEnter = mode is BattleGroupTacticalMode.EnemyOffense
             or BattleGroupTacticalMode.EnemyActiveDefense
             or BattleGroupTacticalMode.EnemyHoldDefense;
+        return enemyPolicyCanEnter ||
+               (mode == BattleGroupTacticalMode.PlayerCommanded && state?.AllowPlayerScopedEngagement == true);
     }
 }

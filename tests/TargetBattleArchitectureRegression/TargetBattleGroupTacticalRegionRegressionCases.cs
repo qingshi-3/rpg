@@ -8,6 +8,7 @@ internal static class TargetBattleGroupTacticalRegionRegressionCases
 {
     public static void Register(Action<string, Action> run)
     {
+        TargetBattleLayeredRuntimeRegressionCases.Register(run);
         run("missing owner region is rejected with reason", MissingOwnerRegionIsRejectedWithReason);
         run("null region is rejected with reason", NullRegionIsRejectedWithReason);
         run("owner mismatch region is rejected with reason", OwnerMismatchRegionIsRejectedWithReason);
@@ -356,7 +357,7 @@ internal static class TargetBattleGroupTacticalRegionRegressionCases
         AssertEqual(BattleGroupTacticalMode.EnemyOffense, enemy.TacticalMode, "attacker enemy mode");
         BattleTacticalRegionSnapshot fixedRegion = enemy.InitialTacticalRegions.Single();
         AssertEqual(BattleTacticalRegionKind.FixedTarget, fixedRegion.Kind, "enemy offense seed region kind");
-        AssertEqual(enemy.BattleGroupId, fixedRegion.OwnerBattleGroupId, "enemy offense seed owner");
+        AssertEqual(BattleCommanderGroupIdentity.Resolve(enemy), fixedRegion.OwnerBattleGroupId, "enemy offense seed owner");
         AssertEqual("defense_east", fixedRegion.SourceRegionId, "enemy offense chooses denser player defensive region");
         AssertEqual(BattleGroupTacticalReasonCode.RegionFixedSelectedPlayerDensity, fixedRegion.ReasonCode, "enemy offense density reason");
         AssertTrue(
@@ -409,12 +410,12 @@ internal static class TargetBattleGroupTacticalRegionRegressionCases
         AssertEqual(BattleGroupTacticalMode.EnemyHoldDefense, enemy.TacticalMode, "hold defender tactical mode");
         BattleTacticalRegionSnapshot holdRegion = enemy.InitialTacticalRegions.Single();
         AssertEqual(BattleTacticalRegionKind.Hold, holdRegion.Kind, "hold defender region kind");
-        AssertEqual(enemy.BattleGroupId, holdRegion.OwnerBattleGroupId, "hold region owner");
+        AssertEqual(BattleCommanderGroupIdentity.Resolve(enemy), holdRegion.OwnerBattleGroupId, "hold region owner");
         AssertEqual(7, holdRegion.CenterCellX, "hold region uses deployed cell x");
         AssertEqual(2, holdRegion.CenterCellY, "hold region uses deployed cell y");
         AssertEqual(2, holdRegion.Width, "hold region uses deployed footprint width");
         AssertEqual(3, holdRegion.Height, "hold region uses deployed footprint height");
-        AssertEqual($"{enemy.BattleGroupId}:hold_seed", holdRegion.SourceRegionId, "hold region source falls back to deterministic hold seed id");
+        AssertEqual($"{BattleCommanderGroupIdentity.Resolve(enemy)}:hold_seed", holdRegion.SourceRegionId, "hold region source falls back to deterministic hold seed id");
         AssertEqual(BattleGroupTacticalReasonCode.RegionHoldSeededPosture, holdRegion.ReasonCode, "hold region reason code");
     }
 

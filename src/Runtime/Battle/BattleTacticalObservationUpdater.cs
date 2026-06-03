@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using Rpg.Infrastructure.Logging;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Tactics;
@@ -34,9 +36,11 @@ internal static class BattleTacticalObservationUpdater
         BattleTargetLockLifecycle.ClearForEngagementExits(livingCorps, engagementEvents);
         foreach (BattleEvent engagementEvent in engagementEvents)
         {
+            LogEngagementTransition(engagementEvent);
             stream.Add(engagementEvent);
         }
 
+        RefreshCombatAndGroupActionZones(state, livingCorps, tick);
         RefreshEngagedLocalCombatRegions(state, livingCorps, stream, tick);
         RefreshEnemyTemporaryTargetRegions(state, livingCorps, stream, tick);
         return livingCorps;
@@ -71,8 +75,21 @@ internal static class BattleTacticalObservationUpdater
             currentTimeSeconds);
         foreach (BattleEvent engagementEvent in engagementEvents)
         {
+            LogEngagementTransition(engagementEvent);
             stream.Add(engagementEvent);
         }
+    }
+
+    private static void LogEngagementTransition(BattleEvent engagementEvent)
+    {
+        if (engagementEvent == null)
+        {
+            return;
+        }
+
+        GameLog.Info(
+            "BattleRuntimeStateTransition",
+            $"BattleRuntimeStateTransition battle={engagementEvent.BattleId ?? ""} tick={engagementEvent.RuntimeTick} time={engagementEvent.RuntimeTimeSeconds:0.00} group={engagementEvent.BattleGroupId ?? ""} state=EngagementChanged reason={engagementEvent.ReasonCode ?? ""} actor={engagementEvent.ActorId ?? ""} target={engagementEvent.TargetId ?? ""}");
     }
 
     private static void RefreshEngagedLocalCombatRegions(
@@ -208,5 +225,82 @@ internal static class BattleTacticalObservationUpdater
                           actor.GridX < maxXExclusive &&
                           actor.GridY >= minY &&
                           actor.GridY < maxYExclusive);
+    }
+
+    private static void RefreshCombatAndGroupActionZones(
+        BattleRuntimeState state,
+        BattleRuntimeActor[] livingCorps,
+        int tick)
+    {
+        if (state == null)
+        {
+            return;
+        }
+
+        string previousCombatSignature = BuildCombatZoneSignature(state.CombatZoneStore);
+        state.CombatZoneStore = BattleCombatZoneBuilder.Build(livingCorps, tick);
+        bool combatChanged = !string.Equals(
+            previousCombatSignature,
+            BuildCombatZoneSignature(state.CombatZoneStore),
+            System.StringComparison.Ordinal);
+
+        string previousActionSignature = BuildGroupActionZoneSignature(state.GroupActionZoneStore);
+        state.GroupActionZoneStore = BattleGroupActionZoneBuilder.Build(
+            state.TacticalStates,
+            livingCorps,
+            state.CombatZones,
+            tick);
+        bool actionChanged = !string.Equals(
+            previousActionSignature,
+            BuildGroupActionZoneSignature(state.GroupActionZoneStore),
+            System.StringComparison.Ordinal);
+
+        if (combatChanged)
+        {
+            BattleTacticalAreaDiagnosticLogger.LogAreaSnapshot(state, livingCorps, tick, "combat_zone_rebuilt");
+        }
+
+        if (actionChanged)
+        {
+            BattleTacticalAreaDiagnosticLogger.LogAreaSnapshot(state, livingCorps, tick, "group_action_zone_rebuilt");
+        }
+    }
+
+    private static string BuildCombatZoneSignature(IReadOnlyDictionary<string, BattleCombatZoneSnapshot> zones)
+    {
+        StringBuilder builder = new();
+        foreach (BattleCombatZoneSnapshot zone in (zones?.Values ?? System.Array.Empty<BattleCombatZoneSnapshot>())
+                     .OrderBy(item => item.CombatZoneId, System.StringComparer.Ordinal))
+        {
+            builder
+                .Append(zone.CombatZoneId).Append(':')
+                .Append(zone.MinCellX).Append(',')
+                .Append(zone.MinCellY).Append(',')
+                .Append(zone.MaxCellX).Append(',')
+                .Append(zone.MaxCellY).Append(':')
+                .Append(string.Join(",", zone.ActorIds)).Append('|');
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildGroupActionZoneSignature(IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> zones)
+    {
+        StringBuilder builder = new();
+        foreach (BattleGroupActionZoneSnapshot zone in (zones?.Values ?? System.Array.Empty<BattleGroupActionZoneSnapshot>())
+                     .OrderBy(item => item.BattleGroupId, System.StringComparer.Ordinal))
+        {
+            builder
+                .Append(zone.BattleGroupId).Append(':')
+                .Append(zone.Kind).Append(':')
+                .Append(zone.TargetCombatZoneId).Append(':')
+                .Append(zone.TargetRegionId).Append(':')
+                .Append(zone.MinCellX).Append(',')
+                .Append(zone.MinCellY).Append(',')
+                .Append(zone.MaxCellX).Append(',')
+                .Append(zone.MaxCellY).Append('|');
+        }
+
+        return builder.ToString();
     }
 }

@@ -11,4 +11,6 @@ internal sealed class BattleRuntimeTickContext
     public BattleRuntimeTickStartActorFact? TargetFact { get; set; }
     public LocalCombatSituation LocalCombatSituation { get; init; }
     public BattleRuntimeAiActionResult Result { get; set; }
+    public bool AllowStaleTargetRetarget { get; set; } = true;
+    public bool AllowReservationFallback { get; set; } = true;
 }

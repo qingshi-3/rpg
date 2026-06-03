@@ -1,4 +1,6 @@
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Runtime.Battle.AI;
+using Rpg.Runtime.Battle.Navigation;
 
 namespace Rpg.Runtime.Battle;
 
@@ -35,6 +37,22 @@ public sealed class BattleRuntimeActor
     public double MovementStartedAtSeconds { get; set; }
     public double MovementDurationSeconds { get; set; }
     public double MovementProgress { get; set; }
+    // Runtime-only movement intent captured when a segment is committed. Same-tick
+    // continuation may reuse it, but Presentation never reads it as path truth.
+    public bool HasMovementIntentSnapshot { get; set; }
+    public BattleRuntimeAiActionKind MovementIntentKind { get; set; } = BattleRuntimeAiActionKind.Hold;
+    public string MovementIntentTargetActorId { get; set; } = "";
+    public string MovementIntentObjectiveZoneId { get; set; } = "";
+    public string MovementIntentRegionId { get; set; } = "";
+    public string MovementIntentCommandId { get; set; } = "";
+    public string MovementIntentReasonCode { get; set; } = "";
+    public string MovementIntentLocalCombatSituationId { get; set; } = "";
+    public bool HasMovementIntentCombatSlot { get; set; }
+    public int MovementIntentCombatSlotX { get; set; }
+    public int MovementIntentCombatSlotY { get; set; }
+    public int MovementIntentCombatSlotHeight { get; set; }
+    internal BattleCombatSlotKind MovementIntentCombatSlotKind { get; set; } = BattleCombatSlotKind.Support;
+    public double MovementIntentSegmentDurationSeconds { get; set; }
     public int AttackRange { get; set; } = 1;
     public int AttackDamage { get; set; } = 1;
     public double AttackSpeed { get; set; } = 1.0;

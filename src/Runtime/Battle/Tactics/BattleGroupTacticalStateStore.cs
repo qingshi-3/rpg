@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Collections.ObjectModel;
+using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle.Events;
 
@@ -36,29 +37,35 @@ public sealed class BattleGroupTacticalStateStore
         BattleGroupTacticalStateStore store = new(battleId);
         foreach (BattleGroupSnapshot group in groups ?? Enumerable.Empty<BattleGroupSnapshot>())
         {
-            if (string.IsNullOrWhiteSpace(group?.BattleGroupId))
+            string commanderGroupId = BattleCommanderGroupIdentity.Resolve(group);
+            if (string.IsNullOrWhiteSpace(commanderGroupId))
             {
                 continue;
             }
 
-            if (store._states.ContainsKey(group.BattleGroupId))
+            if (store._states.ContainsKey(commanderGroupId))
             {
-                store.RecordDuplicateGroupInitializationResults(group);
+                if (string.IsNullOrWhiteSpace(group.RuntimeCommanderGroupId))
+                {
+                    store.RecordDuplicateGroupInitializationResults(group);
+                }
+
                 continue;
             }
 
             BattleGroupTacticalState state = new()
             {
-                BattleGroupId = group.BattleGroupId,
+                BattleGroupId = commanderGroupId,
                 TacticalMode = group.TacticalMode,
+                AllowPlayerScopedEngagement = !string.IsNullOrWhiteSpace(group.RuntimeCommanderGroupId),
                 EngagementState = BattleGroupEngagementState.NotEngaged
             };
-            store._states[group.BattleGroupId] = state;
+            store._states[commanderGroupId] = state;
 
             foreach (BattleTacticalRegionSnapshot initialRegion in group.InitialTacticalRegions ?? Enumerable.Empty<BattleTacticalRegionSnapshot>())
             {
-                BattleGroupTacticalRegionMutationResult result = store.TrySetRegion(group.BattleGroupId, initialRegion, isEnemyPolicyMutation: false);
-                store.RecordInitializationResult(group.BattleGroupId, result);
+                BattleGroupTacticalRegionMutationResult result = store.TrySetRegion(commanderGroupId, initialRegion, isEnemyPolicyMutation: false);
+                store.RecordInitializationResult(commanderGroupId, result);
             }
         }
 
@@ -328,6 +335,7 @@ public sealed class BattleGroupTacticalStateStore
         {
             BattleGroupId = state?.BattleGroupId ?? "",
             TacticalMode = state?.TacticalMode ?? BattleGroupTacticalMode.PlayerCommanded,
+            AllowPlayerScopedEngagement = state?.AllowPlayerScopedEngagement ?? false,
             EngagementState = state?.EngagementState ?? BattleGroupEngagementState.NotEngaged,
             SelectedRegion = CloneRegion(state?.SelectedRegion),
             LocalCombatRegion = CloneRegion(state?.LocalCombatRegion),

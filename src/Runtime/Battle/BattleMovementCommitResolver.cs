@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Infrastructure.Diagnostics;
+using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
@@ -81,7 +82,8 @@ internal static class BattleMovementCommitResolver
 
             if (!isObjectiveAdvance && context.TargetFact.Value.Actor.HitPoints <= 0)
             {
-                if (!retargetStaleAdvanceContext(
+                if (!context.AllowStaleTargetRetarget ||
+                    !retargetStaleAdvanceContext(
                         context,
                         tickStartFacts,
                         occupancy,
@@ -97,7 +99,7 @@ internal static class BattleMovementCommitResolver
                 }
             }
 
-            IReadOnlyList<BattleGridCoord> orderedMoves = context.Proposal.MoveOptions?.Count > 0
+            IReadOnlyList<BattleGridCoord> orderedMoves = context.AllowReservationFallback && context.Proposal.MoveOptions?.Count > 0
                 ? context.Proposal.MoveOptions
                 : new[] { context.Proposal.MoveTo };
 
@@ -159,25 +161,37 @@ internal static class BattleMovementCommitResolver
             candidate.Context.ActorFact.Actor.ReservedGridX = selectedMove.X;
             candidate.Context.ActorFact.Actor.ReservedGridY = selectedMove.Y;
             candidate.Context.ActorFact.Actor.ReservedGridHeight = selectedMove.Height;
+            BattleGroupPlanRuntimeState planState =
+                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
+                    ? BattleGroupPlanRuntimeState.AdvancingToObjective
+                    : BattleGroupPlanRuntimeState.MovingToAttackSlot;
+            string transitionReason = candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+                ? "objective_advance"
+                : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
+                    ? candidate.Context.Request.ReasonCode
+                : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
+                    ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
+                : "moving_to_attack_slot";
             BattlePlanStateEmitter.SetPlanState(
                 stream,
                 battleId,
                 tick,
                 currentTimeSeconds,
                 candidate.Context.ActorFact.Actor,
-                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
-                 candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
-                 candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                    ? BattleGroupPlanRuntimeState.AdvancingToObjective
-                    : BattleGroupPlanRuntimeState.MovingToAttackSlot,
-                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
-                    ? "objective_advance"
-                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
-                        ? candidate.Context.Request.ReasonCode
-                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                        ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
-                    : "moving_to_attack_slot");
-            BattleRuntimeActorStateMachine.MarkMovementCommitted(candidate.Context.ActorFact.Actor, selectedMove, currentTimeSeconds);
+                planState,
+                transitionReason,
+                logWhenUnchanged: true,
+                actionCode: "movement_started",
+                from: candidate.From,
+                to: selectedMove);
+            LogCombatSlotIntentIfChanged(battleId, tick, currentTimeSeconds, candidate.Context, selectedMove);
+            BattleRuntimeActorStateMachine.MarkMovementCommitted(
+                candidate.Context.ActorFact.Actor,
+                selectedMove,
+                currentTimeSeconds,
+                BattleMovementIntentCommit.FromContext(candidate.Context));
             BattleRuntimeTickResolver.ResetAdvanceFailureState(candidate.Context.ActorFact.Actor);
             candidate.Context.Result = BattleRuntimeAiActionResult.Succeeded(candidate.Context.Request, "advanced");
             stream.Add(BattleRuntimeEventFactory.CreateMovementEvent(
@@ -203,5 +217,36 @@ internal static class BattleMovementCommitResolver
         }
 
         return movementEvents;
+    }
+
+    private static void LogCombatSlotIntentIfChanged(
+        string battleId,
+        int tick,
+        double currentTimeSeconds,
+        BattleRuntimeTickContext context,
+        BattleGridCoord selectedMove)
+    {
+        if (context?.Proposal?.HasCombatSlotIntent != true)
+        {
+            return;
+        }
+
+        BattleRuntimeActor actor = context.ActorFact.Actor;
+        BattleGridCoord slot = context.Proposal.CombatSlotAnchor;
+        bool unchanged = actor.HasMovementIntentCombatSlot &&
+                         actor.MovementIntentCombatSlotX == slot.X &&
+                         actor.MovementIntentCombatSlotY == slot.Y &&
+                         actor.MovementIntentCombatSlotHeight == slot.Height &&
+                         actor.MovementIntentCombatSlotKind == context.Proposal.CombatSlotKind;
+        if (unchanged)
+        {
+            return;
+        }
+
+        // Slot assignment is the stable target for combat-entry movement; Runtime
+        // still validates the selected next step and may reassign if the slot expires.
+        GameLog.Info(
+            nameof(BattleMovementCommitResolver),
+            $"BattleRuntimeCombatSlotIntent battle={battleId ?? ""} tick={tick} time={currentTimeSeconds:0.00} actor={actor.ActorId ?? ""} target={context.TargetFact?.Actor.ActorId ?? ""} situation={context.Proposal.LocalCombatSituationId ?? ""} kind={context.Proposal.CombatSlotKind} slot={slot.X},{slot.Y},{slot.Height} next={selectedMove.X},{selectedMove.Y},{selectedMove.Height} reason={context.Proposal.MovementReasonCode ?? ""}");
     }
 }

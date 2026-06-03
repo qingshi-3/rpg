@@ -114,6 +114,7 @@ public sealed class BattleRuntimeSession
         {
             SnapshotId = snapshot?.SnapshotId ?? "",
             BattleId = snapshot?.BattleId ?? "",
+            ObjectiveZones = CloneObjectiveZones(snapshot?.ObjectiveZones),
             // Runtime owns group tactical truth; snapshots only seed battle-local intent at session start.
             TacticalStateStore = BattleGroupTacticalStateStore
                 .FromBattleGroups(snapshot?.BattleGroups ?? Enumerable.Empty<BattleGroupSnapshot>(), snapshot?.BattleId ?? "")
@@ -122,6 +123,7 @@ public sealed class BattleRuntimeSession
         var sourceForceIndexes = new Dictionary<string, int>();
         foreach (BattleGroupSnapshot group in snapshot?.BattleGroups ?? Enumerable.Empty<BattleGroupSnapshot>())
         {
+            string commanderGroupId = BattleCommanderGroupIdentity.Resolve(group);
             string sourceForceId = string.IsNullOrWhiteSpace(group.SourceForceId)
                 ? group.BattleGroupId
                 : group.SourceForceId;
@@ -137,7 +139,7 @@ public sealed class BattleRuntimeSession
             state.Actors.Add(new BattleRuntimeActor
             {
                 ActorId = $"{group.BattleGroupId}:hero",
-                BattleGroupId = group.BattleGroupId,
+                BattleGroupId = commanderGroupId,
                 FactionId = group.FactionId ?? "",
                 SourceForceId = sourceForceId,
                 SourceStateId = group.HeroId,
@@ -159,7 +161,7 @@ public sealed class BattleRuntimeSession
             state.Actors.Add(new BattleRuntimeActor
             {
                 ActorId = $"{sourceForceId}:{sourceForceIndex + 1}",
-                BattleGroupId = group.BattleGroupId,
+                BattleGroupId = commanderGroupId,
                 FactionId = group.FactionId ?? "",
                 SourceForceId = sourceForceId,
                 SourceStateId = group.CorpsId,
@@ -361,7 +363,7 @@ public sealed class BattleRuntimeSession
 
     private static double ResolveMoveStepSeconds(BattleGroupSnapshot group)
     {
-        return BattleActionTimingPolicy.NormalizeActionSeconds(
+        return BattleActionTimingPolicy.NormalizeMoveStepSeconds(
             group?.MoveStepSeconds ?? BattleActionTimingPolicy.DefaultMoveStepSeconds,
             BattleActionTimingPolicy.DefaultMoveStepSeconds);
     }
@@ -409,7 +411,7 @@ public sealed class BattleRuntimeSession
         BattleGroupPlanSnapshot resolved = new()
         {
             BattleGroupId = string.IsNullOrWhiteSpace(source.BattleGroupId)
-                ? group?.BattleGroupId ?? ""
+                ? BattleCommanderGroupIdentity.Resolve(group)
                 : source.BattleGroupId,
             ObjectiveZoneId = source.ObjectiveZoneId ?? "",
             EngagementRule = NormalizeEngagementRule(source.EngagementRule, group?.InitialCorpsCommandId),
@@ -444,6 +446,27 @@ public sealed class BattleRuntimeSession
                 item?.ObjectiveZoneId,
                 objectiveZoneId,
                 System.StringComparison.Ordinal));
+    }
+
+    private static List<BattleObjectiveZoneSnapshot> CloneObjectiveZones(
+        IEnumerable<BattleObjectiveZoneSnapshot> objectiveZones)
+    {
+        return (objectiveZones ?? Enumerable.Empty<BattleObjectiveZoneSnapshot>())
+            .Select(zone => new BattleObjectiveZoneSnapshot
+            {
+                ObjectiveZoneId = zone?.ObjectiveZoneId ?? "",
+                DisplayName = zone?.DisplayName ?? "",
+                ObjectiveRole = zone?.ObjectiveRole ?? "",
+                DeploymentSide = zone?.DeploymentSide ?? "",
+                FactionId = zone?.FactionId ?? "",
+                Priority = zone?.Priority ?? 0,
+                CellX = zone?.CellX ?? 0,
+                CellY = zone?.CellY ?? 0,
+                CellHeight = zone?.CellHeight ?? 0,
+                Width = System.Math.Max(1, zone?.Width ?? 1),
+                Height = System.Math.Max(1, zone?.Height ?? 1)
+            })
+            .ToList();
     }
 
     private static BattleEngagementRule NormalizeEngagementRule(

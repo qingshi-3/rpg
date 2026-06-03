@@ -73,10 +73,6 @@ internal sealed partial class BattleRuntimeTickResolver
                            !movementCompletedActorIds.Contains(item.ActorId ?? ""))
             .ToArray();
         performanceCounters?.RecordDecisionReadyActors(decisionReadyCorps.Length);
-        if (decisionReadyCorps.Length == 0)
-        {
-            return;
-        }
 
         List<BattleRuntimeTickContext> contexts = decisionReadyCorps
             .Select(item => BuildTickContext(
@@ -90,9 +86,22 @@ internal sealed partial class BattleRuntimeTickResolver
                 currentTimeSeconds,
                 tick,
                 navigationFailureDiagnostics,
-                state.TacticalStateStore))
+                state.TacticalStateStore,
+                state.GroupActionZones))
             .ToList();
         ApplyDecisionOutcomes(contexts, stream, battleId, tick, currentTimeSeconds);
+        contexts.AddRange(BattleMovementContinuationPlanner.BuildContinuationContexts(
+            movementCompletedActorIds,
+            tickStartFacts,
+            navigationGraph,
+            occupancy,
+            flowFields,
+            performanceCounters,
+            battleId,
+            currentTimeSeconds,
+            tick,
+            navigationFailureDiagnostics,
+            state.TacticalStateStore));
 
         // Attack resolution still emits damage with RuntimeTimeSeconds = currentTimeSeconds;
         // the resolver owns the engagement stream slice immediately around that service call.
@@ -112,6 +121,7 @@ internal sealed partial class BattleRuntimeTickResolver
             TryRetargetStaleAdvanceContext);
         performanceCounters?.RecordMovementResolveElapsedTicks(Stopwatch.GetTimestamp() - movementResolveStartedAt);
         performanceCounters?.RecordActorsReadyNoMoveLastAdvance(decisionReadyCorps.Length - movementEvents);
+        BattleMovementContinuationPlanner.ClearEndedMovementChains(state.Actors, movementCompletedActorIds);
 
         LogTickActionResults(contexts, battleId, tick, currentTimeSeconds);
     }
@@ -306,15 +316,24 @@ internal sealed partial class BattleRuntimeTickResolver
         double currentTimeSeconds,
         int tick,
         HashSet<string> navigationFailureDiagnostics,
-        BattleGroupTacticalStateStore tacticalStateStore)
+        BattleGroupTacticalStateStore tacticalStateStore,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones)
     {
         BattleRuntimeTickStartActorFact actorFact = facts[actor.ActorId];
         BattleRegionMovementGoal regionMovementGoal = BattleLocalCombatRegionResolver.ResolveRegionMovementGoal(actorFact, tacticalStateStore);
+        BattleGroupActionZoneSnapshot combatJoinActionZone = BattleGroupActionZoneResolver.ResolveCombatJoinActionZone(
+            actorFact.Actor,
+            groupActionZones);
         BattleTacticalRegionSnapshot localCombatRegion = BattleLocalCombatRegionResolver.ResolveEngagedLocalCombatRegion(actorFact, tacticalStateStore);
-        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> targetFacts = localCombatRegion == null
-            ? facts
-            : BattleLocalCombatRegionResolver.FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
-        BattleRuntimeTickStartActorFact? preferredTarget = regionMovementGoal == null
+        BattleTacticalRegionSnapshot scopedLocalCombatRegion = localCombatRegion ?? BattleGroupActionZoneBuilder.ToLocalCombatRegion(combatJoinActionZone);
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> targetFacts = combatJoinActionZone != null
+            ? BattleGroupActionZoneResolver.FilterFactsToActionZone(facts, actorFact, combatJoinActionZone)
+            : localCombatRegion == null
+                ? facts
+                : BattleLocalCombatRegionResolver.FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
+        BattleRuntimeTickStartActorFact? preferredTarget = combatJoinActionZone != null
+            ? BattleTargetSelectionService.FindCombatZoneScopedEnemyCorps(targetFacts, actorFact)
+            : regionMovementGoal == null
             ? BattleTargetSelectionService.FindEnemyCorpsForCommand(
                 targetFacts,
                 actorFact,
@@ -332,7 +351,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 navigationGraph,
                 occupancy,
                 currentTimeSeconds,
-                localCombatRegion);
+                scopedLocalCombatRegion);
         BattleRuntimeAiActionRequest request = BattleAiActionRequestBuilder.BuildCommandScopedRequest(
             actorFact,
             preferredTarget,
@@ -435,9 +454,31 @@ internal sealed partial class BattleRuntimeTickResolver
                                       occupancy,
                                       flowFields,
                                       performanceCounters,
-                                      localCombatRegion);
+                                      scopedLocalCombatRegion);
             bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && movementGap == attackRange + 1;
-            IReadOnlyList<BattleGridCoord> moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardTarget(
+            BattleCombatSlotIntent? combatSlotIntent = null;
+            IReadOnlyList<BattleGridCoord> moveOptions = System.Array.Empty<BattleGridCoord>();
+            if (localCombatSituation != null &&
+                BattleCombatSlotIntentResolver.TrySelectExecutableIntent(
+                    tickStartActor,
+                    tickStartTarget,
+                    actorFact.Anchor,
+                    navigationGraph,
+                    occupancy,
+                    new BattleMovementReservationMap(),
+                    preferSupportSlots,
+                    performanceCounters,
+                    scopedLocalCombatRegion,
+                    out BattleCombatSlotIntent selectedSlotIntent,
+                    out IReadOnlyList<BattleGridCoord> slotMoveOptions))
+            {
+                combatSlotIntent = selectedSlotIntent;
+                moveOptions = slotMoveOptions;
+            }
+
+            if (moveOptions.Count == 0 && localCombatSituation == null)
+            {
+                moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardTarget(
                     tickStartActor,
                     tickStartTarget,
                     navigationGraph,
@@ -447,16 +488,22 @@ internal sealed partial class BattleRuntimeTickResolver
                     preferSupportSlots,
                     avoidOpeningNewAxisGapNearEngagedTarget,
                     performanceCounters,
-                    localCombatRegion);
+                    scopedLocalCombatRegion);
+            }
             if (moveOptions.Count == 0)
             {
+                // Runtime validation names blocked local-combat ingress, but
+                // target/support selection stays with commander/local-combat request construction.
+                string failureReason = localCombatSituation != null
+                    ? LocalCombatDecisionReason.RejectNoReachableSlot
+                    : "path_not_found";
                 BattleRuntimeAdvanceDiagnostics.LogAdvanceFailureDiagnostic(
                     battleId,
                     tick,
                     actorFact,
                     requestedTarget.Value,
                     navigationGraph,
-                    "path_not_found",
+                    failureReason,
                     default,
                     navigationFailureDiagnostics);
                 return CreateContext(
@@ -465,9 +512,7 @@ internal sealed partial class BattleRuntimeTickResolver
                     requestedTarget,
                     hasMoveTo: false,
                     moveTo: default,
-                    failureReason: request.Kind == BattleRuntimeAiActionKind.HoldSupport
-                        ? LocalCombatDecisionReason.RejectNoReachableSlot
-                        : "path_not_found",
+                    failureReason: failureReason,
                     localCombatSituation: localCombatSituation);
             }
 
@@ -480,7 +525,8 @@ internal sealed partial class BattleRuntimeTickResolver
                 failureReason: "",
                 moveOptions: moveOptions,
                 localCombatSituation: localCombatSituation,
-                movementReasonCode: request.ReasonCode);
+                movementReasonCode: request.ReasonCode,
+                combatSlotIntent: combatSlotIntent);
         }
 
         if (request.Kind == BattleRuntimeAiActionKind.AttackTarget ||
@@ -509,7 +555,8 @@ internal sealed partial class BattleRuntimeTickResolver
         IReadOnlyList<BattleGridCoord> moveOptions = null,
         LocalCombatSituation localCombatSituation = null,
         string movementReasonCode = "",
-        BattleRegionMovementGoal regionMovementGoal = null)
+        BattleRegionMovementGoal regionMovementGoal = null,
+        BattleCombatSlotIntent? combatSlotIntent = null)
     {
         return new BattleRuntimeTickContext
         {
@@ -527,6 +574,9 @@ internal sealed partial class BattleRuntimeTickResolver
                 HasMoveTo = hasMoveTo,
                 MoveTo = moveTo,
                 MoveOptions = moveOptions ?? new List<BattleGridCoord>(),
+                HasCombatSlotIntent = combatSlotIntent.HasValue,
+                CombatSlotAnchor = combatSlotIntent?.Anchor ?? default,
+                CombatSlotKind = combatSlotIntent?.Kind ?? BattleCombatSlotKind.Support,
                 FailureReason = failureReason ?? "",
                 MovementReasonCode = movementReasonCode ?? "",
                 LocalCombatSituationId = localCombatSituation?.SituationId ?? ""
@@ -551,6 +601,12 @@ internal sealed partial class BattleRuntimeTickResolver
             HitPoints = fact.HitPoints,
             EngagementRule = fact.Actor.EngagementRule,
             PlanState = fact.Actor.PlanState,
+            MovementFromGridX = fact.Actor.MovementFromGridX,
+            MovementFromGridY = fact.Actor.MovementFromGridY,
+            MovementFromGridHeight = fact.Actor.MovementFromGridHeight,
+            MovementToGridX = fact.Actor.MovementToGridX,
+            MovementToGridY = fact.Actor.MovementToGridY,
+            MovementToGridHeight = fact.Actor.MovementToGridHeight,
             HasObjectiveAnchor = fact.Actor.HasObjectiveAnchor,
             ObjectiveZoneId = fact.Actor.ObjectiveZoneId,
             ObjectiveGridX = fact.Actor.ObjectiveGridX,

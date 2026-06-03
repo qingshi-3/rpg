@@ -1,12 +1,33 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
 
 internal static class TargetBattleMultiUnitNavigationRegressionCases
 {
+    public static void Register(Action<string, Action> run)
+    {
+        run("runtime many allies converge on single holdline enemy without overlap", RuntimeManyAlliesConvergeOnSingleHoldlineEnemyWithoutOverlap);
+        run("runtime many enemies converge on single holdline defender without overlap", RuntimeManyEnemiesConvergeOnSingleHoldlineDefenderWithoutOverlap);
+        run("runtime many vs many open field closes without illegal positions", RuntimeManyVsManyOpenFieldClosesWithoutIllegalPositions);
+        run("runtime four versus four battle does not timeout while both sides live", RuntimeFourVersusFourBattleDoesNotTimeoutWhileBothSidesLive);
+        run("runtime same-lane crowd blocks same-tick chain follow", RuntimeSameLaneCrowdBlocksSameTickChainFollow);
+        run("runtime support queue blocks same-tick chain behind engaged frontline", RuntimeSupportQueueBlocksSameTickChainBehindEngagedFrontline);
+        run("runtime same-tick follow cannot enter released footprint", RuntimeSameTickFollowCannotEnterReleasedFootprint);
+        run("runtime smaller units can surround large target attack slots", RuntimeSmallerUnitsCanSurroundLargeTargetAttackSlots);
+        run("runtime support below vertical engagement flanks to open attack slot", RuntimeSupportBelowVerticalEngagementFlanksToOpenAttackSlot);
+        run("runtime support behind engaged ally uses side approach when direct step occupied", RuntimeSupportBehindEngagedAllyUsesSideApproachWhenDirectStepOccupied);
+        run("runtime support unit continues into orthogonal attack range against engaged target", RuntimeSupportUnitContinuesIntoOrthogonalAttackRangeAgainstEngagedTarget);
+        run("runtime rear local combat units report blocked ingress when attack slot is not executable", RuntimeRearLocalCombatUnitsReportBlockedIngressWhenAttackSlotIsNotExecutable);
+        run("runtime rear local combat units route around blocked ingress when side path exists", RuntimeRearLocalCombatUnitsRouteAroundBlockedIngressWhenSidePathExists);
+        run("runtime combat ingress planner allows a temporary detour around blocked closer steps", RuntimeCombatIngressPlannerAllowsTemporaryDetourAroundBlockedCloserSteps);
+        run("runtime local combat movement keeps stable slot intent instead of oscillating", RuntimeLocalCombatMovementKeepsStableSlotIntentInsteadOfOscillating);
+    }
+
     public static void RuntimeManyAlliesConvergeOnSingleHoldlineEnemyWithoutOverlap()
     {
         BattleStartSnapshot snapshot = BuildOpenFieldSnapshot("battle_many_allies_single_enemy");
@@ -220,6 +241,114 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             "support unit should attack the already engaged target after reaching orthogonal range");
     }
 
+    public static void RuntimeRearLocalCombatUnitsReportBlockedIngressWhenAttackSlotIsNotExecutable()
+    {
+        BattleStartSnapshot snapshot = BuildRearBlockedLocalCombatSnapshot();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeActor rearTop = controller.State.Actors.Single(item => item.ActorId == "enemy_rear_top:1");
+        rearTop.TargetActorId = "player_front_a:1";
+        string previousLog = File.Exists(GameLog.CurrentLogPath)
+            ? File.ReadAllText(GameLog.CurrentLogPath)
+            : "";
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+        string log = File.Exists(GameLog.CurrentLogPath)
+            ? File.ReadAllText(GameLog.CurrentLogPath)
+            : "";
+        string newLog = log.Length >= previousLog.Length
+            ? log[previousLog.Length..]
+            : log;
+
+        BattleEvent? rearMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "enemy_rear_top:1");
+        AssertTrue(
+            rearMove == null,
+            "rear unit must not fake movement when every local-combat ingress step is blocked by live footprints");
+        AssertTrue(
+            rearTop.LastAdvanceFailureReason == "reject_no_reachable_slot",
+            $"blocked local-combat ingress should be diagnosable instead of generic path failure: actual={rearTop.LastAdvanceFailureReason}");
+        AssertTrue(
+            newLog.Contains("BattleRuntimeAdvanceDiagnostic battle=battle_rear_blocked_local_combat_support", StringComparison.Ordinal) &&
+            newLog.Contains("actor=enemy_rear_top:1", StringComparison.Ordinal) &&
+            newLog.Contains("target=player_front_a:1", StringComparison.Ordinal) &&
+            newLog.Contains("reason=reject_no_reachable_slot", StringComparison.Ordinal) &&
+            newLog.Contains("attemptedNext=none", StringComparison.Ordinal),
+            "blocked local-combat ingress should log a named queue/no-slot reason with no fake next step");
+        AssertTrue(
+            !newLog.Contains("actor=enemy_rear_top:1 target=player_front_a:1 reason=path_not_found", StringComparison.Ordinal),
+            "blocked local-combat ingress must not be reported as generic path_not_found");
+    }
+
+    public static void RuntimeRearLocalCombatUnitsRouteAroundBlockedIngressWhenSidePathExists()
+    {
+        BattleStartSnapshot snapshot = BuildRearBlockedIngressWithSidePathSnapshot();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeActor rearBottom = controller.State.Actors.Single(item => item.ActorId == "enemy_rear_bottom:1");
+        rearBottom.TargetActorId = "player_front_c:1";
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+
+        BattleEvent? rearMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "enemy_rear_bottom:1");
+        AssertTrue(
+            rearMove != null,
+            $"rear unit should route through the current dynamic side path instead of reporting no reachable slot: failure={rearBottom.LastAdvanceFailureReason}");
+        AssertTrue(
+            rearMove!.ToGridY > rearMove.FromGridY,
+            $"rear unit should take the open lower lane around the blocked ingress: from=({rearMove.FromGridX},{rearMove.FromGridY}) to=({rearMove.ToGridX},{rearMove.ToGridY})");
+        AssertTrue(
+            rearBottom.LastAdvanceFailureReason != "reject_no_reachable_slot",
+            "side-path ingress must not be degraded as reject_no_reachable_slot");
+    }
+
+    public static void RuntimeCombatIngressPlannerAllowsTemporaryDetourAroundBlockedCloserSteps()
+    {
+        BattleStartSnapshot snapshot = BuildTemporaryDetourIngressSnapshot();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeActor rear = controller.State.Actors.Single(item => item.ActorId == "enemy_rear:1");
+        rear.TargetActorId = "player_front:1";
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+
+        BattleEvent? rearMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "enemy_rear:1");
+        AssertTrue(
+            rearMove != null,
+            $"combat ingress should allow a temporary detour when all currently closer first steps are occupied but a dynamic path remains open: failure={rear.LastAdvanceFailureReason}");
+        AssertTrue(
+            rearMove!.ToGridX > rearMove.FromGridX,
+            $"first detour step should move away from the blocked ingress before wrapping around: from=({rearMove.FromGridX},{rearMove.FromGridY}) to=({rearMove.ToGridX},{rearMove.ToGridY})");
+    }
+
+    public static void RuntimeLocalCombatMovementKeepsStableSlotIntentInsteadOfOscillating()
+    {
+        BattleStartSnapshot snapshot = BuildBonefieldOscillationStateSnapshot();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeActor rear = controller.State.Actors.Single(item => item.ActorId == "bonefield:f6_draugarlord:3");
+        rear.TargetActorId = "expedition:player_camp:1:army:f1_azuritelion:2";
+        rear.PlanState = BattleGroupPlanRuntimeState.MovingToAttackSlot;
+
+        for (int i = 0; i < 24 && !controller.IsComplete; i++)
+        {
+            _ = controller.AdvanceNextTick();
+        }
+
+        BattleEvent[] moves = controller.EventStream.Events
+            .Where(item =>
+                item.Kind == BattleEventKind.MovementStarted &&
+                item.ActorId == "bonefield:f6_draugarlord:3" &&
+                item.TargetId == "expedition:player_camp:1:army:f1_azuritelion:2")
+            .ToArray();
+        AssertTrue(moves.Length >= 3, $"fixture should produce enough local-combat movement to expose slot jitter: moves={DescribeMoves(moves)}");
+        AssertNoImmediateReverseMoves(moves, "local combat movement should execute a stable combat-slot intent instead of alternating between two anchors");
+        AssertTrue(
+            moves.Any(item => item.ToGridX == 35 && item.ToGridY == 22 && item.ToGridHeight == 0),
+            $"rear unit should keep moving toward the assigned support slot instead of just suppressing the reverse step: moves={DescribeMoves(moves)}");
+    }
+
     private static BattleStartSnapshot BuildOpenFieldSnapshot(string battleId)
     {
         BattleStartSnapshot snapshot = new()
@@ -361,6 +490,240 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         return snapshot;
     }
 
+    private static BattleStartSnapshot BuildRearBlockedLocalCombatSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_rear_blocked_local_combat_support",
+            BattleId = "battle_rear_blocked_local_combat_support",
+            TargetLocationId = "site_1"
+        };
+
+        for (int x = 32; x <= 40; x++)
+        {
+            for (int y = 17; y <= 23; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddGroup(snapshot, "player_top", "player", "player_top", 34, 18, 160, runtimeCommanderGroupId: "player_company", attackRange: 2);
+        AddGroup(snapshot, "player_front_a", "player", "player_front_a", 34, 19, 160, runtimeCommanderGroupId: "player_company", attackRange: 2);
+        AddGroup(snapshot, "player_front_b", "player", "player_front_b", 34, 20, 160, runtimeCommanderGroupId: "player_company", attackRange: 2);
+        AddGroup(snapshot, "player_front_c", "player", "player_front_c", 34, 21, 160, runtimeCommanderGroupId: "player_company", attackRange: 2);
+        AddGroup(snapshot, "enemy_front_top", "enemy", "enemy_front_top", 36, 19, 220, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_company", attackRange: 2);
+        AddGroup(snapshot, "enemy_front_bottom", "enemy", "enemy_front_bottom", 36, 21, 220, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_company", attackRange: 2);
+        AddGroup(snapshot, "enemy_rear_top", "enemy", "enemy_rear_top", 38, 19, 220, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_company", attackRange: 2);
+        AddGroup(snapshot, "enemy_rear_bottom", "enemy", "enemy_rear_bottom", 38, 21, 220, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_company", attackRange: 2);
+        AddGroup(snapshot, "enemy_screen_top_left", "enemy", "enemy_screen_top_left", 38, 18, 80, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "enemy_screen_top_right", "enemy", "enemy_screen_top_right", 39, 18, 80, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "enemy_screen_right_top", "enemy", "enemy_screen_right_top", 40, 19, 80, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "enemy_screen_bottom_left", "enemy", "enemy_screen_bottom_left", 38, 23, 80, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "enemy_screen_bottom_right", "enemy", "enemy_screen_bottom_right", 39, 23, 80, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "enemy_screen_right_bottom", "enemy", "enemy_screen_right_bottom", 40, 21, 80, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildRearBlockedIngressWithSidePathSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_rear_blocked_ingress_with_side_path",
+            BattleId = "battle_rear_blocked_ingress_with_side_path",
+            TargetLocationId = "site_1"
+        };
+
+        for (int x = 32; x <= 42; x++)
+        {
+            for (int y = 17; y <= 25; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddGroup(snapshot, "player_top", "player", "player_top", 34, 18, 160, runtimeCommanderGroupId: "player_company", attackRange: 2);
+        AddGroup(snapshot, "player_front_a", "player", "player_front_a", 34, 19, 160, runtimeCommanderGroupId: "player_company", attackRange: 2);
+        AddGroup(snapshot, "player_front_b", "player", "player_front_b", 34, 20, 160, runtimeCommanderGroupId: "player_company", attackRange: 2);
+        AddGroup(snapshot, "player_front_c", "player", "player_front_c", 34, 21, 160, runtimeCommanderGroupId: "player_company", attackRange: 2);
+        AddGroup(snapshot, "enemy_front_top", "enemy", "enemy_front_top", 36, 19, 220, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_company", attackRange: 2);
+        AddGroup(snapshot, "enemy_front_bottom", "enemy", "enemy_front_bottom", 36, 21, 220, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_company", attackRange: 2);
+        AddGroup(snapshot, "enemy_rear_top", "enemy", "enemy_rear_top", 38, 19, 220, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_company", attackRange: 2);
+        AddGroup(snapshot, "enemy_rear_bottom", "enemy", "enemy_rear_bottom", 38, 21, 220, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_company", attackRange: 2);
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildTemporaryDetourIngressSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_temporary_detour_ingress",
+            BattleId = "battle_temporary_detour_ingress",
+            TargetLocationId = "site_1"
+        };
+
+        for (int x = -2; x <= 5; x++)
+        {
+            for (int y = -2; y <= 4; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddGroup(snapshot, "player_group", "player", "player_front", 0, 1, 260, initialCommandId: "HoldLine");
+        AddGroup(snapshot, "enemy_rear_group", "enemy", "enemy_rear", 2, 1, 220, runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "blocker_direct_group", "enemy", "blocker_direct", 1, 1, 220, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "blocker_upper_left_group", "enemy", "blocker_upper_left", 1, 0, 220, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "blocker_lower_left_group", "enemy", "blocker_lower_left", 1, 2, 220, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "blocker_upper_group", "enemy", "blocker_upper", 2, 0, 220, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+        AddGroup(snapshot, "blocker_lower_group", "enemy", "blocker_lower", 2, 2, 220, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildBonefieldOscillationStateSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_stable_combat_slot_intent",
+            BattleId = "battle_stable_combat_slot_intent",
+            TargetLocationId = "site_1",
+            ObjectiveZones =
+            {
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "player_deployment_zone_west_1",
+                    ObjectiveRole = "player_deployment",
+                    DeploymentSide = "Player",
+                    FactionId = "player",
+                    CellX = 10,
+                    CellY = 16,
+                    Width = 4,
+                    Height = 8
+                },
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "undead_deployment_zone_east_1",
+                    ObjectiveRole = "enemy_deployment",
+                    DeploymentSide = "Enemy",
+                    FactionId = "undead",
+                    CellX = 51,
+                    CellY = 15,
+                    Width = 20,
+                    Height = 12
+                }
+            }
+        };
+
+        for (int x = 31; x <= 43; x++)
+        {
+            for (int y = 14; y <= 26; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddPlannedGroup(
+            snapshot,
+            "player_unit_1",
+            "player",
+            "expedition:player_camp:1:army:f1_grandmasterzir",
+            35,
+            17,
+            600,
+            "undead_deployment_zone_east_1",
+            footprintWidth: 2,
+            footprintHeight: 1);
+        AddPlannedGroup(
+            snapshot,
+            "player_unit_2",
+            "player",
+            "expedition:player_camp:1:army:f1_azuritelion",
+            34,
+            19,
+            600,
+            "undead_deployment_zone_east_1",
+            footprintWidth: 2,
+            footprintHeight: 1);
+        AddPlannedGroup(
+            snapshot,
+            "player_unit_3",
+            "player",
+            "expedition:player_camp:1:army:f1_azuritelion",
+            36,
+            20,
+            600,
+            "undead_deployment_zone_east_1",
+            footprintWidth: 2,
+            footprintHeight: 1);
+        AddPlannedGroup(
+            snapshot,
+            "player_unit_4",
+            "player",
+            "expedition:player_camp:1:army:f1_azuritelion",
+            34,
+            21,
+            600,
+            "undead_deployment_zone_east_1",
+            footprintWidth: 2,
+            footprintHeight: 1);
+        AddPlannedGroup(
+            snapshot,
+            "enemy_unit_1",
+            "undead",
+            "bonefield:f6_draugarlord",
+            38,
+            19,
+            900,
+            "player_deployment_zone_west_1",
+            tacticalMode: BattleGroupTacticalMode.EnemyOffense,
+            footprintWidth: 2,
+            footprintHeight: 2);
+        AddPlannedGroup(
+            snapshot,
+            "enemy_unit_2",
+            "undead",
+            "bonefield:f6_draugarlord",
+            37,
+            21,
+            900,
+            "player_deployment_zone_west_1",
+            tacticalMode: BattleGroupTacticalMode.EnemyOffense,
+            footprintWidth: 2,
+            footprintHeight: 2);
+        AddPlannedGroup(
+            snapshot,
+            "enemy_unit_3",
+            "undead",
+            "bonefield:f6_draugarlord",
+            39,
+            21,
+            900,
+            "player_deployment_zone_west_1",
+            tacticalMode: BattleGroupTacticalMode.EnemyOffense,
+            footprintWidth: 2,
+            footprintHeight: 2);
+        AddPlannedGroup(
+            snapshot,
+            "enemy_unit_4",
+            "undead",
+            "bonefield:f6_draugarlord",
+            36,
+            18,
+            900,
+            "player_deployment_zone_west_1",
+            tacticalMode: BattleGroupTacticalMode.EnemyOffense,
+            footprintWidth: 2,
+            footprintHeight: 2);
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
     private static void AddSurface(BattleStartSnapshot snapshot, int x, int y)
     {
         snapshot.LocationContext.NavigationSurfaces.Add(new BattleNavigationSurfaceSnapshot
@@ -382,11 +745,14 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         int hitPoints,
         string initialCommandId = "",
         int footprintWidth = 1,
-        int footprintHeight = 1)
+        int footprintHeight = 1,
+        string runtimeCommanderGroupId = "",
+        int attackRange = 1)
     {
         snapshot.BattleGroups.Add(new BattleGroupSnapshot
         {
             BattleGroupId = groupId,
+            RuntimeCommanderGroupId = runtimeCommanderGroupId,
             FactionId = factionId,
             SourceForceId = sourceForceId,
             HeroId = $"{sourceForceId}_hero",
@@ -396,7 +762,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             CorpsStrength = hitPoints,
             MaxHitPoints = hitPoints,
             AttackDamage = 5,
-            AttackRange = 1,
+            AttackRange = attackRange,
             AttackSpeed = 1.0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
@@ -404,6 +770,51 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             InitialCorpsCommandId = initialCommandId,
             FootprintWidth = footprintWidth,
             FootprintHeight = footprintHeight
+        });
+    }
+
+    private static void AddPlannedGroup(
+        BattleStartSnapshot snapshot,
+        string groupId,
+        string factionId,
+        string sourceForceId,
+        int cellX,
+        int cellY,
+        int hitPoints,
+        string objectiveZoneId,
+        BattleGroupTacticalMode tacticalMode = BattleGroupTacticalMode.PlayerCommanded,
+        int footprintWidth = 1,
+        int footprintHeight = 1)
+    {
+        string commanderGroupId = factionId == "player"
+            ? "probe_group_PlayerArmy:expedition:player_camp:1:army"
+            : "probe_group_DefenderSite:bonefield";
+        snapshot.BattleGroups.Add(new BattleGroupSnapshot
+        {
+            BattleGroupId = groupId,
+            RuntimeCommanderGroupId = commanderGroupId,
+            FactionId = factionId,
+            SourceForceId = sourceForceId,
+            HeroId = $"{sourceForceId}:{groupId}:hero",
+            HeroDefinitionId = $"{sourceForceId}:hero_definition",
+            CorpsId = $"{sourceForceId}:{groupId}:corps",
+            CorpsDefinitionId = $"{sourceForceId}:corps_definition",
+            CorpsStrength = hitPoints,
+            MaxHitPoints = hitPoints,
+            AttackDamage = 5,
+            AttackRange = 1,
+            AttackSpeed = 1.0,
+            SourceLocationId = factionId == "player" ? "city_1" : "site_1",
+            CellX = cellX,
+            CellY = cellY,
+            FootprintWidth = footprintWidth,
+            FootprintHeight = footprintHeight,
+            TacticalMode = tacticalMode,
+            Plan = new BattleGroupPlanSnapshot
+            {
+                ObjectiveZoneId = objectiveZoneId,
+                EngagementRule = BattleEngagementRule.AttackFirst
+            }
         });
     }
 
@@ -496,6 +907,31 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
                 item.Kind != BattleEventKind.MovementStarted ||
                 item.ActorId != actorId),
             $"actor should not move in this tick: {actorId}");
+    }
+
+    private static void AssertNoImmediateReverseMoves(IReadOnlyList<BattleEvent> moves, string message)
+    {
+        for (int i = 1; i < moves.Count; i++)
+        {
+            BattleEvent previous = moves[i - 1];
+            BattleEvent current = moves[i];
+            bool reversed =
+                previous.FromGridX == current.ToGridX &&
+                previous.FromGridY == current.ToGridY &&
+                previous.FromGridHeight == current.ToGridHeight &&
+                previous.ToGridX == current.FromGridX &&
+                previous.ToGridY == current.FromGridY &&
+                previous.ToGridHeight == current.FromGridHeight;
+            AssertTrue(!reversed, $"{message}: moves={DescribeMoves(moves)}");
+        }
+    }
+
+    private static string DescribeMoves(IReadOnlyList<BattleEvent> moves)
+    {
+        return string.Join(
+            ";",
+            moves.Select(item =>
+                $"t{item.RuntimeTick}:({item.FromGridX},{item.FromGridY},{item.FromGridHeight})->({item.ToGridX},{item.ToGridY},{item.ToGridHeight})"));
     }
 
     private static void AssertTrue(bool condition, string message)

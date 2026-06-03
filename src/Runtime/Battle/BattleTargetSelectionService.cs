@@ -76,6 +76,17 @@ internal static class BattleTargetSelectionService
                FindNearestEnemyCorps(facts, actorFact, PlannedLocalPerceptionRange);
     }
 
+    internal static BattleRuntimeTickStartActorFact? FindCombatZoneScopedEnemyCorps(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact)
+    {
+        // CombatJoin is already bounded by a commander-selected combat zone, so
+        // the actor does not require its own local perception hit to join the fight.
+        return FindImmediateAttackOpportunityEnemyCorps(facts, actorFact) ??
+               FindRetainedEnemyCorps(facts, actorFact) ??
+               FindNearestEnemyCorps(facts, actorFact);
+    }
+
     private static BattleRuntimeTickStartActorFact? FindPlanScopedEnemyCorps(
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleRuntimeTickStartActorFact actorFact)

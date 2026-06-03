@@ -310,7 +310,7 @@ internal static class TargetBattleAttackCadenceRegressionCases
         }
     }
 
-    internal static void RuntimeFixedClockWaitsOneTickAfterMovementBoundary()
+    internal static void RuntimeFixedClockHandsOffNextMovementSameTickAfterBoundary()
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_fixed_boundary_movement_continue", enemyCellX: 6, enemyCellY: 0);
         foreach (BattleGroupSnapshot group in snapshot.BattleGroups)
@@ -346,17 +346,16 @@ internal static class TargetBattleAttackCadenceRegressionCases
             .ToArray();
         BattleEvent? completed = playerBoundaryEvents.FirstOrDefault(item => item.Kind == BattleEventKind.MovementCompleted);
         AssertTrue(completed != null, "movement boundary tick should emit the completed cell boundary");
-        AssertTrue(
-            playerBoundaryEvents.All(item => item.Kind != BattleEventKind.MovementStarted),
-            "movement boundary tick should not immediately author the next movement segment because that advances presentation ahead of the committed visual step");
-
-        BattleRuntimeAdvanceResult nextAdvance = controller.AdvanceFixedTick(0.04);
-        BattleEvent? continued = nextAdvance.Events.FirstOrDefault(item =>
+        BattleEvent? continued = playerBoundaryEvents.FirstOrDefault(item =>
             item.Kind == BattleEventKind.MovementStarted &&
             item.ActorId == "force_player:1");
-        AssertTrue(continued != null, "movement continuation should be available on the next runtime tick when movement intent is still valid");
+        AssertTrue(continued != null, "movement continuation should be authored in the same runtime tick when movement intent is still valid");
+        AssertTrue(
+            Array.IndexOf(playerBoundaryEvents, completed) < Array.IndexOf(playerBoundaryEvents, continued),
+            "same-tick continuation should appear after the committed movement boundary");
         AssertEqual(1, completed!.ToGridX, "first movement completion should commit the first approach cell");
-        AssertEqual(2, continued!.ToGridX, "next-tick continuation should move toward the next approach cell");
+        AssertEqual(completed.ToGridX, continued!.FromGridX, "same-tick continuation should start from the committed boundary cell");
+        AssertEqual(2, continued.ToGridX, "same-tick continuation should move toward the next approach cell");
     }
 
     internal static void RuntimeFixedClockDefersAttackAfterMovementBoundary()

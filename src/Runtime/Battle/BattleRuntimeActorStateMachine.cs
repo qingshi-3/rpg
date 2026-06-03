@@ -46,7 +46,11 @@ internal static class BattleRuntimeActorStateMachine
         return false;
     }
 
-    internal static void MarkMovementCommitted(BattleRuntimeActor actor, BattleGridCoord to, double currentTimeSeconds)
+    internal static void MarkMovementCommitted(
+        BattleRuntimeActor actor,
+        BattleGridCoord to,
+        double currentTimeSeconds,
+        BattleMovementIntentCommit intent)
     {
         if (actor == null)
         {
@@ -71,6 +75,20 @@ internal static class BattleRuntimeActorStateMachine
         actor.MovementStartedAtSeconds = currentTimeSeconds;
         actor.MovementDurationSeconds = moveSeconds;
         actor.MovementProgress = 0;
+        actor.HasMovementIntentSnapshot = true;
+        actor.MovementIntentKind = intent.RequestKind;
+        actor.MovementIntentTargetActorId = intent.TargetActorId ?? "";
+        actor.MovementIntentObjectiveZoneId = intent.ObjectiveZoneId ?? "";
+        actor.MovementIntentRegionId = intent.RegionId ?? "";
+        actor.MovementIntentCommandId = intent.CommandId ?? "";
+        actor.MovementIntentReasonCode = intent.ReasonCode ?? "";
+        actor.MovementIntentLocalCombatSituationId = intent.LocalCombatSituationId ?? "";
+        actor.HasMovementIntentCombatSlot = intent.HasCombatSlotIntent;
+        actor.MovementIntentCombatSlotX = intent.CombatSlotAnchor.X;
+        actor.MovementIntentCombatSlotY = intent.CombatSlotAnchor.Y;
+        actor.MovementIntentCombatSlotHeight = intent.CombatSlotAnchor.Height;
+        actor.MovementIntentCombatSlotKind = intent.CombatSlotKind;
+        actor.MovementIntentSegmentDurationSeconds = moveSeconds;
     }
 
     internal static void MarkAttackRecovery(BattleRuntimeActor actor, double currentTimeSeconds)
@@ -85,6 +103,7 @@ internal static class BattleRuntimeActorStateMachine
         actor.ActionLockTicksRemaining = AttackRecoveryLockTicks;
         actor.ActionLockReason = "attack_recovery";
         actor.ActionReadyAtSeconds = currentTimeSeconds + ResolveAttackActionSeconds(actor);
+        ClearMovementIntentSnapshot(actor);
     }
 
     internal static void MarkWaitingForCharge(BattleRuntimeActor actor, double currentTimeSeconds)
@@ -99,6 +118,7 @@ internal static class BattleRuntimeActorStateMachine
         actor.ActionLockTicksRemaining = 0;
         actor.ActionLockReason = "";
         actor.ActionReadyAtSeconds = currentTimeSeconds + ResolveDecisionRetrySeconds(actor);
+        ClearMovementIntentSnapshot(actor);
     }
 
     internal static void MarkHolding(BattleRuntimeActor actor, double currentTimeSeconds)
@@ -113,6 +133,7 @@ internal static class BattleRuntimeActorStateMachine
         actor.ActionLockTicksRemaining = 0;
         actor.ActionLockReason = "";
         actor.ActionReadyAtSeconds = currentTimeSeconds + ResolveDecisionRetrySeconds(actor);
+        ClearMovementIntentSnapshot(actor);
     }
 
     internal static void MarkDefeated(BattleRuntimeActor actor)
@@ -131,6 +152,7 @@ internal static class BattleRuntimeActorStateMachine
         actor.ActionLockTicksRemaining = 0;
         actor.ActionLockReason = "";
         actor.ActionReadyAtSeconds = 0;
+        ClearMovementIntentSnapshot(actor);
     }
 
     private static bool AdvanceMovementBoundary(
@@ -178,7 +200,7 @@ internal static class BattleRuntimeActorStateMachine
 
     private static double ResolveMoveStepSeconds(BattleRuntimeActor actor)
     {
-        return BattleActionTimingPolicy.NormalizeActionSeconds(
+        return BattleActionTimingPolicy.NormalizeMoveStepSeconds(
             actor?.MoveStepSeconds ?? BattleActionTimingPolicy.DefaultMoveStepSeconds,
             BattleActionTimingPolicy.DefaultMoveStepSeconds);
     }
@@ -193,5 +215,28 @@ internal static class BattleRuntimeActorStateMachine
     private static double ResolveDecisionRetrySeconds(BattleRuntimeActor actor)
     {
         return ResolveMoveStepSeconds(actor);
+    }
+
+    internal static void ClearMovementIntentSnapshot(BattleRuntimeActor actor)
+    {
+        if (actor == null)
+        {
+            return;
+        }
+
+        actor.HasMovementIntentSnapshot = false;
+        actor.MovementIntentKind = Rpg.Runtime.Battle.AI.BattleRuntimeAiActionKind.Hold;
+        actor.MovementIntentTargetActorId = "";
+        actor.MovementIntentObjectiveZoneId = "";
+        actor.MovementIntentRegionId = "";
+        actor.MovementIntentCommandId = "";
+        actor.MovementIntentReasonCode = "";
+        actor.MovementIntentLocalCombatSituationId = "";
+        actor.HasMovementIntentCombatSlot = false;
+        actor.MovementIntentCombatSlotX = 0;
+        actor.MovementIntentCombatSlotY = 0;
+        actor.MovementIntentCombatSlotHeight = 0;
+        actor.MovementIntentCombatSlotKind = Rpg.Runtime.Battle.Navigation.BattleCombatSlotKind.Support;
+        actor.MovementIntentSegmentDurationSeconds = 0;
     }
 }
