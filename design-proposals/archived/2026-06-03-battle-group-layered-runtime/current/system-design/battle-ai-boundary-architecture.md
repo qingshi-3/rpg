@@ -50,7 +50,7 @@ Tactical AI owns:
 - battle-group plan execution inside the active objective zone and engagement rule;
 - ordinary attack target choice;
 - without explicit AI override, ordinary assault follows the active battle-group plan, senses local enemies inside that scope, then chooses the enemy and footprint-valid attack slot that best fits the engagement rule;
-- combat-zone response: when a relevant global combat zone is active inside command scope, AI may request moving toward that zone, joining that fight, occupying an attack slot, occupying a support slot, queueing, holding support, regrouping, or returning to objective;
+- local combat response: when a nearby fight is active inside command scope, AI may request joining that fight, occupying an attack slot, occupying a support slot, holding support, or returning to objective;
 - command-scoped target retention, so movement does not jitter between incidental nearest enemies while rerouting;
 - protect, pursuit, retreat, and hold-position choice;
 - group spacing and formation maintenance where implemented;
@@ -67,7 +67,6 @@ active player command or battle-group plan
 -> selected objective zone
 -> engagement rule
 -> local perception
--> battle-group commander state
 -> retained target validation
 -> request objective movement, target pursuit, attack-slot approach, hold, regroup, protect, or retreat
 -> Runtime validation
@@ -77,18 +76,15 @@ The engagement rule controls when local perception interrupts objective movement
 
 Target reacquisition is allowed when the retained target dies, becomes invalid, violates the active scope, or the engagement rule demands a higher-priority response. It is not allowed merely because another render frame elapsed or because another enemy could be globally scored as slightly better.
 
-## Combat Zone And Local Combat Decisions
+## Local Combat Situation Decisions
 
-AI may consume Runtime-built global `CombatZone` facts and commander-owned `GroupActionZone` facts. A combat zone identifies an active or imminent fight from all living units and clustered contact/perception/attack facts. A group action zone identifies what one commander group is trying to do in response. Neither fact is a movement, damage, or settlement authority.
-
-A local combat situation is a temporary tactical observation scoped to a selected combat zone and the consuming commander group. It identifies participating actors, open attack slots, occupied attack slots, support slots, queue or regroup options, local imbalance facts, and command-scope boundaries. It is not a whole-map target search cache.
+AI may consume Runtime-built `LocalCombatSituation` facts for the owning battle group. A local combat situation is a temporary, group-owned tactical observation that identifies an active nearby fight inside a bounded local combat region, its participating actors, open attack slots, occupied attack slots, support slots, local imbalance facts, and command-scope boundaries. It is not a global tactical director or a whole-map target search cache.
 
 Local combat terms must be executable:
 
 - A fight is active when recent damage, recent attack intent, close threat, or objective-route blocking is present.
 - A fight is relevant to an actor only when the actor is decision-ready, inside command scope and the owning group local combat region, able to reach an attack or support slot soon, not locked into another decision, and allowed by battle-group budget.
 - Support positions are named staging roles, such as melee queue, line hold, or ranged hold. They are not generic waiting cells.
-- Reachability terms distinguish static slot reachability from executable next-step reachability. A statically reachable attack slot can still be unavailable this tick when the actor footprint, occupied cells, or reservations block every improving first step.
 - Generic pressure scoring is not a first-slice behavior authority. Use explicit facts such as open attack-slot count, occupied attack-slot count, nearby friendly count, nearby hostile count, leash status, route-blocking status, and perception-coverage weight inside the configured local region cap.
 
 Behavior trees use these facts to choose intent:
@@ -96,12 +92,8 @@ Behavior trees use these facts to choose intent:
 ```text
 target already in range
 -> attack or wait for charge
-relevant combat zone outside current unit position
--> move toward that combat zone through group action-zone movement
-inside relevant combat zone
--> join through attack slot, support slot, queue, regroup, hold support, or return
-blocked attack entry
--> named support, queue, line hold, flank, regroup, or explicit failure
+nearby relevant local fight
+-> join through attack slot, support slot, hold support, or return
 objective still relevant
 -> advance objective
 fallback
@@ -126,31 +118,29 @@ Behavior trees output typed intent such as attack, advance to target, advance to
 Behavior-tree and C# executor decisions must emit low-noise reason codes for diagnostics, such as `join_recent_damage`, `join_blocks_objective_route`, `hold_support_attack_slots_full`, `return_objective_threat_clear`, `reject_outside_leash`, `reject_join_budget_full`, or `reject_no_reachable_slot`.
 
 
-## Tactical Area Ownership
+## Tactical Region Ownership
 
-Combat zones are global battlefield facts and are not owned by battle groups. Group action zones, target regions, temporary target regions, and engagement state are owned by battle groups. Runtime may expose global lookup caches, but those caches are not tactical authorities and must not mutate group intent.
+Target regions, temporary target regions, local combat regions, and engagement state are owned by battle groups. Runtime may expose global lookup caches keyed by battle-group id, but those caches are not tactical authorities and must not mutate group intent.
 
-Reusable AI services may build perception facts, combat-zone facts, group action-zone facts, target candidates, attack-slot candidates, support-slot candidates, queue/regroup candidates, and degradation reasons. Side policy chooses how to use those services:
+Reusable AI services may build perception facts, local combat regions, target candidates, attack-slot candidates, support-slot candidates, and degradation reasons. Side policy chooses how to use those services:
 
 - enemy offense and active defense may replan target regions automatically;
 - enemy hold defense may switch the whole group to active assault after damage, attack, or perception trigger;
-- player groups may reuse the same tactical solvers and may enter player-scoped engagement, but their target regions and posture are controlled by player commands or accepted battle plans.
+- player groups may reuse the same tactical solvers, but their target regions and posture are controlled by player commands or accepted battle plans.
 
-Non-engaged movement is region-directed through the group's action zone. AI should not chase a moving actor as the ordinary out-of-combat movement target. Actor targets become valid when the group is inside or joining a selected combat zone, or when a command explicitly targets an actor.
+Non-engaged movement is region-directed. AI should not chase a moving actor as the ordinary out-of-combat movement target. Actor targets become valid when the group is engaged or when a command explicitly targets an actor.
 
 ## Bounded Local-Optimal Combat
 
-Local combat optimization is scoped by a selected global combat zone and the consuming commander group's action zone. The combat zone is built from all living units, clustered contact/perception/attack facts, participant footprints, and configured hot-area padding. Performance budgets apply to zone splitting and local slot/search evaluation; they must not clip the fact bounds of a zone that already contains participant footprints and immediate join space.
+Local combat optimization is scoped by a battle-group-owned local combat region. The region is built from the group's member perception coverage and capped by a performance-safe size limit. Cells perceived by multiple group members carry higher selection weight, allowing the chosen local region to favor overlapping group awareness without becoming a full-map tactical scan.
 
-Outside a selected combat zone, AI requests region movement toward a group action zone. Inside the selected combat zone, AI may choose the best available local combat target, open attack slot, support slot, queue role, regroup role, or fallback. Outside command scope, AI returns to group action-zone movement, command constraints, or safe fallback.
+Inside the local region, AI may choose the best available local combat target, open attack slot, support slot, or fallback. Outside the local region, AI returns to region movement, command constraints, or safe fallback.
 
 ## Tactical Fact Refresh
 
 AI tactical facts should not be rebuilt globally every Runtime tick. Runtime should use event-driven dirty marking, local lazy rebuilds, and bounded TTLs.
 
-Rebuild combat-zone facts after important events such as battle start, first contact, engagement enter/exit, damage, target defeat, movement completion into or out of threat range, command changes, objective changes, major unit additions, and relevant path or reservation failures. Rebuild group action zones at battle start, command/objective changes, invalidation, and a fixed tick interval. Movement start may mark a local area dirty without forcing immediate full rebuild.
-
-Combat-zone and group action-zone rebuilds must emit low-noise area snapshots that include zone bounds, deployment-zone bounds, group action-zone bounds, and living unit positions. These diagnostics are the primary manual-QA entry point for explaining battlefield distribution.
+Rebuild local combat facts after important events such as battle start, damage, target defeat, movement completion into or out of threat range, command changes, objective changes, major unit additions, and relevant path or reservation failures. Movement start may mark a local area dirty without forcing immediate full rebuild.
 
 Behavior trees should run at Runtime actor decision boundaries, not every render frame and not every fixed simulation tick while an actor is moving, recovering, casting, defeated, or otherwise locked.
 
@@ -161,7 +151,6 @@ First implementation should prefer simple local situation queries at actor decis
 - Target lost: choose a valid target inside command scope; otherwise hold or regroup.
 - Path unreachable: try local reroute through Runtime navigation; otherwise stop advance and emit a failure candidate.
 - Local combat full: try valid support positions before idle hold, while respecting leash, occupancy, and reservations.
-- Attack entry blocked by current occupancy: try named support, queue, line-hold, flank, or regroup roles before reporting a terminal path failure.
 - Protect target out of range: prioritize return/protect; if impossible, hold nearest safe position.
 - Pursuit too deep: pursuit must obey retreat, protect, and area-hold constraints.
 - Retreat blocked or late: emit explicit failure candidates for report attribution.

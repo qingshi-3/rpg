@@ -7,6 +7,7 @@ It intentionally lives outside `docs/` so it does not inherit older document rou
 ## Routes
 
 - Long-term content systems design: `content-systems-long-term-design.md`
+- First playable vertical slice target: `vertical-slices/first-playable-slice.md`
 - Detail design index: `details/README.md`
 
 ## Boundary

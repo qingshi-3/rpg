@@ -23,8 +23,6 @@ The core architecture term is:
 battle group = 1 hero + 1 main corps
 ```
 
-Runtime-visible force counts may create multiple combat actors for presentation, collision, attack, or damage resolution, but they do not by themselves create separate battle-group commander state. The selectable hero company or accepted battle-group command identity remains the commander boundary. If a migration adapter expands old force-count data, it must preserve the owning battle-group identity instead of letting each expanded row become an independent tactical commander.
-
 Chinese design language uses **战斗编组**. Code-facing English should use `BattleGroup` unless a later accepted proposal changes the naming rule.
 
 ## Responsibility
@@ -44,7 +42,6 @@ Future system documents and implementation slices must not silently break these 
 | Medium-frequency command | The game must not become high-frequency single-soldier micro. |
 | Battle-group plan before start | Each participating battle group may carry a pre-battle plan: deployment, objective zone, initial formation, and engagement rule. |
 | Automatic local behavior | Soldiers and corps members act automatically inside player intent. |
-| Runtime group identity | A runtime actor belongs to exactly one battle-group commander state; actor count, footprint, or presentation entity count must not fragment command ownership. |
 | Runtime does not own campaign truth | Battle runtime consumes snapshots and emits events/results; settlement writes long-term state. |
 | Reports explain causes | Battle reports explain command, build, resource, skill, equipment, terrain, and city factors. |
 | Resource consequences matter | Corps loss, recovery cost, training, equipment upgrades, and city support feed each other. |

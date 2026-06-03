@@ -140,7 +140,7 @@ Non-engaged movement is region-directed through the group's action zone. AI shou
 
 ## Bounded Local-Optimal Combat
 
-Local combat optimization is scoped by a selected global combat zone and the consuming commander group's action zone. The combat zone is built from all living units, clustered contact/perception/attack facts, participant footprints, and configured hot-area padding. Performance budgets apply to zone splitting and local slot/search evaluation; they must not clip the fact bounds of a zone that already contains participant footprints and immediate join space.
+Local combat optimization is scoped by a selected global combat zone and the consuming commander group's action zone. The combat zone is built from all living units and capped by a performance-safe size formula. Footprints, perceived contacts, attacks, and recent damage affect the zone bounds without turning local combat into a full-map tactical scan.
 
 Outside a selected combat zone, AI requests region movement toward a group action zone. Inside the selected combat zone, AI may choose the best available local combat target, open attack slot, support slot, queue role, regroup role, or fallback. Outside command scope, AI returns to group action-zone movement, command constraints, or safe fallback.
 

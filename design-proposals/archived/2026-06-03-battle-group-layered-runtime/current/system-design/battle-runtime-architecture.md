@@ -36,49 +36,22 @@ Runtime state exists only during an active battle or recoverable runtime handoff
 | Actor phases | Anchored decision, moving, attack windup/recovery, casting, holding, interrupted, defeated. |
 | Battle-group plan execution | Active objective zone, engagement rule, formation intent, plan revision, current battle-group state. |
 | Command execution | Current command, accepted runtime order, target area, retreat/protect/follow state, plan supersession state. |
-| Tactical observations | Global combat zones, temporary local combat situations, tactical fact versions, dirty reasons, and bounded cached slot facts. |
-| Battle tactical areas | Group-owned action zones, target regions, temporary regions, engagement state, perception summary, and replan timing. |
+| Tactical observations | Temporary local combat situations, tactical fact versions, dirty reasons, and bounded cached slot facts. |
+| Battle-group tactical regions | Group-owned target region, temporary region, local combat region, engagement state, perception summary, and replan timing. |
 | Battle process | Event stream, skill impact, formation density, map-trigger facts received through snapshots. |
 
 Runtime cannot query or mutate Domain state directly. Application snapshots and result contracts isolate the two sides.
 
-## Layered Runtime Ownership
 
-Runtime battle behavior is split into four layers with one-way ownership:
+## Battle-Group Tactical Region Runtime State
 
-```text
-observation facts
--> battle-group commander state
--> actor action state machine
--> runtime validation
-```
+Runtime stores tactical-region state under battle-group ownership. A target region, temporary region, local combat region, or engagement state without an owner battle-group id is invalid for decisions.
 
-Observation facts run continuously from authoritative runtime state. They include perception, contact, global combat-zone candidates, group action-zone snapshots, local slot facts, route-blocking facts, and reachability diagnostics. Observation facts are read-only inputs for decision systems; they do not own command intent, do not select group objectives by themselves, and do not mutate actor phases.
-
-Battle-group commander state owns plan progression and tactical intent for the hero-led group. It decides whether the group is deploying, advancing, sensing contact, locked to a local fight, moving actors into attack or support slots, attacking, regrouping, returning, retreating, routed, or defeated. It consumes observation facts and commands, then exposes typed actor intents.
-
-Actor action state machines own only per-actor execution phases such as anchored decision, moving, attack recovery, holding, interrupted, and defeated. They do not decide whether the battle group should pursue a target, remain on the objective, or enter local combat.
-
-Runtime validation remains the final authority for topology, footprint, occupancy, reservations, movement commits, attack legality, damage, defeat, and event emission. Validators may reject or degrade a requested action, but they must not silently become a second tactical commander.
-
-Each runtime actor belongs to one battle-group commander state. Multiple visible actors may share that commander state when they are produced from the same hero-led company or command group. Expanded force-count rows, presentation entities, or temporary adapter rows must not create independent commander state unless the accepted battle model says they are separate player-commandable battle groups.
-
-
-## Battle Tactical Area Runtime State
-
-Runtime stores global combat-zone state separately from group-owned action state.
-
-Combat zones are global battlefield facts computed from all living units, footprints, factions, perception/contact, attacks, damage, and recent defeats. They are not owned by a battle group and must not mutate group intent directly.
-
-Group action zones are commander-group-owned intent facts. They describe where the group is moving, joining, supporting, holding, retreating, or regrouping. Other groups may observe these zones for spacing or tactical response, but only the owning commander state mutates them.
-
-Runtime may maintain global caches of combat-zone and group action-zone snapshots for query, diagnostics, and performance. The caches store immutable or versioned snapshots. They are not global tactical directors and must not update group intent by themselves.
+Runtime may maintain a global cache of region snapshots for query, diagnostics, and performance. The cache is indexed by battle-group id and stores immutable or versioned snapshots. It is not a global tactical director and must not update group intent by itself.
 
 Group engagement state is driven by decoupled facts: perception summaries, damage events, attack events, command changes, and region reachability. Unit-level action logic consumes the group state; it does not own the group state machine.
 
-Non-engaged groups request movement toward their current group action zone or selected target region. Engaged groups request local target, attack-slot, support-slot, queue, flank, regroup, or fallback actions inside a selected combat zone. Runtime remains the final validator for topology, occupancy, reservations, movement, attacks, damage, defeat, events, and outcome.
-
-Runtime diagnostics must emit complete area snapshots when combat zones are rebuilt and when group action zones are rebuilt. These snapshots include combat-zone bounds, deployment-zone bounds, group action-zone bounds, and living unit positions with footprints and high-level states.
+Non-engaged groups request movement toward their current region. Engaged groups request local target, attack-slot, support-slot, or fallback actions inside their local combat region. Runtime remains the final validator for topology, occupancy, reservations, movement, attacks, damage, defeat, events, and outcome.
 
 ## Battle Space Authority
 
@@ -145,7 +118,7 @@ Target acquisition is not the same as movement continuation. Default assault AI 
 
 ## Battle-Group State Machine
 
-Actor phases remain the low-level action truth. A battle group has its own commander state that expresses plan execution across the hero and corps:
+Actor phases remain the low-level action truth. A battle group also has a runtime state that expresses plan execution across the hero and corps:
 
 ```text
 Deploying
@@ -159,8 +132,6 @@ Deploying
 ```
 
 The battle-group state machine owns command-scoped intent, not individual cell legality. Actor state machines still validate movement, attack, cast, interruption, recovery, defeated, and action completion.
-
-Battle-group commander state is stored once per battle group, not on each actor as authoritative state. Actors may expose derived or cached state for diagnostics, but reports, commands, tactical regions, and local-combat ownership read the group-owned state.
 
 State transitions are driven by:
 
@@ -184,15 +155,13 @@ Engagement rules bias transitions:
 
 Runtime events must include plan state changes when they materially affect movement, target choice, retreat, hold, or battle outcome. Reports should be able to say that a company advanced as planned, was delayed by a chokepoint, switched to attack-first contact, returned to objective, or retreated.
 
-Plan-state logging must stay low-noise. Log meaningful group-state transitions, command supersession, target lock changes, local-combat entry or exit, regroup, retreat, defeat, and important degradation reasons. Do not log every fixed tick or every movement progress update as a state transition.
+## Local Combat Regions And Situations
 
-## Combat Zones And Local Combat Situations
-
-Runtime may build temporary `LocalCombatSituation` facts from authoritative battle state. When those facts drive engaged movement or target choice, they are scoped to a global combat zone selected by the commander group, not to a globally commanding fight authority. These facts help AI reason about nearby active fights without giving behavior trees movement, damage, or settlement authority.
+Runtime may build temporary `LocalCombatSituation` facts from authoritative battle state. When those facts drive engaged movement or target choice, they are battle-group-owned local combat region snapshots, not global fight authority. These facts help AI reason about nearby active fights without giving behavior trees movement, damage, or settlement authority.
 
 A local combat situation records:
 
-- selected combat-zone id, owner battle-group id for the consuming commander, stable situation id, center cell, and bounded region extent;
+- owner battle-group id, stable situation id, center cell, and bounded region extent;
 - participating actors and nearby actors that satisfy join predicates inside the group-owned local combat region;
 - hostile anchors and retained target facts;
 - open attack slots and occupied attack slots;
@@ -200,14 +169,14 @@ A local combat situation records:
 - simple local imbalance facts, such as open attack-slot count, occupied attack-slot count, nearby friendly count, nearby hostile count, route-blocking status, and command-scope or leash boundaries;
 - version, dirty reason, and last built Runtime time.
 
-Combat zones are refreshed by contact/engagement changes and bounded periodic rebuilds, not by global full recomputation every simulation tick. Local combat situations are refreshed by important Runtime events and lazy rebuilds inside a selected combat zone. Movement, recovery, casting, defeated, and other locked phases do not run behavior-tree decisions merely because the tactical cache changed.
+Local combat situations are refreshed by important Runtime events and lazy rebuilds, not by global full recomputation every simulation tick. Their region extent is derived from the owning group's perception coverage with a configured cap, so overlap can raise local value without turning local combat into whole-map optimization. Movement, recovery, casting, defeated, and other locked phases do not run behavior-tree decisions merely because the tactical cache changed.
 
 Runtime remains the only owner of actor anchors, reservations, movement progress, attack legality, damage application, defeat, events, and battle outcome. `LocalCombatSituation` facts are advisory inputs for action selection and diagnostics and must remain keyed by owning battle-group id when cached globally.
 
 Runtime local combat response must preserve battle-group identity:
 
-- a battle group has at most one active combat-zone assignment at a time;
-- a battle group does not switch combat zones or local situations until target death, command change, leash break, zone merge/split, or local inactivity;
+- a battle group has at most one active local combat assignment at a time;
+- a battle group does not switch local situations until target death, command change, leash break, or local inactivity;
 - objective, hold, and protect tasks retain budget unless a direct threat or explicit command overrides them;
 - actor decisions use anti-jitter locks for join, return, slot claim, and de-aggro transitions.
 

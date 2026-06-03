@@ -1,6 +1,6 @@
 # Battle Continuous Step Handoff Implementation Proposal
 
-Status: Reviewed - approved for phased implementation (reviewer: Claude, 2026-06-01)
+Status: Accepted - implemented and verified (2026-06-03)
 Created: 2026-06-01
 
 ## Requirement / Authority
@@ -337,3 +337,28 @@ Per `.codex/collaboration.md`, reviewed by Claude before implementation. A sub-a
 One harmless wording nit (no plan impact): §Timing says progress is "accumulated as delta/MovementDurationSeconds"; the code actually computes elapsed/duration (`StateMachine.cs:150-154`) — equivalent result.
 
 Decision: approved for phased implementation following the Suggested Cut Sequence. The must-honor item flagged by review: continuation reusing the `AdvanceTowardTarget` path must bypass the stale-target retarget (`BattleMovementCommitResolver.cs:82-98`) via the proposed `AllowStaleTargetRetarget=false` flag, so continuation never silently retargets. Golden updates only after the narrow handoff regression proves the new same-tick MovementCompleted+MovementStarted behavior and stable-projection diffs are reviewed.
+
+## Acceptance Evidence (2026-06-03)
+
+Implementation result:
+
+- Runtime now stores movement intent snapshots for committed segments, locks per-segment movement duration, and lets completed movers build constrained movement-only continuation contexts after normal decision outcomes and before attack resolution.
+- Continuation contexts reuse `BattleMovementCommitResolver`; they do not run full same-tick AI redecision, do not retarget stale targets, and do not use alternate reservation fallback after the selected continuation step loses same-tick reservation.
+- Movement event duration now comes from the locked segment duration, and movement-step normalization uses a movement-specific one-fixed-tick lower bound.
+- Presentation code was not changed; existing automated Presentation movement playback regressions passed.
+
+Focused regression evidence:
+
+- Added continuous-step handoff tests for same-tick objective continuation, objective stop, command-change stop, reservation rejection, scoped target death, and same-tick mover defeat.
+- The reservation-rejection test initially failed because continuation could fall back to an alternate move option after losing its selected step. The implementation was corrected by keeping normal movement fallback enabled while disabling reservation fallback for continuation contexts.
+
+Verification commands:
+
+- `dotnet build rpg.sln -maxcpucount:2 -v:minimal`: passed with 0 warnings and 0 errors.
+- `dotnet run --project tests/TargetBattleArchitectureRegression/TargetBattleArchitectureRegression.csproj`: passed.
+- `dotnet run --project tests/AutoBattleRuntimeRegression/AutoBattleRuntimeRegression.csproj`: passed.
+- `dotnet run --project tests/BattleHitFeedbackRegression/BattleHitFeedbackRegression.csproj`: passed.
+- `dotnet run --project tests/WorldArmyMovementRegression/WorldArmyMovementRegression.csproj`: passed.
+- `dotnet run --project tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegression.csproj`: passed.
+
+Known verification note: direct `dotnet run` on several test projects emits the existing Godot source-generator warning `Property 'GodotProjectDir' is null or empty`; it did not block compilation or test execution. No separate in-editor visual manual QA was run in this session; the automated Presentation movement playback suite covered Runtime movement-cell consumption and queued consecutive move steps.

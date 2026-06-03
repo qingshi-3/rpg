@@ -81,7 +81,7 @@ The owner id is the battle-group commander id, not a presentation actor id, forc
 
 Non-engaged movement targets group action zones or fixed/temporary target regions, not moving units. A group may keep moving toward a fixed or temporary region while no relevant combat zone, opposing unit, recent damage, or attack event keeps it engaged.
 
-Engaged behavior targets units only inside a relevant bounded combat zone. The combat zone is built from all living units, clustered contact/perception/attack facts, participant footprints, and configured hot-area padding. Overlapping contacts and larger footprints increase the area bounds. The selected zone must cover the current fight and immediate join space without becoming a whole-map optimizer; performance budgets belong to zone splitting and local slot/search evaluation, not to clipping member footprint facts.
+Engaged behavior targets units only inside a relevant bounded combat zone. The combat zone is built from all living units and clustered contact/perception/attack facts, capped by a performance-safe formula. Overlapping contacts and larger footprints increase the area bounds. The selected zone should cover the current fight and immediate join space without becoming a whole-map optimizer.
 
 The commander group chooses whether its members move toward a combat zone, join it, hold, support, retreat, or regroup. That choice is expressed as a group action zone and member combat assignments. Actors consume the resulting typed intent and do not decide combat-zone participation by themselves.
 

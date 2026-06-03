@@ -60,8 +60,6 @@ Create Intent
 
 The first implementation may expose only a small subset of commands, but it must preserve the channel boundary so later hero/corps differentiation does not become a UI-only distinction.
 
-Commands address the battle-group commander identity. A command may later fan out into hero and corps actor intents, but it must not be stored separately on expanded force-count actors as if each count row were an independent commandable company. Runtime actor commands are execution facts derived from the accepted group command.
-
 ## Battle-Group Plan Relationship
 
 `BattleGroupPlan` is the initial command-scoped intent created before battle start. It is not a UI-owned command queue and it is not a precomputed runtime script.
@@ -82,8 +80,6 @@ When Runtime starts, the active plan behaves like the default combined-command s
 - plan interrupted by retreat, protect, hold, target loss, or failure.
 
 Commands must preserve state-machine action locks. A command or plan change may request an interrupt only through an accepted interrupt rule; it must not force pathfinding, target reacquisition, or attacks while the actor is locked in movement, attack recovery, casting, or another non-decision phase.
-
-The battle-group commander state is the runtime owner of active command scope, plan state, local-combat assignment, and regroup or retreat intent. Actor action state machines consume derived execution intents and report success, failure, or interruption back through runtime events.
 
 ## Event Rules
 
@@ -120,7 +116,6 @@ The battle-group commander state is the runtime owner of active command scope, p
 This architecture is acceptable when:
 
 - future command UI can route hero, corps, and combined commands without changing runtime ownership;
-- expanded runtime actors remain under one command-owned battle-group commander unless they are explicitly separate commandable battle groups;
 - battle-start plans can initialize command-scoped runtime intent without becoming UI-owned combat truth;
 - command validation is split between UI hints, Application permission checks, and Runtime battle-context validation;
 - command state transitions are visible to runtime diagnostics and report attribution;
