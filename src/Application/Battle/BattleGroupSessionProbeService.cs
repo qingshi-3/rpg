@@ -128,6 +128,7 @@ public sealed class BattleGroupSessionProbeService
 				string forceId = string.IsNullOrWhiteSpace(force.ForceId)
 					? $"force_{groupIndex}"
 					: force.ForceId;
+				string commanderGroupId = BattleCommanderGroupIdentity.BuildProbeCommanderGroupId(force, forceId);
 				string factionId = string.IsNullOrWhiteSpace(force.FactionId)
 					? fallbackFactionId
 					: force.FactionId;
@@ -166,6 +167,7 @@ public sealed class BattleGroupSessionProbeService
 				{
 					FactionId = factionId,
 					SourceForceId = forceId,
+					RuntimeCommanderGroupId = commanderGroupId,
 					PlanSide = planSide,
 					CellX = placement?.CellX ?? ResolveFallbackCellX(fallbackFactionId),
 					CellY = placement?.CellY ?? index,
@@ -180,7 +182,7 @@ public sealed class BattleGroupSessionProbeService
 					AttackActionSeconds = force.AttackActionSeconds,
 					AttackImpactDelaySeconds = force.AttackImpactDelaySeconds,
 					InitialCorpsCommandId = initialCorpsCommandId ?? "",
-					Plan = CopyPlanForGroup(group.BattleGroupId, groupPlan)
+					Plan = CopyPlanForGroup(commanderGroupId, groupPlan)
 				};
 				seed.Heroes[hero.HeroId] = hero;
 				seed.Corps[corps.CorpsId] = corps;
@@ -278,11 +280,12 @@ public sealed class BattleGroupSessionProbeService
 
 	private static BattleTacticalRegionSnapshot BuildHoldRegionSeed(BattleGroupSnapshot group)
 	{
-		string regionId = $"{group.BattleGroupId}:hold_seed";
+		string ownerGroupId = BattleCommanderGroupIdentity.Resolve(group);
+		string regionId = $"{ownerGroupId}:hold_seed";
 		return new BattleTacticalRegionSnapshot
 		{
 			RegionId = regionId,
-			OwnerBattleGroupId = group.BattleGroupId ?? "",
+			OwnerBattleGroupId = ownerGroupId,
 			Kind = BattleTacticalRegionKind.Hold,
 			SourceRegionId = string.IsNullOrWhiteSpace(group.Plan?.ObjectiveZoneId)
 				? regionId
@@ -319,8 +322,8 @@ public sealed class BattleGroupSessionProbeService
 		bool densityDecided = candidates.Skip(1).All(candidate => selected.OpposingAliveActorsInsideRegion > candidate.OpposingAliveActorsInsideRegion);
 		return new BattleTacticalRegionSnapshot
 		{
-			RegionId = $"{group.BattleGroupId}:fixed:{selected.Zone.ObjectiveZoneId}",
-			OwnerBattleGroupId = group.BattleGroupId ?? "",
+			RegionId = $"{BattleCommanderGroupIdentity.Resolve(group)}:fixed:{selected.Zone.ObjectiveZoneId}",
+			OwnerBattleGroupId = BattleCommanderGroupIdentity.Resolve(group),
 			Kind = BattleTacticalRegionKind.FixedTarget,
 			SourceRegionId = selected.Zone.ObjectiveZoneId ?? "",
 			ReasonCode = densityDecided
@@ -422,6 +425,7 @@ public sealed class BattleGroupSessionProbeService
 			// runtime and settlement consume only snapshot-owned identities.
 			group.FactionId = metadata.FactionId;
 			group.SourceForceId = metadata.SourceForceId;
+			group.RuntimeCommanderGroupId = metadata.RuntimeCommanderGroupId;
 			group.CellX = metadata.CellX;
 			group.CellY = metadata.CellY;
 			group.CellHeight = metadata.CellHeight;
@@ -435,7 +439,7 @@ public sealed class BattleGroupSessionProbeService
 			group.AttackActionSeconds = metadata.AttackActionSeconds;
 			group.AttackImpactDelaySeconds = metadata.AttackImpactDelaySeconds;
 			group.InitialCorpsCommandId = metadata.InitialCorpsCommandId;
-			group.Plan = CopyPlanForGroup(group.BattleGroupId, metadata.Plan);
+			group.Plan = CopyPlanForGroup(BattleCommanderGroupIdentity.Resolve(group), metadata.Plan);
 		}
 	}
 
@@ -559,6 +563,7 @@ public sealed class BattleGroupSessionProbeService
 	{
 		public string FactionId { get; init; } = "";
 		public string SourceForceId { get; init; } = "";
+		public string RuntimeCommanderGroupId { get; init; } = "";
 		public BattlePlanSide PlanSide { get; init; }
 		public int CellX { get; init; }
 		public int CellY { get; init; }

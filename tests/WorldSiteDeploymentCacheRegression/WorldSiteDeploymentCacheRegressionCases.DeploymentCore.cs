@@ -581,6 +581,159 @@ internal static void BattleDeploymentPreparerUsesDeploymentSideMarkersWithoutFac
     AssertEqual(new Vector2I(2, 0), new Vector2I(enemyForce.PreferredPlacements[0].CellX, enemyForce.PreferredPlacements[0].CellY), "enemy force should use enemy-side marker without matching a concrete faction id");
 }
 
+internal static void BattleDeploymentPreparerUsesEnemyFootprintOccupancy()
+{
+    BattleGridMap grid = new();
+    for (int x = 0; x < 4; x++)
+    {
+        for (int y = 0; y < 2; y++)
+        {
+            AddWalkableSurface(grid, x, y, terrainTag: "enemy_zone");
+        }
+    }
+
+    var markers = new[]
+    {
+        new SemanticMapMarkerData
+        {
+            MarkerId = "enemy_start",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            DeploymentSide = SemanticDeploymentSide.Enemy,
+            AnchorCell = new Vector2I(0, 0),
+            Width = 4,
+            Height = 2
+        }
+    };
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder()
+        .Build("site_under_test", grid, markers);
+    WorldSiteState site = BuildDeploymentSite();
+    BattleStartRequest request = new()
+    {
+        TargetSiteId = site.SiteId,
+        BattleKind = BattleKind.AssaultSite,
+        AttackDirection = WorldSiteAttackDirection.West,
+        AttackerFactionId = StrategicWorldIds.FactionPlayer,
+        DefenderFactionId = StrategicWorldIds.FactionUndead
+    };
+    BattleForceRequest enemyForce = new()
+    {
+        ForceId = "enemy_force",
+        SourceKind = "EnemyArmy",
+        SourceId = "enemy_army_1",
+        UnitDefinitionId = "wide_enemy",
+        Count = 2,
+        FactionId = StrategicWorldIds.FactionUndead,
+        FootprintWidth = 2,
+        FootprintHeight = 2
+    };
+    request.EnemyForces.Add(enemyForce);
+
+    bool prepared = new WorldSiteBattleDeploymentPreparer().Prepare(
+        request,
+        site,
+        new WorldSiteDefinition { Id = "site_under_test" },
+        cache,
+        grid,
+        CanForceEnterWater,
+        CanPlacementEnterWater,
+        out string failureReason);
+
+    AssertTrue(prepared, $"deployment preparation should succeed failure={failureReason}");
+    AssertEqual(2, enemyForce.PreferredPlacements.Count, "enemy preferred placement count");
+    AssertDeploymentFootprintsStayInsideCandidates(
+        enemyForce.PreferredPlacements,
+        enemyForce.FootprintWidth,
+        enemyForce.FootprintHeight,
+        cache.GetDeploymentZoneCandidatesForSide(SemanticDeploymentSide.Enemy, enemyForce.FactionId, WorldSiteAttackDirection.East),
+        "enemy deployment footprint");
+    AssertDeploymentFootprintsDoNotOverlap(
+        enemyForce.PreferredPlacements,
+        enemyForce.FootprintWidth,
+        enemyForce.FootprintHeight,
+        "enemy deployment footprint");
+}
+
+internal static void BattleDeploymentPreparerUsesResidentEnemyFootprintOccupancy()
+{
+    BattleGridMap grid = new();
+    for (int x = 0; x < 4; x++)
+    {
+        for (int y = 0; y < 2; y++)
+        {
+            AddWalkableSurface(grid, x, y, terrainTag: "enemy_zone");
+        }
+    }
+    AddWalkableSurface(grid, 10, 0, terrainTag: "legacy_garrison");
+    AddWalkableSurface(grid, 11, 0, terrainTag: "legacy_garrison");
+
+    var markers = new[]
+    {
+        new SemanticMapMarkerData
+        {
+            MarkerId = "enemy_start",
+            MarkerType = SemanticMapMarkerType.DeploymentZone,
+            DeploymentSide = SemanticDeploymentSide.Enemy,
+            AnchorCell = new Vector2I(0, 0),
+            Width = 4,
+            Height = 2
+        }
+    };
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder()
+        .Build("site_under_test", grid, markers);
+    WorldSiteState site = BuildDeploymentSite();
+    site.OwnerFactionId = StrategicWorldIds.FactionUndead;
+    site.Garrison.Add(new GarrisonState
+    {
+        UnitTypeId = "wide_enemy",
+        Count = 2
+    });
+    WorldSiteDefinition definition = BuildDefaultZoneDefinition(new Vector2I(10, 0), new Vector2I(11, 0));
+    BattleStartRequest request = new()
+    {
+        TargetSiteId = site.SiteId,
+        BattleKind = BattleKind.AssaultSite,
+        AttackDirection = WorldSiteAttackDirection.West,
+        AttackerFactionId = StrategicWorldIds.FactionPlayer,
+        DefenderFactionId = StrategicWorldIds.FactionUndead
+    };
+    BattleForceRequest enemyForce = new()
+    {
+        ForceId = "resident_enemy",
+        SourceKind = "DefenderSite",
+        SourceId = site.SiteId,
+        UnitDefinitionId = "wide_enemy",
+        Count = 2,
+        FactionId = StrategicWorldIds.FactionUndead,
+        FootprintWidth = 2,
+        FootprintHeight = 2
+    };
+    request.EnemyForces.Add(enemyForce);
+
+    bool prepared = new WorldSiteBattleDeploymentPreparer().Prepare(
+        request,
+        site,
+        definition,
+        cache,
+        grid,
+        CanForceEnterWater,
+        CanPlacementEnterWater,
+        out string failureReason);
+
+    AssertTrue(prepared, $"resident deployment preparation should succeed failure={failureReason}");
+    AssertEqual(2, enemyForce.PreferredPlacements.Count, "resident enemy preferred placement count");
+    AssertDeploymentFootprintsStayInsideCandidates(
+        enemyForce.PreferredPlacements,
+        enemyForce.FootprintWidth,
+        enemyForce.FootprintHeight,
+        cache.GetDeploymentZoneCandidatesForSide(SemanticDeploymentSide.Enemy, enemyForce.FactionId, WorldSiteAttackDirection.East),
+        "resident enemy deployment footprint");
+    AssertDeploymentFootprintsDoNotOverlap(
+        enemyForce.PreferredPlacements,
+        enemyForce.FootprintWidth,
+        enemyForce.FootprintHeight,
+        "resident enemy deployment footprint");
+}
+
 internal static void BattleDeploymentPreparerMovesResidentDefenderIntoEnemyDeploymentZone()
 {
     BattleGridMap grid = new();
@@ -693,6 +846,47 @@ internal static void BattleDeploymentPreparerUsesKnownEntranceBeforeDesiredAppro
 private static string FormatCells(IEnumerable<GridPosition> cells)
 {
     return string.Join("|", cells.Select(cell => $"{cell.X},{cell.Y}"));
+}
+
+private static void AssertDeploymentFootprintsStayInsideCandidates(
+    IEnumerable<BattleForcePlacementRequest> placements,
+    int footprintWidth,
+    int footprintHeight,
+    IEnumerable<WorldSiteDeploymentCell> candidates,
+    string message)
+{
+    HashSet<GridPosition> candidateCells = (candidates ?? Array.Empty<WorldSiteDeploymentCell>())
+        .Select(candidate => new GridPosition(candidate.Cell.X, candidate.Cell.Y))
+        .ToHashSet();
+    foreach (BattleForcePlacementRequest placement in placements ?? Enumerable.Empty<BattleForcePlacementRequest>())
+    {
+        GridPosition anchor = new(placement.CellX, placement.CellY);
+        foreach (GridPosition cell in BattleFootprintCells.Enumerate(anchor, footprintWidth, footprintHeight))
+        {
+            AssertTrue(
+                candidateCells.Contains(cell),
+                $"{message} should stay inside deployment zone anchor={anchor} cell={cell}");
+        }
+    }
+}
+
+private static void AssertDeploymentFootprintsDoNotOverlap(
+    IEnumerable<BattleForcePlacementRequest> placements,
+    int footprintWidth,
+    int footprintHeight,
+    string message)
+{
+    HashSet<GridPosition> occupied = new();
+    foreach (BattleForcePlacementRequest placement in placements ?? Enumerable.Empty<BattleForcePlacementRequest>())
+    {
+        GridPosition anchor = new(placement.CellX, placement.CellY);
+        foreach (GridPosition cell in BattleFootprintCells.Enumerate(anchor, footprintWidth, footprintHeight))
+        {
+            AssertTrue(
+                occupied.Add(cell),
+                $"{message} should not overlap anchor={anchor} cell={cell}");
+        }
+    }
 }
 
 private static string ExtractIfBody(string source, string ifHeader)

@@ -185,24 +185,53 @@ public sealed class WorldSiteBattleDeploymentPreparer
             return false;
         }
 
+        int footprintWidth = BattleFootprintCells.NormalizeSize(force.FootprintWidth);
+        int footprintHeight = BattleFootprintCells.NormalizeSize(force.FootprintHeight);
+        // Resident placements keep their persistent identity, but the prepared
+        // battle anchor still has to reserve the whole force footprint.
+        HashSet<string> placementIds = placements
+            .Select(placement => placement.PlacementId ?? "")
+            .ToHashSet(StringComparer.Ordinal);
+        HashSet<GridSurfacePosition> candidateSurfaces = WorldSiteDeploymentService.BuildDeploymentCandidateSurfaceSet(candidates);
+        HashSet<GridSurfacePosition> occupiedSurfaces = WorldSiteDeploymentService.BuildDeploymentAnchorOccupancy(site, placementIds);
         foreach (WorldSiteUnitPlacement placement in placements)
         {
-            if (IsPlacementInCandidates(placement, candidates) ||
-                TryMovePlacementToDeploymentCandidate(site, definition, placement, candidates, out _))
+            WorldSiteDeploymentCell selectedCell = new(new Vector2I(placement.CellX, placement.CellY), placement.CellHeight, "", false);
+            if (!WorldSiteDeploymentService.CanUseDeploymentFootprint(
+                    selectedCell,
+                    footprintWidth,
+                    footprintHeight,
+                    candidateSurfaces,
+                    occupiedSurfaces) &&
+                !TryMovePlacementToDeploymentCandidate(
+                    site,
+                    definition,
+                    placement,
+                    candidates,
+                    footprintWidth,
+                    footprintHeight,
+                    candidateSurfaces,
+                    occupiedSurfaces,
+                    out selectedCell,
+                    out _))
             {
-                // Resident defenders keep their site-local placement identity, but
-                // battle preparation must align that identity with authored start zones
-                // so later launch sync cannot snap them back to stale garrison cells.
-                placement.EntranceId = entranceId;
-                placement.AttackDirection = deploymentDirection;
-                continue;
+                failureReason = "deployment_cell_unavailable";
+                GameLog.Error(
+                    nameof(WorldSiteBattleDeploymentPreparer),
+                    $"ResidentBattleDeploymentPrepareFailed site={site?.SiteId ?? ""} request={request?.RequestId ?? ""} force={force.ForceId} unit={force.UnitDefinitionId} placement={placement.PlacementId} reason={failureReason} direction={deploymentDirection} canEnterWater={canEnterWater}");
+                return false;
             }
 
-            failureReason = "deployment_cell_unavailable";
-            GameLog.Error(
-                nameof(WorldSiteBattleDeploymentPreparer),
-                $"ResidentBattleDeploymentPrepareFailed site={site?.SiteId ?? ""} request={request?.RequestId ?? ""} force={force.ForceId} unit={force.UnitDefinitionId} placement={placement.PlacementId} reason={failureReason} direction={deploymentDirection} canEnterWater={canEnterWater}");
-            return false;
+            WorldSiteDeploymentService.ReserveDeploymentFootprint(
+                selectedCell,
+                footprintWidth,
+                footprintHeight,
+                occupiedSurfaces);
+            // Resident defenders keep their site-local placement identity, but
+            // battle preparation must align that identity with authored start zones
+            // so later launch sync cannot snap them back to stale garrison cells.
+            placement.EntranceId = entranceId;
+            placement.AttackDirection = deploymentDirection;
         }
 
         return true;
@@ -527,27 +556,32 @@ public sealed class WorldSiteBattleDeploymentPreparer
         return canEnterWater || !candidate.IsWater;
     }
 
-    private static bool IsPlacementInCandidates(
-        WorldSiteUnitPlacement placement,
-        IEnumerable<WorldSiteDeploymentCell> candidates)
-    {
-        return placement != null &&
-               (candidates ?? Enumerable.Empty<WorldSiteDeploymentCell>()).Any(candidate =>
-                   candidate.Cell.X == placement.CellX &&
-                   candidate.Cell.Y == placement.CellY &&
-                   candidate.Height == placement.CellHeight);
-    }
-
     private bool TryMovePlacementToDeploymentCandidate(
         WorldSiteState site,
         WorldSiteDefinition definition,
         WorldSiteUnitPlacement placement,
         IEnumerable<WorldSiteDeploymentCell> candidates,
+        int footprintWidth,
+        int footprintHeight,
+        HashSet<GridSurfacePosition> candidateSurfaces,
+        HashSet<GridSurfacePosition> occupiedSurfaces,
+        out WorldSiteDeploymentCell selectedCell,
         out string failureReason)
     {
+        selectedCell = default;
         failureReason = "";
         foreach (WorldSiteDeploymentCell candidate in candidates ?? Enumerable.Empty<WorldSiteDeploymentCell>())
         {
+            if (!WorldSiteDeploymentService.CanUseDeploymentFootprint(
+                    candidate,
+                    footprintWidth,
+                    footprintHeight,
+                    candidateSurfaces,
+                    occupiedSurfaces))
+            {
+                continue;
+            }
+
             if (_deploymentService.TryMovePlacementToSurface(
                     site,
                     definition,
@@ -555,6 +589,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
                     new GridSurfacePosition(candidate.Cell.X, candidate.Cell.Y, candidate.Height),
                     out failureReason))
             {
+                selectedCell = candidate;
                 return true;
             }
         }

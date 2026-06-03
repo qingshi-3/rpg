@@ -198,6 +198,14 @@ public sealed class WorldSiteDeploymentService
         string sourceKind = ResolveForceSourceKind(force);
         string sourceId = ResolveForceSourceId(force);
         string armyId = ResolveArmyId(sourceKind, sourceId);
+        int footprintWidth = BattleFootprintCells.NormalizeSize(force.FootprintWidth);
+        int footprintHeight = BattleFootprintCells.NormalizeSize(force.FootprintHeight);
+        // Battle placements store a top-left anchor; automatic allocation must
+        // reserve every covered cell so large units neither overlap nor spill
+        // outside authored deployment-zone candidates.
+        HashSet<string> forcePlacementIds = BuildExpectedBattlePlacementIds(sourceKind, sourceId, force.UnitDefinitionId, force.Count);
+        HashSet<GridSurfacePosition> candidateSurfaces = BuildDeploymentCandidateSurfaceSet(candidates);
+        HashSet<GridSurfacePosition> occupiedSurfaces = BuildDeploymentAnchorOccupancy(site, forcePlacementIds);
         int created = 0;
 
         for (int index = 1; index <= force.Count; index++)
@@ -207,10 +215,40 @@ public sealed class WorldSiteDeploymentService
             if (existing != null)
             {
                 ApplyBattleMetadata(existing, force, placementKind, sourceKind, sourceId, armyId, preferredEntranceId, direction, index);
+                WorldSiteDeploymentCell existingCell = new(new Vector2I(existing.CellX, existing.CellY), existing.CellHeight, "", false);
+                if (!CanUseDeploymentFootprint(existingCell, footprintWidth, footprintHeight, candidateSurfaces, occupiedSurfaces))
+                {
+                    if (!TryResolveNextBattleCell(
+                            candidates,
+                            footprintWidth,
+                            footprintHeight,
+                            candidateSurfaces,
+                            occupiedSurfaces,
+                            out existingCell))
+                    {
+                        failureReason = "deployment_cell_unavailable";
+                        GameLog.Error(
+                            nameof(WorldSiteDeploymentService),
+                            $"BattlePlacementFailed site={site.SiteId} force={force.ForceId} unit={force.UnitDefinitionId} index={index} reason={failureReason} direction={direction}");
+                        return false;
+                    }
+
+                    existing.CellX = existingCell.Cell.X;
+                    existing.CellY = existingCell.Cell.Y;
+                    existing.CellHeight = existingCell.Height;
+                }
+
+                ReserveDeploymentFootprint(existingCell, footprintWidth, footprintHeight, occupiedSurfaces);
                 continue;
             }
 
-            if (!TryResolveNextBattleCell(site, candidates, out WorldSiteDeploymentCell cell))
+            if (!TryResolveNextBattleCell(
+                    candidates,
+                    footprintWidth,
+                    footprintHeight,
+                    candidateSurfaces,
+                    occupiedSurfaces,
+                    out WorldSiteDeploymentCell cell))
             {
                 failureReason = "deployment_cell_unavailable";
                 GameLog.Error(
@@ -236,6 +274,7 @@ public sealed class WorldSiteDeploymentService
                 CellY = cell.Cell.Y,
                 CellHeight = cell.Height
             });
+            ReserveDeploymentFootprint(cell, footprintWidth, footprintHeight, occupiedSurfaces);
             created++;
         }
 
@@ -448,17 +487,22 @@ public sealed class WorldSiteDeploymentService
         placement.AttackDirection = direction;
     }
 
-    private static bool TryResolveNextBattleCell(
-        WorldSiteState site,
+    internal static bool TryResolveNextBattleCell(
         IReadOnlyList<WorldSiteDeploymentCell> candidates,
+        int footprintWidth,
+        int footprintHeight,
+        HashSet<GridSurfacePosition> candidateSurfaces,
+        HashSet<GridSurfacePosition> occupiedSurfaces,
         out WorldSiteDeploymentCell cell)
     {
         foreach (WorldSiteDeploymentCell candidate in candidates)
         {
-            bool occupied = site.UnitPlacements.Any(placement =>
-                placement.CellX == candidate.Cell.X &&
-                placement.CellY == candidate.Cell.Y);
-            if (!occupied)
+            if (CanUseDeploymentFootprint(
+                    candidate,
+                    footprintWidth,
+                    footprintHeight,
+                    candidateSurfaces,
+                    occupiedSurfaces))
             {
                 cell = candidate;
                 return true;
@@ -467,6 +511,99 @@ public sealed class WorldSiteDeploymentService
 
         cell = default;
         return false;
+    }
+
+    internal static HashSet<GridSurfacePosition> BuildDeploymentCandidateSurfaceSet(IEnumerable<WorldSiteDeploymentCell> candidates)
+    {
+        return (candidates ?? Enumerable.Empty<WorldSiteDeploymentCell>())
+            .Select(candidate => new GridSurfacePosition(candidate.Cell.X, candidate.Cell.Y, candidate.Height))
+            .ToHashSet();
+    }
+
+    internal static HashSet<GridSurfacePosition> BuildDeploymentAnchorOccupancy(
+        WorldSiteState site,
+        ISet<string> ignoredPlacementIds)
+    {
+        HashSet<GridSurfacePosition> occupied = new();
+        foreach (WorldSiteUnitPlacement placement in site?.UnitPlacements ?? Enumerable.Empty<WorldSiteUnitPlacement>())
+        {
+            if (ignoredPlacementIds?.Contains(placement.PlacementId ?? "") == true)
+            {
+                continue;
+            }
+
+            occupied.Add(new GridSurfacePosition(placement.CellX, placement.CellY, placement.CellHeight));
+        }
+
+        return occupied;
+    }
+
+    internal static bool CanUseDeploymentFootprint(
+        WorldSiteDeploymentCell candidate,
+        int footprintWidth,
+        int footprintHeight,
+        HashSet<GridSurfacePosition> candidateSurfaces,
+        HashSet<GridSurfacePosition> occupiedSurfaces)
+    {
+        if (candidateSurfaces == null || candidateSurfaces.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (GridSurfacePosition surface in EnumerateDeploymentFootprint(candidate, footprintWidth, footprintHeight))
+        {
+            if (!candidateSurfaces.Contains(surface) ||
+                occupiedSurfaces?.Contains(surface) == true)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    internal static void ReserveDeploymentFootprint(
+        WorldSiteDeploymentCell candidate,
+        int footprintWidth,
+        int footprintHeight,
+        HashSet<GridSurfacePosition> occupiedSurfaces)
+    {
+        if (occupiedSurfaces == null)
+        {
+            return;
+        }
+
+        foreach (GridSurfacePosition surface in EnumerateDeploymentFootprint(candidate, footprintWidth, footprintHeight))
+        {
+            occupiedSurfaces.Add(surface);
+        }
+    }
+
+    private static IEnumerable<GridSurfacePosition> EnumerateDeploymentFootprint(
+        WorldSiteDeploymentCell candidate,
+        int footprintWidth,
+        int footprintHeight)
+    {
+        GridPosition anchor = new(candidate.Cell.X, candidate.Cell.Y);
+        foreach (GridPosition cell in BattleFootprintCells.Enumerate(anchor, footprintWidth, footprintHeight))
+        {
+            yield return new GridSurfacePosition(cell, candidate.Height);
+        }
+    }
+
+    private static HashSet<string> BuildExpectedBattlePlacementIds(
+        string sourceKind,
+        string sourceId,
+        string unitTypeId,
+        int count)
+    {
+        HashSet<string> ids = new();
+        for (int index = 1; index <= System.Math.Max(0, count); index++)
+        {
+            ids.Add(BuildBattlePlacementId(sourceKind, sourceId, unitTypeId, index));
+        }
+
+        return ids;
     }
 
     private static string ResolveForceSourceKind(BattleForceRequest force)

@@ -16,6 +16,13 @@ public static class BattleActionTimingPolicy
         return System.Math.Clamp(value, MinActionSeconds, MaxActionSeconds);
     }
 
+    public static double NormalizeMoveStepSeconds(double seconds, double fallbackSeconds = DefaultMoveStepSeconds)
+    {
+        double fallback = NormalizeFinite(fallbackSeconds, DefaultMoveStepSeconds);
+        double value = NormalizeFinite(seconds, fallback);
+        return System.Math.Clamp(value, DefaultSimulationTickSeconds, MaxActionSeconds);
+    }
+
     public static double ResolveAttackActionSeconds(double targetAttackSeconds, double attackSpeed)
     {
         double normalizedTarget = NormalizeActionSeconds(targetAttackSeconds, DefaultAttackActionSeconds);

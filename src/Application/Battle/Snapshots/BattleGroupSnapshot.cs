@@ -6,6 +6,7 @@ namespace Rpg.Application.Battle.Snapshots;
 public sealed class BattleGroupSnapshot
 {
     public string BattleGroupId { get; set; } = "";
+    public string RuntimeCommanderGroupId { get; set; } = "";
     public string FactionId { get; set; } = "";
     public string SourceForceId { get; set; } = "";
     public string HeroId { get; set; } = "";
