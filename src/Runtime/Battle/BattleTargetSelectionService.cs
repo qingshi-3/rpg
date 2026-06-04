@@ -5,6 +5,7 @@ using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.Navigation;
+using Rpg.Runtime.Battle.AI;
 
 namespace Rpg.Runtime.Battle;
 
@@ -13,6 +14,269 @@ internal static class BattleTargetSelectionService
     private const int PlannedLocalPerceptionRange = BattlePerceptionPolicy.DefaultLocalPerceptionRange;
 
     private readonly record struct AssaultTargetScore(int TravelCost, int RetainedPriority, int Gap, string ActorId);
+    internal readonly record struct BattleTargetCandidateSet(
+        string SelectionPolicy,
+        IReadOnlyList<BattleRuntimeAiTargetCandidateFacts> Candidates);
+
+    // Candidate builders preserve command and region scope, but they do not pick
+    // the ordinary target. The behavior tree owns that reusable tactical choice.
+    internal static BattleTargetCandidateSet BuildTargetCandidatesForCommand(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleNavigationGraph navigationGraph,
+        BattleDynamicOccupancy occupancy,
+        BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters)
+    {
+        string policy = ResolveCommandTargetSelectionPolicy(actorFact);
+        long startedAt = Stopwatch.GetTimestamp();
+        try
+        {
+            return new BattleTargetCandidateSet(
+                policy,
+                BuildTargetCandidates(
+                    facts,
+                    actorFact,
+                    policy,
+                    navigationGraph,
+                    occupancy,
+                    flowFields,
+                    performanceCounters));
+        }
+        finally
+        {
+            if (string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.Default, System.StringComparison.Ordinal))
+            {
+                performanceCounters?.RecordTargetScoringElapsedTicks(Stopwatch.GetTimestamp() - startedAt);
+            }
+        }
+    }
+
+    internal static BattleTargetCandidateSet BuildRegionScopedTargetCandidates(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact)
+    {
+        return new BattleTargetCandidateSet(
+            BattleRuntimeAiTargetSelectionPolicy.RegionScoped,
+            BuildTargetCandidates(
+                facts,
+                actorFact,
+                BattleRuntimeAiTargetSelectionPolicy.RegionScoped,
+                navigationGraph: null,
+                occupancy: null,
+                flowFields: null,
+                performanceCounters: null));
+    }
+
+    internal static BattleTargetCandidateSet BuildCombatZoneScopedTargetCandidates(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact)
+    {
+        return new BattleTargetCandidateSet(
+            BattleRuntimeAiTargetSelectionPolicy.CombatZoneScoped,
+            BuildTargetCandidates(
+                facts,
+                actorFact,
+                BattleRuntimeAiTargetSelectionPolicy.CombatZoneScoped,
+                navigationGraph: null,
+                occupancy: null,
+                flowFields: null,
+                performanceCounters: null));
+    }
+
+    private static string ResolveCommandTargetSelectionPolicy(BattleRuntimeTickStartActorFact actorFact)
+    {
+        if (BattleRuntimeTickResolver.IsFocusFireCommand(actorFact.CommandId))
+        {
+            return BattleRuntimeAiTargetSelectionPolicy.FocusFire;
+        }
+
+        if (BattleRuntimeTickResolver.IsHoldLineCommand(actorFact.CommandId))
+        {
+            return BattleRuntimeAiTargetSelectionPolicy.HoldLine;
+        }
+
+        if (actorFact.Actor.EngagementRule == BattleEngagementRule.Hold)
+        {
+            return BattleRuntimeAiTargetSelectionPolicy.PlanScoped;
+        }
+
+        if (actorFact.Actor.HasObjectiveAnchor &&
+            !BattleObjectiveAdvancePlanner.IsObjectiveReached(actorFact))
+        {
+            return actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst
+                ? BattleRuntimeAiTargetSelectionPolicy.MoveFirstPlanScoped
+                : BattleRuntimeAiTargetSelectionPolicy.PlanScoped;
+        }
+
+        return BattleRuntimeAiTargetSelectionPolicy.Default;
+    }
+
+    private static IReadOnlyList<BattleRuntimeAiTargetCandidateFacts> BuildTargetCandidates(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
+        string policy,
+        BattleNavigationGraph navigationGraph,
+        BattleDynamicOccupancy occupancy,
+        BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters)
+    {
+        if (facts == null || actorFact.Actor == null)
+        {
+            return System.Array.Empty<BattleRuntimeAiTargetCandidateFacts>();
+        }
+
+        bool hasLowerTierCandidate = HasLowerTierCandidate(facts, actorFact, policy);
+        List<BattleRuntimeAiTargetCandidateFacts> candidates = new();
+        int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
+        foreach (BattleRuntimeTickStartActorFact candidate in facts.Values)
+        {
+            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
+                GetCurrentHitPoints(candidate) <= 0 ||
+                BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor))
+            {
+                continue;
+            }
+
+            int orthogonalGap = BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
+            int gridGap = GetSquareGridDistance(actorFact, candidate);
+            bool immediate = orthogonalGap <= attackRange;
+            bool retained = string.Equals(actorFact.TargetActorId, candidate.Actor.ActorId, System.StringComparison.Ordinal);
+            bool routeBlocking = BlocksObjectiveRoute(actorFact.Actor, candidate.Actor);
+            int tier = ResolveSelectionTier(policy, immediate, retained, routeBlocking, gridGap);
+            if (tier == int.MaxValue)
+            {
+                continue;
+            }
+
+            int travelCost = ShouldScoreTravelCost(policy, tier, hasLowerTierCandidate)
+                ? ResolveAttackOpportunityTravelCost(
+                    BattleRuntimeTickResolver.BuildTickStartProjection(actorFact),
+                    BattleRuntimeTickResolver.BuildTickStartProjection(candidate),
+                    actorFact.Anchor,
+                    navigationGraph,
+                    occupancy,
+                    flowFields,
+                    performanceCounters,
+                    gridGap)
+                : int.MaxValue;
+            candidates.Add(new BattleRuntimeAiTargetCandidateFacts
+            {
+                ActorId = candidate.Actor.ActorId ?? "",
+                SelectionTier = tier,
+                OrthogonalAttackGap = orthogonalGap,
+                GridGap = gridGap,
+                CenterManhattanDistance = GetCenterManhattanDistance(actorFact, candidate),
+                HitPoints = GetCurrentHitPoints(candidate),
+                TravelCost = travelCost,
+                IsImmediateAttackOpportunity = immediate,
+                IsRetainedTarget = retained,
+                IsRouteBlockingObjective = routeBlocking
+            });
+        }
+
+        return candidates;
+    }
+
+    private static bool HasLowerTierCandidate(
+        IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
+        BattleRuntimeTickStartActorFact actorFact,
+        string policy)
+    {
+        if (!string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.Default, System.StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
+        foreach (BattleRuntimeTickStartActorFact candidate in facts.Values)
+        {
+            if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
+                GetCurrentHitPoints(candidate) <= 0 ||
+                BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor))
+            {
+                continue;
+            }
+
+            int orthogonalGap = BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
+            bool immediate = orthogonalGap <= attackRange;
+            bool retained = string.Equals(actorFact.TargetActorId, candidate.Actor.ActorId, System.StringComparison.Ordinal);
+            if (immediate || retained)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static int ResolveSelectionTier(
+        string policy,
+        bool immediate,
+        bool retained,
+        bool routeBlocking,
+        int gridGap)
+    {
+        if (string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.FocusFire, System.StringComparison.Ordinal))
+        {
+            return 0;
+        }
+
+        if (string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.HoldLine, System.StringComparison.Ordinal))
+        {
+            return immediate ? 0 : int.MaxValue;
+        }
+
+        if (immediate)
+        {
+            return 0;
+        }
+
+        if (string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.MoveFirstPlanScoped, System.StringComparison.Ordinal))
+        {
+            return routeBlocking && gridGap <= PlannedLocalPerceptionRange ? 1 : int.MaxValue;
+        }
+
+        if (string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.PlanScoped, System.StringComparison.Ordinal) ||
+            string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.RegionScoped, System.StringComparison.Ordinal))
+        {
+            if (gridGap > PlannedLocalPerceptionRange)
+            {
+                return int.MaxValue;
+            }
+
+            return retained ? 1 : 2;
+        }
+
+        if (retained)
+        {
+            return 1;
+        }
+
+        return 2;
+    }
+
+    private static bool ShouldScoreTravelCost(string policy, int tier, bool hasLowerTierCandidate)
+    {
+        return !hasLowerTierCandidate &&
+               tier >= 2 &&
+               string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.Default, System.StringComparison.Ordinal);
+    }
+
+    private static int GetCenterManhattanDistance(
+        BattleRuntimeTickStartActorFact first,
+        BattleRuntimeTickStartActorFact second)
+    {
+        GetCenter2(first.Actor, first.Anchor, out int firstX, out int firstY);
+        GetCenter2(second.Actor, second.Anchor, out int secondX, out int secondY);
+        return System.Math.Abs(firstX - secondX) + System.Math.Abs(firstY - secondY);
+    }
+
+    private static void GetCenter2(BattleRuntimeActor actor, BattleGridCoord anchor, out int x, out int y)
+    {
+        x = anchor.X * 2 + BattleActorFootprint.NormalizeSize(actor?.FootprintWidth ?? 1) - 1;
+        y = anchor.Y * 2 + BattleActorFootprint.NormalizeSize(actor?.FootprintHeight ?? 1) - 1;
+    }
 
     internal static BattleRuntimeTickStartActorFact? FindEnemyCorpsForCommand(
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
@@ -138,7 +402,7 @@ internal static class BattleTargetSelectionService
             : null;
     }
 
-    private static BattleRuntimeTickStartActorFact? FindImmediateAttackOpportunityEnemyCorps(
+    internal static BattleRuntimeTickStartActorFact? FindImmediateAttackOpportunityEnemyCorps(
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleRuntimeTickStartActorFact actorFact)
     {

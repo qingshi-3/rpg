@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Tactics;
@@ -16,21 +17,24 @@ internal static class BattleAiActionRequestBuilder
         LocalCombatSituation localCombatSituation,
         BattleRegionMovementGoal regionMovementGoal,
         IBattleRuntimeAiExecutor aiExecutor,
-        RecordAdvanceFailureCallback recordAdvanceFailure)
+        RecordAdvanceFailureCallback recordAdvanceFailure,
+        IReadOnlyList<BattleRuntimeAiTargetCandidateFacts> targetCandidates = null,
+        string targetSelectionPolicy = "")
     {
-        if (localCombatSituation?.InsideLeash == false)
-        {
-            recordAdvanceFailure(actorFact.Actor, LocalCombatDecisionReason.RejectOutsideLeash);
-            return BattleRuntimeAiActionRequest.Hold(actorFact.Actor.ActorId, LocalCombatDecisionReason.RejectOutsideLeash);
-        }
-
-        BattleRuntimeAiDecisionFacts decisionFacts = BuildDecisionFacts(actorFact, targetFact, localCombatSituation);
+        BattleRuntimeAiDecisionFacts decisionFacts = BuildDecisionFacts(
+            actorFact,
+            targetFact,
+            localCombatSituation,
+            targetCandidates,
+            targetSelectionPolicy);
         if (localCombatSituation != null)
         {
             BattleRuntimeAiActionRequest localRequest = aiExecutor.ChooseAction(decisionFacts);
             if (localRequest?.Kind == BattleRuntimeAiActionKind.JoinLocalCombat ||
                 localRequest?.Kind == BattleRuntimeAiActionKind.HoldSupport ||
                 localRequest?.Kind == BattleRuntimeAiActionKind.ReturnToObjective ||
+                localRequest?.Kind == BattleRuntimeAiActionKind.AttackTarget ||
+                localRequest?.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge ||
                 (localRequest?.Kind == BattleRuntimeAiActionKind.Hold &&
                  string.Equals(
                      localRequest.FailureReason,
@@ -76,16 +80,21 @@ internal static class BattleAiActionRequestBuilder
     internal static BattleRuntimeAiDecisionFacts BuildDecisionFacts(
         BattleRuntimeTickStartActorFact actorFact,
         BattleRuntimeTickStartActorFact? targetFact,
-        LocalCombatSituation localCombatSituation = null)
+        LocalCombatSituation localCombatSituation = null,
+        IReadOnlyList<BattleRuntimeAiTargetCandidateFacts> targetCandidates = null,
+        string targetSelectionPolicy = "")
     {
         string joinReason = localCombatSituation?.BlocksObjectiveRoute == true
             ? LocalCombatDecisionReason.JoinBlocksObjectiveRoute
             : LocalCombatDecisionReason.JoinRecentDamage;
-        return new BattleRuntimeAiDecisionFacts
+        BattleRuntimeAiDecisionFacts facts = new()
         {
             ActorId = actorFact.Actor.ActorId ?? "",
             TargetActorId = targetFact?.Actor.ActorId ?? "",
             HasTarget = targetFact != null,
+            TargetSelectionPolicy = string.IsNullOrWhiteSpace(targetSelectionPolicy)
+                ? BattleRuntimeAiTargetSelectionPolicy.Default
+                : targetSelectionPolicy,
             DistanceToTarget = targetFact == null ? int.MaxValue : BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact, targetFact.Value),
             AttackRange = System.Math.Max(1, actorFact.Actor.AttackRange),
             CanAttackNow = actorFact.AttackCharge >= 1.0,
@@ -109,5 +118,17 @@ internal static class BattleAiActionRequestBuilder
             LocalCombatSupportReasonCode = LocalCombatDecisionReason.HoldSupportAttackSlotsFull,
             LocalCombatRejectReasonCode = LocalCombatDecisionReason.RejectOutsideLeash
         };
+        if (targetCandidates != null)
+        {
+            foreach (BattleRuntimeAiTargetCandidateFacts candidate in targetCandidates)
+            {
+                if (candidate != null)
+                {
+                    facts.TargetCandidates.Add(candidate);
+                }
+            }
+        }
+
+        return facts;
     }
 }

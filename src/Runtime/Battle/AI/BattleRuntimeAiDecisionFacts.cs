@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Rpg.Runtime.Battle.AI;
 
 public sealed class BattleRuntimeAiDecisionFacts
@@ -5,6 +7,8 @@ public sealed class BattleRuntimeAiDecisionFacts
     public string ActorId { get; init; } = "";
     public string TargetActorId { get; init; } = "";
     public bool HasTarget { get; init; }
+    public string TargetSelectionPolicy { get; init; } = BattleRuntimeAiTargetSelectionPolicy.Default;
+    public List<BattleRuntimeAiTargetCandidateFacts> TargetCandidates { get; } = new();
     public int DistanceToTarget { get; init; }
     public int AttackRange { get; init; }
     public bool CanAttackNow { get; init; }

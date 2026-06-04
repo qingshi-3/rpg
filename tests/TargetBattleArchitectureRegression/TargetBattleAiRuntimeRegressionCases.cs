@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.AI;
+using Rpg.Runtime.Battle.AI.BehaviorTree;
 using Rpg.Runtime.Battle.Events;
+using Rpg.Runtime.Battle.Tactics;
 
 internal static class TargetBattleAiRuntimeRegressionCases
 {
@@ -55,6 +57,61 @@ internal static class TargetBattleAiRuntimeRegressionCases
         AssertEqual("no_target", hold.FailureReason, "hold reason");
     }
 
+    internal static void RuntimeBehaviorTreeSelectsTargetFromCandidateFacts()
+    {
+        DefaultBattleRuntimeAiExecutor executor = new();
+
+        BattleRuntimeAiActionRequest attack = executor.ChooseAction(new BattleRuntimeAiDecisionFacts
+        {
+            ActorId = "enemy_middle",
+            AttackRange = 1,
+            CanAttackNow = true,
+            TargetCandidates =
+            {
+                new BattleRuntimeAiTargetCandidateFacts
+                {
+                    ActorId = "player_a_lexicographic_first",
+                    SelectionTier = 0,
+                    OrthogonalAttackGap = 1,
+                    GridGap = 4,
+                    CenterManhattanDistance = 5,
+                    HitPoints = 100,
+                    IsImmediateAttackOpportunity = true
+                },
+                new BattleRuntimeAiTargetCandidateFacts
+                {
+                    ActorId = "player_z_same_frontage",
+                    SelectionTier = 0,
+                    OrthogonalAttackGap = 1,
+                    GridGap = 4,
+                    CenterManhattanDistance = 1,
+                    HitPoints = 100,
+                    IsImmediateAttackOpportunity = true
+                }
+            }
+        });
+
+        AssertEqual(BattleRuntimeAiActionKind.AttackTarget, attack.Kind, "charged actor should attack the behavior-tree selected target");
+        AssertEqual("player_z_same_frontage", attack.TargetActorId, "target selection should prefer nearest frontage before actor-id tie-breaking");
+    }
+
+    internal static void RuntimeTickResolverDoesNotPreselectOrdinaryTargetsBeforeBehaviorTree()
+    {
+        string root = ProjectRoot();
+        string tickResolverSource = File.ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeTickResolver.cs"));
+        string behaviorTreeSource = File.ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "AI", "BehaviorTree", "BattleRuntimeBehaviorTree.cs"));
+
+        AssertTrue(
+            !tickResolverSource.Contains("BattleTargetSelectionService.FindCombatZoneScopedEnemyCorps", StringComparison.Ordinal) &&
+            !tickResolverSource.Contains("BattleTargetSelectionService.FindEnemyCorpsForCommand", StringComparison.Ordinal) &&
+            !tickResolverSource.Contains("BattleTargetSelectionService.FindRegionScopedEnemyCorps", StringComparison.Ordinal),
+            "runtime tick resolver must build candidate facts and let the behavior tree select ordinary targets");
+        AssertTrue(
+            behaviorTreeSource.Contains("SelectTarget", StringComparison.Ordinal) &&
+            behaviorTreeSource.Contains("TargetCandidates", StringComparison.Ordinal),
+            "behavior tree source should own reusable target-selection nodes over candidate facts");
+    }
+
     internal static void RuntimeAiExecutorConsumesFactsWithoutMutableRuntimeAuthority()
     {
         Type factsType = typeof(BattleRuntimeAiDecisionFacts);
@@ -89,6 +146,125 @@ internal static class TargetBattleAiRuntimeRegressionCases
         AssertTrue(
             result.EventStream.Events.Any(item => item.Kind == BattleEventKind.DamageApplied),
             "runtime must still apply damage through runtime authority after AI request selection");
+    }
+
+    internal static void RuntimeAiExecutorDelegatesToBehaviorTreeBoundary()
+    {
+        string root = ProjectRoot();
+        string defaultExecutorPath = Path.Combine(root, "src", "Runtime", "Battle", "AI", "DefaultBattleRuntimeAiExecutor.cs");
+        string defaultExecutorSource = File.ReadAllText(defaultExecutorPath);
+
+        AssertTrue(
+            defaultExecutorSource.Contains("BattleRuntimeBehaviorTreeExecutor.CreateDefault", StringComparison.Ordinal),
+            "default Runtime AI executor should delegate tactical decisions to the behavior-tree executor");
+        AssertTrue(
+            !defaultExecutorSource.Contains("if (facts.DistanceToTarget", StringComparison.Ordinal),
+            "default Runtime AI executor should not reintroduce a flat tactical if/else chain");
+        AssertTrue(
+            !defaultExecutorSource.Contains("if (facts.HasLocalCombatSituation", StringComparison.Ordinal),
+            "default Runtime AI executor should keep local-combat branching inside behavior-tree nodes");
+    }
+
+    internal static void RuntimeBehaviorTreeNodesUseSelectorAndSequenceSemantics()
+    {
+        BattleRuntimeAiDecisionFacts facts = new()
+        {
+            ActorId = "actor_a",
+            TargetActorId = "actor_b",
+            HasTarget = true
+        };
+
+        IBattleRuntimeBehaviorNode selector = BattleRuntimeBehaviorNode.Selector(
+            BattleRuntimeBehaviorNode.Condition(_ => false, "first_failed"),
+            BattleRuntimeBehaviorNode.Action(item => BattleRuntimeAiActionRequest.Hold(item.ActorId, "first_success")),
+            BattleRuntimeBehaviorNode.Action(item => BattleRuntimeAiActionRequest.Hold(item.ActorId, "second_success")));
+
+        BattleRuntimeBehaviorResult selected = selector.Tick(facts);
+
+        AssertTrue(selected.Success, "selector should succeed when a later child succeeds");
+        AssertEqual("first_success", selected.Request.FailureReason, "selector should stop at first successful child");
+
+        IBattleRuntimeBehaviorNode sequence = BattleRuntimeBehaviorNode.Sequence(
+            BattleRuntimeBehaviorNode.Condition(_ => true, "first_passed"),
+            BattleRuntimeBehaviorNode.Condition(_ => false, "second_failed"),
+            BattleRuntimeBehaviorNode.Action(item => BattleRuntimeAiActionRequest.Hold(item.ActorId, "should_not_run")));
+
+        BattleRuntimeBehaviorResult sequenced = sequence.Tick(facts);
+
+        AssertTrue(!sequenced.Success, "sequence should fail when a condition fails");
+        AssertEqual("second_failed", sequenced.FailureReason, "sequence should report the first failed child reason");
+        AssertTrue(sequenced.Request == null, "sequence should not run later actions after a failed child");
+    }
+
+    internal static void RuntimeBehaviorTreePreservesLocalCombatRequestOrder()
+    {
+        BattleRuntimeBehaviorTreeExecutor executor = BattleRuntimeBehaviorTreeExecutor.CreateDefault();
+
+        BattleRuntimeAiActionRequest outsideLeash = executor.ChooseAction(new BattleRuntimeAiDecisionFacts
+        {
+            ActorId = "actor_a",
+            TargetActorId = "actor_b",
+            HasTarget = true,
+            DistanceToTarget = 3,
+            AttackRange = 1,
+            HasLocalCombatSituation = true,
+            LocalCombatInsideLeash = false,
+            LocalCombatRejectReasonCode = "reject_test_leash",
+            LocalCombatTargetActorId = "actor_b",
+            LocalCombatHasReachableAttackSlot = true,
+            LocalCombatHasReachableSupportSlot = true
+        });
+        AssertEqual(BattleRuntimeAiActionKind.Hold, outsideLeash.Kind, "outside leash should hold before slot selection");
+        AssertEqual("reject_test_leash", outsideLeash.FailureReason, "outside leash should preserve rejection reason");
+
+        BattleRuntimeAiActionRequest attackSlot = executor.ChooseAction(new BattleRuntimeAiDecisionFacts
+        {
+            ActorId = "actor_a",
+            TargetActorId = "actor_b",
+            HasTarget = true,
+            DistanceToTarget = 3,
+            AttackRange = 1,
+            HasLocalCombatSituation = true,
+            LocalCombatInsideLeash = true,
+            LocalCombatSituationId = "local:1",
+            LocalCombatTargetActorId = "actor_b",
+            LocalCombatHasReachableAttackSlot = true,
+            LocalCombatHasReachableSupportSlot = true,
+            LocalCombatJoinReasonCode = "join_test"
+        });
+        AssertEqual(BattleRuntimeAiActionKind.JoinLocalCombat, attackSlot.Kind, "reachable attack slot should join before support fallback");
+        AssertEqual("join_test", attackSlot.ReasonCode, "join request should preserve reason code");
+
+        BattleRuntimeAiActionRequest supportSlot = executor.ChooseAction(new BattleRuntimeAiDecisionFacts
+        {
+            ActorId = "actor_a",
+            TargetActorId = "actor_b",
+            HasTarget = true,
+            DistanceToTarget = 3,
+            AttackRange = 1,
+            HasLocalCombatSituation = true,
+            LocalCombatInsideLeash = true,
+            LocalCombatSituationId = "local:1",
+            LocalCombatTargetActorId = "actor_b",
+            LocalCombatHasReachableSupportSlot = true,
+            LocalCombatSupportReasonCode = "support_test"
+        });
+        AssertEqual(BattleRuntimeAiActionKind.HoldSupport, supportSlot.Kind, "support slot should be used after attack slot is unavailable");
+        AssertEqual("support_test", supportSlot.ReasonCode, "support request should preserve reason code");
+
+        BattleRuntimeAiActionRequest noSlot = executor.ChooseAction(new BattleRuntimeAiDecisionFacts
+        {
+            ActorId = "actor_a",
+            TargetActorId = "actor_b",
+            HasTarget = true,
+            DistanceToTarget = 3,
+            AttackRange = 1,
+            HasLocalCombatSituation = true,
+            LocalCombatInsideLeash = true,
+            LocalCombatTargetActorId = "actor_b"
+        });
+        AssertEqual(BattleRuntimeAiActionKind.Hold, noSlot.Kind, "local combat with no reachable slot should hold explicitly");
+        AssertEqual(BattleGroupTacticalReasonCode.LocalRegionDegradeNoReachableSlot, noSlot.FailureReason, "no slot hold reason");
     }
 
     private sealed class RecordingBattleRuntimeAiExecutor : IBattleRuntimeAiExecutor
@@ -148,6 +324,17 @@ internal static class TargetBattleAiRuntimeRegressionCases
                 }
             }
         };
+    }
+
+    private static string ProjectRoot()
+    {
+        DirectoryInfo? current = new(AppContext.BaseDirectory);
+        while (current != null && !File.Exists(Path.Combine(current.FullName, "rpg.csproj")))
+        {
+            current = current.Parent;
+        }
+
+        return current?.FullName ?? throw new InvalidOperationException("project root not found");
     }
 
     private static void AssertTrue(bool condition, string message)

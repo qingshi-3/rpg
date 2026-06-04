@@ -39,6 +39,11 @@ Run("runtime hold-line command keeps player corps from advancing", TargetBattleC
 Run("runtime focus-fire command targets lowest-health enemy corps", TargetBattleCommandRegressionCases.RuntimeFocusFireCommandTargetsLowestHealthEnemyCorps);
 Run("runtime AI executor boundary uses typed requests", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorBoundaryUsesTypedRequests);
 Run("runtime AI executor consumes facts without mutable runtime authority", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorConsumesFactsWithoutMutableRuntimeAuthority);
+Run("runtime AI executor delegates to behavior tree boundary", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorDelegatesToBehaviorTreeBoundary);
+Run("runtime behavior tree selects target from candidate facts", TargetBattleAiRuntimeRegressionCases.RuntimeBehaviorTreeSelectsTargetFromCandidateFacts);
+Run("runtime tick resolver does not preselect ordinary targets before behavior tree", TargetBattleAiRuntimeRegressionCases.RuntimeTickResolverDoesNotPreselectOrdinaryTargetsBeforeBehaviorTree);
+Run("runtime behavior tree nodes use selector and sequence semantics", TargetBattleAiRuntimeRegressionCases.RuntimeBehaviorTreeNodesUseSelectorAndSequenceSemantics);
+Run("runtime behavior tree preserves local combat request order", TargetBattleAiRuntimeRegressionCases.RuntimeBehaviorTreePreservesLocalCombatRequestOrder);
 Run("battle grid map reader does not consume complex tileset navigation data", TargetBattleNavigationRegressionCases.BattleGridMapReaderDoesNotConsumeComplexTileSetNavigationData);
 Run("battle tilesets only expose walkable navigation custom data", TargetBattleNavigationRegressionCases.BattleTileSetsOnlyExposeWalkableNavigationCustomData);
 Run("battle navigation topology compiler produces final edges before runtime", TargetBattleNavigationRegressionCases.BattleNavigationTopologyCompilerProducesFinalEdgesBeforeRuntime);

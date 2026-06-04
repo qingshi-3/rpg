@@ -95,7 +95,9 @@ internal static class TargetBattleLocalCombatSituationRegressionCases
             .Begin(BuildFarHostileOutsideLocalRegionSnapshot())
             .AdvanceNextTick();
 
-        BattleRuntimeAiDecisionFacts enemyFacts = executor.SeenFacts.First(item => item.ActorId == "enemy_a:1");
+        BattleRuntimeAiDecisionFacts enemyFacts = executor.SeenFacts.Last(item =>
+            item.ActorId == "enemy_a:1" &&
+            item.HasLocalCombatSituation);
 
         AssertTrue(enemyFacts.HasLocalCombatSituation, "enemy should consume a stored local combat situation while engaged");
         AssertTrue(enemyFacts.TargetActorId == "player_near:1", $"engaged targeting should ignore far hostile outside local region: actual={enemyFacts.TargetActorId}");
@@ -110,7 +112,9 @@ internal static class TargetBattleLocalCombatSituationRegressionCases
 
         controller.AdvanceNextTick();
         BattleTacticalRegionSnapshot region = controller.State.TacticalStates["enemy_group"].LocalCombatRegion;
-        BattleRuntimeAiDecisionFacts enemyFacts = executor.SeenFacts.First(item => item.ActorId == "enemy_a:1");
+        BattleRuntimeAiDecisionFacts enemyFacts = executor.SeenFacts.Last(item =>
+            item.ActorId == "enemy_a:1" &&
+            item.HasLocalCombatSituation);
 
         if (region == null)
         {

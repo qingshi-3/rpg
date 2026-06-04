@@ -274,6 +274,15 @@ internal static class BattleMovementContinuationPlanner
 
         int attackRange = System.Math.Max(1, actor.AttackRange);
         int movementGap = BattleActorFootprint.GetGap(actor, actorFact.Anchor, targetFact.Actor, targetFact.Anchor);
+        if (BattleTargetSelectionService.FindImmediateAttackOpportunityEnemyCorps(facts, actorFact) != null)
+        {
+            // Movement continuation is not target acquisition. Once a movement
+            // boundary lands in attack range of any enemy, the chain stops so
+            // the next actor decision can attack or wait for charge instead of
+            // walking past the frontline toward an older slot.
+            return false;
+        }
+
         int attackGap = BattleRuntimeTickResolver.GetOrthogonalAttackGap(actor, actorFact.Anchor, targetFact.Actor, targetFact.Anchor);
         if (attackGap <= attackRange && actor.MovementIntentKind != BattleRuntimeAiActionKind.HoldSupport)
         {

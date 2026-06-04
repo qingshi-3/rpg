@@ -331,22 +331,37 @@ internal sealed partial class BattleRuntimeTickResolver
             : localCombatRegion == null
                 ? facts
                 : BattleLocalCombatRegionResolver.FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
-        BattleRuntimeTickStartActorFact? preferredTarget = combatJoinActionZone != null
-            ? BattleTargetSelectionService.FindCombatZoneScopedEnemyCorps(targetFacts, actorFact)
+        BattleTargetSelectionService.BattleTargetCandidateSet targetCandidateSet = combatJoinActionZone != null
+            ? BattleTargetSelectionService.BuildCombatZoneScopedTargetCandidates(targetFacts, actorFact)
             : regionMovementGoal == null
-            ? BattleTargetSelectionService.FindEnemyCorpsForCommand(
+            ? BattleTargetSelectionService.BuildTargetCandidatesForCommand(
                 targetFacts,
                 actorFact,
                 navigationGraph,
                 occupancy,
                 flowFields,
                 performanceCounters)
-            : BattleTargetSelectionService.FindRegionScopedEnemyCorps(targetFacts, actorFact);
-        LocalCombatSituation localCombatSituation = preferredTarget == null
+            : BattleTargetSelectionService.BuildRegionScopedTargetCandidates(targetFacts, actorFact);
+        // Target choice is part of the behavior-tree decision boundary. The
+        // resolver only builds scoped candidate facts, then uses the selected id
+        // to build target-specific local combat facts for the final action pass.
+        BattleRuntimeAiDecisionFacts targetSelectionFacts = BattleAiActionRequestBuilder.BuildDecisionFacts(
+            actorFact,
+            null,
+            null,
+            targetCandidateSet.Candidates,
+            targetCandidateSet.SelectionPolicy);
+        BattleRuntimeAiActionRequest targetSelectionRequest = _aiExecutor.ChooseAction(targetSelectionFacts);
+        BattleRuntimeTickStartActorFact? selectedTarget = ResolveRequestedTarget(
+            facts,
+            actorFact,
+            null,
+            targetSelectionRequest);
+        LocalCombatSituation localCombatSituation = selectedTarget == null
             ? null
             : LocalCombatSituationBuilder.Build(
                 actorFact.Actor,
-                preferredTarget.Value.Actor,
+                selectedTarget.Value.Actor,
                 facts.Values.Select(item => item.Actor).ToArray(),
                 navigationGraph,
                 occupancy,
@@ -354,12 +369,14 @@ internal sealed partial class BattleRuntimeTickResolver
                 scopedLocalCombatRegion);
         BattleRuntimeAiActionRequest request = BattleAiActionRequestBuilder.BuildCommandScopedRequest(
             actorFact,
-            preferredTarget,
+            selectedTarget,
             localCombatSituation,
             regionMovementGoal,
             _aiExecutor,
-            RecordAdvanceFailure);
-        BattleRuntimeTickStartActorFact? requestedTarget = ResolveRequestedTarget(facts, actorFact, preferredTarget, request);
+            RecordAdvanceFailure,
+            targetCandidateSet.Candidates,
+            targetCandidateSet.SelectionPolicy);
+        BattleRuntimeTickStartActorFact? requestedTarget = ResolveRequestedTarget(facts, actorFact, selectedTarget, request);
 
         if (!string.Equals(request.ActorId, actor.ActorId, System.StringComparison.Ordinal))
         {
