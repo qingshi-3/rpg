@@ -10,6 +10,7 @@ internal static class TargetBattleLocalCombatPositionRegressionCases
     public static void Register(Action<string, Action> run)
     {
         run("runtime full local fight does not oscillate extra living unit", RuntimeFullLocalFightDoesNotOscillateExtraLivingUnit);
+        run("runtime rear local combat unit routes before frontline defeat", RuntimeRearLocalCombatUnitRoutesBeforeFrontlineDefeat);
     }
 
     public static void RuntimeFullLocalFightDoesNotOscillateExtraLivingUnit()
@@ -39,6 +40,44 @@ internal static class TargetBattleLocalCombatPositionRegressionCases
         AssertNoImmediateReverseMoves(
             moves,
             "extra living unit must not oscillate between adjacent cells while every combatant is still alive");
+    }
+
+    public static void RuntimeRearLocalCombatUnitRoutesBeforeFrontlineDefeat()
+    {
+        BattleStartSnapshot snapshot = BuildBlockedCombatSlotRerouteSnapshot();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeActor rear = controller.State.Actors.Single(item => item.ActorId == "bonefield:f6_draugarlord:3");
+        rear.TargetActorId = "expedition:player_camp:1:army:f1_grandmasterzir:1";
+        rear.PlanState = BattleGroupPlanRuntimeState.MovingToAttackSlot;
+        rear.Phase = BattleRuntimeActorPhase.AnchoredDecision;
+        rear.MotionState = BattleRuntimeActorMotionState.Anchored;
+        rear.ActionReadyAtSeconds = 0;
+        rear.AttackCharge = 1.0;
+        rear.MovementFromGridX = 38;
+        rear.MovementFromGridY = 18;
+        rear.MovementFromGridHeight = 0;
+        rear.MovementToGridX = 38;
+        rear.MovementToGridY = 17;
+        rear.MovementToGridHeight = 0;
+        rear.MovementIntentKind = Rpg.Runtime.Battle.AI.BattleRuntimeAiActionKind.JoinLocalCombat;
+        rear.MovementIntentTargetActorId = "expedition:player_camp:1:army:f1_grandmasterzir:1";
+        rear.MovementIntentReasonCode = "join_recent_damage";
+        rear.MovementIntentLocalCombatSituationId = "local:expedition:player_camp:1:army:f1_grandmasterzir:1";
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+
+        AssertTrue(
+            controller.State.Actors.All(item => item.HitPoints > 0),
+            "reroute fixture must keep every actor alive while testing the blocked join path");
+        BattleEvent? rearMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "bonefield:f6_draugarlord:3");
+        AssertTrue(
+            rearMove != null,
+            $"rear unit should route around the live frontline before any unit dies instead of idling: failure={rear.LastAdvanceFailureReason}");
+        AssertTrue(
+            rear.LastAdvanceFailureReason != "reject_no_reachable_slot",
+            "a live dynamic reroute must not be degraded as reject_no_reachable_slot");
     }
 
     private static BattleStartSnapshot BuildFullLocalFightExtraUnitSnapshot()
@@ -91,6 +130,61 @@ internal static class TargetBattleLocalCombatPositionRegressionCases
         AddPlannedGroup(snapshot, "enemy_unit_2", "undead", "bonefield:f6_draugarlord", 34, 20, 900, "player_deployment_zone_west_1", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2);
         AddPlannedGroup(snapshot, "enemy_unit_3", "undead", "bonefield:f6_draugarlord", 35, 22, 900, "player_deployment_zone_west_1", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2);
         AddPlannedGroup(snapshot, "enemy_unit_4", "undead", "bonefield:f6_draugarlord", 33, 18, 900, "player_deployment_zone_west_1", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2);
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildBlockedCombatSlotRerouteSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_blocked_combat_slot_reroute",
+            BattleId = "battle_blocked_combat_slot_reroute",
+            TargetLocationId = "site_1",
+            ObjectiveZones =
+            {
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "player_deployment_zone_west_1",
+                    ObjectiveRole = "player_deployment",
+                    DeploymentSide = "Player",
+                    FactionId = "player",
+                    CellX = 10,
+                    CellY = 16,
+                    Width = 4,
+                    Height = 8
+                },
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "undead_deployment_zone_east_1",
+                    ObjectiveRole = "enemy_deployment",
+                    DeploymentSide = "Enemy",
+                    FactionId = "undead",
+                    CellX = 51,
+                    CellY = 15,
+                    Width = 20,
+                    Height = 12
+                }
+            }
+        };
+
+        for (int x = 31; x <= 42; x++)
+        {
+            for (int y = 12; y <= 23; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddPlannedGroup(snapshot, "player_unit_1", "player", "expedition:player_camp:1:army:f1_grandmasterzir", 35, 16, 600, "undead_deployment_zone_east_1", footprintWidth: 2, footprintHeight: 1);
+        AddPlannedGroup(snapshot, "player_unit_2", "player", "expedition:player_camp:1:army:f1_azuritelion", 34, 17, 600, "undead_deployment_zone_east_1", footprintWidth: 2, footprintHeight: 1);
+        AddPlannedGroup(snapshot, "player_unit_3", "player", "expedition:player_camp:1:army:f1_azuritelion", 34, 18, 600, "undead_deployment_zone_east_1", footprintWidth: 2, footprintHeight: 1);
+        AddPlannedGroup(snapshot, "player_unit_4", "player", "expedition:player_camp:1:army:f1_azuritelion", 34, 19, 600, "undead_deployment_zone_east_1", footprintWidth: 2, footprintHeight: 1);
+        AddPlannedGroup(snapshot, "enemy_unit_1", "undead", "bonefield:f6_draugarlord", 37, 15, 900, "player_deployment_zone_west_1", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2);
+        AddPlannedGroup(snapshot, "enemy_unit_2", "undead", "bonefield:f6_draugarlord", 36, 17, 900, "player_deployment_zone_west_1", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2);
+        AddPlannedGroup(snapshot, "enemy_unit_3", "undead", "bonefield:f6_draugarlord", 38, 17, 900, "player_deployment_zone_west_1", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2);
+        AddPlannedGroup(snapshot, "enemy_unit_4", "undead", "bonefield:f6_draugarlord", 36, 19, 900, "player_deployment_zone_west_1", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2);
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
         return snapshot;

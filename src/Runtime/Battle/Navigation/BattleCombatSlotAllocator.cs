@@ -14,7 +14,8 @@ internal static class BattleCombatSlotAllocator
         BattleRuntimeActor target,
         BattleNavigationGraph graph,
         BattlePerformanceCounters performanceCounters = null,
-        BattleTacticalRegionSnapshot localCombatRegion = null)
+        BattleTacticalRegionSnapshot localCombatRegion = null,
+        bool includeLocalCombatJoinSupport = false)
     {
         if (actor == null || target == null || graph == null)
         {
@@ -25,6 +26,7 @@ internal static class BattleCombatSlotAllocator
         int attackRange = System.Math.Max(1, actor.AttackRange);
         BattleGridCoord targetAnchor = new(target.GridX, target.GridY, target.GridHeight);
         List<BattleCombatSlot> slots = new();
+        HashSet<BattleGridCoord> assignedAnchors = new();
         int scannedAnchors = 0;
         foreach (BattleGridCoord anchor in GetCandidateAnchors(actor, target, graph, targetAnchor, attackRange))
         {
@@ -49,17 +51,59 @@ internal static class BattleCombatSlotAllocator
 
             if (gap <= attackRange)
             {
-                slots.Add(new BattleCombatSlot(anchor, BattleCombatSlotKind.Attack, gap, GetPriority(anchor, targetAnchor)));
+                if (assignedAnchors.Add(anchor))
+                {
+                    slots.Add(new BattleCombatSlot(anchor, BattleCombatSlotKind.Attack, gap, GetPriority(anchor, targetAnchor)));
+                }
+
                 continue;
             }
 
             if (gap == attackRange + 1)
             {
+                if (assignedAnchors.Add(anchor))
+                {
+                    slots.Add(new BattleCombatSlot(
+                        anchor,
+                        BattleCombatSlotKind.Support,
+                        gap,
+                        GetPriority(anchor, targetAnchor) + 1000,
+                        ResolveSupportRole(actor, target, anchor, targetAnchor)));
+                }
+            }
+        }
+
+        if (includeLocalCombatJoinSupport && localCombatRegion != null)
+        {
+            foreach (BattleGridCoord anchor in GetLocalCombatSupportAnchors(localCombatRegion, graph))
+            {
+                scannedAnchors++;
+                if (!assignedAnchors.Add(anchor) ||
+                    !graph.CanPlaceFootprint(actor, anchor))
+                {
+                    continue;
+                }
+
+                int orthogonalGap = BattleActorFootprint.GetOrthogonalGap(actor, anchor, target, targetAnchor);
+                if (orthogonalGap > 0 && orthogonalGap <= attackRange)
+                {
+                    continue;
+                }
+
+                int gap = BattleActorFootprint.GetGap(actor, anchor, target, targetAnchor);
+                if (gap <= 0)
+                {
+                    continue;
+                }
+
+                // These are combat-zone join positions, not target-adjacent attack
+                // slots. They let large rear units route around live footprints while
+                // still staying inside the commander-selected local fight.
                 slots.Add(new BattleCombatSlot(
                     anchor,
                     BattleCombatSlotKind.Support,
                     gap,
-                    GetPriority(anchor, targetAnchor) + 1000,
+                    GetPriority(anchor, targetAnchor) + 5000,
                     ResolveSupportRole(actor, target, anchor, targetAnchor)));
             }
         }
@@ -94,6 +138,20 @@ internal static class BattleCombatSlotAllocator
         int minY = targetAnchor.Y - maxGap - actorHeight + 1;
         int maxY = targetAnchor.Y + targetHeight - 1 + maxGap;
         return graph.GetAnchorsInBounds(minX, maxX, minY, maxY);
+    }
+
+    private static IEnumerable<BattleGridCoord> GetLocalCombatSupportAnchors(
+        BattleTacticalRegionSnapshot localCombatRegion,
+        BattleNavigationGraph graph)
+    {
+        int width = System.Math.Max(1, localCombatRegion.Width);
+        int height = System.Math.Max(1, localCombatRegion.Height);
+        int minX = localCombatRegion.CenterCellX - (width - 1) / 2;
+        int minY = localCombatRegion.CenterCellY - (height - 1) / 2;
+        int maxX = minX + width - 1;
+        int maxY = minY + height - 1;
+        return graph.GetAnchorsInBounds(minX, maxX, minY, maxY)
+            .Where(anchor => anchor.Height == localCombatRegion.CenterCellHeight);
     }
 
     private static bool IsAnchorInsideLocalCombatRegion(

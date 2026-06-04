@@ -119,7 +119,8 @@ internal static class BattleCrowdMovementPlanner
             return System.Array.Empty<BattleGridCoord>();
         }
 
-        return BattlePathfinder.TryFindNextStepTowardAttackRange(
+        BattleGridCoord? discouragedReverseStep = GetImmediateReverseStep(actor, start);
+        if (BattlePathfinder.TryFindNextStepTowardAttackRange(
             actor,
             target,
             graph,
@@ -127,8 +128,21 @@ internal static class BattleCrowdMovementPlanner
             reservations,
             preferSupportWhenFirstStepMovesAway: false,
             out BattleGridCoord detourStep,
+            localCombatRegion,
+            discouragedReverseStep))
+        {
+            return new[] { detourStep };
+        }
+
+        return BattlePathfinder.TryFindNextStepTowardAttackRange(
+            actor,
+            target,
+            graph,
+            occupancy,
+            reservations,
+            preferSupportWhenFirstStepMovesAway: false,
+            out detourStep,
             localCombatRegion)
-            && !IsImmediateReverseOfPreviousCombatStep(actor, start, detourStep)
             ? new[] { detourStep }
             : System.Array.Empty<BattleGridCoord>();
     }
@@ -190,15 +204,28 @@ internal static class BattleCrowdMovementPlanner
             return ordered;
         }
 
-        return BattlePathfinder.TryFindNextStepTowardAnchor(
+        BattleGridCoord? discouragedReverseStep = GetImmediateReverseStep(actor, start);
+        if (BattlePathfinder.TryFindNextStepTowardAnchor(
             actor,
             combatSlotAnchor,
             graph,
             occupancy,
             reservations,
             out BattleGridCoord detourStep,
+            localCombatRegion,
+            discouragedReverseStep))
+        {
+            return new[] { detourStep };
+        }
+
+        return BattlePathfinder.TryFindNextStepTowardAnchor(
+            actor,
+            combatSlotAnchor,
+            graph,
+            occupancy,
+            reservations,
+            out detourStep,
             localCombatRegion)
-            && !IsImmediateReverseOfPreviousCombatStep(actor, start, detourStep)
             ? new[] { detourStep }
             : System.Array.Empty<BattleGridCoord>();
     }
@@ -294,9 +321,17 @@ internal static class BattleCrowdMovementPlanner
         BattleGridCoord start,
         BattleGridCoord candidate)
     {
+        BattleGridCoord? reverseStep = GetImmediateReverseStep(actor, start);
+        return reverseStep.HasValue && reverseStep.Value == candidate;
+    }
+
+    private static BattleGridCoord? GetImmediateReverseStep(
+        BattleRuntimeActor actor,
+        BattleGridCoord start)
+    {
         if (actor == null)
         {
-            return false;
+            return null;
         }
 
         BattleGridCoord previousFrom = new(
@@ -307,16 +342,15 @@ internal static class BattleCrowdMovementPlanner
             actor.MovementToGridX,
             actor.MovementToGridY,
             actor.MovementToGridHeight);
-        if (previousFrom == previousTo)
+        if (previousFrom == previousTo || previousTo != start)
         {
-            return false;
+            return null;
         }
 
-        // A combat-slot segment that immediately undoes the last committed
-        // combat-slot segment is not progress. Reject it here and let local
-        // combat either keep the current slot, choose another slot, or report
-        // the blocked state explicitly.
-        return previousTo == start && previousFrom == candidate;
+        // Prefer any other currently executable route first. If the full local
+        // path genuinely needs a backtrack around live footprints, the detour
+        // search may still use it instead of freezing the actor in place.
+        return previousFrom;
     }
 
     private readonly record struct MoveOption(BattleGridCoord Anchor, int Score, int FlowCost);

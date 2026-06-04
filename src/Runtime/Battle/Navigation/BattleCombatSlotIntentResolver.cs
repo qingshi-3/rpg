@@ -129,18 +129,13 @@ internal static class BattleCombatSlotIntentResolver
             preferSupportSlots,
             performanceCounters,
             localCombatRegion);
-        if (candidates.Count == 0)
-        {
-            return false;
-        }
-
         BattleCombatSlotKind preferredKind = preferSupportSlots
             ? BattleCombatSlotKind.Support
             : BattleCombatSlotKind.Attack;
         BattleCombatSlotKind fallbackKind = preferSupportSlots
             ? BattleCombatSlotKind.Attack
             : BattleCombatSlotKind.Support;
-        if (ContainsCurrentSlot(candidates, actorAnchor, preferredKind))
+        if (ContainsCurrentTerminalSlot(candidates, actorAnchor, preferredKind, actor, target))
         {
             return false;
         }
@@ -160,12 +155,28 @@ internal static class BattleCombatSlotIntentResolver
             return true;
         }
 
-        if (ContainsCurrentSlot(candidates, actorAnchor, fallbackKind))
+        if (preferredKind == BattleCombatSlotKind.Support &&
+            TrySelectExpandedSupportCandidate(
+                actor,
+                target,
+                actorAnchor,
+                graph,
+                occupancy,
+                reservations,
+                performanceCounters,
+                localCombatRegion,
+                out intent,
+                out moveOptions))
+        {
+            return true;
+        }
+
+        if (ContainsCurrentTerminalSlot(candidates, actorAnchor, fallbackKind, actor, target))
         {
             return false;
         }
 
-        return TrySelectExecutableCandidate(
+        if (TrySelectExecutableCandidate(
                 actor,
                 graph,
                 occupancy,
@@ -175,7 +186,65 @@ internal static class BattleCombatSlotIntentResolver
                 candidates,
                 fallbackKind,
                 out intent,
-                out moveOptions);
+                out moveOptions))
+        {
+            return true;
+        }
+
+        return fallbackKind == BattleCombatSlotKind.Support &&
+               TrySelectExpandedSupportCandidate(
+                   actor,
+                   target,
+                   actorAnchor,
+                   graph,
+                   occupancy,
+                   reservations,
+                   performanceCounters,
+                   localCombatRegion,
+                   out intent,
+                   out moveOptions);
+    }
+
+    private static bool TrySelectExpandedSupportCandidate(
+        BattleRuntimeActor actor,
+        BattleRuntimeActor target,
+        BattleGridCoord actorAnchor,
+        BattleNavigationGraph graph,
+        BattleDynamicOccupancy occupancy,
+        BattleMovementReservationMap reservations,
+        BattlePerformanceCounters performanceCounters,
+        BattleTacticalRegionSnapshot localCombatRegion,
+        out BattleCombatSlotIntent intent,
+        out IReadOnlyList<BattleGridCoord> moveOptions)
+    {
+        intent = default;
+        moveOptions = System.Array.Empty<BattleGridCoord>();
+        if (localCombatRegion == null)
+        {
+            return false;
+        }
+
+        IReadOnlyList<BattleCombatSlotIntentCandidate> candidates = BuildScoredCandidates(
+            actor,
+            target,
+            actorAnchor,
+            graph,
+            occupancy,
+            preferSupportSlots: true,
+            performanceCounters,
+            localCombatRegion,
+            includeLocalCombatJoinSupport: true);
+        return TrySelectExecutableCandidate(
+            actor,
+            graph,
+            occupancy,
+            reservations,
+            performanceCounters,
+            localCombatRegion,
+            candidates,
+            BattleCombatSlotKind.Support,
+            out intent,
+            out moveOptions);
     }
 
     private static bool TrySelectExecutableCandidate(
@@ -220,14 +289,33 @@ internal static class BattleCombatSlotIntentResolver
         return false;
     }
 
-    private static bool ContainsCurrentSlot(
+    private static bool ContainsCurrentTerminalSlot(
         IReadOnlyList<BattleCombatSlotIntentCandidate> candidates,
         BattleGridCoord actorAnchor,
-        BattleCombatSlotKind kind)
+        BattleCombatSlotKind kind,
+        BattleRuntimeActor actor,
+        BattleRuntimeActor target)
     {
-        return candidates.Any(item =>
+        bool contains = candidates.Any(item =>
             item.Kind == kind &&
             item.Anchor == actorAnchor);
+        if (!contains)
+        {
+            return false;
+        }
+
+        if (kind == BattleCombatSlotKind.Attack)
+        {
+            return true;
+        }
+
+        int attackRange = System.Math.Max(1, actor?.AttackRange ?? 1);
+        int gap = BattleActorFootprint.GetOrthogonalGap(
+            actor,
+            actorAnchor,
+            target,
+            new BattleGridCoord(target?.GridX ?? 0, target?.GridY ?? 0, target?.GridHeight ?? 0));
+        return gap == attackRange + 1;
     }
 
     private static bool TryScoreSlot(
@@ -266,14 +354,16 @@ internal static class BattleCombatSlotIntentResolver
         BattleDynamicOccupancy occupancy,
         bool preferSupportSlots,
         BattlePerformanceCounters performanceCounters,
-        BattleTacticalRegionSnapshot localCombatRegion)
+        BattleTacticalRegionSnapshot localCombatRegion,
+        bool includeLocalCombatJoinSupport = false)
     {
         BattleCombatSlot[] slots = BattleCombatSlotAllocator.FindSlots(
                 actor,
                 target,
                 graph,
                 performanceCounters,
-                localCombatRegion)
+                localCombatRegion,
+                includeLocalCombatJoinSupport)
             .Where(item => occupancy.CanPlaceFootprint(actor, item.Anchor))
             .ToArray();
         if (slots.Length == 0)
@@ -336,7 +426,21 @@ internal static class BattleCombatSlotIntentResolver
             new BattleGridCoord(target.GridX, target.GridY, target.GridHeight));
         return kind == BattleCombatSlotKind.Attack
             ? gap > 0 && gap <= attackRange
-            : gap == attackRange + 1;
+            : !IsAttackCapableAnchor(actor, anchor, target, attackRange);
+    }
+
+    private static bool IsAttackCapableAnchor(
+        BattleRuntimeActor actor,
+        BattleGridCoord anchor,
+        BattleRuntimeActor target,
+        int attackRange)
+    {
+        int gap = BattleActorFootprint.GetOrthogonalGap(
+            actor,
+            anchor,
+            target,
+            new BattleGridCoord(target.GridX, target.GridY, target.GridHeight));
+        return gap > 0 && gap <= attackRange;
     }
 
     private static bool IsAnchorInsideLocalCombatRegion(

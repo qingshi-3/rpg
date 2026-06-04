@@ -16,7 +16,8 @@ internal static class BattlePathfinder
         BattleMovementReservationMap reservations,
         bool preferSupportWhenFirstStepMovesAway,
         out BattleGridCoord nextStep,
-        BattleTacticalRegionSnapshot localCombatRegion = null)
+        BattleTacticalRegionSnapshot localCombatRegion = null,
+        BattleGridCoord? excludedFirstStep = null)
     {
         nextStep = default;
         if (actor == null || target == null || graph == null || occupancy == null || reservations == null)
@@ -98,6 +99,7 @@ internal static class BattlePathfinder
             foreach (BattleGridCoord neighbor in graph.GetNeighbors(current))
             {
                 if (closed.Contains(neighbor) ||
+                    current == start && excludedFirstStep.HasValue && neighbor == excludedFirstStep.Value ||
                     !IsAnchorInsideLocalCombatRegion(neighbor, localCombatRegion) ||
                     !CanUseCurrentDynamicStep(actor, start, current, neighbor, graph, occupancy, reservations))
                 {
@@ -136,7 +138,8 @@ internal static class BattlePathfinder
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
         out BattleGridCoord nextStep,
-        BattleTacticalRegionSnapshot localCombatRegion = null)
+        BattleTacticalRegionSnapshot localCombatRegion = null,
+        BattleGridCoord? excludedFirstStep = null)
     {
         nextStep = default;
         if (actor == null || graph == null || occupancy == null || reservations == null)
@@ -182,6 +185,7 @@ internal static class BattlePathfinder
             foreach (BattleGridCoord neighbor in graph.GetNeighbors(current))
             {
                 if (closed.Contains(neighbor) ||
+                    current == start && excludedFirstStep.HasValue && neighbor == excludedFirstStep.Value ||
                     !IsAnchorInsideLocalCombatRegion(neighbor, localCombatRegion) ||
                     !CanUseCurrentDynamicStep(actor, start, current, neighbor, graph, occupancy, reservations))
                 {
