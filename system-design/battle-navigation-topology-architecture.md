@@ -95,7 +95,7 @@ active battle-group objective, target, temporary, hold, protect, or retreat regi
 
 When no enemy is locked, a battle group advances, holds, or withdraws toward its current region. When a local target is locked, movement may temporarily switch to attack-slot approach inside the group-owned local combat region. When that target dies, becomes invalid, exceeds pursuit limits, or cannot be reached under the engagement rule, movement returns to the current objective zone, target region, temporary target region, hold area, protect-hero area, or retreat path.
 
-Region route fields may be cached by region id, topology version, actor footprint, and relevant command posture. They must not include per-frame dynamic target facts. Attack-slot flow fields remain target-specific and should be built or refreshed only when a locked target requires approach scoring.
+Region route fields may be cached by region id, topology version, actor footprint, and relevant command posture. They must not include per-frame dynamic target facts. Attack-position fields are cached by combat-zone version, faction, actor footprint, attack range, movement capability, and target mode. A field has many goal anchors, not one goal per candidate anchor. Target movement, target death, combat-zone membership changes, command target changes, or actor capability changes mark the affected field dirty; they do not synchronously rebuild every opposing unit's field.
 
 This separation is a product rule as much as a performance rule: ordinary movement should read as executing the group plan or enemy region policy, not as every unit independently searching the whole battlefield for the globally best attack anchor.
 
@@ -104,6 +104,8 @@ This separation is a product rule as much as a performance rule: ordinary moveme
 Mature RTS movement is a continuous runtime state over discrete navigation authority.
 
 - Region route fields, cached placement maps, and attack-slot fields provide movement direction or next-anchor ranking for groups of actors with compatible goals.
+- Local-combat attack-position fields are built from all legal attack anchors for a compatible actor group. Units sample the same multi-goal field from their current anchor instead of rebuilding a path or flow field for each candidate position.
+- Join/pressure movement inside a combat zone uses shared region or combat-zone fields. Exact attack-position assignment is a low-frequency local-combat decision, not a per-frame movement calculation.
 - Runtime actors move by speed over fixed simulation ticks, not by treating each cell transition as a complete independent action.
 - Target acquisition and movement pathing are separate costs: target acquisition should be sticky and low-frequency, while movement continuation validates the retained target's next legal neighbor at runtime boundaries.
 - Cell occupancy remains authoritative at committed cell boundaries. Reservations protect immediate continuation targets and prevent same-tick overlap or direct edge swaps.
@@ -141,6 +143,8 @@ A valid basic-attack slot is an attacker anchor that satisfies all of these fact
 - dynamic occupancy and same-tick reservation rules allow the committed next movement when moving toward that slot.
 
 Large targets naturally expose more potential attack slots than `1x1` targets. This is an intended body-size rule: a larger unit is more exposed to being surrounded by smaller units, while its own footprint may make movement through tight terrain harder.
+
+Attack-position search must be multi-goal. Runtime must not score a local-combat candidate list by building a full flow field or A* query once per candidate anchor. If eight actors have eight different attack ranges, Runtime may build up to eight compatible attack-position fields for the active combat zone, but each field is built once for all legal goal anchors in that actor capability group and then shared by actors in that group.
 
 ## Support Slots
 
@@ -186,6 +190,8 @@ Invalidate cached path data when any of these facts change:
 This protects the RTS expectation that a unit pursuing an enemy, responding to an attack command, switching from move-to-point to chase, or reacting to a target changing route replans from current facts at the next decision boundary.
 
 Path invalidation changes the next movement decision. It does not let pathfinding bypass an in-progress action lock unless the command or runtime rule explicitly interrupts that action.
+
+Dirty navigation fields are rebuilt lazily at actor decision or movement-continuation boundaries under a bounded runtime budget. A unit may keep using a still-valid older field briefly, fall back to the combat-zone join field, or hold with an explicit reason while waiting for a refreshed field. Runtime attack legality and movement commits still validate against current actor positions, occupancy, reservations, and attack range, so stale fields cannot authorize invalid attacks or overlapping movement.
 
 ## Diagnostics
 

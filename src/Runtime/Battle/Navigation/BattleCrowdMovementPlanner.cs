@@ -174,11 +174,46 @@ internal static class BattleCrowdMovementPlanner
             graph,
             new[] { goal },
             performanceCounters);
+        return FindNextStepCandidatesTowardCombatField(
+            actor,
+            field,
+            graph,
+            occupancy,
+            reservations,
+            out _,
+            localCombatRegion);
+    }
+
+    public static IReadOnlyList<BattleGridCoord> FindNextStepCandidatesTowardCombatField(
+        BattleRuntimeActor actor,
+        BattleFlowField field,
+        BattleNavigationGraph graph,
+        BattleDynamicOccupancy occupancy,
+        BattleMovementReservationMap reservations,
+        out BattleCombatSlot selectedGoal,
+        BattleTacticalRegionSnapshot localCombatRegion = null)
+    {
+        selectedGoal = default;
+        if (actor == null || field == null || graph == null || occupancy == null || reservations == null)
+        {
+            return new List<BattleGridCoord>();
+        }
+
+        BattleGridCoord start = new(actor.GridX, actor.GridY, actor.GridHeight);
+        if (!graph.Contains(start))
+        {
+            return new List<BattleGridCoord>();
+        }
+
         if (!field.HasCosts || !field.TryGetCost(start, out int startCost))
         {
             return new List<BattleGridCoord>();
         }
 
+        if (!field.TryGetBestGoal(start, out selectedGoal) && field.GoalSlots.Count > 0)
+        {
+            selectedGoal = field.GoalSlots[0];
+        }
         List<MoveOption> options = new();
         foreach (BattleGridCoord neighbor in graph.GetNeighbors(start))
         {
@@ -201,33 +236,45 @@ internal static class BattleCrowdMovementPlanner
             .ToArray();
         if (ordered.Length > 0)
         {
+            if (field.TryGetBestGoal(ordered[0], out BattleCombatSlot nextGoal))
+            {
+                selectedGoal = nextGoal;
+            }
+
             return ordered;
         }
 
         BattleGridCoord? discouragedReverseStep = GetImmediateReverseStep(actor, start);
-        if (BattlePathfinder.TryFindNextStepTowardAnchor(
+        if (BattlePathfinder.TryFindNextStepTowardAnyAnchor(
             actor,
-            combatSlotAnchor,
+            field.GoalSlots,
             graph,
             occupancy,
             reservations,
             out BattleGridCoord detourStep,
+            out BattleCombatSlot detourGoal,
             localCombatRegion,
             discouragedReverseStep))
         {
+            selectedGoal = detourGoal;
             return new[] { detourStep };
         }
 
-        return BattlePathfinder.TryFindNextStepTowardAnchor(
+        if (BattlePathfinder.TryFindNextStepTowardAnyAnchor(
             actor,
-            combatSlotAnchor,
+            field.GoalSlots,
             graph,
             occupancy,
             reservations,
             out detourStep,
-            localCombatRegion)
-            ? new[] { detourStep }
-            : System.Array.Empty<BattleGridCoord>();
+            out detourGoal,
+            localCombatRegion))
+        {
+            selectedGoal = detourGoal;
+            return new[] { detourStep };
+        }
+
+        return System.Array.Empty<BattleGridCoord>();
     }
 
     public static IReadOnlyList<BattleGridCoord> FindNextStepCandidatesTowardObjective(

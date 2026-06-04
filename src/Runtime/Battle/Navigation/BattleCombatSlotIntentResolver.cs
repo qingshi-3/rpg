@@ -9,9 +9,6 @@ internal readonly record struct BattleCombatSlotIntent(BattleGridCoord Anchor, B
 
 internal static class BattleCombatSlotIntentResolver
 {
-    private const int FlowCostWeight = 1000;
-    private const int KindFallbackPenalty = 100000;
-
     internal static bool TryResolveStoredIntent(
         BattleRuntimeActor actor,
         BattleRuntimeActor target,
@@ -40,66 +37,6 @@ internal static class BattleCombatSlotIntentResolver
         return true;
     }
 
-    internal static bool TrySelectNewIntent(
-        BattleRuntimeActor actor,
-        BattleRuntimeActor target,
-        BattleGridCoord actorAnchor,
-        BattleNavigationGraph graph,
-        BattleDynamicOccupancy occupancy,
-        bool preferSupportSlots,
-        BattlePerformanceCounters performanceCounters,
-        BattleTacticalRegionSnapshot localCombatRegion,
-        out BattleCombatSlotIntent intent)
-    {
-        intent = default;
-        if (actor == null || target == null || graph == null || occupancy == null)
-        {
-            return false;
-        }
-
-        BattleCombatSlot[] slots = BattleCombatSlotAllocator.FindSlots(
-                actor,
-                target,
-                graph,
-                performanceCounters,
-                localCombatRegion)
-            .Where(item => occupancy.CanPlaceFootprint(actor, item.Anchor))
-            .ToArray();
-        if (slots.Length == 0)
-        {
-            return false;
-        }
-
-        BattleCombatSlotIntentCandidate? selected = null;
-        foreach (BattleCombatSlot slot in slots)
-        {
-            if (!TryScoreSlot(
-                    actor,
-                    actorAnchor,
-                    graph,
-                    slot,
-                    preferSupportSlots,
-                    performanceCounters,
-                    out BattleCombatSlotIntentCandidate candidate))
-            {
-                continue;
-            }
-
-            if (selected == null || candidate.Score < selected.Value.Score)
-            {
-                selected = candidate;
-            }
-        }
-
-        if (selected == null)
-        {
-            return false;
-        }
-
-        intent = new BattleCombatSlotIntent(selected.Value.Anchor, selected.Value.Kind);
-        return true;
-    }
-
     internal static bool TrySelectExecutableIntent(
         BattleRuntimeActor actor,
         BattleRuntimeActor target,
@@ -120,13 +57,11 @@ internal static class BattleCombatSlotIntentResolver
             return false;
         }
 
-        IReadOnlyList<BattleCombatSlotIntentCandidate> candidates = BuildScoredCandidates(
+        IReadOnlyList<BattleCombatSlot> candidates = BuildCandidateSlots(
             actor,
             target,
-            actorAnchor,
             graph,
             occupancy,
-            preferSupportSlots,
             performanceCounters,
             localCombatRegion);
         BattleCombatSlotKind preferredKind = preferSupportSlots
@@ -140,7 +75,7 @@ internal static class BattleCombatSlotIntentResolver
             return false;
         }
 
-        if (TrySelectExecutableCandidate(
+        if (TrySelectExecutableCandidateGroup(
                 actor,
                 graph,
                 occupancy,
@@ -176,7 +111,7 @@ internal static class BattleCombatSlotIntentResolver
             return false;
         }
 
-        if (TrySelectExecutableCandidate(
+        if (TrySelectExecutableCandidateGroup(
                 actor,
                 graph,
                 occupancy,
@@ -224,17 +159,15 @@ internal static class BattleCombatSlotIntentResolver
             return false;
         }
 
-        IReadOnlyList<BattleCombatSlotIntentCandidate> candidates = BuildScoredCandidates(
+        IReadOnlyList<BattleCombatSlot> candidates = BuildCandidateSlots(
             actor,
             target,
-            actorAnchor,
             graph,
             occupancy,
-            preferSupportSlots: true,
             performanceCounters,
             localCombatRegion,
             includeLocalCombatJoinSupport: true);
-        return TrySelectExecutableCandidate(
+        return TrySelectExecutableCandidateGroup(
             actor,
             graph,
             occupancy,
@@ -247,50 +180,58 @@ internal static class BattleCombatSlotIntentResolver
             out moveOptions);
     }
 
-    private static bool TrySelectExecutableCandidate(
+    private static bool TrySelectExecutableCandidateGroup(
         BattleRuntimeActor actor,
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion,
-        IReadOnlyList<BattleCombatSlotIntentCandidate> candidates,
+        IReadOnlyList<BattleCombatSlot> candidates,
         BattleCombatSlotKind kind,
         out BattleCombatSlotIntent intent,
         out IReadOnlyList<BattleGridCoord> moveOptions)
     {
         intent = default;
         moveOptions = System.Array.Empty<BattleGridCoord>();
-        foreach (BattleCombatSlotIntentCandidate candidate in candidates.Where(item => item.Kind == kind))
+        BattleCombatSlot[] goals = (candidates ?? System.Array.Empty<BattleCombatSlot>())
+            .Where(item => item.Kind == kind)
+            .OrderBy(item => item.Priority)
+            .ThenBy(item => item.Anchor.Height)
+            .ThenBy(item => item.Anchor.Y)
+            .ThenBy(item => item.Anchor.X)
+            .ToArray();
+        if (goals.Length == 0)
         {
-            IReadOnlyList<BattleGridCoord> candidateMoves = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardCombatSlot(
-                actor,
-                candidate.Anchor,
-                candidate.Kind,
-                graph,
-                occupancy,
-                reservations,
-                performanceCounters,
-                localCombatRegion);
-            if (candidateMoves.Count == 0)
-            {
-                continue;
-            }
-
-            // Local-combat movement is only allowed to leave the actor state
-            // machine when the selected combat position also has an executable
-            // next segment. This prevents blocked attack-position selection
-            // from degrading into ordinary target chasing.
-            intent = new BattleCombatSlotIntent(candidate.Anchor, candidate.Kind);
-            moveOptions = candidateMoves;
-            return true;
+            return false;
         }
 
-        return false;
+        // Candidate groups share one multi-goal field. The movement executor
+        // still validates the chosen next step per actor through reservations.
+        BattleFlowField field = BattleFlowFieldBuilder.BuildFromGoalSlots(
+            actor,
+            graph,
+            goals,
+            performanceCounters);
+        moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardCombatField(
+            actor,
+            field,
+            graph,
+            occupancy,
+            reservations,
+            out BattleCombatSlot selectedGoal,
+            localCombatRegion);
+        if (moveOptions.Count == 0)
+        {
+            return false;
+        }
+
+        intent = new BattleCombatSlotIntent(selectedGoal.Anchor, selectedGoal.Kind);
+        return true;
     }
 
     private static bool ContainsCurrentTerminalSlot(
-        IReadOnlyList<BattleCombatSlotIntentCandidate> candidates,
+        IReadOnlyList<BattleCombatSlot> candidates,
         BattleGridCoord actorAnchor,
         BattleCombatSlotKind kind,
         BattleRuntimeActor actor,
@@ -318,41 +259,11 @@ internal static class BattleCombatSlotIntentResolver
         return gap == attackRange + 1;
     }
 
-    private static bool TryScoreSlot(
-        BattleRuntimeActor actor,
-        BattleGridCoord actorAnchor,
-        BattleNavigationGraph graph,
-        BattleCombatSlot slot,
-        bool preferSupportSlots,
-        BattlePerformanceCounters performanceCounters,
-        out BattleCombatSlotIntentCandidate candidate)
-    {
-        candidate = default;
-        BattleFlowField field = BattleFlowFieldBuilder.BuildFromGoalSlots(
-            actor,
-            graph,
-            new[] { slot },
-            performanceCounters);
-        if (!field.TryGetCost(actorAnchor, out int flowCost))
-        {
-            return false;
-        }
-
-        int kindPenalty = IsPreferredKind(slot.Kind, preferSupportSlots) ? 0 : KindFallbackPenalty;
-        candidate = new BattleCombatSlotIntentCandidate(
-            slot.Anchor,
-            slot.Kind,
-            kindPenalty + flowCost * FlowCostWeight + slot.Priority);
-        return true;
-    }
-
-    private static IReadOnlyList<BattleCombatSlotIntentCandidate> BuildScoredCandidates(
+    private static IReadOnlyList<BattleCombatSlot> BuildCandidateSlots(
         BattleRuntimeActor actor,
         BattleRuntimeActor target,
-        BattleGridCoord actorAnchor,
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
-        bool preferSupportSlots,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion,
         bool includeLocalCombatJoinSupport = false)
@@ -368,38 +279,16 @@ internal static class BattleCombatSlotIntentResolver
             .ToArray();
         if (slots.Length == 0)
         {
-            return System.Array.Empty<BattleCombatSlotIntentCandidate>();
+            return System.Array.Empty<BattleCombatSlot>();
         }
 
-        List<BattleCombatSlotIntentCandidate> candidates = new();
-        foreach (BattleCombatSlot slot in slots)
-        {
-            if (TryScoreSlot(
-                    actor,
-                    actorAnchor,
-                    graph,
-                    slot,
-                    preferSupportSlots,
-                    performanceCounters,
-                    out BattleCombatSlotIntentCandidate candidate))
-            {
-                candidates.Add(candidate);
-            }
-        }
-
-        return candidates
-            .OrderBy(item => item.Score)
+        return slots
+            .OrderBy(item => item.Kind)
+            .ThenBy(item => item.Priority)
             .ThenBy(item => item.Anchor.Height)
             .ThenBy(item => item.Anchor.Y)
             .ThenBy(item => item.Anchor.X)
             .ToArray();
-    }
-
-    private static bool IsPreferredKind(BattleCombatSlotKind kind, bool preferSupportSlots)
-    {
-        return preferSupportSlots
-            ? kind == BattleCombatSlotKind.Support
-            : kind == BattleCombatSlotKind.Attack;
     }
 
     private static bool IsSlotStillValid(
@@ -462,9 +351,4 @@ internal static class BattleCombatSlotIntentResolver
                anchor.Y >= minY &&
                anchor.Y < minY + height;
     }
-
-    private readonly record struct BattleCombatSlotIntentCandidate(
-        BattleGridCoord Anchor,
-        BattleCombatSlotKind Kind,
-        int Score);
 }

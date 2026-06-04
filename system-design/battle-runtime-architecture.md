@@ -213,6 +213,8 @@ Runtime local combat response must preserve battle-group identity:
 
 Runtime diagnostics must include local-combat decision reasons so AI behavior can be explained without reading behavior-tree internals.
 
+Local-combat movement must not turn every candidate attack or join position into an independent pathfinding query. Runtime should build attack-position facts as shared multi-goal navigation fields for compatible actor groups inside the selected combat zone. Enemy movement or defeat marks affected fields dirty; rebuild happens lazily at decision boundaries under a budget, while execution still validates the current attack range, occupancy, and reservation facts before moving or attacking.
+
 ## Continuous Movement
 
 Continuous movement keeps square-grid cells as combat truth while avoiding one-complete-action-per-cell presentation cadence.

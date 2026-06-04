@@ -76,7 +76,7 @@ TargetBattleMultiUnitNavigationRegressionCases.Register(Run);
 TargetBattleLocalCombatPositionRegressionCases.Register(Run);
 TargetBattleMovementIntentRegressionRegistration.Register(Run);
 Run("runtime performance counters separate navigation and logging costs", TargetBattlePerformanceRegressionCases.RuntimePerformanceCountersSeparateNavigationAndLoggingCosts);
-Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology); Run("runtime spike diagnostics write automatic summary", TargetBattlePerformanceRegressionCases.RuntimeSpikeDiagnosticsWriteAutomaticSummary);
+Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology); Run("runtime local combat position selection uses shared multi-goal fields", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatPositionSelectionUsesSharedMultiGoalFields); Run("runtime spike diagnostics write automatic summary", TargetBattlePerformanceRegressionCases.RuntimeSpikeDiagnosticsWriteAutomaticSummary);
 Run("high-frequency battle presentation logs use trace channel", TargetBattlePerformanceRegressionCases.HighFrequencyBattlePresentationLogsUseTraceChannel);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);

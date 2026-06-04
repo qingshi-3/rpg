@@ -118,6 +118,34 @@ internal static class TargetBattlePerformanceRegressionCases
         }
     }
 
+    public static void RuntimeLocalCombatPositionSelectionUsesSharedMultiGoalFields()
+    {
+        string root = ProjectRoot();
+        string intentResolver = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleCombatSlotIntentResolver.cs"));
+        string crowdPlanner = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleCrowdMovementPlanner.cs"));
+
+        AssertTrue(
+            !intentResolver.Contains("TryScoreSlot", StringComparison.Ordinal) &&
+            !intentResolver.Contains("BuildScoredCandidates", StringComparison.Ordinal),
+            "local-combat position selection must not score every candidate by building a separate flow field");
+        AssertTrue(
+            intentResolver.Contains("TrySelectExecutableCandidateGroup", StringComparison.Ordinal) &&
+            crowdPlanner.Contains("FindNextStepCandidatesTowardCombatField", StringComparison.Ordinal),
+            "local-combat position selection should build one shared multi-goal field per candidate group and sample movement from that field");
+    }
+
     public static void RuntimeSpikeDiagnosticsWriteAutomaticSummary()
     {
         const string ThresholdEnvironmentVariable = "RPG_BATTLE_RUNTIME_SPIKE_DIAGNOSTIC_MS";

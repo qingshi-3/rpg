@@ -46,10 +46,16 @@ internal static class BattleFlowFieldBuilder
         BattlePerformanceCounters performanceCounters = null)
     {
         long startedAt = Stopwatch.GetTimestamp();
-        BattleCombatSlot[] goalArray = (goals ?? Enumerable.Empty<BattleCombatSlot>()).ToArray();
+        BattleCombatSlot[] goalArray = (goals ?? Enumerable.Empty<BattleCombatSlot>())
+            .OrderBy(item => item.Priority)
+            .ThenBy(item => item.Anchor.Height)
+            .ThenBy(item => item.Anchor.Y)
+            .ThenBy(item => item.Anchor.X)
+            .ToArray();
         try
         {
             Dictionary<BattleGridCoord, int> costs = new();
+            Dictionary<BattleGridCoord, BattleCombatSlot> bestGoals = new();
             if (actor == null || graph == null || goalArray.Length == 0)
             {
                 return new BattleFlowField(goalArray, costs);
@@ -64,6 +70,7 @@ internal static class BattleFlowFieldBuilder
                     continue;
                 }
 
+                bestGoals[goal.Anchor] = goal;
                 frontier.Enqueue(goal.Anchor, 0);
             }
 
@@ -83,17 +90,27 @@ internal static class BattleFlowFieldBuilder
                     }
 
                     int newCost = costs[current] + GetStepCost(incoming, current);
-                    if (costs.TryGetValue(incoming, out int knownCost) && newCost >= knownCost)
+                    BattleCombatSlot currentGoal = bestGoals.TryGetValue(current, out BattleCombatSlot propagatedGoal)
+                        ? propagatedGoal
+                        : new BattleCombatSlot(current, BattleCombatSlotKind.Support, 0, int.MaxValue);
+                    if (costs.TryGetValue(incoming, out int knownCost))
                     {
-                        continue;
+                        if (newCost > knownCost ||
+                            newCost == knownCost &&
+                            bestGoals.TryGetValue(incoming, out BattleCombatSlot knownGoal) &&
+                            !IsPreferredGoal(currentGoal, knownGoal))
+                        {
+                            continue;
+                        }
                     }
 
                     costs[incoming] = newCost;
+                    bestGoals[incoming] = currentGoal;
                     frontier.Enqueue(incoming, newCost);
                 }
             }
 
-            return new BattleFlowField(goalArray, costs);
+            return new BattleFlowField(goalArray, costs, bestGoals);
         }
         finally
         {
@@ -118,5 +135,13 @@ internal static class BattleFlowFieldBuilder
         return from.X != to.X && from.Y != to.Y
             ? DiagonalCost
             : OrthogonalCost;
+    }
+
+    private static bool IsPreferredGoal(BattleCombatSlot candidate, BattleCombatSlot known)
+    {
+        return candidate.Priority < known.Priority ||
+               candidate.Priority == known.Priority && candidate.Anchor.Height < known.Anchor.Height ||
+               candidate.Priority == known.Priority && candidate.Anchor.Height == known.Anchor.Height && candidate.Anchor.Y < known.Anchor.Y ||
+               candidate.Priority == known.Priority && candidate.Anchor.Height == known.Anchor.Height && candidate.Anchor.Y == known.Anchor.Y && candidate.Anchor.X < known.Anchor.X;
     }
 }

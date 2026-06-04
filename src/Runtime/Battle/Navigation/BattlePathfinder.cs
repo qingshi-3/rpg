@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Rpg.Application.Battle.Snapshots;
 
 namespace Rpg.Runtime.Battle.Navigation;
@@ -208,6 +209,101 @@ internal static class BattlePathfinder
         return false;
     }
 
+    public static bool TryFindNextStepTowardAnyAnchor(
+        BattleRuntimeActor actor,
+        IReadOnlyList<BattleCombatSlot> goals,
+        BattleNavigationGraph graph,
+        BattleDynamicOccupancy occupancy,
+        BattleMovementReservationMap reservations,
+        out BattleGridCoord nextStep,
+        out BattleCombatSlot selectedGoal,
+        BattleTacticalRegionSnapshot localCombatRegion = null,
+        BattleGridCoord? excludedFirstStep = null)
+    {
+        nextStep = default;
+        selectedGoal = default;
+        if (actor == null || graph == null || occupancy == null || reservations == null)
+        {
+            return false;
+        }
+
+        BattleGridCoord start = new(actor.GridX, actor.GridY, actor.GridHeight);
+        if (!graph.Contains(start))
+        {
+            return false;
+        }
+
+        BattleCombatSlot[] validGoals = (goals ?? System.Array.Empty<BattleCombatSlot>())
+            .Where(goal =>
+                goal.Anchor != start &&
+                IsAnchorInsideLocalCombatRegion(goal.Anchor, localCombatRegion) &&
+                graph.CanPlaceFootprint(actor, goal.Anchor) &&
+                occupancy.CanPlaceFootprint(actor, goal.Anchor))
+            .OrderBy(goal => goal.Priority)
+            .ThenBy(goal => goal.Anchor.Height)
+            .ThenBy(goal => goal.Anchor.Y)
+            .ThenBy(goal => goal.Anchor.X)
+            .ToArray();
+        if (validGoals.Length == 0)
+        {
+            return false;
+        }
+
+        Dictionary<BattleGridCoord, BattleCombatSlot> goalByAnchor = validGoals
+            .GroupBy(goal => goal.Anchor)
+            .ToDictionary(group => group.Key, group => group.First());
+        var frontier = new PriorityQueue<BattleGridCoord, long>();
+        var cameFrom = new Dictionary<BattleGridCoord, BattleGridCoord>();
+        var costSoFar = new Dictionary<BattleGridCoord, int>
+        {
+            [start] = 0
+        };
+        var closed = new HashSet<BattleGridCoord>();
+        long sequence = 0;
+        frontier.Enqueue(start, BuildPriority(0, EstimateToNearestAnchor(start, validGoals), sequence++));
+
+        int searched = 0;
+        while (frontier.Count > 0 && searched < graph.MaxSearchNodes)
+        {
+            BattleGridCoord current = frontier.Dequeue();
+            if (!closed.Add(current))
+            {
+                continue;
+            }
+
+            searched++;
+            if (goalByAnchor.TryGetValue(current, out BattleCombatSlot reachedGoal))
+            {
+                selectedGoal = reachedGoal;
+                return TryResolveFirstStep(start, current, cameFrom, out nextStep);
+            }
+
+            foreach (BattleGridCoord neighbor in graph.GetNeighbors(current))
+            {
+                if (closed.Contains(neighbor) ||
+                    current == start && excludedFirstStep.HasValue && neighbor == excludedFirstStep.Value ||
+                    !IsAnchorInsideLocalCombatRegion(neighbor, localCombatRegion) ||
+                    !CanUseCurrentDynamicStep(actor, start, current, neighbor, graph, occupancy, reservations))
+                {
+                    continue;
+                }
+
+                int newCost = costSoFar[current] +
+                              BattlePathCostPolicy.GetTraversalCost(actor, start, current, neighbor, graph, occupancy);
+                if (costSoFar.TryGetValue(neighbor, out int knownCost) && newCost >= knownCost)
+                {
+                    continue;
+                }
+
+                costSoFar[neighbor] = newCost;
+                cameFrom[neighbor] = current;
+                frontier.Enqueue(neighbor, BuildPriority(newCost, EstimateToNearestAnchor(neighbor, validGoals), sequence++));
+            }
+        }
+
+        return false;
+    }
+
     private static bool ShouldPreferSupportStep(
         BattleRuntimeActor actor,
         BattleRuntimeActor target,
@@ -318,6 +414,17 @@ internal static class BattlePathfinder
             System.Math.Abs(anchor.X - goal.X),
             System.Math.Abs(anchor.Y - goal.Y)) * BattlePathCostPolicy.StepCost +
             System.Math.Abs(anchor.Height - goal.Height) * BattlePathCostPolicy.StepCost * 4;
+    }
+
+    private static int EstimateToNearestAnchor(BattleGridCoord anchor, IReadOnlyList<BattleCombatSlot> goals)
+    {
+        int best = int.MaxValue;
+        foreach (BattleCombatSlot goal in goals ?? System.Array.Empty<BattleCombatSlot>())
+        {
+            best = System.Math.Min(best, EstimateToAnchor(anchor, goal.Anchor));
+        }
+
+        return best == int.MaxValue ? 0 : best;
     }
 
     private static bool TryResolveFirstStep(
