@@ -75,7 +75,8 @@ BattleHitFeedbackRegressionCases.Run("runtime playback movement path uses footpr
 BattleHitFeedbackRegressionCases.Run("battle runtime presentation starts incremental runtime before settlement", BattleHitFeedbackRegressionCases.BattleRuntimePresentationStartsIncrementalRuntimeBeforeSettlement);
 BattleHitFeedbackRegressionCases.Run("battle runtime live clock does not use lookahead batches", BattleHitFeedbackRegressionCases.BattleRuntimeLiveClockDoesNotUseLookaheadBatches);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation does not await movement or attack durations", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationDoesNotAwaitMovementOrAttackDurations);
-BattleHitFeedbackRegressionCases.Run("battle runtime presentation pause waits without tree pause", BattleHitFeedbackRegressionCases.BattleRuntimePresentationPauseWaitsWithoutTreePause);
+BattleHitFeedbackRegressionCases.Run("battle runtime tactical pause freezes scene tree and keeps command ui", BattleHitFeedbackRegressionCases.BattleRuntimeTacticalPauseFreezesSceneTreeAndKeepsCommandUi);
+BattleHitFeedbackRegressionCases.Run("battle runtime tactical pause freezes unit presentation without replay", BattleHitFeedbackRegressionCases.BattleRuntimeTacticalPauseFreezesUnitPresentationWithoutReplay);
 BattleHitFeedbackRegressionCases.Run("battle unit command selection uses unit outline shader", BattleHitFeedbackRegressionCases.BattleUnitCommandSelectionUsesUnitOutlineShader);
 BattleHitFeedbackRegressionCases.Run("deployment zones use dedicated overlay shader", BattleHitFeedbackRegressionCases.DeploymentZonesUseDedicatedOverlayShader);
 BattleHitFeedbackRegressionCases.Run("realtime damage reaction does not play hit animation", BattleHitFeedbackRegressionCases.RealtimeDamageReactionDoesNotPlayHitAnimation);

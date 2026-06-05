@@ -139,7 +139,7 @@ public partial class DamageReactionComponent : BattleEntityComponent
 
     private async Task PlayDamageReactionAfterDelay(HealthDamageEvent damage, double delaySeconds)
     {
-        await ToSignal(GetTree().CreateTimer(delaySeconds), SceneTreeTimer.SignalName.Timeout);
+        await ToSignal(GetTree().CreateTimer(delaySeconds, processAlways: false), SceneTreeTimer.SignalName.Timeout);
         PlayDamageReaction(damage, delaySeconds);
     }
 

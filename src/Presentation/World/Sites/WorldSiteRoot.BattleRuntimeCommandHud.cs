@@ -37,20 +37,7 @@ public partial class WorldSiteRoot
 
     private void ToggleBattleRuntimeCommandPause()
     {
-        _battleRuntimeCommandPauseActive = !_battleRuntimeCommandPauseActive;
-        if (_battleRuntimeCommandPauseActive)
-        {
-            EnsureSelectedBattleRuntimeCommandGroup();
-        }
-        else
-        {
-            _unitRoot?.ClearCommandSelection();
-        }
-
-        RefreshBattleRuntimeCommandPausePresentation();
-        GameLog.Info(
-            nameof(WorldSiteRoot),
-            $"BattleRuntimeCommandPauseToggled paused={_battleRuntimeCommandPauseActive} selectedGroup={_selectedBattleRuntimeGroupKey}");
+        SetBattleRuntimeCommandPauseActive(!_battleRuntimeCommandPauseActive, "space_toggle");
     }
 
     private void SubmitBattleRuntimeCommand(BattleCorpsCommand command)

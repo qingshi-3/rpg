@@ -123,6 +123,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private WorldSiteRuntimeDeploymentCache _deploymentCache;
 	private bool _battleRuntimeEnabled = true;
 	private bool _battleRuntimeCommandPauseActive;
+	private bool _battleRuntimeScenePauseApplied;
+	private bool _battleRuntimeTreeWasPausedBeforeTacticalPause;
 	private string _battleStartBlockedReason = "";
 	private bool _isBattlePreparationActive;
 	private BattleStartRequest _battlePreparationRequest;
@@ -135,6 +137,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private string _selectedBattleRuntimeGroupKey = "";
 	private string _selectedBattlePreparationPlanGroupKey = "";
 	private readonly HashSet<string> _explicitBattlePreparationRuleGroups = new(System.StringComparer.Ordinal);
+	private readonly Dictionary<Node, ProcessModeEnum> _battleRuntimePauseProcessModeRestore = new();
 	private string _draggedPlacementId = "";
 	private Vector2 _draggedPlacementOriginGlobalPosition;
 	private string _draggedBattleForceId = "";
@@ -231,6 +234,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 	public override void _ExitTree()
 	{
+		SetBattleRuntimeCommandPauseActive(false, "exit_tree");
 		BattlePerformanceMonitorRegistry.Unregister();
 		if (GetViewport() != null)
 		{
@@ -303,6 +307,107 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 		_mainWorldViewportHost.MouseFilter = Control.MouseFilterEnum.Pass;
 		_mainWorldViewportHost.ClipContents = true;
+	}
+
+	private void SetBattleRuntimeCommandPauseActive(bool paused, string reason)
+	{
+		if (_battleRuntimeCommandPauseActive == paused && _battleRuntimeScenePauseApplied == paused)
+		{
+			return;
+		}
+
+		_battleRuntimeCommandPauseActive = paused;
+		if (paused)
+		{
+			EnsureSelectedBattleRuntimeCommandGroup();
+		}
+		else
+		{
+			_unitRoot?.ClearCommandSelection();
+		}
+
+		ApplyBattleRuntimeScenePause(paused, reason);
+		RefreshBattleRuntimeCommandPausePresentation();
+		GameLog.Info(
+			nameof(WorldSiteRoot),
+			$"BattleRuntimeCommandPauseToggled paused={_battleRuntimeCommandPauseActive} selectedGroup={_selectedBattleRuntimeGroupKey} reason={reason ?? ""}");
+	}
+
+	private void ApplyBattleRuntimeScenePause(bool paused, string reason)
+	{
+		if (paused)
+		{
+			if (!_battleRuntimeScenePauseApplied)
+			{
+				_battleRuntimeTreeWasPausedBeforeTacticalPause = IsInsideTree() && GetTree().Paused;
+				CaptureBattleRuntimePauseProcessMode(this, ProcessModeEnum.Always);
+				CaptureBattleRuntimePauseProcessMode(_siteHudRoot, ProcessModeEnum.Always);
+				CaptureBattleRuntimePauseProcessMode(_siteModalHost, ProcessModeEnum.Always);
+				CaptureBattleRuntimePauseProcessMode(_mainWorldViewportHost, ProcessModeEnum.Pausable);
+				CaptureBattleRuntimePauseProcessMode(_mainWorldViewport, ProcessModeEnum.Pausable);
+				CaptureBattleRuntimePauseProcessMode(_mapRoot, ProcessModeEnum.Pausable);
+				CaptureBattleRuntimePauseProcessMode(_activeSiteMap, ProcessModeEnum.Pausable);
+				CaptureBattleRuntimePauseProcessMode(_unitRoot, ProcessModeEnum.Pausable);
+				CaptureBattleRuntimePauseProcessMode(_sitePlacementEntityRoot, ProcessModeEnum.Pausable);
+				_battleRuntimeScenePauseApplied = true;
+			}
+
+			_unitRoot?.SetBattlePresentationPaused(paused);
+			if (IsInsideTree())
+			{
+				// Tactical pause freezes the world through Godot while command UI keeps running.
+				GetTree().Paused = paused;
+			}
+		}
+		else
+		{
+			if (!_battleRuntimeScenePauseApplied)
+			{
+				return;
+			}
+
+			RestoreBattleRuntimePauseProcessModes();
+			if (IsInsideTree())
+			{
+				GetTree().Paused = _battleRuntimeTreeWasPausedBeforeTacticalPause;
+			}
+
+			_unitRoot?.SetBattlePresentationPaused(paused);
+			_battleRuntimeScenePauseApplied = false;
+			_battleRuntimeTreeWasPausedBeforeTacticalPause = false;
+		}
+
+		GameLog.Info(
+			nameof(WorldSiteRoot),
+			$"BattleRuntimeScenePauseApplied paused={paused} reason={reason ?? ""}");
+	}
+
+	private void CaptureBattleRuntimePauseProcessMode(Node node, ProcessModeEnum processMode)
+	{
+		if (node == null || !GodotObject.IsInstanceValid(node))
+		{
+			return;
+		}
+
+		if (!_battleRuntimePauseProcessModeRestore.ContainsKey(node))
+		{
+			_battleRuntimePauseProcessModeRestore[node] = node.ProcessMode;
+		}
+
+		node.ProcessMode = processMode;
+	}
+
+	private void RestoreBattleRuntimePauseProcessModes()
+	{
+		foreach ((Node node, ProcessModeEnum processMode) in _battleRuntimePauseProcessModeRestore.ToArray())
+		{
+			if (node != null && GodotObject.IsInstanceValid(node))
+			{
+				node.ProcessMode = processMode;
+			}
+		}
+
+		_battleRuntimePauseProcessModeRestore.Clear();
 	}
 
 	private void UpdateMainWorldViewportLayout(string reason)

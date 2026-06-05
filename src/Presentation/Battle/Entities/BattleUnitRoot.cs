@@ -59,6 +59,7 @@ public partial class BattleUnitRoot : Node2D
     private TryResolveCellGlobalPosition _tryResolveCellGlobalPosition;
     private TryResolveFootprintGlobalPosition _tryResolveFootprintGlobalPosition;
     private ApplyEntityRenderSort _applyEntityRenderSort;
+    private bool _battlePresentationPaused;
 
     public bool HasActiveMovementTweens => _movementLanes.Count > 0;
     public int ActiveMovementTweenCount => _movementLanes.Count;
@@ -72,7 +73,9 @@ public partial class BattleUnitRoot : Node2D
 
     public override void _Process(double delta)
     {
-        if ((_movementLanes.Count == 0 && _pendingMovementIdleSeconds.Count == 0) || delta <= 0)
+        if (_battlePresentationPaused ||
+            (_movementLanes.Count == 0 && _pendingMovementIdleSeconds.Count == 0) ||
+            delta <= 0)
         {
             return;
         }
@@ -97,6 +100,27 @@ public partial class BattleUnitRoot : Node2D
         SetHitOutlines(_hitOutlinedEntities.ToArray(), visible: false);
         _pendingDefeatedPresentations.Clear();
         CompleteDefeatedPresentationWaiters();
+    }
+
+    public void SetBattlePresentationPaused(bool paused)
+    {
+        _battlePresentationPaused = paused;
+        foreach (BattleEntity entity in GetEntitiesSnapshot())
+        {
+            if (entity == null || !GodotObject.IsInstanceValid(entity))
+            {
+                continue;
+            }
+
+            entity.GetComponent<UnitAnimationComponent>()?.SetPresentationPaused(paused);
+        }
+
+        // Runtime can stay paused while HUD/input remain live; unit visuals own a
+        // separate freeze so queued movement does not consume lane time or replay.
+        if (!paused && (_movementLanes.Count > 0 || _pendingMovementIdleSeconds.Count > 0))
+        {
+            SetProcess(true);
+        }
     }
 
     public void Initialize(
@@ -412,7 +436,7 @@ public partial class BattleUnitRoot : Node2D
             return;
         }
 
-        await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
+        await ToSignal(GetTree().CreateTimer(seconds, processAlways: false), SceneTreeTimer.SignalName.Timeout);
     }
 
     public void SetIntentMarker(BattleEntity entity, BattleIntent intent)

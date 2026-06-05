@@ -361,19 +361,90 @@ internal static void BattleRuntimePlaybackWaitsForAttackAnimationDuration()
         "runtime damage presentation should serialize one actor's attack visuals by runtime action seconds without blocking unrelated simulation ticks");
 }
 
-internal static void BattleRuntimePresentationPauseWaitsWithoutTreePause()
+internal static void BattleRuntimeTacticalPauseFreezesSceneTreeAndKeepsCommandUi()
 {
     string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntime.cs"));
     string commandUi = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
+    string incremental = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
+    string root = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    string siteHud = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteManagementHud.cs"));
 
     AssertTrue(
         runtime.Contains("while (_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
-        runtime.Contains("BattleRuntimePresentationWaitPaused", StringComparison.Ordinal),
+        runtime.Contains("BattleRuntimePresentationWaitPaused", StringComparison.Ordinal) &&
+        runtime.Contains("CreateTimer(0.05, processAlways: true)", StringComparison.Ordinal),
         "runtime event playback waits should stop advancing while the command pause overlay is active.");
     AssertTrue(
-        !runtime.Contains("GetTree().Paused = true", StringComparison.Ordinal) &&
-        !commandUi.Contains("GetTree().Paused = true", StringComparison.Ordinal),
-        "battle command pause should not pause the whole SceneTree because the command UI must remain interactive.");
+        commandUi.Contains("SetBattleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
+        root.Contains("ApplyBattleRuntimeScenePause", StringComparison.Ordinal) &&
+        root.Contains("ProcessModeEnum.Always", StringComparison.Ordinal) &&
+        root.Contains("ProcessModeEnum.Pausable", StringComparison.Ordinal) &&
+        root.Contains("GetTree().Paused = paused", StringComparison.Ordinal),
+        "battle command pause should freeze the scene tree while keeping the root/HUD command path interactive.");
+    AssertTrue(
+        siteHud.Contains("SetBattleRuntimeCommandPauseActive(false, \"runtime_disabled\")", StringComparison.Ordinal) &&
+        root.Contains("SetBattleRuntimeCommandPauseActive(false, \"exit_tree\")", StringComparison.Ordinal),
+        "battle runtime pause must be cleared when runtime ends or the scene exits so the wider game is not left paused.");
+
+    int gateIndex = incremental.IndexOf("await WaitForBattleRuntimeAdvanceGateAsync()", StringComparison.Ordinal);
+    int advanceIndex = incremental.IndexOf("controller.AdvanceFixedTick(tickSeconds)", StringComparison.Ordinal);
+    AssertTrue(
+        gateIndex >= 0 &&
+        advanceIndex > gateIndex,
+        "live runtime should wait for tactical pause clearance before advancing the next fixed Runtime tick.");
+}
+
+internal static void BattleRuntimeTacticalPauseFreezesUnitPresentationWithoutReplay()
+{
+    string root = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string animation = string.Join("\n", Directory
+        .GetFiles(Path.Combine("src", "Presentation", "Battle", "Entities"), "UnitAnimationComponent*.cs")
+        .OrderBy(path => path, StringComparer.Ordinal)
+        .Select(File.ReadAllText));
+    string damageReaction = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "DamageReactionComponent.cs"));
+    string pauseMethod = ExtractMethodBlock(root, "private void ApplyBattleRuntimeScenePause(bool paused, string reason)");
+    string processMethod = ExtractMethodBlock(unitRoot, "public override void _Process(double delta)");
+    string unitPauseMethod = ExtractMethodBlock(unitRoot, "public void SetBattlePresentationPaused");
+    string animationPauseMethod = ExtractMethodBlock(animation, "public void SetPresentationPaused");
+
+    AssertTrue(
+        pauseMethod.Contains("_unitRoot?.SetBattlePresentationPaused(paused)", StringComparison.Ordinal),
+        "world-site tactical pause should explicitly propagate the presentation pause to the battle unit root.");
+    AssertTrue(
+        processMethod.Contains("_battlePresentationPaused", StringComparison.Ordinal) &&
+        processMethod.IndexOf("_battlePresentationPaused", StringComparison.Ordinal) <
+        processMethod.IndexOf("_movementLanes.Count", StringComparison.Ordinal),
+        "unit-root visual movement should stop before consuming movement lane time while presentation pause is active.");
+    AssertTrue(
+        unitPauseMethod.Contains("GetEntitiesSnapshot()", StringComparison.Ordinal) &&
+        unitPauseMethod.Contains("SetPresentationPaused(paused)", StringComparison.Ordinal),
+        "unit-root pause should apply to all current unit animation components.");
+    AssertTrue(
+        animationPauseMethod.Contains("PauseAnimatedSpritePlayback()", StringComparison.Ordinal) &&
+        animationPauseMethod.Contains("PauseAnimationPlayerPlayback()", StringComparison.Ordinal) &&
+        animationPauseMethod.Contains("PauseProceduralTweenPlayback()", StringComparison.Ordinal) &&
+        animationPauseMethod.Contains("ResumeAnimatedSpritePlayback()", StringComparison.Ordinal) &&
+        animationPauseMethod.Contains("ResumeAnimationPlayerPlayback()", StringComparison.Ordinal) &&
+        animationPauseMethod.Contains("ResumeProceduralTweenPlayback()", StringComparison.Ordinal) &&
+        animation.Contains("_animatedSprite.Pause()", StringComparison.Ordinal) &&
+        animation.Contains("_animationPlayer.Pause()", StringComparison.Ordinal) &&
+        animation.Contains("_proceduralTween.Pause()", StringComparison.Ordinal) &&
+        animation.Contains("_animatedSprite.Play()", StringComparison.Ordinal) &&
+        animation.Contains("_animationPlayer.Play()", StringComparison.Ordinal) &&
+        animation.Contains("_proceduralTween.Play()", StringComparison.Ordinal),
+        "unit animation pause should freeze and resume existing playback state instead of stopping or starting a new cue.");
+    AssertTrue(
+        !animationPauseMethod.Contains("PlayIdle()", StringComparison.Ordinal) &&
+        !animationPauseMethod.Contains("PlayMove", StringComparison.Ordinal) &&
+        !animationPauseMethod.Contains("Stop()", StringComparison.Ordinal),
+        "unit animation pause must not return to idle, replay movement, or stop playback because that restarts cues after resume.");
+    AssertTrue(
+        unitRoot.Contains("CreateTimer(seconds, processAlways: false)", StringComparison.Ordinal) &&
+        animation.Contains("CreateTimer(delaySeconds, processAlways: false)", StringComparison.Ordinal) &&
+        animation.Contains("CreateTimer(seconds, processAlways: false)", StringComparison.Ordinal) &&
+        damageReaction.Contains("CreateTimer(delaySeconds, processAlways: false)", StringComparison.Ordinal),
+        "unit presentation timers should respect SceneTree pause instead of completing one-shot cues while paused.");
 }
 
 internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()

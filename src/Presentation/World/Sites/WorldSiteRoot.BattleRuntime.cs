@@ -71,7 +71,7 @@ public partial class WorldSiteRoot
 
         _isBattlePreparationActive = false;
         _battlePreparationRequest = null;
-        _battleRuntimeCommandPauseActive = false;
+        SetBattleRuntimeCommandPauseActive(false, "runtime_activated");
         _selectedBattleRuntimeGroupKey = "";
         _battlePerformanceCounters.Reset();
         // Preparation can start runtime directly after the player confirms deployment,
@@ -228,24 +228,29 @@ public partial class WorldSiteRoot
         double remainingSeconds = seconds;
         while (IsInsideTree() && remainingSeconds > 0)
         {
-            bool loggedPauseWait = false;
-            while (_battleRuntimeCommandPauseActive && IsInsideTree())
-            {
-                if (!loggedPauseWait)
-                {
-                    GameLog.Info(nameof(WorldSiteRoot), "BattleRuntimePresentationWaitPaused");
-                    loggedPauseWait = true;
-                }
-
-                await ToSignal(GetTree().CreateTimer(0.05), SceneTreeTimer.SignalName.Timeout);
-            }
+            await WaitForBattleRuntimeAdvanceGateAsync();
 
             double stepSeconds = System.Math.Min(0.05, remainingSeconds);
-            await ToSignal(GetTree().CreateTimer(stepSeconds), SceneTreeTimer.SignalName.Timeout);
+            await ToSignal(GetTree().CreateTimer(stepSeconds, processAlways: true), SceneTreeTimer.SignalName.Timeout);
             if (!_battleRuntimeCommandPauseActive)
             {
                 remainingSeconds -= stepSeconds;
             }
+        }
+    }
+
+    private async Task WaitForBattleRuntimeAdvanceGateAsync()
+    {
+        bool loggedPauseWait = false;
+        while (_battleRuntimeCommandPauseActive && IsInsideTree())
+        {
+            if (!loggedPauseWait)
+            {
+                GameLog.Info(nameof(WorldSiteRoot), "BattleRuntimePresentationWaitPaused");
+                loggedPauseWait = true;
+            }
+
+            await ToSignal(GetTree().CreateTimer(0.05, processAlways: true), SceneTreeTimer.SignalName.Timeout);
         }
     }
 

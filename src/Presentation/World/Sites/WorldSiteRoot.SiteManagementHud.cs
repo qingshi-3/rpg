@@ -490,7 +490,7 @@ public partial class WorldSiteRoot
         }
         else if (!enabled)
         {
-            _battleRuntimeCommandPauseActive = false;
+            SetBattleRuntimeCommandPauseActive(false, "runtime_disabled");
             _battlePerceptionOverlayVisible = false;
             _selectedBattleRuntimeGroupKey = "";
             _battleRuntimeRequest = null;

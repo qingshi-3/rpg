@@ -180,6 +180,7 @@ public partial class WorldSiteRoot
         while (!controller.IsComplete && IsInsideTree())
         {
             double tickSeconds = ResolveRuntimePlaybackTickSeconds();
+            await WaitForBattleRuntimeAdvanceGateAsync();
             BattleRuntimeAdvanceResult advance = controller.AdvanceFixedTick(tickSeconds);
             _ = ObserveRuntimeEventsOnPresentationAsync(advance.Events, presentationState);
             await WaitSiteBattlePresentationSeconds(tickSeconds);

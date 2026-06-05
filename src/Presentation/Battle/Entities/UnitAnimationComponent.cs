@@ -294,6 +294,11 @@ public partial class UnitAnimationComponent : BattleEntityComponent
     private bool TryPlay(string animationName, string cue, bool restart, double minimumTargetSeconds = 0)
     {
         string resolvedAnimationName = ResolveAnimationName(animationName, cue);
+        if (_presentationPaused)
+        {
+            return true;
+        }
+
         if (!restart && IsCueAlreadyPlaying(cue, resolvedAnimationName))
         {
             return true;
@@ -488,7 +493,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return;
         }
 
-        await ToSignal(GetTree().CreateTimer(delaySeconds), SceneTreeTimer.SignalName.Timeout);
+        await ToSignal(GetTree().CreateTimer(delaySeconds, processAlways: false), SceneTreeTimer.SignalName.Timeout);
         if (version == _oneShotReturnVersion &&
             Entity != null &&
             !BattleRuleQueries.IsDefeated(Entity) &&
@@ -662,7 +667,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return;
         }
 
-        await ToSignal(GetTree().CreateTimer(delaySeconds), SceneTreeTimer.SignalName.Timeout);
+        await ToSignal(GetTree().CreateTimer(delaySeconds, processAlways: false), SceneTreeTimer.SignalName.Timeout);
         if (version == _proceduralCueVersion && Entity != null && !BattleRuleQueries.IsDefeated(Entity))
         {
             PlayIdle();
@@ -819,7 +824,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return;
         }
 
-        await ToSignal(GetTree().CreateTimer(seconds), SceneTreeTimer.SignalName.Timeout);
+        await ToSignal(GetTree().CreateTimer(seconds, processAlways: false), SceneTreeTimer.SignalName.Timeout);
         if (version == _defeatedVersion)
         {
             CompleteDefeatedAnimation();
@@ -837,7 +842,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
     private async Task PlayDefeatedAfterDelay(int version, double delaySeconds)
     {
-        await ToSignal(GetTree().CreateTimer(delaySeconds), SceneTreeTimer.SignalName.Timeout);
+        await ToSignal(GetTree().CreateTimer(delaySeconds, processAlways: false), SceneTreeTimer.SignalName.Timeout);
         if (version != _defeatedVersion)
         {
             return;
