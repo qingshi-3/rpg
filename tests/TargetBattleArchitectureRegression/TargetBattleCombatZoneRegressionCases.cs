@@ -14,6 +14,9 @@ internal static class TargetBattleCombatZoneRegressionCases
     {
         run("runtime builds global combat zones and group action zones with area logs", RuntimeBuildsGlobalCombatZonesAndGroupActionZonesWithAreaLogs);
         run("runtime rear engaged members use combat zone intent instead of objective advance", RuntimeRearEngagedMembersUseCombatZoneIntentInsteadOfObjectiveAdvance);
+        run("runtime combat-zone outsiders path to latest combat zone before slot search", RuntimeCombatZoneOutsidersPathToLatestCombatZoneBeforeSlotSearch);
+        run("runtime combat-zone join movement uses action bounds instead of center", RuntimeCombatZoneJoinMovementUsesActionBoundsInsteadOfCenter);
+        run("runtime members inside actor-local combat zone do not march to selected group zone", RuntimeMembersInsideActorLocalCombatZoneDoNotMarchToSelectedGroupZone);
         run("runtime combat zone keeps member footprints and hot-area padding under cap pressure", RuntimeCombatZoneKeepsMemberFootprintsAndHotAreaPaddingUnderCapPressure);
     }
 
@@ -98,6 +101,89 @@ internal static class TargetBattleCombatZoneRegressionCases
             zone.ActorIds.Contains("enemy_rear_top:1") &&
             zone.ActorIds.Contains("enemy_rear_bottom:1"),
             "rear actors should be listed inside the same combat zone whose bounds cover their footprints");
+    }
+
+    private static void RuntimeCombatZoneOutsidersPathToLatestCombatZoneBeforeSlotSearch()
+    {
+        BattleStartSnapshot snapshot = BuildSpreadCombatZoneJoinSnapshot("battle_spread_join_paths_to_combat_zone");
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+        BattleGroupActionZoneSnapshot playerActionZone = controller.State.GroupActionZones["player_group"];
+        BattleRuntimeActor playerRear = controller.State.Actors.Single(item => item.ActorId == "player_rear:1");
+        BattleEvent? rearMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "player_rear:1");
+
+        AssertEqual(BattleGroupActionZoneKind.CombatJoin, playerActionZone.Kind, "player group should be joining the fresh combat zone");
+        AssertTrue(
+            !IsInsideActionZone(playerRear, playerActionZone),
+            "fixture requires the rear member to remain outside the current combat zone at the decision boundary");
+        AssertTrue(rearMove != null, "combat-zone outsider should path toward the current combat zone instead of idling");
+        AssertEqual(
+            $"{playerActionZone.BattleGroupId}:combat_join:{playerActionZone.TargetCombatZoneId}",
+            rearMove!.TargetId,
+            "combat-zone outsider movement target should be the latest combat-zone join region, not an enemy actor or objective");
+        AssertEqual("combat_zone_join_advance", rearMove.ReasonCode, "combat-zone outsider movement reason");
+    }
+
+    private static void RuntimeCombatZoneJoinMovementUsesActionBoundsInsteadOfCenter()
+    {
+        BattleStartSnapshot snapshot = BuildCombatZoneJoinBoundsSnapshot("battle_combat_join_uses_action_bounds");
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+        BattleGroupActionZoneSnapshot enemyActionZone = controller.State.GroupActionZones["enemy_group"];
+        BattleRuntimeActor outsider = controller.State.Actors.Single(item => item.ActorId == "enemy_outsider:1");
+        BattleEvent? outsiderMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "enemy_outsider:1");
+
+        AssertEqual(BattleGroupActionZoneKind.CombatJoin, enemyActionZone.Kind, "enemy group should be joining the existing combat zone");
+        AssertTrue(
+            !IsInsideActionZone(outsider, enemyActionZone),
+            "fixture requires the outsider to stand outside the logged action-zone bounds");
+        AssertTrue(
+            outsiderMove != null,
+            $"outsider near the right edge should move into the logged action-zone bounds instead of reporting path failure: failure={outsider.LastAdvanceFailureReason}");
+        AssertEqual("combat_zone_join_advance", outsiderMove!.ReasonCode, "combat-zone join movement reason");
+        AssertTrue(
+            outsiderMove.ToGridX < outsiderMove.FromGridX,
+            $"outsider should step toward the action-zone min/max bounds, not treat the center as a top-left goal: from=({outsiderMove.FromGridX},{outsiderMove.FromGridY}) to=({outsiderMove.ToGridX},{outsiderMove.ToGridY}) bounds=({enemyActionZone.MinCellX},{enemyActionZone.MinCellY})-({enemyActionZone.MaxCellX},{enemyActionZone.MaxCellY})");
+    }
+
+    private static void RuntimeMembersInsideActorLocalCombatZoneDoNotMarchToSelectedGroupZone()
+    {
+        BattleStartSnapshot snapshot = BuildSplitCombatZoneSnapshot("battle_split_actor_local_zone");
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+        BattleCombatZoneSnapshot[] zones = controller.State.CombatZones.Values
+            .OrderBy(item => item.CombatZoneId, StringComparer.Ordinal)
+            .ToArray();
+        BattleGroupActionZoneSnapshot playerActionZone = controller.State.GroupActionZones["player_group"];
+        BattleCombatZoneSnapshot playerRightZone = zones.Single(zone => zone.ActorIds.Contains("player_right:1"));
+        BattleRuntimeActor playerRight = controller.State.Actors.Single(item => item.ActorId == "player_right:1");
+        BattleEvent? rightMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "player_right:1");
+        string selectedJoinRegionId = $"{playerActionZone.BattleGroupId}:combat_join:{playerActionZone.TargetCombatZoneId}";
+
+        AssertEqual(2, zones.Length, "fixture should produce two simultaneous global combat zones");
+        AssertEqual(BattleGroupActionZoneKind.CombatJoin, playerActionZone.Kind, "player group should be engaged through one selected action zone");
+        AssertTrue(
+            !string.Equals(playerRightZone.CombatZoneId, playerActionZone.TargetCombatZoneId, StringComparison.Ordinal),
+            "fixture requires the right-side actor to stand in a non-selected combat zone");
+        AssertTrue(
+            IsInsideCombatZone(playerRight, playerRightZone),
+            "right-side actor should be inside its actor-local combat-zone bounds");
+        AssertTrue(
+            rightMove == null || !string.Equals(rightMove.TargetId, selectedJoinRegionId, StringComparison.Ordinal),
+            $"actor already inside a combat zone must not march to the selected group action zone: target={rightMove?.TargetId} selected={selectedJoinRegionId}");
+        AssertTrue(
+            string.Equals(playerRight.TargetActorId, "enemy_right:1", StringComparison.Ordinal) ||
+            string.Equals(rightMove?.TargetId, "enemy_right:1", StringComparison.Ordinal),
+            $"actor inside a non-selected combat zone should make local combat decisions against that zone's enemy: target={playerRight.TargetActorId} moveTarget={rightMove?.TargetId}");
     }
 
     private static BattleStartSnapshot BuildCombatZoneSnapshot(string battleId)
@@ -222,6 +308,187 @@ internal static class TargetBattleCombatZoneRegressionCases
         return snapshot;
     }
 
+    private static BattleStartSnapshot BuildSpreadCombatZoneJoinSnapshot(string battleId)
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = $"snapshot_{battleId}",
+            BattleId = battleId,
+            TargetLocationId = "site_1",
+            ObjectiveZones =
+            {
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "player_deployment",
+                    ObjectiveRole = "player_deployment",
+                    DeploymentSide = "Player",
+                    FactionId = "player",
+                    CellX = 0,
+                    CellY = 8,
+                    Width = 2,
+                    Height = 3
+                },
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "enemy_deployment",
+                    ObjectiveRole = "enemy_deployment",
+                    DeploymentSide = "Enemy",
+                    FactionId = "enemy",
+                    CellX = 18,
+                    CellY = 4,
+                    Width = 2,
+                    Height = 3
+                }
+            },
+            BattleGroups =
+            {
+                BuildGroup("player_group", "player", "player_front", 5, 5, "enemy_deployment"),
+                BuildGroup("player_group", "player", "player_rear", 0, 10, "enemy_deployment"),
+                BuildGroup("enemy_group", "enemy", "enemy_front", 8, 5, "player_deployment", BattleGroupTacticalMode.EnemyOffense),
+                BuildGroup("enemy_group", "enemy", "enemy_rear", 18, 10, "player_deployment", BattleGroupTacticalMode.EnemyOffense)
+            }
+        };
+
+        for (int x = 0; x <= 20; x++)
+        {
+            for (int y = 0; y <= 12; y++)
+            {
+                snapshot.LocationContext.NavigationSurfaces.Add(new BattleNavigationSurfaceSnapshot
+                {
+                    X = x,
+                    Y = y,
+                    Height = 0,
+                    MoveCost = 1
+                });
+            }
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildCombatZoneJoinBoundsSnapshot(string battleId)
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = $"snapshot_{battleId}",
+            BattleId = battleId,
+            TargetLocationId = "site_1",
+            ObjectiveZones =
+            {
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "player_deployment",
+                    ObjectiveRole = "player_deployment",
+                    DeploymentSide = "Player",
+                    FactionId = "player",
+                    CellX = 0,
+                    CellY = 16,
+                    Width = 2,
+                    Height = 4
+                },
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "enemy_deployment",
+                    ObjectiveRole = "enemy_deployment",
+                    DeploymentSide = "Enemy",
+                    FactionId = "enemy",
+                    CellX = 56,
+                    CellY = 2,
+                    Width = 12,
+                    Height = 8
+                }
+            },
+            BattleGroups =
+            {
+                BuildGroup("player_front_top_group", "player", "player_front_top", 33, 14, "enemy_deployment", footprintWidth: 2, footprintHeight: 1, runtimeCommanderGroupId: "player_group"),
+                BuildGroup("player_front_mid_group", "player", "player_front_mid", 33, 16, "enemy_deployment", footprintWidth: 2, footprintHeight: 1, runtimeCommanderGroupId: "player_group"),
+                BuildGroup("player_front_bottom_group", "player", "player_front_bottom", 33, 19, "enemy_deployment", footprintWidth: 2, footprintHeight: 1, runtimeCommanderGroupId: "player_group"),
+                BuildGroup("enemy_front_top_group", "enemy", "enemy_front_top", 35, 18, "player_deployment", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_group"),
+                BuildGroup("enemy_front_bottom_group", "enemy", "enemy_front_bottom", 33, 20, "player_deployment", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_group"),
+                BuildGroup("enemy_outsider_group", "enemy", "enemy_outsider", 43, 18, "player_deployment", BattleGroupTacticalMode.EnemyOffense, footprintWidth: 2, footprintHeight: 2, runtimeCommanderGroupId: "enemy_group")
+            }
+        };
+
+        for (int x = 20; x <= 50; x++)
+        {
+            for (int y = 8; y <= 30; y++)
+            {
+                snapshot.LocationContext.NavigationSurfaces.Add(new BattleNavigationSurfaceSnapshot
+                {
+                    X = x,
+                    Y = y,
+                    Height = 0,
+                    MoveCost = 1
+                });
+            }
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildSplitCombatZoneSnapshot(string battleId)
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = $"snapshot_{battleId}",
+            BattleId = battleId,
+            TargetLocationId = "site_1",
+            ObjectiveZones =
+            {
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "player_deployment",
+                    ObjectiveRole = "player_deployment",
+                    DeploymentSide = "Player",
+                    FactionId = "player",
+                    CellX = 0,
+                    CellY = 9,
+                    Width = 2,
+                    Height = 4
+                },
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "enemy_deployment",
+                    ObjectiveRole = "enemy_deployment",
+                    DeploymentSide = "Enemy",
+                    FactionId = "enemy",
+                    CellX = 40,
+                    CellY = 9,
+                    Width = 2,
+                    Height = 4
+                }
+            },
+            BattleGroups =
+            {
+                BuildGroup("player_group", "player", "player_left_top", 10, 10, "enemy_deployment"),
+                BuildGroup("player_group", "player", "player_left_bottom", 10, 12, "enemy_deployment"),
+                BuildGroup("player_group", "player", "player_right", 30, 10, "enemy_deployment"),
+                BuildGroup("enemy_group", "enemy", "enemy_left_top", 13, 10, "player_deployment", BattleGroupTacticalMode.EnemyOffense),
+                BuildGroup("enemy_group", "enemy", "enemy_left_bottom", 13, 12, "player_deployment", BattleGroupTacticalMode.EnemyOffense),
+                BuildGroup("enemy_group", "enemy", "enemy_right", 33, 10, "player_deployment", BattleGroupTacticalMode.EnemyOffense)
+            }
+        };
+
+        for (int x = 0; x <= 42; x++)
+        {
+            for (int y = 6; y <= 16; y++)
+            {
+                snapshot.LocationContext.NavigationSurfaces.Add(new BattleNavigationSurfaceSnapshot
+                {
+                    X = x,
+                    Y = y,
+                    Height = 0,
+                    MoveCost = 1
+                });
+            }
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
     private static BattleGroupSnapshot BuildGroup(
         string commanderGroupId,
         string factionId,
@@ -231,12 +498,13 @@ internal static class TargetBattleCombatZoneRegressionCases
         string objectiveZoneId,
         BattleGroupTacticalMode tacticalMode = BattleGroupTacticalMode.PlayerCommanded,
         int footprintWidth = 1,
-        int footprintHeight = 1)
+        int footprintHeight = 1,
+        string? runtimeCommanderGroupId = null)
     {
         return new BattleGroupSnapshot
         {
             BattleGroupId = commanderGroupId,
-            RuntimeCommanderGroupId = commanderGroupId,
+            RuntimeCommanderGroupId = runtimeCommanderGroupId ?? commanderGroupId,
             FactionId = factionId,
             SourceForceId = sourceForceId,
             HeroId = $"{sourceForceId}_hero",
@@ -258,6 +526,54 @@ internal static class TargetBattleCombatZoneRegressionCases
                 EngagementRule = BattleEngagementRule.AttackFirst
             }
         };
+    }
+
+    private static bool IsInsideActionZone(
+        BattleRuntimeActor actor,
+        BattleGroupActionZoneSnapshot actionZone)
+    {
+        int width = Math.Max(1, actor.FootprintWidth);
+        int height = Math.Max(1, actor.FootprintHeight);
+        for (int y = actor.GridY; y < actor.GridY + height; y++)
+        {
+            for (int x = actor.GridX; x < actor.GridX + width; x++)
+            {
+                if (x >= actionZone.MinCellX &&
+                    x <= actionZone.MaxCellX &&
+                    y >= actionZone.MinCellY &&
+                    y <= actionZone.MaxCellY &&
+                    actor.GridHeight == actionZone.CenterCellHeight)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsInsideCombatZone(
+        BattleRuntimeActor actor,
+        BattleCombatZoneSnapshot combatZone)
+    {
+        int width = Math.Max(1, actor.FootprintWidth);
+        int height = Math.Max(1, actor.FootprintHeight);
+        for (int y = actor.GridY; y < actor.GridY + height; y++)
+        {
+            for (int x = actor.GridX; x < actor.GridX + width; x++)
+            {
+                if (x >= combatZone.MinCellX &&
+                    x <= combatZone.MaxCellX &&
+                    y >= combatZone.MinCellY &&
+                    y <= combatZone.MaxCellY &&
+                    actor.GridHeight == combatZone.CenterCellHeight)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private static void AssertTrue(bool condition, string message)

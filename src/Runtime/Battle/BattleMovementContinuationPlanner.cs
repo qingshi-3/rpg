@@ -22,7 +22,9 @@ internal static class BattleMovementContinuationPlanner
         double currentTimeSeconds,
         int tick,
         HashSet<string> navigationFailureDiagnostics,
-        BattleGroupTacticalStateStore tacticalStateStore)
+        BattleGroupTacticalStateStore tacticalStateStore,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
     {
         if (movementCompletedActorIds == null ||
             movementCompletedActorIds.Count == 0 ||
@@ -47,6 +49,8 @@ internal static class BattleMovementContinuationPlanner
                     tick,
                     navigationFailureDiagnostics,
                     tacticalStateStore,
+                    groupActionZones,
+                    combatZones,
                     out BattleRuntimeTickContext context))
             {
                 continue;
@@ -98,6 +102,8 @@ internal static class BattleMovementContinuationPlanner
         int tick,
         HashSet<string> navigationFailureDiagnostics,
         BattleGroupTacticalStateStore tacticalStateStore,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
         out BattleRuntimeTickContext context)
     {
         context = null;
@@ -110,6 +116,30 @@ internal static class BattleMovementContinuationPlanner
             ReachedObjectiveBoundary(actorFact))
         {
             return false;
+        }
+
+        BattleGroupActionZoneSnapshot combatJoinActionZone = BattleGroupActionZoneResolver.ResolveActorCombatJoinActionZone(
+            actorFact,
+            groupActionZones,
+            combatZones);
+        if (BattleCombatJoinRegionPlanner.TryBuildOutsiderAdvanceContext(
+                actorFact,
+                combatJoinActionZone,
+                navigationGraph,
+                occupancy,
+                flowFields,
+                performanceCounters,
+                battleId,
+                tick,
+                out BattleRuntimeTickContext joinContext))
+        {
+            if (!IsUsableMoveContext(joinContext))
+            {
+                return false;
+            }
+
+            context = joinContext;
+            return true;
         }
 
         return actor.MovementIntentKind switch
@@ -161,6 +191,8 @@ internal static class BattleMovementContinuationPlanner
                     performanceCounters,
                     currentTimeSeconds,
                     tacticalStateStore,
+                    groupActionZones,
+                    combatZones,
                     out context),
             _ => false
         };
@@ -257,6 +289,8 @@ internal static class BattleMovementContinuationPlanner
         BattlePerformanceCounters performanceCounters,
         double currentTimeSeconds,
         BattleGroupTacticalStateStore tacticalStateStore,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
         out BattleRuntimeTickContext context)
     {
         context = null;
@@ -292,6 +326,16 @@ internal static class BattleMovementContinuationPlanner
         BattleTacticalRegionSnapshot localCombatRegion = BattleLocalCombatRegionResolver.ResolveEngagedLocalCombatRegion(
             actorFact,
             tacticalStateStore);
+        BattleGroupActionZoneSnapshot combatJoinActionZone = BattleGroupActionZoneResolver.ResolveActorCombatJoinActionZone(
+            actorFact,
+            groupActionZones,
+            combatZones);
+        BattleTacticalRegionSnapshot combatJoinRegion = BattleGroupActionZoneBuilder.ToLocalCombatRegion(combatJoinActionZone);
+        BattleTacticalRegionSnapshot scopedLocalCombatRegion = BattleCombatJoinRegionPlanner.SelectLocalCombatScope(
+            actorFact,
+            targetFact,
+            localCombatRegion,
+            combatJoinRegion);
         LocalCombatSituation localCombatSituation = BuildMatchingLocalCombatSituation(
             actorFact,
             targetFact,
@@ -299,15 +343,15 @@ internal static class BattleMovementContinuationPlanner
             navigationGraph,
             occupancy,
             currentTimeSeconds,
-            localCombatRegion);
+            scopedLocalCombatRegion);
         if (RequiresLocalCombatSituation(actor) && localCombatSituation == null)
         {
             return false;
         }
 
         BattleRuntimeAiActionRequest request = CreateTargetRequest(actor);
-        BattleRuntimeActor tickStartActor = BattleRuntimeTickResolver.BuildTickStartProjection(actorFact);
-        BattleRuntimeActor tickStartTarget = BattleRuntimeTickResolver.BuildTickStartProjection(targetFact);
+        BattleRuntimeActor tickStartActor = BattleTickStartProjectionBuilder.Build(actorFact);
+        BattleRuntimeActor tickStartTarget = BattleTickStartProjectionBuilder.Build(targetFact);
         bool preferSupport = actor.MovementIntentKind == BattleRuntimeAiActionKind.HoldSupport ||
                              BattleTargetSelectionService.IsTargetEngagedBySameFactionActor(facts, actorFact, targetFact);
         bool preferSupportSlots = actor.MovementIntentKind == BattleRuntimeAiActionKind.HoldSupport ||
@@ -321,7 +365,7 @@ internal static class BattleMovementContinuationPlanner
                                       occupancy,
                                       flowFields,
                                       performanceCounters,
-                                      localCombatRegion);
+                                      scopedLocalCombatRegion);
         bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && movementGap == attackRange + 1;
         BattleCombatSlotIntent? combatSlotIntent = null;
         IReadOnlyList<BattleGridCoord> moveOptions;
@@ -332,7 +376,7 @@ internal static class BattleMovementContinuationPlanner
                     tickStartTarget,
                     navigationGraph,
                     occupancy,
-                    localCombatRegion,
+                    scopedLocalCombatRegion,
                     out BattleCombatSlotIntent storedSlotIntent))
             {
                 moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardCombatSlot(
@@ -343,7 +387,7 @@ internal static class BattleMovementContinuationPlanner
                     occupancy,
                     new BattleMovementReservationMap(),
                     performanceCounters,
-                    localCombatRegion);
+                    scopedLocalCombatRegion);
                 combatSlotIntent = moveOptions.Count > 0 ? storedSlotIntent : null;
             }
             else
@@ -361,7 +405,7 @@ internal static class BattleMovementContinuationPlanner
                     new BattleMovementReservationMap(),
                     preferSupportSlots,
                     performanceCounters,
-                    localCombatRegion,
+                    scopedLocalCombatRegion,
                     out BattleCombatSlotIntent replacementSlotIntent,
                     out IReadOnlyList<BattleGridCoord> replacementMoveOptions))
             {
@@ -381,7 +425,7 @@ internal static class BattleMovementContinuationPlanner
                     new BattleMovementReservationMap(),
                     preferSupportSlots,
                     performanceCounters,
-                    localCombatRegion,
+                    scopedLocalCombatRegion,
                     out BattleCombatSlotIntent selectedSlotIntent,
                     out IReadOnlyList<BattleGridCoord> selectedMoveOptions))
             {
@@ -400,7 +444,7 @@ internal static class BattleMovementContinuationPlanner
                     preferSupportSlots,
                     avoidOpeningNewAxisGapNearEngagedTarget,
                     performanceCounters,
-                    localCombatRegion);
+                    scopedLocalCombatRegion);
             }
             else
             {

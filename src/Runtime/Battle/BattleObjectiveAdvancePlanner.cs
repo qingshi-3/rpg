@@ -23,7 +23,7 @@ internal static class BattleObjectiveAdvancePlanner
             return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "objective_missing");
         }
 
-        BattleRuntimeActor tickStartActor = BattleRuntimeTickResolver.BuildTickStartProjection(actorFact);
+        BattleRuntimeActor tickStartActor = BattleTickStartProjectionBuilder.Build(actorFact);
         IReadOnlyList<BattleGridCoord> moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardObjective(
             tickStartActor,
             navigationGraph,
@@ -68,7 +68,7 @@ internal static class BattleObjectiveAdvancePlanner
             return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "region_missing");
         }
 
-        BattleRuntimeActor projectedActor = BattleRuntimeTickResolver.BuildTickStartProjection(actorFact);
+        BattleRuntimeActor projectedActor = BattleTickStartProjectionBuilder.Build(actorFact);
         projectedActor.HasObjectiveAnchor = true;
         projectedActor.ObjectiveZoneId = goal.RegionId;
         projectedActor.ObjectiveGridX = goal.CenterCellX;

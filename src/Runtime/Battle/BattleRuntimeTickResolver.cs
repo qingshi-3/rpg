@@ -87,7 +87,8 @@ internal sealed partial class BattleRuntimeTickResolver
                 tick,
                 navigationFailureDiagnostics,
                 state.TacticalStateStore,
-                state.GroupActionZones))
+                state.GroupActionZones,
+                state.CombatZones))
             .ToList();
         ApplyDecisionOutcomes(contexts, stream, battleId, tick, currentTimeSeconds);
         contexts.AddRange(BattleMovementContinuationPlanner.BuildContinuationContexts(
@@ -101,7 +102,9 @@ internal sealed partial class BattleRuntimeTickResolver
             currentTimeSeconds,
             tick,
             navigationFailureDiagnostics,
-            state.TacticalStateStore));
+            state.TacticalStateStore,
+            state.GroupActionZones,
+            state.CombatZones));
 
         // Attack resolution still emits damage with RuntimeTimeSeconds = currentTimeSeconds;
         // the resolver owns the engagement stream slice immediately around that service call.
@@ -317,15 +320,32 @@ internal sealed partial class BattleRuntimeTickResolver
         int tick,
         HashSet<string> navigationFailureDiagnostics,
         BattleGroupTacticalStateStore tacticalStateStore,
-        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones)
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
     {
         BattleRuntimeTickStartActorFact actorFact = facts[actor.ActorId];
         BattleRegionMovementGoal regionMovementGoal = BattleLocalCombatRegionResolver.ResolveRegionMovementGoal(actorFact, tacticalStateStore);
-        BattleGroupActionZoneSnapshot combatJoinActionZone = BattleGroupActionZoneResolver.ResolveCombatJoinActionZone(
-            actorFact.Actor,
-            groupActionZones);
+        BattleGroupActionZoneSnapshot combatJoinActionZone = BattleGroupActionZoneResolver.ResolveActorCombatJoinActionZone(
+            actorFact,
+            groupActionZones,
+            combatZones);
         BattleTacticalRegionSnapshot localCombatRegion = BattleLocalCombatRegionResolver.ResolveEngagedLocalCombatRegion(actorFact, tacticalStateStore);
-        BattleTacticalRegionSnapshot scopedLocalCombatRegion = localCombatRegion ?? BattleGroupActionZoneBuilder.ToLocalCombatRegion(combatJoinActionZone);
+        BattleTacticalRegionSnapshot combatJoinRegion = BattleGroupActionZoneBuilder.ToLocalCombatRegion(combatJoinActionZone);
+        if (BattleCombatJoinRegionPlanner.TryBuildOutsiderAdvanceContext(
+                actorFact,
+                combatJoinActionZone,
+                navigationGraph,
+                occupancy,
+                flowFields,
+                performanceCounters,
+                battleId,
+                tick,
+                out BattleRuntimeTickContext combatJoinContext))
+        {
+            return combatJoinContext;
+        }
+
+        BattleTacticalRegionSnapshot scopedLocalCombatRegion = localCombatRegion ?? combatJoinRegion;
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> targetFacts = combatJoinActionZone != null
             ? BattleGroupActionZoneResolver.FilterFactsToActionZone(facts, actorFact, combatJoinActionZone)
             : localCombatRegion == null
@@ -357,6 +377,7 @@ internal sealed partial class BattleRuntimeTickResolver
             actorFact,
             null,
             targetSelectionRequest);
+        scopedLocalCombatRegion = BattleCombatJoinRegionPlanner.SelectLocalCombatScope(actorFact, selectedTarget, localCombatRegion, combatJoinRegion);
         LocalCombatSituation localCombatSituation = selectedTarget == null
             ? null
             : LocalCombatSituationBuilder.Build(
@@ -454,8 +475,8 @@ internal sealed partial class BattleRuntimeTickResolver
                     localCombatSituation: localCombatSituation);
             }
 
-            BattleRuntimeActor tickStartActor = BuildTickStartProjection(actorFact);
-            BattleRuntimeActor tickStartTarget = BuildTickStartProjection(requestedTarget.Value);
+            BattleRuntimeActor tickStartActor = BattleTickStartProjectionBuilder.Build(actorFact);
+            BattleRuntimeActor tickStartTarget = BattleTickStartProjectionBuilder.Build(requestedTarget.Value);
             bool preferSupport = request.Kind == BattleRuntimeAiActionKind.HoldSupport ||
                                  BattleTargetSelectionService.IsTargetEngagedBySameFactionActor(facts, actorFact, requestedTarget.Value);
             // Default assault is attack-opportunity first. Support slots are only
@@ -598,39 +619,6 @@ internal sealed partial class BattleRuntimeTickResolver
                 MovementReasonCode = movementReasonCode ?? "",
                 LocalCombatSituationId = localCombatSituation?.SituationId ?? ""
             }
-        };
-    }
-
-    internal static BattleRuntimeActor BuildTickStartProjection(BattleRuntimeTickStartActorFact fact)
-    {
-        return new BattleRuntimeActor
-        {
-            ActorId = fact.Actor.ActorId,
-            FactionId = fact.Actor.FactionId,
-            Kind = fact.Actor.Kind,
-            FootprintWidth = fact.Actor.FootprintWidth,
-            FootprintHeight = fact.Actor.FootprintHeight,
-            GridX = fact.Anchor.X,
-            GridY = fact.Anchor.Y,
-            GridHeight = fact.Anchor.Height,
-            AttackRange = fact.Actor.AttackRange,
-            AttackDamage = fact.Actor.AttackDamage,
-            HitPoints = fact.HitPoints,
-            EngagementRule = fact.Actor.EngagementRule,
-            PlanState = fact.Actor.PlanState,
-            MovementFromGridX = fact.Actor.MovementFromGridX,
-            MovementFromGridY = fact.Actor.MovementFromGridY,
-            MovementFromGridHeight = fact.Actor.MovementFromGridHeight,
-            MovementToGridX = fact.Actor.MovementToGridX,
-            MovementToGridY = fact.Actor.MovementToGridY,
-            MovementToGridHeight = fact.Actor.MovementToGridHeight,
-            HasObjectiveAnchor = fact.Actor.HasObjectiveAnchor,
-            ObjectiveZoneId = fact.Actor.ObjectiveZoneId,
-            ObjectiveGridX = fact.Actor.ObjectiveGridX,
-            ObjectiveGridY = fact.Actor.ObjectiveGridY,
-            ObjectiveGridHeight = fact.Actor.ObjectiveGridHeight,
-            ObjectiveWidth = fact.Actor.ObjectiveWidth,
-            ObjectiveHeight = fact.Actor.ObjectiveHeight
         };
     }
 

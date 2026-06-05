@@ -1,11 +1,40 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Rpg.Runtime.Battle.Navigation;
 
 namespace Rpg.Runtime.Battle.Tactics;
 
 internal static class BattleGroupActionZoneResolver
 {
+    internal static BattleGroupActionZoneSnapshot ResolveActorCombatJoinActionZone(
+        BattleRuntimeTickStartActorFact actorFact,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> actionZones,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
+    {
+        BattleGroupActionZoneSnapshot groupActionZone = ResolveCombatJoinActionZone(actorFact.Actor, actionZones);
+        if (groupActionZone == null ||
+            IsInsideActionZone(actorFact.Actor, actorFact.Anchor, groupActionZone))
+        {
+            return groupActionZone;
+        }
+
+        BattleCombatZoneSnapshot actorCombatZone = ResolveActorCombatZone(actorFact, combatZones);
+        if (actorCombatZone == null ||
+            string.Equals(actorCombatZone.CombatZoneId ?? "", groupActionZone.TargetCombatZoneId ?? "", StringComparison.Ordinal))
+        {
+            return groupActionZone;
+        }
+
+        // The commander still owns one selected action zone for gathering outsiders.
+        // Members already inside another active combat zone must consume that local
+        // fight for this decision boundary instead of abandoning it to regroup.
+        return BattleGroupActionZoneBuilder.FromCombatZone(
+            actorFact.Actor.BattleGroupId,
+            actorCombatZone,
+            actorCombatZone.LastBuiltRuntimeTick);
+    }
+
     internal static BattleGroupActionZoneSnapshot ResolveCombatJoinActionZone(
         BattleRuntimeActor actor,
         IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> actionZones)
@@ -21,6 +50,23 @@ internal static class BattleGroupActionZoneResolver
         }
 
         return actionZone;
+    }
+
+    private static BattleCombatZoneSnapshot ResolveActorCombatZone(
+        BattleRuntimeTickStartActorFact actorFact,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
+    {
+        if (actorFact.Actor == null ||
+            combatZones == null ||
+            string.IsNullOrWhiteSpace(actorFact.Actor.ActorId))
+        {
+            return null;
+        }
+
+        return combatZones.Values
+            .Where(zone => zone?.ActorIds?.Contains(actorFact.Actor.ActorId) == true)
+            .OrderBy(zone => zone.CombatZoneId, StringComparer.Ordinal)
+            .FirstOrDefault();
     }
 
     internal static IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> FilterFactsToActionZone(

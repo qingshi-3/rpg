@@ -38,6 +38,7 @@ internal sealed partial class BattleRuntimeTickResolver
             tick,
             navigationFailureDiagnostics,
             null,
+            null,
             null);
         if (refreshed.TargetFact == null ||
             refreshed.TargetFact.Value.Actor.HitPoints <= 0 ||

@@ -89,7 +89,7 @@ internal static class BattleGroupActionZoneBuilder
                 .FirstOrDefault();
     }
 
-    private static BattleGroupActionZoneSnapshot FromCombatZone(
+    internal static BattleGroupActionZoneSnapshot FromCombatZone(
         string battleGroupId,
         BattleCombatZoneSnapshot combatZone,
         int runtimeTick)

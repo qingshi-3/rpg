@@ -15,6 +15,7 @@ public static class BattleGroupTacticalReasonCode
     public const string RegionHoldSeededPosture = "region_hold_seeded_posture";
     public const string RegionFixedAdvance = "region_fixed_advance";
     public const string RegionTemporaryAdvance = "region_temporary_advance";
+    public const string CombatZoneJoinAdvance = "combat_zone_join_advance";
     public const string TemporaryRegionCreatedCluster = "temporary_region_created_cluster";
     public const string TemporaryRegionReusedRefreshInterval = "temporary_region_reused_refresh_interval";
     public const string TemporaryRegionRefreshedIntervalElapsed = "temporary_region_refreshed_interval_elapsed";

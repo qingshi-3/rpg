@@ -151,8 +151,8 @@ internal static class BattleTargetSelectionService
 
             int travelCost = ShouldScoreTravelCost(policy, tier, hasLowerTierCandidate)
                 ? ResolveAttackOpportunityTravelCost(
-                    BattleRuntimeTickResolver.BuildTickStartProjection(actorFact),
-                    BattleRuntimeTickResolver.BuildTickStartProjection(candidate),
+                    BattleTickStartProjectionBuilder.Build(actorFact),
+                    BattleTickStartProjectionBuilder.Build(candidate),
                     actorFact.Anchor,
                     navigationGraph,
                     occupancy,
@@ -594,8 +594,8 @@ internal static class BattleTargetSelectionService
         int travelCost = gap <= attackRange
             ? 0
             : ResolveAttackOpportunityTravelCost(
-                BattleRuntimeTickResolver.BuildTickStartProjection(actorFact),
-                BattleRuntimeTickResolver.BuildTickStartProjection(targetFact),
+                BattleTickStartProjectionBuilder.Build(actorFact),
+                BattleTickStartProjectionBuilder.Build(targetFact),
                 actorFact.Anchor,
                 navigationGraph,
                 occupancy,
