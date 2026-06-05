@@ -1,6 +1,6 @@
 # Battle Group Layered Runtime Implementation Proposal
 
-Status: Implemented - Pending Manual QA
+Status: Archived - accepted; remaining bonefield manual QA waived by user request on 2026-06-06
 
 ## Requirement Id
 
@@ -76,4 +76,4 @@ Make live battle runtime follow the layered hero-led model: continuous observati
 - 2026-06-03: `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` passed with 0 warnings and 0 errors.
 - 2026-06-03: Added and passed the rear blocked-ingress regression for the bonefield-style 2x2 enemy formation. When a retained local-combat target has statically reachable slots but no executable next step because live footprints block ingress, Runtime now records and logs `reject_no_reachable_slot` with `attemptedNext=none` instead of generic `path_not_found`.
 - 2026-06-03: `git diff --check` passed; only existing CRLF/LF normalization warnings were reported for touched system-design markdown files.
-- Manual QA remains pending for the bonefield battle scenario and should confirm the hero company reacts as one command group, enemy defenders join the same local fight, rear units support or queue instead of idle path failure, and deployment footprints stay non-overlapping.
+- 2026-06-06 archive decision: user requested archiving this proposal and waived the remaining bonefield manual QA. No new runtime/code changes were made for this archival step.

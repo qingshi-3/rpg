@@ -1,6 +1,6 @@
 # Battle Runtime Behavior Tree Executor Implementation Proposal
 
-Status: In Progress
+Status: Archived - accepted; remaining presentation-backed bonefield manual QA waived by user request on 2026-06-06
 
 ## Requirement Id
 
@@ -111,3 +111,4 @@ No new high-frequency logs are required for this slice. Existing action-result d
 - 2026-06-05 target-selection boundary verification: `dotnet run --project tests\TargetBattleArchitectureRegression\TargetBattleArchitectureRegression.csproj --no-restore` passed after Runtime tick resolution switched from preselected targets to scoped target candidate facts consumed by behavior-tree target selection.
 - 2026-06-05 build: `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` passed with 0 warnings and 0 errors.
 - 2026-06-05 patch check: `git diff --check` passed.
+- 2026-06-06 archive decision: user requested archiving this proposal and waived the remaining presentation-backed bonefield manual QA. No new runtime/code changes were made for this archival step.

@@ -1,6 +1,6 @@
 # Battle Combat Zones And Group Action Zones Implementation Proposal
 
-Status: In Progress
+Status: Archived - accepted; remaining presentation-backed bonefield manual QA waived by user request on 2026-06-06
 
 ## Requirement Id
 
@@ -113,4 +113,4 @@ Implement the first runtime slice of global combat zones and commander-owned gro
 - 2026-06-06 split combat-zone verification: `dotnet run --project tests\TargetBattleArchitectureRegression\TargetBattleArchitectureRegression.csproj --no-restore` passed, `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` passed with 0 warnings and 0 errors, and `git diff --check` passed.
 - 2026-06-06 combat-zone join bounds regression: `runtime combat-zone join movement uses action bounds instead of center` first failed with `enemy_outsider:1` outside the logged `CombatJoin` action-zone bounds and `failure=region_path_not_found`, then passed after join movement used the action-zone min/max bounds as the flow-field goal instead of treating the action-zone center as the top-left anchor.
 - 2026-06-06 combat-zone join bounds verification: `dotnet run --project tests\TargetBattleArchitectureRegression\TargetBattleArchitectureRegression.csproj --no-restore` passed with existing test-project warnings, `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` passed with 0 warnings and 0 errors, and `git diff --check` passed.
-- Manual QA still needs a presentation-backed bonefield battle run to confirm the area snapshot logs and visible rear-member join/support/queue behavior match the user-reported formation case.
+- 2026-06-06 archive decision: user requested archiving this proposal and waived the remaining presentation-backed bonefield manual QA. No new runtime/code changes were made for this archival step.
