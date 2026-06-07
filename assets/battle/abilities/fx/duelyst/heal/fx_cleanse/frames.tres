@@ -1,0 +1,90 @@
+[gd_resource type="SpriteFrames" load_steps=10 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/battle/abilities/fx/duelyst/heal/fx_cleanse/fx_cleanse.png" id="1_texture"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_000"]
+atlas = ExtResource("1_texture")
+region = Rect2(72, 78, 65, 46)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_001"]
+atlas = ExtResource("1_texture")
+region = Rect2(76, 28, 46, 12)
+margin = Rect2(17, 9, 34, 20)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_002"]
+atlas = ExtResource("1_texture")
+region = Rect2(74, 54, 60, 18)
+margin = Rect2(10, 6, 20, 14)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_003"]
+atlas = ExtResource("1_texture")
+region = Rect2(0, 100, 70, 20)
+margin = Rect2(5, 5, 10, 12)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_004"]
+atlas = ExtResource("1_texture")
+region = Rect2(0, 78, 72, 22)
+margin = Rect2(4, 4, 8, 10)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_005"]
+atlas = ExtResource("1_texture")
+region = Rect2(0, 54, 74, 24)
+margin = Rect2(3, 3, 6, 8)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_006"]
+atlas = ExtResource("1_texture")
+region = Rect2(0, 28, 76, 26)
+margin = Rect2(2, 2, 4, 6)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_007"]
+atlas = ExtResource("1_texture")
+region = Rect2(0, 0, 78, 28)
+margin = Rect2(1, 1, 2, 4)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_000")
+}
+],
+"loop": false,
+"name": &"default",
+"speed": 12.5
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_000")
+}
+],
+"loop": false,
+"name": &"burst",
+"speed": 12.5
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_001")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_002")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_003")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_004")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_005")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_006")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_007")
+}
+],
+"loop": false,
+"name": &"ripples",
+"speed": 12.5
+}]

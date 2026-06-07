@@ -1,6 +1,7 @@
-[gd_resource type="SpriteFrames" load_steps=63 format=3]
+[gd_resource type="SpriteFrames" load_steps=78 format=3]
 
 [ext_resource type="Texture2D" path="res://assets/battle/units/莱昂纳王国/f1_宗师Zir/f1_grandmasterzir.png" id="1_texture"]
+[ext_resource type="Texture2D" path="res://assets/battle/units/莱昂纳王国/f1_宗师Zir/f1_grandmasterzir_skill_cast_heavy_arc_storm.png" id="2_skill_cast_texture"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_000"]
 atlas = ExtResource("1_texture")
@@ -246,6 +247,62 @@ region = Rect2(0, 81, 80, 80)
 atlas = ExtResource("1_texture")
 region = Rect2(0, 0, 80, 80)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_061"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(0, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_062"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(80, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_063"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(160, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_064"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(240, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_065"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(320, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_066"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(400, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_067"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(480, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_068"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(560, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_069"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(640, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_070"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(720, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_071"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(800, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_072"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(880, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_073"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(960, 0, 80, 80)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_074"]
+atlas = ExtResource("2_skill_cast_texture")
+region = Rect2(1040, 0, 80, 80)
+
 [resource]
 animations = [{
 "frames": [{
@@ -293,6 +350,53 @@ animations = [{
 }],
 "loop": false,
 "name": &"attack",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_061")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_062")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_063")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_064")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_065")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_066")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_067")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_068")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_069")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_070")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_071")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_072")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_073")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_074")
+}],
+"loop": false,
+"name": &"skill_cast",
 "speed": 10.0
 }, {
 "frames": [{
