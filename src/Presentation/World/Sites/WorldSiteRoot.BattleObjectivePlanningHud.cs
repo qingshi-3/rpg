@@ -251,7 +251,7 @@ public partial class WorldSiteRoot
         // Runtime receives copied snapshot data and never queries Presentation nodes.
         plan.ObjectiveZoneId = zone.ObjectiveZoneId ?? "";
         plan.InitialFormationId = string.IsNullOrWhiteSpace(plan.InitialFormationId)
-            ? "default_line"
+            ? BattlePreparationPlanUiModel.StandardFormationId
             : plan.InitialFormationId;
         plan.HasObjectiveAnchor = true;
         plan.ObjectiveCellX = zone.CellX;
@@ -433,7 +433,7 @@ public partial class WorldSiteRoot
             BattleGroupPlanSnapshot plan = new()
             {
                 EngagementRule = BattleEngagementRule.AttackFirst,
-                InitialFormationId = "default_line"
+                InitialFormationId = BattlePreparationPlanUiModel.StandardFormationId
             };
             // Enemy sortie defaults use the same objective-first contract as the
             // player's plan, but keep plan-scoped local sensing so defenders do
@@ -562,7 +562,7 @@ public partial class WorldSiteRoot
                     group.GroupKey,
                     create: false);
                 string objective = ResolveBattlePreparationPlanObjectiveLabel(plan);
-                string rule = plan == null ? "未选择规则" : BuildBattlePreparationRuleLabel(plan.EngagementRule);
+                string rule = plan == null ? "未选择规则" : BattlePreparationPlanUiModel.BuildRuleLabel(plan.EngagementRule);
                 return new BattleObjectiveCompanyOption
                 {
                     GroupKey = group.GroupKey,
@@ -582,7 +582,7 @@ public partial class WorldSiteRoot
 
         BattleObjectiveZoneSnapshot zone = _battlePreparationRequest?.ObjectiveZones?
             .FirstOrDefault(item => string.Equals(item?.ObjectiveZoneId, plan.ObjectiveZoneId, System.StringComparison.Ordinal));
-        return zone == null ? "目标已失效" : BuildBattlePreparationObjectiveLabel(zone);
+        return zone == null ? "目标已失效" : BattlePreparationPlanUiModel.BuildObjectiveLabel(zone);
     }
 
     private IReadOnlyList<BattleObjectiveMapCell> BuildBattleObjectiveMapCells()

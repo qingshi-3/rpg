@@ -13,6 +13,9 @@ public static class GameUiSceneFactory
     public const string StrategicWorldHudScenePath = "res://scenes/world/ui/StrategicWorldHud.tscn";
     public const string WorldSitePeacetimeHudScenePath = "res://scenes/world/ui/WorldSitePeacetimeHud.tscn";
     public const string BattleObjectiveMapDialogScenePath = "res://scenes/world/ui/BattleObjectiveMapDialog.tscn";
+    public const string BattlePreparationRosterRowScenePath = "res://scenes/world/ui/BattlePreparationRosterRow.tscn";
+    public const string BattlePreparationObjectiveThumbnailScenePath = "res://scenes/world/ui/BattlePreparationObjectiveThumbnail.tscn";
+    public const string BattleRuntimeSkillSlotScenePath = "res://scenes/world/ui/BattleRuntimeSkillSlot.tscn";
     public const string PreBattleDialogScenePath = "res://scenes/world/ui/PreBattleDialog.tscn";
     public const string WorldSiteHitButtonScenePath = "res://scenes/world/ui/WorldSiteHitButton.tscn";
     public const string WorldSiteLabelScenePath = "res://scenes/world/ui/WorldSiteLabel.tscn";
@@ -73,6 +76,21 @@ public static class GameUiSceneFactory
     public static BattleObjectiveMapDialog CreateBattleObjectiveMapDialog(string ownerName)
     {
         return Instantiate<BattleObjectiveMapDialog>(BattleObjectiveMapDialogScenePath, ownerName);
+    }
+
+    public static BattlePreparationRosterRow CreateBattlePreparationRosterRow(string ownerName)
+    {
+        return Instantiate<BattlePreparationRosterRow>(BattlePreparationRosterRowScenePath, ownerName);
+    }
+
+    public static BattlePreparationObjectiveThumbnail CreateBattlePreparationObjectiveThumbnail(string ownerName)
+    {
+        return Instantiate<BattlePreparationObjectiveThumbnail>(BattlePreparationObjectiveThumbnailScenePath, ownerName);
+    }
+
+    public static BattleRuntimeSkillSlot CreateBattleRuntimeSkillSlot(string ownerName)
+    {
+        return Instantiate<BattleRuntimeSkillSlot>(BattleRuntimeSkillSlotScenePath, ownerName);
     }
 
     public static Label CreateWorldMutedLine(string ownerName)

@@ -1,4 +1,7 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/BattlePreparationObjectiveThumbnail.cs" id="1_battle_prep_thumb"]
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_battle_objective_preview"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_site_panel"]
 bg_color = Color(0.075, 0.09, 0.085, 0.96)
@@ -88,6 +91,59 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
+[node name="BattlePreparationObjectiveThumbnailDock" type="Control" parent="MinimapHost"]
+visible = false
+z_index = 535
+layout_mode = 1
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -286.0
+offset_top = -230.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 0
+
+[node name="BattlePreparationObjectiveThumbnail" type="PanelContainer" parent="MinimapHost/BattlePreparationObjectiveThumbnailDock"]
+custom_minimum_size = Vector2(250, 188)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+script = ExtResource("1_battle_prep_thumb")
+
+[node name="Margin" type="MarginContainer" parent="MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Stack" type="VBoxContainer" parent="MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CompanyLabel" type="Label" parent="MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail/Margin/Stack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+text = "当前部队"
+clip_text = true
+
+[node name="MapPreview" type="Control" parent="MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail/Margin/Stack"]
+custom_minimum_size = Vector2(232, 142)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 0
+script = ExtResource("2_battle_objective_preview")
+
 [node name="BottomCommandHost" type="Control" parent="."]
 visible = false
 layout_mode = 1
@@ -102,15 +158,13 @@ mouse_filter = 2
 visible = false
 z_index = 540
 layout_mode = 1
-anchor_left = 0.5
 anchor_top = 1.0
-anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -330.0
-offset_top = -92.0
-offset_right = 330.0
-offset_bottom = -18.0
-grow_horizontal = 2
+offset_left = 24.0
+offset_top = -116.0
+offset_right = 620.0
+offset_bottom = -24.0
+grow_horizontal = 1
 grow_vertical = 0
 mouse_filter = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
@@ -118,58 +172,66 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
 [node name="CommandMargin" type="MarginContainer" parent="BottomCommandHost/BattleRuntimeCommandBar"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 10
+theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_bottom = 8
 
-[node name="CommandStack" type="VBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin"]
+[node name="BattleRuntimeHeroFrame" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 10
 
-[node name="BattleRuntimeCommandLabel" type="Label" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack"]
+[node name="BattleRuntimeHeroAvatar" type="PanelContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
+custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_overview_card")
+
+[node name="BattleRuntimeHeroAvatarLabel" type="Label" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroAvatar"]
+layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-text = "战斗指令：突击"
+text = "将"
 horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="BattleRuntimePauseHintLabel" type="Label" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack"]
+[node name="BattleRuntimeHeroInfoStack" type="VBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
+custom_minimum_size = Vector2(158, 0)
 layout_mode = 2
-size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="BattleRuntimeHeroNameLabel" type="Label" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+text = "参战英雄"
+clip_text = true
+
+[node name="BattleRuntimeHeroStateLabel" type="Label" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
+layout_mode = 2
 theme_override_colors/font_color = Color(0.74, 0.86, 0.92, 1)
-text = "空格：暂停并选择参战英雄"
-horizontal_alignment = 1
+text = "战斗中"
+clip_text = true
 
-[node name="BattleRuntimeHeroButtonRow" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack"]
-visible = false
+[node name="BattleRuntimeHeroHealthBar" type="ProgressBar" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
+custom_minimum_size = Vector2(150, 14)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+
+[node name="BattleRuntimeHeroManaBar" type="ProgressBar" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
+custom_minimum_size = Vector2(150, 10)
+layout_mode = 2
+value = 100.0
+show_percentage = false
+
+[node name="BattleRuntimeHeroSkillList" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
+custom_minimum_size = Vector2(220, 62)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
-alignment = 1
+theme_override_constants/separation = 6
 
-[node name="BattleRuntimeCommandButtonRow" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack"]
+[node name="BattleRuntimeRegroupButton" type="Button" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
+custom_minimum_size = Vector2(74, 54)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-alignment = 1
-
-[node name="AssaultButton" type="Button" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimeCommandButtonRow"]
-custom_minimum_size = Vector2(110, 34)
-layout_mode = 2
-text = "突击"
-focus_mode = 2
-
-[node name="FocusFireButton" type="Button" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimeCommandButtonRow"]
-custom_minimum_size = Vector2(110, 34)
-layout_mode = 2
-text = "集火"
-focus_mode = 2
-
-[node name="HoldLineButton" type="Button" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimeCommandButtonRow"]
-custom_minimum_size = Vector2(110, 34)
-layout_mode = 2
-text = "坚守"
+text = "重整"
 focus_mode = 2
 
 [node name="OverlayHost" type="Control" parent="."]
@@ -180,6 +242,110 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="BattlePreparationRosterDock" type="PanelContainer" parent="OverlayHost"]
+visible = false
+z_index = 535
+custom_minimum_size = Vector2(176, 220)
+layout_mode = 1
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 0.0
+anchor_bottom = 1.0
+offset_left = 22.0
+offset_top = -260.0
+offset_right = 198.0
+offset_bottom = -24.0
+grow_horizontal = 1
+grow_vertical = 0
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+
+[node name="RosterMargin" type="MarginContainer" parent="OverlayHost/BattlePreparationRosterDock"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="BattlePreparationRosterList" type="VBoxContainer" parent="OverlayHost/BattlePreparationRosterDock/RosterMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="BattlePreparationPlanBar" type="PanelContainer" parent="OverlayHost"]
+visible = false
+z_index = 535
+custom_minimum_size = Vector2(720, 76)
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -360.0
+offset_top = -100.0
+offset_right = 360.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+
+[node name="PlanMargin" type="MarginContainer" parent="OverlayHost/BattlePreparationPlanBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="PlanRow" type="HBoxContainer" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="BattlePreparationCompanyLabel" type="Label" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow"]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+text = "当前部队"
+vertical_alignment = 1
+clip_text = true
+
+[node name="BattlePreparationObjectiveLabel" type="Label" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.84, 0.92, 0.86, 1)
+text = "目标：未选"
+vertical_alignment = 1
+clip_text = true
+
+[node name="BattlePreparationRuleButtonRow" type="HBoxContainer" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="MoveFirstRuleButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
+custom_minimum_size = Vector2(74, 34)
+layout_mode = 2
+text = "推进"
+focus_mode = 2
+
+[node name="AttackFirstRuleButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
+custom_minimum_size = Vector2(74, 34)
+layout_mode = 2
+text = "强攻"
+focus_mode = 2
+
+[node name="HoldRuleButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
+custom_minimum_size = Vector2(74, 34)
+layout_mode = 2
+text = "坚守"
+focus_mode = 2
+
+[node name="BattlePreparationStartButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow"]
+custom_minimum_size = Vector2(92, 38)
+layout_mode = 2
+text = "开战"
+focus_mode = 2
 
 [node name="ModalHost" type="Control" parent="."]
 layout_mode = 1
@@ -291,103 +457,6 @@ theme_override_constants/margin_bottom = 12
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
-
-[node name="BattlePreparationContent" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
-
-[node name="BattlePreparationMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="BattlePreparationStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="BattlePreparationTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin/BattlePreparationStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 17
-text = "战前部署"
-
-[node name="BattlePreparationStatus" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin/BattlePreparationStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.88, 0.55, 1)
-autowrap_mode = 3
-
-[node name="BattlePreparationRosterList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin/BattlePreparationStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="BattlePreparationEnemySummary" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin/BattlePreparationStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.82, 0.9, 1, 1)
-autowrap_mode = 3
-
-[node name="BattlePreparationActionList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin/BattlePreparationStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="BattleRuntimeCommandPanel" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
-
-[node name="BattleRuntimeCommandMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 10
-
-[node name="BattleRuntimeCommandStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="BattleRuntimeSelectedHeroLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-text = "未选择英雄"
-autowrap_mode = 3
-
-[node name="BattleRuntimeHeroCommandTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.86, 0.94, 0.88, 1)
-text = "英雄指令"
-
-[node name="BattleRuntimeHeroCommandList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="BattleRuntimeCorpsLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.86, 0.94, 0.88, 1)
-text = "部队指令"
-
-[node name="BattleRuntimeCorpsCommandList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack"]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="BattleRuntimeCombinedLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.86, 0.94, 0.88, 1)
-text = "编组指令"
-
-[node name="BattleRuntimeCombinedCommandList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack"]
-layout_mode = 2
-theme_override_constants/separation = 6
 
 [node name="BuildCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
 visible = false

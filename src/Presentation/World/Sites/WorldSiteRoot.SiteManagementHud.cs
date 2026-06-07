@@ -3,6 +3,7 @@ using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
 using Rpg.Definitions.World;
@@ -57,6 +58,10 @@ public partial class WorldSiteRoot
             _siteHudRoot,
             "BottomCommandHost",
             nameof(WorldSiteRoot));
+        _siteMinimapHost = GameUiSceneFactory.GetRequiredNode<Control>(
+            _siteHudRoot,
+            "MinimapHost",
+            nameof(WorldSiteRoot));
         _siteModalHost = GameUiSceneFactory.GetRequiredNode<Control>(
             _siteHudRoot,
             "ModalHost",
@@ -65,9 +70,33 @@ public partial class WorldSiteRoot
             _siteHudRoot,
             "BottomCommandHost/BattleRuntimeCommandBar",
             nameof(WorldSiteRoot));
-        _battleRuntimeCommandPanel = GameUiSceneFactory.GetRequiredNode<Control>(
+        _battleRuntimeHeroFrame = GameUiSceneFactory.GetRequiredNode<Control>(
             _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel",
+            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame",
+            nameof(WorldSiteRoot));
+        _battleRuntimeHeroNameLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+            _siteHudRoot,
+            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroNameLabel",
+            nameof(WorldSiteRoot));
+        _battleRuntimeHeroStateLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+            _siteHudRoot,
+            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroStateLabel",
+            nameof(WorldSiteRoot));
+        _battleRuntimeHeroHealthBar = GameUiSceneFactory.GetRequiredNode<ProgressBar>(
+            _siteHudRoot,
+            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroHealthBar",
+            nameof(WorldSiteRoot));
+        _battleRuntimeHeroManaBar = GameUiSceneFactory.GetRequiredNode<ProgressBar>(
+            _siteHudRoot,
+            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroManaBar",
+            nameof(WorldSiteRoot));
+        _battleRuntimeHeroSkillList = GameUiSceneFactory.GetRequiredNode<HBoxContainer>(
+            _siteHudRoot,
+            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroSkillList",
+            nameof(WorldSiteRoot));
+        _battleRuntimeRegroupButton = GameUiSceneFactory.GetRequiredNode<Button>(
+            _siteHudRoot,
+            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeRegroupButton",
             nameof(WorldSiteRoot));
         ApplySiteHudFullRect("bound");
         _siteHudTitle = GameUiSceneFactory.GetRequiredNode<Label>(
@@ -110,77 +139,53 @@ public partial class WorldSiteRoot
             _siteHudRoot,
             "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard",
             nameof(WorldSiteRoot));
-        _siteBattlePreparationContent = GameUiSceneFactory.GetRequiredNode<Control>(
+        _battlePreparationRosterDock = GameUiSceneFactory.GetRequiredNode<Control>(
             _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent",
+            "OverlayHost/BattlePreparationRosterDock",
             nameof(WorldSiteRoot));
-        _siteBattlePreparationRosterList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
+        _battlePreparationRosterList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin/BattlePreparationStack/BattlePreparationRosterList",
+            "OverlayHost/BattlePreparationRosterDock/RosterMargin/BattlePreparationRosterList",
             nameof(WorldSiteRoot));
-        _siteBattlePreparationEnemySummary = GameUiSceneFactory.GetRequiredNode<Label>(
+        _battlePreparationPlanBar = GameUiSceneFactory.GetRequiredNode<Control>(
             _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin/BattlePreparationStack/BattlePreparationEnemySummary",
+            "OverlayHost/BattlePreparationPlanBar",
             nameof(WorldSiteRoot));
-        _siteBattlePreparationStatus = GameUiSceneFactory.GetRequiredNode<Label>(
+        _battlePreparationCompanyLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin/BattlePreparationStack/BattlePreparationStatus",
+            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationCompanyLabel",
             nameof(WorldSiteRoot));
-        _siteBattlePreparationActionList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
+        _battlePreparationObjectiveLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent/BattlePreparationMargin/BattlePreparationStack/BattlePreparationActionList",
+            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationObjectiveLabel",
             nameof(WorldSiteRoot));
-        _battleRuntimeCommandLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+        _battlePreparationRuleButtonRow = GameUiSceneFactory.GetRequiredNode<HBoxContainer>(
             _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimeCommandLabel",
+            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow",
             nameof(WorldSiteRoot));
-        _battleRuntimePauseHintLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+        _battlePreparationMoveFirstButton = GameUiSceneFactory.GetRequiredNode<Button>(
             _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimePauseHintLabel",
+            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow/MoveFirstRuleButton",
             nameof(WorldSiteRoot));
-        _battleRuntimeHeroButtonRow = GameUiSceneFactory.GetRequiredNode<HBoxContainer>(
+        _battlePreparationAttackFirstButton = GameUiSceneFactory.GetRequiredNode<Button>(
             _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimeHeroButtonRow",
+            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow/AttackFirstRuleButton",
             nameof(WorldSiteRoot));
-        _battleRuntimeCommandButtonRow = GameUiSceneFactory.GetRequiredNode<HBoxContainer>(
+        _battlePreparationHoldButton = GameUiSceneFactory.GetRequiredNode<Button>(
             _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimeCommandButtonRow",
+            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow/HoldRuleButton",
             nameof(WorldSiteRoot));
-        _battleRuntimeAssaultButton = GameUiSceneFactory.GetRequiredNode<Button>(
+        _battlePreparationStartButton = GameUiSceneFactory.GetRequiredNode<Button>(
             _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimeCommandButtonRow/AssaultButton",
+            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationStartButton",
             nameof(WorldSiteRoot));
-        _battleRuntimeFocusFireButton = GameUiSceneFactory.GetRequiredNode<Button>(
+        _battlePreparationObjectiveThumbnailDock = GameUiSceneFactory.GetRequiredNode<Control>(
             _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimeCommandButtonRow/FocusFireButton",
+            "MinimapHost/BattlePreparationObjectiveThumbnailDock",
             nameof(WorldSiteRoot));
-        _battleRuntimeHoldLineButton = GameUiSceneFactory.GetRequiredNode<Button>(
+        _battlePreparationObjectiveThumbnail = GameUiSceneFactory.GetRequiredNode<BattlePreparationObjectiveThumbnail>(
             _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/CommandStack/BattleRuntimeCommandButtonRow/HoldLineButton",
-            nameof(WorldSiteRoot));
-        _battleRuntimeSelectedHeroLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack/BattleRuntimeSelectedHeroLabel",
-            nameof(WorldSiteRoot));
-        _battleRuntimeCorpsLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack/BattleRuntimeCorpsLabel",
-            nameof(WorldSiteRoot));
-        _battleRuntimeCombinedLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack/BattleRuntimeCombinedLabel",
-            nameof(WorldSiteRoot));
-        _battleRuntimeHeroCommandList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack/BattleRuntimeHeroCommandList",
-            nameof(WorldSiteRoot));
-        _battleRuntimeCorpsCommandList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack/BattleRuntimeCorpsCommandList",
-            nameof(WorldSiteRoot));
-        _battleRuntimeCombinedCommandList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattleRuntimeCommandPanel/BattleRuntimeCommandMargin/BattleRuntimeCommandStack/BattleRuntimeCombinedCommandList",
+            "MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail",
             nameof(WorldSiteRoot));
         _siteFacilityBuildTitle = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
@@ -262,21 +267,36 @@ public partial class WorldSiteRoot
             _returnMapButton.Pressed += () => ReturnToReturnScene(_siteHudReturnScenePath);
         }
 
+        if (_battlePreparationMoveFirstButton != null)
+        {
+            _battlePreparationMoveFirstButton.Pressed += () => SelectBattlePreparationEngagementRule(BattleEngagementRule.MoveFirst);
+        }
+
+        if (_battlePreparationAttackFirstButton != null)
+        {
+            _battlePreparationAttackFirstButton.Pressed += () => SelectBattlePreparationEngagementRule(BattleEngagementRule.AttackFirst);
+        }
+
+        if (_battlePreparationHoldButton != null)
+        {
+            _battlePreparationHoldButton.Pressed += () => SelectBattlePreparationEngagementRule(BattleEngagementRule.Hold);
+        }
+
+        if (_battlePreparationStartButton != null)
+        {
+            _battlePreparationStartButton.Pressed += LaunchPreparedBattle;
+        }
+
+        if (_battlePreparationObjectiveThumbnail != null)
+        {
+            _battlePreparationObjectiveThumbnail.ObjectiveZoneSelected += SelectBattlePreparationObjectiveZone;
+        }
+
         BuildBattleObjectiveMapDialog();
 
-        if (_battleRuntimeAssaultButton != null)
+        if (_battleRuntimeRegroupButton != null)
         {
-            _battleRuntimeAssaultButton.Pressed += () => SubmitBattleRuntimeCommand(BattleCorpsCommand.Assault);
-        }
-
-        if (_battleRuntimeFocusFireButton != null)
-        {
-            _battleRuntimeFocusFireButton.Pressed += () => SubmitBattleRuntimeCommand(BattleCorpsCommand.FocusFire);
-        }
-
-        if (_battleRuntimeHoldLineButton != null)
-        {
-            _battleRuntimeHoldLineButton.Pressed += () => SubmitBattleRuntimeCommand(BattleCorpsCommand.HoldLine);
+            _battleRuntimeRegroupButton.Pressed += OnBattleRuntimeRegroupPressed;
         }
     }
 
@@ -388,7 +408,6 @@ public partial class WorldSiteRoot
         {
             return;
         }
-
         _siteHudRoot.AnchorLeft = 0.0f;
         _siteHudRoot.AnchorTop = 0.0f;
         _siteHudRoot.AnchorRight = 1.0f;
@@ -399,6 +418,7 @@ public partial class WorldSiteRoot
         _siteHudRoot.OffsetBottom = 0.0f;
         _siteHudRoot.Position = Vector2.Zero;
         _siteHudRoot.Size = GetViewportRect().Size;
+        _battlePreparationHudRestPositions.Clear();
         ApplySitePeacetimePanelLayout();
         UpdateMainWorldViewportLayout(reason);
 
@@ -434,9 +454,21 @@ public partial class WorldSiteRoot
             return;
         }
 
+        if (IsBattleRuntimeHudActive())
+        {
+            if (_sitePeacetimePanel.Visible)
+            {
+                _sitePeacetimePanel.Visible = false;
+                GameLog.Info(
+                    nameof(WorldSiteRoot),
+                    $"SitePeacetimePanelVisibilityChanged visible=False reason={reason} battleRuntime=true panelRect={DescribeControlRect(_sitePeacetimePanel)}");
+            }
+
+            return;
+        }
+
         bool shouldShow = _siteHudRoot?.Visible == true &&
-                          (_isBattlePreparationActive ||
-                           _battleRuntimeCommandPauseActive ||
+                          (_battleRuntimeCommandPauseActive ||
                            !string.IsNullOrWhiteSpace(_selectedFacilitySlotId));
         if (shouldShow)
         {
@@ -487,6 +519,8 @@ public partial class WorldSiteRoot
             {
                 _sitePeacetimePanel.Visible = false;
             }
+
+            SetBattlePreparationHudVisible(false);
         }
         else if (!enabled)
         {
@@ -494,10 +528,12 @@ public partial class WorldSiteRoot
             _battlePerceptionOverlayVisible = false;
             _selectedBattleRuntimeGroupKey = "";
             _battleRuntimeRequest = null;
+            _activeBattleGroupRuntimeResolution = null;
             ClearBattleMovementTweenProbe();
             _unitRoot?.ClearCommandSelection();
             ClearBattlePerceptionOverlay();
-            SetBattleRuntimeCommandPanelVisible(false);
+            RefreshBattleRuntimeHeroFrame();
+            SetBattlePreparationHudVisible(false);
 
             if (_siteBottomCommandHost != null)
             {
@@ -607,7 +643,7 @@ public partial class WorldSiteRoot
             _battleRuntimeCommandBar.Visible = false;
         }
 
-        SetBattleRuntimeCommandPanelVisible(false);
+        RefreshBattleRuntimeHeroFrame();
 
         WorldSiteState site = ResolveSiteState(_siteHudSiteId);
         WorldSiteDefinition definition = ResolveSiteDefinition(_siteHudSiteId);
@@ -620,7 +656,7 @@ public partial class WorldSiteRoot
         _siteResourceLabel.Text = BuildResourceLine();
         _siteHudBody.Text = BuildSiteOverview(_siteHudSiteId);
         _siteNoticeLabel.Text = string.IsNullOrWhiteSpace(notice) ? StrategicWorldRuntime.LastNotice : notice.Trim();
-        SetBattlePreparationContentVisible(false);
+        SetBattlePreparationHudVisible(false);
 
         RefreshSiteMapEntities(site, definition);
         RefreshFacilityList(site, definition);
@@ -638,37 +674,106 @@ public partial class WorldSiteRoot
         BindSiteManagementPanel(applyResult?.Message, outcome);
     }
 
-    private void SetBattlePreparationContentVisible(bool visible)
+    private void SetBattlePreparationHudVisible(bool visible)
     {
-        if (_siteBattlePreparationContent != null)
+        if (_battlePreparationRosterDock != null)
         {
-            _siteBattlePreparationContent.Visible = visible;
+            _battlePreparationRosterDock.Visible = visible;
         }
 
-        if (visible)
+        if (_battlePreparationPlanBar != null)
         {
-            SetBattleRuntimeCommandPanelVisible(false);
+            _battlePreparationPlanBar.Visible = visible;
         }
 
-        if (_siteFacilityBuildCard != null)
+        if (_siteMinimapHost != null)
         {
-            _siteFacilityBuildCard.Visible = !visible && _siteFacilityBuildCard.Visible;
+            _siteMinimapHost.Visible = visible;
         }
 
-        if (_siteFacilityCard != null)
+        if (_battlePreparationObjectiveThumbnailDock != null)
         {
-            _siteFacilityCard.Visible = !visible;
+            _battlePreparationObjectiveThumbnailDock.Visible = visible;
         }
 
-        if (_siteDefenseCard != null)
+        if (!visible)
         {
-            _siteDefenseCard.Visible = !visible;
+            SetBattlePreparationHudRetreated(false, "battle_preparation_hidden");
+        }
+    }
+
+    private void SetBattlePreparationHudRetreated(bool retreated, string reason)
+    {
+        if (_battlePreparationHudRetreated == retreated)
+        {
+            if (!retreated)
+            {
+                _battlePreparationHudRetreatTween?.Kill();
+                _battlePreparationHudRetreatTween = null;
+            }
+            return;
+        }
+        _battlePreparationHudRetreatTween?.Kill();
+        _battlePreparationHudRetreatTween = null;
+        Control[] controls =
+        {
+            _siteHudTopBar,
+            _battlePreparationRosterDock,
+            _battlePreparationPlanBar,
+            _battlePreparationObjectiveThumbnailDock
+        };
+        Vector2[] offsets =
+        {
+            new(0.0f, -88.0f),
+            new(-240.0f, 0.0f),
+            new(0.0f, 140.0f),
+            new(340.0f, 0.0f)
+        };
+        for (int index = 0; index < controls.Length; index++)
+        {
+            Control control = controls[index];
+            if (control == null)
+            {
+                continue;
+            }
+
+            _battlePreparationHudRestPositions.TryAdd(control, control.Position);
+            control.MouseFilter = retreated
+                ? Control.MouseFilterEnum.Ignore
+                : Control.MouseFilterEnum.Stop;
         }
 
-        if (_siteActionCard != null)
+        if (!IsInsideTree())
         {
-            _siteActionCard.Visible = !visible;
+            for (int index = 0; index < controls.Length; index++)
+            {
+                Control control = controls[index];
+                if (control != null && _battlePreparationHudRestPositions.TryGetValue(control, out Vector2 restPosition))
+                {
+                    control.Position = retreated ? restPosition + offsets[index] : restPosition;
+                }
+            }
+
+            _battlePreparationHudRetreated = retreated;
+            return;
         }
+
+        Tween tween = CreateTween().BindNode(this);
+        tween.SetParallel(true);
+        tween.SetTrans(Tween.TransitionType.Cubic);
+        tween.SetEase(Tween.EaseType.Out);
+        for (int index = 0; index < controls.Length; index++)
+        {
+            Control control = controls[index];
+            if (control != null && _battlePreparationHudRestPositions.TryGetValue(control, out Vector2 restPosition))
+            {
+                tween.TweenProperty(control, "position", retreated ? restPosition + offsets[index] : restPosition, 0.22);
+            }
+        }
+
+        _battlePreparationHudRetreated = retreated;
+        _battlePreparationHudRetreatTween = tween;
+        GameLog.Info(nameof(WorldSiteRoot), $"BattlePreparationHudRetreatChanged active={retreated} reason={reason ?? ""}");
     }
 
     private void SetSiteNoticeText(string notice)

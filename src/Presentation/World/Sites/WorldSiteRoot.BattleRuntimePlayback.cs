@@ -80,12 +80,20 @@ public partial class WorldSiteRoot
             ? damage
             : System.Math.Min(System.Math.Max(0, targetHpBeforeHit), damage);
         bool previewDefeated = health != null && targetHpBeforeHit > 0 && targetHpBeforeHit - previewApplied <= 0;
-        double attackAnimationSeconds = _unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded(
-            actor,
+        BattleDamageEvent damageEvent = new(
             target,
+            target.EntityId ?? "",
             previewApplied,
             previewDefeated,
-            runtimeEvent.ReasonCode));
+            runtimeEvent.SourceCommandId,
+            runtimeEvent.SourceActionId,
+            runtimeEvent.SourceDefinitionId,
+            runtimeEvent.EffectKind);
+        double attackAnimationSeconds = _unitRoot.PlayActionResultAnimation(BuildRuntimeDamageActionResult(
+            runtimeEvent,
+            actor,
+            target,
+            damageEvent));
 
         // Runtime remains authoritative for outcome, but presentation health and
         // defeat feedback must land at attack impact, not at attack start.
@@ -108,6 +116,26 @@ public partial class WorldSiteRoot
         await impactDamageTask;
         await attackPresentationTask;
         return attackPresentationSeconds;
+    }
+
+    private static BattleActionResult BuildRuntimeDamageActionResult(
+        BattleEvent runtimeEvent,
+        BattleEntity actor,
+        BattleEntity target,
+        BattleDamageEvent damageEvent)
+    {
+        BattleDamageEvent[] damageEvents = { damageEvent };
+        return IsRuntimeSkillDamageEvent(runtimeEvent)
+            ? BattleActionResult.AbilitySucceeded(actor, target, null, damageEvents, runtimeEvent?.ReasonCode ?? "")
+            : BattleActionResult.AttackSucceeded(actor, target, damageEvents, runtimeEvent?.ReasonCode ?? "");
+    }
+
+    private static bool IsRuntimeSkillDamageEvent(BattleEvent runtimeEvent)
+    {
+        return runtimeEvent != null &&
+               (!string.IsNullOrWhiteSpace(runtimeEvent.SourceCommandId) ||
+                !string.IsNullOrWhiteSpace(runtimeEvent.SourceActionId) ||
+                !string.IsNullOrWhiteSpace(runtimeEvent.SourceDefinitionId));
     }
 
     private async Task ApplyRuntimeDamageAtImpactAsync(
@@ -133,7 +161,18 @@ public partial class WorldSiteRoot
             await WaitSiteBattlePresentationSeconds(clampedImpactDelaySeconds);
         }
 
-        int applied = health.ApplyDamage(damage, actor);
+        DamageReactionComponent damageReaction = target.GetComponent<DamageReactionComponent>();
+        damageReaction?.BeginImpactAlignedDamageTiming();
+        int applied;
+        try
+        {
+            applied = health.ApplyDamage(damage, actor);
+        }
+        finally
+        {
+            damageReaction?.EndImpactAlignedDamageTiming();
+        }
+
         if (applied <= 0)
         {
             return;

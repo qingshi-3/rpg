@@ -1,6 +1,7 @@
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.World;
+using Rpg.Definitions.Maps;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
@@ -207,22 +208,25 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("BattlePreparationPlayerPlacementsCleared", StringComparison.Ordinal),
         "battle preparation should start player units from the request-backed roster instead of pre-spreading them on the map");
     AssertTrue(
-        rootSource.Contains("AddBattlePreparationRosterButtons", StringComparison.Ordinal) &&
-        rootSource.Contains("BeginBattlePreparationRosterDrag", StringComparison.Ordinal),
-        "battle preparation should expose player force slots as draggable request-backed roster entries");
+        rootSource.Contains("BindBattlePreparationCompanyRoster", StringComparison.Ordinal) &&
+        rootSource.Contains("BeginBattlePreparationCompanyDrag", StringComparison.Ordinal) &&
+        !rootSource.Contains("BeginBattlePreparationRosterDrag", StringComparison.Ordinal),
+        "battle preparation should expose hero companies as compact draggable roster rows, not individual force-slot buttons");
     AssertTrue(
-        rootSource.Contains("开战\\n确认部署并进入实时战斗", StringComparison.Ordinal),
-        "battle preparation should show an explicit start battle button");
+        rootSource.Contains("_battlePreparationStartButton", StringComparison.Ordinal) &&
+        rootSource.Contains("BattlePreparationStartButton", StringComparison.Ordinal) &&
+        rootSource.Contains("LaunchPreparedBattle", StringComparison.Ordinal),
+        "battle preparation should show an explicit compact start battle command");
     AssertTrue(
         rootSource.Contains("目标区域", StringComparison.Ordinal) &&
         rootSource.Contains("SelectBattlePreparationObjectiveZone", StringComparison.Ordinal) &&
         rootSource.Contains("BattlePreparationObjectiveSelected", StringComparison.Ordinal),
         "battle preparation should expose an explicit objective-zone selection step before runtime activation");
     AssertTrue(
-        rootSource.Contains("推进规则", StringComparison.Ordinal) &&
+        rootSource.Contains("BindBattlePreparationCompactPlanControls", StringComparison.Ordinal) &&
         rootSource.Contains("SelectBattlePreparationEngagementRule", StringComparison.Ordinal) &&
         rootSource.Contains("BattlePreparationEngagementRuleSelected", StringComparison.Ordinal),
-        "battle preparation should expose a player-selected engagement rule beside the selected objective zone");
+        "battle preparation should expose player-selected engagement rules in compact current-company controls");
     AssertTrue(
         rootSource.Contains("RegisterBattlePreparationPlacement", StringComparison.Ordinal),
         "battle placements should be registered during preparation");
@@ -242,6 +246,9 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("BattlePreparationPlanSynced", StringComparison.Ordinal) &&
         rootSource.Contains("PlayerBattleGroupPlan", StringComparison.Ordinal),
         "start battle should sync the selected objective and engagement rule into the same BattleStartRequest before activating runtime");
+    AssertTrue(
+        rootSource.Contains("_explicitBattlePreparationRuleGroups.Contains(group.GroupKey)", StringComparison.Ordinal),
+        "battle launch should require an explicit engagement-rule choice for every player company");
     AssertTrue(
         rootSource.Contains("SetBattleRuntimeEnabled(true);", StringComparison.Ordinal) &&
         rootSource.Contains("Preparation can start runtime directly after the player confirms deployment", StringComparison.Ordinal),
@@ -280,13 +287,16 @@ internal static void WorldSiteRootBattleRuntimeCommandUiRoutesInitialCommand()
     AssertTrue(
         siteScene.Contains("BottomCommandHost", StringComparison.Ordinal) &&
         siteScene.Contains("BattleRuntimeCommandBar", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeCommandButtonRow", StringComparison.Ordinal),
-        "world site HUD scene should author a bottom battle command bar instead of building the runtime UI tree ad hoc");
+        siteScene.Contains("BattleRuntimeHeroFrame", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeHeroSkillList", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeRegroupButton", StringComparison.Ordinal),
+        "world site HUD scene should author a persistent bottom hero frame instead of building the runtime UI tree ad hoc");
     AssertTrue(
         rootSource.Contains("_siteBottomCommandHost", StringComparison.Ordinal) &&
-        rootSource.Contains("_battleRuntimeCommandLabel", StringComparison.Ordinal) &&
-        rootSource.Contains("_battleRuntimeCommandButtonRow", StringComparison.Ordinal),
-        "WorldSiteRoot should bind authored runtime command UI nodes");
+        rootSource.Contains("_battleRuntimeHeroFrame", StringComparison.Ordinal) &&
+        rootSource.Contains("_battleRuntimeHeroSkillList", StringComparison.Ordinal) &&
+        rootSource.Contains("_battleRuntimeRegroupButton", StringComparison.Ordinal),
+        "WorldSiteRoot should bind authored runtime hero frame nodes");
     AssertTrue(
         !battlePreparationSource.Contains("RefreshBattleRuntimeCommandControls", StringComparison.Ordinal),
         "battle preparation should keep runtime command buttons out of the pre-start action list");
@@ -299,7 +309,7 @@ internal static void WorldSiteRootBattleRuntimeCommandUiRoutesInitialCommand()
         battleRuntimeSource.Contains("CommandRequest", StringComparison.Ordinal) &&
         battleRuntimeSource.Contains("BuildBattleRuntimeCommandRequest", StringComparison.Ordinal) &&
         battleRuntimeSource.Contains("BattleRuntimeCommandSelected", StringComparison.Ordinal),
-        "battle runtime HUD should show the bottom command bar after mode visibility refreshes, route player intent through a CommandRequest-shaped boundary, and leave a low-noise diagnostic");
+        "battle runtime HUD should show the bottom hero frame after mode visibility refreshes, keep the initial command compatibility boundary, and leave a low-noise diagnostic");
     AssertTrue(
         requestSource.Contains("InitialCorpsCommandId", StringComparison.Ordinal) &&
         snapshotSource.Contains("InitialCorpsCommandId", StringComparison.Ordinal) &&
@@ -315,6 +325,34 @@ internal static void WorldSiteRootBattleRuntimeCommandUiRoutesInitialCommand()
         probeSource.Contains("BattlePlanSide.Enemy", StringComparison.Ordinal) &&
         probeSource.Contains("CopyPlanForGroup", StringComparison.Ordinal),
         "battle preparation should route objective-zone and engagement-rule selections for both sides through the request-to-snapshot probe boundary");
+}
+
+internal static void WorldSiteBattleRuntimeHeroSkillSubmitsHeroCastCommand()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string pressBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeSkillPress(");
+
+    AssertTrue(
+        rootSource.Contains("HeroSkillCommandIds.FirstSliceHeroSkillId", StringComparison.Ordinal),
+        "battle runtime HUD should define one explicit first-slice hero skill id for the current deployed hero");
+    AssertTrue(
+        rootSource.Contains("OnBattleRuntimeHeroSkillPressed", StringComparison.Ordinal) &&
+        rootSource.Contains("OnBattleRuntimeSkillSlotPressed", StringComparison.Ordinal) &&
+        pressBody.Contains("SetBattleRuntimeCommandPauseActive(true", StringComparison.Ordinal) &&
+        pressBody.Contains("BeginBattleRuntimeHeroSkillTargetPicking(selected, normalizedSkillId)", StringComparison.Ordinal) &&
+        !pressBody.Contains("SubmitBattleRuntimeHeroSkillCommand(selected)", StringComparison.Ordinal),
+        "hero skill button should enter tactical pause and target picking instead of submitting a targeted skill without a target");
+    AssertTrue(
+        rootSource.Contains("BuildBattleRuntimeHeroSkillCommandRequest", StringComparison.Ordinal) &&
+        rootSource.Contains("Channel = CommandChannel.Hero", StringComparison.Ordinal) &&
+        rootSource.Contains("Kind = CommandKind.CastSkill", StringComparison.Ordinal) &&
+        rootSource.Contains("SkillId = skillId", StringComparison.Ordinal) &&
+        rootSource.Contains("TargetActorId = targetActorId", StringComparison.Ordinal),
+        "hero skill target click should build a CommandRequest through the hero cast-skill channel with the selected target");
+    AssertTrue(
+        rootSource.Contains("_activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand", StringComparison.Ordinal) &&
+        rootSource.Contains("BattleRuntimeHeroSkillSubmitted", StringComparison.Ordinal),
+        "hero skill command should submit to the active runtime controller and leave a low-noise diagnostic");
 }
 
 internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
@@ -335,12 +373,12 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
         "WorldSiteRoot.tscn"));
 
     AssertTrue(
-        siteScene.Contains("BattleRuntimeHeroButtonRow", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeCommandPanel", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeHeroCommandList", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeCorpsCommandList", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeCombinedCommandList", StringComparison.Ordinal),
-        "battle runtime command UI should be authored as bottom hero selection plus left hero/corps/combined command containers.");
+        siteScene.Contains("BattleRuntimeHeroFrame", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeHeroHealthBar", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeHeroManaBar", StringComparison.Ordinal) &&
+        !siteScene.Contains("BattleRuntimeCommandPanel", StringComparison.Ordinal) &&
+        !siteScene.Contains("BattleRuntimeHeroCommandList", StringComparison.Ordinal),
+        "battle runtime command UI should be authored as a persistent hero frame, not a left hero/corps/combined command panel.");
     AssertTrue(
         rootSource.Contains("TryHandleBattleRuntimePauseInput", StringComparison.Ordinal) &&
         rootSource.Contains("Key.Space", StringComparison.Ordinal) &&
@@ -348,42 +386,47 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
         rootSource.Contains("ToggleBattleRuntimeCommandPause", StringComparison.Ordinal),
         "WorldSiteRoot should treat Space as a presentation-only battle command pause toggle.");
     AssertTrue(
-        rootSource.Contains("RefreshBattleRuntimeHeroBar", StringComparison.Ordinal) &&
+        rootSource.Contains("RefreshBattleRuntimeHeroFrame", StringComparison.Ordinal) &&
         rootSource.Contains("SelectBattleRuntimeCommandGroup", StringComparison.Ordinal) &&
         rootSource.Contains("ResolveBattleRuntimeGroupKey", StringComparison.Ordinal) &&
         rootSource.Contains("SourceKind", StringComparison.Ordinal) &&
         rootSource.Contains("SourceId", StringComparison.Ordinal),
-        "battle runtime hero buttons should group request forces by their shared source so a hero and attached corps select together.");
+        "battle runtime hero frame should group request forces by their shared source so a hero and attached corps select together.");
     AssertTrue(
         rootSource.Contains("SetCommandSelectionByEntityIds", StringComparison.Ordinal) &&
-        rootSource.Contains("RefreshBattleRuntimeSelectedCommandPanel", StringComparison.Ordinal) &&
-        rootSource.Contains("AddBattleRuntimeCommandDraftButton", StringComparison.Ordinal),
-        "selecting a runtime hero company should highlight matching units and bind separate placeholder command sections without mutating runtime truth.");
+        rootSource.Contains("ApplyBattleRuntimeCommandGroupHighlight", StringComparison.Ordinal) &&
+        rootSource.Contains("OnBattleRuntimeHeroSkillPressed", StringComparison.Ordinal),
+        "selecting a runtime hero company should highlight matching units and keep commands in the compact hero frame without mutating runtime truth.");
     AssertTrue(
         worldSiteScene.Contains("UnitMoveDuration = 0.27", StringComparison.Ordinal),
         "runtime unit movement should be slowed in the site scene for readable realtime command evaluation.");
 }
 
-internal static void BattlePreparationKeepsStartBattlePrimary()
+internal static void BattlePreparationUsesCompactPlanControls()
 {
+    string root = ProjectRoot();
     string battlePreparationSource = File.ReadAllText(Path.Combine(
-        ProjectRoot(),
+        root,
         "src",
         "Presentation",
         "World",
         "Sites",
         "WorldSiteRoot.BattlePreparationHud.cs"));
-    string refreshActionsBody = ExtractMethodBody(battlePreparationSource, "private void RefreshBattlePreparationActions()");
+    string siteHudScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
 
     AssertTrue(
-        !refreshActionsBody.Contains("RefreshBattleRuntimeCommandControls", StringComparison.Ordinal) &&
-        battlePreparationSource.Contains("LaunchPreparedBattle", StringComparison.Ordinal) &&
-        refreshActionsBody.Contains("AddBattlePreparationStartButton", StringComparison.Ordinal),
-        "battle preparation action list should keep Start Battle as the primary action; runtime command buttons belong after battle starts.");
+        !battlePreparationSource.Contains("private void RefreshBattlePreparationActions()", StringComparison.Ordinal) &&
+        !battlePreparationSource.Contains("AddBattlePreparationStartButton(Container", StringComparison.Ordinal) &&
+        !battlePreparationSource.Contains("AddBattlePreparationObjectiveMapButton(Container", StringComparison.Ordinal) &&
+        !battlePreparationSource.Contains("AddBattlePreparationEngagementRuleButton(Container", StringComparison.Ordinal),
+        "battle preparation controls should not be rendered through the old vertical action-list methods.");
     AssertTrue(
-        refreshActionsBody.IndexOf("AddBattlePreparationStartButton", StringComparison.Ordinal) <
-        refreshActionsBody.IndexOf("AddMutedLine(_siteBattlePreparationActionList, \"目标区域\")", StringComparison.Ordinal),
-        "Start Battle should stay visible above marker objective planning controls.");
+        battlePreparationSource.Contains("BindBattlePreparationCompactPlanControls", StringComparison.Ordinal) &&
+        battlePreparationSource.Contains("_battlePreparationStartButton", StringComparison.Ordinal) &&
+        battlePreparationSource.Contains("LaunchPreparedBattle", StringComparison.Ordinal) &&
+        siteHudScene.Contains("node name=\"BattlePreparationPlanBar\"", StringComparison.Ordinal) &&
+        siteHudScene.Contains("node name=\"BattlePreparationStartButton\"", StringComparison.Ordinal),
+        "battle preparation should bind compact authored controls for current-company plan and start battle.");
 }
 
 internal static void WorldSiteRootBattlePreparationDragUsesTemporaryHighZAndSurfaceSort()
@@ -400,8 +443,8 @@ internal static void WorldSiteRootBattlePreparationDragUsesTemporaryHighZAndSurf
         "dragged deployment entities should be raised above terrain layers while following the pointer");
     AssertTrue(
         rootSource.Contains("RaiseDeploymentDragEntity(entity)", StringComparison.Ordinal) &&
-        rootSource.Contains("RaiseDeploymentDragEntity(_draggedBattleRosterEntity)", StringComparison.Ordinal),
-        "existing placements and roster-spawned drag previews should both use the high-Z drag state");
+        rootSource.Contains("RaiseBattlePreparationCompanyPreviewEntities", StringComparison.Ordinal),
+        "existing placements and company drag previews should both use the high-Z drag state");
     AssertTrue(
         rootSource.Contains("RestoreDeploymentEntityRenderSort", StringComparison.Ordinal) &&
         rootSource.Contains("ResolveEntitySurfaceHeight(gridOccupant)", StringComparison.Ordinal) &&
@@ -419,21 +462,27 @@ internal static void WorldSiteRootBattlePreparationDragPreviewUsesFootprint()
     string highlightSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
 
     AssertTrue(
-        rootSource.Contains("BuildBattlePreparationFootprintCells(force, gridPosition)", StringComparison.Ordinal) &&
+        rootSource.Contains("BuildBattlePreparationCompanyFormationDraft", StringComparison.Ordinal) &&
         rootSource.Contains("SetBattlePreparationDragFootprintPreview", StringComparison.Ordinal),
-        "battle preparation roster drag preview should derive highlighted cells from the dragged unit footprint");
+        "battle preparation company drag preview should derive highlighted cells from the full formation footprint");
     AssertTrue(
         rootSource.Contains("IsBattlePreparationFootprintDeployable", StringComparison.Ordinal) &&
         rootSource.Contains("IsBattlePreparationFootprintOccupied", StringComparison.Ordinal),
         "battle preparation drop validation should use the same footprint cells as the preview");
     AssertTrue(
         rootSource.Contains("_highlightOverlay?.SetCells(BattleGridHighlightKind.Hover, cells)", StringComparison.Ordinal) &&
-        rootSource.Contains("_highlightOverlay?.ClearCells(BattleGridHighlightKind.Hover)", StringComparison.Ordinal),
-        "deployment drag should resize the existing hover selection frame for the full footprint and clear it when dragging ends");
+        rootSource.Contains("_highlightOverlay?.SetCells(BattleGridHighlightKind.Invalid, cells)", StringComparison.Ordinal) &&
+        rootSource.Contains("_highlightOverlay?.ClearCells(BattleGridHighlightKind.Hover)", StringComparison.Ordinal) &&
+        rootSource.Contains("_highlightOverlay?.ClearCells(BattleGridHighlightKind.Invalid)", StringComparison.Ordinal),
+        "deployment drag should show legal formation hover cells, invalid formation cells, and clear both when dragging ends");
     AssertTrue(
-        !rootSource.Contains("_highlightOverlay?.SetCells(BattleGridHighlightKind.Selected", StringComparison.Ordinal) &&
-        !rootSource.Contains("_highlightOverlay?.SetCells(BattleGridHighlightKind.Invalid", StringComparison.Ordinal),
-        "deployment drag should not add selected or invalid tile-fill preview layers");
+        rootSource.Contains("SetBattlePreparationCompanyPreviewInvalid", StringComparison.Ordinal),
+        "invalid company placement should tint every preview entity red instead of only changing one cell marker");
+    AssertTrue(
+        rootSource.Contains("TryResolveMouseFormationIntentAnchor", StringComparison.Ordinal) &&
+        !ExtractMethodBody(rootSource, "private void UpdateBattlePreparationCompanyDragPreview(")
+            .Contains("TryResolveMouseFootprintAnchor(Vector2I.One", StringComparison.Ordinal),
+        "company drag preview should keep following the pointer intent instead of freezing when the pointer leaves a valid grid cell");
     AssertTrue(
         highlightSource.Contains("_hoverCells", StringComparison.Ordinal) &&
         highlightSource.Contains("_hoverOverrideActive", StringComparison.Ordinal) &&
@@ -477,32 +526,32 @@ internal static void WorldSiteRootBattlePreparationDragSnapsEntityToFootprintCen
 internal static void WorldSiteRootBattlePreparationDragPreviewDoesNotResetIdle()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string beginDragBody = ExtractMethodBody(rootSource, "private void BeginBattlePreparationRosterDrag(");
-    string handleDragBody = ExtractMethodBody(rootSource, "private void HandleBattlePreparationRosterDragInput(");
-    string previewBody = ExtractMethodBody(rootSource, "private void UpdateBattlePreparationRosterDragPreview(");
+    string beginDragBody = ExtractMethodBody(rootSource, "private void BeginBattlePreparationCompanyDrag(");
+    string handleDragBody = ExtractMethodBody(rootSource, "private void HandleBattlePreparationCompanyDragInput(");
+    string previewBody = ExtractMethodBody(rootSource, "private void UpdateBattlePreparationCompanyDragPreview(");
     int mouseReleaseBranchIndex = handleDragBody.IndexOf("if (@event is not InputEventMouseButton", StringComparison.Ordinal);
-    AssertTrue(mouseReleaseBranchIndex >= 0, "battle preparation roster drag input should keep mouse release handling explicit");
+    AssertTrue(mouseReleaseBranchIndex >= 0, "battle preparation company drag input should keep mouse release handling explicit");
     string mouseMotionBody = handleDragBody.Substring(0, mouseReleaseBranchIndex);
 
     AssertTrue(
-        beginDragBody.Contains("RemoveBattlePreparationPlacementEntity(", StringComparison.Ordinal),
-        "re-dragging a roster unit that was already deployed should remove only that unit's old preview entity");
+        beginDragBody.Contains("RemoveBattlePreparationCompanyPreviewEntities", StringComparison.Ordinal),
+        "re-dragging a company should remove only that company's old preview entities");
     AssertTrue(
         !beginDragBody.Contains("RefreshBattlePreparationMapEntities();", StringComparison.Ordinal),
-        "starting a roster drag should not rebuild all battle-preparation entities because that restarts existing idle animations");
+        "starting a company drag should not rebuild all battle-preparation entities because that restarts existing idle animations");
     AssertTrue(
         !beginDragBody.Contains("PlayIdle()", StringComparison.Ordinal),
-        "the temporary roster drag entity should rely on UnitAnimationComponent attachment for its initial idle and should not replay it");
+        "temporary company drag entities should rely on UnitAnimationComponent attachment for initial idle and should not replay it");
     AssertTrue(
         !mouseMotionBody.Contains("PlayIdle()", StringComparison.Ordinal) &&
         !mouseMotionBody.Contains("RefreshBattlePreparationMapEntities", StringComparison.Ordinal) &&
         !mouseMotionBody.Contains("RefreshBattlePreparationUi", StringComparison.Ordinal),
-        "mouse motion during roster deployment drag should only move preview state, not rebuild UI or restart animations");
+        "mouse motion during company deployment drag should only move preview state, not rebuild UI or restart animations");
     AssertTrue(
         !previewBody.Contains("PlayIdle()", StringComparison.Ordinal) &&
         !previewBody.Contains("RefreshBattlePreparationMapEntities", StringComparison.Ordinal) &&
         !previewBody.Contains("RefreshBattlePreparationUi", StringComparison.Ordinal),
-        "deployment drag preview updates should keep animation playback untouched while the footprint anchor changes");
+        "company drag preview updates should keep animation playback untouched while the formation anchor changes");
 }
 
 internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
@@ -549,22 +598,36 @@ internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
         "UI layout migration should move tactical site detail panel into the left primary workspace.");
 
     AssertTrue(
-        peacetimeHudSource.Contains("node name=\"BattlePreparationContent\"", StringComparison.Ordinal) &&
-        peacetimeHudSource.Contains("visible = false", StringComparison.Ordinal) &&
+        !peacetimeHudSource.Contains("node name=\"BattlePreparationContent\"", StringComparison.Ordinal) &&
+        !peacetimeHudSource.Contains("node name=\"BattlePreparationActionList\"", StringComparison.Ordinal) &&
+        !peacetimeHudSource.Contains("node name=\"BattlePreparationEnemySummary\"", StringComparison.Ordinal) &&
+        !peacetimeHudSource.Contains("parent=\"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BattlePreparationContent", StringComparison.Ordinal),
+        "site management panel should not keep the old text-heavy battle-preparation subtree.");
+
+    AssertTrue(
+        peacetimeHudSource.Contains("node name=\"BattlePreparationRosterDock\"", StringComparison.Ordinal) &&
         peacetimeHudSource.Contains("node name=\"BattlePreparationRosterList\"", StringComparison.Ordinal) &&
-        peacetimeHudSource.Contains("node name=\"BattlePreparationActionList\"", StringComparison.Ordinal),
-        "Peacetime HUD should define the dedicated battle-preparation containers and keep them hidden by default.");
+        peacetimeHudSource.Contains("node name=\"BattlePreparationPlanBar\"", StringComparison.Ordinal) &&
+        peacetimeHudSource.Contains("node name=\"BattlePreparationObjectiveThumbnailDock\"", StringComparison.Ordinal) &&
+        peacetimeHudSource.Contains("node name=\"BattlePreparationObjectiveThumbnail\"", StringComparison.Ordinal) &&
+        peacetimeHudSource.Contains("node name=\"BattlePreparationStartButton\"", StringComparison.Ordinal),
+        "Peacetime HUD should author compact battle-preparation roster, plan, objective-thumbnail, and start controls outside the management panel.");
 
     AssertTrue(
-        managementSource.Contains("_siteBattlePreparationContent", StringComparison.Ordinal) &&
-        managementSource.Contains("SetBattlePreparationContentVisible", StringComparison.Ordinal),
-        "WorldSiteRoot management binding should expose dedicated battle-preparation container controls.");
+        !managementSource.Contains("_siteBattlePreparationContent", StringComparison.Ordinal) &&
+        !managementSource.Contains("SetBattlePreparationContentVisible", StringComparison.Ordinal) &&
+        managementSource.Contains("_battlePreparationRosterDock", StringComparison.Ordinal) &&
+        managementSource.Contains("_battlePreparationPlanBar", StringComparison.Ordinal) &&
+        managementSource.Contains("_battlePreparationObjectiveThumbnail", StringComparison.Ordinal),
+        "WorldSiteRoot management binding should remove old battle-preparation panel fields and bind compact HUD controls.");
 
     AssertTrue(
-        battlePreparationSource.Contains("SetBattlePreparationContentVisible(true)", StringComparison.Ordinal) &&
-        battlePreparationSource.Contains("ClearChildren(_siteBattlePreparationRosterList)", StringComparison.Ordinal) &&
-        battlePreparationSource.Contains("_siteBattlePreparationActionList", StringComparison.Ordinal),
-        "battle preparation refresh should render into dedicated containers.");
+        !battlePreparationSource.Contains("SetBattlePreparationContentVisible(true)", StringComparison.Ordinal) &&
+        !battlePreparationSource.Contains("RefreshBattlePreparationForceList()", StringComparison.Ordinal) &&
+        !battlePreparationSource.Contains("_siteBattlePreparationActionList", StringComparison.Ordinal) &&
+        battlePreparationSource.Contains("BindBattlePreparationCompanyRoster", StringComparison.Ordinal) &&
+        battlePreparationSource.Contains("BindBattlePreparationCompactPlanControls", StringComparison.Ordinal),
+        "battle preparation refresh should bind compact company controls instead of the old roster/action lists.");
 
     AssertTrue(
         !battlePreparationSource.Contains("ClearChildren(_siteGarrisonList)", StringComparison.Ordinal) &&
@@ -872,11 +935,12 @@ internal static void BattlePreparationDragValidationUsesFactionDeploymentDirecti
         interactionSource.Contains("ResolveBattlePreparationDeploymentSide(dragContext.FactionId, dragContext.FallbackFaction)", StringComparison.Ordinal),
         "existing placement drag validation should use the dragged request side rather than stale placement direction");
     AssertTrue(
-        interactionSource.Contains("ResolveBattlePreparationDeploymentSide(force.FactionId, _draggedBattleForceFallbackFaction)", StringComparison.Ordinal),
-        "roster drag validation should use the force side so defender-side roster drops use the defender zone");
+        interactionSource.Contains("ResolveBattlePreparationCompanyDeploymentSide", StringComparison.Ordinal) &&
+        interactionSource.Contains("BattlePreparationCompanyFormationPlanner", StringComparison.Ordinal),
+        "company drag validation should route the selected company through the same side-aware deployment-zone planner");
 }
 
-internal static void BattlePreparationRosterDragResolvesBothSides()
+internal static void BattlePreparationCompanyRosterUsesPlayerGroupsOnly()
 {
     string hudSource = File.ReadAllText(Path.Combine(
         ProjectRoot(),
@@ -886,27 +950,322 @@ internal static void BattlePreparationRosterDragResolvesBothSides()
         "Sites",
         "WorldSiteRoot.BattlePreparationHud.cs"));
     string interactionSource = ReadWorldSiteRootSource();
-    string refreshBody = ExtractMethodBody(hudSource, "private void RefreshBattlePreparationForceList()");
-    string beginDragBody = ExtractMethodBody(interactionSource, "private void BeginBattlePreparationRosterDrag(");
-    string handleDragBody = ExtractMethodBody(interactionSource, "private void HandleBattlePreparationRosterDragInput(");
-    string previewBody = ExtractMethodBody(interactionSource, "private void UpdateBattlePreparationRosterDragPreview()");
+    string beginDragBody = ExtractMethodBody(interactionSource, "private void BeginBattlePreparationCompanyDrag(");
+    string handleDragBody = ExtractMethodBody(interactionSource, "private void HandleBattlePreparationCompanyDragInput(");
+    string previewBody = ExtractMethodBody(interactionSource, "private void UpdateBattlePreparationCompanyDragPreview(");
 
     AssertTrue(
-        refreshBody.Contains("AddBattlePreparationRosterButtons(_battlePreparationRequest?.PlayerForces, BattleFaction.Player)", StringComparison.Ordinal) &&
-        refreshBody.Contains("AddBattlePreparationRosterButtons(_battlePreparationRequest?.EnemyForces, BattleFaction.Enemy)", StringComparison.Ordinal),
-        "battle preparation roster should expose both player and enemy request forces through the same draggable button path");
+        hudSource.Contains("BindBattlePreparationCompanyRoster", StringComparison.Ordinal) &&
+        hudSource.Contains("BuildBattlePreparationPlayerGroups()", StringComparison.Ordinal) &&
+        !hudSource.Contains("AddBattlePreparationRosterButtons(_battlePreparationRequest?.EnemyForces", StringComparison.Ordinal),
+        "battle preparation roster should be a player-company switcher, not a combined player/enemy force-slot list");
     AssertTrue(
-        beginDragBody.Contains("_draggedBattleForceFallbackFaction = fallbackFaction", StringComparison.Ordinal) &&
-        beginDragBody.Contains("_battleUnitFactory.Create(" , StringComparison.Ordinal) &&
-        beginDragBody.Contains("fallbackFaction", StringComparison.Ordinal),
-        "roster drag preview should preserve the side that produced the dragged request force");
+        beginDragBody.Contains("_draggedBattlePreparationGroupKey", StringComparison.Ordinal) &&
+        beginDragBody.Contains("CreateBattlePreparationCompanyPreviewEntities", StringComparison.Ordinal) &&
+        beginDragBody.Contains("BattleFaction.Player", StringComparison.Ordinal),
+        "company drag preview should create player-company previews from the selected group");
     AssertTrue(
-        handleDragBody.Contains("FindBattlePreparationForce(forceId, _draggedBattleForceFallbackFaction)", StringComparison.Ordinal) &&
-        previewBody.Contains("FindBattlePreparationForce(_draggedBattleForceId, _draggedBattleForceFallbackFaction)", StringComparison.Ordinal),
-        "roster drag drop and preview should resolve request forces from both sides, not only PlayerForces");
+        handleDragBody.Contains("TryCommitBattlePreparationCompanyPlacement", StringComparison.Ordinal) &&
+        previewBody.Contains("BuildBattlePreparationCompanyFormationDraft", StringComparison.Ordinal),
+        "company drag drop and preview should resolve all member force slots through the formation draft");
     AssertTrue(
-        !interactionSource.Contains("FindBattlePreparationPlayerForce", StringComparison.Ordinal),
-        "battle preparation roster drag should not keep a player-only force lookup");
+        !interactionSource.Contains("FindBattlePreparationForce", StringComparison.Ordinal) &&
+        !interactionSource.Contains("BeginBattlePreparationRosterDrag", StringComparison.Ordinal),
+        "battle preparation should remove old single-force roster drag lookup paths");
+}
+
+internal static void BattlePreparationRosterRowBindsBeforeReadyAndDragsBeforeSelectionRefresh()
+{
+    string rowSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "BattlePreparationRosterRow.cs"));
+    string rowScene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "world", "ui", "BattlePreparationRosterRow.tscn"));
+    string inputBody = ExtractMethodBody(rowSource, "public override void _GuiInput(");
+    int mousePressIndex = inputBody.IndexOf("if (mouseButton.Pressed)", StringComparison.Ordinal);
+    int mousePressReturnIndex = mousePressIndex >= 0
+        ? inputBody.IndexOf("return;", mousePressIndex, StringComparison.Ordinal)
+        : -1;
+    int selectedSignalIndex = inputBody.IndexOf("EmitSignal(SignalName.Selected", StringComparison.Ordinal);
+
+    AssertTrue(
+        rowScene.Contains("node name=\"BattlePreparationRosterRow\" type=\"PanelContainer\"", StringComparison.Ordinal) &&
+        rowScene.Contains("node name=\"Row\" type=\"HBoxContainer\" parent=\".\"", StringComparison.Ordinal) &&
+        rowScene.Contains("node name=\"Name\" type=\"Label\" parent=\"Row\"", StringComparison.Ordinal) &&
+        rowScene.Contains("node name=\"Status\" type=\"Label\" parent=\"Row\"", StringComparison.Ordinal),
+        "battle preparation roster row should be an authored Godot row scene with avatar/name/status nodes.");
+    AssertTrue(
+        rowSource.Contains("_pendingGroupKey", StringComparison.Ordinal) &&
+        rowSource.Contains("ApplyBinding()", StringComparison.Ordinal) &&
+        rowSource.Contains("public override void _Ready()", StringComparison.Ordinal) &&
+        rowSource.Contains("ApplyBinding();", StringComparison.Ordinal),
+        "roster rows must preserve Bind values when WorldSiteRoot binds before the row enters the scene tree.");
+    AssertTrue(
+        mousePressIndex >= 0 &&
+        mousePressReturnIndex > mousePressIndex &&
+        selectedSignalIndex > mousePressReturnIndex,
+        "mouse press must not emit Selected because selection refresh rebuilds the roster and destroys the pending drag source.");
+    AssertTrue(
+        rowSource.Contains("!mouseButton.Pressed") &&
+        rowSource.Contains("!_dragStarted") &&
+        rowSource.Contains("EmitSignal(SignalName.Selected", StringComparison.Ordinal) &&
+        rowSource.Contains("EmitSignal(SignalName.DragStarted", StringComparison.Ordinal),
+        "roster rows should select on click release but start company drag from mouse motion over the threshold.");
+}
+
+internal static void BattlePreparationPlanUsesStrategicDefaultFormation()
+{
+    System.Reflection.PropertyInfo armyDefaultFormation = typeof(WorldArmyState).GetProperty("DefaultFormationId");
+    System.Reflection.PropertyInfo forceDefaultFormation = typeof(BattleForceRequest).GetProperty("DefaultFormationId");
+
+    AssertTrue(armyDefaultFormation != null, "world army state should persist a strategic default formation id.");
+    AssertTrue(forceDefaultFormation != null, "battle force requests should carry the source default formation into battle preparation.");
+
+    const string armyId = "army_v0";
+    const string expectedFormation = "formation_column";
+    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateResource: false);
+    StrategicWorldState state = BuildHeroCorpsV0AssaultState(definition, armyId);
+    armyDefaultFormation.SetValue(state.ArmyStates[armyId], expectedFormation);
+
+    BattleStartRequest request = new WorldBattleRequestBuilder().BuildAssaultBonefieldRequest(
+        state,
+        definition,
+        "res://scenes/world/StrategicWorldRoot.tscn",
+        "res://scenes/world/sites/WorldSiteRoot.tscn",
+        armyId);
+
+    AssertTrue(
+        request.PlayerForces.Count > 0 &&
+        request.PlayerForces.All(force => string.Equals(forceDefaultFormation.GetValue(force) as string, expectedFormation, StringComparison.Ordinal)),
+        "battle entry should copy the source army default formation to every player force in the hero company.");
+
+    string groupViewSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "BattleRuntimeCommandGroupView.cs"));
+    string hudSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattlePreparationHud.cs"));
+    string dragSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattlePreparationDrag.cs"));
+    string plannerSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Application", "World", "BattlePreparationCompanyFormationPlanner.cs"));
+
+    AssertTrue(
+        groupViewSource.Contains("DefaultFormationId", StringComparison.Ordinal),
+        "battle preparation group view should expose the company default formation.");
+    AssertTrue(
+        hudSource.Contains("BattlePreparationPlanUiModel.ResolveFormationId(plan.InitialFormationId, group.DefaultFormationId)", StringComparison.Ordinal),
+        "battle preparation plan defaults should initialize current-battle formation from the company default.");
+    AssertTrue(
+        dragSource.Contains("plan?.InitialFormationId", StringComparison.Ordinal) &&
+        plannerSource.Contains("string formationId", StringComparison.Ordinal),
+        "company drag preview should pass the current battle formation into the formation planner.");
+}
+
+internal static void BattlePreparationCompanyFormationPlannerAdaptsNarrowZoneWithoutOverlap()
+{
+    BattleGridMap grid = new();
+    for (int x = 0; x < 4; x++)
+    {
+        AddWalkableSurface(grid, x, 0, terrainTag: "narrow_line");
+    }
+
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder().Build("site_under_test", grid);
+    BattleForceRequest wideForce = new()
+    {
+        ForceId = "wide_corps",
+        SourceKind = "PlayerArmy",
+        SourceId = "army_1",
+        UnitDefinitionId = "wide_corps",
+        Count = 2,
+        FactionId = "player",
+        FootprintWidth = 2,
+        FootprintHeight = 1
+    };
+
+    BattlePreparationCompanyFormationDraft draft = new BattlePreparationCompanyFormationPlanner().BuildDraft(
+        new[] { wideForce },
+        "default_line",
+        new GridPosition(0, 0),
+        SemanticDeploymentSide.Player,
+        "player",
+        WorldSiteAttackDirection.East,
+        grid,
+        cache,
+        Array.Empty<BattleForceRequest>(),
+        CanForceEnterWater);
+
+    AssertTrue(draft.IsValid, $"narrow deployment should adapt to a non-overlapping depth formation failure={draft.FailureReason}");
+    AssertEqual(2, draft.Placements.Count, "two 2x1 members should produce two placement drafts");
+    AssertEqual(4, draft.CoveredCells.Count, "two 2x1 members should cover four cells");
+    AssertEqual(4, draft.CoveredCells.Distinct().Count(), "formation covered cells should not overlap");
+    AssertTrue(
+        draft.Placements.Any(placement => placement.Anchor == new GridPosition(0, 0)) &&
+        draft.Placements.Any(placement => placement.Anchor == new GridPosition(2, 0)),
+        $"narrow fallback should place the second 2x1 member after the first footprint cells={FormatCells(draft.CoveredCells)}");
+}
+
+internal static void BattlePreparationCompanyFormationPlannerProjectsOutsideAnchorToNearestValidWholeDraft()
+{
+    BattleGridMap grid = new();
+    for (int x = 0; x < 6; x++)
+    {
+        AddWalkableSurface(grid, x, 0, terrainTag: "wide_line");
+    }
+
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder().Build("site_under_test", grid);
+    BattleForceRequest wideForce = new()
+    {
+        ForceId = "wide_corps",
+        SourceKind = "PlayerArmy",
+        SourceId = "army_1",
+        UnitDefinitionId = "wide_corps",
+        Count = 2,
+        FactionId = "player",
+        FootprintWidth = 2,
+        FootprintHeight = 1
+    };
+
+    BattlePreparationCompanyFormationDraft draft = new BattlePreparationCompanyFormationPlanner().BuildDraft(
+        new[] { wideForce },
+        "default_line",
+        new GridPosition(9, 0),
+        SemanticDeploymentSide.Player,
+        "player",
+        WorldSiteAttackDirection.East,
+        grid,
+        cache,
+        Array.Empty<BattleForceRequest>(),
+        CanForceEnterWater);
+
+    AssertTrue(draft.IsValid, $"outside pointer intent should project to nearest legal whole formation failure={draft.FailureReason}");
+    AssertEqual(2, draft.Placements.Count, "projected draft should still contain every company member");
+    AssertTrue(
+        draft.Placements.Any(placement => placement.Anchor == new GridPosition(2, 0)) &&
+        draft.Placements.Any(placement => placement.Anchor == new GridPosition(4, 0)),
+        $"outside-right intent should choose the rightmost whole no-overlap placement cells={FormatCells(draft.CoveredCells)}");
+    AssertEqual(4, draft.CoveredCells.Count, "projected two 2x1 members should cover four distinct cells");
+}
+
+internal static void BattlePreparationCompanyFormationPlannerReturnsWholeInvalidPreview()
+{
+    BattleGridMap grid = new();
+    for (int x = 0; x < 3; x++)
+    {
+        AddWalkableSurface(grid, x, 0, terrainTag: "too_short_line");
+    }
+
+    WorldSiteRuntimeDeploymentCache cache = new WorldSiteRuntimeDeploymentCacheBuilder().Build("site_under_test", grid);
+    BattleForceRequest wideForce = new()
+    {
+        ForceId = "wide_corps",
+        SourceKind = "PlayerArmy",
+        SourceId = "army_1",
+        UnitDefinitionId = "wide_corps",
+        Count = 2,
+        FactionId = "player",
+        FootprintWidth = 2,
+        FootprintHeight = 1
+    };
+
+    BattlePreparationCompanyFormationDraft draft = new BattlePreparationCompanyFormationPlanner().BuildDraft(
+        new[] { wideForce },
+        "formation_column",
+        new GridPosition(0, 0),
+        SemanticDeploymentSide.Player,
+        "player",
+        WorldSiteAttackDirection.East,
+        grid,
+        cache,
+        Array.Empty<BattleForceRequest>(),
+        CanForceEnterWater);
+
+    int memberCoveredCells = draft.Placements.Sum(placement => placement.CoveredCells.Count);
+    AssertTrue(!draft.IsValid, "impossible deployment should remain invalid");
+    AssertEqual(2, draft.Placements.Count, "invalid preview should still move every company member as a whole formation");
+    AssertEqual(4, memberCoveredCells, "invalid preview should include every member footprint cell");
+    AssertEqual(4, draft.Placements.SelectMany(placement => placement.CoveredCells).Distinct().Count(), "invalid preview members should not overlap each other");
+}
+
+internal static void BattlePreparationCompanyFormationPlannerIsTransactional()
+{
+    string plannerPath = Path.Combine(ProjectRoot(), "src", "Application", "World", "BattlePreparationCompanyFormationPlanner.cs");
+    AssertTrue(File.Exists(plannerPath), "battle preparation should use an Application-owned company formation planner.");
+    if (!File.Exists(plannerPath))
+    {
+        return;
+    }
+
+    string plannerSource = File.ReadAllText(plannerPath);
+    string buildDraftBody = ExtractMethodBody(plannerSource, "public BattlePreparationCompanyFormationDraft BuildDraft(");
+    string applyDraftBody = ExtractMethodBody(plannerSource, "public void ApplyDraft(");
+
+    AssertTrue(
+        plannerSource.Contains("public sealed class BattlePreparationCompanyFormationPlanner", StringComparison.Ordinal) &&
+        plannerSource.Contains("BattlePreparationCompanyFormationDraft", StringComparison.Ordinal) &&
+        plannerSource.Contains("BattlePreparationCompanyPlacementDraft", StringComparison.Ordinal),
+        "company formation planning should expose explicit draft objects instead of mutating UI state directly.");
+    AssertTrue(
+        plannerSource.Contains("BattleFootprintCells.Enumerate", StringComparison.Ordinal) &&
+        plannerSource.Contains("ValidateMemberCells", StringComparison.Ordinal) &&
+        plannerSource.Contains("placement_cell_occupied", StringComparison.Ordinal) &&
+        plannerSource.Contains("placement_cell_not_deployable", StringComparison.Ordinal),
+        "formation draft validation should include every member footprint, deployment-zone legality, and occupancy.");
+    AssertTrue(
+        !buildDraftBody.Contains("PreferredPlacements[", StringComparison.Ordinal) &&
+        !buildDraftBody.Contains(".PreferredPlacements.Add", StringComparison.Ordinal) &&
+        applyDraftBody.Contains("PreferredPlacements", StringComparison.Ordinal),
+        "formation hover draft must not mutate request placements until a valid drop is committed.");
+}
+
+internal static void BattlePreparationHudUsesSceneAuthoredDockLayout()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string siteHudScene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
+    string layoutPath = Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "BattlePreparationHudLayout.cs");
+
+    AssertTrue(
+        !File.Exists(layoutPath) &&
+        !rootSource.Contains("BattlePreparationHudLayout", StringComparison.Ordinal),
+        "battle preparation HUD docks should be laid out by authored Godot scene nodes, not a C# anchor/offset layout helper.");
+    AssertTrue(
+        siteHudScene.Contains("node name=\"OverlayHost\" type=\"Control\" parent=\".\"", StringComparison.Ordinal) &&
+        siteHudScene.Contains("node name=\"BattlePreparationRosterDock\" type=\"PanelContainer\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
+        siteHudScene.Contains("node name=\"BattlePreparationPlanBar\" type=\"PanelContainer\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
+        siteHudScene.Contains("node name=\"BattlePreparationObjectiveThumbnailDock\" type=\"Control\" parent=\"MinimapHost\"", StringComparison.Ordinal),
+        "battle preparation HUD docks should be authored as normal Godot Control/Container nodes in the HUD scene.");
+    AssertTrue(
+        siteHudScene.Contains("anchor_top = 1.0", StringComparison.Ordinal) &&
+        siteHudScene.Contains("anchor_bottom = 1.0", StringComparison.Ordinal) &&
+        siteHudScene.Contains("anchor_left = 0.5", StringComparison.Ordinal) &&
+        siteHudScene.Contains("anchor_right = 0.5", StringComparison.Ordinal) &&
+        siteHudScene.Contains("anchor_left = 1.0", StringComparison.Ordinal),
+        "scene-authored battle preparation docks should use Godot anchors for lower-left, lower-center, and lower-right placement.");
+    AssertTrue(
+        rootSource.Contains("_battlePreparationHudRestPositions", StringComparison.Ordinal) &&
+        !ExtractMethodBody(rootSource, "private void SetBattlePreparationHudRetreated(").Contains("Vector2.Zero", StringComparison.Ordinal),
+        "HUD retreat must restore authored scene positions instead of tweening anchored controls back to (0,0).");
+}
+
+internal static void BattlePreparationHudRetreatsDuringCompanyDrag()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string beginDragBody = ExtractMethodBody(rootSource, "private void BeginBattlePreparationCompanyDrag(");
+    string clearDragBody = ExtractMethodBody(rootSource, "private void ClearBattlePreparationCompanyDragState(");
+
+    AssertTrue(
+        rootSource.Contains("_battlePreparationHudRetreatTween", StringComparison.Ordinal) &&
+        rootSource.Contains("SetBattlePreparationHudRetreated", StringComparison.Ordinal) &&
+        rootSource.Contains("CreateTween().BindNode(this)", StringComparison.Ordinal) &&
+        rootSource.Contains("TweenProperty", StringComparison.Ordinal),
+        "battle preparation HUD retreat should be a single tween-controlled path for persistent controls.");
+    AssertTrue(
+        beginDragBody.Contains("SetBattlePreparationHudRetreated(true", StringComparison.Ordinal) &&
+        clearDragBody.Contains("SetBattlePreparationHudRetreated(false", StringComparison.Ordinal),
+        "company drag should slide persistent HUD offscreen at start and return it after drop or cancel.");
+}
+
+internal static void BattlePreparationLaunchRequiresExplicitCompanyPlans()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string canLaunchBody = ExtractMethodBody(rootSource, "private bool CanLaunchPreparedBattle(");
+
+    AssertTrue(
+        canLaunchBody.Contains("foreach (BattleRuntimeCommandGroupView group in BuildBattlePreparationPlayerGroups())", StringComparison.Ordinal) &&
+        canLaunchBody.Contains("IsBattlePreparationCompanyPlaced(group)", StringComparison.Ordinal) &&
+        canLaunchBody.Contains("_explicitBattlePreparationRuleGroups.Contains(group.GroupKey)", StringComparison.Ordinal),
+        "start battle should validate placement, marker objective, and explicit engagement rule per player company.");
 }
 
 internal static void BattlePreparationMapDragUsesRequestBackedPlacements()

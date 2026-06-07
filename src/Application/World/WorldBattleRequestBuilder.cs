@@ -57,6 +57,7 @@ public sealed class WorldBattleRequestBuilder
                 state.PlayerFactionId,
                 sourceFilterKind: "PlayerArmy",
                 sourceFilterId: sourceArmy.ArmyId);
+            ApplyDefaultFormation(request.PlayerForces, sourceArmy.DefaultFormationId);
         }
         else if (state.SiteStates.TryGetValue(StrategicWorldIds.SitePlayerCamp, out WorldSiteState sourceSite))
         {
@@ -404,8 +405,28 @@ public sealed class WorldBattleRequestBuilder
                 SourceId = army.ArmyId,
                 UnitDefinitionId = unit.UnitTypeId,
                 Count = unit.Count,
-                FactionId = factionId
+                FactionId = factionId,
+                DefaultFormationId = army.DefaultFormationId ?? ""
             });
+        }
+    }
+
+    private static void ApplyDefaultFormation(
+        System.Collections.Generic.IEnumerable<BattleForceRequest> forces,
+        string defaultFormationId)
+    {
+        string formationId = defaultFormationId?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(formationId))
+        {
+            return;
+        }
+
+        foreach (BattleForceRequest force in forces ?? System.Array.Empty<BattleForceRequest>())
+        {
+            if (force != null && string.IsNullOrWhiteSpace(force.DefaultFormationId))
+            {
+                force.DefaultFormationId = formationId;
+            }
         }
     }
 }

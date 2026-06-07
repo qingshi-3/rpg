@@ -79,7 +79,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Control _siteModalHost;
 	private Control _siteBottomCommandHost;
 	private Control _battleRuntimeCommandBar;
-	private Control _battleRuntimeCommandPanel;
+	private Control _battleRuntimeHeroFrame;
 	private Control _siteOverviewCard;
 	private Node2D _sitePlacementEntityRoot;
 	private Label _siteHudTitle;
@@ -87,30 +87,31 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Label _siteResourceLabel;
 	private Label _siteNoticeLabel;
 	private Label _siteSelectionLabel;
-	private Label _battleRuntimeCommandLabel;
-	private Label _battleRuntimePauseHintLabel;
-	private Label _battleRuntimeSelectedHeroLabel;
-	private Label _battleRuntimeCorpsLabel;
-	private Label _battleRuntimeCombinedLabel;
-	private HBoxContainer _battleRuntimeCommandButtonRow;
-	private HBoxContainer _battleRuntimeHeroButtonRow;
-	private Button _battleRuntimeAssaultButton;
-	private Button _battleRuntimeFocusFireButton;
-	private Button _battleRuntimeHoldLineButton;
+	private Label _battleRuntimeHeroNameLabel;
+	private Label _battleRuntimeHeroStateLabel;
+	private ProgressBar _battleRuntimeHeroHealthBar;
+	private ProgressBar _battleRuntimeHeroManaBar;
+	private HBoxContainer _battleRuntimeHeroSkillList;
+	private Button _battleRuntimeRegroupButton;
 	private Control _siteFacilityBuildCard;
 	private Control _siteFacilityCard;
 	private Control _siteDefenseCard;
 	private Control _siteActionCard;
-	private Control _siteBattlePreparationContent;
 	private Label _siteFacilityBuildTitle;
 	private VBoxContainer _siteFacilityBuildList;
-	private VBoxContainer _siteBattlePreparationRosterList;
-	private Label _siteBattlePreparationEnemySummary;
-	private Label _siteBattlePreparationStatus;
-	private VBoxContainer _siteBattlePreparationActionList;
-	private VBoxContainer _battleRuntimeHeroCommandList;
-	private VBoxContainer _battleRuntimeCorpsCommandList;
-	private VBoxContainer _battleRuntimeCombinedCommandList;
+	private Control _siteMinimapHost;
+	private Control _battlePreparationRosterDock;
+	private VBoxContainer _battlePreparationRosterList;
+	private Control _battlePreparationPlanBar;
+	private Label _battlePreparationCompanyLabel;
+	private Label _battlePreparationObjectiveLabel;
+	private HBoxContainer _battlePreparationRuleButtonRow;
+	private Button _battlePreparationMoveFirstButton;
+	private Button _battlePreparationAttackFirstButton;
+	private Button _battlePreparationHoldButton;
+	private Button _battlePreparationStartButton;
+	private Control _battlePreparationObjectiveThumbnailDock;
+	private BattlePreparationObjectiveThumbnail _battlePreparationObjectiveThumbnail;
 	private Button _returnMapButton;
 	private BattleObjectiveMapDialog _battleObjectiveMapDialog;
 	private VBoxContainer _siteFacilityList;
@@ -129,21 +130,32 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private bool _isBattlePreparationActive;
 	private BattleStartRequest _battlePreparationRequest;
 	private BattleStartRequest _battleRuntimeRequest;
+	private WorldSiteBattleGroupRuntimeResolveResult _activeBattleGroupRuntimeResolution;
 	private string _siteHudReturnScenePath = "";
 	private string _siteHudSiteId = "";
 	private string _selectedPlacementId = "";
 	private string _selectedFacilitySlotId = "";
 	private BattleCorpsCommand _selectedBattleCorpsCommand = BattleCorpsCommand.Assault;
 	private string _selectedBattleRuntimeGroupKey = "";
+	private bool _battleRuntimeHeroSkillTargetPickingActive;
+	private BattleRuntimeCommandGroupView _battleRuntimeHeroSkillTargetPickingGroup;
+	private string _battleRuntimeHeroSkillTargetPickingSkillId = "";
+	private string _battleRuntimeHeroSkillPreviewTargetActorId = "";
+	private readonly Dictionary<string, BattleRuntimeSkillSlot> _battleRuntimeSkillSlots = new(System.StringComparer.Ordinal);
 	private string _selectedBattlePreparationPlanGroupKey = "";
 	private readonly HashSet<string> _explicitBattlePreparationRuleGroups = new(System.StringComparer.Ordinal);
 	private readonly Dictionary<Node, ProcessModeEnum> _battleRuntimePauseProcessModeRestore = new();
 	private string _draggedPlacementId = "";
 	private Vector2 _draggedPlacementOriginGlobalPosition;
-	private string _draggedBattleForceId = "";
-	private int _draggedBattleForceIndex = -1;
-	private BattleFaction _draggedBattleForceFallbackFaction = BattleFaction.Neutral;
-	private BattleEntity _draggedBattleRosterEntity;
+	private string _draggedBattlePreparationGroupKey = "";
+	private readonly List<BattlePreparationCompanyPreviewEntity> _draggedBattlePreparationCompanyEntities = new();
+	private readonly List<BattlePreparationCompanyPlacementSnapshot> _draggedBattlePreparationPreviousPlacements = new();
+	private BattlePreparationCompanyFormationDraft _draggedBattlePreparationDraft;
+	private bool _lastBattlePreparationCompanyDragValid;
+	private string _lastBattlePreparationCompanyDragReason = "";
+	private Tween _battlePreparationHudRetreatTween;
+	private bool _battlePreparationHudRetreated;
+	private readonly Dictionary<Control, Vector2> _battlePreparationHudRestPositions = new();
 	private readonly BattleUnitFactory _battleUnitFactory = new();
 	private readonly WorldBattleResultApplier _worldBattleResultApplier = new();
 	private readonly WorldActionResolver _worldActionResolver;
@@ -152,6 +164,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private readonly WorldSiteDeploymentTargetEvaluator _deploymentTargetEvaluator = new();
 	private readonly WorldSiteDeploymentTerrainReconciler _deploymentTerrainReconciler = new();
 	private readonly WorldSiteBattleDeploymentPreparer _battleDeploymentPreparer = new();
+	private readonly BattlePreparationCompanyFormationPlanner _battlePreparationCompanyFormationPlanner = new();
 	private readonly WorldSiteBattleLauncher _battleLauncher = new();
 	private readonly BattlePerformanceCounters _battlePerformanceCounters = new();
 	private readonly WorldSiteBattleGroupRuntimeAdapter _battleGroupRuntimeAdapter;
@@ -178,6 +191,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	public override void _Ready()
 	{
 		GameLog.StartSession(nameof(WorldSiteRoot));
+		GameUiSkin.ApplyGameCursorTheme();
 		BattlePerformanceMonitorRegistry.Register(
 			_battlePerformanceCounters,
 			() => _unitRoot?.ActiveMovementTweenCount ?? 0);
@@ -262,6 +276,11 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 				return;
 			}
 
+			if (TryHandleBattleRuntimeHeroSkillTargetInput(@event))
+			{
+				return;
+			}
+
 			if (TryHandleBattleRuntimePauseInput(@event))
 			{
 				return;
@@ -291,6 +310,13 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		}
 
 		return WorldSiteRuntimeMode.Management;
+	}
+
+	private bool IsBattleRuntimeHudActive()
+	{
+		return _battleRuntimeEnabled &&
+			!_isBattlePreparationActive &&
+			(_battleRuntimeRequest != null || _activeBattleGroupRuntimeResolution != null);
 	}
 
 	private void ResolveMainWorldViewportNodes()
@@ -323,6 +349,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		}
 		else
 		{
+			CancelBattleRuntimeHeroSkillTargetPicking("pause_off");
 			_unitRoot?.ClearCommandSelection();
 		}
 
@@ -343,8 +370,10 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 				CaptureBattleRuntimePauseProcessMode(this, ProcessModeEnum.Always);
 				CaptureBattleRuntimePauseProcessMode(_siteHudRoot, ProcessModeEnum.Always);
 				CaptureBattleRuntimePauseProcessMode(_siteModalHost, ProcessModeEnum.Always);
-				CaptureBattleRuntimePauseProcessMode(_mainWorldViewportHost, ProcessModeEnum.Pausable);
-				CaptureBattleRuntimePauseProcessMode(_mainWorldViewport, ProcessModeEnum.Pausable);
+				CaptureBattleRuntimePauseProcessMode(_mainWorldViewportHost, ProcessModeEnum.Always);
+				CaptureBattleRuntimePauseProcessMode(_mainWorldViewport, ProcessModeEnum.Always);
+				CaptureBattleRuntimePauseProcessMode(_battleCamera, ProcessModeEnum.Always);
+				CaptureBattleRuntimePauseProcessMode(_highlightOverlay, ProcessModeEnum.Always);
 				CaptureBattleRuntimePauseProcessMode(_mapRoot, ProcessModeEnum.Pausable);
 				CaptureBattleRuntimePauseProcessMode(_activeSiteMap, ProcessModeEnum.Pausable);
 				CaptureBattleRuntimePauseProcessMode(_unitRoot, ProcessModeEnum.Pausable);
@@ -353,6 +382,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 			}
 
 			_unitRoot?.SetBattlePresentationPaused(paused);
+			_battleCamera?.SetTacticalPauseActive(paused);
+			_highlightOverlay?.SetTacticalPauseVisualsStatic(paused);
 			if (IsInsideTree())
 			{
 				// Tactical pause freezes the world through Godot while command UI keeps running.
@@ -366,6 +397,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 				return;
 			}
 
+			_battleCamera?.SetTacticalPauseActive(paused);
+			_highlightOverlay?.SetTacticalPauseVisualsStatic(paused);
 			RestoreBattleRuntimePauseProcessModes();
 			if (IsInsideTree())
 			{
@@ -438,6 +471,16 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Rect2 ResolveMainWorldViewportRect()
 	{
 		Vector2 rootViewportSize = GetViewportRect().Size;
+		if (IsBattleRuntimeHudActive())
+		{
+			return new Rect2(Vector2.Zero, rootViewportSize);
+		}
+
+		if (_isBattlePreparationActive && !_battleRuntimeEnabled)
+		{
+			return new Rect2(Vector2.Zero, rootViewportSize);
+		}
+
 		if (_siteHudRoot?.Visible == true)
 		{
 			return ResolveWorldSiteHudViewportRect(rootViewportSize);

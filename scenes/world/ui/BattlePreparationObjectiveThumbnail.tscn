@@ -1,0 +1,47 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/BattlePreparationObjectiveThumbnail.cs" id="1_thumbnail_script"]
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_preview_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_thumbnail"]
+bg_color = Color(0.045, 0.056, 0.052, 0.86)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.54, 0.62, 0.48, 0.86)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="BattlePreparationObjectiveThumbnail" type="PanelContainer"]
+custom_minimum_size = Vector2(250, 188)
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_thumbnail")
+script = ExtResource("1_thumbnail_script")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Stack" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CompanyLabel" type="Label" parent="Margin/Stack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+text = "当前部队"
+clip_text = true
+
+[node name="MapPreview" type="Control" parent="Margin/Stack"]
+custom_minimum_size = Vector2(232, 142)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 0
+script = ExtResource("2_preview_script")

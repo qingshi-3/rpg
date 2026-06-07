@@ -19,6 +19,7 @@ public sealed class WorldArmyState
     public WorldArmyStatus Status { get; set; } = WorldArmyStatus.Idle;
     public WorldArmyIntent Intent { get; set; } = WorldArmyIntent.None;
     public WorldSiteAttackDirection TargetApproachDirection { get; set; } = WorldSiteAttackDirection.Any;
+    public string DefaultFormationId { get; set; } = "";
     public List<GarrisonState> GarrisonUnits { get; set; } = new();
     public ResourceStore CargoResources { get; set; } = new();
     public int CreatedTick { get; set; }

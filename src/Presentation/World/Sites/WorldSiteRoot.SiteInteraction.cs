@@ -152,9 +152,9 @@ public partial class WorldSiteRoot
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(_draggedBattleForceId))
+        if (!string.IsNullOrWhiteSpace(_draggedBattlePreparationGroupKey))
         {
-            HandleBattlePreparationRosterDragInput(@event);
+            HandleBattlePreparationCompanyDragInput(@event);
             return;
         }
 
@@ -405,6 +405,7 @@ public partial class WorldSiteRoot
     private void ClearSiteDeploymentDragPreview(Node2D entity)
     {
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Hover);
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.Invalid);
         SetSitePlacementSelected(entity, false);
     }
 
@@ -686,7 +687,10 @@ public partial class WorldSiteRoot
         };
         return !float.IsNaN(screenPosition.X) &&
                (IsScreenPointInsideControl(_siteHudTopBar, screenPosition) ||
-                IsScreenPointInsideControl(_sitePeacetimePanel, screenPosition));
+                IsScreenPointInsideControl(_sitePeacetimePanel, screenPosition) ||
+                IsScreenPointInsideControl(_battlePreparationRosterDock, screenPosition) ||
+                IsScreenPointInsideControl(_battlePreparationPlanBar, screenPosition) ||
+                IsScreenPointInsideControl(_battlePreparationObjectiveThumbnailDock, screenPosition));
     }
 
     private static bool IsScreenPointInsideControl(Control control, Vector2 screenPosition)

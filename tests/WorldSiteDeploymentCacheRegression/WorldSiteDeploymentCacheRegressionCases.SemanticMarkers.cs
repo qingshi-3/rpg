@@ -229,21 +229,21 @@ internal static void BattlePreparationUsesDeploymentSideMarkersInsteadOfMarkerNa
         "runtime deployment code must not hardcode author marker ids or node names");
 }
 
-internal static void BattlePreparationObjectiveSelectionUsesMarkerBackedMapDialog()
+internal static void BattlePreparationObjectiveSelectionUsesCompactMarkerBackedThumbnail()
 {
     string root = ProjectRoot();
     string siteSources = ReadWorldSiteRootSource();
     string planningSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleObjectivePlanningHud.cs"));
-    string dialogSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleObjectiveMapDialog.cs"));
     string previewSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleObjectiveMapPreview.cs"));
-    string dialogScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "BattleObjectiveMapDialog.tscn"));
+    string thumbnailSourcePath = Path.Combine(root, "src", "Presentation", "World", "Sites", "BattlePreparationObjectiveThumbnail.cs");
+    string thumbnailScenePath = Path.Combine(root, "scenes", "world", "ui", "BattlePreparationObjectiveThumbnail.tscn");
     string factorySource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs"));
 
     AssertTrue(
-        siteSources.Contains("AddBattlePreparationObjectiveMapButton", StringComparison.Ordinal) &&
-        siteSources.Contains("OpenBattleObjectiveMapDialog", StringComparison.Ordinal) &&
+        siteSources.Contains("BindBattlePreparationObjectiveThumbnail", StringComparison.Ordinal) &&
+        !siteSources.Contains("AddBattlePreparationObjectiveMapButton", StringComparison.Ordinal) &&
         !siteSources.Contains("BuildDefaultBattlePreparationObjectiveZones", StringComparison.Ordinal),
-        "battle preparation should open a tactical objective map instead of generating abstract objective buttons");
+        "battle preparation should bind a compact tactical thumbnail instead of generating abstract objective buttons or a vertical modal button");
     AssertTrue(
         planningSource.Contains("SemanticMapMarkerType.ObjectiveZone", StringComparison.Ordinal) &&
         planningSource.Contains("SemanticMapMarkerType.DeploymentZone", StringComparison.Ordinal) &&
@@ -262,15 +262,28 @@ internal static void BattlePreparationObjectiveSelectionUsesMarkerBackedMapDialo
         previewSource.Contains("LandColor", StringComparison.Ordinal),
         "the objective map preview should draw a simplified land/water thumbnail from TileMapLayer-derived grid data");
     AssertTrue(
-        dialogSource.Contains("CompanySelected", StringComparison.Ordinal) &&
-        dialogSource.Contains("ObjectiveZoneSelected", StringComparison.Ordinal) &&
-        dialogScene.Contains("CompanyList", StringComparison.Ordinal) &&
-        dialogScene.Contains("MapPreview", StringComparison.Ordinal),
-        "the modal should expose a select-company then click-target workflow");
+        File.Exists(thumbnailSourcePath) &&
+        File.Exists(thumbnailScenePath),
+        "the compact objective selector should be an authored thumbnail scene with a script binder");
+    if (!File.Exists(thumbnailSourcePath) || !File.Exists(thumbnailScenePath))
+    {
+        return;
+    }
+
+    string thumbnailSource = File.ReadAllText(thumbnailSourcePath);
+    string thumbnailScene = File.ReadAllText(thumbnailScenePath);
     AssertTrue(
-        factorySource.Contains("BattleObjectiveMapDialogScenePath", StringComparison.Ordinal) &&
-        siteSources.Contains("ModalHost", StringComparison.Ordinal),
-        "the objective selector should be an authored UI scene hosted through ModalHost");
+        thumbnailSource.Contains("BattlePreparationObjectiveThumbnail : Control", StringComparison.Ordinal) &&
+        thumbnailSource.Contains("BattleObjectiveMapPreview", StringComparison.Ordinal) &&
+        thumbnailSource.Contains("ObjectiveZoneSelected", StringComparison.Ordinal) &&
+        thumbnailScene.Contains("node name=\"BattlePreparationObjectiveThumbnail\"", StringComparison.Ordinal) &&
+        thumbnailScene.Contains("node name=\"MapPreview\"", StringComparison.Ordinal),
+        "the compact thumbnail should wrap the marker-backed preview and emit objective selections");
+    AssertTrue(
+        factorySource.Contains("BattlePreparationObjectiveThumbnailScenePath", StringComparison.Ordinal) &&
+        factorySource.Contains("CreateBattlePreparationObjectiveThumbnail", StringComparison.Ordinal) &&
+        siteSources.Contains("MinimapHost", StringComparison.Ordinal),
+        "the objective selector should be loaded through GameUiSceneFactory and hosted in the compact minimap/overlay area");
 }
 
 internal static void ObjectiveZoneMarkerAuthoringIsAvailable()

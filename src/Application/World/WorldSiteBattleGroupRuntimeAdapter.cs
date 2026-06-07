@@ -1,3 +1,4 @@
+using System.Linq;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Adapters;
 using Rpg.Application.Battle.Reports;
@@ -63,7 +64,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
         }
 
         BattleRuntimeSessionController runtimeController = _runtimeSession.Begin(sessionResult.Snapshot);
-        if (runtimeController.IsComplete && !runtimeController.Outcome.IsComplete)
+        if (IsInvalidRuntimeStart(runtimeController))
         {
             result = Reject("battle_group_runtime_start_failed", request, new BattleGroupBattleFlowResult
             {
@@ -170,6 +171,15 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
                     : BattleObjectiveState.Failed
             });
         }
+    }
+
+    private static bool IsInvalidRuntimeStart(BattleRuntimeSessionController runtimeController)
+    {
+        return runtimeController?.Outcome?.IsComplete == false &&
+               runtimeController.Outcome.TerminationReason == BattleTerminationReason.RuntimeException &&
+               runtimeController.EventStream.Events.Any(item =>
+                   item.Kind == Rpg.Runtime.Battle.Events.BattleEventKind.CommandRejected &&
+                   item.ReasonCode == "battle_snapshot_invalid");
     }
 
     private static WorldSiteBattleGroupRuntimeResolveResult Reject(

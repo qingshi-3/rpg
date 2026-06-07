@@ -99,8 +99,21 @@ public partial class WorldSiteRoot
                 definition.AttackSpeed);
             force.AttackImpactDelaySeconds = BattleActionTimingPolicy.ResolveAttackImpactDelaySeconds(
                 force.AttackActionSeconds,
-                definition.Visual?.AnimationSet?.AttackImpactNormalizedTime ?? BattleActionTimingPolicy.DefaultAttackImpactNormalizedTime);
+                ResolveAttackImpactNormalizedTime(definition));
         }
+    }
+
+    private static double ResolveAttackImpactNormalizedTime(BattleUnitDefinition definition)
+    {
+        if (definition == null)
+        {
+            return BattleActionTimingPolicy.DefaultAttackImpactNormalizedTime;
+        }
+
+        return definition.AttackImpactNormalizedTimeOverride >= 0
+            ? System.Math.Clamp(definition.AttackImpactNormalizedTimeOverride, 0, 1)
+            : definition.Visual?.AnimationSet?.AttackImpactNormalizedTime ??
+              BattleActionTimingPolicy.DefaultAttackImpactNormalizedTime;
     }
 
     private static bool CanUseDeploymentCell(WorldSiteDeploymentCell candidate, bool canEnterWater)

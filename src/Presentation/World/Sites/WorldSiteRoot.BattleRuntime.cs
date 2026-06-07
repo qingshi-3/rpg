@@ -101,9 +101,9 @@ public partial class WorldSiteRoot
 
     private void BindBattleRuntimeHud()
     {
-        // Battle commands live in the post-start HUD so deployment keeps Start
-        // Battle as the primary action and the bottom bar can reserve viewport space.
-        SetBattlePreparationContentVisible(false);
+        // Battle runtime owns a fullscreen battlefield. Persistent commands stay in
+        // the authored bottom HUD frame and must not re-open the management panel.
+        SetBattlePreparationHudVisible(false);
         _selectedFacilitySlotId = "";
         if (_siteHudRoot != null)
         {
@@ -156,6 +156,7 @@ public partial class WorldSiteRoot
             return false;
         }
 
+        _activeBattleGroupRuntimeResolution = resolution;
         _ = PlayBattleGroupRuntimeAndApplyResultAsync(resolution);
         return true;
     }
@@ -179,11 +180,13 @@ public partial class WorldSiteRoot
                 ? "battle_group_runtime_completion_failed"
                 : resolution.FailureReason;
             GameLog.Warn(nameof(WorldSiteRoot), $"Battle group runtime completion blocked reason={_battleStartBlockedReason}");
+            _activeBattleGroupRuntimeResolution = null;
             ClearBattleEntities();
             SetBattleRuntimeEnabled(false);
             return;
         }
 
+        _activeBattleGroupRuntimeResolution = null;
         applyResult = ApplyBattleResultToWorld(resolution.Request, resolution.BattleResult);
         string battleNotice = BuildBattleGroupRuntimeReturnNotice(applyResult, resolution.Report);
         if (!string.IsNullOrWhiteSpace(battleNotice))

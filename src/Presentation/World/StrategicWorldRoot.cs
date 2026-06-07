@@ -183,6 +183,7 @@ public partial class StrategicWorldRoot : Control
 	{
 		Current = this;
 		GameLog.StartSession(nameof(StrategicWorldRoot));
+		GameUiSkin.ApplyGameCursorTheme();
 		MouseFilter = MouseFilterEnum.Stop;
 		SetFullRect(this);
 
