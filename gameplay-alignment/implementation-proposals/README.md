@@ -8,11 +8,11 @@ Use this directory only after the relevant accepted authority is current. If imp
 
 ## Active / Pending Index
 
-No proposal files remain in this directory because implementation or acceptance is still open:
-
 | Proposal | Status | Reason Kept Active |
 |---|---|---|
 | None |  |  |
+
+2026-06-07 cleanup result: proposals aligned with the current implementation were moved to `archived/`; the obsolete early one-hero active-skill proposal was deleted because the current skill implementation is definition-backed, target-locked, and effect-executor based.
 
 ## Archived Implementation Proposals
 

@@ -49,16 +49,13 @@ The default battle-preparation loop is:
 
 ```text
 select a hero company
--> deploy that hero company with its selected formation
+-> deploy the hero
+-> deploy that hero's corps units
 -> choose a configured objective area for that company
 -> choose the company's engagement rule
 -> repeat for every participating hero company
 -> start battle
 ```
-
-Hero-company formation is a planning preference, not individual soldier micromanagement. Strategic management may let the player set a long-term default formation for each hero company, such as standard, assault, guard, loose, or column. Battle preparation initializes the current battle's selected formation from that default. The player may switch the selected formation before or after placement, but the selected formation belongs to the current battle plan unless the player explicitly saves it as the company's default in a future management flow.
-
-Drag deployment uses the selected formation. Formation adaptation may help the company fit narrow or irregular deployment zones, but it must preserve the player's tactical intent and every member footprint. The system may compress spacing or fall back to a column-like arrangement; it must not overlap members, place only part of a footprint in the zone, or silently scatter the company into unrelated positions.
 
 The objective area is a player-facing tactical region authored on the battle map, such as a gate approach, high ground, flank route, bridgehead, reserve point, or enemy core. It is not an arbitrary hidden coordinate chosen by AI. The UI should present objective areas in a polished zoomed-out tactical view while preserving the horizontal battle identity of the map.
 

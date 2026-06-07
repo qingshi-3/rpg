@@ -56,8 +56,6 @@ Events with settlement or explanation value should express, when applicable:
 ```text
 actor
 source command
-source action
-source definition
 target
 effect type
 resource delta
@@ -67,10 +65,6 @@ failure reason candidate
 `resource delta` is optional for non-resource events. Do not fill fake values just to satisfy a shape.
 
 If the source is environment, city facility, equipment, passive effect, AI fallback, or system interruption, the event must state that source explicitly.
-
-Skill, basic-attack, equipment, relic, terrain, and support effects should enter reports through the same Runtime effect-result events. Reports may group these facts into player-readable summaries, but they must not recompute whether a skill hit, whether damage happened, or whether an effect failed.
-
-Skill failure events should preserve the reason needed for report attribution, such as target dead before release, caster defeated, cost unavailable, cooldown unavailable, interrupted cast, or blocked by action-lock rules. A targeted skill whose locked target moved out of range after command acceptance is not a range-failure event by itself.
 
 ## Settlement Flow
 

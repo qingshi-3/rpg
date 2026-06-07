@@ -234,7 +234,6 @@ The target battle-preparation UI is a map-first company planning workflow:
 
 ```text
 compact hero-company roster / drag source
--> optionally switch the current battle formation
 -> drag hero portrait into battlefield
 -> show full hero-led company formation preview
 -> validate placement through full formation footprint
@@ -246,15 +245,13 @@ compact hero-company roster / drag source
 
 The battle-preparation roster is a narrow switcher and drag source, not a text-heavy panel. It displays company portrait, company name, and a compact status marker such as complete, partial, or missing. It must not become the place where objective text, engagement-rule explanations, enemy summaries, or long action instructions accumulate.
 
-Formation selection belongs to the current-company plan controls, not the roster row and not a large formation editor. The selected formation is the formation used by drag preview. If the player has not changed it in battle preparation, it is initialized from the hero company's strategic default formation. The player may change it before placement or after placement; after-placement changes must request a transactional recompute and keep the previous valid placement when the new formation does not fit.
-
 Roster rows and battle-preparation HUD docks are authored Godot scene resources. `WorldSitePeacetimeHud.tscn` owns the dock layout through normal `Control` anchors and containers; reusable rows such as `BattlePreparationRosterRow.tscn` own their child structure. C# may bind data, connect signals, toggle visibility, and animate relative retreat offsets, but it must not rebuild this layout through ad hoc `new` Control trees or runtime anchor helpers.
 
 Reusable row controls must tolerate binding before `_Ready()`. The row script stores the pending view-model fields, resolves child nodes in `_Ready()`, and reapplies the pending binding so freshly instantiated rows do not appear empty. Child controls inside a row, such as avatar, name, and status labels, should ignore mouse input so the authored row root receives the click/drag event.
 
 Roster row input must keep click selection and drag deployment separate. Mouse press only records the possible interaction. Selection fires on release if the drag threshold was not crossed. Drag starts from mouse motion after the threshold and must not trigger a selection refresh first, because roster refresh can destroy the drag source before the deployment preview starts.
 
-Dragging a company portrait or already placed company formation creates a viewport overlay preview for the whole hero-led company formation. The preview must render the hero and corps arrangement, not only a single icon. Valid placement renders normally. Invalid placement renders the whole preview in an error treatment and may show a short local reason such as outside deployment zone, blocked terrain, or overlap. Formation adaptation may adjust spacing or fallback shape, but the preview must never show overlapping members as legal. Drop validation is still Application/runtime-ready data validation; Presentation only visualizes the current result.
+Dragging a company portrait or already placed company formation creates a viewport overlay preview for the whole hero-led company formation. The preview must render the hero and corps arrangement, not only a single icon. Valid placement renders normally. Invalid placement renders the whole preview in an error treatment and may show a short local reason such as outside deployment zone, blocked terrain, or overlap. Drop validation is still Application/runtime-ready data validation; Presentation only visualizes the current result.
 
 While dragging, persistent HUD and management controls should move out of the battlefield view. The top status bar, compact roster, current-company plan controls, start-battle button, and nonessential hints may slide offscreen and return after pointer release. Deployment-zone highlights, formation preview, and legality feedback stay visible because they are the active drag context.
 

@@ -18,8 +18,6 @@ Battle entry does not own combat simulation, tactical AI, report truth, manual p
 
 Persistent facts used by battle entry come from `StrategicWorldState`, `WorldSiteState`, `WorldArmyState`, and definitions. Battle entry may mutate site mode to `Wartime` before launch and `Aftermath` after settlement, with rollback restoring the previous mode on failed handoff.
 
-Hero-company default formation is a long-term strategic preference owned by the strategic/company management state. Battle entry may read it when constructing or initializing battle-preparation plans, but the pre-battle request must not treat the strategic default as the mutable current-battle plan after preparation starts.
-
 ## Runtime State
 
 Runtime state includes pending battle request, pending rollback token, pre-battle dialog state, `BattleSessionHandoff`, site deployment cache, battle-preparation placement state, battle-group plan draft state, and active battle runtime adapter state.
@@ -40,11 +38,10 @@ Field intercept entry is explicit: two moving opposing armies collide within the
 
 Site entrances are authored battle-entry anchors. They are not stealth or infiltration entrances, and they are not gated by intelligence reveal state.
 
-Deployment preparation consumes side-aware semantic deployment zones, creates or updates site-local placement rows for non-resident forces, applies preferred placements to force requests, records each participating battle group's selected formation, selected objective area, and engagement rule, and exports the current navigation snapshot before runtime starts.
+Deployment preparation consumes side-aware semantic deployment zones, creates or updates site-local placement rows for non-resident forces, applies preferred placements to force requests, records each participating battle group's selected objective area and engagement rule, and exports the current navigation snapshot before runtime starts.
 
-Hero-company drag deployment is a Presentation input surface over Application-owned plan drafting. Application must validate the proposed full company formation placement, including hero anchor, selected formation, corps formation footprint, deployment-zone side, terrain legality, member-to-member overlap, and collision with other committed placements. Presentation may preview legality continuously, but committed placement and launch readiness come only from accepted draft state.
+Hero-company drag deployment is a Presentation input surface over Application-owned plan drafting. Application must validate the proposed full company formation placement, including hero anchor, corps formation footprint, deployment-zone side, terrain legality, and collision with other committed placements. Presentation may preview legality continuously, but committed placement and launch readiness come only from accepted draft state.
 
-Battle-preparation selected formation is current-battle plan state. It initializes from the hero company's strategic default formation, can be changed during preparation, and is carried into Runtime only as battle-only intent. Changing selected formation after placement attempts a transactional recompute around the current deployment anchor. If the new formation does not fit, the previous valid placements remain intact.
 
 World battle entry also seeds enemy tactical mode and initial region facts when enough strategic context exists. Enemy offense should target player defensive deployment regions. Enemy active defense should target player offensive deployment regions. Enemy hold defense should start in its held region and rely on Runtime engagement triggers before switching to active assault. These initial facts are battle-only intent and do not become campaign persistence.
 

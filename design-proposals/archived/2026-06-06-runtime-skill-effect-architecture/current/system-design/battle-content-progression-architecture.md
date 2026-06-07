@@ -35,8 +35,6 @@ Definitions / Content owns:
 - `Cost`: mana, limited use, battle resource, condition, or other cost rules.
 - `Cooldown`: cooldown timing and reset boundary.
 - `Targeting`: target kind, range, valid target rules, area rules.
-- `Action`: cast time, impact timing, recovery timing, animation/event tags, and default action-lock behavior.
-- `Interrupt Policy`: default action-lock behavior plus explicit traits for exceptions such as canceling basic attack recovery, interrupting another skill, releasing instantly, or releasing without occupying the caster.
 - `Effect`: damage, healing, control, movement, summon, shield, morale, resource, or other effect primitives.
 - `Tag`: profession, combat class, form, element, faction, equipment, city, origin, or fantasy hook.
 - `Modifier`: stat, behavior, cooldown, cost, target, settlement, or report-explanation modifier.
@@ -48,29 +46,8 @@ Layer rules:
 - Runtime handles cooldown, cost payment, hit/application, effect state, and emitted events.
 - UI displays definitions and availability, but it does not calculate final battle truth.
 - Infrastructure loads resources and reports missing or invalid references.
-- Skill definitions, UI availability, Runtime command validation, AI release decisions, event emission, and reports consume the same content snapshot. No layer may hardcode a second skill definition as an alternate authority.
-- Effects are source-agnostic primitives. Skills, basic attacks, equipment, relics, terrain, city support, and later passive effects should all enter Runtime through effect payloads instead of bespoke damage or healing paths.
 
 Adding a specific skill, equipment effect, or corps trait should usually require only Resource authoring. A system change is needed only when a new effect primitive, target type, or cross-system rule is introduced.
-
-## Skill Action And Effect Definition Boundary
-
-A skill definition describes what may be released. It does not decide whether the actor is currently allowed to release it.
-
-Skill definitions provide:
-
-- identity, display, tags, and report labels;
-- command channel and caster eligibility;
-- targeted or non-targeted targeting mode;
-- range and target-lock requirements;
-- cost, cooldown, charge, limited-use, or battle-resource rules;
-- action timing such as cast, impact, and recovery;
-- default interrupt policy and explicit interrupt traits;
-- one or more effect payload references.
-
-Runtime actor behavior and validation decide when an accepted skill order can start. Runtime action execution owns cast, impact, recovery, interruption, and failure timing. Runtime effect execution owns applying the resulting effect payloads.
-
-Basic attacks should be represented as the same shape over time: an action with attack windup, one impact point, recovery, and a basic-attack effect payload. Basic attacks may keep a narrower implementation during migration, but they must not become a second long-term effect authority.
 
 ## Ability Spatial Contracts
 

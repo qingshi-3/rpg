@@ -114,6 +114,10 @@ Do not revive old manual tactical chess, pure post-deployment autobattler playba
 - Runtime code should load resources, bind nodes, and refresh state.
 - Dynamic repeated UI should instantiate reusable row/button/item scenes instead of constructing full control trees in gameplay code.
 
+## Godot Documentation Reference
+
+For Godot engine API, editor behavior, scene/resource semantics, and C# integration questions, prefer the local official Godot 4.5 documentation clone at `.codex/external/godot-docs-4.5/` before web search.
+
 ## Content Authoring
 
 Story, campaign, dialogue, reward, relationship, encounter, unit, and city content should be data-driven through definitions/configuration. Avoid hardcoded one-off plot, unit, or location logic unless a proposal explicitly accepts that cost.
@@ -121,6 +125,7 @@ Story, campaign, dialogue, reward, relationship, encounter, unit, and city conte
 ## Runtime Diagnostics
 
 Runtime logic changes should add low-noise logs for important state transitions, failures, and user-facing actions. Avoid per-frame or high-frequency logging.
+Godot runtime logs for this project are under `C:\Users\qs\AppData\Roaming\Godot\app_userdata\rpg\logs\`. When debugging runtime or presentation behavior, check the newest `rpg-YYYYMMDD.log` first, then `godot.log` if engine-level output is needed.
 
 ## Game Text Language
 

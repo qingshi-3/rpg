@@ -148,7 +148,7 @@ Default active-skill interruption rules are:
 - An active skill cannot interrupt another active skill by default.
 - Canceling basic attack recovery, interrupting a skill, instant release, and fire-and-forget or offhand release require explicit interrupt traits.
 
-Targeted skills check range and lock target identity when Runtime accepts the command. Default skill range uses footprint-aware Manhattan distance between caster and target footprints, producing a diamond-shaped range on the square grid. Execution prechecks must still confirm that the caster and locked target are alive, valid, and targetable. A locked target moving out of range after acceptance does not invalidate the skill; a dead or invalid target makes the skill fail without release.
+Targeted skills check range and lock target identity when Runtime accepts the command. Execution prechecks must still confirm that the caster and locked target are alive, valid, and targetable. A locked target moving out of range after acceptance does not invalidate the skill; a dead or invalid target makes the skill fail without release.
 
 ## Actor State Machine
 

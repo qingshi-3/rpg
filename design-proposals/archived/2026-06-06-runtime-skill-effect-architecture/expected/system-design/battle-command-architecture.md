@@ -94,7 +94,7 @@ Skill commands use two default targeting forms:
 - Targeted skill command: requires a selected runtime actor target before Runtime accepts the command.
 - Non-targeted skill command: requires only the definition-owned payload, such as self, cell, direction, or no explicit target.
 
-Runtime acceptance of a targeted skill command checks that the target exists, is targetable for that skill, and is in range at acceptance time. Default active-skill range is footprint-aware Manhattan distance between caster and target footprints, so the player sees and submits a diamond-shaped range on the square grid. Acceptance locks the target identity for later execution. If the locked target moves out of range before the actor can release the skill, the order still resolves against that target. If the target dies or becomes invalid before release, the order fails instead of retargeting or firing at empty space.
+Runtime acceptance of a targeted skill command checks that the target exists, is targetable for that skill, and is in range at acceptance time. Acceptance locks the target identity for later execution. If the locked target moves out of range before the actor can release the skill, the order still resolves against that target. If the target dies or becomes invalid before release, the order fails instead of retargeting or firing at empty space.
 
 By default, accepted active-skill orders may interrupt a basic attack before that attack reaches its damage impact. They do not cancel basic attack recovery after impact, and they do not interrupt another active skill. Recovery canceling, skill-to-skill interruption, instant release, and offhand or fire-and-forget release require explicit interrupt traits from accepted definitions or modifiers.
 

@@ -85,21 +85,6 @@ Commands must preserve state-machine action locks. A command or plan change may 
 
 The battle-group commander state is the runtime owner of active command scope, plan state, local-combat assignment, and regroup or retreat intent. Actor action state machines consume derived execution intents and report success, failure, or interruption back through runtime events.
 
-## Skill Command Contracts
-
-Hero and later corps active-skill commands carry intent, not immediate effects. A skill command must name the skill definition id, command channel, source battle group or actor, and targeting payload required by the definition.
-
-Skill commands use two default targeting forms:
-
-- Targeted skill command: requires a selected runtime actor target before Runtime accepts the command.
-- Non-targeted skill command: requires only the definition-owned payload, such as self, cell, direction, or no explicit target.
-
-Runtime acceptance of a targeted skill command checks that the target exists, is targetable for that skill, and is in range at acceptance time. Default active-skill range is footprint-aware Manhattan distance between caster and target footprints, so the player sees and submits a diamond-shaped range on the square grid. Acceptance locks the target identity for later execution. If the locked target moves out of range before the actor can release the skill, the order still resolves against that target. If the target dies or becomes invalid before release, the order fails instead of retargeting or firing at empty space.
-
-By default, accepted active-skill orders may interrupt a basic attack before that attack reaches its damage impact. They do not cancel basic attack recovery after impact, and they do not interrupt another active skill. Recovery canceling, skill-to-skill interruption, instant release, and offhand or fire-and-forget release require explicit interrupt traits from accepted definitions or modifiers.
-
-Commands issued during tactical pause may be accepted, rejected, superseded, or queued as command facts, but they do not advance cast time, damage, cooldown, or other live battle state until Runtime resumes.
-
 ## Event Rules
 
 - UI-local invalid input does not enter `BattleEventStream`; it only produces UI feedback.

@@ -122,34 +122,6 @@ Runtime execution is driven by a fixed simulation cadence plus actor state-machi
 - Basic attacks emit at most one damage application per attack action, at the Runtime-defined impact or completion point. Attack speed and recovery determine when the actor can enter a later `AnchoredDecision`; they do not authorize repeated damage on consecutive ticks while the same attack animation is still being presented.
 - Presentation may acknowledge that a movement or attack animation has finished playing, but that acknowledgement only advances a Runtime-owned action boundary. Presentation does not create damage, movement, target choice, or pathfinding truth.
 
-## Action And Effect Execution
-
-Runtime distinguishes action execution from effect execution.
-
-Action execution owns actor time and locks:
-
-- movement progress;
-- basic attack windup, impact, and recovery;
-- skill cast, impact, and recovery;
-- interruption, failure, and return to decision boundaries.
-
-Effect execution owns battle-state mutation caused by an action or other source:
-
-- damage, healing, shield, status, control, movement, morale, summon, resource, or future effect primitives;
-- target validity at application time;
-- emitted effect-result events for Presentation, Report, Settlement, and diagnostics.
-
-Skills, basic attacks, equipment, relics, terrain, city support, and passive triggers should all resolve through the same effect execution layer once their source has produced an effect payload. The effect executor must not decide tactical intent, target acquisition, pathing, or command ownership.
-
-Default active-skill interruption rules are:
-
-- A targeted or non-targeted active skill may interrupt a basic attack before the basic attack's damage impact.
-- After a basic attack has applied damage, its recovery cannot be canceled by default.
-- An active skill cannot interrupt another active skill by default.
-- Canceling basic attack recovery, interrupting a skill, instant release, and fire-and-forget or offhand release require explicit interrupt traits.
-
-Targeted skills check range and lock target identity when Runtime accepts the command. Default skill range uses footprint-aware Manhattan distance between caster and target footprints, producing a diamond-shaped range on the square grid. Execution prechecks must still confirm that the caster and locked target are alive, valid, and targetable. A locked target moving out of range after acceptance does not invalidate the skill; a dead or invalid target makes the skill fail without release.
-
 ## Actor State Machine
 
 Every living runtime actor has an explicit phase. Movement cannot be represented only by a transient field set and cleared inside one action method.

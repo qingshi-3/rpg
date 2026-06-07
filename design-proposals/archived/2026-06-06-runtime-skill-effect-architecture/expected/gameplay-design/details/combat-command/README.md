@@ -47,19 +47,14 @@ The mature battle-preparation flow should create one plan per selected hero comp
 
 The player operation is:
 
-1. Drag a hero company portrait from the compact battle-preparation roster.
-2. While dragging, see the full hero-led company formation preview on the battlefield, including the hero and corps formation footprint.
-3. Move the preview over the friendly deployment area; valid placements render normally, while invalid placements render the whole preview red.
-4. Drop the company on a legal placement to commit its initial formation.
-5. Open or focus the tactical battlefield thumbnail for the current company.
-6. Choose one configured objective area for that company from marker-backed target regions on the thumbnail.
-7. Choose the company's engagement rule from compact current-company controls.
-8. Repeat the flow for every participating company.
-9. Confirm all complete plans and start battle.
-
-The preparation roster is a compact index and drag source, not a long information panel. It should show only company identity and plan status, such as complete, partial, or missing. Detailed plan facts belong to the selected company feedback, map overlays, tactical thumbnail, or launch validation feedback.
-
-During drag placement, persistent UI should move away from the battlefield so the player can read the map. The roster, top status, current-company plan controls, and start-battle button may slide offscreen while dragging, then return after release. Deployment legality feedback must remain visible through the formation preview and deployment-area highlight.
+1. Select a hero company from the battle-preparation roster.
+2. Place the hero inside a valid friendly deployment zone.
+3. Place that hero's corps units into formation slots or valid cells tied to the same company.
+4. After the whole company is placed, zoom out to a tactical map presentation of the horizontal battlefield.
+5. Choose one configured objective area for that company.
+6. Choose the company's engagement rule.
+7. Repeat the flow for every participating company.
+8. Confirm all plans and start battle.
 
 Objective areas are authored tactical regions, not invisible AI destinations. Examples include `正面入口`, `左翼高地`, `右翼通道`, `敌方核心`, and `预备集结点`. The UI should show their geography and likely route relationship to the deployed company before the player confirms.
 
@@ -185,7 +180,7 @@ Active skills are player-cast tactical commands, not hidden passive stat changes
 - Targeted skill: the player selects a valid battle actor as the skill target.
 - Non-targeted skill: the skill resolves from the caster, a cell, a direction, or another definition-owned target mode without a selected unit target.
 
-Targeted skill range is checked when the command is accepted and the target is locked. Default active-skill range uses a footprint-aware Manhattan diamond on the square grid, separate from basic-attack slot rules. If that target later moves out of range before the skill action starts, the skill still resolves against the locked target. If the target dies or becomes invalid before execution, the skill fails and does not release.
+Targeted skill range is checked when the command is accepted and the target is locked. If that target later moves out of range before the skill action starts, the skill still resolves against the locked target. If the target dies or becomes invalid before execution, the skill fails and does not release.
 
 Active skills can interrupt a basic attack before the attack's damage impact. After basic attack damage has already resolved, the remaining attack recovery cannot be canceled by default. Canceling recovery is a special mechanic that must come from an explicit hero, skill, equipment, relic, or other accepted trait.
 

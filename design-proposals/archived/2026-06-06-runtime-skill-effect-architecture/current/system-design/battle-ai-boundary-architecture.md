@@ -125,27 +125,6 @@ Behavior trees output typed intent such as attack, advance to target, advance to
 
 Behavior-tree and C# executor decisions must emit low-noise reason codes for diagnostics, such as `join_recent_damage`, `join_blocks_objective_route`, `hold_support_attack_slots_full`, `return_objective_threat_clear`, `reject_outside_leash`, `reject_join_budget_full`, or `reject_no_reachable_slot`.
 
-## Skill Release Decision Boundary
-
-Skill release decisions belong to the actor behavior layer inside player command scope. UI may show availability hints and submit command intent, but it does not decide final release timing or apply effects.
-
-Behavior trees or C# actor-decision logic may request `cast` when:
-
-- an accepted skill order exists or autonomous skill policy explicitly allows the skill;
-- the actor is at a valid release or interrupt boundary;
-- the skill's default or explicit interrupt traits allow canceling the current action phase;
-- cost, cooldown, limited use, caster state, and target state pass the execution precheck;
-- the requested release still respects the active command channel and battle-group scope.
-
-The default precheck treats active skills conservatively:
-
-- a skill may interrupt basic attack windup before damage impact;
-- a skill waits through basic attack recovery after damage impact unless an explicit trait cancels recovery;
-- a skill cannot interrupt another active skill unless an explicit trait allows it;
-- a targeted skill fails if the locked target is dead, invalid, or untargetable at release time;
-- a targeted skill does not fail merely because the locked target moved out of range after command acceptance.
-
-Behavior-tree outputs remain typed intent. Runtime validates and starts the action, and the effect execution layer applies any resulting effect payloads.
 
 ## Tactical Area Ownership
 
