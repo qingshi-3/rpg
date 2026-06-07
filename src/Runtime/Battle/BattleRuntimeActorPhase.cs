@@ -8,5 +8,7 @@ public enum BattleRuntimeActorPhase
     AttackRecovery = 3,
     WaitingForCharge = 4,
     Holding = 5,
-    Defeated = 6
+    Defeated = 6,
+    SkillCasting = 7,
+    SkillRecovery = 8
 }

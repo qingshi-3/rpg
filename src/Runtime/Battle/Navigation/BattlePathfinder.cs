@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Rpg.Application.Battle.Snapshots;
 
 namespace Rpg.Runtime.Battle.Navigation;
@@ -18,7 +17,9 @@ internal static class BattlePathfinder
         bool preferSupportWhenFirstStepMovesAway,
         out BattleGridCoord nextStep,
         BattleTacticalRegionSnapshot localCombatRegion = null,
-        BattleGridCoord? excludedFirstStep = null)
+        BattleGridCoord? excludedFirstStep = null,
+        BattleGridCoord? secondaryExcludedFirstStep = null,
+        BattleGridCoord? tertiaryExcludedFirstStep = null)
     {
         nextStep = default;
         if (actor == null || target == null || graph == null || occupancy == null || reservations == null)
@@ -100,15 +101,15 @@ internal static class BattlePathfinder
             foreach (BattleGridCoord neighbor in graph.GetNeighbors(current))
             {
                 if (closed.Contains(neighbor) ||
-                    current == start && excludedFirstStep.HasValue && neighbor == excludedFirstStep.Value ||
-                    !IsAnchorInsideLocalCombatRegion(neighbor, localCombatRegion) ||
+                    current == start && IsExcludedFirstStep(neighbor, excludedFirstStep, secondaryExcludedFirstStep, tertiaryExcludedFirstStep) ||
                     !CanUseCurrentDynamicStep(actor, start, current, neighbor, graph, occupancy, reservations))
                 {
                     continue;
                 }
 
                 int newCost = costSoFar[current] +
-                              BattlePathCostPolicy.GetTraversalCost(actor, start, current, neighbor, graph, occupancy);
+                              BattlePathCostPolicy.GetTraversalCost(actor, start, current, neighbor, graph, occupancy) +
+                              BattleLocalRegionPreference.GetStepPenalty(neighbor, localCombatRegion);
                 if (costSoFar.TryGetValue(neighbor, out int knownCost) && newCost >= knownCost)
                 {
                     continue;
@@ -140,7 +141,9 @@ internal static class BattlePathfinder
         BattleMovementReservationMap reservations,
         out BattleGridCoord nextStep,
         BattleTacticalRegionSnapshot localCombatRegion = null,
-        BattleGridCoord? excludedFirstStep = null)
+        BattleGridCoord? excludedFirstStep = null,
+        BattleGridCoord? secondaryExcludedFirstStep = null,
+        BattleGridCoord? tertiaryExcludedFirstStep = null)
     {
         nextStep = default;
         if (actor == null || graph == null || occupancy == null || reservations == null)
@@ -151,7 +154,6 @@ internal static class BattlePathfinder
         BattleGridCoord start = new(actor.GridX, actor.GridY, actor.GridHeight);
         if (!graph.Contains(start) ||
             start == goal ||
-            !IsAnchorInsideLocalCombatRegion(goal, localCombatRegion) ||
             !graph.CanPlaceFootprint(actor, goal) ||
             !occupancy.CanPlaceFootprint(actor, goal))
         {
@@ -186,15 +188,15 @@ internal static class BattlePathfinder
             foreach (BattleGridCoord neighbor in graph.GetNeighbors(current))
             {
                 if (closed.Contains(neighbor) ||
-                    current == start && excludedFirstStep.HasValue && neighbor == excludedFirstStep.Value ||
-                    !IsAnchorInsideLocalCombatRegion(neighbor, localCombatRegion) ||
+                    current == start && IsExcludedFirstStep(neighbor, excludedFirstStep, secondaryExcludedFirstStep, tertiaryExcludedFirstStep) ||
                     !CanUseCurrentDynamicStep(actor, start, current, neighbor, graph, occupancy, reservations))
                 {
                     continue;
                 }
 
                 int newCost = costSoFar[current] +
-                              BattlePathCostPolicy.GetTraversalCost(actor, start, current, neighbor, graph, occupancy);
+                              BattlePathCostPolicy.GetTraversalCost(actor, start, current, neighbor, graph, occupancy) +
+                              BattleLocalRegionPreference.GetStepPenalty(neighbor, localCombatRegion);
                 if (costSoFar.TryGetValue(neighbor, out int knownCost) && newCost >= knownCost)
                 {
                     continue;
@@ -218,7 +220,9 @@ internal static class BattlePathfinder
         out BattleGridCoord nextStep,
         out BattleCombatSlot selectedGoal,
         BattleTacticalRegionSnapshot localCombatRegion = null,
-        BattleGridCoord? excludedFirstStep = null)
+        BattleGridCoord? excludedFirstStep = null,
+        BattleGridCoord? secondaryExcludedFirstStep = null,
+        BattleGridCoord? tertiaryExcludedFirstStep = null)
     {
         nextStep = default;
         selectedGoal = default;
@@ -233,25 +237,32 @@ internal static class BattlePathfinder
             return false;
         }
 
-        BattleCombatSlot[] validGoals = (goals ?? System.Array.Empty<BattleCombatSlot>())
-            .Where(goal =>
-                goal.Anchor != start &&
-                IsAnchorInsideLocalCombatRegion(goal.Anchor, localCombatRegion) &&
-                graph.CanPlaceFootprint(actor, goal.Anchor) &&
-                occupancy.CanPlaceFootprint(actor, goal.Anchor))
-            .OrderBy(goal => goal.Priority)
-            .ThenBy(goal => goal.Anchor.Height)
-            .ThenBy(goal => goal.Anchor.Y)
-            .ThenBy(goal => goal.Anchor.X)
-            .ToArray();
+        List<BattleCombatSlot> validGoalList = new();
+        foreach (BattleCombatSlot goal in goals ?? System.Array.Empty<BattleCombatSlot>())
+        {
+            if (goal.Anchor == start ||
+                !graph.CanPlaceFootprint(actor, goal.Anchor) ||
+                !occupancy.CanPlaceFootprint(actor, goal.Anchor))
+            {
+                continue;
+            }
+
+            int priority = goal.Priority + BattleLocalRegionPreference.GetSlotPriorityPenalty(goal.Anchor, localCombatRegion);
+            validGoalList.Add(goal with { Priority = priority });
+        }
+
+        validGoalList.Sort(BattleCombatSlotPriorityComparer.Instance);
+        BattleCombatSlot[] validGoals = validGoalList.ToArray();
         if (validGoals.Length == 0)
         {
             return false;
         }
 
-        Dictionary<BattleGridCoord, BattleCombatSlot> goalByAnchor = validGoals
-            .GroupBy(goal => goal.Anchor)
-            .ToDictionary(group => group.Key, group => group.First());
+        Dictionary<BattleGridCoord, BattleCombatSlot> goalByAnchor = new();
+        foreach (BattleCombatSlot goal in validGoals)
+        {
+            goalByAnchor.TryAdd(goal.Anchor, goal);
+        }
         var frontier = new PriorityQueue<BattleGridCoord, long>();
         var cameFrom = new Dictionary<BattleGridCoord, BattleGridCoord>();
         var costSoFar = new Dictionary<BattleGridCoord, int>
@@ -281,15 +292,15 @@ internal static class BattlePathfinder
             foreach (BattleGridCoord neighbor in graph.GetNeighbors(current))
             {
                 if (closed.Contains(neighbor) ||
-                    current == start && excludedFirstStep.HasValue && neighbor == excludedFirstStep.Value ||
-                    !IsAnchorInsideLocalCombatRegion(neighbor, localCombatRegion) ||
+                    current == start && IsExcludedFirstStep(neighbor, excludedFirstStep, secondaryExcludedFirstStep, tertiaryExcludedFirstStep) ||
                     !CanUseCurrentDynamicStep(actor, start, current, neighbor, graph, occupancy, reservations))
                 {
                     continue;
                 }
 
                 int newCost = costSoFar[current] +
-                              BattlePathCostPolicy.GetTraversalCost(actor, start, current, neighbor, graph, occupancy);
+                              BattlePathCostPolicy.GetTraversalCost(actor, start, current, neighbor, graph, occupancy) +
+                              BattleLocalRegionPreference.GetStepPenalty(neighbor, localCombatRegion);
                 if (costSoFar.TryGetValue(neighbor, out int knownCost) && newCost >= knownCost)
                 {
                     continue;
@@ -302,6 +313,17 @@ internal static class BattlePathfinder
         }
 
         return false;
+    }
+
+    private static bool IsExcludedFirstStep(
+        BattleGridCoord candidate,
+        BattleGridCoord? primary,
+        BattleGridCoord? secondary,
+        BattleGridCoord? tertiary)
+    {
+        return primary.HasValue && candidate == primary.Value ||
+               secondary.HasValue && candidate == secondary.Value ||
+               tertiary.HasValue && candidate == tertiary.Value;
     }
 
     private static bool ShouldPreferSupportStep(
@@ -379,26 +401,6 @@ internal static class BattlePathfinder
         return current == start
             ? reservations.CanReserveMove(actor, start, neighbor, occupancy)
             : occupancy.CanPlaceFootprint(actor, neighbor);
-    }
-
-    private static bool IsAnchorInsideLocalCombatRegion(
-        BattleGridCoord anchor,
-        BattleTacticalRegionSnapshot localCombatRegion)
-    {
-        if (localCombatRegion == null)
-        {
-            return true;
-        }
-
-        int width = System.Math.Max(1, localCombatRegion.Width);
-        int height = System.Math.Max(1, localCombatRegion.Height);
-        int minX = localCombatRegion.CenterCellX - (width - 1) / 2;
-        int minY = localCombatRegion.CenterCellY - (height - 1) / 2;
-        return anchor.Height == localCombatRegion.CenterCellHeight &&
-               anchor.X >= minX &&
-               anchor.X < minX + width &&
-               anchor.Y >= minY &&
-               anchor.Y < minY + height;
     }
 
     private static long BuildPriority(int cost, int heuristic, long sequence)

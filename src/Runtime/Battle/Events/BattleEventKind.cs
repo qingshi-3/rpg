@@ -17,5 +17,9 @@ public enum BattleEventKind
     BattleGroupTacticalRegionRejected = 12,
     BattleGroupEngagementStateChanged = 13,
     BattleGroupTemporaryRegionSelected = 14,
-    BattleGroupLocalCombatRegionChanged = 15
+    BattleGroupLocalCombatRegionChanged = 15,
+    SkillUsed = 16,
+    CommandFailed = 17,
+    CommandInterrupted = 18,
+    EffectApplied = 19
 }

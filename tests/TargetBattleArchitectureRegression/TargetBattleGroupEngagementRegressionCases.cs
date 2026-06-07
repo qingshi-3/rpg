@@ -13,6 +13,7 @@ internal static class TargetBattleGroupEngagementRegressionCases
         run("hold defense activates whole group on damage", HoldDefenseActivatesWholeGroupOnDamage);
         run("hold defense activates whole group on attack", HoldDefenseActivatesWholeGroupOnAttack);
         run("enemy group stays engaged while any member perceives player", EnemyGroupStaysEngagedWhileAnyMemberPerceivesPlayer);
+        run("enemy group stays engaged during active combat action without perception", EnemyGroupStaysEngagedDuringActiveCombatActionWithoutPerception);
         run("enemy group exits engagement when whole group loses perception", EnemyGroupExitsEngagementWhenWholeGroupLosesPerception);
     }
 
@@ -131,6 +132,36 @@ internal static class TargetBattleGroupEngagementRegressionCases
 
         AssertEqual(BattleGroupEngagementState.Engaged, state.EngagementState, "second member perception should keep group engaged");
         AssertTrue(exit == null, "group should not exit while any member still perceives a hostile");
+    }
+
+    private static void EnemyGroupStaysEngagedDuringActiveCombatActionWithoutPerception()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildEngagementExitSnapshot());
+
+        controller.AdvanceNextTick();
+        BattleGroupTacticalState entered = controller.State.TacticalStates["enemy_group"];
+        AssertEqual(BattleGroupEngagementState.Engaged, entered.EngagementState, "fixture should enter engagement first");
+
+        BattleRuntimeActor enemy = controller.State.Actors.Single(item => item.ActorId == "enemy_force:1");
+        BattleRuntimeActor player = controller.State.Actors.Single(item => item.ActorId == "player_force:1");
+        enemy.TargetActorId = player.ActorId;
+        enemy.PlanState = BattleGroupPlanRuntimeState.MovingToAttackSlot;
+        enemy.Phase = BattleRuntimeActorPhase.AttackRecovery;
+        enemy.ActionReadyAtSeconds = 1000;
+        player.GridX = 20;
+        player.GridY = 0;
+
+        BattleRuntimeAdvanceResult shiftedPerception = controller.AdvanceNextTick();
+        BattleGroupTacticalState state = controller.State.TacticalStates["enemy_group"];
+        BattleEvent? exit = shiftedPerception.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.BattleGroupEngagementStateChanged &&
+            item.BattleGroupId == "enemy_group" &&
+            item.ReasonCode == BattleGroupTacticalReasonCode.EngagementExitNoGroupPerception);
+
+        AssertEqual(BattleGroupEngagementState.Engaged, state.EngagementState, "active combat action should bridge a short perception gap");
+        AssertEqual(player.ActorId, enemy.TargetActorId, "engagement retention should not clear the live target lock");
+        AssertTrue(exit == null, "group should not emit no-perception exit while a member is still executing combat");
     }
 
     private static BattleStartSnapshot BuildGroupPerceptionSnapshot()

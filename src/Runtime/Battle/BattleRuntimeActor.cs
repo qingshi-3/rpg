@@ -34,6 +34,16 @@ public sealed class BattleRuntimeActor
     public int MovementToGridX { get; set; }
     public int MovementToGridY { get; set; }
     public int MovementToGridHeight { get; set; }
+    // Local-combat movement uses this short memory to avoid three-cell pacing
+    // loops while still allowing fresh decisions after a real target change.
+    public bool HasMovementBacktrackGuardCell { get; set; }
+    public int MovementBacktrackGuardGridX { get; set; }
+    public int MovementBacktrackGuardGridY { get; set; }
+    public int MovementBacktrackGuardGridHeight { get; set; }
+    public bool HasSecondaryMovementBacktrackGuardCell { get; set; }
+    public int SecondaryMovementBacktrackGuardGridX { get; set; }
+    public int SecondaryMovementBacktrackGuardGridY { get; set; }
+    public int SecondaryMovementBacktrackGuardGridHeight { get; set; }
     public double MovementStartedAtSeconds { get; set; }
     public double MovementDurationSeconds { get; set; }
     public double MovementProgress { get; set; }
@@ -60,6 +70,12 @@ public sealed class BattleRuntimeActor
     public double MoveStepSeconds { get; set; } = 0.16;
     public double AttackActionSeconds { get; set; } = 1.2;
     public double AttackImpactDelaySeconds { get; set; } = 0.66;
+    public string CurrentSkillActionId { get; set; } = "";
+    public string CurrentSkillId { get; set; } = "";
+    public string CurrentSkillSourceCommandId { get; set; } = "";
+    public string CurrentSkillTargetActorId { get; set; } = "";
+    public double CurrentSkillImpactAtSeconds { get; set; }
+    public bool CurrentSkillImpactApplied { get; set; }
     // Central runtime time, in seconds, when this actor may submit its next action intent.
     public double ActionReadyAtSeconds { get; set; }
     public int ActionLockTicksRemaining { get; set; }

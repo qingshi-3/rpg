@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Rpg.Runtime.Battle.Navigation;
 
@@ -14,7 +13,12 @@ internal sealed class BattleDynamicOccupancy
     public static BattleDynamicOccupancy FromActors(IEnumerable<BattleRuntimeActor> actors)
     {
         BattleDynamicOccupancy occupancy = new();
-        foreach (BattleRuntimeActor actor in actors ?? Enumerable.Empty<BattleRuntimeActor>())
+        if (actors == null)
+        {
+            return occupancy;
+        }
+
+        foreach (BattleRuntimeActor actor in actors)
         {
             if (actor?.Kind != BattleRuntimeActorKind.Corps || actor.HitPoints <= 0)
             {
@@ -88,7 +92,15 @@ internal sealed class BattleDynamicOccupancy
         }
 
         string actorId = actor?.ActorId ?? "";
-        return actorIds.Any(item => !string.Equals(item, actorId, System.StringComparison.Ordinal));
+        foreach (string occupantId in actorIds)
+        {
+            if (!string.Equals(occupantId, actorId, System.StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public IReadOnlyCollection<string> GetOtherOccupants(BattleRuntimeActor actor, BattleGridCoord cell)
@@ -99,8 +111,17 @@ internal sealed class BattleDynamicOccupancy
         }
 
         string actorId = actor?.ActorId ?? "";
-        return actorIds
-            .Where(item => !string.Equals(item, actorId, System.StringComparison.Ordinal))
-            .ToArray();
+        List<string> otherOccupants = new();
+        foreach (string occupantId in actorIds)
+        {
+            if (!string.Equals(occupantId, actorId, System.StringComparison.Ordinal))
+            {
+                otherOccupants.Add(occupantId);
+            }
+        }
+
+        return otherOccupants.Count == 0
+            ? System.Array.Empty<string>()
+            : otherOccupants.ToArray();
     }
 }

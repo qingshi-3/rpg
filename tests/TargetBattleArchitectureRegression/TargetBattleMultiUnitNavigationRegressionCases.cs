@@ -22,7 +22,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         run("runtime support below vertical engagement flanks to open attack slot", RuntimeSupportBelowVerticalEngagementFlanksToOpenAttackSlot);
         run("runtime support behind engaged ally uses side approach when direct step occupied", RuntimeSupportBehindEngagedAllyUsesSideApproachWhenDirectStepOccupied);
         run("runtime support unit continues into orthogonal attack range against engaged target", RuntimeSupportUnitContinuesIntoOrthogonalAttackRangeAgainstEngagedTarget);
-        run("runtime rear local combat units report blocked ingress when attack slot is not executable", RuntimeRearLocalCombatUnitsReportBlockedIngressWhenAttackSlotIsNotExecutable);
+        run("runtime rear local combat units degrade blocked ingress to named support", RuntimeRearLocalCombatUnitsDegradeBlockedIngressToNamedSupport);
         run("runtime rear local combat units route around blocked ingress when side path exists", RuntimeRearLocalCombatUnitsRouteAroundBlockedIngressWhenSidePathExists);
         run("runtime combat ingress planner allows a temporary detour around blocked closer steps", RuntimeCombatIngressPlannerAllowsTemporaryDetourAroundBlockedCloserSteps);
         run("runtime local combat movement keeps stable slot intent instead of oscillating", RuntimeLocalCombatMovementKeepsStableSlotIntentInsteadOfOscillating);
@@ -241,7 +241,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             "support unit should attack the already engaged target after reaching orthogonal range");
     }
 
-    public static void RuntimeRearLocalCombatUnitsReportBlockedIngressWhenAttackSlotIsNotExecutable()
+    public static void RuntimeRearLocalCombatUnitsDegradeBlockedIngressToNamedSupport()
     {
         BattleStartSnapshot snapshot = BuildRearBlockedLocalCombatSnapshot();
         BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
@@ -266,15 +266,15 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             rearMove == null,
             "rear unit must not fake movement when every local-combat ingress step is blocked by live footprints");
         AssertTrue(
-            rearTop.LastAdvanceFailureReason == "reject_no_reachable_slot",
-            $"blocked local-combat ingress should be diagnosable instead of generic path failure: actual={rearTop.LastAdvanceFailureReason}");
+            rearTop.LastAdvanceFailureReason == "hold_support_attack_slots_full",
+            $"blocked local-combat ingress should degrade to a named support/queue role before generic rejection: actual={rearTop.LastAdvanceFailureReason}");
         AssertTrue(
             newLog.Contains("BattleRuntimeAdvanceDiagnostic battle=battle_rear_blocked_local_combat_support", StringComparison.Ordinal) &&
             newLog.Contains("actor=enemy_rear_top:1", StringComparison.Ordinal) &&
             newLog.Contains("target=player_front_a:1", StringComparison.Ordinal) &&
-            newLog.Contains("reason=reject_no_reachable_slot", StringComparison.Ordinal) &&
+            newLog.Contains("reason=hold_support_attack_slots_full", StringComparison.Ordinal) &&
             newLog.Contains("attemptedNext=none", StringComparison.Ordinal),
-            "blocked local-combat ingress should log a named queue/no-slot reason with no fake next step");
+            "blocked local-combat ingress should log a named support/queue reason with no fake next step");
         AssertTrue(
             !newLog.Contains("actor=enemy_rear_top:1 target=player_front_a:1 reason=path_not_found", StringComparison.Ordinal),
             "blocked local-combat ingress must not be reported as generic path_not_found");
@@ -585,7 +585,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         return snapshot;
     }
 
-    private static BattleStartSnapshot BuildBonefieldOscillationStateSnapshot()
+    internal static BattleStartSnapshot BuildBonefieldOscillationStateSnapshot()
     {
         BattleStartSnapshot snapshot = new()
         {

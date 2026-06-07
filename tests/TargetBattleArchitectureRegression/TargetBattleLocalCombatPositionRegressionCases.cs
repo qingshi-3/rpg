@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
+using Rpg.Runtime.Battle.Tactics;
 
 internal static class TargetBattleLocalCombatPositionRegressionCases
 {
@@ -12,6 +14,7 @@ internal static class TargetBattleLocalCombatPositionRegressionCases
         run("runtime full local fight does not oscillate extra living unit", RuntimeFullLocalFightDoesNotOscillateExtraLivingUnit);
         run("runtime rear local combat unit routes before frontline defeat", RuntimeRearLocalCombatUnitRoutesBeforeFrontlineDefeat);
         run("runtime local combat prefers nearest executable attack step over far flank", RuntimeLocalCombatPrefersNearestExecutableAttackStepOverFarFlank);
+        run("runtime region advance diagnostics print region goal cell", RuntimeRegionAdvanceDiagnosticsPrintRegionGoalCell);
     }
 
     public static void RuntimeFullLocalFightDoesNotOscillateExtraLivingUnit()
@@ -132,6 +135,54 @@ internal static class TargetBattleLocalCombatPositionRegressionCases
         AssertTrue(
             attack?.TargetId == "bonefield:f6_draugarlord:4",
             $"front unit should attack the immediate enemy after the movement chain stops instead of resuming far-slot movement: target={attack?.TargetId}");
+    }
+
+    public static void RuntimeRegionAdvanceDiagnosticsPrintRegionGoalCell()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_region_diagnostic",
+            BattleId = "battle_region_diagnostic",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildPlannedGroup(
+                    "enemy_group",
+                    "enemy",
+                    "enemy_region",
+                    0,
+                    0,
+                    "enemy_region_goal",
+                    BattleGroupTacticalMode.EnemyOffense,
+                    BuildRegion("enemy_region_goal", "enemy_group", 12, 7, 2, 3)),
+                BuildPlannedGroup(
+                    "player_group",
+                    "player",
+                    "player_far",
+                    12,
+                    7,
+                    "player_hold",
+                    BattleGroupTacticalMode.PlayerCommanded)
+            }
+        };
+        AddSurface(snapshot, 0, 0);
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+
+        string previousLog = File.Exists(GameLog.CurrentLogPath)
+            ? File.ReadAllText(GameLog.CurrentLogPath)
+            : "";
+
+        _ = new BattleRuntimeSession().Begin(snapshot).AdvanceNextTick();
+
+        string log = File.Exists(GameLog.CurrentLogPath)
+            ? File.ReadAllText(GameLog.CurrentLogPath)
+            : "";
+        string newLog = log.Length >= previousLog.Length ? log[previousLog.Length..] : log;
+
+        AssertTrue(newLog.Contains("BattleRuntimeRegionAdvanceDiagnostic battle=battle_region_diagnostic", StringComparison.Ordinal), "region advance failure should use a region diagnostic log");
+        AssertTrue(newLog.Contains("region=enemy_region_goal", StringComparison.Ordinal), "region diagnostic should include the region id");
+        AssertTrue(newLog.Contains("regionCell=12,7,0", StringComparison.Ordinal), "region diagnostic should print the active region goal cell");
+        AssertTrue(!newLog.Contains("objectiveCell=0,0,0", StringComparison.Ordinal), "region diagnostic must not fall back to empty actor objective fields");
     }
 
     private static BattleStartSnapshot BuildFullLocalFightExtraUnitSnapshot()
@@ -308,6 +359,68 @@ internal static class TargetBattleLocalCombatPositionRegressionCases
             Height = 0,
             MoveCost = 1
         });
+    }
+
+    private static BattleGroupSnapshot BuildPlannedGroup(
+        string groupId,
+        string factionId,
+        string sourceForceId,
+        int cellX,
+        int cellY,
+        string objectiveZoneId,
+        BattleGroupTacticalMode tacticalMode,
+        BattleTacticalRegionSnapshot? initialRegion = null)
+    {
+        BattleGroupSnapshot group = new()
+        {
+            BattleGroupId = groupId,
+            FactionId = factionId,
+            SourceForceId = sourceForceId,
+            HeroId = $"{sourceForceId}_hero",
+            HeroDefinitionId = $"{sourceForceId}_hero_definition",
+            CorpsId = $"{sourceForceId}_corps",
+            CorpsDefinitionId = $"{sourceForceId}_corps_definition",
+            CorpsStrength = 80,
+            MaxHitPoints = 80,
+            AttackDamage = 1,
+            TacticalMode = tacticalMode,
+            SourceLocationId = factionId == "player" ? "city_1" : "site_1",
+            CellX = cellX,
+            CellY = cellY,
+            Plan = new BattleGroupPlanSnapshot
+            {
+                BattleGroupId = groupId,
+                ObjectiveZoneId = objectiveZoneId,
+                EngagementRule = BattleEngagementRule.AttackFirst
+            }
+        };
+        if (initialRegion != null)
+        {
+            group.InitialTacticalRegions.Add(initialRegion);
+        }
+
+        return group;
+    }
+
+    private static BattleTacticalRegionSnapshot BuildRegion(
+        string regionId,
+        string ownerBattleGroupId,
+        int centerX,
+        int centerY,
+        int width,
+        int height)
+    {
+        return new BattleTacticalRegionSnapshot
+        {
+            RegionId = regionId,
+            OwnerBattleGroupId = ownerBattleGroupId,
+            Kind = BattleTacticalRegionKind.FixedTarget,
+            CenterCellX = centerX,
+            CenterCellY = centerY,
+            CenterCellHeight = 0,
+            Width = width,
+            Height = height
+        };
     }
 
     private static void AddPlannedGroup(

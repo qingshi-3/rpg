@@ -17,10 +17,15 @@ public sealed class BattlePerformanceCounters
     private long _openAttackFlowFieldRequestCount;
     private long _openAttackFlowFieldCacheHitCount;
     private long _openAttackFlowFieldBuildCount;
+    private long _scopedFlowFieldBuildCount;
+    private long _fullFlowFieldFallbackCount;
     private long _flowFieldBuildElapsedTicks;
     private long _flowFieldBuildElapsedTicksLastAdvance;
     private long _lastFlowFieldBuildElapsedTicks;
     private long _maxFlowFieldBuildElapsedTicks;
+    private long _flowFieldSearchNodesLastAdvance;
+    private long _maxFlowFieldSearchNodes;
+    private long _maxScopedFlowFieldSearchNodes;
     private long _combatSlotScanCount;
     private long _combatSlotAnchorScanCount;
     private long _combatSlotScanElapsedTicks;
@@ -70,10 +75,15 @@ public sealed class BattlePerformanceCounters
     public long OpenAttackFlowFieldRequestCount => Interlocked.Read(ref _openAttackFlowFieldRequestCount);
     public long OpenAttackFlowFieldCacheHitCount => Interlocked.Read(ref _openAttackFlowFieldCacheHitCount);
     public long OpenAttackFlowFieldBuildCount => Interlocked.Read(ref _openAttackFlowFieldBuildCount);
+    public long ScopedFlowFieldBuildCount => Interlocked.Read(ref _scopedFlowFieldBuildCount);
+    public long FullFlowFieldFallbackCount => Interlocked.Read(ref _fullFlowFieldFallbackCount);
     public long FlowFieldBuildElapsedTicks => Interlocked.Read(ref _flowFieldBuildElapsedTicks);
     public long FlowFieldBuildElapsedTicksLastAdvance => Interlocked.Read(ref _flowFieldBuildElapsedTicksLastAdvance);
     public long LastFlowFieldBuildElapsedTicks => Interlocked.Read(ref _lastFlowFieldBuildElapsedTicks);
     public long MaxFlowFieldBuildElapsedTicks => Interlocked.Read(ref _maxFlowFieldBuildElapsedTicks);
+    public long FlowFieldSearchNodesLastAdvance => Interlocked.Read(ref _flowFieldSearchNodesLastAdvance);
+    public long MaxFlowFieldSearchNodes => Interlocked.Read(ref _maxFlowFieldSearchNodes);
+    public long MaxScopedFlowFieldSearchNodes => Interlocked.Read(ref _maxScopedFlowFieldSearchNodes);
     public long CombatSlotScanCount => Interlocked.Read(ref _combatSlotScanCount);
     public long CombatSlotAnchorScanCount => Interlocked.Read(ref _combatSlotAnchorScanCount);
     public long CombatSlotScanElapsedTicks => Interlocked.Read(ref _combatSlotScanElapsedTicks);
@@ -132,6 +142,7 @@ public sealed class BattlePerformanceCounters
         Interlocked.Exchange(ref _reservationRejectedLastAdvance, 0);
         Interlocked.Exchange(ref _actorsReadyNoMoveLastAdvance, 0);
         Interlocked.Exchange(ref _flowFieldBuildElapsedTicksLastAdvance, 0);
+        Interlocked.Exchange(ref _flowFieldSearchNodesLastAdvance, 0);
         Interlocked.Exchange(ref _combatSlotScanElapsedTicksLastAdvance, 0);
         Interlocked.Exchange(ref _targetScoringElapsedTicksLastAdvance, 0);
         Interlocked.Exchange(ref _movementResolveElapsedTicksLastAdvance, 0);
@@ -173,11 +184,36 @@ public sealed class BattlePerformanceCounters
         Increment(ref _openAttackFlowFieldBuildCount);
     }
 
+    public void RecordScopedFlowFieldBuild()
+    {
+        Increment(ref _scopedFlowFieldBuildCount);
+    }
+
+    public void RecordFullFlowFieldFallback()
+    {
+        Increment(ref _fullFlowFieldFallbackCount);
+    }
+
     public void RecordFlowFieldBuildElapsedTicks(long elapsedTicks)
     {
         Add(ref _flowFieldBuildElapsedTicks, elapsedTicks);
         Add(ref _flowFieldBuildElapsedTicksLastAdvance, elapsedTicks);
         SetLastAndMax(ref _lastFlowFieldBuildElapsedTicks, ref _maxFlowFieldBuildElapsedTicks, elapsedTicks);
+    }
+
+    public void RecordFlowFieldSearchNodes(int nodeCount, bool scoped)
+    {
+        if (!Enabled || nodeCount <= 0)
+        {
+            return;
+        }
+
+        Add(ref _flowFieldSearchNodesLastAdvance, nodeCount);
+        SetMax(ref _maxFlowFieldSearchNodes, nodeCount);
+        if (scoped)
+        {
+            SetMax(ref _maxScopedFlowFieldSearchNodes, nodeCount);
+        }
     }
 
     public void RecordCombatSlotScan(int anchorCount, long elapsedTicks = 0)
@@ -286,10 +322,15 @@ public sealed class BattlePerformanceCounters
         Interlocked.Exchange(ref _openAttackFlowFieldRequestCount, 0);
         Interlocked.Exchange(ref _openAttackFlowFieldCacheHitCount, 0);
         Interlocked.Exchange(ref _openAttackFlowFieldBuildCount, 0);
+        Interlocked.Exchange(ref _scopedFlowFieldBuildCount, 0);
+        Interlocked.Exchange(ref _fullFlowFieldFallbackCount, 0);
         Interlocked.Exchange(ref _flowFieldBuildElapsedTicks, 0);
         Interlocked.Exchange(ref _flowFieldBuildElapsedTicksLastAdvance, 0);
         Interlocked.Exchange(ref _lastFlowFieldBuildElapsedTicks, 0);
         Interlocked.Exchange(ref _maxFlowFieldBuildElapsedTicks, 0);
+        Interlocked.Exchange(ref _flowFieldSearchNodesLastAdvance, 0);
+        Interlocked.Exchange(ref _maxFlowFieldSearchNodes, 0);
+        Interlocked.Exchange(ref _maxScopedFlowFieldSearchNodes, 0);
         Interlocked.Exchange(ref _combatSlotScanCount, 0);
         Interlocked.Exchange(ref _combatSlotAnchorScanCount, 0);
         Interlocked.Exchange(ref _combatSlotScanElapsedTicks, 0);

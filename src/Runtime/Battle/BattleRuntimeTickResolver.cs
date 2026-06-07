@@ -50,22 +50,22 @@ internal sealed partial class BattleRuntimeTickResolver
             currentTimeSeconds,
             out HashSet<string> movementCompletedActorIds);
 
+        // Player skill commands submitted while tactical pause is active are queued
+        // here so pause-time input never mutates combat state until Runtime advances.
+        BattleRuntimeHeroSkillCommandResolver.ResolvePending(
+            state,
+            stream,
+            battleId,
+            tick,
+            currentTimeSeconds);
+
         BattleRuntimeActor[] livingCorps = BattleTacticalObservationUpdater.RefreshAtTickStart(state, stream, battleId, tick, currentTimeSeconds);
         if (livingCorps.Length == 0)
         {
             return;
         }
 
-        Dictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts = livingCorps.ToDictionary(
-            item => item.ActorId,
-            item => new BattleRuntimeTickStartActorFact(
-                item,
-                new BattleGridCoord(item.GridX, item.GridY, item.GridHeight),
-                item.HitPoints,
-                item.AttackCharge,
-                item.TargetActorId ?? "",
-                item.CommandId ?? ""),
-            System.StringComparer.Ordinal);
+        Dictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts = BattleTickStartProjectionBuilder.BuildFactMap(livingCorps);
 
         BattleFlowFieldCache flowFields = new(performanceCounters);
         BattleRuntimeActor[] decisionReadyCorps = livingCorps
@@ -121,6 +121,9 @@ internal sealed partial class BattleRuntimeTickResolver
             navigationGraph,
             navigationFailureDiagnostics,
             performanceCounters,
+            state.TacticalStateStore,
+            state.GroupActionZones,
+            state.CombatZones,
             TryRetargetStaleAdvanceContext);
         performanceCounters?.RecordMovementResolveElapsedTicks(Stopwatch.GetTimestamp() - movementResolveStartedAt);
         performanceCounters?.RecordActorsReadyNoMoveLastAdvance(decisionReadyCorps.Length - movementEvents);
@@ -149,7 +152,8 @@ internal sealed partial class BattleRuntimeTickResolver
                     actor,
                     currentTimeSeconds,
                     out BattleGridCoord movementFrom,
-                    out BattleGridCoord movementTo))
+                    out BattleGridCoord movementTo,
+                    out string movementBoundaryReasonCode))
             {
                 continue;
             }
@@ -163,7 +167,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 actor.TargetActorId ?? "",
                 movementFrom,
                     movementTo,
-                    "movement_committed"));
+                    movementBoundaryReasonCode));
             movementCompletedActorIds.Add(actor.ActorId ?? "");
         }
 
@@ -323,7 +327,14 @@ internal sealed partial class BattleRuntimeTickResolver
         IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
         IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
     {
-        BattleRuntimeTickStartActorFact actorFact = facts[actor.ActorId];
+        if (actor == null ||
+            string.IsNullOrWhiteSpace(actor.ActorId) ||
+            facts == null ||
+            !facts.TryGetValue(actor.ActorId, out BattleRuntimeTickStartActorFact actorFact))
+        {
+            throw new System.InvalidOperationException($"missing runtime tick-start fact: actorId={actor?.ActorId ?? ""}");
+        }
+
         BattleRegionMovementGoal regionMovementGoal = BattleLocalCombatRegionResolver.ResolveRegionMovementGoal(actorFact, tacticalStateStore);
         BattleGroupActionZoneSnapshot combatJoinActionZone = BattleGroupActionZoneResolver.ResolveActorCombatJoinActionZone(
             actorFact,
@@ -352,7 +363,8 @@ internal sealed partial class BattleRuntimeTickResolver
                 ? facts
                 : BattleLocalCombatRegionResolver.FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
         BattleTargetSelectionService.BattleTargetCandidateSet targetCandidateSet = combatJoinActionZone != null
-            ? BattleTargetSelectionService.BuildCombatZoneScopedTargetCandidates(targetFacts, actorFact)
+            ? BattleTargetSelectionService.BuildCombatZoneScopedTargetCandidates(
+                targetFacts, actorFact, navigationGraph, occupancy, flowFields, performanceCounters, combatJoinRegion)
             : regionMovementGoal == null
             ? BattleTargetSelectionService.BuildTargetCandidatesForCommand(
                 targetFacts,
@@ -414,6 +426,28 @@ internal sealed partial class BattleRuntimeTickResolver
 
         if (request.Kind == BattleRuntimeAiActionKind.Hold)
         {
+            if (combatJoinActionZone != null &&
+                localCombatSituation != null &&
+                requestedTarget != null &&
+                IsBlockedLocalCombatHold(request.FailureReason) &&
+                string.Equals(requestedTarget.Value.Actor.ActorId ?? "", actorFact.TargetActorId ?? "", System.StringComparison.Ordinal) &&
+                TryBuildAlternateCombatZoneJoinContext(
+                    actorFact,
+                    requestedTarget.Value,
+                    targetFacts,
+                    targetCandidateSet.Candidates,
+                    localCombatRegion,
+                    combatJoinRegion,
+                    navigationGraph,
+                    occupancy,
+                    flowFields,
+                    performanceCounters,
+                    currentTimeSeconds,
+                    out BattleRuntimeTickContext alternateCombatJoinContext))
+            {
+                return alternateCombatJoinContext;
+            }
+
             return CreateContext(request, actorFact, requestedTarget, false, default, request.FailureReason, localCombatSituation: localCombatSituation, regionMovementGoal: regionMovementGoal);
         }
 
@@ -504,6 +538,7 @@ internal sealed partial class BattleRuntimeTickResolver
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
+                    flowFields,
                     preferSupportSlots,
                     performanceCounters,
                     scopedLocalCombatRegion,
@@ -530,10 +565,32 @@ internal sealed partial class BattleRuntimeTickResolver
             }
             if (moveOptions.Count == 0)
             {
+                if (combatJoinActionZone != null &&
+                    localCombatSituation != null &&
+                    string.Equals(requestedTarget.Value.Actor.ActorId ?? "", actorFact.TargetActorId ?? "", System.StringComparison.Ordinal) &&
+                    TryBuildAlternateCombatZoneJoinContext(
+                        actorFact,
+                        requestedTarget.Value,
+                        targetFacts,
+                        targetCandidateSet.Candidates,
+                        localCombatRegion,
+                        combatJoinRegion,
+                        navigationGraph,
+                        occupancy,
+                        flowFields,
+                        performanceCounters,
+                        currentTimeSeconds,
+                        out BattleRuntimeTickContext alternateCombatJoinContext))
+                {
+                    return alternateCombatJoinContext;
+                }
+
                 // Runtime validation names blocked local-combat ingress, but
                 // target/support selection stays with commander/local-combat request construction.
                 string failureReason = localCombatSituation != null
-                    ? LocalCombatDecisionReason.RejectNoReachableSlot
+                    ? localCombatSituation.HasReachableSupportSlot
+                        ? LocalCombatDecisionReason.HoldSupportAttackSlotsFull
+                        : LocalCombatDecisionReason.RejectNoReachableSlot
                     : "path_not_found";
                 BattleRuntimeAdvanceDiagnostics.LogAdvanceFailureDiagnostic(
                     battleId,

@@ -386,6 +386,7 @@ internal static class BattleMovementContinuationPlanner
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
+                    flowFields,
                     performanceCounters,
                     scopedLocalCombatRegion);
                 combatSlotIntent = moveOptions.Count > 0 ? storedSlotIntent : null;
@@ -403,6 +404,7 @@ internal static class BattleMovementContinuationPlanner
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
+                    flowFields,
                     preferSupportSlots,
                     performanceCounters,
                     scopedLocalCombatRegion,
@@ -423,6 +425,7 @@ internal static class BattleMovementContinuationPlanner
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
+                    flowFields,
                     preferSupportSlots,
                     performanceCounters,
                     scopedLocalCombatRegion,

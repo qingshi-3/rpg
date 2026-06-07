@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.AI;
@@ -20,7 +19,10 @@ internal delegate bool TryRetargetStaleAdvanceContextCallback(
     int tick,
     double currentTimeSeconds,
     HashSet<string> navigationFailureDiagnostics,
-    BattlePerformanceCounters performanceCounters);
+    BattlePerformanceCounters performanceCounters,
+    BattleGroupTacticalStateStore tacticalStateStore,
+    IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
+    IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones);
 
 internal static class BattleMovementCommitResolver
 {
@@ -30,6 +32,56 @@ internal static class BattleMovementCommitResolver
         public BattleGridCoord From { get; init; }
         public BattleGridCoord To { get; init; }
         public IReadOnlyList<BattleGridCoord> OrderedMoves { get; init; } = new List<BattleGridCoord>();
+    }
+
+    private sealed class MoveCandidateComparer : IComparer<MoveCandidate>
+    {
+        public static readonly MoveCandidateComparer Instance = new();
+
+        private MoveCandidateComparer()
+        {
+        }
+
+        public int Compare(MoveCandidate x, MoveCandidate y)
+        {
+            int gap = GetReservationGap(x).CompareTo(GetReservationGap(y));
+            if (gap != 0)
+            {
+                return gap;
+            }
+
+            int height = x.From.Height.CompareTo(y.From.Height);
+            if (height != 0)
+            {
+                return height;
+            }
+
+            int row = x.From.Y.CompareTo(y.From.Y);
+            if (row != 0)
+            {
+                return row;
+            }
+
+            int column = x.From.X.CompareTo(y.From.X);
+            if (column != 0)
+            {
+                return column;
+            }
+
+            return string.Compare(
+                x.Context?.ActorFact.Actor.BattleGroupId ?? "",
+                y.Context?.ActorFact.Actor.BattleGroupId ?? "",
+                System.StringComparison.Ordinal);
+        }
+
+        private static int GetReservationGap(MoveCandidate candidate)
+        {
+            return BattleActorFootprint.GetGap(
+                candidate.Context.ActorFact.Actor,
+                candidate.Context.ActorFact.Anchor,
+                candidate.Context.TargetFact?.Actor ?? candidate.Context.ActorFact.Actor,
+                candidate.Context.TargetFact?.Anchor ?? BattleObjectiveAdvancePlanner.GetObjectiveAnchor(candidate.Context.ActorFact.Actor));
+        }
     }
 
     internal static int Resolve(
@@ -43,20 +95,26 @@ internal static class BattleMovementCommitResolver
         BattleNavigationGraph navigationGraph,
         HashSet<string> navigationFailureDiagnostics,
         BattlePerformanceCounters performanceCounters,
+        BattleGroupTacticalStateStore tacticalStateStore,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
         TryRetargetStaleAdvanceContextCallback retargetStaleAdvanceContext)
     {
         int movementEvents = 0;
         List<MoveCandidate> moveCandidates = new();
-        foreach (BattleRuntimeTickContext context in contexts
-                     .Where(item =>
-                         (item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget ||
-                          item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
-                          item.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
-                          item.Request.Kind == BattleRuntimeAiActionKind.JoinLocalCombat ||
-                          item.Request.Kind == BattleRuntimeAiActionKind.HoldSupport ||
-                          item.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective) &&
-                          item.Result == null))
+        foreach (BattleRuntimeTickContext context in contexts ?? new List<BattleRuntimeTickContext>())
         {
+            if (context?.Result != null ||
+                context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget &&
+                context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective &&
+                context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardRegion &&
+                context.Request.Kind != BattleRuntimeAiActionKind.JoinLocalCombat &&
+                context.Request.Kind != BattleRuntimeAiActionKind.HoldSupport &&
+                context.Request.Kind != BattleRuntimeAiActionKind.ReturnToObjective)
+            {
+                continue;
+            }
+
             bool isObjectiveAdvance = context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
                                       context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
                                       context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective;
@@ -92,7 +150,10 @@ internal static class BattleMovementCommitResolver
                         tick,
                         currentTimeSeconds,
                         navigationFailureDiagnostics,
-                        performanceCounters))
+                        performanceCounters,
+                        tacticalStateStore,
+                        groupActionZones,
+                        combatZones))
                 {
                     context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "target_defeated_before_move");
                     continue;
@@ -113,16 +174,8 @@ internal static class BattleMovementCommitResolver
         }
 
         BattleMovementReservationMap reservations = new();
-        foreach (MoveCandidate candidate in moveCandidates
-                     .OrderBy(item => BattleActorFootprint.GetGap(
-                         item.Context.ActorFact.Actor,
-                         item.Context.ActorFact.Anchor,
-                         item.Context.TargetFact?.Actor ?? item.Context.ActorFact.Actor,
-                         item.Context.TargetFact?.Anchor ?? BattleObjectiveAdvancePlanner.GetObjectiveAnchor(item.Context.ActorFact.Actor)))
-                     .ThenBy(item => item.From.Height)
-                     .ThenBy(item => item.From.Y)
-                     .ThenBy(item => item.From.X)
-                     .ThenBy(item => item.Context.ActorFact.Actor.BattleGroupId, System.StringComparer.Ordinal))
+        moveCandidates.Sort(MoveCandidateComparer.Instance);
+        foreach (MoveCandidate candidate in moveCandidates)
         {
             bool reserved = false;
             BattleGridCoord selectedMove = candidate.To;

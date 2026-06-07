@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 
@@ -44,6 +43,7 @@ internal static class BattleCombatSlotIntentResolver
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
+        BattleFlowFieldCache flowFields,
         bool preferSupportSlots,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion,
@@ -80,6 +80,7 @@ internal static class BattleCombatSlotIntentResolver
                 graph,
                 occupancy,
                 reservations,
+                flowFields,
                 performanceCounters,
                 localCombatRegion,
                 candidates,
@@ -98,6 +99,7 @@ internal static class BattleCombatSlotIntentResolver
                 graph,
                 occupancy,
                 reservations,
+                flowFields,
                 performanceCounters,
                 localCombatRegion,
                 out intent,
@@ -116,6 +118,7 @@ internal static class BattleCombatSlotIntentResolver
                 graph,
                 occupancy,
                 reservations,
+                flowFields,
                 performanceCounters,
                 localCombatRegion,
                 candidates,
@@ -134,6 +137,7 @@ internal static class BattleCombatSlotIntentResolver
                    graph,
                    occupancy,
                    reservations,
+                   flowFields,
                    performanceCounters,
                    localCombatRegion,
                    out intent,
@@ -147,6 +151,7 @@ internal static class BattleCombatSlotIntentResolver
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
+        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion,
         out BattleCombatSlotIntent intent,
@@ -172,6 +177,7 @@ internal static class BattleCombatSlotIntentResolver
             graph,
             occupancy,
             reservations,
+            flowFields,
             performanceCounters,
             localCombatRegion,
             candidates,
@@ -185,6 +191,7 @@ internal static class BattleCombatSlotIntentResolver
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
+        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion,
         IReadOnlyList<BattleCombatSlot> candidates,
@@ -194,25 +201,31 @@ internal static class BattleCombatSlotIntentResolver
     {
         intent = default;
         moveOptions = System.Array.Empty<BattleGridCoord>();
-        BattleCombatSlot[] goals = (candidates ?? System.Array.Empty<BattleCombatSlot>())
-            .Where(item => item.Kind == kind)
-            .OrderBy(item => item.Priority)
-            .ThenBy(item => item.Anchor.Height)
-            .ThenBy(item => item.Anchor.Y)
-            .ThenBy(item => item.Anchor.X)
-            .ToArray();
+        List<BattleCombatSlot> goalList = new();
+        foreach (BattleCombatSlot candidate in candidates ?? System.Array.Empty<BattleCombatSlot>())
+        {
+            if (candidate.Kind == kind)
+            {
+                goalList.Add(candidate);
+            }
+        }
+
+        goalList.Sort(BattleCombatSlotPriorityComparer.Instance);
+        BattleCombatSlot[] goals = goalList.ToArray();
         if (goals.Length == 0)
         {
             return false;
         }
 
-        // Candidate groups share one multi-goal field. The movement executor
-        // still validates the chosen next step per actor through reservations.
-        BattleFlowField field = BattleFlowFieldBuilder.BuildFromGoalSlots(
+        // Candidate groups share one battlefield-scoped multi-goal field. The
+        // movement executor still validates the chosen next step per actor.
+        BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
+        BattleFlowField field = cache.GetOrBuildGoalField(
             actor,
             graph,
             goals,
-            performanceCounters);
+            kind,
+            localCombatRegion);
         moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardCombatField(
             actor,
             field,
@@ -237,9 +250,16 @@ internal static class BattleCombatSlotIntentResolver
         BattleRuntimeActor actor,
         BattleRuntimeActor target)
     {
-        bool contains = candidates.Any(item =>
-            item.Kind == kind &&
-            item.Anchor == actorAnchor);
+        bool contains = false;
+        foreach (BattleCombatSlot candidate in candidates ?? System.Array.Empty<BattleCombatSlot>())
+        {
+            if (candidate.Kind == kind && candidate.Anchor == actorAnchor)
+            {
+                contains = true;
+                break;
+            }
+        }
+
         if (!contains)
         {
             return false;
@@ -250,13 +270,9 @@ internal static class BattleCombatSlotIntentResolver
             return true;
         }
 
-        int attackRange = System.Math.Max(1, actor?.AttackRange ?? 1);
-        int gap = BattleActorFootprint.GetOrthogonalGap(
-            actor,
-            actorAnchor,
-            target,
-            new BattleGridCoord(target?.GridX ?? 0, target?.GridY ?? 0, target?.GridHeight ?? 0));
-        return gap == attackRange + 1;
+        // Support slots are terminal staging positions for a local fight, not
+        // transient waypoints that must keep pushing into occupied attack slots.
+        return true;
     }
 
     private static IReadOnlyList<BattleCombatSlot> BuildCandidateSlots(
@@ -268,27 +284,29 @@ internal static class BattleCombatSlotIntentResolver
         BattleTacticalRegionSnapshot localCombatRegion,
         bool includeLocalCombatJoinSupport = false)
     {
-        BattleCombatSlot[] slots = BattleCombatSlotAllocator.FindSlots(
+        IReadOnlyList<BattleCombatSlot> rawSlots = BattleCombatSlotAllocator.FindSlots(
                 actor,
                 target,
                 graph,
                 performanceCounters,
                 localCombatRegion,
-                includeLocalCombatJoinSupport)
-            .Where(item => occupancy.CanPlaceFootprint(actor, item.Anchor))
-            .ToArray();
-        if (slots.Length == 0)
+                includeLocalCombatJoinSupport);
+        List<BattleCombatSlot> slots = new();
+        foreach (BattleCombatSlot slot in rawSlots)
+        {
+            if (occupancy.CanPlaceFootprint(actor, slot.Anchor))
+            {
+                slots.Add(slot);
+            }
+        }
+
+        if (slots.Count == 0)
         {
             return System.Array.Empty<BattleCombatSlot>();
         }
 
-        return slots
-            .OrderBy(item => item.Kind)
-            .ThenBy(item => item.Priority)
-            .ThenBy(item => item.Anchor.Height)
-            .ThenBy(item => item.Anchor.Y)
-            .ThenBy(item => item.Anchor.X)
-            .ToArray();
+        slots.Sort(BattleCombatSlotKindPriorityComparer.Instance);
+        return slots.ToArray();
     }
 
     private static bool IsSlotStillValid(
@@ -301,8 +319,7 @@ internal static class BattleCombatSlotIntentResolver
         BattleTacticalRegionSnapshot localCombatRegion)
     {
         if (graph?.CanPlaceFootprint(actor, anchor) != true ||
-            occupancy?.CanPlaceFootprint(actor, anchor) != true ||
-            !IsAnchorInsideLocalCombatRegion(anchor, localCombatRegion))
+            occupancy?.CanPlaceFootprint(actor, anchor) != true)
         {
             return false;
         }
@@ -330,25 +347,5 @@ internal static class BattleCombatSlotIntentResolver
             target,
             new BattleGridCoord(target.GridX, target.GridY, target.GridHeight));
         return gap > 0 && gap <= attackRange;
-    }
-
-    private static bool IsAnchorInsideLocalCombatRegion(
-        BattleGridCoord anchor,
-        BattleTacticalRegionSnapshot localCombatRegion)
-    {
-        if (localCombatRegion == null)
-        {
-            return true;
-        }
-
-        int width = System.Math.Max(1, localCombatRegion.Width);
-        int height = System.Math.Max(1, localCombatRegion.Height);
-        int minX = localCombatRegion.CenterCellX - (width - 1) / 2;
-        int minY = localCombatRegion.CenterCellY - (height - 1) / 2;
-        return anchor.Height == localCombatRegion.CenterCellHeight &&
-               anchor.X >= minX &&
-               anchor.X < minX + width &&
-               anchor.Y >= minY &&
-               anchor.Y < minY + height;
     }
 }

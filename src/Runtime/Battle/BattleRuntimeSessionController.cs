@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Commands;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
@@ -26,6 +27,7 @@ public sealed class BattleRuntimeSessionController
     private readonly BattlePerformanceCounters _performanceCounters;
     private readonly int _maxTicks;
     private int _nextTick;
+    private bool _invalidHandoff;
 
     internal BattleRuntimeSessionController(
         BattleRuntimeTickResolver tickResolver,
@@ -62,6 +64,61 @@ public sealed class BattleRuntimeSessionController
     public BattleOutcomeResult Outcome { get; private set; }
     public double CurrentTimeSeconds { get; private set; }
 
+    public BattleRuntimeCommandSubmitResult SubmitCommand(CommandRequest request)
+    {
+        if (_invalidHandoff)
+        {
+            int startIndex = EventStream.Events.Count;
+            EventStream.Add(new BattleEvent
+            {
+                EventId = $"{BattleId}:tick_{_nextTick}:{request?.CommandId ?? ""}:runtime_command_rejected",
+                BattleId = BattleId,
+                BattleGroupId = request?.BattleGroupId ?? "",
+                SourceCommandId = request?.CommandId ?? "",
+                Kind = BattleEventKind.CommandRejected,
+                ReasonCode = "battle_snapshot_invalid",
+                RuntimeTick = _nextTick,
+                RuntimeTimeSeconds = CurrentTimeSeconds
+            });
+            return new BattleRuntimeCommandSubmitResult
+            {
+                Accepted = false,
+                ReasonCode = "battle_snapshot_invalid",
+                Events = EventStream.Events.Skip(startIndex).ToArray()
+            };
+        }
+
+        if (IsComplete)
+        {
+            int startIndex = EventStream.Events.Count;
+            EventStream.Add(new BattleEvent
+            {
+                EventId = $"{BattleId}:tick_{_nextTick}:{request?.CommandId ?? ""}:runtime_command_rejected",
+                BattleId = BattleId,
+                BattleGroupId = request?.BattleGroupId ?? "",
+                SourceCommandId = request?.CommandId ?? "",
+                Kind = BattleEventKind.CommandRejected,
+                ReasonCode = "battle_already_complete",
+                RuntimeTick = _nextTick,
+                RuntimeTimeSeconds = CurrentTimeSeconds
+            });
+            return new BattleRuntimeCommandSubmitResult
+            {
+                Accepted = false,
+                ReasonCode = "battle_already_complete",
+                Events = EventStream.Events.Skip(startIndex).ToArray()
+            };
+        }
+
+        return BattleRuntimeHeroSkillCommandResolver.Submit(
+            State,
+            EventStream,
+            BattleId,
+            _nextTick,
+            CurrentTimeSeconds,
+            request);
+    }
+
     public BattleRuntimeAdvanceResult AdvanceFixedTick(double fixedDeltaSeconds = BattleActionTimingPolicy.DefaultSimulationTickSeconds)
     {
         double deltaSeconds = double.IsNaN(fixedDeltaSeconds) ||
@@ -80,6 +137,11 @@ public sealed class BattleRuntimeSessionController
     private BattleRuntimeAdvanceResult AdvanceNextTickCore(double fixedDeltaSeconds, bool advanceToNextReadyActorTime)
     {
         int startIndex = EventStream.Events.Count;
+        if (_invalidHandoff)
+        {
+            return BuildAdvanceResult(startIndex);
+        }
+
         if (IsComplete)
         {
             return BuildAdvanceResult(startIndex);
@@ -150,6 +212,11 @@ public sealed class BattleRuntimeSessionController
 
     public BattleRuntimeSessionResult AdvanceToCompletion()
     {
+        if (_invalidHandoff)
+        {
+            return BuildResult();
+        }
+
         while (!IsComplete)
         {
             AdvanceNextTick();
@@ -183,7 +250,8 @@ public sealed class BattleRuntimeSessionController
             snapshotId,
             null,
             BattleRuntimeSession.MaxAutonomousCombatTicks);
-        controller.IsComplete = true;
+        controller._invalidHandoff = true;
+        controller.IsComplete = false;
         controller.Outcome = new BattleOutcomeResult
         {
             SnapshotId = snapshotId ?? "",

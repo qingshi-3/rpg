@@ -1,11 +1,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.AI;
+using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
@@ -70,7 +70,12 @@ internal static class BattleTargetSelectionService
 
     internal static BattleTargetCandidateSet BuildCombatZoneScopedTargetCandidates(
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
-        BattleRuntimeTickStartActorFact actorFact)
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleNavigationGraph navigationGraph,
+        BattleDynamicOccupancy occupancy,
+        BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters,
+        BattleTacticalRegionSnapshot localCombatRegion)
     {
         return new BattleTargetCandidateSet(
             BattleRuntimeAiTargetSelectionPolicy.CombatZoneScoped,
@@ -78,10 +83,11 @@ internal static class BattleTargetSelectionService
                 facts,
                 actorFact,
                 BattleRuntimeAiTargetSelectionPolicy.CombatZoneScoped,
-                navigationGraph: null,
-                occupancy: null,
-                flowFields: null,
-                performanceCounters: null));
+                navigationGraph,
+                occupancy,
+                flowFields,
+                performanceCounters,
+                localCombatRegion));
     }
 
     private static string ResolveCommandTargetSelectionPolicy(BattleRuntimeTickStartActorFact actorFact)
@@ -119,14 +125,16 @@ internal static class BattleTargetSelectionService
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
         BattleFlowFieldCache flowFields,
-        BattlePerformanceCounters performanceCounters)
+        BattlePerformanceCounters performanceCounters,
+        BattleTacticalRegionSnapshot localCombatRegion = null)
     {
         if (facts == null || actorFact.Actor == null)
         {
             return System.Array.Empty<BattleRuntimeAiTargetCandidateFacts>();
         }
 
-        bool hasLowerTierCandidate = HasLowerTierCandidate(facts, actorFact, policy);
+        bool demoteRetainedTarget = ShouldDemoteRetainedTarget(actorFact.Actor);
+        bool hasLowerTierCandidate = HasLowerTierCandidate(facts, actorFact, policy, demoteRetainedTarget);
         List<BattleRuntimeAiTargetCandidateFacts> candidates = new();
         int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
         foreach (BattleRuntimeTickStartActorFact candidate in facts.Values)
@@ -142,14 +150,28 @@ internal static class BattleTargetSelectionService
             int gridGap = GetSquareGridDistance(actorFact, candidate);
             bool immediate = orthogonalGap <= attackRange;
             bool retained = string.Equals(actorFact.TargetActorId, candidate.Actor.ActorId, System.StringComparison.Ordinal);
+            bool combatZoneScoped = string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.CombatZoneScoped, System.StringComparison.Ordinal);
+            bool retainedForPriority = retained && !demoteRetainedTarget;
             bool routeBlocking = BlocksObjectiveRoute(actorFact.Actor, candidate.Actor);
-            int tier = ResolveSelectionTier(policy, immediate, retained, routeBlocking, gridGap);
+            bool executableCombatJoin = combatZoneScoped &&
+                                        !immediate &&
+                                        HasExecutableCombatZoneJoinStep(
+                                            actorFact,
+                                            candidate,
+                                            navigationGraph,
+                                            occupancy,
+                                            flowFields,
+                                            performanceCounters,
+                                            localCombatRegion);
+            int tier = combatZoneScoped && !immediate
+                ? ResolveCombatZoneScopedSelectionTier(retained, executableCombatJoin)
+                : ResolveSelectionTier(policy, immediate, retainedForPriority, routeBlocking, gridGap);
             if (tier == int.MaxValue)
             {
                 continue;
             }
 
-            int travelCost = ShouldScoreTravelCost(policy, tier, hasLowerTierCandidate)
+            int travelCost = ShouldScoreTravelCost(policy, tier, hasLowerTierCandidate, demoteRetainedTarget)
                 ? ResolveAttackOpportunityTravelCost(
                     BattleTickStartProjectionBuilder.Build(actorFact),
                     BattleTickStartProjectionBuilder.Build(candidate),
@@ -158,7 +180,8 @@ internal static class BattleTargetSelectionService
                     occupancy,
                     flowFields,
                     performanceCounters,
-                    gridGap)
+                    gridGap,
+                    localCombatRegion)
                 : int.MaxValue;
             candidates.Add(new BattleRuntimeAiTargetCandidateFacts
             {
@@ -181,7 +204,8 @@ internal static class BattleTargetSelectionService
     private static bool HasLowerTierCandidate(
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleRuntimeTickStartActorFact actorFact,
-        string policy)
+        string policy,
+        bool demoteRetainedTarget)
     {
         if (!string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.Default, System.StringComparison.Ordinal))
         {
@@ -201,13 +225,30 @@ internal static class BattleTargetSelectionService
             int orthogonalGap = BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
             bool immediate = orthogonalGap <= attackRange;
             bool retained = string.Equals(actorFact.TargetActorId, candidate.Actor.ActorId, System.StringComparison.Ordinal);
-            if (immediate || retained)
+            if (immediate || retained && !demoteRetainedTarget)
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private static bool ShouldDemoteRetainedTarget(BattleRuntimeActor actor)
+    {
+        if (actor == null || actor.ConsecutiveAdvanceFailures <= 0)
+        {
+            return false;
+        }
+
+        string reason = actor.LastAdvanceFailureReason ?? "";
+        // Target retention prevents jitter during normal marching. Once local
+        // combat ingress has explicitly failed, the retained target becomes a
+        // degraded preference so the same bounded candidate set can choose an
+        // executable local target instead of parking forever behind a full front.
+        return string.Equals(reason, LocalCombatDecisionReason.HoldSupportAttackSlotsFull, System.StringComparison.Ordinal) ||
+               string.Equals(reason, LocalCombatDecisionReason.RejectNoReachableSlot, System.StringComparison.Ordinal) ||
+               string.Equals(reason, BattleGroupTacticalReasonCode.LocalRegionDegradeNoReachableSlot, System.StringComparison.Ordinal);
     }
 
     private static int ResolveSelectionTier(
@@ -256,11 +297,74 @@ internal static class BattleTargetSelectionService
         return 2;
     }
 
-    private static bool ShouldScoreTravelCost(string policy, int tier, bool hasLowerTierCandidate)
+    private static int ResolveCombatZoneScopedSelectionTier(bool retained, bool executableJoin)
     {
-        return !hasLowerTierCandidate &&
-               tier >= 2 &&
-               string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.Default, System.StringComparison.Ordinal);
+        // Combat-zone joining is zone-first, but still stable: keep a retained
+        // executable slot assignment, switch to another executable front when
+        // the retained target is blocked, and preserve blocked retained targets
+        // only when no executable join target exists so diagnostics stay named.
+        if (retained && executableJoin)
+        {
+            return 1;
+        }
+
+        if (executableJoin)
+        {
+            return 2;
+        }
+
+        return retained ? 3 : 4;
+    }
+
+    private static bool HasExecutableCombatZoneJoinStep(
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleRuntimeTickStartActorFact targetFact,
+        BattleNavigationGraph navigationGraph,
+        BattleDynamicOccupancy occupancy,
+        BattleFlowFieldCache flowFields,
+        BattlePerformanceCounters performanceCounters,
+        BattleTacticalRegionSnapshot localCombatRegion)
+    {
+        if (navigationGraph == null || occupancy == null)
+        {
+            return false;
+        }
+
+        BattleRuntimeActor tickStartActor = BattleTickStartProjectionBuilder.Build(actorFact);
+        BattleRuntimeActor tickStartTarget = BattleTickStartProjectionBuilder.Build(targetFact);
+        return BattleCombatSlotIntentResolver.TrySelectExecutableIntent(
+            tickStartActor,
+            tickStartTarget,
+            actorFact.Anchor,
+            navigationGraph,
+            occupancy,
+            new BattleMovementReservationMap(),
+            flowFields,
+            preferSupportSlots: false,
+            performanceCounters,
+            localCombatRegion,
+            out _,
+            out IReadOnlyList<BattleGridCoord> moveOptions) &&
+            moveOptions.Count > 0;
+    }
+
+    private static bool ShouldScoreTravelCost(string policy, int tier, bool hasLowerTierCandidate, bool demoteRetainedTarget)
+    {
+        if (tier < 2)
+        {
+            return false;
+        }
+
+        if (string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.Default, System.StringComparison.Ordinal))
+        {
+            return !hasLowerTierCandidate;
+        }
+
+        // Combat-zone joining is already bounded by the commander action zone.
+        // Combat-zone scoped decisions have already selected the action area.
+        // Score executable local entry before target stickiness so a unit does
+        // not need to fail on an old target before joining another open front.
+        return string.Equals(policy, BattleRuntimeAiTargetSelectionPolicy.CombatZoneScoped, System.StringComparison.Ordinal);
     }
 
     private static int GetCenterManhattanDistance(
@@ -631,13 +735,13 @@ internal static class BattleTargetSelectionService
             navigationGraph,
             preferSupportSlots: false,
             localCombatRegion: localCombatRegion);
-        field = cache.PreferOpenAttackSlots(actor, navigationGraph, occupancy, field);
+        field = cache.PreferOpenAttackSlots(actor, navigationGraph, occupancy, field, localCombatRegion);
         if (!field.TryGetCost(actorAnchor, out int cost))
         {
             return 100000 + fallbackGap;
         }
 
-        bool hasOpenAttackSlot = field.GoalSlots.Any(slot => slot.Kind == BattleCombatSlotKind.Attack);
+        bool hasOpenAttackSlot = HasAttackGoal(field);
         return hasOpenAttackSlot ? cost : cost + 5000;
     }
 
@@ -651,16 +755,35 @@ internal static class BattleTargetSelectionService
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion = null)
     {
-        return ResolveAttackOpportunityTravelCost(
+        if (actor == null || target == null || navigationGraph == null)
+        {
+            return false;
+        }
+
+        BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
+        BattleFlowField field = cache.GetOrBuild(
             actor,
             target,
-            actorAnchor,
             navigationGraph,
-            occupancy,
-            flowFields,
-            performanceCounters,
-            fallbackGap: 0,
-            localCombatRegion) < 5000;
+            preferSupportSlots: false,
+            localCombatRegion: localCombatRegion);
+        field = cache.PreferOpenAttackSlots(actor, navigationGraph, occupancy, field, localCombatRegion);
+        // Reachability is a topology/open-slot fact. Local combat region penalties
+        // can make an outside slot expensive, but must not erase the fallback.
+        return field.TryGetCost(actorAnchor, out _) && HasAttackGoal(field);
+    }
+
+    private static bool HasAttackGoal(BattleFlowField field)
+    {
+        foreach (BattleCombatSlot slot in field?.GoalSlots ?? System.Array.Empty<BattleCombatSlot>())
+        {
+            if (slot.Kind == BattleCombatSlotKind.Attack)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsBetterAssaultTarget(AssaultTargetScore candidate, AssaultTargetScore known)

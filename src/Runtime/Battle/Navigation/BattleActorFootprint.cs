@@ -74,6 +74,16 @@ internal static class BattleActorFootprint
         return int.MaxValue;
     }
 
+    public static int GetManhattanGap(
+        BattleRuntimeActor first,
+        BattleGridCoord firstAnchor,
+        BattleRuntimeActor second,
+        BattleGridCoord secondAnchor)
+    {
+        GetAxisGaps(first, firstAnchor, second, secondAnchor, out int gapX, out int gapY);
+        return gapX + gapY;
+    }
+
     public static void GetAxisGaps(
         BattleRuntimeActor first,
         BattleGridCoord firstAnchor,

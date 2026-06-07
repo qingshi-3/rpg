@@ -86,10 +86,11 @@ internal static class BattleObjectiveAdvancePlanner
             performanceCounters);
         if (moveOptions.Count == 0)
         {
-            BattleRuntimeAdvanceDiagnostics.LogObjectiveAdvanceFailureDiagnostic(
+            BattleRuntimeAdvanceDiagnostics.LogRegionAdvanceFailureDiagnostic(
                 battleId,
                 tick,
                 actorFact,
+                goal,
                 navigationGraph,
                 "region_path_not_found");
             return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "region_path_not_found", regionMovementGoal: goal);

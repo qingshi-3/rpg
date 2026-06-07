@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.Tactics;
@@ -31,13 +30,6 @@ internal static class BattleCombatSlotAllocator
         foreach (BattleGridCoord anchor in GetCandidateAnchors(actor, target, graph, targetAnchor, attackRange))
         {
             scannedAnchors++;
-            // Engaged local combat may narrow legal slot goals to the group's
-            // Runtime-owned local region; topology remains the final movement authority.
-            if (!IsAnchorInsideLocalCombatRegion(anchor, localCombatRegion))
-            {
-                continue;
-            }
-
             if (!graph.CanPlaceFootprint(actor, anchor))
             {
                 continue;
@@ -53,7 +45,7 @@ internal static class BattleCombatSlotAllocator
             {
                 if (assignedAnchors.Add(anchor))
                 {
-                    slots.Add(new BattleCombatSlot(anchor, BattleCombatSlotKind.Attack, gap, GetPriority(anchor, targetAnchor)));
+                    slots.Add(new BattleCombatSlot(anchor, BattleCombatSlotKind.Attack, gap, GetPriority(anchor, targetAnchor, localCombatRegion)));
                 }
 
                 continue;
@@ -67,7 +59,7 @@ internal static class BattleCombatSlotAllocator
                         anchor,
                         BattleCombatSlotKind.Support,
                         gap,
-                        GetPriority(anchor, targetAnchor) + 1000,
+                        GetPriority(anchor, targetAnchor, localCombatRegion) + 1000,
                         ResolveSupportRole(actor, target, anchor, targetAnchor)));
                 }
             }
@@ -103,19 +95,14 @@ internal static class BattleCombatSlotAllocator
                     anchor,
                     BattleCombatSlotKind.Support,
                     gap,
-                    GetPriority(anchor, targetAnchor) + 5000,
+                    GetPriority(anchor, targetAnchor, localCombatRegion) + 5000,
                     ResolveSupportRole(actor, target, anchor, targetAnchor)));
             }
         }
 
         performanceCounters?.RecordCombatSlotScan(scannedAnchors, Stopwatch.GetTimestamp() - startedAt);
-        return slots
-            .OrderBy(item => item.Kind)
-            .ThenBy(item => item.Priority)
-            .ThenBy(item => item.Anchor.Height)
-            .ThenBy(item => item.Anchor.Y)
-            .ThenBy(item => item.Anchor.X)
-            .ToArray();
+        slots.Sort(BattleCombatSlotKindPriorityComparer.Instance);
+        return slots.ToArray();
     }
 
     private static IEnumerable<BattleGridCoord> GetCandidateAnchors(
@@ -150,35 +137,27 @@ internal static class BattleCombatSlotAllocator
         int minY = localCombatRegion.CenterCellY - (height - 1) / 2;
         int maxX = minX + width - 1;
         int maxY = minY + height - 1;
-        return graph.GetAnchorsInBounds(minX, maxX, minY, maxY)
-            .Where(anchor => anchor.Height == localCombatRegion.CenterCellHeight);
-    }
-
-    private static bool IsAnchorInsideLocalCombatRegion(
-        BattleGridCoord anchor,
-        BattleTacticalRegionSnapshot localCombatRegion)
-    {
-        if (localCombatRegion == null)
+        List<BattleGridCoord> anchors = new();
+        foreach (BattleGridCoord anchor in graph.GetAnchorsInBounds(minX, maxX, minY, maxY))
         {
-            return true;
+            if (anchor.Height == localCombatRegion.CenterCellHeight)
+            {
+                anchors.Add(anchor);
+            }
         }
 
-        int width = System.Math.Max(1, localCombatRegion.Width);
-        int height = System.Math.Max(1, localCombatRegion.Height);
-        int minX = localCombatRegion.CenterCellX - (width - 1) / 2;
-        int minY = localCombatRegion.CenterCellY - (height - 1) / 2;
-        return anchor.Height == localCombatRegion.CenterCellHeight &&
-               anchor.X >= minX &&
-               anchor.X < minX + width &&
-               anchor.Y >= minY &&
-               anchor.Y < minY + height;
+        return anchors;
     }
 
-    private static int GetPriority(BattleGridCoord anchor, BattleGridCoord targetAnchor)
+    private static int GetPriority(
+        BattleGridCoord anchor,
+        BattleGridCoord targetAnchor,
+        BattleTacticalRegionSnapshot localCombatRegion)
     {
         return System.Math.Abs(anchor.X - targetAnchor.X) +
                System.Math.Abs(anchor.Y - targetAnchor.Y) +
-               System.Math.Abs(anchor.Height - targetAnchor.Height) * 4;
+               System.Math.Abs(anchor.Height - targetAnchor.Height) * 4 +
+               BattleLocalRegionPreference.GetSlotPriorityPenalty(anchor, localCombatRegion);
     }
 
     private static LocalCombatSupportSlotRole ResolveSupportRole(

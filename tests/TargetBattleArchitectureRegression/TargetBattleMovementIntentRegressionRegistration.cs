@@ -19,7 +19,8 @@ internal static class TargetBattleMovementIntentRegressionRegistration
         run("runtime stores local combat region for engaged group", TargetBattleLocalCombatSituationRegressionCases.RuntimeStoresLocalCombatRegionForEngagedGroup);
         run("local combat decision facts expose stored region facts", TargetBattleLocalCombatSituationRegressionCases.LocalCombatDecisionFactsExposeStoredRegionFacts);
         run("engaged targeting ignores far hostile outside local region", TargetBattleLocalCombatSituationRegressionCases.EngagedTargetingIgnoresFarHostileOutsideLocalRegion);
-        run("engaged attack slots stay inside local region", TargetBattleLocalCombatSituationRegressionCases.EngagedAttackSlotsStayInsideLocalRegion);
+        run("engaged attack slots expose out-of-region fallback facts", TargetBattleLocalCombatSituationRegressionCases.EngagedAttackSlotsExposeOutOfRegionFallbackFacts);
+        run("engaged out-of-region slot is fallback when local slot is blocked", TargetBattleLocalCombatSituationRegressionCases.EngagedOutOfRegionSlotIsFallbackWhenLocalSlotIsBlocked);
         run("engaged no local slot degrades with reason", TargetBattleLocalCombatSituationRegressionCases.EngagedNoLocalSlotDegradesWithReason);
         run("runtime move-first joins route-blocking local fight", TargetBattleLocalCombatSituationRegressionCases.RuntimeMoveFirstJoinsRouteBlockingLocalFight);
         run("runtime full attack slots uses named support slot", TargetBattleLocalCombatSituationRegressionCases.RuntimeFullAttackSlotsUsesNamedSupportSlot);

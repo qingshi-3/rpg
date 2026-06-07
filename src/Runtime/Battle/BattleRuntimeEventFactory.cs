@@ -45,6 +45,44 @@ internal static class BattleRuntimeEventFactory
         };
     }
 
+    internal static BattleEvent CreateHeroSkillDamageApplied(
+        string battleId,
+        int tick,
+        double currentTimeSeconds,
+        BattleRuntimeActor actor,
+        BattleRuntimeActor targetActor,
+        BattleGridCoord actorAnchor,
+        BattleGridCoord targetAnchor,
+        string sourceCommandId,
+        int appliedDamage,
+        bool isFinishingHit)
+    {
+        return new BattleEvent
+        {
+            EventId = $"{battleId}:tick_{tick}:{actor.ActorId}:skill_damage:{targetActor.ActorId}",
+            BattleId = battleId,
+            BattleGroupId = actor.BattleGroupId,
+            ActorId = actor.ActorId,
+            TargetId = targetActor.ActorId,
+            SourceCommandId = sourceCommandId ?? "",
+            Kind = BattleEventKind.DamageApplied,
+            ReasonCode = isFinishingHit
+                ? "hero_skill_target_defeated"
+                : "hero_skill_damage",
+            RuntimeTick = tick,
+            RuntimeTimeSeconds = currentTimeSeconds,
+            CorpsStrengthDelta = -appliedDamage,
+            HasActorCells = true,
+            ActorGridX = actorAnchor.X,
+            ActorGridY = actorAnchor.Y,
+            ActorGridHeight = actorAnchor.Height,
+            HasTargetCells = true,
+            TargetGridX = targetAnchor.X,
+            TargetGridY = targetAnchor.Y,
+            TargetGridHeight = targetAnchor.Height
+        };
+    }
+
     internal static BattleEvent CreateMovementEvent(
         BattleEventKind kind,
         string battleId,

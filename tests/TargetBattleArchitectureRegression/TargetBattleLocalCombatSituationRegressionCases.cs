@@ -104,7 +104,7 @@ internal static class TargetBattleLocalCombatSituationRegressionCases
         AssertTrue(enemyFacts.LocalCombatTargetActorId == "player_near:1", $"local combat target should stay inside local region: actual={enemyFacts.LocalCombatTargetActorId}");
     }
 
-    public static void EngagedAttackSlotsStayInsideLocalRegion()
+    public static void EngagedAttackSlotsExposeOutOfRegionFallbackFacts()
     {
         RecordingBattleRuntimeAiExecutor executor = new(new DefaultBattleRuntimeAiExecutor());
         BattleRuntimeSessionController controller = new BattleRuntimeSession(executor)
@@ -125,8 +125,35 @@ internal static class TargetBattleLocalCombatSituationRegressionCases
         AssertTrue(!IsInsideRegion(region, 6, 0), "only open attack slot should be outside local region");
         AssertTrue(enemyFacts.HasLocalCombatSituation, "enemy should consume local combat facts");
         AssertTrue(
-            enemyFacts.LocalCombatHasReachableAttackSlot == false,
-            "attack slots outside the local combat region must not be treated as reachable");
+            enemyFacts.LocalCombatHasReachableAttackSlot,
+            "attack slots outside the local combat region may be reachable fallback facts after in-region choices are blocked");
+    }
+
+    public static void EngagedOutOfRegionSlotIsFallbackWhenLocalSlotIsBlocked()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildOutOfRegionFallbackSlotSnapshot());
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+        BattleRuntimeActor enemy = controller.State.Actors.Single(item => item.ActorId == "enemy_a:1");
+        BattleTacticalRegionSnapshot region = controller.State.TacticalStates["enemy_group"].LocalCombatRegion;
+        BattleEvent? enemyMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "enemy_a:1");
+
+        if (region == null)
+        {
+            throw new Exception("runtime should store a local combat region before resolving fallback movement");
+        }
+
+        AssertTrue(IsInsideRegion(region, 5, 0), "target should be inside local region");
+        AssertTrue(!IsInsideRegion(region, 6, 0), "the fallback attack slot should be outside local region");
+        AssertTrue(
+            enemyMove != null,
+            $"blocked in-region slots should allow an executable out-of-region fallback instead of freezing: failure={enemy.LastAdvanceFailureReason}");
+        AssertTrue(
+            enemyMove!.ToGridX > enemyMove.FromGridX,
+            $"fallback route should still move toward the target-side attackable cells: from=({enemyMove.FromGridX},{enemyMove.FromGridY}) to=({enemyMove.ToGridX},{enemyMove.ToGridY})");
     }
 
     public static void EngagedNoLocalSlotDegradesWithReason()
@@ -139,7 +166,7 @@ internal static class TargetBattleLocalCombatSituationRegressionCases
 
         AssertTrue(
             tick.Events.All(item => item.ActorId != "enemy_a:1" || item.Kind != BattleEventKind.MovementStarted),
-            "enemy should not move toward slots outside the local combat region when no local slot is reachable");
+            "enemy should not move when no local or out-of-region fallback slot is reachable");
         AssertTrue(
             enemy.LastAdvanceFailureReason == BattleGroupTacticalReasonCode.LocalRegionDegradeNoReachableSlot,
             $"no-slot degradation reason should remain diagnosable: actual={enemy.LastAdvanceFailureReason}");
@@ -352,9 +379,34 @@ internal static class TargetBattleLocalCombatSituationRegressionCases
             }
         };
 
+        for (int x = 1; x <= 5; x++)
+        {
+            AddSurface(snapshot, x, 0);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildOutOfRegionFallbackSlotSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_out_of_region_slot_fallback",
+            BattleId = "battle_out_of_region_slot_fallback",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("enemy_group", "enemy", "enemy_a", 1, 0, 160, BattleEngagementRule.AttackFirst, tacticalMode: BattleGroupTacticalMode.EnemyOffense),
+                BuildGroup("enemy_blocker_group", "enemy", "enemy_blocker", 4, 0, 160, BattleEngagementRule.Hold, initialCommandId: "HoldLine"),
+                BuildGroup("player_group", "player", "player_near", 5, 0, 160, BattleEngagementRule.Hold, initialCommandId: "HoldLine")
+            }
+        };
+
         for (int x = 1; x <= 6; x++)
         {
             AddSurface(snapshot, x, 0);
+            AddSurface(snapshot, x, 1);
         }
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);

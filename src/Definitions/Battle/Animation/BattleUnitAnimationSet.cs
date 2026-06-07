@@ -17,6 +17,9 @@ public partial class BattleUnitAnimationSet : Resource
     public string AttackAnimation { get; set; } = "attack";
 
     [Export]
+    public string SkillCastAnimation { get; set; } = "skill_cast";
+
+    [Export]
     public string HitAnimation { get; set; } = "hit";
 
     [Export]
@@ -48,6 +51,9 @@ public partial class BattleUnitAnimationSet : Resource
     public double TargetAttackSeconds { get; set; } = 1.2;
 
     [Export]
+    public double TargetSkillCastSeconds { get; set; } = 0.9;
+
+    [Export]
     public double TargetHitSeconds { get; set; } = 0.48;
 
     [Export]
@@ -74,4 +80,15 @@ public partial class BattleUnitAnimationSet : Resource
 
     [Export]
     public double DefeatedFallbackSeconds { get; set; } = 0.35;
+
+    [ExportGroup("Defeated Fade")]
+
+    [Export(PropertyHint.Range, "0.02,0.5,0.01")]
+    public double DefeatedFadeFastSeconds { get; set; } = 0.12;
+
+    [Export(PropertyHint.Range, "0,1,0.01")]
+    public float DefeatedFadeMidAlpha { get; set; } = 0.38f;
+
+    [Export(PropertyHint.Range, "0,1,0.01")]
+    public float DefeatedFadeEndAlpha { get; set; } = 0.05f;
 }

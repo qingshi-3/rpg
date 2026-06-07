@@ -20,5 +20,6 @@ public sealed class BattleForceRequest
     public double AttackImpactDelaySeconds { get; set; }
     public string FactionId { get; set; } = "";
     public string PreferredEntranceId { get; set; } = "";
+    public string DefaultFormationId { get; set; } = "";
     public List<BattleForcePlacementRequest> PreferredPlacements { get; set; } = new();
 }

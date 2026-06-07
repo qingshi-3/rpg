@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 
@@ -71,7 +70,7 @@ internal static class BattleCrowdMovementPlanner
         BattleFlowField field = cache.GetOrBuild(actor, target, graph, preferSupportSlots, localCombatRegion);
         if (!preferSupportSlots)
         {
-            field = cache.PreferOpenAttackSlots(actor, graph, occupancy, field);
+            field = cache.PreferOpenAttackSlots(actor, graph, occupancy, field, localCombatRegion);
         }
         if (!field.HasCosts || !field.TryGetCost(start, out int startCost))
         {
@@ -83,7 +82,7 @@ internal static class BattleCrowdMovementPlanner
         {
             if (!BattlePathStepRules.CanUseStaticStep(actor, start, neighbor, graph) ||
                 !reservations.CanReserveMove(actor, start, neighbor, occupancy) ||
-                IsImmediateReverseOfPreviousCombatStep(actor, start, neighbor) ||
+                IsRecentBacktrackStep(actor, start, neighbor) ||
                 !field.TryGetCost(neighbor, out int neighborCost) ||
                 neighborCost >= startCost)
             {
@@ -96,15 +95,13 @@ internal static class BattleCrowdMovementPlanner
             // support unit can flank when the straight approach is occupied.
             int score = neighborCost * FlowCostWeight +
                         (avoidOpeningNewAxisGapNearEngagedTarget && OpensNewAxisGap(actor, target, start, neighbor) ? AxisGapPenalty : 0) +
+                        BattleLocalRegionPreference.GetStepPenalty(neighbor, localCombatRegion) +
                         GetStepCost(start, neighbor);
             MoveOption option = new(neighbor, score, neighborCost);
             options.Add(option);
         }
 
-        BattleGridCoord[] ordered = options
-            .OrderBy(item => item, MoveOptionComparer.Instance)
-            .Select(item => item.Anchor)
-            .ToArray();
+        BattleGridCoord[] ordered = SortMoveOptions(options);
         if (ordered.Length > 0)
         {
             return ordered;
@@ -119,7 +116,16 @@ internal static class BattleCrowdMovementPlanner
             return System.Array.Empty<BattleGridCoord>();
         }
 
+        // Detours are a short escape hatch around live footprints, not an
+        // authorization to keep orbiting a blocked local-combat target.
+        if (actor.HasSecondaryMovementBacktrackGuardCell)
+        {
+            return System.Array.Empty<BattleGridCoord>();
+        }
+
         BattleGridCoord? discouragedReverseStep = GetImmediateReverseStep(actor, start);
+        BattleGridCoord? discouragedCycleStep = GetBacktrackGuardStep(actor);
+        BattleGridCoord? secondaryDiscouragedCycleStep = GetSecondaryBacktrackGuardStep(actor);
         if (BattlePathfinder.TryFindNextStepTowardAttackRange(
             actor,
             target,
@@ -129,7 +135,9 @@ internal static class BattleCrowdMovementPlanner
             preferSupportWhenFirstStepMovesAway: false,
             out BattleGridCoord detourStep,
             localCombatRegion,
-            discouragedReverseStep))
+            discouragedReverseStep,
+            discouragedCycleStep,
+            secondaryDiscouragedCycleStep))
         {
             return new[] { detourStep };
         }
@@ -142,7 +150,9 @@ internal static class BattleCrowdMovementPlanner
             reservations,
             preferSupportWhenFirstStepMovesAway: false,
             out detourStep,
-            localCombatRegion)
+            localCombatRegion,
+            secondaryExcludedFirstStep: discouragedCycleStep,
+            tertiaryExcludedFirstStep: secondaryDiscouragedCycleStep)
             ? new[] { detourStep }
             : System.Array.Empty<BattleGridCoord>();
     }
@@ -154,6 +164,7 @@ internal static class BattleCrowdMovementPlanner
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
+        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters = null,
         BattleTacticalRegionSnapshot localCombatRegion = null)
     {
@@ -169,11 +180,13 @@ internal static class BattleCrowdMovementPlanner
         }
 
         BattleCombatSlot goal = new(combatSlotAnchor, combatSlotKind, 0, 0);
-        BattleFlowField field = BattleFlowFieldBuilder.BuildFromGoalSlots(
+        BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
+        BattleFlowField field = cache.GetOrBuildGoalField(
             actor,
             graph,
             new[] { goal },
-            performanceCounters);
+            combatSlotKind,
+            localCombatRegion);
         return FindNextStepCandidatesTowardCombatField(
             actor,
             field,
@@ -219,21 +232,20 @@ internal static class BattleCrowdMovementPlanner
         {
             if (!BattlePathStepRules.CanUseStaticStep(actor, start, neighbor, graph) ||
                 !reservations.CanReserveMove(actor, start, neighbor, occupancy) ||
-                IsImmediateReverseOfPreviousCombatStep(actor, start, neighbor) ||
+                IsRecentBacktrackStep(actor, start, neighbor) ||
                 !field.TryGetCost(neighbor, out int neighborCost) ||
                 neighborCost >= startCost)
             {
                 continue;
             }
 
-            int score = neighborCost * FlowCostWeight + GetStepCost(start, neighbor);
+            int score = neighborCost * FlowCostWeight +
+                        BattleLocalRegionPreference.GetStepPenalty(neighbor, localCombatRegion) +
+                        GetStepCost(start, neighbor);
             options.Add(new MoveOption(neighbor, score, neighborCost));
         }
 
-        BattleGridCoord[] ordered = options
-            .OrderBy(item => item, MoveOptionComparer.Instance)
-            .Select(item => item.Anchor)
-            .ToArray();
+        BattleGridCoord[] ordered = SortMoveOptions(options);
         if (ordered.Length > 0)
         {
             if (field.TryGetBestGoal(ordered[0], out BattleCombatSlot nextGoal))
@@ -244,7 +256,16 @@ internal static class BattleCrowdMovementPlanner
             return ordered;
         }
 
+        // Detours are a short escape hatch around live footprints, not an
+        // authorization to keep orbiting a blocked local-combat slot.
+        if (actor.HasSecondaryMovementBacktrackGuardCell)
+        {
+            return System.Array.Empty<BattleGridCoord>();
+        }
+
         BattleGridCoord? discouragedReverseStep = GetImmediateReverseStep(actor, start);
+        BattleGridCoord? discouragedCycleStep = GetBacktrackGuardStep(actor);
+        BattleGridCoord? secondaryDiscouragedCycleStep = GetSecondaryBacktrackGuardStep(actor);
         if (BattlePathfinder.TryFindNextStepTowardAnyAnchor(
             actor,
             field.GoalSlots,
@@ -254,7 +275,9 @@ internal static class BattleCrowdMovementPlanner
             out BattleGridCoord detourStep,
             out BattleCombatSlot detourGoal,
             localCombatRegion,
-            discouragedReverseStep))
+            discouragedReverseStep,
+            discouragedCycleStep,
+            secondaryDiscouragedCycleStep))
         {
             selectedGoal = detourGoal;
             return new[] { detourStep };
@@ -268,7 +291,9 @@ internal static class BattleCrowdMovementPlanner
             reservations,
             out detourStep,
             out detourGoal,
-            localCombatRegion))
+            localCombatRegion,
+            secondaryExcludedFirstStep: discouragedCycleStep,
+            tertiaryExcludedFirstStep: secondaryDiscouragedCycleStep))
         {
             selectedGoal = detourGoal;
             return new[] { detourStep };
@@ -324,10 +349,7 @@ internal static class BattleCrowdMovementPlanner
             options.Add(new MoveOption(neighbor, score, neighborCost));
         }
 
-        return options
-            .OrderBy(item => item, MoveOptionComparer.Instance)
-            .Select(item => item.Anchor)
-            .ToArray();
+        return SortMoveOptions(options);
     }
 
     private static bool OpensNewAxisGap(
@@ -363,13 +385,42 @@ internal static class BattleCrowdMovementPlanner
             : BattlePathCostPolicy.StepCost;
     }
 
-    private static bool IsImmediateReverseOfPreviousCombatStep(
+    private static BattleGridCoord[] SortMoveOptions(List<MoveOption> options)
+    {
+        if (options == null || options.Count == 0)
+        {
+            return System.Array.Empty<BattleGridCoord>();
+        }
+
+        options.Sort(MoveOptionComparer.Instance);
+        BattleGridCoord[] ordered = new BattleGridCoord[options.Count];
+        for (int i = 0; i < options.Count; i++)
+        {
+            ordered[i] = options[i].Anchor;
+        }
+
+        return ordered;
+    }
+
+    private static bool IsRecentBacktrackStep(
         BattleRuntimeActor actor,
         BattleGridCoord start,
         BattleGridCoord candidate)
     {
         BattleGridCoord? reverseStep = GetImmediateReverseStep(actor, start);
-        return reverseStep.HasValue && reverseStep.Value == candidate;
+        if (reverseStep.HasValue && reverseStep.Value == candidate)
+        {
+            return true;
+        }
+
+        BattleGridCoord? cycleStep = GetBacktrackGuardStep(actor);
+        if (cycleStep.HasValue && cycleStep.Value == candidate)
+        {
+            return true;
+        }
+
+        BattleGridCoord? secondaryCycleStep = GetSecondaryBacktrackGuardStep(actor);
+        return secondaryCycleStep.HasValue && secondaryCycleStep.Value == candidate;
     }
 
     private static BattleGridCoord? GetImmediateReverseStep(
@@ -398,6 +449,26 @@ internal static class BattleCrowdMovementPlanner
         // path genuinely needs a backtrack around live footprints, the detour
         // search may still use it instead of freezing the actor in place.
         return previousFrom;
+    }
+
+    private static BattleGridCoord? GetBacktrackGuardStep(BattleRuntimeActor actor)
+    {
+        return actor?.HasMovementBacktrackGuardCell == true
+            ? new BattleGridCoord(
+                actor.MovementBacktrackGuardGridX,
+                actor.MovementBacktrackGuardGridY,
+                actor.MovementBacktrackGuardGridHeight)
+            : null;
+    }
+
+    private static BattleGridCoord? GetSecondaryBacktrackGuardStep(BattleRuntimeActor actor)
+    {
+        return actor?.HasSecondaryMovementBacktrackGuardCell == true
+            ? new BattleGridCoord(
+                actor.SecondaryMovementBacktrackGuardGridX,
+                actor.SecondaryMovementBacktrackGuardGridY,
+                actor.SecondaryMovementBacktrackGuardGridHeight)
+            : null;
     }
 
     private readonly record struct MoveOption(BattleGridCoord Anchor, int Score, int FlowCost);

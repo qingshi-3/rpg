@@ -63,7 +63,11 @@ internal static class BattleAttackResolver
         foreach (IGrouping<string, PendingAttack> targetGroup in pendingAttacks
                      .GroupBy(item => item.Context.TargetFact!.Value.Actor.ActorId, System.StringComparer.Ordinal))
         {
-            int remaining = postAttackHitPoints[targetGroup.Key];
+            if (!postAttackHitPoints.TryGetValue(targetGroup.Key, out int remaining))
+            {
+                throw new System.InvalidOperationException($"battle attack target missing tick-start fact: targetActorId={targetGroup.Key}");
+            }
+
             foreach (PendingAttack pending in targetGroup.OrderBy(
                          item => item.Context.ActorFact.Actor.ActorId,
                          System.StringComparer.Ordinal))

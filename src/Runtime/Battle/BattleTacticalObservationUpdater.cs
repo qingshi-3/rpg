@@ -27,9 +27,11 @@ internal static class BattleTacticalObservationUpdater
         // Perception summaries are observation facts; engagement mutation remains
         // centralized in the battle-group state machine below.
         state.GroupPerceptionSummaryStore = BattleGroupPerceptionSummaryBuilder.BuildForGroups(livingCorps, tick);
+        IReadOnlySet<string> groupsWithActiveCombatActions = BuildGroupsWithActiveCombatActions(livingCorps);
         IReadOnlyList<BattleEvent> engagementEvents = BattleGroupEngagementStateMachine.ApplyPerceptionTransitions(
             state.TacticalStateStore,
             state.GroupPerceptionSummaryStore,
+            groupsWithActiveCombatActions,
             battleId,
             tick,
             currentTimeSeconds);
@@ -46,6 +48,38 @@ internal static class BattleTacticalObservationUpdater
         return livingCorps;
     }
 
+    private static IReadOnlySet<string> BuildGroupsWithActiveCombatActions(IEnumerable<BattleRuntimeActor> livingCorps)
+    {
+        return (livingCorps ?? System.Array.Empty<BattleRuntimeActor>())
+            .Where(item => item != null &&
+                           item.HitPoints > 0 &&
+                           !string.IsNullOrWhiteSpace(item.BattleGroupId) &&
+                           HasActiveCombatAction(item))
+            .Select(item => item.BattleGroupId ?? "")
+            .ToHashSet(System.StringComparer.Ordinal);
+    }
+
+    private static bool HasActiveCombatAction(BattleRuntimeActor actor)
+    {
+        if (actor == null)
+        {
+            return false;
+        }
+
+        bool hasCombatTarget = !string.IsNullOrWhiteSpace(actor.TargetActorId) ||
+                               !string.IsNullOrWhiteSpace(actor.MovementIntentTargetActorId);
+        if (!hasCombatTarget)
+        {
+            return actor.Phase is BattleRuntimeActorPhase.SkillCasting or BattleRuntimeActorPhase.SkillRecovery;
+        }
+
+        return actor.Phase is BattleRuntimeActorPhase.Moving
+            or BattleRuntimeActorPhase.AttackWindup
+            or BattleRuntimeActorPhase.AttackRecovery
+            or BattleRuntimeActorPhase.SkillCasting
+            or BattleRuntimeActorPhase.SkillRecovery;
+    }
+
     internal static void ApplyPostAttackEngagementTriggers(
         BattleRuntimeState state,
         IReadOnlyList<BattleEvent> attackEvents,
@@ -59,13 +93,7 @@ internal static class BattleTacticalObservationUpdater
             return;
         }
 
-        Dictionary<string, string> actorGroupIds = state.Actors
-            .Where(item => !string.IsNullOrWhiteSpace(item.ActorId) &&
-                           !string.IsNullOrWhiteSpace(item.BattleGroupId))
-            .ToDictionary(
-                item => item.ActorId,
-                item => item.BattleGroupId,
-                System.StringComparer.Ordinal);
+        Dictionary<string, string> actorGroupIds = BuildActorGroupIdMap(state.Actors);
         IReadOnlyList<BattleEvent> engagementEvents = BattleGroupEngagementStateMachine.ApplyMemberActionTransitions(
             state.TacticalStateStore,
             attackEvents,
@@ -78,6 +106,27 @@ internal static class BattleTacticalObservationUpdater
             LogEngagementTransition(engagementEvent);
             stream.Add(engagementEvent);
         }
+    }
+
+    private static Dictionary<string, string> BuildActorGroupIdMap(IEnumerable<BattleRuntimeActor> actors)
+    {
+        Dictionary<string, string> actorGroupIds = new(System.StringComparer.Ordinal);
+        foreach (BattleRuntimeActor actor in actors ?? System.Array.Empty<BattleRuntimeActor>())
+        {
+            string actorId = actor?.ActorId ?? "";
+            string battleGroupId = actor?.BattleGroupId ?? "";
+            if (string.IsNullOrWhiteSpace(actorId) || string.IsNullOrWhiteSpace(battleGroupId))
+            {
+                continue;
+            }
+
+            if (!actorGroupIds.TryAdd(actorId, battleGroupId))
+            {
+                throw new System.InvalidOperationException($"duplicate runtime actor id in tactical observation: actorId={actorId}");
+            }
+        }
+
+        return actorGroupIds;
     }
 
     private static void LogEngagementTransition(BattleEvent engagementEvent)
@@ -212,8 +261,8 @@ internal static class BattleTacticalObservationUpdater
 
         int width = System.Math.Max(1, region?.Width ?? 1);
         int height = System.Math.Max(1, region?.Height ?? 1);
-        int minX = region?.CenterCellX ?? 0;
-        int minY = region?.CenterCellY ?? 0;
+        int minX = (region?.CenterCellX ?? 0) - (width - 1) / 2;
+        int minY = (region?.CenterCellY ?? 0) - (height - 1) / 2;
         int maxXExclusive = minX + width;
         int maxYExclusive = minY + height;
         return (livingCorps ?? System.Array.Empty<BattleRuntimeActor>())

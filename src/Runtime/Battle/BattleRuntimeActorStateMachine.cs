@@ -13,10 +13,12 @@ internal static class BattleRuntimeActorStateMachine
         BattleRuntimeActor actor,
         double currentTimeSeconds,
         out BattleGridCoord movementFrom,
-        out BattleGridCoord movementTo)
+        out BattleGridCoord movementTo,
+        out string boundaryReasonCode)
     {
         movementFrom = default;
         movementTo = default;
+        boundaryReasonCode = "";
         if (actor == null)
         {
             return false;
@@ -24,13 +26,33 @@ internal static class BattleRuntimeActorStateMachine
 
         if (actor.HitPoints <= 0)
         {
+            if (actor.Phase == BattleRuntimeActorPhase.Moving && actor.HasMovementTarget)
+            {
+                movementFrom = new BattleGridCoord(
+                    actor.MovementFromGridX,
+                    actor.MovementFromGridY,
+                    actor.MovementFromGridHeight);
+                movementTo = new BattleGridCoord(actor.GridX, actor.GridY, actor.GridHeight);
+                boundaryReasonCode = "movement_cancelled_defeated";
+                // Presentation needs an explicit movement boundary even when defeat
+                // cancels the segment before its target cell becomes authoritative.
+                MarkDefeated(actor);
+                return true;
+            }
+
             MarkDefeated(actor);
             return false;
         }
 
         if (actor.Phase == BattleRuntimeActorPhase.Moving)
         {
-            return AdvanceMovementBoundary(actor, currentTimeSeconds, out movementFrom, out movementTo);
+            return AdvanceMovementBoundary(actor, currentTimeSeconds, out movementFrom, out movementTo, out boundaryReasonCode);
+        }
+
+        if (actor.Phase == BattleRuntimeActorPhase.SkillCasting ||
+            actor.Phase == BattleRuntimeActorPhase.SkillRecovery)
+        {
+            return false;
         }
 
         if (actor.ActionReadyAtSeconds > currentTimeSeconds + TimeEpsilon)
@@ -58,6 +80,28 @@ internal static class BattleRuntimeActorStateMachine
         }
 
         double moveSeconds = ResolveMoveStepSeconds(actor);
+        BattleGridCoord previousFrom = new(
+            actor.MovementFromGridX,
+            actor.MovementFromGridY,
+            actor.MovementFromGridHeight);
+        BattleGridCoord previousTo = new(
+            actor.MovementToGridX,
+            actor.MovementToGridY,
+            actor.MovementToGridHeight);
+        BattleGridCoord currentAnchor = new(actor.GridX, actor.GridY, actor.GridHeight);
+        bool hasContinuousPreviousSegment = previousFrom != previousTo && previousTo == currentAnchor;
+        bool hadPrimaryGuard = actor.HasMovementBacktrackGuardCell;
+        int primaryGuardX = actor.MovementBacktrackGuardGridX;
+        int primaryGuardY = actor.MovementBacktrackGuardGridY;
+        int primaryGuardHeight = actor.MovementBacktrackGuardGridHeight;
+        actor.HasMovementBacktrackGuardCell = hasContinuousPreviousSegment;
+        actor.MovementBacktrackGuardGridX = hasContinuousPreviousSegment ? previousFrom.X : 0;
+        actor.MovementBacktrackGuardGridY = hasContinuousPreviousSegment ? previousFrom.Y : 0;
+        actor.MovementBacktrackGuardGridHeight = hasContinuousPreviousSegment ? previousFrom.Height : 0;
+        actor.HasSecondaryMovementBacktrackGuardCell = hasContinuousPreviousSegment && hadPrimaryGuard;
+        actor.SecondaryMovementBacktrackGuardGridX = hasContinuousPreviousSegment && hadPrimaryGuard ? primaryGuardX : 0;
+        actor.SecondaryMovementBacktrackGuardGridY = hasContinuousPreviousSegment && hadPrimaryGuard ? primaryGuardY : 0;
+        actor.SecondaryMovementBacktrackGuardGridHeight = hasContinuousPreviousSegment && hadPrimaryGuard ? primaryGuardHeight : 0;
         // Movement starts from the current authoritative anchor and only commits
         // the target cell when fixed runtime time reaches the movement boundary.
         actor.MotionState = BattleRuntimeActorMotionState.Moving;
@@ -106,6 +150,67 @@ internal static class BattleRuntimeActorStateMachine
         ClearMovementIntentSnapshot(actor);
     }
 
+    internal static void MarkSkillCasting(
+        BattleRuntimeActor actor,
+        string actionId,
+        string skillId,
+        string sourceCommandId,
+        string targetActorId,
+        double currentTimeSeconds,
+        double impactDelaySeconds,
+        double recoverySeconds)
+    {
+        if (actor == null)
+        {
+            return;
+        }
+
+        actor.MotionState = BattleRuntimeActorMotionState.Attacking;
+        actor.Phase = BattleRuntimeActorPhase.SkillCasting;
+        actor.ActionLockReason = "skill_casting";
+        actor.ActionReadyAtSeconds = currentTimeSeconds + System.Math.Max(0, impactDelaySeconds) + System.Math.Max(0, recoverySeconds);
+        actor.CurrentSkillActionId = actionId ?? "";
+        actor.CurrentSkillId = skillId ?? "";
+        actor.CurrentSkillSourceCommandId = sourceCommandId ?? "";
+        actor.CurrentSkillTargetActorId = targetActorId ?? "";
+        actor.CurrentSkillImpactAtSeconds = currentTimeSeconds + System.Math.Max(0, impactDelaySeconds);
+        actor.CurrentSkillImpactApplied = false;
+        ClearMovementIntentSnapshot(actor);
+    }
+
+    internal static void MarkSkillRecovery(BattleRuntimeActor actor, double currentTimeSeconds, double recoverySeconds)
+    {
+        if (actor == null)
+        {
+            return;
+        }
+
+        actor.MotionState = BattleRuntimeActorMotionState.Attacking;
+        actor.Phase = BattleRuntimeActorPhase.SkillRecovery;
+        actor.ActionLockReason = "skill_recovery";
+        actor.ActionReadyAtSeconds = currentTimeSeconds + System.Math.Max(0, recoverySeconds);
+        ClearMovementIntentSnapshot(actor);
+    }
+
+    internal static void MarkAnchoredDecision(BattleRuntimeActor actor)
+    {
+        if (actor == null || actor.HitPoints <= 0)
+        {
+            return;
+        }
+
+        actor.MotionState = BattleRuntimeActorMotionState.Anchored;
+        actor.Phase = BattleRuntimeActorPhase.AnchoredDecision;
+        actor.ActionLockTicksRemaining = 0;
+        actor.ActionLockReason = "";
+        actor.CurrentSkillActionId = "";
+        actor.CurrentSkillId = "";
+        actor.CurrentSkillSourceCommandId = "";
+        actor.CurrentSkillTargetActorId = "";
+        actor.CurrentSkillImpactAtSeconds = 0;
+        actor.CurrentSkillImpactApplied = false;
+    }
+
     internal static void MarkWaitingForCharge(BattleRuntimeActor actor, double currentTimeSeconds)
     {
         if (actor == null)
@@ -151,7 +256,15 @@ internal static class BattleRuntimeActorStateMachine
         actor.MovementProgress = 0;
         actor.ActionLockTicksRemaining = 0;
         actor.ActionLockReason = "";
+        actor.HasMovementBacktrackGuardCell = false;
+        actor.HasSecondaryMovementBacktrackGuardCell = false;
         actor.ActionReadyAtSeconds = 0;
+        actor.CurrentSkillActionId = "";
+        actor.CurrentSkillId = "";
+        actor.CurrentSkillSourceCommandId = "";
+        actor.CurrentSkillTargetActorId = "";
+        actor.CurrentSkillImpactAtSeconds = 0;
+        actor.CurrentSkillImpactApplied = false;
         ClearMovementIntentSnapshot(actor);
     }
 
@@ -159,8 +272,10 @@ internal static class BattleRuntimeActorStateMachine
         BattleRuntimeActor actor,
         double currentTimeSeconds,
         out BattleGridCoord movementFrom,
-        out BattleGridCoord movementTo)
+        out BattleGridCoord movementTo,
+        out string boundaryReasonCode)
     {
+        boundaryReasonCode = "";
         movementFrom = new BattleGridCoord(
             actor.MovementFromGridX,
             actor.MovementFromGridY,
@@ -195,6 +310,7 @@ internal static class BattleRuntimeActorStateMachine
         actor.MovementProgress = 1;
         actor.ActionLockTicksRemaining = 0;
         actor.ActionLockReason = "";
+        boundaryReasonCode = "movement_committed";
         return true;
     }
 

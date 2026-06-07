@@ -18,6 +18,7 @@ public static class BattleGroupEngagementStateMachine
     public static IReadOnlyList<BattleEvent> ApplyPerceptionTransitions(
         BattleGroupTacticalStateStore store,
         IReadOnlyDictionary<string, BattleGroupPerceptionSummary> perceptionSummaries,
+        IReadOnlySet<string> groupsWithActiveCombatActions,
         string battleId,
         int runtimeTick,
         double runtimeTimeSeconds)
@@ -54,6 +55,7 @@ public static class BattleGroupEngagementStateMachine
                     store,
                     state,
                     summary.BattleGroupId,
+                    groupsWithActiveCombatActions?.Contains(summary.BattleGroupId ?? "") == true,
                     battleId,
                     runtimeTick,
                     runtimeTimeSeconds));
@@ -158,6 +160,7 @@ public static class BattleGroupEngagementStateMachine
         BattleGroupTacticalStateStore store,
         BattleGroupTacticalState state,
         string battleGroupId,
+        bool hasActiveCombatAction,
         string battleId,
         int runtimeTick,
         double runtimeTimeSeconds)
@@ -175,6 +178,12 @@ public static class BattleGroupEngagementStateMachine
         }
 
         int noPerceptionTicks = store.RecordNoPerceivedHostileTick(battleGroupId);
+        if (hasActiveCombatAction &&
+            noPerceptionTicks <= BattleGroupTacticalPolicySettings.DefaultActiveCombatDisengageGraceTicks)
+        {
+            return Array.Empty<BattleEvent>();
+        }
+
         if (noPerceptionTicks < BattleGroupTacticalPolicySettings.DefaultDisengageGraceTicks)
         {
             return Array.Empty<BattleEvent>();

@@ -115,6 +115,7 @@ public sealed class BattleRuntimeSession
             SnapshotId = snapshot?.SnapshotId ?? "",
             BattleId = snapshot?.BattleId ?? "",
             ObjectiveZones = CloneObjectiveZones(snapshot?.ObjectiveZones),
+            SkillDefinitions = CloneSkillDefinitions(snapshot?.SkillDefinitions),
             // Runtime owns group tactical truth; snapshots only seed battle-local intent at session start.
             TacticalStateStore = BattleGroupTacticalStateStore
                 .FromBattleGroups(snapshot?.BattleGroups ?? Enumerable.Empty<BattleGroupSnapshot>(), snapshot?.BattleId ?? "")
@@ -466,6 +467,39 @@ public sealed class BattleRuntimeSession
                 Width = System.Math.Max(1, zone?.Width ?? 1),
                 Height = System.Math.Max(1, zone?.Height ?? 1)
             })
+            .ToList();
+    }
+
+    private static List<BattleSkillSnapshot> CloneSkillDefinitions(
+        IEnumerable<BattleSkillSnapshot> skillDefinitions)
+    {
+        return (skillDefinitions ?? Enumerable.Empty<BattleSkillSnapshot>())
+            .Select(skill =>
+            {
+                BattleSkillSnapshot clone = new()
+                {
+                    SkillId = skill?.SkillId ?? "",
+                    DisplayName = skill?.DisplayName ?? "",
+                    TargetingMode = skill?.TargetingMode ?? BattleSkillTargetingMode.TargetedActor,
+                    Range = System.Math.Max(0, skill?.Range ?? 0),
+                    CastSeconds = System.Math.Max(0, skill?.CastSeconds ?? 0),
+                    ImpactDelaySeconds = System.Math.Max(0, skill?.ImpactDelaySeconds ?? 0),
+                    RecoverySeconds = System.Math.Max(0, skill?.RecoverySeconds ?? 0),
+                    CanInterruptBasicAttackWindup = skill?.CanInterruptBasicAttackWindup ?? true,
+                    CanCancelBasicAttackRecovery = skill?.CanCancelBasicAttackRecovery ?? false
+                };
+                foreach (BattleSkillEffectSnapshot effect in skill?.Effects ?? Enumerable.Empty<BattleSkillEffectSnapshot>())
+                {
+                    clone.Effects.Add(new BattleSkillEffectSnapshot
+                    {
+                        Kind = effect?.Kind ?? BattleSkillEffectKind.Damage,
+                        Amount = effect?.Amount ?? 0
+                    });
+                }
+
+                return clone;
+            })
+            .Where(skill => !string.IsNullOrWhiteSpace(skill.SkillId))
             .ToList();
     }
 

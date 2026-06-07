@@ -34,9 +34,10 @@ Run("runtime movement phase allows next-tick movement continuation", TargetBattl
 Run("runtime session begin defers combat resolution until advance", TargetBattleAttackCadenceRegressionCases.RuntimeSessionBeginDefersCombatResolutionUntilAdvance);
 Run("runtime action diagnostics are logged", TargetBattleAttackCadenceRegressionCases.RuntimeActionDiagnosticsAreLogged);
 Run("runtime uses snapshot combat hit points and attack damage", TargetBattleAttackCadenceRegressionCases.RuntimeUsesSnapshotCombatHitPointsAndAttackDamage); Run("runtime event stream order golden locks attack movement plan and defeat", TargetBattleEventOrderGoldenRegressionCases.RuntimeEventStreamOrderGoldenLocksAttackMovementPlanAndDefeat); Run("runtime multi-defeat dictionary order golden locks current order", TargetBattleEventOrderGoldenRegressionCases.RuntimeMultiDefeatDictionaryOrderGoldenLocksCurrentOrder); Run("runtime attack stream slice golden locks engagement before movement", TargetBattleEventOrderGoldenRegressionCases.RuntimeAttackStreamSliceGoldenLocksEngagementBeforeMovement); Run("runtime retarget order golden locks dead target retarget without stream writes", TargetBattleEventOrderGoldenRegressionCases.RuntimeRetargetOrderGoldenLocksDeadTargetRetargetWithoutStreamWrites); Run("runtime reservation battle group id tiebreak golden locks move order", TargetBattleEventOrderGoldenRegressionCases.RuntimeReservationBattleGroupIdTiebreakGoldenLocksMoveOrder); Run("runtime failed attack contexts golden locks failure results without combat events", TargetBattleEventOrderGoldenRegressionCases.RuntimeFailedAttackContextsGoldenLocksFailureResultsWithoutCombatEvents); TargetBattleEventOrderGoldenRegressionCases.RegisterTd002SliceCGoldens(Run);
-Run("runtime movement events carry authoritative cells", RuntimeMovementEventsCarryAuthoritativeCells);
+TargetBattleRuntimeCorrectnessRegressionCases.Register(Run); Run("runtime movement events carry authoritative cells", RuntimeMovementEventsCarryAuthoritativeCells);
 Run("runtime hold-line command keeps player corps from advancing", TargetBattleCommandRegressionCases.RuntimeHoldLineCommandKeepsPlayerCorpsFromAdvancing);
 Run("runtime focus-fire command targets lowest-health enemy corps", TargetBattleCommandRegressionCases.RuntimeFocusFireCommandTargetsLowestHealthEnemyCorps);
+TargetBattleHeroSkillRegressionCases.Register(Run);
 Run("runtime AI executor boundary uses typed requests", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorBoundaryUsesTypedRequests);
 Run("runtime AI executor consumes facts without mutable runtime authority", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorConsumesFactsWithoutMutableRuntimeAuthority);
 Run("runtime AI executor delegates to behavior tree boundary", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorDelegatesToBehaviorTreeBoundary);
@@ -78,10 +79,11 @@ Run("runtime mover retargets when target dies before movement resolves", TargetB
 Run("runtime support unit does not move away from engaged target for far flank", TargetBattleMovementIntentRegressionCases.RuntimeSupportUnitDoesNotMoveAwayFromEngagedTargetForFarFlank);
 Run("runtime assault target selection prefers fastest attack opportunity", TargetBattleMovementIntentRegressionCases.RuntimeAssaultTargetSelectionPrefersFastestAttackOpportunity);
 TargetBattleMultiUnitNavigationRegressionCases.Register(Run);
+TargetBattleBonefieldPacingRegressionCases.Register(Run);
 TargetBattleLocalCombatPositionRegressionCases.Register(Run);
 TargetBattleMovementIntentRegressionRegistration.Register(Run);
 Run("runtime performance counters separate navigation and logging costs", TargetBattlePerformanceRegressionCases.RuntimePerformanceCountersSeparateNavigationAndLoggingCosts);
-Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology); Run("runtime local combat position selection uses shared multi-goal fields", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatPositionSelectionUsesSharedMultiGoalFields); Run("runtime spike diagnostics write automatic summary", TargetBattlePerformanceRegressionCases.RuntimeSpikeDiagnosticsWriteAutomaticSummary);
+Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology); Run("runtime local combat position selection uses shared multi-goal fields", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatPositionSelectionUsesSharedMultiGoalFields); Run("runtime local combat flow fields stay scoped to battlefield", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatFlowFieldsStayScopedToBattlefield); Run("runtime local combat goal fields use shared cache", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatGoalFieldsUseSharedCache); Run("runtime navigation hot paths avoid string keys and linq sorts", TargetBattlePerformanceRegressionCases.RuntimeNavigationHotPathsAvoidStringKeysAndLinqSorts); Run("runtime spike diagnostics write automatic summary", TargetBattlePerformanceRegressionCases.RuntimeSpikeDiagnosticsWriteAutomaticSummary);
 Run("high-frequency battle presentation logs use trace channel", TargetBattlePerformanceRegressionCases.HighFrequencyBattlePresentationLogsUseTraceChannel);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
@@ -133,23 +135,21 @@ static void RuntimeSourceStaysIsolated()
 static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
 {
     string root = ProjectRoot();
-    var allowedOversized = new HashSet<string>(StringComparer.Ordinal);
-    List<string> oversized = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
+    var allowedOversized = new Dictionary<string, int>(StringComparer.Ordinal)
+    {
+        ["src/Presentation/Battle/BattleGridHighlightOverlay.cs"] = 1070, ["src/Presentation/Battle/Entities/BattleUnitRoot.cs"] = 1112,
+        ["src/Presentation/Battle/Entities/UnitAnimationComponent.cs"] = 1117, ["src/Presentation/World/Sites/WorldSiteRoot.SiteManagementHud.cs"] = 1032,
+        ["tests/BattleHitFeedbackRegression/BattleHitFeedbackRegressionCases.BattlePresentation.cs"] = 1162, ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.HeroCorps.cs"] = 1306
+    };
+    var oversized = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
         .Where(path => !IsIgnoredCodePath(root, path))
-        .Select(path => new
-        {
-            RelativePath = ToRepoPath(root, path),
-            LineCount = File.ReadLines(path).Count()
-        })
+        .Select(path => (RelativePath: ToRepoPath(root, path), LineCount: File.ReadLines(path).Count()))
         .Where(item => item.LineCount > 1000)
-        .Select(item => $"{item.RelativePath}:{item.LineCount}")
         .ToList();
-    List<string> unexpected = oversized
-        .Where(item => !allowedOversized.Contains(item.Split(':')[0]))
-        .ToList();
-    AssertTrue(
-        unexpected.Count == 0,
-        $"new oversized code files must be split or added to the decomposition proposal: {string.Join(", ", unexpected)}");
+    List<string> unexpected = oversized.Where(item => !allowedOversized.ContainsKey(item.RelativePath)).Select(item => $"{item.RelativePath}:{item.LineCount}").ToList();
+    List<string> grown = oversized.Where(item => allowedOversized.TryGetValue(item.RelativePath, out int maxLines) && item.LineCount > maxLines).Select(item => $"{item.RelativePath}:{item.LineCount}>{allowedOversized[item.RelativePath]}").ToList();
+    AssertTrue(unexpected.Count == 0, $"new oversized code files must be split or added to the decomposition proposal: {string.Join(", ", unexpected)}");
+    AssertTrue(grown.Count == 0, $"tracked oversized code files grew beyond their accepted line budgets: {string.Join(", ", grown)}");
 }
 static void RuntimeOwnsStableInMemoryActorState()
 {

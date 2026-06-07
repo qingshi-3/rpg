@@ -12,6 +12,9 @@ public sealed class BattleRuntimeState
     public string BattleId { get; set; } = "";
     public List<BattleRuntimeActor> Actors { get; set; } = new();
     public List<BattleObjectiveZoneSnapshot> ObjectiveZones { get; set; } = new();
+    public List<BattleSkillSnapshot> SkillDefinitions { get; set; } = new();
+    internal List<BattleRuntimePendingHeroSkillCommand> PendingHeroSkillCommands { get; } = new();
+    internal HashSet<string> UsedHeroSkillKeys { get; } = new(System.StringComparer.Ordinal);
     internal BattleGroupTacticalStateStore TacticalStateStore { get; set; } = BattleGroupTacticalStateStore.Empty();
     internal IReadOnlyDictionary<string, BattleGroupPerceptionSummary> GroupPerceptionSummaryStore { get; set; } =
         new Dictionary<string, BattleGroupPerceptionSummary>();

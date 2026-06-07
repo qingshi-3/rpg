@@ -51,8 +51,8 @@ internal static class BattlePathStepRules
         BattleGridCoord to,
         BattleNavigationGraph graph)
     {
-        BattleGridCoord horizontalSide = new(to.X, from.Y, to.Height);
-        BattleGridCoord verticalSide = new(from.X, to.Y, to.Height);
+        BattleGridCoord horizontalSide = new(to.X, from.Y, from.Height);
+        BattleGridCoord verticalSide = new(from.X, to.Y, from.Height);
         return graph.CanPlaceFootprint(actor, horizontalSide) &&
                graph.CanPlaceFootprint(actor, verticalSide);
     }

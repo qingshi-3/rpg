@@ -141,7 +141,7 @@ internal static class LocalCombatSituationBuilder
         return (livingCorps ?? System.Array.Empty<BattleRuntimeActor>())
             .Count(item =>
                 item?.HitPoints > 0 &&
-                string.Equals(item.FactionId, actor.FactionId, System.StringComparison.Ordinal) == sameFaction &&
+                BattleRuntimeTickResolver.SameFaction(item, actor) == sameFaction &&
                 IsNearTarget(item, targetAnchor, BattlePerceptionPolicy.DefaultLocalPerceptionRange));
     }
 
@@ -230,7 +230,7 @@ internal static class LocalCombatSituationBuilder
                 .Any(item =>
                     item?.HitPoints > 0 &&
                     !string.Equals(item.ActorId, actor.ActorId, System.StringComparison.Ordinal) &&
-                    string.Equals(item.FactionId, actor.FactionId, System.StringComparison.Ordinal) &&
+                    BattleRuntimeTickResolver.SameFaction(item, actor) &&
                     IsEngaged(item, target)));
     }
 

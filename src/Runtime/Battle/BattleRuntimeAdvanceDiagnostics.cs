@@ -43,6 +43,7 @@ internal static class BattleRuntimeAdvanceDiagnostics
     private static bool IsNoAttemptReason(string reason)
     {
         return string.Equals(reason, "path_not_found", System.StringComparison.Ordinal) ||
+               string.Equals(reason, LocalCombatDecisionReason.HoldSupportAttackSlotsFull, System.StringComparison.Ordinal) ||
                string.Equals(reason, LocalCombatDecisionReason.RejectNoReachableSlot, System.StringComparison.Ordinal);
     }
 
@@ -56,5 +57,18 @@ internal static class BattleRuntimeAdvanceDiagnostics
         GameLog.Warn(
             nameof(BattleRuntimeTickResolver),
             $"BattleRuntimeObjectiveAdvanceDiagnostic battle={battleId ?? ""} tick={tick} actor={actorFact.Actor.ActorId} objective={actorFact.Actor.ObjectiveZoneId} reason={failureReason ?? "objective_advance_failed"} actorCell={actorFact.Anchor.X},{actorFact.Anchor.Y},{actorFact.Anchor.Height} objectiveCell={actorFact.Actor.ObjectiveGridX},{actorFact.Actor.ObjectiveGridY},{actorFact.Actor.ObjectiveGridHeight} graph={navigationGraph?.DescribeTopology() ?? "missing"}");
+    }
+
+    internal static void LogRegionAdvanceFailureDiagnostic(
+        string battleId,
+        int tick,
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleRegionMovementGoal goal,
+        BattleNavigationGraph navigationGraph,
+        string failureReason)
+    {
+        GameLog.Warn(
+            nameof(BattleRuntimeTickResolver),
+            $"BattleRuntimeRegionAdvanceDiagnostic battle={battleId ?? ""} tick={tick} actor={actorFact.Actor.ActorId} region={goal?.RegionId ?? ""} owner={goal?.OwnerBattleGroupId ?? ""} kind={goal?.Kind.ToString() ?? ""} reason={failureReason ?? "region_advance_failed"} actorCell={actorFact.Anchor.X},{actorFact.Anchor.Y},{actorFact.Anchor.Height} regionCell={goal?.CenterCellX ?? 0},{goal?.CenterCellY ?? 0},{goal?.CenterCellHeight ?? 0} regionSize={System.Math.Max(1, goal?.Width ?? 1)}x{System.Math.Max(1, goal?.Height ?? 1)} graph={navigationGraph?.DescribeTopology() ?? "missing"}");
     }
 }

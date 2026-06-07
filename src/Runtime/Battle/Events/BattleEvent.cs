@@ -8,6 +8,9 @@ public sealed class BattleEvent
     public string ActorId { get; set; } = "";
     public string BattleGroupId { get; set; } = "";
     public string SourceCommandId { get; set; } = "";
+    public string SourceActionId { get; set; } = "";
+    public string SourceDefinitionId { get; set; } = "";
+    public string EffectKind { get; set; } = "";
     public string TargetId { get; set; } = "";
     public string ReasonCode { get; set; } = "";
     public int RuntimeTick { get; set; } = -1;

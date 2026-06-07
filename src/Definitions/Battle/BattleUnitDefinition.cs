@@ -52,6 +52,10 @@ public partial class BattleUnitDefinition : Resource
     [Export(PropertyHint.Range, "0.1,4,0.05")]
     public double AttackSpeed { get; set; } = 1.0;
 
+    [Export(PropertyHint.Range, "-1,1,0.05")]
+    // Negative keeps the shared animation resource timing; non-negative values override impact timing per unit.
+    public double AttackImpactNormalizedTimeOverride { get; set; } = -1.0;
+
     [ExportGroup("战斗占位")]
 
     [Export]

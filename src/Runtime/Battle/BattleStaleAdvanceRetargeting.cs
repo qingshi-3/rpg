@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Navigation;
+using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
@@ -16,10 +17,13 @@ internal sealed partial class BattleRuntimeTickResolver
         int tick,
         double currentTimeSeconds,
         HashSet<string> navigationFailureDiagnostics,
-        BattlePerformanceCounters performanceCounters)
+        BattlePerformanceCounters performanceCounters,
+        BattleGroupTacticalStateStore tacticalStateStore,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
     {
         if (context == null ||
-            context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget ||
+            !IsRetargetableStaleAdvance(context.Request.Kind) ||
             context.ActorFact.Actor.HitPoints <= 0)
         {
             return false;
@@ -37,12 +41,12 @@ internal sealed partial class BattleRuntimeTickResolver
             currentTimeSeconds,
             tick,
             navigationFailureDiagnostics,
-            null,
-            null,
-            null);
+            tacticalStateStore,
+            groupActionZones,
+            combatZones);
         if (refreshed.TargetFact == null ||
             refreshed.TargetFact.Value.Actor.HitPoints <= 0 ||
-            refreshed.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget ||
+            !IsRetargetableStaleAdvance(refreshed.Request.Kind) ||
             !refreshed.Proposal.HasMoveTo ||
             !string.IsNullOrWhiteSpace(refreshed.Proposal.FailureReason))
         {
@@ -58,5 +62,12 @@ internal sealed partial class BattleRuntimeTickResolver
         context.ActorFact.Actor.TargetActorId = refreshed.TargetFact.Value.Actor.ActorId;
         ResetAdvanceFailureState(context.ActorFact.Actor);
         return true;
+    }
+
+    private static bool IsRetargetableStaleAdvance(BattleRuntimeAiActionKind kind)
+    {
+        return kind is BattleRuntimeAiActionKind.AdvanceTowardTarget or
+            BattleRuntimeAiActionKind.JoinLocalCombat or
+            BattleRuntimeAiActionKind.HoldSupport;
     }
 }

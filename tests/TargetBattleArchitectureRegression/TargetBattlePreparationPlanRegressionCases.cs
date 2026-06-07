@@ -20,12 +20,13 @@ internal static class TargetBattlePreparationPlanRegressionCases
 
     private static bool ShouldDefaultEngagementRule(BattleGroupPlanSnapshot plan, bool explicitRuleSelected)
     {
-        MethodInfo? method = typeof(WorldSiteRoot).GetMethod(
-            "ShouldDefaultBattlePreparationEngagementRule",
-            BindingFlags.NonPublic | BindingFlags.Static);
+        Type? modelType = typeof(WorldSiteRoot).Assembly.GetType("Rpg.Presentation.World.Sites.BattlePreparationPlanUiModel");
+        MethodInfo? method = modelType?.GetMethod(
+            "ShouldDefaultEngagementRule",
+            BindingFlags.Public | BindingFlags.Static);
         if (method == null)
         {
-            throw new MissingMethodException(nameof(WorldSiteRoot), "ShouldDefaultBattlePreparationEngagementRule");
+            throw new MissingMethodException("BattlePreparationPlanUiModel", "ShouldDefaultEngagementRule");
         }
 
         return (bool)method.Invoke(null, new object[] { plan, explicitRuleSelected })!;

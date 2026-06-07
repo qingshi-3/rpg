@@ -146,6 +146,111 @@ internal static class TargetBattlePerformanceRegressionCases
             "local-combat position selection should build one shared multi-goal field per candidate group and sample movement from that field");
     }
 
+    public static void RuntimeLocalCombatFlowFieldsStayScopedToBattlefield()
+    {
+        BattlePerformanceCounters counters = new();
+        BattleRuntimeSessionResult result = new BattleRuntimeSession(performanceCounters: counters)
+            .RunMinimal(BuildLargeCombatJoinScopedFieldSnapshot());
+
+        AssertTrue(result.Outcome.IsComplete, "large topology scoped-field scenario should complete through normal runtime");
+        long scopedBuilds = GetCounterValue(counters, "ScopedFlowFieldBuildCount");
+        long maxScopedSearchNodes = GetCounterValue(counters, "MaxScopedFlowFieldSearchNodes");
+        AssertTrue(
+            scopedBuilds > 0,
+            "local-combat movement on a large topology should build battlefield-scoped flow fields");
+        AssertTrue(
+            maxScopedSearchNodes > 0 && maxScopedSearchNodes <= 900,
+            $"local-combat flow fields should be bounded by battlefield region plus padding, not full topology: maxScopedNodes={maxScopedSearchNodes}");
+    }
+
+    public static void RuntimeLocalCombatGoalFieldsUseSharedCache()
+    {
+        string root = ProjectRoot();
+        string intentResolver = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleCombatSlotIntentResolver.cs"));
+        string crowdPlanner = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleCrowdMovementPlanner.cs"));
+        string flowFieldCache = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleFlowFieldCache.cs"));
+
+        AssertTrue(
+            flowFieldCache.Contains("GetOrBuildGoalField", StringComparison.Ordinal),
+            "battlefield-scoped goal fields should have a shared cache entry point");
+        AssertTrue(
+            !intentResolver.Contains("BattleFlowFieldBuilder.BuildFromGoalSlots", StringComparison.Ordinal) &&
+            !crowdPlanner.Contains("BattleFlowFieldBuilder.BuildFromGoalSlots", StringComparison.Ordinal),
+            "local-combat slot movement should not bypass the shared flow-field cache with direct goal-field builds");
+    }
+
+    public static void RuntimeNavigationHotPathsAvoidStringKeysAndLinqSorts()
+    {
+        string root = ProjectRoot();
+        string flowFieldCache = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleFlowFieldCache.cs"));
+        string crowdPlanner = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleCrowdMovementPlanner.cs"));
+        string slotAllocator = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleCombatSlotAllocator.cs"));
+        string slotIntentResolver = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleCombatSlotIntentResolver.cs"));
+        string flowFieldBuilder = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleFlowFieldBuilder.cs"));
+        string movementCommitResolver = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "Runtime",
+            "Battle",
+            "BattleMovementCommitResolver.cs"));
+
+        AssertTrue(!flowFieldCache.Contains("Dictionary<string, BattleFlowField>", StringComparison.Ordinal), "flow-field cache should use typed value keys instead of string dictionaries");
+        AssertTrue(!flowFieldCache.Contains("string.Join", StringComparison.Ordinal), "flow-field cache keys should not allocate joined strings on the runtime hot path");
+        AssertNoLinqSortChain(crowdPlanner, "crowd movement planner");
+        AssertNoLinqSortChain(slotAllocator, "combat slot allocator");
+        AssertNoLinqSortChain(slotIntentResolver, "combat slot intent resolver");
+        AssertNoLinqSortChain(flowFieldBuilder, "flow-field builder");
+        AssertNoLinqSortChain(movementCommitResolver, "movement commit resolver");
+    }
+
     public static void RuntimeSpikeDiagnosticsWriteAutomaticSummary()
     {
         const string ThresholdEnvironmentVariable = "RPG_BATTLE_RUNTIME_SPIKE_DIAGNOSTIC_MS";
@@ -168,6 +273,9 @@ internal static class TargetBattlePerformanceRegressionCases
                 log.Contains("targetScoringMs=", StringComparison.Ordinal) &&
                 log.Contains("flowFieldBuildMs=", StringComparison.Ordinal) &&
                 log.Contains("flowFieldBuilds=", StringComparison.Ordinal) &&
+                log.Contains("flowFieldSearchNodes=", StringComparison.Ordinal) &&
+                log.Contains("scopedFlowFieldBuilds=", StringComparison.Ordinal) &&
+                log.Contains("fullFlowFieldFallbacks=", StringComparison.Ordinal) &&
                 log.Contains("flowFieldHits=", StringComparison.Ordinal) &&
                 log.Contains("flowFieldMisses=", StringComparison.Ordinal) &&
                 log.Contains("openAttackFlowFieldRequests=", StringComparison.Ordinal) &&
@@ -240,6 +348,66 @@ internal static class TargetBattlePerformanceRegressionCases
         return snapshot;
     }
 
+    private static BattleStartSnapshot BuildLargeCombatJoinScopedFieldSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_performance_large_scoped_combat_join",
+            BattleId = "battle_performance_large_scoped_combat_join",
+            TargetLocationId = "site_1"
+        };
+
+        for (int x = 0; x < 64; x++)
+        {
+            for (int y = 0; y < 64; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddGroup(
+            snapshot,
+            "group_player_scoped_front",
+            "player",
+            "player_scoped_front",
+            30,
+            30,
+            160,
+            runtimeCommanderGroupId: "player_scoped_group");
+        AddGroup(
+            snapshot,
+            "group_player_scoped_rear",
+            "player",
+            "player_scoped_rear",
+            28,
+            32,
+            160,
+            runtimeCommanderGroupId: "player_scoped_group");
+        AddGroup(
+            snapshot,
+            "group_enemy_scoped_front",
+            "enemy",
+            "enemy_scoped_front",
+            34,
+            30,
+            160,
+            tacticalMode: BattleGroupTacticalMode.EnemyOffense,
+            runtimeCommanderGroupId: "enemy_scoped_group");
+        AddGroup(
+            snapshot,
+            "group_enemy_scoped_rear",
+            "enemy",
+            "enemy_scoped_rear",
+            38,
+            32,
+            160,
+            tacticalMode: BattleGroupTacticalMode.EnemyOffense,
+            runtimeCommanderGroupId: "enemy_scoped_group");
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
     private static BattleStartSnapshot BuildSpikeDiagnosticSnapshot()
     {
         BattleStartSnapshot snapshot = BuildManyVsManyOpenFieldSnapshot();
@@ -266,11 +434,14 @@ internal static class TargetBattlePerformanceRegressionCases
         string sourceForceId,
         int cellX,
         int cellY,
-        int hitPoints)
+        int hitPoints,
+        BattleGroupTacticalMode tacticalMode = BattleGroupTacticalMode.PlayerCommanded,
+        string runtimeCommanderGroupId = "")
     {
         snapshot.BattleGroups.Add(new BattleGroupSnapshot
         {
             BattleGroupId = groupId,
+            RuntimeCommanderGroupId = runtimeCommanderGroupId,
             FactionId = factionId,
             SourceForceId = sourceForceId,
             HeroId = $"{sourceForceId}_hero",
@@ -284,7 +455,8 @@ internal static class TargetBattlePerformanceRegressionCases
             AttackSpeed = 1.0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
-            CellY = cellY
+            CellY = cellY,
+            TacticalMode = tacticalMode
         });
     }
 
@@ -326,5 +498,13 @@ internal static class TargetBattlePerformanceRegressionCases
         {
             throw new Exception($"{message}: expected={expected} actual={actual}");
         }
+    }
+
+    private static void AssertNoLinqSortChain(string source, string name)
+    {
+        AssertTrue(
+            !source.Contains(".OrderBy(", StringComparison.Ordinal) &&
+            !source.Contains(".ThenBy(", StringComparison.Ordinal),
+            $"{name} should use deterministic comparer sorting instead of LINQ sort chains on Runtime hot paths");
     }
 }

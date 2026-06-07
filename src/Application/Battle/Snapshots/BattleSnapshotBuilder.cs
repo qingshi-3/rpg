@@ -22,6 +22,7 @@ public sealed class BattleSnapshotBuilder
             TargetLocationId = targetLocationId ?? "",
             LocationContext = new LocationBattleContext { LocationId = targetLocationId ?? "" }
         };
+        snapshot.SkillDefinitions.AddRange(BattleSkillSnapshotFactory.CreateSelectedHeroSkillSnapshots());
 
         if (battleGroups == null)
         {

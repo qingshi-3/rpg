@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 
@@ -20,58 +19,83 @@ internal static class BattleFlowFieldBuilder
         BattleTacticalRegionSnapshot localCombatRegion = null)
     {
         performanceCounters?.RecordFlowFieldBuild();
+        BattleFlowFieldSearchScope searchScope = BattleFlowFieldSearchScope.FromRegion(localCombatRegion);
         IReadOnlyList<BattleCombatSlot> slots = BattleCombatSlotAllocator.FindSlots(
             actor,
             target,
             graph,
             performanceCounters,
             localCombatRegion);
-        BattleCombatSlot[] goals = preferSupportSlots
-            ? slots.Where(item => item.Kind == BattleCombatSlotKind.Support).ToArray()
-            : System.Array.Empty<BattleCombatSlot>();
-        if (goals.Length == 0)
+        List<BattleCombatSlot> goalList = new();
+        if (preferSupportSlots)
         {
-            goals = slots
-                .Where(item => item.Kind == BattleCombatSlotKind.Attack)
-                .ToArray();
+            foreach (BattleCombatSlot slot in slots)
+            {
+                if (slot.Kind == BattleCombatSlotKind.Support)
+                {
+                    goalList.Add(slot);
+                }
+            }
         }
 
-        return BuildFromGoalSlots(actor, graph, goals, performanceCounters);
+        if (goalList.Count == 0)
+        {
+            foreach (BattleCombatSlot slot in slots)
+            {
+                if (slot.Kind == BattleCombatSlotKind.Attack)
+                {
+                    goalList.Add(slot);
+                }
+            }
+        }
+
+        return BuildFromGoalSlots(actor, graph, goalList, performanceCounters, searchScope);
     }
 
     public static BattleFlowField BuildFromGoalSlots(
         BattleRuntimeActor actor,
         BattleNavigationGraph graph,
         IEnumerable<BattleCombatSlot> goals,
-        BattlePerformanceCounters performanceCounters = null)
+        BattlePerformanceCounters performanceCounters = null,
+        BattleFlowFieldSearchScope searchScope = default)
     {
         long startedAt = Stopwatch.GetTimestamp();
-        BattleCombatSlot[] goalArray = (goals ?? Enumerable.Empty<BattleCombatSlot>())
-            .OrderBy(item => item.Priority)
-            .ThenBy(item => item.Anchor.Height)
-            .ThenBy(item => item.Anchor.Y)
-            .ThenBy(item => item.Anchor.X)
-            .ToArray();
+        List<BattleCombatSlot> goalList = new();
+        foreach (BattleCombatSlot goal in goals ?? System.Array.Empty<BattleCombatSlot>())
+        {
+            goalList.Add(goal);
+        }
+
+        goalList.Sort(BattleCombatSlotPriorityComparer.Instance);
+        BattleCombatSlot[] goalArray = goalList.ToArray();
+        BattleCombatSlot[] activeGoals = ResolveScopedGoals(goalArray, searchScope, performanceCounters, out BattleFlowFieldSearchScope activeScope);
+        int searchedNodes = 0;
         try
         {
             Dictionary<BattleGridCoord, int> costs = new();
             Dictionary<BattleGridCoord, BattleCombatSlot> bestGoals = new();
-            if (actor == null || graph == null || goalArray.Length == 0)
+            if (actor == null || graph == null || activeGoals.Length == 0)
             {
-                return new BattleFlowField(goalArray, costs);
+                return new BattleFlowField(activeGoals, costs);
             }
 
             var frontier = new PriorityQueue<BattleGridCoord, int>();
             var settled = new HashSet<BattleGridCoord>();
-            foreach (BattleCombatSlot goal in goalArray)
+            if (activeScope.IsEnabled)
             {
-                if (!costs.TryAdd(goal.Anchor, 0))
+                performanceCounters?.RecordScopedFlowFieldBuild();
+            }
+
+            foreach (BattleCombatSlot goal in activeGoals)
+            {
+                int goalCost = System.Math.Max(0, goal.Priority);
+                if (!costs.TryAdd(goal.Anchor, goalCost))
                 {
                     continue;
                 }
 
                 bestGoals[goal.Anchor] = goal;
-                frontier.Enqueue(goal.Anchor, 0);
+                frontier.Enqueue(goal.Anchor, goalCost);
             }
 
             while (frontier.Count > 0 && settled.Count < graph.MaxSearchNodes)
@@ -82,8 +106,14 @@ internal static class BattleFlowFieldBuilder
                     continue;
                 }
 
+                searchedNodes = settled.Count;
                 foreach (BattleGridCoord incoming in graph.GetIncomingNeighbors(current))
                 {
+                    if (!activeScope.Contains(incoming))
+                    {
+                        continue;
+                    }
+
                     if (!BattlePathStepRules.CanUseStaticStep(actor, incoming, current, graph))
                     {
                         continue;
@@ -110,10 +140,11 @@ internal static class BattleFlowFieldBuilder
                 }
             }
 
-            return new BattleFlowField(goalArray, costs, bestGoals);
+            return new BattleFlowField(activeGoals, costs, bestGoals);
         }
         finally
         {
+            performanceCounters?.RecordFlowFieldSearchNodes(searchedNodes, activeScope.IsEnabled);
             performanceCounters?.RecordFlowFieldBuildElapsedTicks(Stopwatch.GetTimestamp() - startedAt);
         }
     }
@@ -128,6 +159,39 @@ internal static class BattleFlowFieldBuilder
         // Keep open attack-slot filtering under the cache owner so runtime callers
         // do not grow a second uncached implementation of the same decision facts.
         return new BattleFlowFieldCache(performanceCounters).PreferOpenAttackSlots(actor, graph, occupancy, field);
+    }
+
+    private static BattleCombatSlot[] ResolveScopedGoals(
+        BattleCombatSlot[] goals,
+        BattleFlowFieldSearchScope searchScope,
+        BattlePerformanceCounters performanceCounters,
+        out BattleFlowFieldSearchScope activeScope)
+    {
+        activeScope = searchScope;
+        if (!searchScope.IsEnabled || goals == null || goals.Length == 0)
+        {
+            return goals ?? System.Array.Empty<BattleCombatSlot>();
+        }
+
+        List<BattleCombatSlot> scoped = new();
+        foreach (BattleCombatSlot goal in goals)
+        {
+            if (searchScope.Contains(goal.Anchor))
+            {
+                scoped.Add(goal);
+            }
+        }
+
+        if (scoped.Count > 0)
+        {
+            return scoped.ToArray();
+        }
+
+        // Bounded fields are the normal local-combat path. A full fallback is
+        // diagnostic-visible so an undersized battlefield scope does not hide.
+        performanceCounters?.RecordFullFlowFieldFallback();
+        activeScope = BattleFlowFieldSearchScope.None;
+        return goals;
     }
 
     private static int GetStepCost(BattleGridCoord from, BattleGridCoord to)
