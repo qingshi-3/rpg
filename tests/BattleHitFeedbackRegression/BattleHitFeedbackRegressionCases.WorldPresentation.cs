@@ -60,6 +60,63 @@ internal static void WorldSiteHoverSummaryStaysInsideViewport()
     AssertFloatEqual(80f, topPosition.Y, 0.001f, "hover summary should move below the site when there is no space above");
 }
 
+internal static void GameUiSkinInstallsProjectCursorAssets()
+{
+    string skin = File.ReadAllText(Path.Combine("src", "Presentation", "Common", "GameUiSkin.cs"));
+    string strategicRoot = ReadStrategicWorldRootSource();
+    string siteRoot = ReadWorldSiteRootSource();
+    string cursorDir = Path.Combine("assets", "textures", "ui", "cursors");
+
+    string handCursorPath = Path.Combine(cursorDir, "cursor_hand.png");
+    AssertTrue(File.Exists(handCursorPath), "project cursor hand asset should exist.");
+    AssertEqual((32, 32), ReadPngSize(handCursorPath), "project cursor hand asset should be compact enough for normal gameplay use");
+
+    string cursorThemeBody = ExtractMethodBlock(skin, "public static void ApplyGameCursorTheme()");
+    AssertTrue(
+        cursorThemeBody.Contains("ApplyCursorTexture", StringComparison.Ordinal) &&
+        skin.Contains("Input.SetCustomMouseCursor", StringComparison.Ordinal) &&
+        skin.Contains("ImageTexture.CreateFromImage(image)", StringComparison.Ordinal),
+        "GameUiSkin should expose one global project cursor installation entry point.");
+    AssertTrue(
+        cursorThemeBody.Contains("Texture2D hand = LoadCursorTexture(\"cursor_hand.png\")", StringComparison.Ordinal) &&
+        !skin.Contains("cursor_arrow.png", StringComparison.Ordinal) &&
+        !skin.Contains("cursor_interact.png", StringComparison.Ordinal) &&
+        !skin.Contains("cursor_command.png", StringComparison.Ordinal) &&
+        !skin.Contains("cursor_forbidden.png", StringComparison.Ordinal),
+        "project cursor theme should use one hand asset instead of separate state assets.");
+    AssertTrue(
+        cursorThemeBody.Contains("Input.CursorShape.Arrow", StringComparison.Ordinal) &&
+        cursorThemeBody.Contains("Input.CursorShape.Cross", StringComparison.Ordinal) &&
+        cursorThemeBody.Contains("Input.CursorShape.Drag", StringComparison.Ordinal) &&
+        cursorThemeBody.Contains("Input.CursorShape.CanDrop", StringComparison.Ordinal) &&
+        cursorThemeBody.Contains("Input.CursorShape.PointingHand", StringComparison.Ordinal) &&
+        cursorThemeBody.Contains("Input.CursorShape.Forbidden", StringComparison.Ordinal),
+        "project cursor theme should map common pointer states to the shared hand asset.");
+    AssertTrue(
+        strategicRoot.Contains("GameUiSkin.ApplyGameCursorTheme();", StringComparison.Ordinal),
+        "strategic world entry should install project cursors on scene entry.");
+    AssertTrue(
+        siteRoot.Contains("GameUiSkin.ApplyGameCursorTheme();", StringComparison.Ordinal),
+        "world site entry should reinstall project cursors after scene transitions.");
+}
+
+private static (int Width, int Height) ReadPngSize(string path)
+{
+    byte[] bytes = File.ReadAllBytes(path);
+    if (bytes.Length < 24 ||
+        bytes[0] != 0x89 ||
+        bytes[1] != 0x50 ||
+        bytes[2] != 0x4e ||
+        bytes[3] != 0x47)
+    {
+        throw new InvalidOperationException($"not a png file: {path}");
+    }
+
+    int width = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+    int height = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+    return (width, height);
+}
+
 internal static void StrategicWorldForwardsMiddleMouseCameraNavigation()
 {
     string strategicRoot = ReadStrategicWorldRootSource();

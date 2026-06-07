@@ -53,6 +53,7 @@ public partial class BattleUnitRoot : Node2D
     private readonly Dictionary<BattleEntity, BattleActionCue> _actionCues = new();
     private readonly HashSet<BattleEntity> _hitOutlinedEntities = new();
     private readonly HashSet<BattleEntity> _commandSelectedEntities = new();
+    private readonly HashSet<BattleEntity> _attackTargetPreviewedEntities = new();
     private readonly HashSet<BattleEntity> _defeatedEntities = new();
     private readonly HashSet<BattleEntity> _pendingDefeatedPresentations = new();
     private readonly List<TaskCompletionSource<bool>> _defeatedPresentationWaiters = new();
@@ -97,6 +98,7 @@ public partial class BattleUnitRoot : Node2D
         _pendingMovementIdleSeconds.Clear();
         ClearAllActionCues();
         ClearCommandSelection();
+        ClearAttackTargetPreview();
         SetHitOutlines(_hitOutlinedEntities.ToArray(), visible: false);
         _pendingDefeatedPresentations.Clear();
         CompleteDefeatedPresentationWaiters();
@@ -268,19 +270,67 @@ public partial class BattleUnitRoot : Node2D
         BattleDamageEvent[] damageEvents = result.DamageEvents?.ToArray() ?? System.Array.Empty<BattleDamageEvent>();
         BattleHitFeedbackPlan feedbackPlan = BattleHitFeedbackPlanner.Build(damageEvents);
         BattleEntity[] hitTargets = ResolveHitFeedbackTargets(damageEvents, feedbackPlan).ToArray();
-        UnitAnimationComponent actorAnimation = result.Actor?.GetComponent<UnitAnimationComponent>();
+        BattleEntity actor = result.Actor;
+        UnitAnimationComponent actorAnimation = actor?.GetComponent<UnitAnimationComponent>();
         if (result.Target != null)
         {
             actorAnimation?.FaceToward(result.Target.GlobalPosition);
         }
 
-        double attackDurationSeconds = actorAnimation?.ResolveAttackDurationSeconds() ?? 0;
-        actorAnimation?.PlayAttack();
-        result.Actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Attack);
-        // Hit outline covers the whole attack animation so actual impact feedback belongs to units, not grid cells.
-        SetHitOutlines(hitTargets, visible: true);
-        _ = PlayHitFeedbackAsync(result.Actor, damageEvents, hitTargets);
-        return attackDurationSeconds;
+        double actionDurationSeconds;
+        if (result.Kind == BattleActionKind.Ability)
+        {
+            StopEntityMovement(actor, snapToLogicalGrid: true);
+            actionDurationSeconds = actorAnimation?.ResolveSkillCastDurationSeconds() ?? 0;
+            actorAnimation?.PlaySkillCast();
+            if (actor != null)
+            {
+                actor.GetComponent<BattleSkillCastFxComponent>()?.PlaySkillCastFx(actionDurationSeconds);
+            }
+        }
+        else
+        {
+            actionDurationSeconds = actorAnimation?.ResolveAttackDurationSeconds() ?? 0;
+            actorAnimation?.PlayAttack();
+        }
+
+        actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Attack);
+        _ = PlayHitFeedbackAsync(actor, damageEvents, hitTargets);
+        return actionDurationSeconds;
+    }
+
+    private void StopEntityMovement(BattleEntity entity, bool snapToLogicalGrid)
+    {
+        if (entity == null || !GodotObject.IsInstanceValid(entity))
+        {
+            return;
+        }
+
+        bool hadMovement = _movementLanes.Remove(entity);
+        bool hadPendingIdle = _pendingMovementIdleSeconds.Remove(entity);
+        if (!snapToLogicalGrid)
+        {
+            return;
+        }
+
+        GridOccupantComponent gridOccupant = entity.GetComponent<GridOccupantComponent>();
+        if (gridOccupant == null)
+        {
+            return;
+        }
+
+        // Skill casting is an anchored action. If a visual movement lane is
+        // still catching up to Runtime's grid state, finish that presentation
+        // boundary before the cast FX starts so the unit does not drift mid-cast.
+        if (TryResolveMovementGlobalPosition(gridOccupant, gridOccupant.SurfacePosition, out Vector2 globalPosition))
+        {
+            entity.GlobalPosition = globalPosition;
+            ApplyRenderSort(entity, gridOccupant.SurfacePosition);
+            if (hadMovement || hadPendingIdle)
+            {
+                entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
+            }
+        }
     }
 
     public Task ShowActionCueAsync(BattleEntity entity, BattleFaction faction, double durationSeconds)
@@ -345,15 +395,11 @@ public partial class BattleUnitRoot : Node2D
     {
         UnitAnimationComponent actorAnimation = actor?.GetComponent<UnitAnimationComponent>();
         double impactDelaySeconds = actorAnimation?.ResolveAttackImpactDelaySeconds() ?? 0;
-        double attackDurationSeconds = actorAnimation?.ResolveAttackDurationSeconds() ?? 0.45;
 
         await WaitSeconds(impactDelaySeconds);
         actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.AttackImpact);
+        PlayHitOutlinePulses(outlinedTargets);
         SpawnDamageNumbers(damageEvents);
-
-        double remainingSeconds = System.Math.Max(0.05, attackDurationSeconds - System.Math.Max(0, impactDelaySeconds));
-        await WaitSeconds(remainingSeconds);
-        SetHitOutlines(outlinedTargets, visible: false);
     }
 
     private IEnumerable<BattleEntity> ResolveHitFeedbackTargets(
@@ -400,6 +446,24 @@ public partial class BattleUnitRoot : Node2D
             {
                 _hitOutlinedEntities.Remove(target);
             }
+        }
+    }
+
+    private static void PlayHitOutlinePulses(IReadOnlyList<BattleEntity> targets)
+    {
+        if (targets == null)
+        {
+            return;
+        }
+
+        foreach (BattleEntity target in targets)
+        {
+            if (target == null || !GodotObject.IsInstanceValid(target))
+            {
+                continue;
+            }
+
+            target.GetComponent<BattleUnitPresentationComponent>()?.PlayHitOutlinePulse();
         }
     }
 
@@ -522,6 +586,48 @@ public partial class BattleUnitRoot : Node2D
         SetCommandSelection(System.Array.Empty<BattleEntity>());
     }
 
+    public int SetAttackTargetPreviewByEntityId(string entityId)
+    {
+        if (string.IsNullOrWhiteSpace(entityId))
+        {
+            ClearAttackTargetPreview();
+            return 0;
+        }
+
+        BattleEntity[] nextPreview = GetEntitiesSnapshot()
+            .Where(entity => entity != null &&
+                             !BattleRuleQueries.IsDefeated(entity) &&
+                             string.Equals(entity.EntityId ?? "", entityId, System.StringComparison.Ordinal))
+            .Take(1)
+            .ToArray();
+        SetAttackTargetPreview(nextPreview);
+        return nextPreview.Length;
+    }
+
+    public void ClearAttackTargetPreview()
+    {
+        SetAttackTargetPreview(System.Array.Empty<BattleEntity>());
+    }
+
+    private void SetAttackTargetPreview(IReadOnlyList<BattleEntity> nextPreview)
+    {
+        HashSet<BattleEntity> next = (nextPreview ?? System.Array.Empty<BattleEntity>())
+            .Where(entity => entity != null && GodotObject.IsInstanceValid(entity))
+            .ToHashSet();
+
+        foreach (BattleEntity entity in _attackTargetPreviewedEntities.Where(entity => !next.Contains(entity)).ToArray())
+        {
+            entity.GetComponent<BattleUnitPresentationComponent>()?.SetAttackTargetPreview(false);
+            _attackTargetPreviewedEntities.Remove(entity);
+        }
+
+        foreach (BattleEntity entity in next)
+        {
+            entity.GetComponent<BattleUnitPresentationComponent>()?.SetAttackTargetPreview(true);
+            _attackTargetPreviewedEntities.Add(entity);
+        }
+    }
+
     private void SetCommandSelection(IReadOnlyList<BattleEntity> nextSelection)
     {
         HashSet<BattleEntity> next = (nextSelection ?? System.Array.Empty<BattleEntity>())
@@ -587,6 +693,7 @@ public partial class BattleUnitRoot : Node2D
 
         entity.DebugMarkerColor = new Color(0.45f, 0.45f, 0.45f, 0.55f);
         entity.QueueRedraw();
+        HideHealthBarImmediately(entity);
 
         UnitAnimationComponent animation = entity.GetComponent<UnitAnimationComponent>();
         bool hideAfterDefeated = animation?.AnimationSet?.HideAfterDefeatedAnimation != false;
@@ -620,6 +727,11 @@ public partial class BattleUnitRoot : Node2D
 
         CompleteDefeatedPresentationWaitersIfIdle();
         GameLog.Info(nameof(BattleUnitRoot), $"Entity defeated id={entity.EntityId} name={entity.DisplayName}");
+    }
+
+    private static void HideHealthBarImmediately(BattleEntity entity)
+    {
+        entity?.GetComponent<BattleUnitHealthBarComponent>()?.HideImmediately();
     }
 
     private bool TryBuildMovementGlobalPath(

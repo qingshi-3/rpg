@@ -29,6 +29,7 @@ public partial class BattleCameraController : MapCameraController
     private IBattleMapBoundsSource _mapBoundsSource;
     private Tween _followTween;
     private string _lastFollowEntityId = "";
+    private bool _tacticalPauseActive;
 
     public override void _Ready()
     {
@@ -72,6 +73,7 @@ public partial class BattleCameraController : MapCameraController
     public void FollowActionEntityIfNeeded(BattleEntity entity, bool force = false)
     {
         if (!AutoFollowActionEntity ||
+            _tacticalPauseActive ||
             entity == null ||
             !GodotObject.IsInstanceValid(entity) ||
             !IsInsideTree() ||
@@ -122,6 +124,22 @@ public partial class BattleCameraController : MapCameraController
         {
             _followTween = null;
         };
+    }
+
+    public void SetTacticalPauseActive(bool paused)
+    {
+        if (_tacticalPauseActive == paused)
+        {
+            return;
+        }
+
+        _tacticalPauseActive = paused;
+        if (_tacticalPauseActive)
+        {
+            // Pause transfers camera authority to player observation; runtime follow
+            // resumes only after battle time advances and emits later focus events.
+            CancelFollowTween();
+        }
     }
 
     private void OnBattleMapLoaded(Node activeSiteMap)

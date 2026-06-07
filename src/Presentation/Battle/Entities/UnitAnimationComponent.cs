@@ -22,6 +22,9 @@ public partial class UnitAnimationComponent : BattleEntityComponent
     [Export(PropertyHint.Range, "0.1,4,0.05")]
     public double AttackSpeed { get; set; } = 1.0;
 
+    [Export(PropertyHint.Range, "-1,1,0.05")]
+    public double AttackImpactNormalizedTimeOverride { get; set; } = -1.0;
+
     [Export]
     public NodePath VisualRootPath { get; set; } = new("VisualRoot");
 
@@ -38,6 +41,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
     private AnimatedSprite2D _connectedAnimatedSprite;
     private Node2D _visualRoot;
     private Tween _proceduralTween;
+    private Tween _defeatedFadeTween;
     private string _proceduralCue = "";
     private int _proceduralCueVersion;
     private bool _animationFinishedConnected;
@@ -69,6 +73,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         DisconnectAnimationFinished();
         DisconnectSpriteAnimationFinished();
         KillProceduralTween();
+        KillDefeatedFadeTween(resetModulate: false);
 
         _animationPlayer = null;
         _animatedSprite = null;
@@ -117,17 +122,45 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         return TryPlay(AnimationSet?.AttackAnimation, "attack", restart: true);
     }
 
+    public bool PlaySkillCast()
+    {
+        if (TryPlaySkillCastAnimation())
+        {
+            return true;
+        }
+
+        // Runtime reports a skill release; Presentation keeps it readable even
+        // when this unit has no authored cast frames by reusing its attack body cue.
+        return PlayAttack();
+    }
+
     public double ResolveAttackDurationSeconds()
     {
         string attackAnimation = ResolveAnimationName(AnimationSet?.AttackAnimation, "attack");
         return ResolveAnimationDurationSeconds(attackAnimation, "attack");
     }
 
+    public double ResolveSkillCastDurationSeconds()
+    {
+        string skillCastAnimation = ResolveAnimationName(AnimationSet?.SkillCastAnimation, "skill_cast");
+        return HasPlayableAnimation(skillCastAnimation, "skill_cast")
+            ? ResolveAnimationDurationSeconds(skillCastAnimation, "skill_cast")
+            : ResolveAttackDurationSeconds();
+    }
+
     public double ResolveAttackImpactDelaySeconds()
     {
         double attackSeconds = ResolveAttackDurationSeconds();
-        double normalizedTime = System.Math.Clamp(AnimationSet?.AttackImpactNormalizedTime ?? 0.55, 0, 1);
+        double normalizedTime = ResolveAttackImpactNormalizedTime();
         return System.Math.Max(0, attackSeconds * normalizedTime);
+    }
+
+    private double ResolveAttackImpactNormalizedTime()
+    {
+        double configured = AttackImpactNormalizedTimeOverride >= 0
+            ? AttackImpactNormalizedTimeOverride
+            : AnimationSet?.AttackImpactNormalizedTime ?? 0.55;
+        return System.Math.Clamp(configured, 0, 1);
     }
 
     public double ResolveMinimumHitDurationSeconds(double attackDurationSeconds)
@@ -304,6 +337,11 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return true;
         }
 
+        if (cue != "defeated")
+        {
+            KillDefeatedFadeTween(resetModulate: true);
+        }
+
         bool preferAnimatedSprite = AnimationSet?.PreferAnimatedSprite != false;
         if (preferAnimatedSprite)
         {
@@ -327,6 +365,52 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         TryPlayAnimationPlayer(resolvedAnimationName, cue, restart, logMissing: true);
         TryPlayAnimatedSprite(resolvedAnimationName, cue, restart, logMissing: true, minimumTargetSeconds);
         return PlayProceduralCue(cue, restart, minimumTargetSeconds);
+    }
+
+    private bool TryPlaySkillCastAnimation()
+    {
+        string skillCastAnimation = ResolveAnimationName(AnimationSet?.SkillCastAnimation, "skill_cast");
+        return HasPlayableAnimation(skillCastAnimation, "skill_cast") &&
+               TryPlay(skillCastAnimation, "skill_cast", restart: true);
+    }
+
+    private bool HasPlayableAnimation(string animationName, string cue)
+    {
+        string resolvedAnimationName = ResolveAnimationName(animationName, cue);
+        return HasPlayableAnimatedSpriteAnimation(resolvedAnimationName) ||
+               HasPlayableAnimationPlayerAnimation(resolvedAnimationName);
+    }
+
+    private bool HasPlayableAnimationPlayerAnimation(string animationName)
+    {
+        if (_animationPlayer == null)
+        {
+            ResolveAnimationPlayer();
+        }
+
+        return _animationPlayer != null &&
+               GodotObject.IsInstanceValid(_animationPlayer) &&
+               !string.IsNullOrWhiteSpace(animationName) &&
+               _animationPlayer.HasAnimation(animationName);
+    }
+
+    private bool HasPlayableAnimatedSpriteAnimation(string animationName)
+    {
+        if (_animatedSprite == null)
+        {
+            ResolveAnimatedSprite();
+        }
+
+        if (_animatedSprite == null ||
+            !GodotObject.IsInstanceValid(_animatedSprite) ||
+            string.IsNullOrWhiteSpace(animationName))
+        {
+            return false;
+        }
+
+        SpriteFrames spriteFrames = _animatedSprite.SpriteFrames;
+        return spriteFrames != null &&
+               spriteFrames.HasAnimation(new StringName(animationName));
     }
 
     private bool TryPlayAnimationPlayer(string animationName, string cue, bool restart, bool logMissing)
@@ -453,7 +537,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return;
         }
 
-        if (cue is "attack" or "hit" or "defeated")
+        if (cue is "attack" or "skill_cast" or "hit" or "defeated")
         {
             spriteFrames.SetAnimationLoop(animationName, false);
         }
@@ -465,6 +549,13 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
     private void HandleCueStarted(string cue, string animationName, double authoredSeconds)
     {
+        if (cue == "defeated")
+        {
+            InvalidateOneShotReturn();
+            PlayDefeatedFade(ResolveDefeatedFadeSeconds(authoredSeconds));
+            return;
+        }
+
         if (!ShouldReturnToIdleAfterCue(cue))
         {
             InvalidateOneShotReturn();
@@ -576,6 +667,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             "idle" => AnimationSet?.TargetIdleCycleSeconds ?? 1.2,
             "move" => AnimationSet?.TargetMoveCycleSeconds ?? 0.5,
             "attack" => AnimationSet?.TargetAttackSeconds ?? 1.2,
+            "skill_cast" => AnimationSet?.TargetSkillCastSeconds ?? 0.9,
             "hit" => AnimationSet?.TargetHitSeconds ?? 0.48,
             "defeated" => AnimationSet?.TargetDefeatedSeconds ?? 0.4,
             _ => 0
@@ -635,6 +727,17 @@ public partial class UnitAnimationComponent : BattleEntityComponent
                 QueueProceduralReturnToIdle(version, attackWindupSeconds + attackReturnSeconds + 0.02);
                 break;
 
+            case "skill_cast":
+                double skillCastSeconds = System.Math.Max(0.28, ResolveTargetSpriteSeconds("skill_cast"));
+                double castRiseSeconds = System.Math.Min(0.14, skillCastSeconds * 0.24);
+                double castReleaseSeconds = System.Math.Max(0.12, skillCastSeconds - castRiseSeconds);
+                _proceduralTween.TweenProperty(_visualRoot, "scale", new Vector2(1.22f, 1.22f), castRiseSeconds);
+                _proceduralTween.Parallel().TweenProperty(_visualRoot, "modulate", new Color(1f, 0.86f, 0.32f, 1f), castRiseSeconds);
+                _proceduralTween.TweenProperty(_visualRoot, "scale", Vector2.One, castReleaseSeconds);
+                _proceduralTween.Parallel().TweenProperty(_visualRoot, "modulate", Colors.White, castReleaseSeconds);
+                QueueProceduralReturnToIdle(version, skillCastSeconds + 0.02);
+                break;
+
             case "hit":
                 double hitSeconds = System.Math.Max(0.24, minimumTargetSeconds);
                 double hitFlashSeconds = System.Math.Min(0.1, hitSeconds * 0.25);
@@ -646,7 +749,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             case "defeated":
                 _proceduralTween.TweenProperty(_visualRoot, "rotation", 0.18f, 0.08);
                 _proceduralTween.TweenProperty(_visualRoot, "scale", new Vector2(0.86f, 0.86f), 0.08);
-                _proceduralTween.Parallel().TweenProperty(_visualRoot, "modulate", new Color(1f, 1f, 1f, 0.38f), 0.14);
+                PlayDefeatedFade(ResolveDefeatedFadeSeconds(ResolveTargetSpriteSeconds("defeated", minimumTargetSeconds)));
                 break;
 
             default:
@@ -703,6 +806,72 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         _proceduralCue = "";
     }
 
+    private void PlayDefeatedFade(double totalSeconds)
+    {
+        if (_visualRoot == null || !GodotObject.IsInstanceValid(_visualRoot))
+        {
+            return;
+        }
+
+        KillDefeatedFadeTween(resetModulate: false);
+        _visualRoot.Modulate = Colors.White;
+
+        totalSeconds = System.Math.Max(0.05, totalSeconds);
+        double fastFadeSeconds = ResolveDefeatedFastFadeSeconds(totalSeconds);
+        double tailFadeSeconds = System.Math.Max(0.01, totalSeconds - fastFadeSeconds);
+
+        // Death readability needs the unit to become translucent immediately,
+        // then finish fading while the authored death frames keep playing.
+        _defeatedFadeTween = CreateTween();
+        _defeatedFadeTween.SetTrans(Tween.TransitionType.Quad);
+        _defeatedFadeTween.SetEase(Tween.EaseType.Out);
+        _defeatedFadeTween.TweenProperty(_visualRoot, "modulate", ResolveDefeatedFadeMidColor(), fastFadeSeconds);
+        _defeatedFadeTween.TweenProperty(_visualRoot, "modulate", ResolveDefeatedFadeEndColor(), tailFadeSeconds);
+    }
+
+    private double ResolveDefeatedFadeSeconds(double authoredSeconds)
+    {
+        double targetSeconds = ResolveTargetSpriteSeconds("defeated", _defeatedMinimumDurationSeconds);
+        double fadeSeconds = authoredSeconds > 0 ? authoredSeconds : targetSeconds;
+        return System.Math.Max(System.Math.Max(fadeSeconds, targetSeconds), _defeatedMinimumDurationSeconds);
+    }
+
+    private double ResolveDefeatedFastFadeSeconds(double totalSeconds)
+    {
+        double configured = System.Math.Clamp(AnimationSet?.DefeatedFadeFastSeconds ?? 0.12, 0.02, 0.5);
+        double maxOpeningSeconds = System.Math.Max(0.02, totalSeconds * 0.6);
+        return System.Math.Min(configured, maxOpeningSeconds);
+    }
+
+    private Color ResolveDefeatedFadeMidColor()
+    {
+        return ResolveDefeatedFadeColor(AnimationSet?.DefeatedFadeMidAlpha ?? 0.38f);
+    }
+
+    private Color ResolveDefeatedFadeEndColor()
+    {
+        return ResolveDefeatedFadeColor(AnimationSet?.DefeatedFadeEndAlpha ?? 0.05f);
+    }
+
+    private static Color ResolveDefeatedFadeColor(float alpha)
+    {
+        return new Color(1f, 1f, 1f, Mathf.Clamp(alpha, 0f, 1f));
+    }
+
+    private void KillDefeatedFadeTween(bool resetModulate)
+    {
+        if (_defeatedFadeTween != null && GodotObject.IsInstanceValid(_defeatedFadeTween))
+        {
+            _defeatedFadeTween.Kill();
+        }
+
+        _defeatedFadeTween = null;
+        if (resetModulate && _visualRoot != null && GodotObject.IsInstanceValid(_visualRoot))
+        {
+            _visualRoot.Modulate = Colors.White;
+        }
+    }
+
     private void StopAnimationPlayer()
     {
         if (_animationPlayer != null && GodotObject.IsInstanceValid(_animationPlayer))
@@ -741,6 +910,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
         if (AnimationSet?.ReturnToIdleAfterOneShot != false &&
             (finished == ResolveAnimationName(AnimationSet?.AttackAnimation, "attack") ||
+             finished == ResolveAnimationName(AnimationSet?.SkillCastAnimation, "skill_cast") ||
              finished == ResolveAnimationName(AnimationSet?.HitAnimation, "hit")))
         {
             PlayIdle();
@@ -756,7 +926,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
     private static bool ShouldReturnToIdleAfterCue(string cue)
     {
-        return cue is "attack" or "hit";
+        return cue is "attack" or "skill_cast" or "hit";
     }
 
     private bool IsCurrentAnimation(string animationName)
@@ -833,6 +1003,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
     private void CompleteDefeatedAnimation()
     {
+        KillDefeatedFadeTween(resetModulate: false);
         System.Action callback = _defeatedFinished;
         _defeatedFinished = null;
         _defeatedAnimationName = "";

@@ -10,6 +10,7 @@ public partial class UnitAnimationComponent
     private bool _pausedAnimationPlayerWasPlaying;
     private float _pausedAnimationPlayerSpeedScale = 1f;
     private bool _pausedProceduralTweenWasRunning;
+    private bool _pausedDefeatedFadeTweenWasRunning;
 
     public void SetPresentationPaused(bool paused)
     {
@@ -24,12 +25,14 @@ public partial class UnitAnimationComponent
             PauseAnimatedSpritePlayback();
             PauseAnimationPlayerPlayback();
             PauseProceduralTweenPlayback();
+            PauseDefeatedFadeTweenPlayback();
             return;
         }
 
         ResumeAnimatedSpritePlayback();
         ResumeAnimationPlayerPlayback();
         ResumeProceduralTweenPlayback();
+        ResumeDefeatedFadeTweenPlayback();
     }
 
     private void PauseAnimatedSpritePlayback()
@@ -137,5 +140,36 @@ public partial class UnitAnimationComponent
         }
 
         _pausedProceduralTweenWasRunning = false;
+    }
+
+    private void PauseDefeatedFadeTweenPlayback()
+    {
+        if (_defeatedFadeTween == null || !GodotObject.IsInstanceValid(_defeatedFadeTween))
+        {
+            _pausedDefeatedFadeTweenWasRunning = false;
+            return;
+        }
+
+        _pausedDefeatedFadeTweenWasRunning = _defeatedFadeTween.IsRunning();
+        if (_pausedDefeatedFadeTweenWasRunning)
+        {
+            _defeatedFadeTween.Pause();
+        }
+    }
+
+    private void ResumeDefeatedFadeTweenPlayback()
+    {
+        if (_defeatedFadeTween == null || !GodotObject.IsInstanceValid(_defeatedFadeTween))
+        {
+            _pausedDefeatedFadeTweenWasRunning = false;
+            return;
+        }
+
+        if (_pausedDefeatedFadeTweenWasRunning)
+        {
+            _defeatedFadeTween.Play();
+        }
+
+        _pausedDefeatedFadeTweenWasRunning = false;
     }
 }

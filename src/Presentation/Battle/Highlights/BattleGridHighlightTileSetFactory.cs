@@ -83,6 +83,12 @@ internal static class BattleGridHighlightTileSetFactory
             return;
         }
 
+        if (style.Shape == BattleGridHighlightTileShape.SolidDiamond)
+        {
+            DrawSolidDiamondHighlightTile(atlas, tileSize, tileIndex, style);
+            return;
+        }
+
         DrawDiamondHighlightTile(atlas, tileSize, tileIndex, style);
     }
 
@@ -144,6 +150,28 @@ internal static class BattleGridHighlightTileSetFactory
                 float edgeDistance = (1f - normalizedDistance) * System.Math.Min(halfWidth, halfHeight);
                 Color color = edgeDistance <= borderWidth ? style.Border : style.Fill;
                 atlas.SetPixel(originX + x, y, color);
+            }
+        }
+    }
+
+    private static void DrawSolidDiamondHighlightTile(Image atlas, Vector2I tileSize, int tileIndex, BattleGridHighlightStyle style)
+    {
+        int originX = tileIndex * tileSize.X;
+        float centerX = originX + (tileSize.X - 1) * 0.5f;
+        float centerY = (tileSize.Y - 1) * 0.5f;
+        float halfWidth = System.Math.Max(1f, tileSize.X * 0.5f - 1f);
+        float halfHeight = System.Math.Max(1f, tileSize.Y * 0.5f - 1f);
+
+        for (int y = 0; y < tileSize.Y; y++)
+        {
+            for (int x = 0; x < tileSize.X; x++)
+            {
+                float normalizedDistance = Mathf.Abs(originX + x - centerX) / halfWidth +
+                                           Mathf.Abs(y - centerY) / halfHeight;
+                if (normalizedDistance <= 1f)
+                {
+                    atlas.SetPixel(originX + x, y, style.Fill);
+                }
             }
         }
     }

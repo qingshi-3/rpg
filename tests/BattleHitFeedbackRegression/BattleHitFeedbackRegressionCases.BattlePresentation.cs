@@ -37,6 +37,29 @@ internal static void MultiTargetHitFeedback()
     AssertEqual("-12", plan.DamageNumbers[1].Text, "second damage text");
 }
 
+internal static void SkillDamageFeedbackPreservesRuntimeSourceAttribution()
+{
+    BattleDamageEvent damage = new(
+        null,
+        "enemy_a",
+        18,
+        false,
+        "cmd_skill",
+        "cmd_skill:action:first_slice_hero_breakthrough",
+        "first_slice_hero_breakthrough",
+        "Damage");
+
+    BattleHitFeedbackPlan plan = BattleHitFeedbackPlanner.Build(new[] { damage });
+
+    AssertEqual(1, plan.DamageNumbers.Count, "skill damage should still create one damage number");
+    BattleDamageNumberSpec number = plan.DamageNumbers[0];
+    AssertEqual("cmd_skill", damage.SourceCommandId, "damage event source command");
+    AssertEqual("cmd_skill", number.SourceCommandId, "damage number source command");
+    AssertEqual("cmd_skill:action:first_slice_hero_breakthrough", number.SourceActionId, "damage number source action");
+    AssertEqual("first_slice_hero_breakthrough", number.SourceDefinitionId, "damage number source definition");
+    AssertEqual("Damage", number.EffectKind, "damage number effect kind");
+}
+
 internal static void DamageNumberMotionDefaults()
 {
     BattleDamageNumberMotionSpec spec = BattleDamageNumberMotionSpec.Default;
@@ -80,7 +103,7 @@ internal static void FriendlyHoverSuppressesAttackCellsUnderTargets()
     AssertSequence(
         new[] { new GridPosition(2, 1) },
         presentation.TargetPointerCells,
-        "target cells should remain available for arrow presentation");
+        "target cells should remain available for separate target-focus presentation");
 }
 
 internal static void HoverFrameUsesUnitFootprint()
@@ -424,15 +447,19 @@ internal static void BattleRuntimeTacticalPauseFreezesUnitPresentationWithoutRep
         animationPauseMethod.Contains("PauseAnimatedSpritePlayback()", StringComparison.Ordinal) &&
         animationPauseMethod.Contains("PauseAnimationPlayerPlayback()", StringComparison.Ordinal) &&
         animationPauseMethod.Contains("PauseProceduralTweenPlayback()", StringComparison.Ordinal) &&
+        animationPauseMethod.Contains("PauseDefeatedFadeTweenPlayback()", StringComparison.Ordinal) &&
         animationPauseMethod.Contains("ResumeAnimatedSpritePlayback()", StringComparison.Ordinal) &&
         animationPauseMethod.Contains("ResumeAnimationPlayerPlayback()", StringComparison.Ordinal) &&
         animationPauseMethod.Contains("ResumeProceduralTweenPlayback()", StringComparison.Ordinal) &&
+        animationPauseMethod.Contains("ResumeDefeatedFadeTweenPlayback()", StringComparison.Ordinal) &&
         animation.Contains("_animatedSprite.Pause()", StringComparison.Ordinal) &&
         animation.Contains("_animationPlayer.Pause()", StringComparison.Ordinal) &&
         animation.Contains("_proceduralTween.Pause()", StringComparison.Ordinal) &&
+        animation.Contains("_defeatedFadeTween.Pause()", StringComparison.Ordinal) &&
         animation.Contains("_animatedSprite.Play()", StringComparison.Ordinal) &&
         animation.Contains("_animationPlayer.Play()", StringComparison.Ordinal) &&
-        animation.Contains("_proceduralTween.Play()", StringComparison.Ordinal),
+        animation.Contains("_proceduralTween.Play()", StringComparison.Ordinal) &&
+        animation.Contains("_defeatedFadeTween.Play()", StringComparison.Ordinal),
         "unit animation pause should freeze and resume existing playback state instead of stopping or starting a new cue.");
     AssertTrue(
         !animationPauseMethod.Contains("PlayIdle()", StringComparison.Ordinal) &&
@@ -451,6 +478,7 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
 {
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
     string presentation = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitPresentationComponent.cs"));
+    string normalizedPresentation = NormalizeWhitespace(presentation);
 
     AssertTrue(
         unitRoot.Contains("_commandSelectedEntities", StringComparison.Ordinal) &&
@@ -462,6 +490,22 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
         presentation.Contains("unit_selection_outline.gdshader", StringComparison.Ordinal) &&
         presentation.Contains("SetSelected(bool selected)", StringComparison.Ordinal),
         "command selection should reuse the authored unit selection shader instead of adding a separate hardcoded shader path.");
+    AssertTrue(
+        unitRoot.Contains("PlayHitOutlinePulse()", StringComparison.Ordinal) &&
+        !unitRoot.Contains("SetHitOutlines(hitTargets, visible: true)", StringComparison.Ordinal),
+        "hit feedback should pulse the unit outline at impact instead of holding a strong shader outline for the whole attack.");
+    AssertTrue(
+        presentation.Contains("public Color HitOutlineColor { get; set; } = new(1f, 0.16f, 0.08f, 0.42f);", StringComparison.Ordinal) &&
+        presentation.Contains("public float HitOutlineWidth { get; set; } = 1.55f;", StringComparison.Ordinal) &&
+        presentation.Contains("public double HitOutlinePulseRiseSeconds { get; set; } = 0.07;", StringComparison.Ordinal) &&
+        presentation.Contains("public double HitOutlinePulseFallSeconds { get; set; } = 0.2;", StringComparison.Ordinal),
+        "hit outline defaults should be weaker and shaped as a quick fade-in followed by a softer fade-out.");
+    AssertTrue(
+        normalizedPresentation.Contains("TweenMethod( Callable.From<float>(ApplyHitOutlinePulseIntensity), 0f, 1f,", StringComparison.Ordinal) &&
+        normalizedPresentation.Contains("TweenMethod( Callable.From<float>(ApplyHitOutlinePulseIntensity), 1f, 0f,", StringComparison.Ordinal) &&
+        presentation.Contains("ResolveHitOutlineColor()", StringComparison.Ordinal) &&
+        presentation.Contains("ResolveHitOutlineWidth()", StringComparison.Ordinal),
+        "hit outline pulse should animate shader intensity rather than toggling an immediate full-strength outline.");
 }
 
 internal static void DeploymentZonesUseDedicatedOverlayShader()
@@ -494,6 +538,143 @@ internal static void DeploymentZonesUseDedicatedOverlayShader()
         "generic grid highlight tile layers must not own deployment-zone shader materials.");
 }
 
+internal static void SkillRangeHighlightUsesDeploymentZoneStyleRegionOverlay()
+{
+    string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+
+    AssertTrue(
+        overlay.Contains("AddSkillRangeDeploymentStyle", StringComparison.Ordinal) &&
+        overlay.Contains("BuildBoundarySegments", StringComparison.Ordinal) &&
+        overlay.Contains("SkillRangeFillColor", StringComparison.Ordinal) &&
+        overlay.Contains("SkillRangeGlowWidth", StringComparison.Ordinal),
+        "skill range should use the deployment-zone-style area fill, outer boundary, and glow presentation");
+    AssertTrue(
+        overlay.Contains("GetTileLayerDrawOrder", StringComparison.Ordinal) &&
+        !overlay.Contains("BattleGridHighlightKind.Skill => BattleGridHighlightTileShape.SolidDiamond", StringComparison.Ordinal) &&
+        !overlay.Contains("yield return BattleGridHighlightKind.Skill;", StringComparison.Ordinal),
+        "skill range should not be rendered by the generic tile layer because that path cannot match deployment-zone boundaries");
+}
+
+internal static void SkillTargetPreviewUsesUnitFocusAndFootprintLockRing()
+{
+    string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string siteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
+
+    AssertTrue(
+        overlay.Contains("AddTargetLockRing", StringComparison.Ordinal) &&
+        overlay.Contains("BuildTargetLockRingPoints", StringComparison.Ordinal) &&
+        overlay.Contains("TargetLockRingColor", StringComparison.Ordinal) &&
+        overlay.Contains("TargetLockGlowWidth", StringComparison.Ordinal),
+        "skill target cells should render as one footprint lock ring rather than per-cell arrows or filled diamonds");
+    AssertTrue(
+        !overlay.Contains("AddTargetPointer", StringComparison.Ordinal) &&
+        !overlay.Contains("ShowTargetPointers", StringComparison.Ordinal) &&
+        !overlay.Contains("yield return BattleGridHighlightKind.Target;", StringComparison.Ordinal),
+        "target preview should not use the old red arrow pointers or yellow target tile layer");
+    AssertTrue(
+        unitRoot.Contains("SetAttackTargetPreviewByEntityId", StringComparison.Ordinal) &&
+        unitRoot.Contains("ClearAttackTargetPreview", StringComparison.Ordinal) &&
+        unitRoot.Contains("SetAttackTargetPreview(true)", StringComparison.Ordinal) &&
+        unitRoot.Contains("SetAttackTargetPreview(false)", StringComparison.Ordinal),
+        "current target focus should use the existing unit presentation target-preview outline");
+    AssertTrue(
+        siteRoot.Contains("_unitRoot?.SetAttackTargetPreviewByEntityId(targetActorId)", StringComparison.Ordinal) &&
+        siteRoot.Contains("_unitRoot?.ClearAttackTargetPreview()", StringComparison.Ordinal) &&
+        !siteRoot.Contains("_highlightOverlay?.SetTargetPointers", StringComparison.Ordinal),
+        "hero skill target picking should pass the current target entity to unit focus and stop requesting pointer arrows");
+}
+
+internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
+{
+    string animationSet = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Animation", "BattleUnitAnimationSet.cs"));
+    string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));
+    string fxComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleSkillCastFxComponent.cs"));
+    string fxScene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "fx", "BattleSkillCastFx.tscn"));
+
+    AssertTrue(
+        animationSet.Contains("public string SkillCastAnimation { get; set; } = \"skill_cast\";", StringComparison.Ordinal) &&
+        animationSet.Contains("public double TargetSkillCastSeconds { get; set; } = 0.9;", StringComparison.Ordinal),
+        "unit animation resources should expose an optional authored skill-cast cue");
+    AssertTrue(
+        animationComponent.Contains("public bool PlaySkillCast()", StringComparison.Ordinal) &&
+        animationComponent.Contains("public double ResolveSkillCastDurationSeconds()", StringComparison.Ordinal) &&
+        animationComponent.Contains("private bool TryPlaySkillCastAnimation()", StringComparison.Ordinal) &&
+        animationComponent.Contains("private bool HasPlayableAnimation(string animationName, string cue)", StringComparison.Ordinal) &&
+        animationComponent.Contains("return PlayAttack();", StringComparison.Ordinal),
+        "unit animation component should prefer authored skill-cast animation and fall back to the attack cue when the unit has no skill-cast frames");
+    AssertTrue(
+        scene.Contains("BattleSkillCastFxComponent.cs", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"BattleSkillCastFxComponent\" type=\"Node\" parent=\".\"]", StringComparison.Ordinal),
+        "battle unit base should carry a reusable skill cast FX component");
+    AssertTrue(
+        fxComponent.Contains("DefaultSkillCastFxScenePath", StringComparison.Ordinal) &&
+        fxComponent.Contains("PlaySkillCastFx", StringComparison.Ordinal) &&
+        fxComponent.Contains("BattleSkillCastFx.tscn", StringComparison.Ordinal),
+        "skill cast FX component should load and play an authored fallback FX scene");
+    AssertTrue(
+        fxScene.Contains("CPUParticles2D", StringComparison.Ordinal) &&
+        fxScene.Contains("BattleSkillCastFx.cs", StringComparison.Ordinal),
+        "fallback skill cast FX should use an authored particle scene instead of hardcoded runtime drawing");
+    AssertTrue(
+        fxScene.Contains("[node name=\"GroundEllipse\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal) &&
+        fxScene.Contains("[node name=\"InnerEllipse\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal) &&
+        fxScene.Contains("[node name=\"DissolveEllipse\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal) &&
+        fxScene.Contains("[node name=\"RisingMist\" type=\"CPUParticles2D\" parent=\".\"]", StringComparison.Ordinal),
+        "fallback skill cast FX should read as a perspective ellipse magic circle with upward dissolving mist");
+    AssertTrue(
+        fxComponent.Contains("FxOffset", StringComparison.Ordinal) &&
+        fxScene.Contains("scale = Vector2(1, 0.42)", StringComparison.Ordinal) &&
+        !fxScene.Contains("[node name=\"ReleaseShockwave\"", StringComparison.Ordinal),
+        "skill cast FX should use a flattened ellipse footprint instead of an angular full-circle shockwave");
+    AssertTrue(
+        fxComponent.Contains("PlaySkillCastFx", StringComparison.Ordinal) &&
+        fxScene.Contains("RisingMist", StringComparison.Ordinal) &&
+        fxScene.Contains("gravity = Vector2(0, -", StringComparison.Ordinal),
+        "spell circle particles should rise vertically from the ground instead of bursting like sparks");
+    AssertTrue(
+        fxScene.Contains("[node name=\"GlyphNorth\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal) &&
+        fxScene.Contains("[node name=\"GlyphSouth\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal),
+        "fallback skill cast FX should include simple authored glyph strokes so the ellipse reads as a spell array");
+    AssertTrue(
+        fxComponent.Contains("BattleSkillCastFx.tscn", StringComparison.Ordinal) &&
+        animationComponent.Contains("new Color(1f, 0.86f, 0.32f, 1f)", StringComparison.Ordinal) &&
+        File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleSkillCastFx.cs")).Contains("BuildEllipsePoints", StringComparison.Ordinal) &&
+        File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleSkillCastFx.cs")).Contains("DissolveRiseOffset", StringComparison.Ordinal),
+        "skill cast FX script should generate smooth ellipse points and tween the magic circle upward while fading");
+    AssertTrue(
+        animationComponent.Contains("new Vector2(1.22f, 1.22f)", StringComparison.Ordinal) &&
+        animationComponent.Contains("new Color(1f, 0.86f, 0.32f, 1f)", StringComparison.Ordinal),
+        "the specialized skill-cast body cue should stay visibly stronger than basic hit feedback when it is explicitly used");
+    string skillCastFallback = animationComponent[
+        animationComponent.IndexOf("case \"skill_cast\":", StringComparison.Ordinal)..
+        animationComponent.IndexOf("case \"hit\":", StringComparison.Ordinal)];
+    AssertTrue(
+        !skillCastFallback.Contains("\"position\"", StringComparison.Ordinal),
+        "procedural skill cast fallback should keep the unit anchored; release motion belongs to the FX, not the unit body");
+    AssertTrue(
+        unitRoot.Contains("if (result.Kind == BattleActionKind.Ability)", StringComparison.Ordinal) &&
+        unitRoot.Contains("StopEntityMovement(actor, snapToLogicalGrid: true)", StringComparison.Ordinal) &&
+        unitRoot.Contains("actorAnimation?.PlaySkillCast()", StringComparison.Ordinal) &&
+        unitRoot.Contains("actor.GetComponent<BattleSkillCastFxComponent>()?.PlaySkillCastFx", StringComparison.Ordinal) &&
+        unitRoot.Contains("actorAnimation?.PlayAttack()", StringComparison.Ordinal),
+        "ability presentation should stop caster movement before playing skill cast animation and FX while basic attacks keep their attack cue");
+    AssertTrue(
+        unitRoot.Contains("private void StopEntityMovement(BattleEntity entity, bool snapToLogicalGrid)", StringComparison.Ordinal) &&
+        unitRoot.Contains("_movementLanes.Remove(entity)", StringComparison.Ordinal) &&
+        unitRoot.Contains("_pendingMovementIdleSeconds.Remove(entity)", StringComparison.Ordinal) &&
+        unitRoot.Contains("TryResolveMovementGlobalPosition(gridOccupant, gridOccupant.SurfacePosition", StringComparison.Ordinal),
+        "movement lane cancellation should clear queued movement and optionally sync the unit visual to its authoritative grid position");
+    AssertTrue(
+        playback.Contains("BuildRuntimeDamageActionResult(", StringComparison.Ordinal) &&
+        playback.Contains("IsRuntimeSkillDamageEvent(runtimeEvent)", StringComparison.Ordinal) &&
+        playback.Contains("BattleActionResult.AbilitySucceeded", StringComparison.Ordinal),
+        "runtime damage playback should preserve skill-source events as ability presentation instead of always building attack presentation");
+}
+
 internal static void RealtimeDamageReactionDoesNotPlayHitAnimation()
 {
     string damageReaction = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "DamageReactionComponent.cs"));
@@ -510,6 +691,30 @@ internal static void RealtimeDamageReactionDoesNotPlayHitAnimation()
         "hit animation resources and preview API should remain available even when runtime damage no longer calls them");
 }
 
+internal static void RuntimeImpactDamageDoesNotDoubleDelayDefeatedPresentation()
+{
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string damageReaction = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "DamageReactionComponent.cs"));
+
+    AssertTrue(
+        playback.Contains("BeginImpactAlignedDamageTiming()", StringComparison.Ordinal) &&
+        playback.Contains("EndImpactAlignedDamageTiming()", StringComparison.Ordinal) &&
+        playback.IndexOf("BeginImpactAlignedDamageTiming()", StringComparison.Ordinal) <
+        playback.IndexOf("health.ApplyDamage(damage, actor)", StringComparison.Ordinal) &&
+        playback.IndexOf("health.ApplyDamage(damage, actor)", StringComparison.Ordinal) <
+        playback.IndexOf("EndImpactAlignedDamageTiming()", StringComparison.Ordinal),
+        "runtime playback should mark visible damage as already impact-aligned before applying health changes");
+    AssertTrue(
+        damageReaction.Contains("public void BeginImpactAlignedDamageTiming()", StringComparison.Ordinal) &&
+        damageReaction.Contains("public void EndImpactAlignedDamageTiming()", StringComparison.Ordinal) &&
+        damageReaction.Contains("if (_impactAlignedDamageTimingDepth > 0)", StringComparison.Ordinal) &&
+        damageReaction.Contains("return 0;", StringComparison.Ordinal),
+        "damage reaction should skip source attack delay for damage that was already applied at the impact frame");
+    AssertTrue(
+        damageReaction.Contains("_pendingDefeatedMinimumDurationSeconds = ResolveMinimumDefeatedDurationSeconds(damage);", StringComparison.Ordinal),
+        "defeated presentation should still keep the minimum death duration derived from the source attack animation");
+}
+
 internal static void UnitAttackSpeedContract()
 {
     string definition = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "BattleUnitDefinition.cs"));
@@ -520,10 +725,14 @@ internal static void UnitAttackSpeedContract()
     string runtimeTickResolver = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeTickResolver.cs"));
     string unitFactory = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"));
     string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+    string siteRuntime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRequestDeployment.cs"));
 
     AssertTrue(
         definition.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal),
         "battle unit definitions should expose attack speed with a stable default");
+    AssertTrue(
+        definition.Contains("public double AttackImpactNormalizedTimeOverride { get; set; } = -1.0;", StringComparison.Ordinal),
+        "battle unit definitions should expose an optional per-unit attack impact timing override");
     AssertTrue(
         forceRequest.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal) &&
         snapshot.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal),
@@ -543,8 +752,17 @@ internal static void UnitAttackSpeedContract()
         unitFactory.Contains("animationComponent.AttackSpeed = definition.AttackSpeed;", StringComparison.Ordinal),
         "unit factory should apply attack speed to presentation attack data and animation playback");
     AssertTrue(
-        animationComponent.Contains("BattleAttackSpeedPolicy.ScaleTargetSeconds(targetSeconds, AttackSpeed)", StringComparison.Ordinal),
-        "attack animation target duration should be scaled by the configured attack speed");
+        unitFactory.Contains("animationComponent.AttackImpactNormalizedTimeOverride = definition.AttackImpactNormalizedTimeOverride;", StringComparison.Ordinal) &&
+        animationComponent.Contains("public double AttackImpactNormalizedTimeOverride { get; set; } = -1.0;", StringComparison.Ordinal),
+        "unit factory should apply the per-unit impact timing override to presentation hit feedback");
+    AssertTrue(
+        animationComponent.Contains("BattleAttackSpeedPolicy.ScaleTargetSeconds(targetSeconds, AttackSpeed)", StringComparison.Ordinal) &&
+        animationComponent.Contains("ResolveAttackImpactNormalizedTime()", StringComparison.Ordinal),
+        "attack animation target duration and impact point should use the configured unit attack timing");
+    AssertTrue(
+        siteRuntime.Contains("ResolveAttackImpactNormalizedTime(definition)", StringComparison.Ordinal) &&
+        siteRuntime.Contains("definition.AttackImpactNormalizedTimeOverride >= 0", StringComparison.Ordinal),
+        "site battle runtime should prefer per-unit attack impact timing before falling back to the animation resource");
 }
 
 internal static void UnitCombatStatsSnapshotContract()
@@ -587,12 +805,17 @@ internal static void BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation()
 {
     string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));
     string healthBar = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitHealthBarComponent.cs"));
+    string overlayAnchor = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitOverlayAnchorComponent.cs"));
+    string presentation = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitPresentationComponent.cs"));
 
     AssertTrue(
+        scene.Contains("BattleUnitOverlayAnchorComponent.cs", StringComparison.Ordinal) &&
         scene.Contains("BattleUnitHealthBarComponent.cs", StringComparison.Ordinal) &&
         scene.Contains("[node name=\"HealthBarRoot\" type=\"Control\" parent=\".\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"HealthBack\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"HealthTrack\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal) &&
         scene.Contains("[node name=\"HealthFill\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal),
-        "battle unit base scene should author a visible health bar resource tree");
+        "battle unit base scene should author a reusable overlay anchor and visible health bar resource tree");
     AssertTrue(
         scene.Contains("EnableProceduralFallback = true", StringComparison.Ordinal),
         "battle unit base should keep a procedural attack fallback when a visual resource lacks configured animations");
@@ -600,17 +823,89 @@ internal static void BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation()
         healthBar.Contains("HealthChanged", StringComparison.Ordinal) &&
         healthBar.Contains("QueueRedraw", StringComparison.Ordinal),
         "health bar component should update from health events instead of polling every frame");
+    AssertTrue(
+        healthBar.Contains("public NodePath BackPath { get; set; } = new(\"../HealthBarRoot/HealthBack\");", StringComparison.Ordinal) &&
+        healthBar.Contains("public NodePath TrackPath { get; set; } = new(\"../HealthBarRoot/HealthTrack\");", StringComparison.Ordinal),
+        "health bar component should bind the authored frame, track, and fill resources instead of drawing an ad hoc bar");
+    AssertTrue(
+        healthBar.Contains("public Vector2 BarSize { get; set; } = new(36f, 5f);", StringComparison.Ordinal) &&
+        !healthBar.Contains("BarOffset", StringComparison.Ordinal) &&
+        !scene.Contains("offset_left = -18.0", StringComparison.Ordinal),
+        "default health bar size should stay compact while placement comes from the reusable overlay anchor instead of a fixed offset");
+    AssertTrue(
+        overlayAnchor.Contains("public NodePath GridOccupantPath { get; set; } = new(\"../GridOccupantComponent\");", StringComparison.Ordinal) &&
+        overlayAnchor.Contains("public NodePath VisualRootPath { get; set; } = new(\"../VisualRoot\");", StringComparison.Ordinal) &&
+        overlayAnchor.Contains("public NodePath SpritePath { get; set; } = new(\"../VisualRoot/AnimatedSprite2D\");", StringComparison.Ordinal) &&
+        overlayAnchor.Contains("ResolveFootprintTopY", StringComparison.Ordinal) &&
+        overlayAnchor.Contains("ResolveVisualTopY", StringComparison.Ordinal),
+        "unit overlay anchors should resolve head UI placement from footprint occupancy and visual bounds");
+    AssertTrue(
+        healthBar.Contains("BattleUnitOverlayAnchorComponent", StringComparison.Ordinal) &&
+        healthBar.Contains("ResolveHeadOverlayPosition(BarSize)", StringComparison.Ordinal),
+        "health bar placement should delegate to the generic unit overlay anchor");
+    AssertTrue(
+        healthBar.Contains("public bool HideWhenFullHp { get; set; } = true;", StringComparison.Ordinal) &&
+        healthBar.Contains("public double DamagedVisibleSeconds { get; set; } = 2.4;", StringComparison.Ordinal) &&
+        healthBar.Contains("public float LowHpVisibleRatio { get; set; } = 0.35f;", StringComparison.Ordinal) &&
+        healthBar.Contains("public float HighHpAlpha { get; set; } = 0.45f;", StringComparison.Ordinal) &&
+        healthBar.Contains("public float LowHpAlpha { get; set; } = 1f;", StringComparison.Ordinal) &&
+        healthBar.Contains("public void SetAttentionVisible(bool visible)", StringComparison.Ordinal) &&
+        healthBar.Contains("_attentionVisible", StringComparison.Ordinal) &&
+        healthBar.Contains("ShouldShowHealthBar(maxHp, ratio)", StringComparison.Ordinal) &&
+        healthBar.Contains("_damageRevealSecondsRemaining", StringComparison.Ordinal),
+        "health bar should stay hidden at full HP, reveal for a longer post-damage window, and remain visible for low HP or attention-focused units");
+    AssertTrue(
+        healthBar.Contains("ResolveHpAlpha(ratio)", StringComparison.Ordinal) &&
+        healthBar.Contains("Mathf.Lerp", StringComparison.Ordinal) &&
+        healthBar.Contains("HighHpAlpha", StringComparison.Ordinal) &&
+        healthBar.Contains("LowHpAlpha", StringComparison.Ordinal),
+        "health bar alpha should scale by HP so high-health bars are quieter and low-health bars are more solid");
+    AssertTrue(
+        presentation.Contains("BattleUnitHealthBarComponent", StringComparison.Ordinal) &&
+        presentation.Contains("ApplyHealthBarAttention()", StringComparison.Ordinal) &&
+        presentation.Contains("_healthBar?.SetAttentionVisible(_selected || _targetPreviewed || _previewFocused);", StringComparison.Ordinal),
+        "selection, target preview, and hover-style focus should ask the health bar to show when the unit is not full HP");
+    AssertTrue(
+        healthBar.Contains("public Color BorderColor", StringComparison.Ordinal) &&
+        healthBar.Contains("public Color TrackColor", StringComparison.Ordinal) &&
+        healthBar.Contains("public Color HighHpColor", StringComparison.Ordinal) &&
+        healthBar.Contains("public Color MidHpColor", StringComparison.Ordinal) &&
+        healthBar.Contains("public Color LowHpColor", StringComparison.Ordinal) &&
+        healthBar.Contains("_back.Color = BorderColor;", StringComparison.Ordinal) &&
+        healthBar.Contains("_track.Color = TrackColor;", StringComparison.Ordinal) &&
+        healthBar.Contains("_fill.Color = ResolveFillColor(ratio);", StringComparison.Ordinal),
+        "health bar visuals should be resourceized and use muted configurable colors");
+    AssertTrue(
+        healthBar.Contains("ratio <= 0.25f", StringComparison.Ordinal) &&
+        healthBar.Contains("ratio <= 0.55f", StringComparison.Ordinal),
+        "health bar fill should shift from green to amber to red as HP falls");
 }
 
 internal static void DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimation()
 {
     string healthBar = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitHealthBarComponent.cs"));
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
     string animationSet = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Animation", "BattleUnitAnimationSet.cs"));
     string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+    string markDefeatedBody = ExtractMethodBlock(unitRoot, "public void MarkEntityDefeated(");
+    int hideHealthBarIndex = markDefeatedBody.IndexOf("HideHealthBarImmediately", StringComparison.Ordinal);
+    int playDefeatedIndex = markDefeatedBody.IndexOf("animation.PlayDefeated", StringComparison.Ordinal);
 
     AssertTrue(
-        healthBar.Contains("_root.Visible = maxHp > 1 && !_health.IsDead;", StringComparison.Ordinal),
+        healthBar.Contains("if (maxHp <= 1 || _health.IsDead)", StringComparison.Ordinal) &&
+        healthBar.Contains("return false;", StringComparison.Ordinal) &&
+        healthBar.Contains("_root.Visible = ShouldShowHealthBar(maxHp, ratio);", StringComparison.Ordinal),
         "health bar should disappear on the HealthChanged frame that drops HP to zero, before defeated animation starts");
+    AssertTrue(
+        healthBar.Contains("public void HideImmediately()", StringComparison.Ordinal) &&
+        healthBar.Contains("_damageRevealSecondsRemaining = 0;", StringComparison.Ordinal) &&
+        healthBar.Contains("_attentionVisible = false;", StringComparison.Ordinal),
+        "health bar should expose an immediate hide path that clears damage reveal and attention state");
+    AssertTrue(
+        hideHealthBarIndex >= 0 &&
+        playDefeatedIndex >= 0 &&
+        hideHealthBarIndex < playDefeatedIndex,
+        "defeated presentation should hide the health bar before starting or delaying the defeated animation");
     AssertTrue(
         animationSet.Contains("public double TargetDefeatedSeconds { get; set; } = 0.4;", StringComparison.Ordinal) &&
         animationComponent.Contains("\"defeated\" => AnimationSet?.TargetDefeatedSeconds ?? 0.4", StringComparison.Ordinal),
@@ -623,6 +918,22 @@ internal static void DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimat
         animationSet.Contains("public double DefeatedFallbackSeconds { get; set; } = 0.35;", StringComparison.Ordinal) &&
         animationComponent.Contains("AnimationSet?.DefeatedFallbackSeconds ?? 0.35", StringComparison.Ordinal),
         "defeated fallback completion should not keep dead units visible after the faster death cue");
+    AssertTrue(
+        animationSet.Contains("public double DefeatedFadeFastSeconds { get; set; } = 0.12;", StringComparison.Ordinal) &&
+        animationSet.Contains("public float DefeatedFadeMidAlpha { get; set; } = 0.38f;", StringComparison.Ordinal) &&
+        animationSet.Contains("public float DefeatedFadeEndAlpha { get; set; } = 0.05f;", StringComparison.Ordinal),
+        "defeated fade timing should be resourceized so the opening fade can reach semi-transparent quickly");
+    AssertTrue(
+        animationComponent.Contains("PlayDefeatedFade(ResolveDefeatedFadeSeconds(authoredSeconds));", StringComparison.Ordinal) &&
+        animationComponent.Contains("_defeatedFadeTween.SetTrans(Tween.TransitionType.Quad);", StringComparison.Ordinal) &&
+        animationComponent.Contains("_defeatedFadeTween.SetEase(Tween.EaseType.Out);", StringComparison.Ordinal) &&
+        animationComponent.Contains("ResolveDefeatedFadeMidColor()", StringComparison.Ordinal) &&
+        animationComponent.Contains("ResolveDefeatedFadeEndColor()", StringComparison.Ordinal),
+        "all defeated animation paths should layer a front-loaded visual fade over the death cue");
+    AssertTrue(
+        animationComponent.Contains("KillDefeatedFadeTween(resetModulate: true);", StringComparison.Ordinal) &&
+        animationComponent.Contains("KillDefeatedFadeTween(resetModulate: false);", StringComparison.Ordinal),
+        "defeated fade tweens should reset only when returning to live cues and stay untouched when the entity is exiting");
 }
 
 internal static void BattleUnitBaseSceneAvoidsPhysicsInteractionShape()

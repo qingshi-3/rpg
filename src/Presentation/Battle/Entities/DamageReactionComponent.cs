@@ -22,6 +22,7 @@ public partial class DamageReactionComponent : BattleEntityComponent
     private bool _hasPendingDefeatedPresentationTiming;
     private double _pendingDefeatedDelaySeconds;
     private double _pendingDefeatedMinimumDurationSeconds;
+    private int _impactAlignedDamageTimingDepth;
 
     protected override void OnAttached()
     {
@@ -59,6 +60,16 @@ public partial class DamageReactionComponent : BattleEntityComponent
         _pendingDefeatedDelaySeconds = 0;
         _pendingDefeatedMinimumDurationSeconds = 0;
         return hasTiming;
+    }
+
+    public void BeginImpactAlignedDamageTiming()
+    {
+        _impactAlignedDamageTimingDepth++;
+    }
+
+    public void EndImpactAlignedDamageTiming()
+    {
+        _impactAlignedDamageTimingDepth = System.Math.Max(0, _impactAlignedDamageTimingDepth - 1);
     }
 
     private T RequireComponent<T>() where T : BattleEntityComponent
@@ -109,6 +120,11 @@ public partial class DamageReactionComponent : BattleEntityComponent
 
     private double ResolveHitDelaySeconds(HealthDamageEvent damage)
     {
+        if (_impactAlignedDamageTimingDepth > 0)
+        {
+            return 0;
+        }
+
         if (!AlignHitWithSourceAttack ||
             damage.Source == null ||
             !GodotObject.IsInstanceValid(damage.Source))

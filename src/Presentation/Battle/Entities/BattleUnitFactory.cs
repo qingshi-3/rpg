@@ -376,6 +376,7 @@ public sealed class BattleUnitFactory
         {
             animationComponent.AnimationSet = definition.Visual?.AnimationSet;
             animationComponent.AttackSpeed = definition.AttackSpeed;
+            animationComponent.AttackImpactNormalizedTimeOverride = definition.AttackImpactNormalizedTimeOverride;
         }
 
         if (TryGetComponent(entity, definition, out BattleUnitAudioComponent audioComponent))

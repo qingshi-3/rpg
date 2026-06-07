@@ -1,0 +1,128 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleSkillCastFx.cs" id="1_fx"]
+
+[node name="BattleSkillCastFx" type="Node2D"]
+z_index = 140
+script = ExtResource("1_fx")
+
+[node name="VerticalBeam" type="Polygon2D" parent="."]
+position = Vector2(0, -10)
+polygon = PackedVector2Array(-12, -46, 12, -46, 18, 12, -18, 12)
+color = Color(0.7, 0.92, 1, 0.3)
+
+[node name="GroundEllipse" type="Line2D" parent="."]
+position = Vector2(0, 4)
+scale = Vector2(1, 0.42)
+width = 4.2
+default_color = Color(0.72, 0.93, 1, 0.38)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+closed = true
+antialiased = true
+round_precision = 16
+
+[node name="InnerEllipse" type="Line2D" parent="."]
+position = Vector2(0, 4)
+scale = Vector2(1, 0.42)
+width = 2.2
+default_color = Color(0.84, 0.97, 1, 0.32)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+closed = true
+antialiased = true
+round_precision = 16
+
+[node name="DissolveEllipse" type="Line2D" parent="."]
+position = Vector2(0, 4)
+scale = Vector2(1, 0.42)
+width = 5.2
+default_color = Color(0.68, 0.92, 1, 0.34)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+closed = true
+antialiased = true
+round_precision = 16
+
+[node name="GlyphNorth" type="Line2D" parent="."]
+position = Vector2(0, 4)
+scale = Vector2(1, 0.42)
+points = PackedVector2Array(-14, -16, -7, -22, 0, -18, 7, -22, 14, -16)
+width = 2.3
+default_color = Color(0.78, 0.95, 1, 0.34)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+round_precision = 12
+
+[node name="GlyphSouth" type="Line2D" parent="."]
+position = Vector2(0, 4)
+scale = Vector2(1, 0.42)
+points = PackedVector2Array(-14, 16, -7, 22, 0, 18, 7, 22, 14, 16)
+width = 2.3
+default_color = Color(0.78, 0.95, 1, 0.32)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+round_precision = 12
+
+[node name="GlyphEast" type="Line2D" parent="."]
+position = Vector2(0, 4)
+scale = Vector2(1, 0.42)
+points = PackedVector2Array(18, -7, 25, 0, 18, 7)
+width = 2.0
+default_color = Color(0.8, 0.96, 1, 0.28)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+round_precision = 12
+
+[node name="GlyphWest" type="Line2D" parent="."]
+position = Vector2(0, 4)
+scale = Vector2(1, 0.42)
+points = PackedVector2Array(-18, -7, -25, 0, -18, 7)
+width = 2.0
+default_color = Color(0.8, 0.96, 1, 0.28)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+antialiased = true
+round_precision = 12
+
+[node name="RisingMist" type="CPUParticles2D" parent="."]
+position = Vector2(0, 2)
+emitting = false
+amount = 64
+lifetime = 0.72
+one_shot = true
+explosiveness = 0.72
+direction = Vector2(0, -1)
+spread = 38.0
+gravity = Vector2(0, -18)
+initial_velocity_min = 8.0
+initial_velocity_max = 28.0
+scale_amount_min = 1.2
+scale_amount_max = 3.0
+color = Color(0.7, 0.9, 1, 0.26)
+
+[node name="DissolveDust" type="CPUParticles2D" parent="."]
+position = Vector2(0, 3)
+emitting = false
+amount = 38
+lifetime = 0.5
+one_shot = true
+explosiveness = 0.82
+direction = Vector2(0, -1)
+spread = 86.0
+gravity = Vector2(0, -8)
+initial_velocity_min = 10.0
+initial_velocity_max = 26.0
+scale_amount_min = 0.8
+scale_amount_max = 1.8
+color = Color(0.78, 0.95, 1, 0.24)

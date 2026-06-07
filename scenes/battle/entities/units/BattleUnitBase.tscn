@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://ok1ty7de481t"]
+[gd_scene load_steps=19 format=3 uid="uid://ok1ty7de481t"]
 
 [ext_resource type="Script" uid="uid://kmyn63t5vy7" path="res://src/Presentation/Battle/Entities/BattleEntity.cs" id="1_entity"]
 [ext_resource type="Script" uid="uid://cxx2u5hct0pql" path="res://src/Presentation/Battle/Entities/FactionComponent.cs" id="2_faction"]
@@ -16,6 +16,8 @@
 [ext_resource type="Script" uid="uid://d5u3m9vwi7k2q" path="res://src/Presentation/Battle/Entities/BattleUnitSelectionSpotlight.cs" id="15_selection_spotlight"]
 [ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleUnitAudioComponent.cs" id="16_audio"]
 [ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleUnitHealthBarComponent.cs" id="17_health_bar"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleUnitOverlayAnchorComponent.cs" id="18_overlay_anchor"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleSkillCastFxComponent.cs" id="19_skill_cast_fx"]
 
 [node name="BattleEntity" type="Node2D"]
 script = ExtResource("1_entity")
@@ -36,24 +38,30 @@ z_index = 0
 [node name="HealthBarRoot" type="Control" parent="."]
 z_index = 100
 mouse_filter = 2
-offset_left = -24.0
-offset_top = -58.0
-offset_right = 24.0
-offset_bottom = -52.0
+offset_right = 36.0
+offset_bottom = 5.0
 
 [node name="HealthBack" type="ColorRect" parent="HealthBarRoot"]
 layout_mode = 0
-offset_right = 48.0
-offset_bottom = 6.0
-color = Color(0.05, 0.05, 0.06, 0.78)
+offset_right = 36.0
+offset_bottom = 5.0
+color = Color(0.018, 0.02, 0.018, 0.78)
+
+[node name="HealthTrack" type="ColorRect" parent="HealthBarRoot"]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 35.0
+offset_bottom = 4.0
+color = Color(0.06, 0.07, 0.06, 0.58)
 
 [node name="HealthFill" type="ColorRect" parent="HealthBarRoot"]
 layout_mode = 0
 offset_left = 1.0
 offset_top = 1.0
-offset_right = 47.0
-offset_bottom = 5.0
-color = Color(0.18, 0.95, 0.34, 0.95)
+offset_right = 35.0
+offset_bottom = 4.0
+color = Color(0.34, 0.78, 0.38, 0.92)
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 
@@ -62,6 +70,9 @@ script = ExtResource("2_faction")
 
 [node name="HealthComponent" type="Node" parent="."]
 script = ExtResource("3_health")
+
+[node name="BattleUnitOverlayAnchorComponent" type="Node" parent="."]
+script = ExtResource("18_overlay_anchor")
 
 [node name="BattleUnitHealthBarComponent" type="Node" parent="."]
 script = ExtResource("17_health_bar")
@@ -95,6 +106,9 @@ script = ExtResource("12_damage_reaction")
 script = ExtResource("16_audio")
 
 [node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="BattleUnitAudioComponent"]
+
+[node name="BattleSkillCastFxComponent" type="Node" parent="."]
+script = ExtResource("19_skill_cast_fx")
 
 [node name="BattleUnitPresentationComponent" type="Node" parent="."]
 script = ExtResource("14_presentation")

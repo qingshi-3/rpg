@@ -19,7 +19,6 @@ public partial class BattleGridHighlightOverlay : Node2D
     private const string PerceptionScanlineScaleParameter = "scanline_scale";
 
     [ExportGroup("Layering")]
-
     [Export]
     public int OverlayZIndex { get; set; } = 600;
 
@@ -52,11 +51,21 @@ public partial class BattleGridHighlightOverlay : Node2D
     public Color ThreatColor { get; set; } = new(1f, 0.26f, 0.08f, 0.38f);
 
     [Export]
-    // Attack range is a low-alpha planning background; target cells and pointers carry the stronger focus.
+    // Attack range is a low-alpha planning background; target locks and unit focus carry the stronger confirmation.
     public Color AttackColor { get; set; } = new(1f, 0.08f, 0.04f, 0.18f);
 
     [Export]
-    public Color SkillColor { get; set; } = new(0.7f, 0.42f, 1f, 0.22f);
+    // Skill range uses the deployment-zone visual language: a quiet area fill plus one outer luminous boundary.
+    public Color SkillRangeFillColor { get; set; } = new(0.10f, 0.82f, 1.0f, 0.08f);
+
+    [Export]
+    public Color SkillRangeBorderColor { get; set; } = new(0.42f, 0.96f, 1.0f, 0.88f);
+
+    [Export(PropertyHint.Range, "1,16,0.5")]
+    public float SkillRangeBorderWidth { get; set; } = 2.5f;
+
+    [Export(PropertyHint.Range, "2,32,0.5")]
+    public float SkillRangeGlowWidth { get; set; } = 11.0f;
 
     [Export]
     // Friendly hover uses green for mobility so it does not read as enemy intent.
@@ -78,10 +87,6 @@ public partial class BattleGridHighlightOverlay : Node2D
     [Export]
     // Friendly hover attack range is yellow to separate planning information from hostile threat red.
     public Color FriendlyAttackColor { get; set; } = new(1f, 0.82f, 0.12f, 0.28f);
-
-    [Export]
-    // Target cells are intentionally stronger than range backgrounds during attack confirmation.
-    public Color TargetColor { get; set; } = new(1f, 0.84f, 0.1f, 0.5f);
 
     [Export]
     public Color SelectedColor { get; set; } = new(0.35f, 1f, 0.55f, 0.22f);
@@ -126,32 +131,38 @@ public partial class BattleGridHighlightOverlay : Node2D
     [Export]
     public bool PulseTargetHighlights { get; set; } = true;
 
+    [Export]
+    public bool PulseSkillHighlights { get; set; } = true;
+
     [Export(PropertyHint.Range, "0.2,2.5,0.05")]
     public double DynamicPulseSeconds { get; set; } = 0.85;
 
     [Export(PropertyHint.Range, "0.1,1,0.05")]
     public float DynamicPulseMinAlphaMultiplier { get; set; } = 0.72f;
 
-    [ExportGroup("Target Pointers")]
+    [ExportGroup("Target Lock Style")]
 
     [Export]
-    public bool ShowTargetPointers { get; set; } = true;
+    public bool ShowTargetLockRing { get; set; } = true;
 
     [Export]
-    // Floating pointers mark selectable attack targets; tile layers only own the large cell fills.
-    public Color TargetPointerColor { get; set; } = new(1f, 0.04f, 0.02f, 0.96f);
+    // Skill targeting reads as a unit focus, so the ground hint is one quiet footprint ring instead of per-cell arrows.
+    public Color TargetLockRingColor { get; set; } = new(1f, 0.26f, 0.12f, 0.82f);
 
-    [Export(PropertyHint.Range, "6,48,1")]
-    public float TargetPointerSize { get; set; } = 18f;
+    [Export]
+    public Color TargetLockGlowColor { get; set; } = new(1f, 0.12f, 0.06f, 0.24f);
 
-    [Export(PropertyHint.Range, "0,48,1")]
-    public float TargetPointerVerticalOffset { get; set; } = 12f;
+    [Export(PropertyHint.Range, "1,12,0.25")]
+    public float TargetLockRingWidth { get; set; } = 2.25f;
 
-    [Export(PropertyHint.Range, "0,24,1")]
-    public float TargetPointerFloatDistance { get; set; } = 6f;
+    [Export(PropertyHint.Range, "2,28,0.5")]
+    public float TargetLockGlowWidth { get; set; } = 8.5f;
 
-    [Export(PropertyHint.Range, "0.2,2.5,0.05")]
-    public double TargetPointerFloatSeconds { get; set; } = 0.55;
+    [Export(PropertyHint.Range, "0,0.45,0.01")]
+    public float TargetLockPaddingRatio { get; set; } = 0.12f;
+
+    [Export(PropertyHint.Range, "0.2,0.8,0.01")]
+    public float TargetLockVerticalScale { get; set; } = 0.38f;
 
     [ExportGroup("Path Arrows")]
 
@@ -176,7 +187,6 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     private readonly Dictionary<BattleGridHighlightKind, HashSet<GridPosition>> _cellsByKind = new();
     private readonly List<GridPosition> _pathCells = new();
-    private readonly HashSet<GridPosition> _targetPointerCells = new();
     private readonly BattleGridHighlightTileLayerRenderer _tileLayerRenderer = new();
 
     private WorldSiteRoot _siteRoot;
@@ -186,6 +196,7 @@ public partial class BattleGridHighlightOverlay : Node2D
     private Node2D _vectorOverlayRoot;
     private readonly HashSet<GridPosition> _hoverCells = new();
     private bool _hoverOverrideActive;
+    private bool _tacticalPauseVisualsStatic;
 
     public override void _Ready()
     {
@@ -254,12 +265,11 @@ public partial class BattleGridHighlightOverlay : Node2D
 
         HashSet<GridPosition> nextCells = cells?.ToHashSet() ?? new HashSet<GridPosition>();
         _cellsByKind[kind] = nextCells;
-        if (kind == BattleGridHighlightKind.Target)
+        if (UsesTileLayer(kind))
         {
-            _targetPointerCells.Clear();
+            _tileLayerRenderer.SetCells(kind, nextCells);
         }
 
-        _tileLayerRenderer.SetCells(kind, nextCells);
         RebuildDynamicOverlay();
     }
 
@@ -288,23 +298,10 @@ public partial class BattleGridHighlightOverlay : Node2D
 
             HashSet<GridPosition> nextCells = cells?.ToHashSet() ?? new HashSet<GridPosition>();
             _cellsByKind[kind] = nextCells;
-            if (kind == BattleGridHighlightKind.Target)
+            if (UsesTileLayer(kind))
             {
-                _targetPointerCells.Clear();
+                _tileLayerRenderer.SetCells(kind, nextCells);
             }
-
-            _tileLayerRenderer.SetCells(kind, nextCells);
-        }
-
-        RebuildDynamicOverlay();
-    }
-
-    public void SetTargetPointers(IEnumerable<GridPosition> cells)
-    {
-        _targetPointerCells.Clear();
-        foreach (GridPosition cell in cells?.Distinct() ?? System.Array.Empty<GridPosition>())
-        {
-            _targetPointerCells.Add(cell);
         }
 
         RebuildDynamicOverlay();
@@ -329,13 +326,12 @@ public partial class BattleGridHighlightOverlay : Node2D
         {
             _pathCells.Clear();
         }
-        else if (kind == BattleGridHighlightKind.Target)
+        bool removed = _cellsByKind.Remove(kind);
+        if (UsesTileLayer(kind))
         {
-            _targetPointerCells.Clear();
+            _tileLayerRenderer.ClearCells(kind);
         }
 
-        bool removed = _cellsByKind.Remove(kind);
-        _tileLayerRenderer.ClearCells(kind);
         if (removed || kind == BattleGridHighlightKind.Path || kind == BattleGridHighlightKind.Target)
         {
             RebuildDynamicOverlay();
@@ -346,11 +342,23 @@ public partial class BattleGridHighlightOverlay : Node2D
     {
         _cellsByKind.Clear();
         _pathCells.Clear();
-        _targetPointerCells.Clear();
         _hoverCells.Clear();
         _hoverOverrideActive = false;
         _tileLayerRenderer.ClearAll();
         ClearDynamicOverlay();
+    }
+
+    public void SetTacticalPauseVisualsStatic(bool staticVisuals)
+    {
+        if (_tacticalPauseVisualsStatic == staticVisuals)
+        {
+            return;
+        }
+
+        _tacticalPauseVisualsStatic = staticVisuals;
+        ConfigureTileLayers();
+        ApplyAllCellLayers();
+        RebuildDynamicOverlay();
     }
 
     private void OnSiteMapLoaded(Node activeSiteMap)
@@ -362,7 +370,6 @@ public partial class BattleGridHighlightOverlay : Node2D
         _hoverCells.Clear();
         _hoverOverrideActive = false;
         _pathCells.Clear();
-        _targetPointerCells.Clear();
         _cellsByKind.Remove(BattleGridHighlightKind.Path);
         ConfigureTileLayers();
         ApplyAllCellLayers();
@@ -441,7 +448,7 @@ public partial class BattleGridHighlightOverlay : Node2D
             return;
         }
 
-        BattleGridHighlightKind[] drawOrder = GetRangeDrawOrder().ToArray();
+        BattleGridHighlightKind[] drawOrder = GetTileLayerDrawOrder().ToArray();
         BattleGridHighlightTileSetSpec tileSetSpec = BattleGridHighlightTileSetFactory.Create(
             _coordinateLayer.TileSet,
             BuildTileStyles(drawOrder),
@@ -472,6 +479,12 @@ public partial class BattleGridHighlightOverlay : Node2D
             return;
         }
 
+        if (_tacticalPauseVisualsStatic)
+        {
+            layer.Material = null;
+            return;
+        }
+
         Shader shader = GD.Load<Shader>(PerceptionRangeShaderPath);
         if (shader == null)
         {
@@ -494,7 +507,7 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     private void ApplyAllCellLayers()
     {
-        foreach (BattleGridHighlightKind kind in GetRangeDrawOrder())
+        foreach (BattleGridHighlightKind kind in GetTileLayerDrawOrder())
         {
             if (!_cellsByKind.TryGetValue(kind, out HashSet<GridPosition> cells))
             {
@@ -514,8 +527,9 @@ public partial class BattleGridHighlightOverlay : Node2D
             return;
         }
 
+        AddSkillRangeDeploymentStyle();
         AddPathArrows();
-        AddTargetPointers();
+        AddTargetLockRing();
 
         if (_hoverCells.Count > 0)
         {
@@ -549,9 +563,60 @@ public partial class BattleGridHighlightOverlay : Node2D
         _vectorOverlayRoot = new Node2D
         {
             Name = "RuntimeVectorOverlay",
-            ZIndex = (int)BattleGridHighlightKind.Hover * 2 + 1
+            // Child z-indices align with highlight kinds; a neutral root keeps range fills below target locks and hover frames.
+            ZIndex = 0
         };
         AddChild(_vectorOverlayRoot);
+    }
+
+    private void AddSkillRangeDeploymentStyle()
+    {
+        if (!_cellsByKind.TryGetValue(BattleGridHighlightKind.Skill, out HashSet<GridPosition> cells) ||
+            cells.Count == 0)
+        {
+            return;
+        }
+
+        int fillZIndex = (int)BattleGridHighlightKind.Skill * 2;
+        int borderZIndex = fillZIndex + 1;
+        Color glowColor = WithAlpha(
+            SkillRangeBorderColor,
+            Mathf.Clamp(SkillRangeBorderColor.A * 0.24f, 0.0f, 0.42f));
+
+        foreach (GridPosition cell in cells.OrderBy(cell => cell.Y).ThenBy(cell => cell.X))
+        {
+            var fillNode = new Polygon2D
+            {
+                Polygon = BuildCellPolygon(cell),
+                Color = SkillRangeFillColor,
+                ZIndex = fillZIndex
+            };
+            _vectorOverlayRoot.AddChild(fillNode);
+            ApplyDynamicRangeStyle(fillNode, BattleGridHighlightKind.Skill);
+        }
+
+        foreach ((Vector2 start, Vector2 end) in BuildBoundarySegments(cells))
+        {
+            var glowLine = new Line2D
+            {
+                Points = new[] { start, end },
+                Width = SkillRangeGlowWidth,
+                DefaultColor = glowColor,
+                ZIndex = borderZIndex
+            };
+            _vectorOverlayRoot.AddChild(glowLine);
+            ApplyDynamicRangeStyle(glowLine, BattleGridHighlightKind.Skill);
+
+            var borderLine = new Line2D
+            {
+                Points = new[] { start, end },
+                Width = SkillRangeBorderWidth,
+                DefaultColor = SkillRangeBorderColor,
+                ZIndex = borderZIndex + 1
+            };
+            _vectorOverlayRoot.AddChild(borderLine);
+            ApplyDynamicRangeStyle(borderLine, BattleGridHighlightKind.Skill);
+        }
     }
 
     private void AddCellHighlight(BattleGridHighlightKind kind, GridPosition cell)
@@ -586,15 +651,11 @@ public partial class BattleGridHighlightOverlay : Node2D
         _vectorOverlayRoot.AddChild(borderNode);
         ApplyDynamicRangeStyle(borderNode, kind);
 
-        if (kind == BattleGridHighlightKind.Target)
-        {
-            AddTargetPointer(cell, polygon);
-        }
     }
 
     private void ApplyDynamicRangeStyle(CanvasItem item, BattleGridHighlightKind kind)
     {
-        if (!ShouldPulse(kind) || item == null || !IsInsideTree())
+        if (!ShouldAnimateOverlay(kind) || item == null || !IsInsideTree())
         {
             return;
         }
@@ -648,79 +709,76 @@ public partial class BattleGridHighlightOverlay : Node2D
         });
     }
 
-    private void AddTargetPointer(GridPosition cell, Vector2[] cellPolygon)
+    private void AddTargetLockRing()
     {
-        if (!ShowTargetPointers)
+        if (!ShowTargetLockRing ||
+            !_cellsByKind.TryGetValue(BattleGridHighlightKind.Target, out HashSet<GridPosition> cells) ||
+            cells.Count == 0)
         {
             return;
         }
 
-        float size = Mathf.Max(4f, TargetPointerSize);
-        float stemHalfWidth = size * 0.18f;
-        float headHalfWidth = size * 0.52f;
-        float headTop = -size * 0.42f;
-        Vector2[] arrowPolygon =
-        {
-            new(-stemHalfWidth, -size),
-            new(stemHalfWidth, -size),
-            new(stemHalfWidth, headTop),
-            new(headHalfWidth, headTop),
-            Vector2.Zero,
-            new(-headHalfWidth, headTop),
-            new(-stemHalfWidth, headTop)
-        };
-
-        Vector2 cellCenter = BuildCellCenter(cell);
-        float topY = cellPolygon.Min(point => point.Y);
-        var pointer = new Polygon2D
-        {
-            Polygon = arrowPolygon,
-            Color = TargetPointerColor,
-            Position = new Vector2(cellCenter.X, topY - TargetPointerVerticalOffset),
-            ZIndex = (int)BattleGridHighlightKind.Hover * 2 + 1
-        };
-
-        _vectorOverlayRoot.AddChild(pointer);
-        ApplyTargetPointerFloat(pointer);
-    }
-
-    private void AddTargetPointers()
-    {
-        HashSet<GridPosition> pointerCells = new(_targetPointerCells);
-        if (!_cellsByKind.TryGetValue(BattleGridHighlightKind.Target, out HashSet<GridPosition> cells))
-        {
-            cells = null;
-        }
-
-        foreach (GridPosition cell in cells ?? Enumerable.Empty<GridPosition>())
-        {
-            pointerCells.Add(cell);
-        }
-
-        foreach (GridPosition cell in pointerCells)
-        {
-            AddTargetPointer(cell, BuildCellPolygon(cell));
-        }
-    }
-
-    private void ApplyTargetPointerFloat(Node2D pointer)
-    {
-        if (pointer == null || !IsInsideTree() || TargetPointerFloatDistance <= 0f)
+        Vector2[] ringPoints = BuildTargetLockRingPoints(cells);
+        if (ringPoints.Length < 8)
         {
             return;
         }
 
-        double floatSeconds = System.Math.Max(0.2, TargetPointerFloatSeconds);
-        Vector2 basePosition = pointer.Position;
-        Vector2 raisedPosition = basePosition + new Vector2(0f, -TargetPointerFloatDistance);
+        int zIndex = (int)BattleGridHighlightKind.Target * 2 + 1;
+        var glow = new Line2D
+        {
+            Points = ringPoints,
+            Closed = true,
+            Width = TargetLockGlowWidth,
+            DefaultColor = TargetLockGlowColor,
+            ZIndex = zIndex
+        };
+        _vectorOverlayRoot.AddChild(glow);
+        ApplyDynamicRangeStyle(glow, BattleGridHighlightKind.Target);
 
-        Tween tween = CreateTween();
-        tween.BindNode(pointer);
-        tween.SetLoops();
-        tween.SetTrans(Tween.TransitionType.Sine);
-        tween.SetEase(Tween.EaseType.InOut);
-        tween.TweenProperty(pointer, "position", raisedPosition, floatSeconds);
-        tween.TweenProperty(pointer, "position", basePosition, floatSeconds);
+        var ring = new Line2D
+        {
+            Points = ringPoints,
+            Closed = true,
+            Width = TargetLockRingWidth,
+            DefaultColor = TargetLockRingColor,
+            ZIndex = zIndex + 1
+        };
+        _vectorOverlayRoot.AddChild(ring);
+        ApplyDynamicRangeStyle(ring, BattleGridHighlightKind.Target);
+    }
+
+    private Vector2[] BuildTargetLockRingPoints(HashSet<GridPosition> cells)
+    {
+        GridPosition[] targetCells = cells?.Distinct().ToArray() ?? System.Array.Empty<GridPosition>();
+        if (targetCells.Length == 0)
+        {
+            return System.Array.Empty<Vector2>();
+        }
+
+        int minX = targetCells.Min(cell => cell.X);
+        int maxX = targetCells.Max(cell => cell.X);
+        int minY = targetCells.Min(cell => cell.Y);
+        int maxY = targetCells.Max(cell => cell.Y);
+        Vector2[] footprintPolygon = BuildCellBlockPolygon(minX, minY, maxX, maxY);
+        float left = footprintPolygon.Min(point => point.X);
+        float right = footprintPolygon.Max(point => point.X);
+        float top = footprintPolygon.Min(point => point.Y);
+        float bottom = footprintPolygon.Max(point => point.Y);
+        Vector2 center = new((left + right) * 0.5f, (top + bottom) * 0.5f);
+        float padding = Mathf.Min(right - left, bottom - top) * Mathf.Clamp(TargetLockPaddingRatio, 0f, 0.45f);
+        float radiusX = Mathf.Max(6f, (right - left) * 0.5f + padding);
+        float radiusY = Mathf.Max(4f, (bottom - top) * Mathf.Clamp(TargetLockVerticalScale, 0.2f, 0.8f));
+
+        const int PointCount = 48;
+        Vector2[] points = new Vector2[PointCount];
+        for (int index = 0; index < PointCount; index++)
+        {
+            float angle = Mathf.Tau * index / PointCount;
+            points[index] = center + new Vector2(Mathf.Cos(angle) * radiusX, Mathf.Sin(angle) * radiusY);
+        }
+
+        return points;
     }
 
     private void AddPathArrows()
@@ -826,6 +884,34 @@ public partial class BattleGridHighlightOverlay : Node2D
             .ToArray();
     }
 
+    private IEnumerable<(Vector2 Start, Vector2 End)> BuildBoundarySegments(HashSet<GridPosition> cells)
+    {
+        foreach (GridPosition cell in cells.OrderBy(cell => cell.Y).ThenBy(cell => cell.X))
+        {
+            Vector2[] polygon = BuildCellPolygon(cell);
+
+            if (!cells.Contains(new GridPosition(cell.X, cell.Y - 1)))
+            {
+                yield return (polygon[0], polygon[1]);
+            }
+
+            if (!cells.Contains(new GridPosition(cell.X + 1, cell.Y)))
+            {
+                yield return (polygon[1], polygon[2]);
+            }
+
+            if (!cells.Contains(new GridPosition(cell.X, cell.Y + 1)))
+            {
+                yield return (polygon[2], polygon[3]);
+            }
+
+            if (!cells.Contains(new GridPosition(cell.X - 1, cell.Y)))
+            {
+                yield return (polygon[3], polygon[0]);
+            }
+        }
+    }
+
     private Vector2[] BuildHoverFramePolygon(IEnumerable<GridPosition> cells)
     {
         GridPosition[] hoverCells = cells?.Distinct().ToArray() ?? System.Array.Empty<GridPosition>();
@@ -886,8 +972,8 @@ public partial class BattleGridHighlightOverlay : Node2D
             BattleGridHighlightKind.Path => (PathColor, WithAlpha(PathColor, 0.72f), RangeBorderWidth + 0.35f),
             BattleGridHighlightKind.Threat => (ThreatColor, WithAlpha(ThreatColor, 0.82f), RangeBorderWidth + 0.2f),
             BattleGridHighlightKind.Attack => (AttackColor, WithAlpha(AttackColor, 0.42f), RangeBorderWidth),
-            BattleGridHighlightKind.Skill => (SkillColor, WithAlpha(SkillColor, 0.56f), RangeBorderWidth),
-            BattleGridHighlightKind.Target => (TargetColor, WithAlpha(TargetColor, 0.98f), RangeBorderWidth + 0.75f),
+            BattleGridHighlightKind.Skill => (SkillRangeFillColor, SkillRangeBorderColor, SkillRangeBorderWidth),
+            BattleGridHighlightKind.Target => (WithAlpha(TargetLockRingColor, 0f), TargetLockRingColor, TargetLockRingWidth),
             BattleGridHighlightKind.FriendlyMove => (FriendlyMoveColor, WithAlpha(FriendlyMoveColor, 0.78f), RangeBorderWidth),
             BattleGridHighlightKind.EnemyDeployment => (EnemyDeploymentColor, WithAlpha(EnemyDeploymentColor, 0.76f), RangeBorderWidth),
             BattleGridHighlightKind.FriendlyPerception => (FriendlyPerceptionColor, WithAlpha(FriendlyPerceptionColor, 0.18f), 0f),
@@ -929,7 +1015,16 @@ public partial class BattleGridHighlightOverlay : Node2D
                ((kind == BattleGridHighlightKind.Threat && PulseThreatHighlights) ||
                 (kind == BattleGridHighlightKind.Attack && PulseAttackHighlights) ||
                 (kind == BattleGridHighlightKind.FriendlyAttack && PulseAttackHighlights) ||
-                (kind == BattleGridHighlightKind.Target && PulseTargetHighlights));
+                (kind == BattleGridHighlightKind.Target && PulseTargetHighlights) ||
+                (kind == BattleGridHighlightKind.Skill && PulseSkillHighlights));
+    }
+
+    private bool ShouldAnimateOverlay(BattleGridHighlightKind kind)
+    {
+        // Tactical pause keeps overlay data responsive to player input but makes
+        // every battlefield-space hint static; pause readability belongs to UI
+        // state or a later pause filter, not battle-time animation.
+        return !_tacticalPauseVisualsStatic && ShouldPulse(kind);
     }
 
     private static Color WithAlpha(Color color, float alpha)
@@ -937,19 +1032,22 @@ public partial class BattleGridHighlightOverlay : Node2D
         return new Color(color.R, color.G, color.B, alpha);
     }
 
-    private static IEnumerable<BattleGridHighlightKind> GetRangeDrawOrder()
+    private static bool UsesTileLayer(BattleGridHighlightKind kind)
+    {
+        return kind is not BattleGridHighlightKind.Skill and not BattleGridHighlightKind.Target;
+    }
+
+    private static IEnumerable<BattleGridHighlightKind> GetTileLayerDrawOrder()
     {
         yield return BattleGridHighlightKind.Move;
         yield return BattleGridHighlightKind.Path;
         yield return BattleGridHighlightKind.Threat;
-        yield return BattleGridHighlightKind.Skill;
         yield return BattleGridHighlightKind.Attack;
         yield return BattleGridHighlightKind.FriendlyMove;
         yield return BattleGridHighlightKind.EnemyDeployment;
         yield return BattleGridHighlightKind.FriendlyPerception;
         yield return BattleGridHighlightKind.EnemyPerception;
         yield return BattleGridHighlightKind.FriendlyAttack;
-        yield return BattleGridHighlightKind.Target;
         yield return BattleGridHighlightKind.Invalid;
     }
 

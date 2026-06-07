@@ -26,10 +26,16 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
     public float SelectionOutlineWidth { get; set; } = 2.0f;
 
     [Export]
-    public Color HitOutlineColor { get; set; } = new(1f, 0.05f, 0.02f, 1f);
+    public Color HitOutlineColor { get; set; } = new(1f, 0.16f, 0.08f, 0.42f);
 
-    [Export(PropertyHint.Range, "0.5,8,0.25")]
-    public float HitOutlineWidth { get; set; } = 3.25f;
+    [Export(PropertyHint.Range, "0.25,4,0.05")]
+    public float HitOutlineWidth { get; set; } = 1.55f;
+
+    [Export(PropertyHint.Range, "0.02,0.25,0.01")]
+    public double HitOutlinePulseRiseSeconds { get; set; } = 0.07;
+
+    [Export(PropertyHint.Range, "0.04,0.5,0.01")]
+    public double HitOutlinePulseFallSeconds { get; set; } = 0.2;
 
     [Export]
     public bool RaiseEntityWhileSelected { get; set; } = true;
@@ -52,12 +58,15 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
     private AnimatedSprite2D _animatedSprite;
     private BattleUnitAffiliationMarker _affiliationMarker;
     private BattleUnitSelectionSpotlight _selectionSpotlight;
+    private BattleUnitHealthBarComponent _healthBar;
     private ShaderMaterial _selectionMaterial;
     private BattleFaction _faction = BattleFaction.Neutral;
     private bool _selected;
     private bool _hitOutlined;
     private bool _targetPreviewed;
     private bool _previewFocused;
+    private Tween _hitOutlinePulseTween;
+    private float _hitOutlinePulseIntensity;
     private bool _hasOriginalZIndex;
     private int _originalZIndex;
     private int _sortBaseZIndex;
@@ -80,18 +89,56 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
         _selectionSpotlight?.SetSelected(selected);
         ApplySelectionOutline();
         ApplyPresentationZIndex();
+        ApplyHealthBarAttention();
     }
 
     public void SetHitOutlineVisible(bool visible)
     {
+        if (!visible)
+        {
+            KillHitOutlinePulse();
+            ApplyPresentationZIndex();
+            return;
+        }
+
         if (_hitOutlined == visible)
         {
             return;
         }
 
         _hitOutlined = visible;
+        _hitOutlinePulseIntensity = 1f;
         ApplySelectionOutline();
         ApplyPresentationZIndex();
+    }
+
+    public void PlayHitOutlinePulse()
+    {
+        if (_selectionMaterial == null)
+        {
+            return;
+        }
+
+        KillHitOutlinePulse();
+        _hitOutlined = true;
+        ApplyHitOutlinePulseIntensity(0f);
+        ApplyPresentationZIndex();
+
+        // Impact feedback should read as a soft flash, not a full-strength target marker.
+        _hitOutlinePulseTween = CreateTween();
+        _hitOutlinePulseTween.SetTrans(Tween.TransitionType.Sine);
+        _hitOutlinePulseTween.SetEase(Tween.EaseType.InOut);
+        _hitOutlinePulseTween.TweenMethod(
+            Callable.From<float>(ApplyHitOutlinePulseIntensity),
+            0f,
+            1f,
+            System.Math.Max(0.02, HitOutlinePulseRiseSeconds));
+        _hitOutlinePulseTween.TweenMethod(
+            Callable.From<float>(ApplyHitOutlinePulseIntensity),
+            1f,
+            0f,
+            System.Math.Max(0.04, HitOutlinePulseFallSeconds));
+        _hitOutlinePulseTween.TweenCallback(Callable.From(CompleteHitOutlinePulse));
     }
 
     public void SetAttackTargetPreview(bool previewed)
@@ -104,6 +151,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
         _targetPreviewed = previewed;
         ApplySelectionOutline();
         ApplyPresentationZIndex();
+        ApplyHealthBarAttention();
     }
 
     public void SetPreviewFocus(bool focused)
@@ -115,6 +163,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
 
         _previewFocused = focused;
         ApplyPresentationZIndex();
+        ApplyHealthBarAttention();
     }
 
     public void SetMapSortZIndex(int zIndex, bool suppressRaise)
@@ -131,15 +180,20 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
         _animatedSprite = Entity.GetNodeOrNull<AnimatedSprite2D>(AnimatedSpritePath);
         _affiliationMarker = Entity.GetNodeOrNull<BattleUnitAffiliationMarker>(AffiliationMarkerPath);
         _selectionSpotlight = Entity.GetNodeOrNull<BattleUnitSelectionSpotlight>(SelectionSpotlightPath);
+        _healthBar =
+            Entity.GetComponent<BattleUnitHealthBarComponent>() ??
+            Entity.GetNodeOrNull<BattleUnitHealthBarComponent>("BattleUnitHealthBarComponent");
         _affiliationMarker?.SetFaction(_faction);
         _selectionSpotlight?.SetSelected(_selected);
         EnsureSelectionMaterial();
         ApplySelectionOutline();
         ApplyPresentationZIndex();
+        ApplyHealthBarAttention();
     }
 
     public override void _ExitTree()
     {
+        KillHitOutlinePulse();
         RestoreOriginalZIndex();
     }
 
@@ -175,8 +229,53 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
 
         bool outlineEnabled = _hitOutlined || _targetPreviewed || _selected;
         _selectionMaterial.SetShaderParameter(OutlineEnabledParameter, outlineEnabled);
-        _selectionMaterial.SetShaderParameter(OutlineColorParameter, _hitOutlined || _targetPreviewed ? HitOutlineColor : SelectionOutlineColor);
-        _selectionMaterial.SetShaderParameter(OutlineWidthParameter, _hitOutlined || _targetPreviewed ? HitOutlineWidth : SelectionOutlineWidth);
+        _selectionMaterial.SetShaderParameter(OutlineColorParameter, _hitOutlined ? ResolveHitOutlineColor() : _targetPreviewed ? HitOutlineColor : SelectionOutlineColor);
+        _selectionMaterial.SetShaderParameter(OutlineWidthParameter, _hitOutlined ? ResolveHitOutlineWidth() : _targetPreviewed ? HitOutlineWidth : SelectionOutlineWidth);
+    }
+
+    private void ApplyHealthBarAttention()
+    {
+        _healthBar?.SetAttentionVisible(_selected || _targetPreviewed || _previewFocused);
+    }
+
+    private Color ResolveHitOutlineColor()
+    {
+        Color color = HitOutlineColor;
+        color.A *= Mathf.Clamp(_hitOutlinePulseIntensity, 0f, 1f);
+        return color;
+    }
+
+    private float ResolveHitOutlineWidth()
+    {
+        return Mathf.Max(0f, HitOutlineWidth * Mathf.Clamp(_hitOutlinePulseIntensity, 0f, 1f));
+    }
+
+    private void ApplyHitOutlinePulseIntensity(float intensity)
+    {
+        _hitOutlinePulseIntensity = Mathf.Clamp(intensity, 0f, 1f);
+        ApplySelectionOutline();
+    }
+
+    private void CompleteHitOutlinePulse()
+    {
+        _hitOutlinePulseTween = null;
+        _hitOutlinePulseIntensity = 0f;
+        _hitOutlined = false;
+        ApplySelectionOutline();
+        ApplyPresentationZIndex();
+    }
+
+    private void KillHitOutlinePulse()
+    {
+        if (_hitOutlinePulseTween != null && GodotObject.IsInstanceValid(_hitOutlinePulseTween))
+        {
+            _hitOutlinePulseTween.Kill();
+        }
+
+        _hitOutlinePulseTween = null;
+        _hitOutlinePulseIntensity = 0f;
+        _hitOutlined = false;
+        ApplySelectionOutline();
     }
 
     private void ApplyPresentationZIndex()

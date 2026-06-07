@@ -14,17 +14,40 @@ public sealed class BattleDamageEvent
     }
 
     public BattleDamageEvent(BattleEntity target, string targetId, int damageApplied, bool targetDefeated)
+        : this(target, targetId, damageApplied, targetDefeated, "", "", "", "")
+    {
+    }
+
+    public BattleDamageEvent(
+        BattleEntity target,
+        string targetId,
+        int damageApplied,
+        bool targetDefeated,
+        string sourceCommandId,
+        string sourceActionId,
+        string sourceDefinitionId,
+        string effectKind)
     {
         Target = target;
         TargetId = targetId ?? "";
         DamageApplied = System.Math.Max(0, damageApplied);
         TargetDefeated = targetDefeated;
+        SourceCommandId = sourceCommandId ?? "";
+        SourceActionId = sourceActionId ?? "";
+        SourceDefinitionId = sourceDefinitionId ?? "";
+        EffectKind = effectKind ?? "";
     }
 
     public BattleEntity Target { get; }
     public string TargetId { get; }
     public int DamageApplied { get; }
     public bool TargetDefeated { get; }
+    // Presentation feedback carries Runtime source facts through unchanged so
+    // reports, diagnostics, and visuals read the same combat event identity.
+    public string SourceCommandId { get; }
+    public string SourceActionId { get; }
+    public string SourceDefinitionId { get; }
+    public string EffectKind { get; }
 }
 
 public sealed class BattleActionResult
@@ -98,6 +121,17 @@ public sealed class BattleActionResult
         string message)
     {
         return new BattleActionResult(true, BattleActionKind.Attack, actor, target, null, default, null, message, damageApplied, targetDefeated, null);
+    }
+
+    public static BattleActionResult AttackSucceeded(
+        BattleEntity actor,
+        BattleEntity target,
+        IReadOnlyList<BattleDamageEvent> damageEvents,
+        string message)
+    {
+        int totalDamage = damageEvents?.Sum(damage => damage?.DamageApplied ?? 0) ?? 0;
+        bool targetDefeated = damageEvents?.Any(damage => damage?.TargetDefeated == true) == true;
+        return new BattleActionResult(true, BattleActionKind.Attack, actor, target, null, default, null, message, totalDamage, targetDefeated, damageEvents);
     }
 
     public static BattleActionResult AbilitySucceeded(

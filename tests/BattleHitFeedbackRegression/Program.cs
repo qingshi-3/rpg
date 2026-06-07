@@ -19,6 +19,7 @@ using System.Text.Json;
 Environment.SetEnvironmentVariable("RPG_GAMELOG_DIR", Path.Combine(Path.GetTempPath(), "rpg-test-logs"));
 
 BattleHitFeedbackRegressionCases.Run("multi-target hit feedback outlines every target and formats damage numbers", BattleHitFeedbackRegressionCases.MultiTargetHitFeedback);
+BattleHitFeedbackRegressionCases.Run("skill damage feedback preserves runtime source attribution", BattleHitFeedbackRegressionCases.SkillDamageFeedbackPreservesRuntimeSourceAttribution);
 BattleHitFeedbackRegressionCases.Run("damage number starts close to target and drifts lightly right upward", BattleHitFeedbackRegressionCases.DamageNumberMotionDefaults);
 BattleHitFeedbackRegressionCases.Run("friendly hover uses green movement and yellow attack preview kinds", BattleHitFeedbackRegressionCases.FriendlyHoverStyle);
 BattleHitFeedbackRegressionCases.Run("friendly hover keeps combined post-move attack preview", BattleHitFeedbackRegressionCases.FriendlyHoverWorkload);
@@ -50,6 +51,7 @@ BattleHitFeedbackRegressionCases.Run("world action resource text uses custom res
 BattleHitFeedbackRegressionCases.Run("world action site and facility preview text uses custom display names", BattleHitFeedbackRegressionCases.WorldActionSiteAndFacilityPreviewTextUsesCustomDisplayNames);
 BattleHitFeedbackRegressionCases.Run("world site hover summary uses local resources and force counts", BattleHitFeedbackRegressionCases.WorldSiteHoverSummaryUsesLocalResourcesAndForceCounts);
 BattleHitFeedbackRegressionCases.Run("world site hover summary stays inside viewport", BattleHitFeedbackRegressionCases.WorldSiteHoverSummaryStaysInsideViewport);
+BattleHitFeedbackRegressionCases.Run("game ui skin installs project cursor assets", BattleHitFeedbackRegressionCases.GameUiSkinInstallsProjectCursorAssets);
 BattleHitFeedbackRegressionCases.Run("strategic world forwards middle mouse camera navigation", BattleHitFeedbackRegressionCases.StrategicWorldForwardsMiddleMouseCameraNavigation);
 BattleHitFeedbackRegressionCases.Run("strategic world resets camera navigation input on scene entry", BattleHitFeedbackRegressionCases.StrategicWorldResetsCameraNavigationInputOnSceneEntry);
 BattleHitFeedbackRegressionCases.Run("map camera ignores stale move press events after scene reset", BattleHitFeedbackRegressionCases.MapCameraIgnoresStaleMovePressEventsAfterSceneReset);
@@ -79,7 +81,11 @@ BattleHitFeedbackRegressionCases.Run("battle runtime tactical pause freezes scen
 BattleHitFeedbackRegressionCases.Run("battle runtime tactical pause freezes unit presentation without replay", BattleHitFeedbackRegressionCases.BattleRuntimeTacticalPauseFreezesUnitPresentationWithoutReplay);
 BattleHitFeedbackRegressionCases.Run("battle unit command selection uses unit outline shader", BattleHitFeedbackRegressionCases.BattleUnitCommandSelectionUsesUnitOutlineShader);
 BattleHitFeedbackRegressionCases.Run("deployment zones use dedicated overlay shader", BattleHitFeedbackRegressionCases.DeploymentZonesUseDedicatedOverlayShader);
+BattleHitFeedbackRegressionCases.Run("skill range highlight uses deployment-zone style region overlay", BattleHitFeedbackRegressionCases.SkillRangeHighlightUsesDeploymentZoneStyleRegionOverlay);
+BattleHitFeedbackRegressionCases.Run("skill target preview uses unit focus and footprint lock ring", BattleHitFeedbackRegressionCases.SkillTargetPreviewUsesUnitFocusAndFootprintLockRing);
+BattleHitFeedbackRegressionCases.Run("skill release presentation uses cast cue and fallback fx", BattleHitFeedbackRegressionCases.SkillReleasePresentationUsesCastCueAndFallbackFx);
 BattleHitFeedbackRegressionCases.Run("realtime damage reaction does not play hit animation", BattleHitFeedbackRegressionCases.RealtimeDamageReactionDoesNotPlayHitAnimation);
+BattleHitFeedbackRegressionCases.Run("runtime impact damage does not double delay defeated presentation", BattleHitFeedbackRegressionCases.RuntimeImpactDamageDoesNotDoubleDelayDefeatedPresentation);
 BattleHitFeedbackRegressionCases.Run("unit attack speed is bound to runtime and attack animation speed", BattleHitFeedbackRegressionCases.UnitAttackSpeedContract);
 BattleHitFeedbackRegressionCases.Run("unit combat stats are bound into runtime snapshots", BattleHitFeedbackRegressionCases.UnitCombatStatsSnapshotContract);
 BattleHitFeedbackRegressionCases.Run("battle unit base authors health bar and fallback animation", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation);

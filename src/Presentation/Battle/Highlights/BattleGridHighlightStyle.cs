@@ -11,6 +11,7 @@ internal readonly record struct BattleGridHighlightStyle(
 internal enum BattleGridHighlightTileShape
 {
     Diamond,
+    SolidDiamond,
     Square,
     SoftAura
 }

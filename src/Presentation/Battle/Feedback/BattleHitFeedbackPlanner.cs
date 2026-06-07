@@ -18,7 +18,13 @@ public sealed class BattleHitFeedbackPlan
     public IReadOnlyList<BattleDamageNumberSpec> DamageNumbers { get; }
 }
 
-public readonly record struct BattleDamageNumberSpec(string TargetId, string Text);
+public readonly record struct BattleDamageNumberSpec(
+    string TargetId,
+    string Text,
+    string SourceCommandId = "",
+    string SourceActionId = "",
+    string SourceDefinitionId = "",
+    string EffectKind = "");
 
 public static class BattleHitFeedbackPlanner
 {
@@ -35,7 +41,13 @@ public static class BattleHitFeedbackPlanner
 
         BattleDamageNumberSpec[] damageNumbers = events
             .Where(damage => damage.DamageApplied > 0)
-            .Select(damage => new BattleDamageNumberSpec(damage.TargetId, $"-{damage.DamageApplied}"))
+            .Select(damage => new BattleDamageNumberSpec(
+                damage.TargetId,
+                $"-{damage.DamageApplied}",
+                damage.SourceCommandId,
+                damage.SourceActionId,
+                damage.SourceDefinitionId,
+                damage.EffectKind))
             .ToArray();
 
         return new BattleHitFeedbackPlan(outlinedTargetIds, damageNumbers);
