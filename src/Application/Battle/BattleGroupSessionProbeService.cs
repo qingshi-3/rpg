@@ -320,6 +320,8 @@ public sealed class BattleGroupSessionProbeService
 
 		FixedTargetCandidate selected = candidates[0];
 		bool densityDecided = candidates.Skip(1).All(candidate => selected.OpposingAliveActorsInsideRegion > candidate.OpposingAliveActorsInsideRegion);
+		int width = System.Math.Max(1, selected.Zone.Width);
+		int height = System.Math.Max(1, selected.Zone.Height);
 		return new BattleTacticalRegionSnapshot
 		{
 			RegionId = $"{BattleCommanderGroupIdentity.Resolve(group)}:fixed:{selected.Zone.ObjectiveZoneId}",
@@ -329,12 +331,17 @@ public sealed class BattleGroupSessionProbeService
 			ReasonCode = densityDecided
 				? BattleGroupTacticalReasonCode.RegionFixedSelectedPlayerDensity
 				: BattleGroupTacticalReasonCode.RegionFixedSelectedPriority,
-			CenterCellX = selected.Zone.CellX,
-			CenterCellY = selected.Zone.CellY,
+			CenterCellX = ResolveCenterCell(selected.Zone.CellX, width),
+			CenterCellY = ResolveCenterCell(selected.Zone.CellY, height),
 			CenterCellHeight = selected.Zone.CellHeight,
-			Width = System.Math.Max(1, selected.Zone.Width),
-			Height = System.Math.Max(1, selected.Zone.Height)
+			Width = width,
+			Height = height
 		};
+	}
+
+	private static int ResolveCenterCell(int minCell, int size)
+	{
+		return minCell + (System.Math.Max(1, size) - 1) / 2;
 	}
 
 	private static FixedTargetCandidate BuildFixedTargetCandidate(
@@ -573,7 +580,7 @@ public sealed class BattleGroupSessionProbeService
 		public int MaxHitPoints { get; init; }
 		public int AttackDamage { get; init; }
 		public int AttackRange { get; init; } = 1;
-		public double AttackSpeed { get; init; } = 1.0;
+		public double AttackSpeed { get; init; } = BattleAttackSpeedPolicy.DefaultAttackSpeed;
 		public double MoveStepSeconds { get; init; } = BattleActionTimingPolicy.DefaultMoveStepSeconds;
 		public double AttackActionSeconds { get; init; }
 		public double AttackImpactDelaySeconds { get; init; }

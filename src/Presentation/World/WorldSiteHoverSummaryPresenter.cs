@@ -83,7 +83,7 @@ public static class WorldSiteHoverSummaryPresenter
 
     private static bool IsHeroUnitType(string unitTypeId)
     {
-        return unitTypeId == HeroCorpsV0PlayableSliceIds.HeroUnit;
+        return FirstSliceHeroCompanyIds.IsHeroUnit(unitTypeId);
     }
 }
 

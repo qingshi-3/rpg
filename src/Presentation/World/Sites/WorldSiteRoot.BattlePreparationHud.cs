@@ -355,13 +355,13 @@ public partial class WorldSiteRoot
             .FirstOrDefault(item => string.Equals(item?.ObjectiveZoneId, objectiveZoneId, System.StringComparison.Ordinal));
         if (zone == null)
         {
-            RefreshBattlePreparationUi("目标区域不存在。");
+            RefreshBattlePreparationPlanUi("目标区域不存在。", "battle_preparation_objective_missing");
             return;
         }
 
         ApplyBattlePreparationObjectiveZoneToPlan(_battlePreparationRequest, zone);
         string label = BattlePreparationPlanUiModel.BuildObjectiveLabel(zone);
-        RefreshBattlePreparationUi($"目标区域已设为：{label}。");
+        RefreshBattlePreparationPlanUi($"目标区域已设为：{label}。", "battle_preparation_objective_selected");
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattlePreparationObjectiveSelected request={_battlePreparationRequest?.RequestId ?? ""} group={_selectedBattlePreparationPlanGroupKey} objective={zone.ObjectiveZoneId}");
@@ -388,7 +388,7 @@ public partial class WorldSiteRoot
         ApplyBattleRuntimeCommandToRequest(_battlePreparationRequest, BuildBattleRuntimeCommandRequest(_selectedBattleCorpsCommand));
 
         string label = BattlePreparationPlanUiModel.BuildRuleLabel(rule);
-        RefreshBattlePreparationUi($"推进策略已设为：{label}。");
+        RefreshBattlePreparationPlanUi($"推进策略已设为：{label}。", "battle_preparation_rule_selected");
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattlePreparationEngagementRuleSelected request={_battlePreparationRequest.RequestId} group={_selectedBattlePreparationPlanGroupKey} rule={rule}");
@@ -404,7 +404,7 @@ public partial class WorldSiteRoot
         BattleStartRequest request = _battlePreparationRequest;
         if (!CanLaunchPreparedBattle(request, out string failureReason))
         {
-            RefreshBattlePreparationUi(failureReason);
+            RefreshBattlePreparationPlanUi(failureReason, "battle_preparation_launch_rejected");
             return;
         }
 

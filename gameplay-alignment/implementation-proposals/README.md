@@ -10,7 +10,9 @@ Use this directory only after the relevant accepted authority is current. If imp
 
 | Proposal | Status | Reason Kept Active |
 |---|---|---|
-| None |  |  |
+| `2026-06-08-config-content-index-boundary.md` | Implemented - Automated Verification Passed | Manual Godot UI QA remains as an optional follow-up check before archiving. |
+| `2026-06-08-battle-preparation-deployment-polish.md` | Implemented - Automated Verification Passed | Manual Godot UI QA remains as an optional follow-up check before archiving. |
+| `2026-06-07-first-slice-hero-skill-content-expansion.md` | Implemented - Automated Verification Passed | Manual Godot UI QA remains as an optional follow-up check before archiving. |
 
 2026-06-07 cleanup result: proposals aligned with the current implementation were moved to `archived/`; the obsolete early one-hero active-skill proposal was deleted because the current skill implementation is definition-backed, target-locked, and effect-executor based.
 

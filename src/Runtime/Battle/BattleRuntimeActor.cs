@@ -1,3 +1,4 @@
+using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Navigation;
@@ -9,6 +10,7 @@ public sealed class BattleRuntimeActor
     public string ActorId { get; set; } = "";
     public string BattleGroupId { get; set; } = "";
     public string FactionId { get; set; } = "";
+    public string UnitDefinitionId { get; set; } = "";
     public string SourceForceId { get; set; } = "";
     public string SourceStateId { get; set; } = "";
     public BattleRuntimeActorKind Kind { get; set; }
@@ -65,7 +67,7 @@ public sealed class BattleRuntimeActor
     public double MovementIntentSegmentDurationSeconds { get; set; }
     public int AttackRange { get; set; } = 1;
     public int AttackDamage { get; set; } = 1;
-    public double AttackSpeed { get; set; } = 1.0;
+    public double AttackSpeed { get; set; } = BattleAttackSpeedPolicy.DefaultAttackSpeed;
     public double AttackCharge { get; set; } = 1.0;
     public double MoveStepSeconds { get; set; } = 0.16;
     public double AttackActionSeconds { get; set; } = 1.2;

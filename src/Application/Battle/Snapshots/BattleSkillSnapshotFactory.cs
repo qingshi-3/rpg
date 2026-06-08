@@ -32,6 +32,11 @@ public static class BattleSkillSnapshotFactory
             DisplayName = definition.DisplayName ?? "",
             TargetingMode = MapTargetingMode(definition.TargetingMode),
             Range = System.Math.Max(0, definition.Range),
+            CasterUnitIds = (definition.CasterUnitIds ?? new List<string>())
+                .Where(unitId => !string.IsNullOrWhiteSpace(unitId))
+                .Select(unitId => unitId.Trim())
+                .Distinct(System.StringComparer.Ordinal)
+                .ToList(),
             CastSeconds = System.Math.Max(0, definition.Timing?.CastSeconds ?? 0),
             ImpactDelaySeconds = System.Math.Max(0, definition.Timing?.ImpactDelaySeconds ?? 0),
             RecoverySeconds = System.Math.Max(0, definition.Timing?.RecoverySeconds ?? 0),

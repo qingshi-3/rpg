@@ -11,6 +11,8 @@ using Rpg.Runtime.Battle.Events;
 internal static class TargetBattleHeroSkillRegressionCases
 {
     private const string FirstSliceSkillId = "first_slice_hero_breakthrough";
+    private const string ShieldBarrierSkillId = "first_slice_skill_shield_barrier";
+    private const string SunPiercerSkillId = "first_slice_skill_sun_piercer";
     private const string EnemyActorId = "force_enemy:1";
 
     internal static void Register(System.Action<string, System.Action> run)
@@ -18,6 +20,7 @@ internal static class TargetBattleHeroSkillRegressionCases
         run("targeted hero skill requires target at submission", TargetedHeroSkillRequiresTargetAtSubmission);
         run("targeted hero skill rejects out of range at submission", TargetedHeroSkillRejectsOutOfRangeAtSubmission);
         run("targeted hero skill accepts diamond range at submission", TargetedHeroSkillAcceptsDiamondRangeAtSubmission);
+        run("runtime rejects hero skill not bound to caster company", RuntimeRejectsHeroSkillNotBoundToCasterCompany);
         run("targeted hero skill uses explicit source actor for range and release", TargetedHeroSkillUsesExplicitSourceActorForRangeAndRelease);
         run("runtime visible caster skill recovery completes", RuntimeVisibleCasterSkillRecoveryCompletes);
         run("runtime locks target at skill acceptance and ignores later range drift", RuntimeLocksTargetAtAcceptanceAndIgnoresLaterRangeDrift);
@@ -25,6 +28,8 @@ internal static class TargetBattleHeroSkillRegressionCases
         run("runtime skill waits for basic attack recovery by default", RuntimeSkillWaitsForBasicAttackRecoveryByDefault);
         run("runtime skill interrupts pre impact attack windup", RuntimeSkillInterruptsPreImpactAttackWindup);
         run("runtime skill command waits behind active skill by default", RuntimeSkillCommandWaitsBehindActiveSkillByDefault);
+        run("runtime skill waits one tick after movement boundary", RuntimeSkillWaitsOneTickAfterMovementBoundary);
+        run("runtime skill release consumes actor decision slice", RuntimeSkillReleaseConsumesActorDecisionSlice);
         run("runtime effect events carry skill source attribution", RuntimeEffectEventsCarrySkillSourceAttribution);
         run("runtime queues hero skill command and resolves it on next tick", RuntimeQueuesHeroSkillCommandAndResolvesItOnNextTick);
         run("battle report records hero skill use", BattleReportRecordsHeroSkillUse);
@@ -103,6 +108,44 @@ internal static class TargetBattleHeroSkillRegressionCases
                 item.SourceCommandId == "cmd_hero_skill_diamond_range" &&
                 item.TargetId == EnemyActorId),
             "accepted diamond-range command should enter the event stream");
+    }
+
+    internal static void RuntimeRejectsHeroSkillNotBoundToCasterCompany()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot(
+            "battle_hero_skill_caster_binding",
+            enemyStrength: 40);
+        BattleGroupSnapshot playerGroup = snapshot.BattleGroups.Single(item => item.BattleGroupId == "group_player");
+        playerGroup.CorpsDefinitionId = "f1_windbladecommander";
+        snapshot.SkillDefinitions.Clear();
+        AddBoundSkill(snapshot, ShieldBarrierSkillId, "曦盾结界", "f1_grandmasterzir", damage: 12);
+        AddBoundSkill(snapshot, SunPiercerSkillId, "贯日一击", "f1_windbladecommander", damage: 18);
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        BattleRuntimeCommandSubmitResult rejected = SubmitTargetedSkill(
+            controller,
+            "battle_hero_skill_caster_binding",
+            "cmd_wrong_bound_skill",
+            EnemyActorId,
+            skillId: ShieldBarrierSkillId);
+
+        AssertTrue(!rejected.Accepted, "caster should not be able to use another hero company's active skill");
+        AssertTrue(
+            rejected.Events.Any(item =>
+                item.Kind == BattleEventKind.CommandRejected &&
+                item.SourceCommandId == "cmd_wrong_bound_skill" &&
+                item.SourceDefinitionId == ShieldBarrierSkillId &&
+                item.ReasonCode == "skill_caster_not_allowed"),
+            "wrong-company skill rejection should enter the event stream");
+
+        BattleRuntimeCommandSubmitResult accepted = SubmitTargetedSkill(
+            controller,
+            "battle_hero_skill_caster_binding",
+            "cmd_bound_archer_skill",
+            EnemyActorId,
+            skillId: SunPiercerSkillId);
+
+        AssertTrue(accepted.Accepted, "caster should be able to use its own hero company's active skill");
     }
 
     internal static void TargetedHeroSkillUsesExplicitSourceActorForRangeAndRelease()
@@ -355,6 +398,95 @@ internal static class TargetBattleHeroSkillRegressionCases
                 item.Kind == BattleEventKind.SkillUsed &&
                 item.SourceCommandId == "cmd_skill_casting_second"),
             "second skill should start only after the first skill recovery boundary");
+    }
+
+    internal static void RuntimeSkillWaitsOneTickAfterMovementBoundary()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_skill_waits_movement_boundary", enemyStrength: 40);
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeActor caster = PlayerCorps(controller);
+        caster.GridX = 2;
+        caster.Position = 2;
+        caster.Phase = BattleRuntimeActorPhase.Moving;
+        caster.MotionState = BattleRuntimeActorMotionState.Moving;
+        caster.HasMovementTarget = true;
+        caster.MovementFromGridX = 2;
+        caster.MovementFromGridY = 0;
+        caster.MovementFromGridHeight = 0;
+        caster.MovementToGridX = 3;
+        caster.MovementToGridY = 0;
+        caster.MovementToGridHeight = 0;
+        caster.MovementStartedAtSeconds = 0;
+        caster.MovementDurationSeconds = 0.01;
+        caster.ActionReadyAtSeconds = 0;
+
+        BattleRuntimeCommandSubmitResult submit = controller.SubmitCommand(new CommandRequest
+        {
+            CommandId = "cmd_skill_waits_movement_boundary",
+            BattleId = "battle_skill_waits_movement_boundary",
+            BattleGroupId = "group_player",
+            SourceActorId = caster.ActorId,
+            Channel = CommandChannel.Hero,
+            Kind = CommandKind.CastSkill,
+            SkillId = FirstSliceSkillId,
+            TargetActorId = EnemyActorId
+        });
+        AssertTrue(submit.Accepted, "skill command should queue while the visible caster is moving");
+
+        BattleRuntimeAdvanceResult boundaryTick = controller.AdvanceFixedTick();
+        AssertTrue(
+            boundaryTick.Events.Any(item =>
+                item.Kind == BattleEventKind.MovementCompleted &&
+                item.ActorId == caster.ActorId),
+            "movement boundary should complete first");
+        AssertTrue(
+            boundaryTick.Events.All(item =>
+                item.Kind != BattleEventKind.SkillUsed &&
+                item.Kind != BattleEventKind.DamageApplied),
+            "skill release must wait until after the movement-completion tick");
+
+        BattleRuntimeAdvanceResult skillTick = controller.AdvanceFixedTick();
+        AssertTrue(
+            skillTick.Events.Any(item =>
+                item.Kind == BattleEventKind.SkillUsed &&
+                item.ActorId == caster.ActorId &&
+                item.SourceCommandId == "cmd_skill_waits_movement_boundary"),
+            "queued skill should release on the next runtime tick after movement settles");
+    }
+
+    internal static void RuntimeSkillReleaseConsumesActorDecisionSlice()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_skill_consumes_decision_slice", enemyStrength: 40);
+        snapshot.SkillDefinitions[0].RecoverySeconds = 0;
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeActor caster = PlayerCorps(controller);
+
+        BattleRuntimeCommandSubmitResult submit = controller.SubmitCommand(new CommandRequest
+        {
+            CommandId = "cmd_skill_consumes_decision_slice",
+            BattleId = "battle_skill_consumes_decision_slice",
+            BattleGroupId = "group_player",
+            SourceActorId = caster.ActorId,
+            Channel = CommandChannel.Hero,
+            Kind = CommandKind.CastSkill,
+            SkillId = FirstSliceSkillId,
+            TargetActorId = EnemyActorId
+        });
+        AssertTrue(submit.Accepted, "instant skill setup command should be accepted");
+
+        BattleRuntimeAdvanceResult skillTick = controller.AdvanceFixedTick();
+
+        AssertTrue(
+            skillTick.Events.Any(item =>
+                item.Kind == BattleEventKind.SkillUsed &&
+                item.ActorId == caster.ActorId &&
+                item.SourceCommandId == "cmd_skill_consumes_decision_slice"),
+            "instant skill should release on the next runtime tick");
+        AssertTrue(
+            skillTick.Events.All(item =>
+                item.Kind != BattleEventKind.MovementStarted ||
+                item.ActorId != caster.ActorId),
+            "caster must not start moving again in the same tick as a skill release");
     }
 
     internal static void RuntimeEffectEventsCarrySkillSourceAttribution()
@@ -624,6 +756,57 @@ internal static class TargetBattleHeroSkillRegressionCases
                 }
             }
         });
+    }
+
+    private static void AddBoundSkill(
+        BattleStartSnapshot snapshot,
+        string skillId,
+        string displayName,
+        string casterUnitId,
+        int damage)
+    {
+        BattleSkillSnapshot skill = new()
+        {
+            SkillId = skillId,
+            DisplayName = displayName,
+            TargetingMode = BattleSkillTargetingMode.TargetedActor,
+            Range = 8,
+            CastSeconds = 0,
+            ImpactDelaySeconds = 0,
+            RecoverySeconds = 0.2,
+            CanInterruptBasicAttackWindup = true,
+            CanCancelBasicAttackRecovery = false,
+            Effects =
+            {
+                new BattleSkillEffectSnapshot
+                {
+                    Kind = BattleSkillEffectKind.Damage,
+                    Amount = damage
+                }
+            }
+        };
+        SetCasterUnitIds(skill, casterUnitId);
+        snapshot.SkillDefinitions.Add(skill);
+    }
+
+    private static void SetCasterUnitIds(BattleSkillSnapshot skill, string casterUnitId)
+    {
+        System.Reflection.PropertyInfo casterUnitIdsProperty = typeof(BattleSkillSnapshot).GetProperty("CasterUnitIds");
+        AssertTrue(casterUnitIdsProperty != null, "battle skill snapshots should expose CasterUnitIds for first-slice skill binding");
+        object value = casterUnitIdsProperty.GetValue(skill);
+        if (value is ICollection<string> writable)
+        {
+            writable.Add(casterUnitId);
+            return;
+        }
+
+        if (casterUnitIdsProperty.CanWrite)
+        {
+            casterUnitIdsProperty.SetValue(skill, new List<string> { casterUnitId });
+            return;
+        }
+
+        throw new Exception("BattleSkillSnapshot.CasterUnitIds should be writable or expose a writable collection");
     }
 
     private static BattleRuntimeActor EnemyCorps(BattleRuntimeSessionController controller)

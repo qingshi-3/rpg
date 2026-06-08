@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_definition")
 Id = "f6_draugarlord"
-DisplayName = "尸鬼领主"
+DisplayName = "寒骨冢主"
 Visual = ExtResource("2_visual")
 DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
 MaxHp = 48

@@ -150,6 +150,11 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             return "skill_definition_missing";
         }
 
+        if (!IsSkillAllowedForCasterGroup(state, caster, skill))
+        {
+            return "skill_caster_not_allowed";
+        }
+
         if (skill.TargetingMode == BattleSkillTargetingMode.TargetedActor &&
             string.IsNullOrWhiteSpace(request.TargetActorId))
         {
@@ -182,33 +187,79 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         return "";
     }
 
-    internal static void ResolvePending(
+    private static bool IsSkillAllowedForCasterGroup(
+        BattleRuntimeState state,
+        BattleRuntimeActor caster,
+        BattleSkillSnapshot skill)
+    {
+        HashSet<string> casterUnitIds = (skill?.CasterUnitIds ?? new List<string>())
+            .Where(unitId => !string.IsNullOrWhiteSpace(unitId))
+            .Select(unitId => unitId.Trim())
+            .ToHashSet(System.StringComparer.Ordinal);
+        if (casterUnitIds.Count == 0)
+        {
+            return true;
+        }
+
+        if (state?.Actors == null || caster == null)
+        {
+            return false;
+        }
+
+        // Hero-company skills bind to authored unit ids, while existing runtime
+        // commands may originate from either the hidden hero proxy or visible corps.
+        return state.Actors.Any(actor =>
+            actor.HitPoints > 0 &&
+            string.Equals(actor.BattleGroupId, caster.BattleGroupId ?? "", System.StringComparison.Ordinal) &&
+            casterUnitIds.Contains(actor.UnitDefinitionId ?? ""));
+    }
+
+    internal static HashSet<string> ResolvePending(
         BattleRuntimeState state,
         BattleEventStream stream,
         string battleId,
         int runtimeTick,
-        double runtimeTimeSeconds)
+        double runtimeTimeSeconds,
+        IReadOnlySet<string> actionBlockedActorIds = null,
+        ISet<string> waitingActionActorIds = null)
     {
+        var startedActionActorIds = new HashSet<string>(System.StringComparer.Ordinal);
         if (state?.Actors == null || stream == null)
         {
-            return;
+            return startedActionActorIds;
         }
 
         AdvanceActiveSkillActions(state, stream, battleId, runtimeTick, runtimeTimeSeconds);
         if (state.PendingHeroSkillCommands.Count == 0)
         {
-            return;
+            return startedActionActorIds;
         }
 
         BattleRuntimePendingHeroSkillCommand[] pending = state.PendingHeroSkillCommands.ToArray();
         foreach (BattleRuntimePendingHeroSkillCommand command in pending)
         {
-            PendingSkillResolution resolution = ResolveOne(state, stream, battleId, runtimeTick, runtimeTimeSeconds, command);
+            PendingSkillResolution resolution = ResolveOne(
+                state,
+                stream,
+                battleId,
+                runtimeTick,
+                runtimeTimeSeconds,
+                command,
+                actionBlockedActorIds,
+                waitingActionActorIds,
+                out string startedActorId);
+            if (!string.IsNullOrWhiteSpace(startedActorId))
+            {
+                startedActionActorIds.Add(startedActorId);
+            }
+
             if (resolution != PendingSkillResolution.Waiting)
             {
                 state.PendingHeroSkillCommands.Remove(command);
             }
         }
+
+        return startedActionActorIds;
     }
 
     private static void AdvanceActiveSkillActions(
@@ -275,8 +326,12 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         string battleId,
         int runtimeTick,
         double runtimeTimeSeconds,
-        BattleRuntimePendingHeroSkillCommand command)
+        BattleRuntimePendingHeroSkillCommand command,
+        IReadOnlySet<string> actionBlockedActorIds,
+        ISet<string> waitingActionActorIds,
+        out string startedActorId)
     {
+        startedActorId = "";
         BattleSkillSnapshot skill = ResolveSkill(state, command?.SkillId);
         BattleRuntimeActor hero = ResolveCaster(state, command?.BattleGroupId, command?.SourceActorId);
         BattleRuntimeActor target = ResolveActorById(state, command?.TargetActorId);
@@ -292,12 +347,22 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             return PendingSkillResolution.Completed;
         }
 
-        if (!CanStartSkillNow(hero, skill, runtimeTimeSeconds, stream, battleId, runtimeTick, command))
+        if (!CanStartSkillNow(
+                hero,
+                skill,
+                runtimeTimeSeconds,
+                stream,
+                battleId,
+                runtimeTick,
+                command,
+                actionBlockedActorIds,
+                waitingActionActorIds))
         {
             return PendingSkillResolution.Waiting;
         }
 
         StartSkillAction(state, stream, battleId, runtimeTick, runtimeTimeSeconds, hero, target, skill, command);
+        startedActorId = hero.ActorId ?? "";
         return PendingSkillResolution.Completed;
     }
 
@@ -308,8 +373,19 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         BattleEventStream stream,
         string battleId,
         int runtimeTick,
-        BattleRuntimePendingHeroSkillCommand command)
+        BattleRuntimePendingHeroSkillCommand command,
+        IReadOnlySet<string> actionBlockedActorIds,
+        ISet<string> waitingActionActorIds)
     {
+        if (actionBlockedActorIds?.Contains(hero?.ActorId ?? "") == true)
+        {
+            // Movement completion is a runtime action boundary. A queued skill may
+            // consume the next slice, but it must not release on the same tick that
+            // visually finishes a move or the unit appears to cast while drifting.
+            waitingActionActorIds?.Add(hero.ActorId ?? "");
+            return false;
+        }
+
         if (hero.Phase == BattleRuntimeActorPhase.AttackWindup)
         {
             if (!skill.CanInterruptBasicAttackWindup)

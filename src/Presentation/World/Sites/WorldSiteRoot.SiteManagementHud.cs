@@ -316,7 +316,7 @@ public partial class WorldSiteRoot
         (_siteModalHost ?? _siteHudRoot ?? (Node)this).AddChild(_battleObjectiveMapDialog);
         _battleObjectiveMapDialog.CompanySelected += OnBattleObjectiveDialogCompanySelected;
         _battleObjectiveMapDialog.ObjectiveZoneSelected += OnBattleObjectiveDialogObjectiveSelected;
-        _battleObjectiveMapDialog.Closed += () => RefreshBattlePreparationUi();
+        _battleObjectiveMapDialog.Closed += () => RefreshBattlePreparationPlanUi("", "battle_preparation_objective_dialog_closed");
     }
 
     private void EnsureSitePlacementEntityRoot()

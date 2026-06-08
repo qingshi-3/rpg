@@ -17,7 +17,7 @@ namespace Rpg.Presentation.World.Sites;
 
 public partial class WorldSiteRoot
 {
-    private enum BattleRuntimeSkillUsageState
+    internal enum BattleRuntimeSkillUsageState
     {
         Unavailable,
         Ready,
@@ -62,7 +62,7 @@ public partial class WorldSiteRoot
         ApplyBattleRuntimeCommandToRequest(_battlePreparationRequest, commandRequest);
         if (_isBattlePreparationActive)
         {
-            RefreshBattlePreparationUi($"战斗姿态已设为：{BattleCorpsCommandLabels.ToDisplayText(command)}。");
+            RefreshBattlePreparationPlanUi($"战斗姿态已设为：{BattleCorpsCommandLabels.ToDisplayText(command)}。", "battle_preparation_command_selected");
         }
 
         RefreshBattleRuntimeHeroFrame();
@@ -245,7 +245,7 @@ public partial class WorldSiteRoot
             return;
         }
 
-        IReadOnlyList<BattleSkillSnapshot> skills = BuildBattleRuntimeSkillSnapshots();
+        IReadOnlyList<BattleSkillSnapshot> skills = BuildBattleRuntimeSkillSnapshots(selected);
         HashSet<string> liveSkillIds = skills
             .Where(skill => !string.IsNullOrWhiteSpace(skill?.SkillId))
             .Select(skill => skill.SkillId)
@@ -286,48 +286,32 @@ public partial class WorldSiteRoot
                 skill.SkillId,
                 skill.DisplayName,
                 available,
-                BuildBattleRuntimeSkillStatusText(selected, hasRuntime, usageState),
+                BattleRuntimeSkillHudText.BuildStatusText(selected, hasRuntime, usageState),
                 cooldownRemainingSeconds: 0.0);
         }
     }
 
-    private IReadOnlyList<BattleSkillSnapshot> BuildBattleRuntimeSkillSnapshots()
+    private IReadOnlyList<BattleSkillSnapshot> BuildBattleRuntimeSkillSnapshots(BattleRuntimeCommandGroupView selected)
     {
         IReadOnlyList<BattleSkillSnapshot> runtimeSkills = _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SkillDefinitions;
-        return runtimeSkills != null && runtimeSkills.Count > 0
+        IReadOnlyList<BattleSkillSnapshot> skills = runtimeSkills != null && runtimeSkills.Count > 0
             ? runtimeSkills
             : BattleSkillSnapshotFactory.CreateSelectedHeroSkillSnapshots();
+        return BattleRuntimeSkillFilter.FilterForGroup(skills, selected);
     }
+
+    private static bool IsBattleRuntimeSkillAvailableForGroup(
+        BattleRuntimeCommandGroupView selected,
+        BattleSkillSnapshot skill) =>
+        skill != null &&
+        BattleRuntimeSkillFilter.IsBattleRuntimeSkillAvailableForGroup(selected, skill, skill.CasterUnitIds);
 
     private bool HasReadyBattleRuntimeSkill(BattleRuntimeCommandGroupView selected, bool hasRuntime) =>
         selected != null &&
         hasRuntime &&
-        BuildBattleRuntimeSkillSnapshots().Any(skill =>
+        BuildBattleRuntimeSkillSnapshots(selected).Any(skill =>
             skill != null &&
             ResolveSelectedHeroSkillUsageState(selected, skill.SkillId) == BattleRuntimeSkillUsageState.Ready);
-
-    private static string BuildBattleRuntimeSkillStatusText(
-        BattleRuntimeCommandGroupView selected,
-        bool hasRuntime,
-        BattleRuntimeSkillUsageState usageState)
-    {
-        if (selected == null)
-        {
-            return "未选";
-        }
-
-        if (!hasRuntime)
-        {
-            return "未就绪";
-        }
-
-        return usageState switch
-        {
-            BattleRuntimeSkillUsageState.Pending => "待",
-            BattleRuntimeSkillUsageState.Used => "已用",
-            _ => ""
-        };
-    }
 
     private string BuildBattleRuntimeHeroStateText(
         BattleRuntimeCommandGroupView selected,
@@ -343,9 +327,6 @@ public partial class WorldSiteRoot
         string skillText = skillReady ? "技能可用" : "技能锁定";
         return $"{pauseText} / {skillText}";
     }
-    private bool IsSelectedHeroSkillUsedOrPending(BattleRuntimeCommandGroupView selected) =>
-        IsSelectedHeroSkillUsedOrPending(selected, HeroSkillCommandIds.FirstSliceHeroSkillId);
-
     private bool IsSelectedHeroSkillUsedOrPending(BattleRuntimeCommandGroupView selected, string skillId)
     {
         BattleRuntimeSkillUsageState state = ResolveSelectedHeroSkillUsageState(selected, skillId);
@@ -400,8 +381,12 @@ public partial class WorldSiteRoot
             ? BattleRuntimeSkillUsageState.Pending
             : BattleRuntimeSkillUsageState.Ready;
     }
-    private void OnBattleRuntimeHeroSkillPressed() =>
-        BeginBattleRuntimeSkillPress(ResolveSelectedBattleRuntimeGroup(), HeroSkillCommandIds.FirstSliceHeroSkillId);
+    private void OnBattleRuntimeHeroSkillPressed()
+    {
+        BattleRuntimeCommandGroupView selected = ResolveSelectedBattleRuntimeGroup();
+        string skillId = BuildBattleRuntimeSkillSnapshots(selected).FirstOrDefault()?.SkillId ?? HeroSkillCommandIds.FirstSliceHeroSkillId;
+        BeginBattleRuntimeSkillPress(selected, skillId);
+    }
 
     private void OnBattleRuntimeSkillSlotPressed(string skillId) =>
         BeginBattleRuntimeSkillPress(ResolveSelectedBattleRuntimeGroup(), skillId);
@@ -417,9 +402,16 @@ public partial class WorldSiteRoot
         string normalizedSkillId = string.IsNullOrWhiteSpace(skillId)
             ? HeroSkillCommandIds.FirstSliceHeroSkillId
             : skillId.Trim();
+        if (!BuildBattleRuntimeSkillSnapshots(selected).Any(skill => string.Equals(skill.SkillId, normalizedSkillId, System.StringComparison.Ordinal)))
+        {
+            SetSiteNoticeText($"技能暂不可用：{BattleRuntimeSkillHudText.BuildUnavailableText("skill_caster_not_allowed")}");
+            RefreshBattleRuntimeHeroFrame();
+            return;
+        }
+
         if (ResolveSelectedHeroSkillUsageState(selected, normalizedSkillId) != BattleRuntimeSkillUsageState.Ready)
         {
-            SetSiteNoticeText($"技能暂不可用：{BuildBattleRuntimeHeroSkillUnavailableText(IsSelectedHeroSkillUsedOrPending(selected, normalizedSkillId) ? "hero_skill_already_used" : "hero_actor_unavailable")}");
+            SetSiteNoticeText($"技能暂不可用：{BattleRuntimeSkillHudText.BuildUnavailableText(IsSelectedHeroSkillUsedOrPending(selected, normalizedSkillId) ? "hero_skill_already_used" : "hero_actor_unavailable")}");
             RefreshBattleRuntimeHeroFrame();
             return;
         }
@@ -450,11 +442,6 @@ public partial class WorldSiteRoot
 
         SetSiteNoticeText($"{selected.DisplayName}：重整指令已选中，后续会接入完整运行时执行。");
         GameLog.Info(nameof(WorldSiteRoot), $"BattleRuntimeRegroupPressed group={selected.GroupKey}");
-    }
-
-    private void BeginBattleRuntimeHeroSkillTargetPicking(BattleRuntimeCommandGroupView selected)
-    {
-        BeginBattleRuntimeHeroSkillTargetPicking(selected, HeroSkillCommandIds.FirstSliceHeroSkillId);
     }
 
     private void BeginBattleRuntimeHeroSkillTargetPicking(BattleRuntimeCommandGroupView selected, string skillId)
@@ -551,7 +538,7 @@ public partial class WorldSiteRoot
         }
         else
         {
-            SetSiteNoticeText($"技能暂不可用：{BuildBattleRuntimeHeroSkillUnavailableText(result?.ReasonCode)}");
+            SetSiteNoticeText($"技能暂不可用：{BattleRuntimeSkillHudText.BuildUnavailableText(result?.ReasonCode)}");
         }
 
         if (accepted)
@@ -653,24 +640,13 @@ public partial class WorldSiteRoot
         string skillId = string.IsNullOrWhiteSpace(_battleRuntimeHeroSkillTargetPickingSkillId)
             ? HeroSkillCommandIds.FirstSliceHeroSkillId
             : _battleRuntimeHeroSkillTargetPickingSkillId;
-        return _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SkillDefinitions?
+        BattleSkillSnapshot skill = BuildBattleRuntimeSkillSnapshots(_battleRuntimeHeroSkillTargetPickingGroup)
             .FirstOrDefault(item => string.Equals(item?.SkillId, skillId, System.StringComparison.Ordinal))
-            ?.Range ?? 0;
+            ?? _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SkillDefinitions?
+                .FirstOrDefault(item => string.Equals(item?.SkillId, skillId, System.StringComparison.Ordinal));
+        return skill?.Range ?? 0;
     }
 
-    private static string BuildBattleRuntimeHeroSkillUnavailableText(string reasonCode)
-    {
-        return reasonCode switch
-        {
-            "hero_skill_already_pending" => "技能指令正在等待结算",
-            "hero_skill_already_used" => "本场战斗已经使用过",
-            "hero_actor_unavailable" => "当前英雄无法行动",
-            "hero_skill_target_missing" => "没有可影响的敌方目标",
-            "battle_already_complete" => "战斗已经结束",
-            "battle_id_mismatch" => "战斗上下文不匹配",
-            _ => "战斗运行时尚未准备好"
-        };
-    }
     private IReadOnlyList<BattleRuntimeCommandGroupView> BuildBattleRuntimePlayerGroups()
     {
         BattleStartRequest request = _battleRuntimeRequest;
@@ -738,7 +714,7 @@ public partial class WorldSiteRoot
     private static bool IsLikelyHeroForce(BattleForceRequest force)
     {
         return force != null &&
-               (string.Equals(force.UnitDefinitionId, Rpg.Application.World.HeroCorpsV0PlayableSliceIds.HeroUnit, System.StringComparison.Ordinal) ||
+               (Rpg.Application.World.FirstSliceHeroCompanyIds.IsHeroUnit(force.UnitDefinitionId) ||
                 force.UnitDefinitionId?.Contains("hero", System.StringComparison.OrdinalIgnoreCase) == true ||
                 force.SourceKind?.Contains("Hero", System.StringComparison.OrdinalIgnoreCase) == true);
     }

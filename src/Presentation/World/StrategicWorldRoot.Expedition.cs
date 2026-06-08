@@ -26,10 +26,12 @@ public partial class StrategicWorldRoot
         _isExpeditionTargeting = false;
         _expeditionSourceSiteId = _selectedSiteId;
         _expeditionUnitCounts.Clear();
-        // V0.1 selects a hero only; the default corps is attached after the world army exists.
-        if (GetAvailableUnitCount(_expeditionSourceSiteId, HeroCorpsV0PlayableSliceIds.HeroUnit) > 0)
+        // The first slice drafts one hero company at a time; the matching corps is attached after the world army exists.
+        string defaultHeroUnitId = FirstSliceHeroCompanyIds.HeroUnitIds
+            .FirstOrDefault(heroUnitId => GetAvailableUnitCount(_expeditionSourceSiteId, heroUnitId) > 0);
+        if (!string.IsNullOrWhiteSpace(defaultHeroUnitId))
         {
-            _expeditionUnitCounts[HeroCorpsV0PlayableSliceIds.HeroUnit] = 1;
+            _expeditionUnitCounts[defaultHeroUnitId] = 1;
         }
         ClampExpeditionDraftCounts();
         StrategicWorldRuntime.LastNotice = "选择出征英雄。该英雄会自动带上默认兵团。";
@@ -71,7 +73,15 @@ public partial class StrategicWorldRoot
 
         int available = GetAvailableUnitCount(_expeditionSourceSiteId, unitTypeId);
         _expeditionUnitCounts.TryGetValue(unitTypeId, out int selected);
-        selected = System.Math.Clamp(selected + delta, 0, available);
+        selected = System.Math.Clamp(selected + delta, 0, FirstSliceHeroCompanyIds.IsHeroUnit(unitTypeId) ? System.Math.Min(1, available) : available);
+        if (selected > 0 && FirstSliceHeroCompanyIds.IsHeroUnit(unitTypeId))
+        {
+            foreach (string otherHeroUnitId in FirstSliceHeroCompanyIds.HeroUnitIds.Where(id => !string.Equals(id, unitTypeId, System.StringComparison.Ordinal)))
+            {
+                _expeditionUnitCounts.Remove(otherHeroUnitId);
+            }
+        }
+
         if (selected <= 0)
         {
             _expeditionUnitCounts.Remove(unitTypeId);
@@ -224,22 +234,31 @@ public partial class StrategicWorldRoot
 
     private static void AttachDefaultCorpsToHeroExpedition(WorldArmyState army)
     {
-        if (army == null ||
-            !army.GarrisonUnits.Any(unit => unit.UnitTypeId == HeroCorpsV0PlayableSliceIds.HeroUnit) ||
-            army.GarrisonUnits.Any(unit => unit.UnitTypeId == HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit))
+        if (army == null)
+        {
+            return;
+        }
+
+        GarrisonState hero = army.GarrisonUnits.FirstOrDefault(unit =>
+            unit != null &&
+            unit.Count > 0 &&
+            FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(unit.UnitTypeId, out _));
+        if (hero == null ||
+            !FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(hero.UnitTypeId, out FirstSliceHeroCompanyDefinition company) ||
+            army.GarrisonUnits.Any(unit => string.Equals(unit.UnitTypeId, company.DefaultCorpsUnit, System.StringComparison.Ordinal)))
         {
             return;
         }
 
         army.GarrisonUnits.Add(new GarrisonState
         {
-            UnitTypeId = HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit,
-            Count = HeroCorpsV0PlayableSliceIds.DefaultCorpsCount,
+            UnitTypeId = company.DefaultCorpsUnit,
+            Count = company.DefaultCorpsCount,
             Morale = 70
         });
         GameLog.Info(
             nameof(StrategicWorldRoot),
-            $"HeroDefaultCorpsAttached army={army.ArmyId} hero={HeroCorpsV0PlayableSliceIds.HeroUnit} corps={HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit}:{HeroCorpsV0PlayableSliceIds.DefaultCorpsCount}");
+            $"HeroDefaultCorpsAttached army={army.ArmyId} hero={company.HeroUnit} corps={company.DefaultCorpsUnit}:{company.DefaultCorpsCount}");
     }
 
     private bool TryResolveExpeditionNavigation(
@@ -333,7 +352,7 @@ public partial class StrategicWorldRoot
             return false;
         }
 
-        if (GetAvailableUnitCount(siteId, HeroCorpsV0PlayableSliceIds.HeroUnit) <= 0)
+        if (!FirstSliceHeroCompanyIds.HeroUnitIds.Any(heroUnitId => GetAvailableUnitCount(siteId, heroUnitId) > 0))
         {
             failureReason = "no_expedition_hero";
             return false;
@@ -386,7 +405,7 @@ public partial class StrategicWorldRoot
 
         return site.Garrison
             .Where(unit => !string.IsNullOrWhiteSpace(unit.UnitTypeId) && unit.Count > 0)
-            .Where(unit => unit.UnitTypeId == HeroCorpsV0PlayableSliceIds.HeroUnit)
+            .Where(unit => FirstSliceHeroCompanyIds.IsHeroUnit(unit.UnitTypeId))
             .GroupBy(unit => unit.UnitTypeId)
             .OrderBy(group => GetUnitSortKey(group.Key))
             .ThenBy(group => GetUnitLabel(group.Key))
@@ -442,10 +461,35 @@ public partial class StrategicWorldRoot
 
     private static int GetUnitSortKey(string unitTypeId)
     {
+        int heroIndex = FirstSliceHeroCompanyIds.HeroUnitIds
+            .Select((id, index) => (id, index))
+            .FirstOrDefault(item => string.Equals(item.id, unitTypeId, System.StringComparison.Ordinal))
+            .index;
+        if (FirstSliceHeroCompanyIds.IsHeroUnit(unitTypeId))
+        {
+            return heroIndex;
+        }
+
+        if (FirstSliceHeroCompanyIds.TryGetCompanyByAnyUnit(unitTypeId, out FirstSliceHeroCompanyDefinition company))
+        {
+            return 10 + FirstSliceHeroCompanyIds.Companies
+                .Select((item, index) => (item, index))
+                .FirstOrDefault(item => string.Equals(item.item.CompanyId, company.CompanyId, System.StringComparison.Ordinal))
+                .index;
+        }
+
+        if (string.Equals(unitTypeId, StrategicWorldIds.UnitPlayerKnight, System.StringComparison.Ordinal))
+        {
+            return 0;
+        }
+
+        if (string.Equals(unitTypeId, StrategicWorldIds.UnitMilitia, System.StringComparison.Ordinal))
+        {
+            return 10;
+        }
+
         return unitTypeId switch
         {
-            StrategicWorldIds.UnitPlayerKnight => 0,
-            StrategicWorldIds.UnitMilitia => 10,
             _ => 20
         };
     }

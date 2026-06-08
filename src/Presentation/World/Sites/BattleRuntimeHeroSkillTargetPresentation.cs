@@ -140,7 +140,7 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
     private static bool IsLikelyHeroForce(BattleForceRequest force)
     {
         return force != null &&
-               (string.Equals(force.UnitDefinitionId, HeroCorpsV0PlayableSliceIds.HeroUnit, System.StringComparison.Ordinal) ||
+               (FirstSliceHeroCompanyIds.IsHeroUnit(force.UnitDefinitionId) ||
                 force.UnitDefinitionId?.Contains("hero", System.StringComparison.OrdinalIgnoreCase) == true ||
                 force.SourceKind?.Contains("Hero", System.StringComparison.OrdinalIgnoreCase) == true);
     }

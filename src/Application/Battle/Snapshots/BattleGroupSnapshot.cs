@@ -26,7 +26,7 @@ public sealed class BattleGroupSnapshot
     public int MaxHitPoints { get; set; }
     public int AttackDamage { get; set; }
     public int AttackRange { get; set; } = 1;
-    public double AttackSpeed { get; set; } = 1.0;
+    public double AttackSpeed { get; set; } = BattleAttackSpeedPolicy.DefaultAttackSpeed;
     public double MoveStepSeconds { get; set; } = BattleActionTimingPolicy.DefaultMoveStepSeconds;
     public double AttackActionSeconds { get; set; }
     public double AttackImpactDelaySeconds { get; set; }

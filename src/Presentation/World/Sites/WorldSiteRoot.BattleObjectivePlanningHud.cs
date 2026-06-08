@@ -523,7 +523,7 @@ public partial class WorldSiteRoot
         EnsureBattlePreparationPlanDefaults(_battlePreparationRequest);
         if (_battleObjectiveMapDialog == null)
         {
-            RefreshBattlePreparationUi("目标选择界面未加载。");
+            RefreshBattlePreparationPlanUi("目标选择界面未加载。", "battle_preparation_objective_dialog_missing");
             return;
         }
 
@@ -690,7 +690,7 @@ public partial class WorldSiteRoot
         ResolveBattlePreparationGroupPlan(_battlePreparationRequest, _selectedBattlePreparationPlanGroupKey, create: true);
         SyncSelectedBattlePreparationPlanFallback(_battlePreparationRequest);
         BindBattleObjectiveMapDialog();
-        RefreshBattlePreparationUi();
+        RefreshBattlePreparationPlanUi("", "battle_preparation_objective_dialog_company");
         GameLog.Info(nameof(WorldSiteRoot), $"BattlePreparationPlanGroupSelected group={_selectedBattlePreparationPlanGroupKey}");
     }
 

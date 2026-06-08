@@ -166,6 +166,15 @@ public partial class StrategicWorldRoot
         bool append = mouseButton.ShiftPressed;
         if (_armySelectionStartScreen.DistanceTo(_armySelectionCurrentScreen) <= 8.0f)
         {
+            if (_isExpeditionTargeting)
+            {
+                // Target-picking mode owns the next map click; otherwise a normal
+                // site selection can consume the click and make the expedition look inert.
+                TryIssueExpeditionToTarget(_armySelectionCurrentScreen);
+                AcceptWorldMapInput(eventIsViewportLocal);
+                return;
+            }
+
             if (!_isExpeditionDrafting && TrySelectOpportunityAt(_armySelectionCurrentScreen))
             {
                 AcceptWorldMapInput(eventIsViewportLocal);

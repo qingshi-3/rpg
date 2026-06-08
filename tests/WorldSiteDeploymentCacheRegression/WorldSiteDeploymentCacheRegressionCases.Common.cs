@@ -19,6 +19,12 @@ internal static string ReadWorldSiteRootSource()
     return string.Join("\n", Directory.GetFiles(siteRootDir, "WorldSiteRoot*.cs").OrderBy(path => path).Select(File.ReadAllText));
 }
 
+internal static string ReadWorldSitePresentationSource()
+{
+    string siteRootDir = Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites");
+    return string.Join("\n", Directory.GetFiles(siteRootDir, "*.cs").OrderBy(path => path).Select(File.ReadAllText));
+}
+
 internal static string ExtractMethodBody(string source, string signature)
 {
     int signatureIndex = source.IndexOf(signature, StringComparison.Ordinal);
@@ -164,7 +170,11 @@ internal static WorldSiteState BuildDeploymentSite()
     };
 }
 
-internal static StrategicWorldState BuildHeroCorpsV0AssaultState(StrategicWorldDefinition definition, string armyId)
+internal static StrategicWorldState BuildFirstSliceAssaultState(
+    StrategicWorldDefinition definition,
+    string armyId,
+    string heroUnitId,
+    string corpsUnitId)
 {
     StrategicWorldState state = new StrategicWorldService().CreateInitialState(definition);
     state.PlayerFactionId = StrategicWorldIds.FactionPlayer;
@@ -173,12 +183,15 @@ internal static StrategicWorldState BuildHeroCorpsV0AssaultState(StrategicWorldD
     playerSite.OwnerFactionId = StrategicWorldIds.FactionPlayer;
     playerSite.ControlState = SiteControlState.PlayerHeld;
     playerSite.Garrison.Clear();
-    playerSite.Garrison.Add(new GarrisonState
+    foreach (string hero in new[] { "f1_grandmasterzir", "f1_windbladecommander", "f1_elyxstormblade" })
     {
-        UnitTypeId = HeroCorpsV0PlayableSliceIds.HeroUnit,
-        Count = 1,
-        Morale = 80
-    });
+        playerSite.Garrison.Add(new GarrisonState
+        {
+            UnitTypeId = hero,
+            Count = 1,
+            Morale = 80
+        });
+    }
     playerSite.UnitPlacements.Clear();
 
     WorldSiteState bonefield = state.SiteStates[StrategicWorldIds.SiteBonefield];
@@ -187,8 +200,20 @@ internal static StrategicWorldState BuildHeroCorpsV0AssaultState(StrategicWorldD
     bonefield.Garrison.Clear();
     bonefield.Garrison.Add(new GarrisonState
     {
-        UnitTypeId = HeroCorpsV0PlayableSliceIds.EnemyLeaderUnit,
-        Count = HeroCorpsV0PlayableSliceIds.EnemyLeaderCount,
+        UnitTypeId = "f6_draugarlord",
+        Count = 2,
+        Morale = 35
+    });
+    bonefield.Garrison.Add(new GarrisonState
+    {
+        UnitTypeId = "f6_spiritwolf",
+        Count = 2,
+        Morale = 35
+    });
+    bonefield.Garrison.Add(new GarrisonState
+    {
+        UnitTypeId = "f4_skullcaster",
+        Count = 2,
         Morale = 35
     });
     bonefield.UnitPlacements.Clear();
@@ -205,14 +230,14 @@ internal static StrategicWorldState BuildHeroCorpsV0AssaultState(StrategicWorldD
         {
             new GarrisonState
             {
-                UnitTypeId = HeroCorpsV0PlayableSliceIds.HeroUnit,
+                UnitTypeId = heroUnitId,
                 Count = 1,
                 Morale = 80
             },
             new GarrisonState
             {
-                UnitTypeId = HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit,
-                Count = HeroCorpsV0PlayableSliceIds.DefaultCorpsCount,
+                UnitTypeId = corpsUnitId,
+                Count = 3,
                 Morale = 70
             }
         }

@@ -14,8 +14,25 @@ public partial class WorldSiteRoot
     // Slow enough for manual comparison against grid-step movement; this probe
     // is not a runtime movement-speed contract.
     private const double BattleMovementTweenProbeSeconds = 10.0;
+    private const string BattleMovementTweenProbeEnvironmentVariable = "RPG_BATTLE_MOVEMENT_TWEEN_PROBE";
     private const int BattleMovementTweenProbeZIndex = 4096;
     private BattleEntity _battleMovementTweenProbe;
+
+    private static bool ShouldPlayBattleMovementTweenProbe()
+    {
+        // This visual probe is manual QA instrumentation; normal battle runtime
+        // should not create an extra animated entity or tween by default.
+        string value = System.Environment.GetEnvironmentVariable(BattleMovementTweenProbeEnvironmentVariable) ?? "";
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return value.Equals("1", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("true", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("yes", System.StringComparison.OrdinalIgnoreCase) ||
+               value.Equals("on", System.StringComparison.OrdinalIgnoreCase);
+    }
 
     private void PlayBattleMovementTweenProbe()
     {

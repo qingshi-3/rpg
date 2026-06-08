@@ -69,13 +69,17 @@ internal static class BattleObjectiveAdvancePlanner
         }
 
         BattleRuntimeActor projectedActor = BattleTickStartProjectionBuilder.Build(actorFact);
+        int width = System.Math.Max(1, goal.Width);
+        int height = System.Math.Max(1, goal.Height);
         projectedActor.HasObjectiveAnchor = true;
         projectedActor.ObjectiveZoneId = goal.RegionId;
-        projectedActor.ObjectiveGridX = goal.CenterCellX;
-        projectedActor.ObjectiveGridY = goal.CenterCellY;
+        // Tactical regions store center cells; objective movement consumes
+        // top-left anchors before expanding the region into navigation goals.
+        projectedActor.ObjectiveGridX = goal.CenterCellX - (width - 1) / 2;
+        projectedActor.ObjectiveGridY = goal.CenterCellY - (height - 1) / 2;
         projectedActor.ObjectiveGridHeight = goal.CenterCellHeight;
-        projectedActor.ObjectiveWidth = System.Math.Max(1, goal.Width);
-        projectedActor.ObjectiveHeight = System.Math.Max(1, goal.Height);
+        projectedActor.ObjectiveWidth = width;
+        projectedActor.ObjectiveHeight = height;
 
         IReadOnlyList<BattleGridCoord> moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardObjective(
             projectedActor,

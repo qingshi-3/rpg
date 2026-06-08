@@ -11,10 +11,10 @@ namespace Rpg.Application.World;
 
 public static class StrategicWorldV1DefinitionFactory
 {
-    private const string InitialStateResourcePath = "res://assets/definitions/world/strategic_world_v1_initial_state.tres";
+    private const string InitialStateConfigPath = StrategicWorldInitialStateConfigLoader.DefaultConfigPath;
 
-    // Headless regressions can bypass Godot resource loading; runtime default still loads it.
-    public static StrategicWorldDefinition Create(bool loadInitialStateResource = true)
+    // Headless regressions can bypass config loading when they build their own state.
+    public static StrategicWorldDefinition Create(bool loadInitialStateConfig = true)
     {
         return new StrategicWorldDefinition
         {
@@ -26,7 +26,7 @@ public static class StrategicWorldV1DefinitionFactory
             FactionDefinitions = CreateFactions(),
             ResourceDefinitions = CreateResources(),
             FacilityDefinitions = CreateFacilities(),
-            SiteDefinitions = CreateSites(loadInitialStateResource),
+            SiteDefinitions = CreateSites(loadInitialStateConfig),
             OpportunityDefinitions = CreateOpportunities(),
             OpportunitySpawnPoints = CreateOpportunitySpawnPoints(),
             OpportunitySpawnRules = CreateOpportunitySpawnRules(),
@@ -174,7 +174,7 @@ public static class StrategicWorldV1DefinitionFactory
         };
     }
 
-    private static List<WorldSiteDefinition> CreateSites(bool loadInitialStateResource)
+    private static List<WorldSiteDefinition> CreateSites(bool loadInitialStateConfig)
     {
         List<WorldSiteDefinition> sites = new()
         {
@@ -322,27 +322,21 @@ public static class StrategicWorldV1DefinitionFactory
             }
         };
 
-        if (loadInitialStateResource)
+        if (loadInitialStateConfig)
         {
-            ApplyInitialStateResource(sites);
+            ApplyInitialStateConfig(sites);
         }
 
         return sites;
     }
 
-    private static void ApplyInitialStateResource(List<WorldSiteDefinition> sites)
+    private static void ApplyInitialStateConfig(List<WorldSiteDefinition> sites)
     {
-        StrategicWorldInitialStateResource initialState = GD.Load<StrategicWorldInitialStateResource>(InitialStateResourcePath);
-        if (initialState == null)
-        {
-            GameLog.Error(nameof(StrategicWorldV1DefinitionFactory), $"Missing strategic world initial state resource path={InitialStateResourcePath}");
-            throw new InvalidOperationException($"Missing strategic world initial state resource: {InitialStateResourcePath}");
-        }
-
+        StrategicWorldInitialStateConfig initialState = StrategicWorldInitialStateConfigLoader.Load(InitialStateConfigPath);
         Dictionary<string, WorldSiteDefinition> siteById = sites.ToDictionary(site => site.Id);
         int appliedEntryCount = 0;
 
-        foreach (WorldSiteInitialStateResource siteState in initialState.Sites)
+        foreach (StrategicWorldSiteInitialStateConfig siteState in initialState.Sites)
         {
             if (siteState == null)
             {
@@ -364,14 +358,19 @@ public static class StrategicWorldV1DefinitionFactory
 
             site.InitialGarrison.Clear();
 
-            foreach (WorldInitialGarrisonEntryResource entry in siteState.InitialGarrison)
+            foreach (StrategicWorldInitialGarrisonConfig entry in siteState.InitialGarrison)
             {
                 if (entry == null)
                 {
                     continue;
                 }
 
-                GarrisonDefinition garrison = entry.ToDefinition();
+                GarrisonDefinition garrison = new()
+                {
+                    UnitTypeId = entry.UnitDefinitionId?.Trim() ?? "",
+                    Count = entry.Count,
+                    Morale = entry.Morale
+                };
                 if (string.IsNullOrWhiteSpace(garrison.UnitTypeId))
                 {
                     GameLog.Warn(nameof(StrategicWorldV1DefinitionFactory), $"Initial garrison skipped site={siteId} reason=empty_unit_definition");
@@ -389,7 +388,7 @@ public static class StrategicWorldV1DefinitionFactory
             }
         }
 
-        GameLog.Info(nameof(StrategicWorldV1DefinitionFactory), $"StrategicWorldInitialStateApplied path={InitialStateResourcePath} site_count={initialState.Sites.Count} garrison_entries={appliedEntryCount}");
+        GameLog.Info(nameof(StrategicWorldV1DefinitionFactory), $"StrategicWorldInitialStateApplied path={InitialStateConfigPath} site_count={initialState.Sites.Count} garrison_entries={appliedEntryCount}");
     }
 
     private static List<WorldActionDefinition> CreateActions()

@@ -296,9 +296,9 @@ internal static class BattleMovementCommitResolver
             return;
         }
 
-        // Slot assignment is the stable target for combat-entry movement; Runtime
-        // still validates the selected next step and may reassign if the slot expires.
-        GameLog.Info(
+        // Slot assignment can update often in crowded fights, so it stays trace-only
+        // while Runtime transition events remain the low-noise default diagnostics.
+        GameLog.Trace(
             nameof(BattleMovementCommitResolver),
             $"BattleRuntimeCombatSlotIntent battle={battleId ?? ""} tick={tick} time={currentTimeSeconds:0.00} actor={actor.ActorId ?? ""} target={context.TargetFact?.Actor.ActorId ?? ""} situation={context.Proposal.LocalCombatSituationId ?? ""} kind={context.Proposal.CombatSlotKind} slot={slot.X},{slot.Y},{slot.Height} next={selectedMove.X},{selectedMove.Y},{selectedMove.Height} reason={context.Proposal.MovementReasonCode ?? ""}");
     }

@@ -101,8 +101,10 @@ internal static void BattleRuntimeHudUsesSkillListNotSingleTextButton()
         slotSource.Contains("EmitSignal(SignalName.Pressed", StringComparison.Ordinal),
         "runtime skill slot should expose bindable state for future cooldown text and current lock status");
     AssertTrue(
-        skillDefinitions.Contains("DisplayName = \"破阵\"", StringComparison.Ordinal),
-        "first-slice skill display name should be readable Chinese in the runtime skill list");
+        skillDefinitions.Contains("DisplayName = \"曦盾结界\"", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("DisplayName = \"贯日一击\"", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("DisplayName = \"回旋破阵\"", StringComparison.Ordinal),
+        "first-slice skill display names should be readable Chinese in the runtime skill list");
 }
 
 internal static void BattleRuntimeLiveSkillButtonEntersTacticalPauseBeforeTargetPicking()

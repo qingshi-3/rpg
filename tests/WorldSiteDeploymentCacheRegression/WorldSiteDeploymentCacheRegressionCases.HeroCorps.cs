@@ -8,117 +8,19 @@ using Rpg.Domain.World;
 
 internal static partial class WorldSiteDeploymentCacheRegressionCases
 {
-internal static void HeroCorpsV0PlayableSliceUsesAuthoredUnitResources()
-{
-    string root = ProjectRoot();
-    string idsSource = File.ReadAllText(Path.Combine(root, "src", "Application", "World", "HeroCorpsV0PlayableSliceIds.cs"));
-    string initialState = File.ReadAllText(Path.Combine(root, "assets", "definitions", "world", "strategic_world_v1_initial_state.tres"));
-
-    AssertTrue(idsSource.Contains("HeroUnit = \"f1_grandmasterzir\"", StringComparison.Ordinal), "v0 hero id should be grandmaster Zir");
-    AssertTrue(idsSource.Contains("DefaultCorpsUnit = \"f1_azuritelion\"", StringComparison.Ordinal), "v0 default corps id should be azurite lion");
-    AssertTrue(idsSource.Contains("EnemyLeaderUnit = \"f6_draugarlord\"", StringComparison.Ordinal), "v0 enemy leader id should be draugar lord");
-    AssertTrue(idsSource.Contains("DefaultCorpsCount = 3", StringComparison.Ordinal), "v0 should deploy three player corps units for 4v4 battle coverage");
-    AssertTrue(idsSource.Contains("EnemyLeaderCount = 4", StringComparison.Ordinal), "v0 should deploy four enemy leader units for 4v4 battle coverage");
-    AssertTrue(initialState.Contains("Count = 4", StringComparison.Ordinal), "initial enemy garrison should start with four enemy units");
-    AssertTrue(initialState.Contains("res://assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", StringComparison.Ordinal), "initial player hero should use authored grandmaster Zir resource");
-    AssertTrue(initialState.Contains("res://assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", StringComparison.Ordinal), "initial enemy leader should use authored draugar lord resource");
-    AssertUnitFootprint("assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres", 2, 1, "azurite lion corps");
-    AssertUnitFootprint("assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", 2, 1, "grandmaster Zir hero");
-    AssertUnitFootprint("assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", 2, 2, "draugar lord enemy hero");
-    AssertUnitMaxHp("assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres", 48, "azurite lion corps");
-    AssertUnitMaxHp("assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", 48, "grandmaster Zir hero");
-    AssertUnitMaxHp("assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", 48, "draugar lord enemy hero");
-}
-
-private static void AssertUnitFootprint(string relativePath, int expectedWidth, int expectedHeight, string label)
-{
-    string unitText = File.ReadAllText(Path.Combine(ProjectRoot(), relativePath));
-    AssertTrue(unitText.Contains($"FootprintWidth = {expectedWidth}", StringComparison.Ordinal), $"{label} footprint width");
-    AssertTrue(unitText.Contains($"FootprintHeight = {expectedHeight}", StringComparison.Ordinal), $"{label} footprint height");
-}
-
-private static void AssertUnitMaxHp(string relativePath, int expectedMaxHp, string label)
-{
-    string unitText = File.ReadAllText(Path.Combine(ProjectRoot(), relativePath));
-    AssertTrue(unitText.Contains($"MaxHp = {expectedMaxHp}", StringComparison.Ordinal), $"{label} max hp");
-}
-
-internal static void HeroCorpsV0AssaultRequestUsesPlayerHeroCorpsAndEnemyLeader()
-{
-    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateResource: false);
-    StrategicWorldState state = BuildHeroCorpsV0AssaultState(definition, "army_v0");
-
-    BattleStartRequest request = new WorldBattleRequestBuilder().BuildAssaultBonefieldRequest(
-        state,
-        definition,
-        "res://scenes/world/StrategicWorldRoot.tscn",
-        "res://scenes/world/sites/WorldSiteRoot.tscn",
-        "army_v0");
-
-    AssertEqual(2, request.PlayerForces.Count, "v0 assault should contain one hero force and one default corps force");
-    AssertEqual(4, request.PlayerForces.Sum(force => force.Count), "v0 assault should field four player battle units");
-    AssertEqual(4, request.EnemyForces.Sum(force => force.Count), "v0 assault should field four enemy battle units");
-    AssertTrue(
-        request.PlayerForces.Any(force => force.UnitDefinitionId == HeroCorpsV0PlayableSliceIds.HeroUnit && force.Count == 1),
-        "v0 assault should read the player hero from the source army");
-    AssertTrue(
-        request.PlayerForces.Any(force => force.UnitDefinitionId == HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit && force.Count == HeroCorpsV0PlayableSliceIds.DefaultCorpsCount),
-        "v0 assault should read the attached default corps from the source army");
-    AssertTrue(
-        request.EnemyForces.Any(force => force.UnitDefinitionId == HeroCorpsV0PlayableSliceIds.EnemyLeaderUnit && force.Count == HeroCorpsV0PlayableSliceIds.EnemyLeaderCount),
-        "v0 assault should read the enemy leader from the target site garrison");
-    AssertTrue(
-        request.EnemyForces.All(force => force.UnitDefinitionId != HeroCorpsV0PlayableSliceIds.HeroUnit),
-        "v0 assault should not mirror the player hero into enemy forces");
-}
-
-internal static void HeroCorpsV0AssaultImportsArmyIntoTargetSiteUnitPoolOnce()
-{
-    const string armyId = "army_v0";
-    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateResource: false);
-    StrategicWorldState state = BuildHeroCorpsV0AssaultState(definition, armyId);
-    WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
-
-    BattleStartRequest request = new WorldBattleRequestBuilder().BuildAssaultBonefieldRequest(
-        state,
-        definition,
-        "res://scenes/world/StrategicWorldRoot.tscn",
-        "res://scenes/world/sites/WorldSiteRoot.tscn",
-        armyId);
-    BattleResult battleResult = BuildAssaultVictoryResult(request);
-    new WorldBattleResultApplier().Apply(state, definition, request, battleResult);
-
-    AssertEqual(
-        1,
-        site.Garrison.Where(garrison =>
-            garrison.UnitTypeId == HeroCorpsV0PlayableSliceIds.HeroUnit &&
-            garrison.SourceKind == "PlayerArmy" &&
-            garrison.SourceId == armyId).Sum(garrison => garrison.Count),
-        "target site pool should contain exactly one imported hero after victory");
-    AssertEqual(
-        HeroCorpsV0PlayableSliceIds.DefaultCorpsCount,
-        site.Garrison.Where(garrison =>
-            garrison.UnitTypeId == HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit &&
-            garrison.SourceKind == "PlayerArmy" &&
-            garrison.SourceId == armyId).Sum(garrison => garrison.Count),
-        "target site pool should contain exactly the imported default corps after victory");
-    AssertEqual(
-        0,
-        site.Garrison.Where(garrison =>
-            garrison.UnitTypeId == HeroCorpsV0PlayableSliceIds.EnemyLeaderUnit &&
-            garrison.FactionId == StrategicWorldIds.FactionUndead).Sum(garrison => garrison.Count),
-        "target site pool should remove defeated defender units after victory");
-}
-
 internal static void AssaultVictoryClearsResolvedVisitingArmyPlacements()
 {
-    const string armyId = "army_v0";
-    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateResource: false);
-    StrategicWorldState state = BuildHeroCorpsV0AssaultState(definition, armyId);
+    const string armyId = "army_first_slice_shield";
+    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateConfig: false);
+    StrategicWorldState state = BuildFirstSliceAssaultState(
+        definition,
+        armyId,
+        heroUnitId: "f1_grandmasterzir",
+        corpsUnitId: "f1_azuritelion");
     WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
-    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, HeroCorpsV0PlayableSliceIds.HeroUnit, 1, 1, 1));
-    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit, 2, 2, 1));
-    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit, 3, 3, 1));
+    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, "f1_grandmasterzir", 1, 1, 1));
+    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, "f1_azuritelion", 2, 2, 1));
+    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, "f1_azuritelion", 3, 3, 1));
 
     BattleStartRequest request = new WorldBattleRequestBuilder().BuildAssaultBonefieldRequest(
         state,
@@ -140,23 +42,27 @@ internal static void AssaultVictoryClearsResolvedVisitingArmyPlacements()
     AssertTrue(
         site.UnitPlacements.Count(placement =>
             WorldSiteDeploymentService.IsGarrisonPlacement(placement) &&
-            placement.UnitTypeId == HeroCorpsV0PlayableSliceIds.HeroUnit) == 1,
+            placement.UnitTypeId == "f1_grandmasterzir") == 1,
         "assault victory should leave exactly one hero garrison placement");
     AssertTrue(
         site.UnitPlacements.Count(placement =>
             WorldSiteDeploymentService.IsGarrisonPlacement(placement) &&
-            placement.UnitTypeId == HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit) == HeroCorpsV0PlayableSliceIds.DefaultCorpsCount,
+            placement.UnitTypeId == "f1_azuritelion") == 3,
         "assault victory should leave exactly the default corps as garrison placements");
 }
 
 internal static void StrategicWorldInvariantRepairRemovesResolvedArmyPlacements()
 {
-    const string armyId = "army_v0";
-    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateResource: false);
-    StrategicWorldState state = BuildHeroCorpsV0AssaultState(definition, armyId);
+    const string armyId = "army_first_slice_shield";
+    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateConfig: false);
+    StrategicWorldState state = BuildFirstSliceAssaultState(
+        definition,
+        armyId,
+        heroUnitId: "f1_grandmasterzir",
+        corpsUnitId: "f1_azuritelion");
     WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
-    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, HeroCorpsV0PlayableSliceIds.HeroUnit, 1, 1, 1));
-    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit, 2, 2, 1));
+    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, "f1_grandmasterzir", 1, 1, 1));
+    site.UnitPlacements.Add(BuildVisitingArmyPlacement(armyId, "f1_azuritelion", 2, 2, 1));
     state.ArmyStates[armyId].Status = WorldArmyStatus.Garrisoned;
     state.ArmyStates[armyId].GarrisonUnits.Clear();
 
@@ -168,19 +74,21 @@ internal static void StrategicWorldInvariantRepairRemovesResolvedArmyPlacements(
         "state repair should leave no stale player army placements");
 }
 
-internal static void StrategicWorldV0ExpeditionSelectsHeroOnly()
+internal static void StrategicWorldFirstSliceExpeditionSelectsOneHeroCompany()
 {
     string rootSource = ReadStrategicWorldRootSource();
 
     AssertTrue(
-        rootSource.Contains("HeroCorpsV0PlayableSliceIds.HeroUnit", StringComparison.Ordinal),
-        "StrategicWorldRoot should filter expedition drafting to the v0 hero");
+        rootSource.Contains("FirstSliceHeroCompanyIds.HeroUnitIds", StringComparison.Ordinal) ||
+        rootSource.Contains("FirstSliceHeroCompanyIds.Companies", StringComparison.Ordinal),
+        "StrategicWorldRoot should draft from the three first-slice hero ids");
     AssertTrue(
-        rootSource.Contains("AttachDefaultCorpsToHeroExpedition", StringComparison.Ordinal),
-        "StrategicWorldRoot should attach default corps after hero expedition creation");
+        rootSource.Contains("AttachDefaultCorpsToHeroExpedition", StringComparison.Ordinal) &&
+        rootSource.Contains("TryGetCompanyByHeroUnit", StringComparison.Ordinal),
+        "StrategicWorldRoot should attach the selected hero company's default corps after expedition creation");
     AssertTrue(
         rootSource.Contains("默认兵团", StringComparison.Ordinal),
-        "expedition panel should present the default corps as read-only v0 information");
+        "expedition panel should present the selected default corps as read-only information");
     AssertTrue(
         !rootSource.Contains("WorldExpeditionIssued army={army.ArmyId} intent={intent} target={targetSiteId}\");\n        if (intent == WorldArmyIntent.AssaultSite)", StringComparison.Ordinal) &&
         !rootSource.Contains("进入战前部署", StringComparison.Ordinal),
@@ -190,7 +98,27 @@ internal static void StrategicWorldV0ExpeditionSelectsHeroOnly()
         "assault expedition should clearly issue an attack order instead of entering battle immediately");
     AssertTrue(
         !rootSource.Contains("选择出征英雄和小兵", StringComparison.Ordinal),
-        "v0 expedition player text should not ask for troop composition editing");
+        "first slice expedition player text should not ask for troop composition editing");
+}
+
+internal static void StrategicWorldExpeditionTargetingAcceptsLeftClickTarget()
+{
+    string rootSource = ReadStrategicWorldRootSource().Replace("\r\n", "\n", StringComparison.Ordinal);
+    string leftMouseBody = ExtractMethodBody(
+        rootSource,
+        "private void HandleWorldArmyLeftMouse(\n        InputEventMouseButton mouseButton,\n        Vector2 screenPosition,\n        bool eventIsViewportLocal)");
+    int targetingIndex = leftMouseBody.IndexOf("_isExpeditionTargeting", StringComparison.Ordinal);
+    int issueIndex = leftMouseBody.IndexOf("TryIssueExpeditionToTarget(_armySelectionCurrentScreen)", StringComparison.Ordinal);
+    int selectSiteIndex = leftMouseBody.IndexOf("TrySelectSiteAt(_armySelectionCurrentScreen)", StringComparison.Ordinal);
+
+    AssertTrue(
+        targetingIndex >= 0 &&
+        issueIndex > targetingIndex &&
+        selectSiteIndex > issueIndex,
+        "expedition target mode should let left-click choose the target before ordinary site selection consumes the click");
+    AssertTrue(
+        rootSource.Contains("左键或右键场域", StringComparison.Ordinal),
+        "expedition target prompt should tell players that left-click also confirms the target");
 }
 
 internal static void WorldSiteRootGatesBattleStartBehindDeployment()
@@ -1018,10 +946,14 @@ internal static void BattlePreparationPlanUsesStrategicDefaultFormation()
     AssertTrue(armyDefaultFormation != null, "world army state should persist a strategic default formation id.");
     AssertTrue(forceDefaultFormation != null, "battle force requests should carry the source default formation into battle preparation.");
 
-    const string armyId = "army_v0";
+    const string armyId = "army_first_slice_default_formation";
     const string expectedFormation = "formation_column";
-    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateResource: false);
-    StrategicWorldState state = BuildHeroCorpsV0AssaultState(definition, armyId);
+    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateConfig: false);
+    StrategicWorldState state = BuildFirstSliceAssaultState(
+        definition,
+        armyId,
+        heroUnitId: "f1_grandmasterzir",
+        corpsUnitId: "f1_azuritelion");
     armyDefaultFormation.SetValue(state.ArmyStates[armyId], expectedFormation);
 
     BattleStartRequest request = new WorldBattleRequestBuilder().BuildAssaultBonefieldRequest(

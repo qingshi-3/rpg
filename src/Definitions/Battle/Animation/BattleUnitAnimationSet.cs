@@ -35,17 +35,20 @@ public partial class BattleUnitAnimationSet : Resource
     [Export]
     public bool BalanceSpriteSpeedByFrameCount { get; set; } = true;
 
+    // Imported SpriteFrames often arrive with fast Duelyst-style fps. Idle stays
+    // deliberately slower for readability, while movement keeps a quicker loop
+    // so walking does not read as low-fps without changing combat time.
     [Export]
-    public float MinBalancedSpeedScale { get; set; } = 1f;
+    public float MinBalancedSpeedScale { get; set; } = 0.5f;
 
     [Export]
     public float MaxBalancedSpeedScale { get; set; } = 4.5f;
 
     [Export]
-    public double TargetIdleCycleSeconds { get; set; } = 1.2;
+    public double TargetIdleCycleSeconds { get; set; } = 2.0;
 
     [Export]
-    public double TargetMoveCycleSeconds { get; set; } = 0.5;
+    public double TargetMoveCycleSeconds { get; set; } = 0.55;
 
     [Export]
     public double TargetAttackSeconds { get; set; } = 1.2;

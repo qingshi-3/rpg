@@ -87,6 +87,7 @@ BattleHitFeedbackRegressionCases.Run("skill release presentation uses cast cue a
 BattleHitFeedbackRegressionCases.Run("realtime damage reaction does not play hit animation", BattleHitFeedbackRegressionCases.RealtimeDamageReactionDoesNotPlayHitAnimation);
 BattleHitFeedbackRegressionCases.Run("runtime impact damage does not double delay defeated presentation", BattleHitFeedbackRegressionCases.RuntimeImpactDamageDoesNotDoubleDelayDefeatedPresentation);
 BattleHitFeedbackRegressionCases.Run("unit attack speed is bound to runtime and attack animation speed", BattleHitFeedbackRegressionCases.UnitAttackSpeedContract);
+BattleHitFeedbackRegressionCases.Run("unit idle and move animation playback is paced for readability", BattleHitFeedbackRegressionCases.UnitIdleAndMoveAnimationPlaybackIsPacedForReadability);
 BattleHitFeedbackRegressionCases.Run("unit combat stats are bound into runtime snapshots", BattleHitFeedbackRegressionCases.UnitCombatStatsSnapshotContract);
 BattleHitFeedbackRegressionCases.Run("battle unit base authors health bar and fallback animation", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation);
 BattleHitFeedbackRegressionCases.Run("defeated unit presentation hides health bar before fast death animation", BattleHitFeedbackRegressionCases.DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimation);

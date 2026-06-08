@@ -142,6 +142,7 @@ public sealed class BattleRuntimeSession
                 ActorId = $"{group.BattleGroupId}:hero",
                 BattleGroupId = commanderGroupId,
                 FactionId = group.FactionId ?? "",
+                UnitDefinitionId = group.CorpsDefinitionId ?? "",
                 SourceForceId = sourceForceId,
                 SourceStateId = group.HeroId,
                 Kind = BattleRuntimeActorKind.Hero,
@@ -164,6 +165,7 @@ public sealed class BattleRuntimeSession
                 ActorId = $"{sourceForceId}:{sourceForceIndex + 1}",
                 BattleGroupId = commanderGroupId,
                 FactionId = group.FactionId ?? "",
+                UnitDefinitionId = group.CorpsDefinitionId ?? "",
                 SourceForceId = sourceForceId,
                 SourceStateId = group.CorpsId,
                 Kind = BattleRuntimeActorKind.Corps,
@@ -482,6 +484,11 @@ public sealed class BattleRuntimeSession
                     DisplayName = skill?.DisplayName ?? "",
                     TargetingMode = skill?.TargetingMode ?? BattleSkillTargetingMode.TargetedActor,
                     Range = System.Math.Max(0, skill?.Range ?? 0),
+                    CasterUnitIds = (skill?.CasterUnitIds ?? new List<string>())
+                        .Where(unitId => !string.IsNullOrWhiteSpace(unitId))
+                        .Select(unitId => unitId.Trim())
+                        .Distinct(System.StringComparer.Ordinal)
+                        .ToList(),
                     CastSeconds = System.Math.Max(0, skill?.CastSeconds ?? 0),
                     ImpactDelaySeconds = System.Math.Max(0, skill?.ImpactDelaySeconds ?? 0),
                     RecoverySeconds = System.Math.Max(0, skill?.RecoverySeconds ?? 0),

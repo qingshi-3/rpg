@@ -26,10 +26,19 @@ public static class StrategicWorldIds
     public const string UnitGraveShadow = "neutral_shadow1";
     public const string UnitGraveMarksman = "neutral_shadowranged";
     public const string UnitDeathBlighter = "neutral_deathblighter";
+    public static string UnitShieldHero => FirstSliceHeroCompanyIds.ShieldHeroUnit;
+    public static string UnitShieldCorps => FirstSliceHeroCompanyIds.ShieldCorpsUnit;
+    public static string UnitArcherHero => FirstSliceHeroCompanyIds.ArcherHeroUnit;
+    public static string UnitArcherCorps => FirstSliceHeroCompanyIds.ArcherCorpsUnit;
+    public static string UnitAssaultHero => FirstSliceHeroCompanyIds.AssaultHeroUnit;
+    public static string UnitAssaultCorps => FirstSliceHeroCompanyIds.AssaultCorpsUnit;
+    public static string UnitBonefieldLeader => FirstSliceHeroCompanyIds.BonefieldLeaderUnit;
+    public static string UnitBonefieldHarassment => FirstSliceHeroCompanyIds.BonefieldHarassmentUnit;
+    public static string UnitBonefieldRanged => FirstSliceHeroCompanyIds.BonefieldRangedUnit;
     // The early placeholder unit ids now point at authored battle definitions;
     // the removed placeholder packages duplicated other visuals.
     public const string UnitMilitia = "f1_shieldforger";
-    public const string UnitPlayerKnight = "f1_grandmasterzir";
+    public static string UnitPlayerKnight => FirstSliceHeroCompanyIds.ShieldHeroUnit;
     public const string UnitSkeletonWarrior = UnitGraveShadow;
     public const string UnitSkeletonArcher = UnitGraveMarksman;
 

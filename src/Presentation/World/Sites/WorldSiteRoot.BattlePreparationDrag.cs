@@ -170,6 +170,14 @@ public partial class WorldSiteRoot
             return false;
         }
 
+        if (dragContext.RequestPlacement == null)
+        {
+            // Battle preparation map drags are request-authoritative. Site rows may mirror
+            // that request only after the active battle placement has been resolved.
+            failureReason = "missing_placement";
+            return false;
+        }
+
         if (_activeGridMap?.TryGetTopSurfacePosition(gridPosition, out GridSurfacePosition surfacePosition) != true)
         {
             failureReason = "placement_cell_invalid";
@@ -194,12 +202,6 @@ public partial class WorldSiteRoot
         {
             surfacePosition = new GridSurfacePosition(movedPlacement.CellX, movedPlacement.CellY, movedPlacement.CellHeight);
             dragContext.SitePlacement = movedPlacement;
-        }
-
-        if (dragContext.RequestPlacement == null)
-        {
-            failureReason = "missing_placement";
-            return false;
         }
 
         // Roster-spawned units only exist in the battle request until combat starts;
@@ -343,7 +345,9 @@ public partial class WorldSiteRoot
             RestoreBattlePreparationCompanyPlacements();
         }
         ClearBattlePreparationCompanyDragState();
-        RefreshBattlePreparationUi(placed ? "部队阵型已部署。" : FormatPlacementFailure(failureReason));
+        RefreshBattlePreparationAfterCompanyDrag(
+            groupKey,
+            placed ? "部队阵型已部署。" : FormatPlacementFailure(failureReason));
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattlePreparationCompanyDragEnded group={groupKey} placed={placed} reason={failureReason}");

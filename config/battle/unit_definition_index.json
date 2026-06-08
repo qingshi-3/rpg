@@ -1,0 +1,40 @@
+{
+  "unitDefinitions": [
+    {
+      "unitDefinitionId": "f1_grandmasterzir",
+      "resourcePath": "res://assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres"
+    },
+    {
+      "unitDefinitionId": "f1_azuritelion",
+      "resourcePath": "res://assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres"
+    },
+    {
+      "unitDefinitionId": "f1_windbladecommander",
+      "resourcePath": "res://assets/battle/units/莱昂纳王国/f1_风刃指挥官/unit.tres"
+    },
+    {
+      "unitDefinitionId": "f1_backlinearcher",
+      "resourcePath": "res://assets/battle/units/莱昂纳王国/f1_后排弓手/unit.tres"
+    },
+    {
+      "unitDefinitionId": "f1_elyxstormblade",
+      "resourcePath": "res://assets/battle/units/莱昂纳王国/f1_Elyx风暴刃/unit.tres"
+    },
+    {
+      "unitDefinitionId": "f1_radiantdragoon",
+      "resourcePath": "res://assets/battle/units/莱昂纳王国/f1_辉光龙骑兵/unit.tres"
+    },
+    {
+      "unitDefinitionId": "f6_draugarlord",
+      "resourcePath": "res://assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres"
+    },
+    {
+      "unitDefinitionId": "f6_spiritwolf",
+      "resourcePath": "res://assets/battle/units/霜原部盟/f6_灵魂狼/unit.tres"
+    },
+    {
+      "unitDefinitionId": "f4_skullcaster",
+      "resourcePath": "res://assets/battle/units/深渊军团/f4_Skull施法者/unit.tres"
+    }
+  ]
+}

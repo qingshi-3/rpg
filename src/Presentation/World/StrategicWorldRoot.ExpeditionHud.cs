@@ -25,7 +25,13 @@ public partial class StrategicWorldRoot
             string sourceName = ResolveSiteDisplayName(_expeditionSourceSiteId);
             AddMutedLine(_actionList, $"出发场域：{sourceName}");
             AddMutedLine(_actionList, $"已选英雄：{BuildExpeditionUnitText()}");
-            AddMutedLine(_actionList, $"默认兵团：{GetUnitLabel(HeroCorpsV0PlayableSliceIds.DefaultCorpsUnit)} x{HeroCorpsV0PlayableSliceIds.DefaultCorpsCount}");
+            string selectedHeroUnitId = BuildSelectedExpeditionUnits().Keys
+                .FirstOrDefault(FirstSliceHeroCompanyIds.IsHeroUnit);
+            string defaultCorpsText = !string.IsNullOrWhiteSpace(selectedHeroUnitId) &&
+                                      FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(selectedHeroUnitId, out FirstSliceHeroCompanyDefinition company)
+                ? $"{GetUnitLabel(company.DefaultCorpsUnit)} x{company.DefaultCorpsCount}"
+                : "请选择英雄";
+            AddMutedLine(_actionList, $"默认兵团：{defaultCorpsText}");
 
             foreach ((string unitTypeId, int available) in GetAvailableExpeditionUnits(_expeditionSourceSiteId))
             {
@@ -160,7 +166,7 @@ public partial class StrategicWorldRoot
         }
 
         targetButton.Text = _isExpeditionTargeting
-            ? "选择目的地中\n右键场域或空地"
+            ? "选择目的地中\n左键或右键场域/空地"
             : "选择目的地\n敌方=进攻 己方=进驻 空地=移动";
         targetButton.Disabled = !canChooseTarget;
         targetButton.Pressed += BeginExpeditionTargeting;

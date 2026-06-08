@@ -1,4 +1,5 @@
 using Godot;
+using Rpg.Application.Battle;
 
 namespace Rpg.Presentation.Battle.Entities;
 
@@ -11,5 +12,5 @@ public partial class AttackComponent : BattleEntityComponent
     public int Range { get; set; } = 1;
 
     [Export(PropertyHint.Range, "0.1,4,0.05")]
-    public double AttackSpeed { get; set; } = 1.0;
+    public double AttackSpeed { get; set; } = BattleAttackSpeedPolicy.DefaultAttackSpeed;
 }

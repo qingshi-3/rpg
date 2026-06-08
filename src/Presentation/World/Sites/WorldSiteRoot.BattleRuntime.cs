@@ -81,7 +81,10 @@ public partial class WorldSiteRoot
         bool runtimeActivated = ActivateBattleGroupRuntime();
         if (runtimeActivated)
         {
-            PlayBattleMovementTweenProbe();
+            if (ShouldPlayBattleMovementTweenProbe())
+            {
+                PlayBattleMovementTweenProbe();
+            }
         }
 
         return runtimeActivated;
@@ -352,34 +355,10 @@ public partial class WorldSiteRoot
         int placedCount = 0;
         foreach (BattleEntity entity in _unitRoot.GetEntitiesSnapshot())
         {
-            GridOccupantComponent gridOccupant = entity.GetComponent<GridOccupantComponent>();
-            if (gridOccupant == null)
+            if (PlaceBattleEntityOnGridResolved(entity))
             {
-                GameLog.Info(nameof(WorldSiteRoot), $"Entity has no grid occupant entity={entity.EntityId} name={entity.DisplayName}");
-                continue;
+                placedCount++;
             }
-
-            ResolveEntitySurfaceHeight(gridOccupant);
-            var cell = new Vector2I(gridOccupant.GridX, gridOccupant.GridY);
-            if (TryGetFootprintCenterGlobalPosition(
-                    gridOccupant.Position,
-                    new Vector2I(gridOccupant.FootprintWidth, gridOccupant.FootprintHeight),
-                    out Vector2 globalPosition))
-            {
-                entity.GlobalPosition = globalPosition;
-            }
-            else
-            {
-                entity.GlobalPosition = _coordinateLayer.ToGlobal(_coordinateLayer.MapToLocal(cell));
-            }
-
-            ApplyEntityRenderSort(entity, gridOccupant.SurfacePosition);
-            placedCount++;
-            GameLog.Info(
-                nameof(WorldSiteRoot),
-                $"Placed entity id={entity.EntityId} name={entity.DisplayName} surface={gridOccupant.SurfacePosition} global={entity.GlobalPosition} {DescribeGridCell(gridOccupant.Position)} {DescribeGridSurface(gridOccupant.SurfacePosition)}");
-
-            WarnIfEntityStartsOnInvalidSurface(entity, gridOccupant.SurfacePosition);
         }
 
         GameLog.Info(nameof(WorldSiteRoot), $"Entity placement complete count={placedCount}");

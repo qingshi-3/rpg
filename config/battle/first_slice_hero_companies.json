@@ -1,0 +1,45 @@
+{
+  "companies": [
+	{
+	  "companyId": "first_slice_company_shield",
+	  "roleId": "shield",
+	  "heroUnit": "f1_grandmasterzir",
+	  "defaultCorpsUnit": "f1_azuritelion",
+	  "defaultCorpsCount": 3,
+	  "skillId": "first_slice_skill_shield_barrier"
+	},
+	{
+	  "companyId": "first_slice_company_archer",
+	  "roleId": "archer",
+	  "heroUnit": "f1_windbladecommander",
+	  "defaultCorpsUnit": "f1_backlinearcher",
+	  "defaultCorpsCount": 3,
+	  "skillId": "first_slice_skill_sun_piercer"
+	},
+	{
+	  "companyId": "first_slice_company_assault",
+	  "roleId": "assault",
+	  "heroUnit": "f1_elyxstormblade",
+	  "defaultCorpsUnit": "f1_radiantdragoon",
+	  "defaultCorpsCount": 3,
+	  "skillId": "first_slice_skill_whirling_break"
+	}
+  ],
+  "bonefieldRoster": [
+	{
+	  "roleId": "leader",
+	  "unit": "f6_draugarlord",
+	  "count": 2
+	},
+	{
+	  "roleId": "harassment",
+	  "unit": "f6_spiritwolf",
+	  "count": 2
+	},
+	{
+	  "roleId": "ranged",
+	  "unit": "f4_skullcaster",
+	  "count": 2
+	}
+  ]
+}

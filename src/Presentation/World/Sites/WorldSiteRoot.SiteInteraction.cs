@@ -220,7 +220,7 @@ public partial class WorldSiteRoot
                     gridPosition,
                     out failureReason))
             {
-                RefreshSitePlacementUi("閮ㄧ讲浣嶇疆宸叉洿鏂般€?");
+                RefreshBattlePreparationAfterSinglePlacementDrag("部署位置已更新。");
             }
             else
             {
@@ -269,11 +269,16 @@ public partial class WorldSiteRoot
     {
         if (_isBattlePreparationActive)
         {
-            RefreshBattlePreparationUi(notice);
+            RefreshBattlePreparationPlanUi(notice, "battle_preparation_site_placement");
             return;
         }
 
         RefreshSiteManagementUi(notice);
+    }
+
+    private void RefreshBattlePreparationAfterSinglePlacementDrag(string notice)
+    {
+        RefreshBattlePreparationPlanUi(notice, "battle_preparation_single_placement_drag");
     }
 
 

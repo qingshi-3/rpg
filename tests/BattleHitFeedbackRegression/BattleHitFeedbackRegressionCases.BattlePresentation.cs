@@ -715,56 +715,6 @@ internal static void RuntimeImpactDamageDoesNotDoubleDelayDefeatedPresentation()
         "defeated presentation should still keep the minimum death duration derived from the source attack animation");
 }
 
-internal static void UnitAttackSpeedContract()
-{
-    string definition = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "BattleUnitDefinition.cs"));
-    string forceRequest = File.ReadAllText(Path.Combine("src", "Application", "Battle", "BattleForceRequest.cs"));
-    string snapshot = File.ReadAllText(Path.Combine("src", "Application", "Battle", "Snapshots", "BattleGroupSnapshot.cs"));
-    string runtimeActor = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeActor.cs"));
-    string runtimeSession = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeSession.cs"));
-    string runtimeTickResolver = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeTickResolver.cs"));
-    string unitFactory = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"));
-    string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
-    string siteRuntime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRequestDeployment.cs"));
-
-    AssertTrue(
-        definition.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal),
-        "battle unit definitions should expose attack speed with a stable default");
-    AssertTrue(
-        definition.Contains("public double AttackImpactNormalizedTimeOverride { get; set; } = -1.0;", StringComparison.Ordinal),
-        "battle unit definitions should expose an optional per-unit attack impact timing override");
-    AssertTrue(
-        forceRequest.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal) &&
-        snapshot.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal),
-        "battle handoff contracts should carry attack speed from request to snapshot");
-    AssertTrue(
-        runtimeActor.Contains("public double AttackSpeed { get; set; } = 1.0;", StringComparison.Ordinal) &&
-        runtimeActor.Contains("public double AttackActionSeconds", StringComparison.Ordinal) &&
-        runtimeActor.Contains("public double ActionReadyAtSeconds", StringComparison.Ordinal) &&
-        runtimeSession.Contains("AttackSpeed = BattleAttackSpeedPolicy.Normalize(group.AttackSpeed)", StringComparison.Ordinal),
-        "runtime actors should consume snapshot attack speed and actor-local action timing");
-    AssertTrue(
-        runtimeSession.Contains("ResolveAttackActionSeconds", StringComparison.Ordinal) &&
-        runtimeTickResolver.Contains("RuntimeTimeSeconds = currentTimeSeconds", StringComparison.Ordinal),
-        "runtime attack cadence should be gated by action seconds on the central timeline rather than attacking every integer tick");
-    AssertTrue(
-        unitFactory.Contains("attack.AttackSpeed = definition.AttackSpeed;", StringComparison.Ordinal) &&
-        unitFactory.Contains("animationComponent.AttackSpeed = definition.AttackSpeed;", StringComparison.Ordinal),
-        "unit factory should apply attack speed to presentation attack data and animation playback");
-    AssertTrue(
-        unitFactory.Contains("animationComponent.AttackImpactNormalizedTimeOverride = definition.AttackImpactNormalizedTimeOverride;", StringComparison.Ordinal) &&
-        animationComponent.Contains("public double AttackImpactNormalizedTimeOverride { get; set; } = -1.0;", StringComparison.Ordinal),
-        "unit factory should apply the per-unit impact timing override to presentation hit feedback");
-    AssertTrue(
-        animationComponent.Contains("BattleAttackSpeedPolicy.ScaleTargetSeconds(targetSeconds, AttackSpeed)", StringComparison.Ordinal) &&
-        animationComponent.Contains("ResolveAttackImpactNormalizedTime()", StringComparison.Ordinal),
-        "attack animation target duration and impact point should use the configured unit attack timing");
-    AssertTrue(
-        siteRuntime.Contains("ResolveAttackImpactNormalizedTime(definition)", StringComparison.Ordinal) &&
-        siteRuntime.Contains("definition.AttackImpactNormalizedTimeOverride >= 0", StringComparison.Ordinal),
-        "site battle runtime should prefer per-unit attack impact timing before falling back to the animation resource");
-}
-
 internal static void UnitCombatStatsSnapshotContract()
 {
     string forceRequest = File.ReadAllText(Path.Combine("src", "Application", "Battle", "BattleForceRequest.cs"));

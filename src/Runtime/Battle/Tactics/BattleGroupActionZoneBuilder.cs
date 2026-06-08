@@ -121,6 +121,10 @@ internal static class BattleGroupActionZoneBuilder
         BattleTacticalRegionSnapshot selected = state?.SelectedRegion;
         if (selected != null)
         {
+            int selectedWidth = Math.Max(1, selected.Width);
+            int selectedHeight = Math.Max(1, selected.Height);
+            int selectedMinX = selected.CenterCellX - (selectedWidth - 1) / 2;
+            int selectedMinY = selected.CenterCellY - (selectedHeight - 1) / 2;
             return new BattleGroupActionZoneSnapshot
             {
                 BattleGroupId = state.BattleGroupId ?? "",
@@ -131,10 +135,10 @@ internal static class BattleGroupActionZoneBuilder
                     : BattleGroupTacticalReasonCode.RegionFixedAdvance,
                 Version = runtimeTick + 1,
                 LastBuiltRuntimeTick = runtimeTick,
-                MinCellX = selected.CenterCellX,
-                MinCellY = selected.CenterCellY,
-                MaxCellX = selected.CenterCellX + Math.Max(1, selected.Width) - 1,
-                MaxCellY = selected.CenterCellY + Math.Max(1, selected.Height) - 1,
+                MinCellX = selectedMinX,
+                MinCellY = selectedMinY,
+                MaxCellX = selectedMinX + selectedWidth - 1,
+                MaxCellY = selectedMinY + selectedHeight - 1,
                 CenterCellX = selected.CenterCellX,
                 CenterCellY = selected.CenterCellY,
                 CenterCellHeight = selected.CenterCellHeight

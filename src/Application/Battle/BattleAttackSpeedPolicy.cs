@@ -2,7 +2,8 @@ namespace Rpg.Application.Battle;
 
 public static class BattleAttackSpeedPolicy
 {
-    public const double DefaultAttackSpeed = 1.0;
+    // First-slice baseline keeps normal attacks readable; authored unit definitions may override this.
+    public const double DefaultAttackSpeed = 0.85;
     public const double MinAttackSpeed = 0.1;
     public const double MaxAttackSpeed = 4.0;
 

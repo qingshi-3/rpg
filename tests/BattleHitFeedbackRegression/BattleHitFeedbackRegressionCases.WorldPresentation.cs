@@ -28,7 +28,7 @@ internal static void WorldSiteHoverSummaryUsesLocalResourcesAndForceCounts()
     site.LocalResources.Set(StrategicWorldIds.ResourceEconomy, 8);
     site.LocalResources.Set(StrategicWorldIds.ResourceStone, 12);
     site.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 4 });
-    site.Garrison.Add(new GarrisonState { UnitTypeId = HeroCorpsV0PlayableSliceIds.HeroUnit, Count = 1 });
+    site.Garrison.Add(new GarrisonState { UnitTypeId = FirstSliceHeroCompanyIds.ShieldHeroUnit, Count = 1 });
 
     WorldSiteDefinition siteDefinition = queries.GetSite(StrategicWorldIds.SiteBonefield);
     WorldSiteHoverSummaryData summary = WorldSiteHoverSummaryPresenter.Build(queries, siteDefinition, site);

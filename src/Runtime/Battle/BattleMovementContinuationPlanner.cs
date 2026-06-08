@@ -594,15 +594,20 @@ internal static class BattleMovementContinuationPlanner
             return false;
         }
 
+        int width = System.Math.Max(1, goal.Width);
+        int height = System.Math.Max(1, goal.Height);
+        BattleGridCoord regionAnchor = new(
+            goal.CenterCellX - (width - 1) / 2,
+            goal.CenterCellY - (height - 1) / 2,
+            goal.CenterCellHeight);
         BattleRuntimeActor region = new()
         {
-            GridX = goal.CenterCellX,
-            GridY = goal.CenterCellY,
+            GridX = regionAnchor.X,
+            GridY = regionAnchor.Y,
             GridHeight = goal.CenterCellHeight,
-            FootprintWidth = System.Math.Max(1, goal.Width),
-            FootprintHeight = System.Math.Max(1, goal.Height)
+            FootprintWidth = width,
+            FootprintHeight = height
         };
-        BattleGridCoord regionAnchor = new(goal.CenterCellX, goal.CenterCellY, goal.CenterCellHeight);
         return BattleActorFootprint.GetGap(actorFact.Actor, actorFact.Anchor, region, regionAnchor) <= 1;
     }
 

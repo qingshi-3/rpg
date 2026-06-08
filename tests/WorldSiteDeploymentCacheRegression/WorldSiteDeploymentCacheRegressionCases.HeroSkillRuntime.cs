@@ -12,9 +12,13 @@ internal static partial class WorldSiteDeploymentCacheRegressionCases
 {
 internal static void BattleGroupProbeSnapshotIncludesFirstSliceHeroSkillDefinition()
 {
-    const string armyId = "army_v0";
-    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateResource: false);
-    StrategicWorldState state = BuildHeroCorpsV0AssaultState(definition, armyId);
+    const string armyId = "army_first_slice_archer";
+    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateConfig: false);
+    StrategicWorldState state = BuildFirstSliceAssaultState(
+        definition,
+        armyId,
+        heroUnitId: "f1_windbladecommander",
+        corpsUnitId: "f1_backlinearcher");
     BattleStartRequest request = new WorldBattleRequestBuilder().BuildAssaultBonefieldRequest(
         state,
         definition,
@@ -25,17 +29,10 @@ internal static void BattleGroupProbeSnapshotIncludesFirstSliceHeroSkillDefiniti
     BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().PrepareSnapshot(request);
 
     AssertTrue(result.Success, $"probe snapshot should prepare successfully failure={result.FailureReason}");
-    BattleSkillSnapshot skill = result.Snapshot.SkillDefinitions
-        .FirstOrDefault(item => item.SkillId == HeroSkillCommandIds.FirstSliceHeroSkillId);
-    AssertTrue(skill != null, "probe snapshot should carry the first-slice selected hero skill definition");
-    AssertEqual(BattleSkillTargetingMode.TargetedActor, skill.TargetingMode, "first-slice skill should be targeted");
-    AssertEqual(8, skill.Range, "first-slice skill command acceptance range");
-    AssertTrue(skill.CanInterruptBasicAttackWindup, "first-slice skill should interrupt basic attack windup");
-    AssertTrue(!skill.CanCancelBasicAttackRecovery, "first-slice skill should not cancel basic attack recovery by default");
-    BattleSkillEffectSnapshot effect = skill.Effects.FirstOrDefault();
-    AssertTrue(effect != null, "first-slice skill should expose one damage effect snapshot");
-    AssertEqual(BattleSkillEffectKind.Damage, effect.Kind, "first-slice skill effect kind");
-    AssertEqual(18, effect.Amount, "first-slice skill damage payload");
+    AssertEqual(3, result.Snapshot.SkillDefinitions.Count, "probe snapshot should carry one active skill per first-slice hero");
+    AssertFirstSliceSkillSnapshot(result.Snapshot.SkillDefinitions, "first_slice_skill_shield_barrier", "曦盾结界", "f1_grandmasterzir", 12);
+    AssertFirstSliceSkillSnapshot(result.Snapshot.SkillDefinitions, "first_slice_skill_sun_piercer", "贯日一击", "f1_windbladecommander", 18);
+    AssertFirstSliceSkillSnapshot(result.Snapshot.SkillDefinitions, "first_slice_skill_whirling_break", "回旋破阵", "f1_elyxstormblade", 16);
 }
 
 internal static void BattleSkillDefinitionsLiveInContentLayerAndMapToSnapshots()
@@ -63,18 +60,72 @@ internal static void BattleSkillDefinitionsLiveInContentLayerAndMapToSnapshots()
         "BattleRuntimeHeroSkillCommandResolver.cs"));
 
     AssertTrue(
-        definitionsSource.Contains("HeroSkillCommandIds.FirstSliceHeroSkillId", StringComparison.Ordinal) &&
+        definitionsSource.Contains("HeroSkillCommandIds.ShieldBarrierSkillId", StringComparison.Ordinal) &&
+        definitionsSource.Contains("HeroSkillCommandIds.SunPiercerSkillId", StringComparison.Ordinal) &&
+        definitionsSource.Contains("HeroSkillCommandIds.WhirlingBreakSkillId", StringComparison.Ordinal) &&
+        definitionsSource.Contains("CasterUnitIds", StringComparison.Ordinal) &&
         definitionsSource.Contains("BattleSkillTargetingMode.TargetedActor", StringComparison.Ordinal) &&
         definitionsSource.Contains("Range = 8", StringComparison.Ordinal) &&
         definitionsSource.Contains("Amount = 18", StringComparison.Ordinal),
-        "first-slice skill data should be defined in the content/definition layer");
+        "first-slice hero skill data and caster bindings should be defined in the content/definition layer");
     AssertTrue(
         snapshotFactorySource.Contains("FirstSliceBattleSkillDefinitions.CreateSelectedHeroSkills", StringComparison.Ordinal) &&
+        snapshotFactorySource.Contains("CasterUnitIds", StringComparison.Ordinal) &&
         snapshotFactorySource.Contains("new BattleSkillSnapshot", StringComparison.Ordinal),
-        "application snapshot factory should translate definitions into runtime snapshots");
+        "application snapshot factory should translate definitions and caster bindings into runtime snapshots");
     AssertTrue(
-        !runtimeResolverSource.Contains("FirstSliceBattleSkillDefinitions", StringComparison.Ordinal),
-        "runtime skill resolver must consume snapshot data instead of reading content definitions directly");
+        !runtimeResolverSource.Contains("FirstSliceBattleSkillDefinitions", StringComparison.Ordinal) &&
+        runtimeResolverSource.Contains("skill_caster_not_allowed", StringComparison.Ordinal),
+        "runtime skill resolver must consume snapshot data and reject skills not bound to the caster group");
+}
+
+internal static void BattleRuntimeHudFiltersSkillsToSelectedHeroCompany()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string targetPresentationSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "BattleRuntimeHeroSkillTargetPresentation.cs"));
+
+    AssertTrue(
+        rootSource.Contains("BuildBattleRuntimeSkillSnapshots(selected)", StringComparison.Ordinal) &&
+        rootSource.Contains("IsBattleRuntimeSkillAvailableForGroup", StringComparison.Ordinal) &&
+        rootSource.Contains("skill.CasterUnitIds", StringComparison.Ordinal),
+        "battle runtime HUD should filter skill snapshots by the selected hero company's bound hero unit");
+    AssertTrue(
+        targetPresentationSource.Contains("FirstSliceHeroCompanyIds.IsHeroUnit", StringComparison.Ordinal),
+        "target picking should recognize every first-slice hero unit as the preferred visible caster");
+}
+
+private static void AssertFirstSliceSkillSnapshot(
+    IReadOnlyList<BattleSkillSnapshot> skills,
+    string expectedSkillId,
+    string expectedDisplayName,
+    string expectedCasterUnitId,
+    int expectedDamage)
+{
+    BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillId == expectedSkillId);
+    AssertTrue(skill != null, $"snapshot should include skill {expectedSkillId}");
+    AssertEqual(expectedDisplayName, skill.DisplayName, $"{expectedSkillId} display name");
+    AssertEqual(BattleSkillTargetingMode.TargetedActor, skill.TargetingMode, $"{expectedSkillId} targeting mode");
+    AssertEqual(8, skill.Range, $"{expectedSkillId} command acceptance range");
+    AssertTrue(skill.CanInterruptBasicAttackWindup, $"{expectedSkillId} should interrupt basic attack windup");
+    AssertTrue(!skill.CanCancelBasicAttackRecovery, $"{expectedSkillId} should not cancel basic attack recovery by default");
+    BattleSkillEffectSnapshot effect = skill.Effects.FirstOrDefault();
+    AssertTrue(effect != null, $"{expectedSkillId} should expose one damage effect snapshot");
+    AssertEqual(BattleSkillEffectKind.Damage, effect.Kind, $"{expectedSkillId} effect kind");
+    AssertEqual(expectedDamage, effect.Amount, $"{expectedSkillId} damage payload");
+
+    System.Reflection.PropertyInfo casterUnitIdsProperty = typeof(BattleSkillSnapshot).GetProperty("CasterUnitIds");
+    AssertTrue(casterUnitIdsProperty != null, "battle skill snapshots should carry caster unit bindings");
+    object value = casterUnitIdsProperty.GetValue(skill);
+    IEnumerable<string> casterUnitIds = value as IEnumerable<string> ?? Array.Empty<string>();
+    AssertTrue(
+        casterUnitIds.Contains(expectedCasterUnitId, StringComparer.Ordinal),
+        $"{expectedSkillId} should be bound to caster unit {expectedCasterUnitId}");
 }
 
 internal static void WorldSiteBattleRuntimeHeroSkillTargetClickBuildsTargetedCommand()

@@ -14,6 +14,7 @@ using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Results;
 Environment.SetEnvironmentVariable("RPG_GAMELOG_DIR", Path.Combine(Path.GetTempPath(), "rpg-test-logs"));
 TargetBattleGroupTacticalRegionRegressionCases.Register(Run);
+TargetBattleCenteredRegionRegressionCases.Register(Run);
 TargetBattleCombatZoneRegressionCases.Register(Run);
 Run("corps strength clamps and visible soldiers are derived", CorpsStrengthClampsAndVisibleSoldiersAreDerived);
 Run("runtime source stays isolated from domain and presentation owners", RuntimeSourceStaysIsolated); Run("runtime tick resolver stays slim after TD-001 decomposition", TargetBattleTickResolverDecompositionGuard.RuntimeTickResolverStaysSlimAfterTd001Decomposition); Run("runtime tick resolver delegates attack and movement mutation to services", TargetBattleTickResolverDecompositionGuard.RuntimeTickResolverDelegatesAttackAndMovementMutationToServices);

@@ -7,6 +7,10 @@ namespace Rpg.Runtime.Battle.Navigation;
 
 internal sealed class BattleFlowFieldCache
 {
+    // Region and objective movement should read as moving toward the area center;
+    // outer cells remain fallback goals when the center is unavailable.
+    private const int ObjectiveGoalCenterPriorityWeight = 1000;
+
     private readonly Dictionary<TargetFlowFieldCacheKey, BattleFlowField> _targetFields = new();
     private readonly Dictionary<ObjectiveFlowFieldCacheKey, BattleFlowField> _objectiveFields = new();
     private readonly Dictionary<OpenAttackFlowFieldCacheKey, BattleFlowField> _openAttackFields = new();
@@ -162,6 +166,8 @@ internal sealed class BattleFlowFieldCache
 
         int width = Math.Max(1, objectiveWidth);
         int height = Math.Max(1, objectiveHeight);
+        int centerX = objectiveAnchor.X + (width - 1) / 2;
+        int centerY = objectiveAnchor.Y + (height - 1) / 2;
         var goals = new List<BattleCombatSlot>();
         for (int y = objectiveAnchor.Y; y < objectiveAnchor.Y + height; y++)
         {
@@ -173,7 +179,8 @@ internal sealed class BattleFlowFieldCache
                     continue;
                 }
 
-                goals.Add(new BattleCombatSlot(anchor, BattleCombatSlotKind.Support, 0, goals.Count));
+                int centerPriority = (Math.Abs(x - centerX) + Math.Abs(y - centerY)) * ObjectiveGoalCenterPriorityWeight;
+                goals.Add(new BattleCombatSlot(anchor, BattleCombatSlotKind.Support, centerPriority, goals.Count));
             }
         }
 

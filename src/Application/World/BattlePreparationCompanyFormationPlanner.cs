@@ -319,8 +319,8 @@ public sealed class BattlePreparationCompanyFormationPlanner
     {
         return force != null &&
                (force.UnitDefinitionId?.Contains("hero", StringComparison.OrdinalIgnoreCase) == true ||
-                force.SourceKind?.Contains("Hero", StringComparison.OrdinalIgnoreCase) == true ||
-                string.Equals(force.UnitDefinitionId, HeroCorpsV0PlayableSliceIds.HeroUnit, StringComparison.Ordinal));
+                 force.SourceKind?.Contains("Hero", StringComparison.OrdinalIgnoreCase) == true ||
+                 FirstSliceHeroCompanyIds.IsHeroUnit(force.UnitDefinitionId));
     }
 
     private static Vector2I ResolveDepthAxis(WorldSiteAttackDirection direction)

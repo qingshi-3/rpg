@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.Config;
 using Rpg.Definitions.Battle.Abilities;
 using Rpg.Definitions.Battle;
 using Rpg.Domain.Battle.Grid;
@@ -14,6 +15,7 @@ public sealed class BattleUnitFactory
 {
     private const string DefaultUnitEntityScenePath = "res://scenes/battle/entities/units/BattleUnitBase.tscn";
     private const string UnitDefinitionRootPath = "res://assets/battle/units";
+    private const string UnitDefinitionIndexPath = BattleUnitDefinitionIndexLoader.DefaultConfigPath;
     private static readonly Dictionary<string, BattleUnitDefinition> SharedDefinitions = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, string> SharedDefinitionPathIndex = new(StringComparer.Ordinal);
     private static readonly HashSet<string> SharedLoggedWarningKeys = new(StringComparer.Ordinal);
@@ -223,10 +225,42 @@ public sealed class BattleUnitFactory
         }
 
         SharedDefinitionPathIndexBuilt = true;
+        IndexConfiguredUnitDefinitions();
         IndexUnitDefinitionDirectory(UnitDefinitionRootPath);
         GameLog.Info(
             nameof(BattleUnitFactory),
             $"Indexed nested battle unit definitions root={UnitDefinitionRootPath} count={SharedDefinitionPathIndex.Count}");
+    }
+
+    private void IndexConfiguredUnitDefinitions()
+    {
+        IReadOnlyDictionary<string, string> configuredPaths;
+        try
+        {
+            configuredPaths = BattleUnitDefinitionIndexLoader.LoadPathIndex(UnitDefinitionIndexPath);
+        }
+        catch (Exception exception)
+        {
+            WarnOnce(
+                $"missing-configured-unit-index:{UnitDefinitionIndexPath}",
+                nameof(BattleUnitFactory),
+                $"Battle unit definition config index could not be loaded path={UnitDefinitionIndexPath} reason={exception.Message}");
+            return;
+        }
+
+        foreach ((string definitionId, string path) in configuredPaths)
+        {
+            if (SharedDefinitionPathIndex.ContainsKey(definitionId))
+            {
+                WarnOnce(
+                    $"duplicate-configured-definition:{definitionId}",
+                    nameof(BattleUnitFactory),
+                    $"Duplicate configured battle unit definition id={definitionId} ignoredPath={path} keptPath={SharedDefinitionPathIndex[definitionId]}");
+                continue;
+            }
+
+            SharedDefinitionPathIndex[definitionId] = path;
+        }
     }
 
     private void IndexUnitDefinitionDirectory(string directoryPath)
@@ -258,6 +292,11 @@ public sealed class BattleUnitFactory
 
         if (SharedDefinitionPathIndex.ContainsKey(definitionId))
         {
+            if (string.Equals(SharedDefinitionPathIndex[definitionId], path, StringComparison.Ordinal))
+            {
+                return;
+            }
+
             WarnOnce(
                 $"duplicate-indexed-definition:{definitionId}",
                 nameof(BattleUnitFactory),

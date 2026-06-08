@@ -1,0 +1,44 @@
+{
+  "sites": [
+	{
+	  "siteId": "player_camp",
+	  "initialGarrison": [
+		{
+		  "unitDefinitionId": "f1_grandmasterzir",
+		  "count": 1,
+		  "morale": 80
+		},
+		{
+		  "unitDefinitionId": "f1_windbladecommander",
+		  "count": 1,
+		  "morale": 80
+		},
+		{
+		  "unitDefinitionId": "f1_elyxstormblade",
+		  "count": 1,
+		  "morale": 80
+		}
+	  ]
+	},
+	{
+	  "siteId": "bonefield",
+	  "initialGarrison": [
+		{
+		  "unitDefinitionId": "f6_draugarlord",
+		  "count": 2,
+		  "morale": 35
+		},
+		{
+		  "unitDefinitionId": "f6_spiritwolf",
+		  "count": 2,
+		  "morale": 35
+		},
+		{
+		  "unitDefinitionId": "f4_skullcaster",
+		  "count": 2,
+		  "morale": 35
+		}
+	  ]
+	}
+  ]
+}

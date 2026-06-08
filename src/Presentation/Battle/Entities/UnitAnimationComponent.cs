@@ -20,7 +20,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
     public BattleUnitAnimationSet AnimationSet { get; set; }
 
     [Export(PropertyHint.Range, "0.1,4,0.05")]
-    public double AttackSpeed { get; set; } = 1.0;
+    public double AttackSpeed { get; set; } = BattleAttackSpeedPolicy.DefaultAttackSpeed;
 
     [Export(PropertyHint.Range, "-1,1,0.05")]
     public double AttackImpactNormalizedTimeOverride { get; set; } = -1.0;
@@ -621,7 +621,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return 1f;
         }
 
-        float minScale = AnimationSet?.MinBalancedSpeedScale ?? 1f;
+        float minScale = AnimationSet?.MinBalancedSpeedScale ?? 0.5f;
         float maxScale = AnimationSet?.MaxBalancedSpeedScale ?? 4.5f;
         if (maxScale < minScale)
         {
@@ -664,8 +664,8 @@ public partial class UnitAnimationComponent : BattleEntityComponent
     {
         double targetSeconds = cue switch
         {
-            "idle" => AnimationSet?.TargetIdleCycleSeconds ?? 1.2,
-            "move" => AnimationSet?.TargetMoveCycleSeconds ?? 0.5,
+            "idle" => AnimationSet?.TargetIdleCycleSeconds ?? 2.0,
+            "move" => AnimationSet?.TargetMoveCycleSeconds ?? 0.55,
             "attack" => AnimationSet?.TargetAttackSeconds ?? 1.2,
             "skill_cast" => AnimationSet?.TargetSkillCastSeconds ?? 0.9,
             "hit" => AnimationSet?.TargetHitSeconds ?? 0.48,

@@ -71,6 +71,8 @@ public sealed class WorldSiteBattleDeploymentPreparer
             failureReason = terrainResult.LastFailureReason;
         }
 
+        Func<WorldSiteUnitPlacement, Vector2I> placementFootprintResolver = BuildRequestPlacementFootprintResolver(request);
+
         foreach (BattleForceRequest force in request.PlayerForces ?? new List<BattleForceRequest>())
         {
             success &= EnsureResidentForceUsesDeploymentZone(
@@ -81,6 +83,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
                 definition,
                 deploymentCache,
                 canForceEnterWater,
+                placementFootprintResolver,
                 ref failureReason);
             success &= EnsureForceWorldSitePlacement(
                 request,
@@ -89,6 +92,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
                 site,
                 deploymentCache,
                 canForceEnterWater,
+                placementFootprintResolver,
                 ref failureReason);
         }
 
@@ -102,6 +106,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
                 definition,
                 deploymentCache,
                 canForceEnterWater,
+                placementFootprintResolver,
                 ref failureReason);
             success &= EnsureForceWorldSitePlacement(
                 request,
@@ -110,6 +115,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
                 site,
                 deploymentCache,
                 canForceEnterWater,
+                placementFootprintResolver,
                 ref failureReason);
         }
 
@@ -144,6 +150,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
         WorldSiteDefinition definition,
         WorldSiteRuntimeDeploymentCache deploymentCache,
         Func<BattleForceRequest, bool> canForceEnterWater,
+        Func<WorldSiteUnitPlacement, Vector2I> placementFootprintResolver,
         ref string failureReason)
     {
         if (force == null ||
@@ -193,7 +200,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
             .Select(placement => placement.PlacementId ?? "")
             .ToHashSet(StringComparer.Ordinal);
         HashSet<GridSurfacePosition> candidateSurfaces = WorldSiteDeploymentService.BuildDeploymentCandidateSurfaceSet(candidates);
-        HashSet<GridSurfacePosition> occupiedSurfaces = WorldSiteDeploymentService.BuildDeploymentAnchorOccupancy(site, placementIds);
+        HashSet<GridSurfacePosition> occupiedSurfaces = WorldSiteDeploymentService.BuildDeploymentAnchorOccupancy(site, placementIds, placementFootprintResolver);
         foreach (WorldSiteUnitPlacement placement in placements)
         {
             WorldSiteDeploymentCell selectedCell = new(new Vector2I(placement.CellX, placement.CellY), placement.CellHeight, "", false);
@@ -244,6 +251,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
         WorldSiteState site,
         WorldSiteRuntimeDeploymentCache deploymentCache,
         Func<BattleForceRequest, bool> canForceEnterWater,
+        Func<WorldSiteUnitPlacement, Vector2I> placementFootprintResolver,
         ref string failureReason)
     {
         if (force == null || force.Count <= 0 || IsResidentWorldSiteForceForSite(force, site))
@@ -277,6 +285,7 @@ public sealed class WorldSiteBattleDeploymentPreparer
                 deploymentDirection,
                 candidates,
                 entranceId,
+                placementFootprintResolver,
                 out string forceFailureReason))
         {
             failureReason = forceFailureReason;
@@ -394,6 +403,46 @@ public sealed class WorldSiteBattleDeploymentPreparer
             placement.UnitTypeId == force.UnitDefinitionId &&
             placement.SourceKind == sourceKind &&
             placement.SourceId == sourceId);
+    }
+
+    private static Func<WorldSiteUnitPlacement, Vector2I> BuildRequestPlacementFootprintResolver(BattleStartRequest request)
+    {
+        Dictionary<string, Vector2I> footprintsByUnit = new(StringComparer.Ordinal);
+        IEnumerable<BattleForceRequest> forces = (request?.PlayerForces ?? new List<BattleForceRequest>())
+            .Concat(request?.EnemyForces ?? new List<BattleForceRequest>());
+        foreach (BattleForceRequest force in forces)
+        {
+            if (string.IsNullOrWhiteSpace(force?.UnitDefinitionId))
+            {
+                continue;
+            }
+
+            Vector2I footprint = new(
+                BattleFootprintCells.NormalizeSize(force.FootprintWidth),
+                BattleFootprintCells.NormalizeSize(force.FootprintHeight));
+            if (footprintsByUnit.TryGetValue(force.UnitDefinitionId, out Vector2I existing))
+            {
+                // Unit definition ids should have a single footprint. If bad data disagrees,
+                // reserve the larger footprint so automatic deployment never overlaps actors.
+                footprintsByUnit[force.UnitDefinitionId] = new Vector2I(
+                    Math.Max(existing.X, footprint.X),
+                    Math.Max(existing.Y, footprint.Y));
+                continue;
+            }
+
+            footprintsByUnit[force.UnitDefinitionId] = footprint;
+        }
+
+        return placement =>
+        {
+            if (placement != null &&
+                footprintsByUnit.TryGetValue(placement.UnitTypeId ?? "", out Vector2I footprint))
+            {
+                return footprint;
+            }
+
+            return Vector2I.One;
+        };
     }
 
     private static bool IsResidentGarrisonForceForSite(BattleForceRequest force, string siteId)

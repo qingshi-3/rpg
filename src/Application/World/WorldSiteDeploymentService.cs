@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -174,6 +175,27 @@ public sealed class WorldSiteDeploymentService
         string preferredEntranceId,
         out string failureReason)
     {
+        return EnsureBattlePlacementsForForce(
+            site,
+            force,
+            placementKind,
+            direction,
+            candidates,
+            preferredEntranceId,
+            null,
+            out failureReason);
+    }
+
+    public bool EnsureBattlePlacementsForForce(
+        WorldSiteState site,
+        BattleForceRequest force,
+        WorldSiteUnitPlacementKind placementKind,
+        WorldSiteAttackDirection direction,
+        IReadOnlyList<WorldSiteDeploymentCell> candidates,
+        string preferredEntranceId,
+        Func<WorldSiteUnitPlacement, Vector2I> occupiedFootprintResolver,
+        out string failureReason)
+    {
         failureReason = "";
         if (site == null || force == null || string.IsNullOrWhiteSpace(force.UnitDefinitionId))
         {
@@ -205,7 +227,7 @@ public sealed class WorldSiteDeploymentService
         // outside authored deployment-zone candidates.
         HashSet<string> forcePlacementIds = BuildExpectedBattlePlacementIds(sourceKind, sourceId, force.UnitDefinitionId, force.Count);
         HashSet<GridSurfacePosition> candidateSurfaces = BuildDeploymentCandidateSurfaceSet(candidates);
-        HashSet<GridSurfacePosition> occupiedSurfaces = BuildDeploymentAnchorOccupancy(site, forcePlacementIds);
+        HashSet<GridSurfacePosition> occupiedSurfaces = BuildDeploymentAnchorOccupancy(site, forcePlacementIds, occupiedFootprintResolver);
         int created = 0;
 
         for (int index = 1; index <= force.Count; index++)
@@ -524,6 +546,14 @@ public sealed class WorldSiteDeploymentService
         WorldSiteState site,
         ISet<string> ignoredPlacementIds)
     {
+        return BuildDeploymentAnchorOccupancy(site, ignoredPlacementIds, null);
+    }
+
+    internal static HashSet<GridSurfacePosition> BuildDeploymentAnchorOccupancy(
+        WorldSiteState site,
+        ISet<string> ignoredPlacementIds,
+        Func<WorldSiteUnitPlacement, Vector2I> footprintResolver)
+    {
         HashSet<GridSurfacePosition> occupied = new();
         foreach (WorldSiteUnitPlacement placement in site?.UnitPlacements ?? Enumerable.Empty<WorldSiteUnitPlacement>())
         {
@@ -532,7 +562,17 @@ public sealed class WorldSiteDeploymentService
                 continue;
             }
 
-            occupied.Add(new GridSurfacePosition(placement.CellX, placement.CellY, placement.CellHeight));
+            Vector2I footprintSize = footprintResolver?.Invoke(placement) ?? Vector2I.One;
+            WorldSiteDeploymentCell occupiedAnchor = new(
+                new Vector2I(placement.CellX, placement.CellY),
+                placement.CellHeight,
+                "",
+                false);
+            ReserveDeploymentFootprint(
+                occupiedAnchor,
+                BattleFootprintCells.NormalizeSize(footprintSize.X),
+                BattleFootprintCells.NormalizeSize(footprintSize.Y),
+                occupied);
         }
 
         return occupied;

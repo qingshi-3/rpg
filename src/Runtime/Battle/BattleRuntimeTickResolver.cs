@@ -52,12 +52,17 @@ internal sealed partial class BattleRuntimeTickResolver
 
         // Player skill commands submitted while tactical pause is active are queued
         // here so pause-time input never mutates combat state until Runtime advances.
-        BattleRuntimeHeroSkillCommandResolver.ResolvePending(
+        HashSet<string> skillWaitingAfterMovementActorIds = new(System.StringComparer.Ordinal);
+        HashSet<string> skillActionActorIds = BattleRuntimeHeroSkillCommandResolver.ResolvePending(
             state,
             stream,
             battleId,
             tick,
-            currentTimeSeconds);
+            currentTimeSeconds,
+            movementCompletedActorIds,
+            skillWaitingAfterMovementActorIds);
+        HashSet<string> skillConsumedActorIds = new(skillActionActorIds, System.StringComparer.Ordinal);
+        skillConsumedActorIds.UnionWith(skillWaitingAfterMovementActorIds);
 
         BattleRuntimeActor[] livingCorps = BattleTacticalObservationUpdater.RefreshAtTickStart(state, stream, battleId, tick, currentTimeSeconds);
         if (livingCorps.Length == 0)
@@ -70,7 +75,8 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleFlowFieldCache flowFields = new(performanceCounters);
         BattleRuntimeActor[] decisionReadyCorps = livingCorps
             .Where(item => item.Phase == BattleRuntimeActorPhase.AnchoredDecision &&
-                           !movementCompletedActorIds.Contains(item.ActorId ?? ""))
+                           !movementCompletedActorIds.Contains(item.ActorId ?? "") &&
+                           !skillConsumedActorIds.Contains(item.ActorId ?? ""))
             .ToArray();
         performanceCounters?.RecordDecisionReadyActors(decisionReadyCorps.Length);
 
@@ -91,8 +97,11 @@ internal sealed partial class BattleRuntimeTickResolver
                 state.CombatZones))
             .ToList();
         ApplyDecisionOutcomes(contexts, stream, battleId, tick, currentTimeSeconds);
+        HashSet<string> continuationEligibleMovementCompletedActorIds = movementCompletedActorIds
+            .Where(actorId => !skillConsumedActorIds.Contains(actorId ?? ""))
+            .ToHashSet(System.StringComparer.Ordinal);
         contexts.AddRange(BattleMovementContinuationPlanner.BuildContinuationContexts(
-            movementCompletedActorIds,
+            continuationEligibleMovementCompletedActorIds,
             tickStartFacts,
             navigationGraph,
             occupancy,
