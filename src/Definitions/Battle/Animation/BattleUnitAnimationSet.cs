@@ -54,7 +54,9 @@ public partial class BattleUnitAnimationSet : Resource
     public double TargetAttackSeconds { get; set; } = 1.2;
 
     [Export]
-    public double TargetSkillCastSeconds { get; set; } = 0.9;
+    // Skill casts should read as deliberate releases; the default is slightly
+    // slower than a first-slice normal attack after attack-speed scaling.
+    public double TargetSkillCastSeconds { get; set; } = 1.5;
 
     [Export]
     public double TargetHitSeconds { get; set; } = 0.48;

@@ -60,6 +60,38 @@ public partial class WorldSiteRoot
         await ObserveRuntimeDamageEventCoreAsync(runtimeEvent, entitiesByRuntimeActor);
     }
 
+    private async Task ObserveRuntimeSkillUsedEventAsync(
+        BattleEvent runtimeEvent,
+        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
+    {
+        await ObserveRuntimeSkillUsedEventCoreAsync(runtimeEvent, entitiesByRuntimeActor);
+    }
+
+    private async Task<double> ObserveRuntimeSkillUsedEventCoreAsync(
+        BattleEvent runtimeEvent,
+        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
+    {
+        if (_unitRoot == null ||
+            runtimeEvent == null ||
+            entitiesByRuntimeActor == null ||
+            !entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out BattleEntity actor))
+        {
+            return 0;
+        }
+
+        entitiesByRuntimeActor.TryGetValue(runtimeEvent.TargetId ?? "", out BattleEntity target);
+        double castAnimationSeconds = _unitRoot.PlaySkillCastPresentation(
+            actor,
+            target,
+            runtimeEvent.ActionDurationSeconds);
+        double runtimeActionSeconds = runtimeEvent.ActionDurationSeconds > 0
+            ? runtimeEvent.ActionDurationSeconds
+            : castAnimationSeconds;
+        double castPresentationSeconds = System.Math.Max(0.42, runtimeActionSeconds);
+        await WaitSiteBattlePresentationSeconds(castPresentationSeconds);
+        return castPresentationSeconds;
+    }
+
     private async Task<double> ObserveRuntimeDamageEventCoreAsync(
         BattleEvent runtimeEvent,
         IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
@@ -87,13 +119,16 @@ public partial class WorldSiteRoot
             previewDefeated,
             runtimeEvent.SourceCommandId,
             runtimeEvent.SourceActionId,
-            runtimeEvent.SourceDefinitionId,
-            runtimeEvent.EffectKind);
-        double attackAnimationSeconds = _unitRoot.PlayActionResultAnimation(BuildRuntimeDamageActionResult(
-            runtimeEvent,
-            actor,
-            target,
-            damageEvent));
+                runtimeEvent.SourceDefinitionId,
+                runtimeEvent.EffectKind);
+        bool isSkillDamage = IsRuntimeSkillDamageEvent(runtimeEvent);
+        double attackAnimationSeconds = isSkillDamage
+            ? _unitRoot.PlayRuntimeDamageFeedback(actor, damageEvents: new[] { damageEvent }, playSkillImpactFx: true)
+            : _unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded(
+                actor,
+                target,
+                new[] { damageEvent },
+                runtimeEvent?.ReasonCode ?? ""));
 
         // Runtime remains authoritative for outcome, but presentation health and
         // defeat feedback must land at attack impact, not at attack start.
@@ -103,7 +138,8 @@ public partial class WorldSiteRoot
             health,
             damage,
             attackAnimationSeconds,
-            runtimeEvent.ActionImpactDelaySeconds);
+            runtimeEvent.ActionImpactDelaySeconds,
+            fallbackToActorAttackImpactDelay: !isSkillDamage);
 
         // Runtime events are semantic combat facts. Live presentation waits for
         // this actor's own attack task in the background, without blocking the
@@ -116,18 +152,6 @@ public partial class WorldSiteRoot
         await impactDamageTask;
         await attackPresentationTask;
         return attackPresentationSeconds;
-    }
-
-    private static BattleActionResult BuildRuntimeDamageActionResult(
-        BattleEvent runtimeEvent,
-        BattleEntity actor,
-        BattleEntity target,
-        BattleDamageEvent damageEvent)
-    {
-        BattleDamageEvent[] damageEvents = { damageEvent };
-        return IsRuntimeSkillDamageEvent(runtimeEvent)
-            ? BattleActionResult.AbilitySucceeded(actor, target, null, damageEvents, runtimeEvent?.ReasonCode ?? "")
-            : BattleActionResult.AttackSucceeded(actor, target, damageEvents, runtimeEvent?.ReasonCode ?? "");
     }
 
     private static bool IsRuntimeSkillDamageEvent(BattleEvent runtimeEvent)
@@ -144,7 +168,8 @@ public partial class WorldSiteRoot
         HealthComponent health,
         int damage,
         double attackAnimationSeconds,
-        double runtimeImpactDelaySeconds)
+        double runtimeImpactDelaySeconds,
+        bool fallbackToActorAttackImpactDelay = true)
     {
         if (health == null || damage <= 0)
         {
@@ -154,7 +179,9 @@ public partial class WorldSiteRoot
         UnitAnimationComponent actorAnimation = actor.GetComponent<UnitAnimationComponent>();
         double impactDelaySeconds = runtimeImpactDelaySeconds > 0
             ? runtimeImpactDelaySeconds
-            : System.Math.Max(0, actorAnimation?.ResolveAttackImpactDelaySeconds() ?? 0);
+            : fallbackToActorAttackImpactDelay
+                ? System.Math.Max(0, actorAnimation?.ResolveAttackImpactDelaySeconds() ?? 0)
+                : 0;
         double clampedImpactDelaySeconds = System.Math.Min(impactDelaySeconds, System.Math.Max(0, attackAnimationSeconds));
         if (clampedImpactDelaySeconds > 0)
         {

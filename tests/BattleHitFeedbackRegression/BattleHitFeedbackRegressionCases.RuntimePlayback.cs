@@ -98,6 +98,33 @@ internal static void BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits()
         "same-actor visual tail waiting must not delay enqueueing the next runtime movement event into the actor lane");
 }
 
+internal static void BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue()
+{
+    string incremental = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
+
+    AssertTrue(
+        incremental.Contains("BattleEventKind.SkillUsed", StringComparison.Ordinal) &&
+        incremental.Contains("ObserveRuntimeSkillUsedEventAsync", StringComparison.Ordinal) &&
+        incremental.Contains("TrackActorAction(", StringComparison.Ordinal),
+        "live runtime observation should consume SkillUsed as the caster-side cast cue on the actor action tail");
+    AssertTrue(
+        playback.Contains("ObserveRuntimeSkillUsedEventAsync", StringComparison.Ordinal) &&
+        unitRoot.Contains("public double PlaySkillCastPresentation(", StringComparison.Ordinal),
+        "runtime SkillUsed playback should call a dedicated caster-side skill presentation entry point");
+}
+
+internal static void RuntimeSkillDamageDoesNotReplayCasterCast()
+{
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+
+    AssertTrue(
+        playback.Contains("PlayRuntimeDamageFeedback(", StringComparison.Ordinal) &&
+        !playback.Contains("BattleActionResult.AbilitySucceeded", StringComparison.Ordinal),
+        "runtime skill damage should keep target impact and damage feedback without replaying the caster skill-cast animation");
+}
+
 internal static void BattleRuntimeVisualMovementKeepsRuntimeActionDuration()
 {
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
@@ -244,10 +271,7 @@ internal static void BattleRuntimeRegistersGodotPerformanceMonitors()
 
 internal static void BattleRuntimePlaybackDelaysDamageUntilSameTickTargetMovementSettles()
 {
-    string runtime = string.Join("\n", Directory
-        .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
-        .OrderBy(path => path, StringComparer.Ordinal)
-        .Select(File.ReadAllText));
+    string runtime = ReadBattleRuntimePresentationSource();
     AssertTrue(
         runtime.Contains("TrackActorDamage", StringComparison.Ordinal) &&
         runtime.Contains("_actorMovementTails", StringComparison.Ordinal) &&
@@ -271,10 +295,7 @@ internal static void BattleRuntimeLiveObservationWaitsForSameTickMovementBeforeD
 
 internal static void RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAttackBacklog()
 {
-    string runtime = string.Join("\n", Directory
-        .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
-        .OrderBy(path => path, StringComparer.Ordinal)
-        .Select(File.ReadAllText));
+    string runtime = ReadBattleRuntimePresentationSource();
     AssertTrue(
         runtime.Contains("_actorMovementTails.TryGetValue(targetId", StringComparison.Ordinal) &&
         !runtime.Contains("ResolveSameTickMovementDelaySeconds", StringComparison.Ordinal) &&

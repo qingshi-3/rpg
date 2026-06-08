@@ -364,7 +364,7 @@ internal static void BattleRuntimePlaybackKeepsMoveLoopAcrossConsecutiveMoveStep
 internal static void BattleRuntimePlaybackWaitsForAttackAnimationDuration()
 {
     string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
-    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
     string runtime = string.Join("\n", Directory
         .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
         .OrderBy(path => path, StringComparer.Ordinal)
@@ -375,7 +375,7 @@ internal static void BattleRuntimePlaybackWaitsForAttackAnimationDuration()
         unitRoot.Contains("ResolveAttackDurationSeconds()", StringComparison.Ordinal),
         "battle action presentation should expose the resolved attack animation duration to the runtime event observer");
     AssertTrue(
-        playback.Contains("double attackAnimationSeconds = _unitRoot.PlayActionResultAnimation", StringComparison.Ordinal) &&
+        playback.Contains("_unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded", StringComparison.Ordinal) &&
         playback.Contains("double runtimeActionSeconds = runtimeEvent.ActionDurationSeconds", StringComparison.Ordinal) &&
         playback.Contains("double attackPresentationSeconds = System.Math.Max(0.42, runtimeActionSeconds)", StringComparison.Ordinal) &&
         playback.Contains("Task attackPresentationTask = WaitSiteBattlePresentationSeconds(attackPresentationSeconds)", StringComparison.Ordinal) &&
@@ -420,7 +420,7 @@ internal static void BattleRuntimeTacticalPauseFreezesSceneTreeAndKeepsCommandUi
 internal static void BattleRuntimeTacticalPauseFreezesUnitPresentationWithoutReplay()
 {
     string root = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
-    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
     string animation = string.Join("\n", Directory
         .GetFiles(Path.Combine("src", "Presentation", "Battle", "Entities"), "UnitAnimationComponent*.cs")
         .OrderBy(path => path, StringComparer.Ordinal)
@@ -563,10 +563,12 @@ internal static void SkillTargetPreviewUsesUnitFocusAndFootprintLockRing()
 
     AssertTrue(
         overlay.Contains("AddTargetLockRing", StringComparison.Ordinal) &&
-        overlay.Contains("BuildTargetLockRingPoints", StringComparison.Ordinal) &&
+        overlay.Contains("BuildTargetLockFramePolygon", StringComparison.Ordinal) &&
+        overlay.Contains("BuildHoverFramePolygon(cells)", StringComparison.Ordinal) &&
+        !overlay.Contains("TargetLockVerticalScale", StringComparison.Ordinal) &&
         overlay.Contains("TargetLockRingColor", StringComparison.Ordinal) &&
         overlay.Contains("TargetLockGlowWidth", StringComparison.Ordinal),
-        "skill target cells should render as one footprint lock ring rather than per-cell arrows or filled diamonds");
+        "skill target cells should render on the same footprint frame as unit hover rather than an offset ellipse");
     AssertTrue(
         !overlay.Contains("AddTargetPointer", StringComparison.Ordinal) &&
         !overlay.Contains("ShowTargetPointers", StringComparison.Ordinal) &&
@@ -589,16 +591,21 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
 {
     string animationSet = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Animation", "BattleUnitAnimationSet.cs"));
     string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
-    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
     string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
     string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));
     string fxComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleSkillCastFxComponent.cs"));
     string fxScene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "fx", "BattleSkillCastFx.tscn"));
+    string impactFxComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleSkillImpactFxComponent.cs"));
+    string impactFxScript = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleSkillImpactFx.cs"));
+    string impactFxScene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "fx", "BattleSkillImpactFx.tscn"));
+    string impactFeedback = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Feedback", "BattleSkillImpactFeedbackPlayer.cs"));
 
     AssertTrue(
         animationSet.Contains("public string SkillCastAnimation { get; set; } = \"skill_cast\";", StringComparison.Ordinal) &&
-        animationSet.Contains("public double TargetSkillCastSeconds { get; set; } = 0.9;", StringComparison.Ordinal),
-        "unit animation resources should expose an optional authored skill-cast cue");
+        animationSet.Contains("public double TargetSkillCastSeconds { get; set; } = 1.5;", StringComparison.Ordinal) &&
+        animationComponent.Contains("\"skill_cast\" => AnimationSet?.TargetSkillCastSeconds ?? 1.5", StringComparison.Ordinal),
+        "unit animation resources should expose an optional authored skill-cast cue paced slightly slower than default attacks");
     AssertTrue(
         animationComponent.Contains("public bool PlaySkillCast()", StringComparison.Ordinal) &&
         animationComponent.Contains("public double ResolveSkillCastDurationSeconds()", StringComparison.Ordinal) &&
@@ -611,6 +618,10 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
         scene.Contains("[node name=\"BattleSkillCastFxComponent\" type=\"Node\" parent=\".\"]", StringComparison.Ordinal),
         "battle unit base should carry a reusable skill cast FX component");
     AssertTrue(
+        scene.Contains("BattleSkillImpactFxComponent.cs", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"BattleSkillImpactFxComponent\" type=\"Node\" parent=\".\"]", StringComparison.Ordinal),
+        "battle unit base should carry a reusable target-side skill impact FX component");
+    AssertTrue(
         fxComponent.Contains("DefaultSkillCastFxScenePath", StringComparison.Ordinal) &&
         fxComponent.Contains("PlaySkillCastFx", StringComparison.Ordinal) &&
         fxComponent.Contains("BattleSkillCastFx.tscn", StringComparison.Ordinal),
@@ -619,6 +630,18 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
         fxScene.Contains("CPUParticles2D", StringComparison.Ordinal) &&
         fxScene.Contains("BattleSkillCastFx.cs", StringComparison.Ordinal),
         "fallback skill cast FX should use an authored particle scene instead of hardcoded runtime drawing");
+    AssertTrue(
+        impactFxComponent.Contains("DefaultSkillImpactFxScenePath", StringComparison.Ordinal) &&
+        impactFxComponent.Contains("PlaySkillImpactFx", StringComparison.Ordinal) &&
+        impactFxComponent.Contains("BattleSkillImpactFx.tscn", StringComparison.Ordinal) &&
+        impactFxScene.Contains("res://assets/battle/abilities/fx/duelyst/damage/fx_impact2/frames.tres", StringComparison.Ordinal) &&
+        impactFxScript.Contains("AnimationFinished", StringComparison.Ordinal),
+        "target-side skill impact FX should be an authored animated SpriteFrames scene that frees itself after the hit animation");
+    AssertTrue(
+        impactFeedback.Contains("public static void PlaySkillImpacts", StringComparison.Ordinal) &&
+        impactFeedback.Contains("DamageApplied > 0", StringComparison.Ordinal) &&
+        impactFeedback.Contains("damage.Target.GetComponent<BattleSkillImpactFxComponent>()?.PlaySkillImpactFx", StringComparison.Ordinal),
+        "target-side skill impact feedback should play only for applied skill damage on valid targets");
     AssertTrue(
         fxScene.Contains("[node name=\"GroundEllipse\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal) &&
         fxScene.Contains("[node name=\"InnerEllipse\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal) &&
@@ -656,12 +679,14 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
         !skillCastFallback.Contains("\"position\"", StringComparison.Ordinal),
         "procedural skill cast fallback should keep the unit anchored; release motion belongs to the FX, not the unit body");
     AssertTrue(
-        unitRoot.Contains("if (result.Kind == BattleActionKind.Ability)", StringComparison.Ordinal) &&
+        unitRoot.Contains("public double PlaySkillCastPresentation(", StringComparison.Ordinal) &&
         unitRoot.Contains("StopEntityMovement(actor, snapToLogicalGrid: true)", StringComparison.Ordinal) &&
         unitRoot.Contains("actorAnimation?.PlaySkillCast()", StringComparison.Ordinal) &&
         unitRoot.Contains("actor.GetComponent<BattleSkillCastFxComponent>()?.PlaySkillCastFx", StringComparison.Ordinal) &&
+        unitRoot.Contains("public double PlayRuntimeDamageFeedback(", StringComparison.Ordinal) &&
+        unitRoot.Contains("BattleSkillImpactFeedbackPlayer.PlaySkillImpacts(damageEvents, playSkillImpactFx)", StringComparison.Ordinal) &&
         unitRoot.Contains("actorAnimation?.PlayAttack()", StringComparison.Ordinal),
-        "ability presentation should stop caster movement before playing skill cast animation and FX while basic attacks keep their attack cue");
+        "SkillUsed presentation should stop caster movement before playing skill cast animation and caster FX while damage events keep target impact FX");
     AssertTrue(
         unitRoot.Contains("private void StopEntityMovement(BattleEntity entity, bool snapToLogicalGrid)", StringComparison.Ordinal) &&
         unitRoot.Contains("_movementLanes.Remove(entity)", StringComparison.Ordinal) &&
@@ -669,10 +694,12 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
         unitRoot.Contains("TryResolveMovementGlobalPosition(gridOccupant, gridOccupant.SurfacePosition", StringComparison.Ordinal),
         "movement lane cancellation should clear queued movement and optionally sync the unit visual to its authoritative grid position");
     AssertTrue(
-        playback.Contains("BuildRuntimeDamageActionResult(", StringComparison.Ordinal) &&
+        playback.Contains("ObserveRuntimeSkillUsedEventAsync", StringComparison.Ordinal) &&
+        playback.Contains("_unitRoot.PlaySkillCastPresentation", StringComparison.Ordinal) &&
+        playback.Contains("PlayRuntimeDamageFeedback", StringComparison.Ordinal) &&
         playback.Contains("IsRuntimeSkillDamageEvent(runtimeEvent)", StringComparison.Ordinal) &&
-        playback.Contains("BattleActionResult.AbilitySucceeded", StringComparison.Ordinal),
-        "runtime damage playback should preserve skill-source events as ability presentation instead of always building attack presentation");
+        !playback.Contains("BattleActionResult.AbilitySucceeded", StringComparison.Ordinal),
+        "runtime playback should let SkillUsed own caster presentation while skill damage only plays target-side impact feedback");
 }
 
 internal static void RealtimeDamageReactionDoesNotPlayHitAnimation()

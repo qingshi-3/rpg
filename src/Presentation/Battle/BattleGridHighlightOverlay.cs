@@ -158,12 +158,6 @@ public partial class BattleGridHighlightOverlay : Node2D
     [Export(PropertyHint.Range, "2,28,0.5")]
     public float TargetLockGlowWidth { get; set; } = 8.5f;
 
-    [Export(PropertyHint.Range, "0,0.45,0.01")]
-    public float TargetLockPaddingRatio { get; set; } = 0.12f;
-
-    [Export(PropertyHint.Range, "0.2,0.8,0.01")]
-    public float TargetLockVerticalScale { get; set; } = 0.38f;
-
     [ExportGroup("Path Arrows")]
 
     [Export]
@@ -718,8 +712,8 @@ public partial class BattleGridHighlightOverlay : Node2D
             return;
         }
 
-        Vector2[] ringPoints = BuildTargetLockRingPoints(cells);
-        if (ringPoints.Length < 8)
+        Vector2[] ringPoints = BuildTargetLockFramePolygon(cells);
+        if (ringPoints.Length < 4)
         {
             return;
         }
@@ -748,37 +742,11 @@ public partial class BattleGridHighlightOverlay : Node2D
         ApplyDynamicRangeStyle(ring, BattleGridHighlightKind.Target);
     }
 
-    private Vector2[] BuildTargetLockRingPoints(HashSet<GridPosition> cells)
+    private Vector2[] BuildTargetLockFramePolygon(HashSet<GridPosition> cells)
     {
-        GridPosition[] targetCells = cells?.Distinct().ToArray() ?? System.Array.Empty<GridPosition>();
-        if (targetCells.Length == 0)
-        {
-            return System.Array.Empty<Vector2>();
-        }
-
-        int minX = targetCells.Min(cell => cell.X);
-        int maxX = targetCells.Max(cell => cell.X);
-        int minY = targetCells.Min(cell => cell.Y);
-        int maxY = targetCells.Max(cell => cell.Y);
-        Vector2[] footprintPolygon = BuildCellBlockPolygon(minX, minY, maxX, maxY);
-        float left = footprintPolygon.Min(point => point.X);
-        float right = footprintPolygon.Max(point => point.X);
-        float top = footprintPolygon.Min(point => point.Y);
-        float bottom = footprintPolygon.Max(point => point.Y);
-        Vector2 center = new((left + right) * 0.5f, (top + bottom) * 0.5f);
-        float padding = Mathf.Min(right - left, bottom - top) * Mathf.Clamp(TargetLockPaddingRatio, 0f, 0.45f);
-        float radiusX = Mathf.Max(6f, (right - left) * 0.5f + padding);
-        float radiusY = Mathf.Max(4f, (bottom - top) * Mathf.Clamp(TargetLockVerticalScale, 0.2f, 0.8f));
-
-        const int PointCount = 48;
-        Vector2[] points = new Vector2[PointCount];
-        for (int index = 0; index < PointCount; index++)
-        {
-            float angle = Mathf.Tau * index / PointCount;
-            points[index] = center + new Vector2(Mathf.Cos(angle) * radiusX, Mathf.Sin(angle) * radiusY);
-        }
-
-        return points;
+        // Skill target selection must share hover's footprint geometry so the
+        // selectable target hint matches the unit under the cursor exactly.
+        return BuildHoverFramePolygon(cells);
     }
 
     private void AddPathArrows()

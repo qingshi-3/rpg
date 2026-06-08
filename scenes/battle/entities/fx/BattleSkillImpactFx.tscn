@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleSkillImpactFx.cs" id="1_fx"]
+[ext_resource type="SpriteFrames" path="res://assets/battle/abilities/fx/duelyst/damage/fx_impact2/frames.tres" id="2_frames"]
+
+[node name="BattleSkillImpactFx" type="Node2D"]
+z_index = 150
+script = ExtResource("1_fx")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -4)
+scale = Vector2(1.55, 1.55)
+sprite_frames = ExtResource("2_frames")
+animation = &"fx_impactbrightwhitemedium"
+autoplay = "fx_impactbrightwhitemedium"

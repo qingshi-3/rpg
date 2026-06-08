@@ -65,6 +65,8 @@ BattleHitFeedbackRegressionCases.Run("battle runtime playback does not globally 
 BattleHitFeedbackRegressionCases.Run("battle runtime playback plans move idle only at sequence boundary", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement uses actor motion lane", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementUsesActorMotionLane);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement queues before actor visual tail waits", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits);
+BattleHitFeedbackRegressionCases.Run("battle runtime live observation consumes SkillUsed as cast cue", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue);
+BattleHitFeedbackRegressionCases.Run("runtime skill damage does not replay caster cast", BattleHitFeedbackRegressionCases.RuntimeSkillDamageDoesNotReplayCasterCast);
 BattleHitFeedbackRegressionCases.Run("battle runtime visual movement keeps runtime action duration", BattleHitFeedbackRegressionCases.BattleRuntimeVisualMovementKeepsRuntimeActionDuration);
 BattleHitFeedbackRegressionCases.Run("battle runtime movement playback does not use lookahead correction path", BattleHitFeedbackRegressionCases.BattleRuntimeMovementPlaybackDoesNotUseLookaheadCorrectionPath);
 BattleHitFeedbackRegressionCases.Run("battle presentation timeline separates movement completion from action backlog", BattleHitFeedbackRegressionCases.BattlePresentationTimelineSeparatesMovementCompletionFromActionBacklog);

@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3 uid="uid://ok1ty7de481t"]
+[gd_scene load_steps=20 format=3 uid="uid://ok1ty7de481t"]
 
 [ext_resource type="Script" uid="uid://kmyn63t5vy7" path="res://src/Presentation/Battle/Entities/BattleEntity.cs" id="1_entity"]
 [ext_resource type="Script" uid="uid://cxx2u5hct0pql" path="res://src/Presentation/Battle/Entities/FactionComponent.cs" id="2_faction"]
@@ -18,6 +18,7 @@
 [ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleUnitHealthBarComponent.cs" id="17_health_bar"]
 [ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleUnitOverlayAnchorComponent.cs" id="18_overlay_anchor"]
 [ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleSkillCastFxComponent.cs" id="19_skill_cast_fx"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleSkillImpactFxComponent.cs" id="20_skill_impact_fx"]
 
 [node name="BattleEntity" type="Node2D"]
 script = ExtResource("1_entity")
@@ -109,6 +110,9 @@ script = ExtResource("16_audio")
 
 [node name="BattleSkillCastFxComponent" type="Node" parent="."]
 script = ExtResource("19_skill_cast_fx")
+
+[node name="BattleSkillImpactFxComponent" type="Node" parent="."]
+script = ExtResource("20_skill_impact_fx")
 
 [node name="BattleUnitPresentationComponent" type="Node" parent="."]
 script = ExtResource("14_presentation")

@@ -67,6 +67,26 @@ internal static string ReadWorldSiteRootSource()
     return string.Join("\n", Directory.GetFiles(dir, "WorldSiteRoot*.cs").OrderBy(path => path).Select(File.ReadAllText));
 }
 
+internal static string ReadBattleRuntimePresentationSource()
+{
+    string dir = Path.Combine("src", "Presentation", "World", "Sites");
+    string[] files = Directory.GetFiles(dir, "WorldSiteRoot.BattleRuntime*.cs")
+        .Append(Path.Combine(dir, "BattleRuntimeLivePresentationState.cs"))
+        .Where(File.Exists)
+        .OrderBy(path => path, StringComparer.Ordinal)
+        .ToArray();
+    return string.Join("\n", files.Select(File.ReadAllText));
+}
+
+internal static string ReadBattleUnitRootSource()
+{
+    string dir = Path.Combine("src", "Presentation", "Battle", "Entities");
+    return string.Join("\n", Directory
+        .GetFiles(dir, "BattleUnitRoot*.cs")
+        .OrderBy(path => path, StringComparer.Ordinal)
+        .Select(File.ReadAllText));
+}
+
 internal static string ExtractMethodBlock(string source, string methodSignature)
 {
     int signatureIndex = source.IndexOf(methodSignature, StringComparison.Ordinal);

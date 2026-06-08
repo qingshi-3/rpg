@@ -667,7 +667,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             "idle" => AnimationSet?.TargetIdleCycleSeconds ?? 2.0,
             "move" => AnimationSet?.TargetMoveCycleSeconds ?? 0.55,
             "attack" => AnimationSet?.TargetAttackSeconds ?? 1.2,
-            "skill_cast" => AnimationSet?.TargetSkillCastSeconds ?? 0.9,
+            "skill_cast" => AnimationSet?.TargetSkillCastSeconds ?? 1.5,
             "hit" => AnimationSet?.TargetHitSeconds ?? 0.48,
             "defeated" => AnimationSet?.TargetDefeatedSeconds ?? 0.4,
             _ => 0

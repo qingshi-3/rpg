@@ -12,9 +12,7 @@ using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Intents;
 using Rpg.Presentation.Battle.Rules;
 using Rpg.Presentation.Common;
-
 namespace Rpg.Presentation.Battle.Entities;
-
 public delegate bool TryResolveCellGlobalPosition(GridPosition position, out Vector2 globalPosition);
 public delegate bool TryResolveFootprintGlobalPosition(GridPosition anchor, Vector2I footprintSize, out Vector2 globalPosition);
 public delegate void ApplyEntityRenderSort(BattleEntity entity, GridSurfacePosition surfacePosition);
@@ -293,9 +291,8 @@ public partial class BattleUnitRoot : Node2D
             actionDurationSeconds = actorAnimation?.ResolveAttackDurationSeconds() ?? 0;
             actorAnimation?.PlayAttack();
         }
-
         actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Attack);
-        _ = PlayHitFeedbackAsync(actor, damageEvents, hitTargets);
+        _ = PlayHitFeedbackAsync(actor, damageEvents, hitTargets, result.Kind == BattleActionKind.Ability);
         return actionDurationSeconds;
     }
 
@@ -391,13 +388,16 @@ public partial class BattleUnitRoot : Node2D
     private async Task PlayHitFeedbackAsync(
         BattleEntity actor,
         IReadOnlyList<BattleDamageEvent> damageEvents,
-        IReadOnlyList<BattleEntity> outlinedTargets)
+        IReadOnlyList<BattleEntity> outlinedTargets,
+        bool playSkillImpactFx,
+        double? impactDelaySecondsOverride = null)
     {
         UnitAnimationComponent actorAnimation = actor?.GetComponent<UnitAnimationComponent>();
-        double impactDelaySeconds = actorAnimation?.ResolveAttackImpactDelaySeconds() ?? 0;
+        double impactDelaySeconds = impactDelaySecondsOverride ?? actorAnimation?.ResolveAttackImpactDelaySeconds() ?? 0;
 
         await WaitSeconds(impactDelaySeconds);
         actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.AttackImpact);
+        BattleSkillImpactFeedbackPlayer.PlaySkillImpacts(damageEvents, playSkillImpactFx);
         PlayHitOutlinePulses(outlinedTargets);
         SpawnDamageNumbers(damageEvents);
     }
