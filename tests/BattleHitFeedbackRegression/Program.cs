@@ -78,6 +78,8 @@ BattleHitFeedbackRegressionCases.Run("battle runtime registers Godot performance
 BattleHitFeedbackRegressionCases.Run("battle runtime playback delays damage until same tick target movement settles", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackDelaysDamageUntilSameTickTargetMovementSettles);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation waits for same tick movement before dependent attack", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationWaitsForSameTickMovementBeforeDependentAttack);
 BattleHitFeedbackRegressionCases.Run("runtime playback damage waits for target movement but not target attack backlog", BattleHitFeedbackRegressionCases.RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAttackBacklog);
+BattleHitFeedbackRegressionCases.Run("runtime playback applies damage semantics through target queue", BattleHitFeedbackRegressionCases.RuntimePlaybackAppliesDamageSemanticsThroughTargetQueue);
+BattleHitFeedbackRegressionCases.Run("runtime playback target damage queue does not serialize impact delay", BattleHitFeedbackRegressionCases.RuntimePlaybackTargetDamageQueueDoesNotSerializeImpactDelay);
 BattleHitFeedbackRegressionCases.Run("runtime playback movement path uses footprint center resolver", BattleHitFeedbackRegressionCases.RuntimePlaybackMovementPathUsesFootprintCenterResolver);
 BattleHitFeedbackRegressionCases.Run("battle runtime presentation starts incremental runtime before settlement", BattleHitFeedbackRegressionCases.BattleRuntimePresentationStartsIncrementalRuntimeBeforeSettlement);
 BattleHitFeedbackRegressionCases.Run("battle runtime live clock does not use lookahead batches", BattleHitFeedbackRegressionCases.BattleRuntimeLiveClockDoesNotUseLookaheadBatches);

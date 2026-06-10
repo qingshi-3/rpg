@@ -1,7 +1,11 @@
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Entities;
+using Rpg.Runtime.Battle.Events;
 
 namespace Rpg.Presentation.World.Sites;
 
@@ -11,6 +15,7 @@ internal sealed class BattleRuntimeLivePresentationState
     private readonly Dictionary<string, Task> _actorActionTails = new(System.StringComparer.Ordinal);
     private readonly Dictionary<string, Task> _actorMovementTails = new(System.StringComparer.Ordinal);
     private readonly Dictionary<string, Task> _actorMovementStartGates = new(System.StringComparer.Ordinal);
+    private readonly Dictionary<string, Task> _targetDamageTails = new(System.StringComparer.Ordinal);
 
     public BattleRuntimeLivePresentationState(Dictionary<string, BattleEntity> entitiesByRuntimeActor)
     {
@@ -18,6 +23,15 @@ internal sealed class BattleRuntimeLivePresentationState
     }
 
     public Dictionary<string, BattleEntity> EntitiesByRuntimeActor { get; }
+
+    public int PendingPresentationTaskCount
+    {
+        get
+        {
+            PruneCompleted();
+            return _pendingPresentationTasks.Count;
+        }
+    }
 
     public void Track(Task task)
     {
@@ -52,13 +66,17 @@ internal sealed class BattleRuntimeLivePresentationState
         Track(task);
     }
 
-    public void TrackActorDamage(string actorId, string targetId, System.Func<Task> createTask)
+    public void TrackActorDamage(
+        string actorId,
+        string targetId,
+        System.Func<Task> createTask)
     {
         if (createTask == null)
         {
             return;
         }
 
+        PruneCompleted();
         actorId ??= "";
         targetId ??= "";
         _actorActionTails.TryGetValue(actorId, out Task actorActionTail);
@@ -67,6 +85,33 @@ internal sealed class BattleRuntimeLivePresentationState
         if (!string.IsNullOrWhiteSpace(actorId))
         {
             _actorActionTails[actorId] = task;
+        }
+
+        Track(task);
+    }
+
+    public void TrackTargetDamage(
+        string actorId,
+        string targetId,
+        System.Func<Task, Task> createTask,
+        BattlePresentationFatalDamageDiagnostic diagnostic = null)
+    {
+        if (createTask == null)
+        {
+            return;
+        }
+
+        PruneCompleted();
+        actorId ??= "";
+        targetId ??= "";
+        _actorMovementTails.TryGetValue(actorId, out Task actorMovementTail);
+        _actorMovementTails.TryGetValue(targetId, out Task targetMovementTail);
+        _targetDamageTails.TryGetValue(targetId, out Task previousTargetDamageTail);
+        diagnostic?.LogQueued(actorMovementTail, targetMovementTail, previousTargetDamageTail, _pendingPresentationTasks.Count);
+        Task task = RunAfterTargetDamageDependenciesAsync(actorMovementTail, targetMovementTail, previousTargetDamageTail, createTask, diagnostic);
+        if (!string.IsNullOrWhiteSpace(targetId))
+        {
+            _targetDamageTails[targetId] = task;
         }
 
         Track(task);
@@ -159,12 +204,39 @@ internal sealed class BattleRuntimeLivePresentationState
         return RunAfterDependenciesAsync(new[] { actorActionTail, targetMovementTail }, createTask);
     }
 
+    private static Task RunAfterTargetDamageDependenciesAsync(
+        Task actorMovementTail,
+        Task targetMovementTail,
+        Task previousTargetDamageTail,
+        System.Func<Task, Task> createTask,
+        BattlePresentationFatalDamageDiagnostic diagnostic = null)
+    {
+        return RunAfterTargetDamageDependenciesAsync(new[] { actorMovementTail, targetMovementTail }, previousTargetDamageTail, createTask, diagnostic);
+    }
+
     private static async Task RunAfterDependenciesAsync(
         IReadOnlyList<Task> dependencies,
-        System.Func<Task> createTask)
+        System.Func<Task> createTask,
+        BattlePresentationFatalDamageDiagnostic diagnostic = null)
     {
         await WaitForDependenciesAsync(dependencies);
+        diagnostic?.LogDependenciesReady();
         Task task = createTask();
+        if (task != null)
+        {
+            await task;
+        }
+    }
+
+    private static async Task RunAfterTargetDamageDependenciesAsync(
+        IReadOnlyList<Task> dependencies,
+        Task previousTargetDamageTail,
+        System.Func<Task, Task> createTask,
+        BattlePresentationFatalDamageDiagnostic diagnostic = null)
+    {
+        await WaitForDependenciesAsync(dependencies);
+        diagnostic?.LogDependenciesReady();
+        Task task = createTask(previousTargetDamageTail);
         if (task != null)
         {
             await task;
@@ -218,6 +290,132 @@ internal sealed class BattleRuntimeLivePresentationState
         if (movementWait != null)
         {
             await movementWait;
+        }
+    }
+
+    internal sealed class BattlePresentationFatalDamageDiagnostic
+    {
+        private readonly long _queuedAtTicks = Stopwatch.GetTimestamp();
+
+        private BattlePresentationFatalDamageDiagnostic(BattleEvent runtimeEvent)
+        {
+            BattleId = runtimeEvent.BattleId ?? "";
+            RuntimeTick = runtimeEvent.RuntimeTick;
+            RuntimeTimeSeconds = runtimeEvent.RuntimeTimeSeconds;
+            ActorId = runtimeEvent.ActorId ?? "";
+            TargetId = runtimeEvent.TargetId ?? "";
+            ReasonCode = runtimeEvent.ReasonCode ?? "";
+            Damage = System.Math.Max(0, -runtimeEvent.CorpsStrengthDelta);
+            ActionDurationSeconds = runtimeEvent.ActionDurationSeconds;
+            ActionImpactDelaySeconds = runtimeEvent.ActionImpactDelaySeconds;
+        }
+
+        private string BattleId { get; }
+
+        private int RuntimeTick { get; }
+
+        private double RuntimeTimeSeconds { get; }
+
+        private string ActorId { get; }
+
+        private string TargetId { get; }
+
+        private string ReasonCode { get; }
+
+        private int Damage { get; }
+
+        private double ActionDurationSeconds { get; }
+
+        private double ActionImpactDelaySeconds { get; }
+
+        public static BattlePresentationFatalDamageDiagnostic TryCreate(BattleEvent runtimeEvent)
+        {
+            if (runtimeEvent?.Kind != BattleEventKind.DamageApplied ||
+                !IsFatalDamageReason(runtimeEvent.ReasonCode))
+            {
+                return null;
+            }
+
+            return new BattlePresentationFatalDamageDiagnostic(runtimeEvent);
+        }
+
+        public void LogQueued(Task actorMovementTail, Task targetMovementTail, Task previousTargetDamageTail, int pendingPresentationTasks)
+        {
+            Log(
+                "Queued",
+                $"pendingTasks={pendingPresentationTasks} actorMovementTailPending={IsPending(actorMovementTail)} targetMovementTailPending={IsPending(targetMovementTail)} previousTargetDamageTailPending={IsPending(previousTargetDamageTail)} actionDuration={Format(ActionDurationSeconds)} impactDelay={Format(ActionImpactDelaySeconds)}");
+        }
+
+        public void LogDependenciesReady()
+        {
+            Log("DependenciesReady", $"movementWait={Format(ElapsedSinceQueuedSeconds())}");
+        }
+
+        public void LogSkipped(string reason)
+        {
+            Log("Skipped", $"reason={reason ?? ""}");
+        }
+
+        public void LogFeedbackStarted(
+            int targetHpBeforeHit,
+            int previewApplied,
+            bool previewDefeated,
+            double attackAnimationSeconds,
+            bool isSkillDamage)
+        {
+            Log(
+                "FeedbackStarted",
+                $"targetHpBefore={targetHpBeforeHit} previewApplied={previewApplied} previewDefeated={previewDefeated} attackAnimation={Format(attackAnimationSeconds)} isSkillDamage={isSkillDamage}");
+        }
+
+        public void LogImpactDelayResolved(
+            double rawImpactDelaySeconds,
+            double clampedImpactDelaySeconds,
+            double attackAnimationSeconds)
+        {
+            Log(
+                "ImpactDelayResolved",
+                $"rawImpactDelay={Format(rawImpactDelaySeconds)} clampedImpactDelay={Format(clampedImpactDelaySeconds)} attackAnimation={Format(attackAnimationSeconds)}");
+        }
+
+        public void LogDamageApplied(int applied, int hpBefore, int hpAfter, bool presentationDefeated)
+        {
+            Log(
+                "DamageApplied",
+                $"applied={applied} hp={hpBefore}->{hpAfter} presentationDefeated={presentationDefeated}");
+        }
+
+        public void LogMarkDefeatedRequested()
+        {
+            Log("MarkDefeatedRequested", "");
+        }
+
+        private static bool IsPending(Task task)
+        {
+            return task != null && !task.IsCompleted;
+        }
+
+        private static bool IsFatalDamageReason(string reasonCode)
+        {
+            return !string.IsNullOrWhiteSpace(reasonCode) &&
+                   reasonCode.Contains("defeated", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void Log(string phase, string detail)
+        {
+            string context =
+                $"BattlePresentationFatalDamage{phase} battle={BattleId} tick={RuntimeTick} runtimeTime={Format(RuntimeTimeSeconds)} actor={ActorId} target={TargetId} damage={Damage} reason={ReasonCode} elapsed={Format(ElapsedSinceQueuedSeconds())}";
+            GameLog.Info(nameof(WorldSiteRoot), string.IsNullOrWhiteSpace(detail) ? context : $"{context} {detail}");
+        }
+
+        private double ElapsedSinceQueuedSeconds()
+        {
+            return (Stopwatch.GetTimestamp() - _queuedAtTicks) / (double)Stopwatch.Frequency;
+        }
+
+        private static string Format(double value)
+        {
+            return value.ToString("0.000", CultureInfo.InvariantCulture);
         }
     }
 }

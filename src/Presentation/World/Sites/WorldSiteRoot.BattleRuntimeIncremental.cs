@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using Rpg.Application.World;
+using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Entities;
 using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
@@ -30,7 +31,23 @@ public partial class WorldSiteRoot
             await WaitSiteBattlePresentationSeconds(tickSeconds);
         }
 
+        int pendingBeforeDrain = presentationState.PendingPresentationTaskCount;
+        if (pendingBeforeDrain > 0)
+        {
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"BattleRuntimePresentationDrainStarted request={resolution?.Request?.RequestId ?? ""} pendingTasks={pendingBeforeDrain}");
+        }
+
         await presentationState.WaitForAllAsync();
+
+        if (pendingBeforeDrain > 0)
+        {
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"BattleRuntimePresentationDrainCompleted request={resolution?.Request?.RequestId ?? ""}");
+        }
+
         _unitRoot?.PlayIdleForActiveEntities();
         if (_unitRoot?.HasPendingDefeatedPresentations == true)
         {
@@ -71,12 +88,24 @@ public partial class WorldSiteRoot
 
         foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.DamageApplied))
         {
+            BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic =
+                BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic.TryCreate(runtimeEvent);
             presentationState.TrackActorDamage(
                 runtimeEvent.ActorId,
                 runtimeEvent.TargetId,
-                () => ObserveRuntimeDamageEventAsync(
+                () => PlayRuntimeDamageFeedbackEventAsync(
                     runtimeEvent,
-                    presentationState.EntitiesByRuntimeActor));
+                    presentationState.EntitiesByRuntimeActor,
+                    diagnostic));
+            presentationState.TrackTargetDamage(
+                runtimeEvent.ActorId,
+                runtimeEvent.TargetId,
+                previousTargetDamageTail => ApplyRuntimeDamageEventAsync(
+                    runtimeEvent,
+                    presentationState.EntitiesByRuntimeActor,
+                    diagnostic,
+                    previousTargetDamageTail),
+                diagnostic);
         }
 
         _battlePerformanceCounters.RecordPresentationObserveElapsedTicks(Stopwatch.GetTimestamp() - observeStartedAt);

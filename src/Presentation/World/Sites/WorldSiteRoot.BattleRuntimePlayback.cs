@@ -55,9 +55,10 @@ public partial class WorldSiteRoot
 
     private async Task ObserveRuntimeDamageEventAsync(
         BattleEvent runtimeEvent,
-        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
+        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor,
+        BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic = null)
     {
-        await ObserveRuntimeDamageEventCoreAsync(runtimeEvent, entitiesByRuntimeActor);
+        await PlayRuntimeDamageFeedbackEventAsync(runtimeEvent, entitiesByRuntimeActor, diagnostic);
     }
 
     private async Task ObserveRuntimeSkillUsedEventAsync(
@@ -92,35 +93,30 @@ public partial class WorldSiteRoot
         return castPresentationSeconds;
     }
 
-    private async Task<double> ObserveRuntimeDamageEventCoreAsync(
+    private async Task<double> PlayRuntimeDamageFeedbackEventAsync(
         BattleEvent runtimeEvent,
-        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
+        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor,
+        BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic = null)
     {
-        if (_unitRoot == null ||
-            runtimeEvent == null ||
-            entitiesByRuntimeActor == null ||
-            !entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out BattleEntity actor) ||
-            !entitiesByRuntimeActor.TryGetValue(runtimeEvent.TargetId ?? "", out BattleEntity target))
+        if (!TryResolveRuntimeDamageContext(
+                runtimeEvent,
+                entitiesByRuntimeActor,
+                diagnostic,
+                out BattleEntity actor,
+                out BattleEntity target,
+                out HealthComponent health,
+                out int damage))
         {
             return 0;
         }
 
-        int damage = System.Math.Max(0, -runtimeEvent.CorpsStrengthDelta);
-        HealthComponent health = target.GetComponent<HealthComponent>();
         int targetHpBeforeHit = health?.Hp ?? 0;
-        int previewApplied = health == null
-            ? damage
-            : System.Math.Min(System.Math.Max(0, targetHpBeforeHit), damage);
-        bool previewDefeated = health != null && targetHpBeforeHit > 0 && targetHpBeforeHit - previewApplied <= 0;
-        BattleDamageEvent damageEvent = new(
-            target,
-            target.EntityId ?? "",
-            previewApplied,
-            previewDefeated,
-            runtimeEvent.SourceCommandId,
-            runtimeEvent.SourceActionId,
-                runtimeEvent.SourceDefinitionId,
-                runtimeEvent.EffectKind);
+        int previewApplied = damage;
+        bool previewDefeated = IsRuntimeDefeatingDamageEvent(runtimeEvent) ||
+                               health != null &&
+                               targetHpBeforeHit > 0 &&
+                               targetHpBeforeHit - System.Math.Min(targetHpBeforeHit, damage) <= 0;
+        BattleDamageEvent damageEvent = BuildRuntimeDamageEvent(runtimeEvent, target, previewApplied, previewDefeated);
         bool isSkillDamage = IsRuntimeSkillDamageEvent(runtimeEvent);
         double attackAnimationSeconds = isSkillDamage
             ? _unitRoot.PlayRuntimeDamageFeedback(actor, damageEvents: new[] { damageEvent }, playSkillImpactFx: true)
@@ -129,17 +125,12 @@ public partial class WorldSiteRoot
                 target,
                 new[] { damageEvent },
                 runtimeEvent?.ReasonCode ?? ""));
-
-        // Runtime remains authoritative for outcome, but presentation health and
-        // defeat feedback must land at attack impact, not at attack start.
-        Task impactDamageTask = ApplyRuntimeDamageAtImpactAsync(
-            actor,
-            target,
-            health,
-            damage,
+        diagnostic?.LogFeedbackStarted(
+            targetHpBeforeHit,
+            previewApplied,
+            previewDefeated,
             attackAnimationSeconds,
-            runtimeEvent.ActionImpactDelaySeconds,
-            fallbackToActorAttackImpactDelay: !isSkillDamage);
+            isSkillDamage);
 
         // Runtime events are semantic combat facts. Live presentation waits for
         // this actor's own attack task in the background, without blocking the
@@ -149,9 +140,124 @@ public partial class WorldSiteRoot
             : attackAnimationSeconds;
         double attackPresentationSeconds = System.Math.Max(0.42, runtimeActionSeconds);
         Task attackPresentationTask = WaitSiteBattlePresentationSeconds(attackPresentationSeconds);
-        await impactDamageTask;
         await attackPresentationTask;
         return attackPresentationSeconds;
+    }
+
+    private async Task ApplyRuntimeDamageEventAsync(
+        BattleEvent runtimeEvent,
+        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor,
+        BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic = null,
+        Task previousTargetDamageTail = null)
+    {
+        if (!TryResolveRuntimeDamageContext(
+                runtimeEvent,
+                entitiesByRuntimeActor,
+                diagnostic,
+                out BattleEntity actor,
+                out BattleEntity target,
+                out HealthComponent health,
+                out int damage))
+        {
+            return;
+        }
+
+        bool isSkillDamage = IsRuntimeSkillDamageEvent(runtimeEvent);
+        double actionDurationSeconds = ResolveRuntimeDamageActionDurationSeconds(runtimeEvent, actor, isSkillDamage);
+        // Health and death are semantic Runtime facts. They stay ordered per target
+        // but do not wait for the attacker's full visual action backlog.
+        await ApplyRuntimeDamageAtImpactAsync(
+            actor,
+            target,
+            health,
+            damage,
+            actionDurationSeconds,
+            runtimeEvent.ActionImpactDelaySeconds,
+            diagnostic,
+            previousTargetDamageTail,
+            fallbackToActorAttackImpactDelay: !isSkillDamage);
+    }
+
+    private bool TryResolveRuntimeDamageContext(
+        BattleEvent runtimeEvent,
+        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor,
+        BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic,
+        out BattleEntity actor,
+        out BattleEntity target,
+        out HealthComponent health,
+        out int damage)
+    {
+        actor = null;
+        target = null;
+        health = null;
+        damage = 0;
+
+        if (_unitRoot == null)
+        {
+            diagnostic?.LogSkipped("missing_unit_root");
+            return false;
+        }
+
+        if (runtimeEvent == null)
+        {
+            diagnostic?.LogSkipped("missing_runtime_event");
+            return false;
+        }
+
+        if (entitiesByRuntimeActor == null)
+        {
+            diagnostic?.LogSkipped("missing_entity_map");
+            return false;
+        }
+
+        if (!entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out actor))
+        {
+            diagnostic?.LogSkipped("missing_actor_entity");
+            return false;
+        }
+
+        if (!entitiesByRuntimeActor.TryGetValue(runtimeEvent.TargetId ?? "", out target))
+        {
+            diagnostic?.LogSkipped("missing_target_entity");
+            return false;
+        }
+
+        health = target.GetComponent<HealthComponent>();
+        damage = System.Math.Max(0, -runtimeEvent.CorpsStrengthDelta);
+        return true;
+    }
+
+    private static BattleDamageEvent BuildRuntimeDamageEvent(
+        BattleEvent runtimeEvent,
+        BattleEntity target,
+        int damage,
+        bool targetDefeated)
+    {
+        return new BattleDamageEvent(
+            target,
+            target?.EntityId ?? runtimeEvent?.TargetId ?? "",
+            damage,
+            targetDefeated,
+            runtimeEvent?.SourceCommandId,
+            runtimeEvent?.SourceActionId,
+            runtimeEvent?.SourceDefinitionId,
+            runtimeEvent?.EffectKind);
+    }
+
+    private static double ResolveRuntimeDamageActionDurationSeconds(
+        BattleEvent runtimeEvent,
+        BattleEntity actor,
+        bool isSkillDamage)
+    {
+        if (runtimeEvent?.ActionDurationSeconds > 0)
+        {
+            return runtimeEvent.ActionDurationSeconds;
+        }
+
+        UnitAnimationComponent actorAnimation = actor?.GetComponent<UnitAnimationComponent>();
+        return isSkillDamage
+            ? actorAnimation?.ResolveSkillCastDurationSeconds() ?? 0
+            : actorAnimation?.ResolveAttackDurationSeconds() ?? 0;
     }
 
     private static bool IsRuntimeSkillDamageEvent(BattleEvent runtimeEvent)
@@ -162,6 +268,12 @@ public partial class WorldSiteRoot
                 !string.IsNullOrWhiteSpace(runtimeEvent.SourceDefinitionId));
     }
 
+    private static bool IsRuntimeDefeatingDamageEvent(BattleEvent runtimeEvent)
+    {
+        return !string.IsNullOrWhiteSpace(runtimeEvent?.ReasonCode) &&
+               runtimeEvent.ReasonCode.Contains("defeated", System.StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task ApplyRuntimeDamageAtImpactAsync(
         BattleEntity actor,
         BattleEntity target,
@@ -169,10 +281,13 @@ public partial class WorldSiteRoot
         int damage,
         double attackAnimationSeconds,
         double runtimeImpactDelaySeconds,
+        BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic = null,
+        Task previousTargetDamageTail = null,
         bool fallbackToActorAttackImpactDelay = true)
     {
         if (health == null || damage <= 0)
         {
+            diagnostic?.LogSkipped(health == null ? "missing_health" : "non_positive_damage");
             return;
         }
 
@@ -183,14 +298,21 @@ public partial class WorldSiteRoot
                 ? System.Math.Max(0, actorAnimation?.ResolveAttackImpactDelaySeconds() ?? 0)
                 : 0;
         double clampedImpactDelaySeconds = System.Math.Min(impactDelaySeconds, System.Math.Max(0, attackAnimationSeconds));
+        diagnostic?.LogImpactDelayResolved(impactDelaySeconds, clampedImpactDelaySeconds, attackAnimationSeconds);
         if (clampedImpactDelaySeconds > 0)
         {
             await WaitSiteBattlePresentationSeconds(clampedImpactDelaySeconds);
         }
 
+        if (previousTargetDamageTail != null)
+        {
+            await previousTargetDamageTail;
+        }
+
         DamageReactionComponent damageReaction = target.GetComponent<DamageReactionComponent>();
         damageReaction?.BeginImpactAlignedDamageTiming();
         int applied;
+        int hpBefore = health.Hp;
         try
         {
             applied = health.ApplyDamage(damage, actor);
@@ -200,13 +322,16 @@ public partial class WorldSiteRoot
             damageReaction?.EndImpactAlignedDamageTiming();
         }
 
+        bool presentationDefeated = BattleRuleQueries.IsDefeated(target);
+        diagnostic?.LogDamageApplied(applied, hpBefore, health.Hp, presentationDefeated);
         if (applied <= 0)
         {
             return;
         }
 
-        if (BattleRuleQueries.IsDefeated(target))
+        if (presentationDefeated)
         {
+            diagnostic?.LogMarkDefeatedRequested();
             _unitRoot.MarkEntityDefeated(target);
             QueueBattlePerceptionOverlayRefresh();
         }

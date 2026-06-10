@@ -341,6 +341,47 @@ internal static void RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAtta
         "live damage delay should depend on target movement tail, not target attack backlog");
 }
 
+internal static void RuntimePlaybackAppliesDamageSemanticsThroughTargetQueue()
+{
+    string state = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"));
+    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+
+    AssertTrue(
+        state.Contains("_targetDamageTails", StringComparison.Ordinal) &&
+        state.Contains("TrackTargetDamage", StringComparison.Ordinal) &&
+        state.Contains("RunAfterTargetDamageDependenciesAsync", StringComparison.Ordinal),
+        "live damage semantics should have a target-ordered queue separate from actor visual action tails");
+    AssertTrue(
+        runtime.Contains("presentationState.TrackTargetDamage", StringComparison.Ordinal) &&
+        runtime.Contains("ApplyRuntimeDamageEventAsync", StringComparison.Ordinal),
+        "live runtime observation should schedule health/death application through the target damage queue");
+    AssertTrue(
+        playback.Contains("PlayRuntimeDamageFeedbackEventAsync", StringComparison.Ordinal) &&
+        playback.Contains("ApplyRuntimeDamageEventAsync", StringComparison.Ordinal) &&
+        !playback.Contains("await impactDamageTask;", StringComparison.Ordinal),
+        "attack feedback may stay actor-queued, but health/death application should not wait for the actor visual tail to finish");
+}
+
+internal static void RuntimePlaybackTargetDamageQueueDoesNotSerializeImpactDelay()
+{
+    string state = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"));
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+
+    AssertTrue(
+        state.Contains("System.Func<Task, Task> createTask", StringComparison.Ordinal) &&
+        state.Contains("createTask(previousTargetDamageTail)", StringComparison.Ordinal) &&
+        !state.Contains("new[] { actorMovementTail, targetMovementTail, previousTargetDamageTail }", StringComparison.Ordinal),
+        "target damage queue should pass the previous target damage tail into the task instead of waiting it before impact delay starts");
+
+    int impactWaitIndex = playback.IndexOf("await WaitSiteBattlePresentationSeconds(clampedImpactDelaySeconds)", StringComparison.Ordinal);
+    int previousTailIndex = playback.IndexOf("await previousTargetDamageTail", StringComparison.Ordinal);
+    AssertTrue(
+        impactWaitIndex >= 0 &&
+        previousTailIndex > impactWaitIndex,
+        "runtime damage application should let impact delay elapse before waiting for prior target damage application order");
+}
+
 internal static void RuntimePlaybackMovementPathUsesFootprintCenterResolver()
 {
     string unitRoot = ReadBattleUnitRootSource();
