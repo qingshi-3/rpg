@@ -6,11 +6,19 @@ public static class EnemyBattleGroupRegionPolicy
 {
     public static BattleRegionMovementGoal ResolveMovementGoal(BattleGroupTacticalState state)
     {
+        return BattleGroupRegionMovementPolicy.ResolveMovementGoal(state);
+    }
+}
+
+public static class BattleGroupRegionMovementPolicy
+{
+    public static BattleRegionMovementGoal ResolveMovementGoal(BattleGroupTacticalState state)
+    {
         if (state == null ||
             state.EngagementState != BattleGroupEngagementState.NotEngaged ||
-            !IsEnemyRegionMovementMode(state.TacticalMode) ||
             state.SelectedRegion is not { } region ||
-            region.Kind is not (BattleTacticalRegionKind.FixedTarget or BattleTacticalRegionKind.TemporaryTarget))
+            region.Kind is not (BattleTacticalRegionKind.FixedTarget or BattleTacticalRegionKind.TemporaryTarget) ||
+            !CanUseRegionMovement(state))
         {
             return null;
         }
@@ -32,8 +40,15 @@ public static class EnemyBattleGroupRegionPolicy
         };
     }
 
-    private static bool IsEnemyRegionMovementMode(BattleGroupTacticalMode mode)
+    private static bool CanUseRegionMovement(BattleGroupTacticalState state)
     {
-        return mode is BattleGroupTacticalMode.EnemyOffense or BattleGroupTacticalMode.EnemyActiveDefense;
+        if (state.TacticalMode is BattleGroupTacticalMode.EnemyOffense or BattleGroupTacticalMode.EnemyActiveDefense)
+        {
+            return true;
+        }
+
+        return state.TacticalMode == BattleGroupTacticalMode.PlayerCommanded &&
+               state.SelectedRegionCommandSource is BattleGroupTacticalCommandSource.PlayerCommand
+                   or BattleGroupTacticalCommandSource.SelfCalculated;
     }
 }

@@ -156,20 +156,26 @@ internal static class TargetBattleLocalCombatSituationRegressionCases
             $"fallback route should still move toward the target-side attackable cells: from=({enemyMove.FromGridX},{enemyMove.FromGridY}) to=({enemyMove.ToGridX},{enemyMove.ToGridY})");
     }
 
-    public static void EngagedNoLocalSlotDegradesWithReason()
+    public static void EngagedNoLocalSlotKeepsCombatPressure()
     {
         BattleRuntimeSessionController controller = new BattleRuntimeSession()
             .Begin(BuildNoLocalSlotSnapshot());
 
         BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
         BattleRuntimeActor enemy = controller.State.Actors.Single(item => item.ActorId == "enemy_a:1");
+        BattleEvent? pressureMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "enemy_a:1");
 
         AssertTrue(
-            tick.Events.All(item => item.ActorId != "enemy_a:1" || item.Kind != BattleEventKind.MovementStarted),
-            "enemy should not move when no local or out-of-region fallback slot is reachable");
+            pressureMove != null,
+            $"enemy should keep pressure toward the local fight when no slot is reachable but a legal pressure step exists: failure={enemy.LastAdvanceFailureReason}");
         AssertTrue(
-            enemy.LastAdvanceFailureReason == BattleGroupTacticalReasonCode.LocalRegionDegradeNoReachableSlot,
-            $"no-slot degradation reason should remain diagnosable: actual={enemy.LastAdvanceFailureReason}");
+            pressureMove!.ReasonCode == BattleGroupTacticalReasonCode.CombatPressureAdvance,
+            $"no-slot pressure movement reason: actual={pressureMove.ReasonCode}");
+        AssertTrue(
+            pressureMove.ToGridX == 2 && pressureMove.ToGridY == 0,
+            $"no-slot pressure first step should move toward the fight: to=({pressureMove.ToGridX},{pressureMove.ToGridY})");
     }
 
     public static void RuntimeMoveFirstJoinsRouteBlockingLocalFight()

@@ -29,6 +29,11 @@ public static class BattleCommanderGroupIdentity
             return fallbackForceId ?? "";
         }
 
+        if (!string.IsNullOrWhiteSpace(force.CommandGroupId))
+        {
+            return force.CommandGroupId;
+        }
+
         if (!string.IsNullOrWhiteSpace(force.SourceKind) && !string.IsNullOrWhiteSpace(force.SourceId))
         {
             return $"{force.SourceKind}:{force.SourceId}";

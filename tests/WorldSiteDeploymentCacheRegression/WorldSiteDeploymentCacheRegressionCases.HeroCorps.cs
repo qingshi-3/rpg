@@ -132,7 +132,7 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("RefreshBattlePreparationUi", StringComparison.Ordinal),
         "WorldSiteRoot should expose a battle preparation UI state");
     AssertTrue(
-        rootSource.Contains("ClearPlayerBattlePreparationPlacements(request)", StringComparison.Ordinal) &&
+        rootSource.Contains("ClearPlayerBattlePreparationPlacements(request", StringComparison.Ordinal) &&
         rootSource.Contains("BattlePreparationPlayerPlacementsCleared", StringComparison.Ordinal),
         "battle preparation should start player units from the request-backed roster instead of pre-spreading them on the map");
     AssertTrue(
@@ -839,8 +839,8 @@ internal static void BattlePreparationSupportsDraggingOnHostileSites()
         "dropping an existing battle-preparation unit should sync the matching request placement before the UI rebuilds");
     AssertTrue(
         rootSource.Contains("CanLaunchPreparedBattle", StringComparison.Ordinal) &&
-        rootSource.Contains("还有我方单位未部署，不能开战。", StringComparison.Ordinal),
-        "start battle should require all player request force slots to be deployed");
+        rootSource.Contains("BuildDeployedBattlePreparationPlayerGroups", StringComparison.Ordinal),
+        "start battle should allow undeployed carried companies to remain in reserve while validating deployed groups");
     AssertTrue(
         rootSource.Contains("SetAllDeploymentDragEnabled(false)", StringComparison.Ordinal) &&
         rootSource.Contains("DeploymentDragComponentsToggled", StringComparison.Ordinal),
@@ -1194,10 +1194,31 @@ internal static void BattlePreparationLaunchRequiresExplicitCompanyPlans()
     string canLaunchBody = ExtractMethodBody(rootSource, "private bool CanLaunchPreparedBattle(");
 
     AssertTrue(
-        canLaunchBody.Contains("foreach (BattleRuntimeCommandGroupView group in BuildBattlePreparationPlayerGroups())", StringComparison.Ordinal) &&
+        canLaunchBody.Contains("BuildDeployedBattlePreparationPlayerGroups", StringComparison.Ordinal) &&
+        canLaunchBody.Contains("deployedGroups.Count == 0", StringComparison.Ordinal) &&
+        !canLaunchBody.Contains("ArePlayerRequestSlotsPlaced", StringComparison.Ordinal) &&
+        canLaunchBody.Contains("foreach (BattleRuntimeCommandGroupView group in deployedGroups)", StringComparison.Ordinal) &&
         canLaunchBody.Contains("IsBattlePreparationCompanyPlaced(group)", StringComparison.Ordinal) &&
         canLaunchBody.Contains("_explicitBattlePreparationRuleGroups.Contains(group.GroupKey)", StringComparison.Ordinal),
-        "start battle should validate placement, marker objective, and explicit engagement rule per player company.");
+        "start battle should require at least one deployed player company and validate only deployed companies.");
+}
+
+internal static void BattlePreparationLaunchExcludesReserveGroupsBeforeRuntime()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string launchBody = ExtractMethodBody(rootSource, "private void LaunchPreparedBattle()");
+    string reserveBody = ExtractMethodBody(rootSource, "private void ExcludeUndeployedBattlePreparationReserveGroups(");
+
+    AssertTrue(
+        launchBody.Contains("ExcludeUndeployedBattlePreparationReserveGroups(request)", StringComparison.Ordinal) &&
+        launchBody.IndexOf("ExcludeUndeployedBattlePreparationReserveGroups(request)", StringComparison.Ordinal) <
+        launchBody.IndexOf("ActivateBattleRuntime();", StringComparison.Ordinal),
+        "battle preparation should prune reserve groups from the active request before Runtime activation.");
+    AssertTrue(
+        reserveBody.Contains("request.PlayerForces = request.PlayerForces", StringComparison.Ordinal) &&
+        reserveBody.Contains("request.PlayerBattleGroupPlans.Remove", StringComparison.Ordinal) &&
+        reserveBody.Contains("BattlePreparationReserveGroupsExcluded", StringComparison.Ordinal),
+        "reserve pruning should remove undeployed player forces and plans from the Runtime request with a diagnostic.");
 }
 
 internal static void BattlePreparationMapDragUsesRequestBackedPlacements()

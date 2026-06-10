@@ -46,6 +46,13 @@ public sealed class BattleRuntimeActor
     public int SecondaryMovementBacktrackGuardGridX { get; set; }
     public int SecondaryMovementBacktrackGuardGridY { get; set; }
     public int SecondaryMovementBacktrackGuardGridHeight { get; set; }
+    // Steering memory belongs to the current movement intent. It lets Runtime
+    // follow static obstacle edges consistently without owning a full path.
+    public BattleLocalSteeringMode MovementSteeringMode { get; set; } = BattleLocalSteeringMode.SeekGoal;
+    public int MovementSteeringSide { get; set; }
+    public int MovementSteeringBestDistance { get; set; } = int.MaxValue;
+    public int MovementSteeringBudgetRemaining { get; set; }
+    public string MovementSteeringIntentKey { get; set; } = "";
     public double MovementStartedAtSeconds { get; set; }
     public double MovementDurationSeconds { get; set; }
     public double MovementProgress { get; set; }

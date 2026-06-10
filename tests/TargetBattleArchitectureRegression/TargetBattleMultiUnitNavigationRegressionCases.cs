@@ -26,6 +26,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         run("runtime rear local combat units route around blocked ingress when side path exists", RuntimeRearLocalCombatUnitsRouteAroundBlockedIngressWhenSidePathExists);
         run("runtime combat ingress planner allows a temporary detour around blocked closer steps", RuntimeCombatIngressPlannerAllowsTemporaryDetourAroundBlockedCloserSteps);
         run("runtime local combat movement keeps stable slot intent instead of oscillating", RuntimeLocalCombatMovementKeepsStableSlotIntentInsteadOfOscillating);
+        run("runtime blocked local combat keeps combat pressure instead of path failure", RuntimeBlockedLocalCombatKeepsCombatPressureInsteadOfPathFailure);
     }
 
     public static void RuntimeManyAlliesConvergeOnSingleHoldlineEnemyWithoutOverlap()
@@ -349,6 +350,30 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             $"rear unit should keep moving toward the assigned support slot instead of just suppressing the reverse step: moves={DescribeMoves(moves)}");
     }
 
+    public static void RuntimeBlockedLocalCombatKeepsCombatPressureInsteadOfPathFailure()
+    {
+        BattleStartSnapshot snapshot = BuildBlockedTargetPressureSnapshot();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeActor pressure = controller.State.Actors.Single(item => item.ActorId == "player_pressure:1");
+        pressure.TargetActorId = "enemy_anchor:1";
+        pressure.PlanState = BattleGroupPlanRuntimeState.TargetLocked;
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+
+        BattleEvent? pressureMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "player_pressure:1");
+        AssertTrue(
+            pressureMove != null,
+            $"blocked local combat should keep pressure through a legal step instead of idling: failure={pressure.LastAdvanceFailureReason}");
+        AssertEqual("combat_pressure_advance", pressureMove!.ReasonCode, "pressure fallback movement reason");
+        AssertEqual(3, pressureMove.ToGridX, "pressure fallback first step x");
+        AssertEqual(0, pressureMove.ToGridY, "pressure fallback first step y");
+        AssertTrue(
+            pressure.LastAdvanceFailureReason != "path_not_found",
+            "pressure fallback must not record local combat pressure as a terminal path failure");
+    }
+
     private static BattleStartSnapshot BuildOpenFieldSnapshot(string battleId)
     {
         BattleStartSnapshot snapshot = new()
@@ -580,6 +605,29 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         AddGroup(snapshot, "blocker_lower_left_group", "enemy", "blocker_lower_left", 1, 2, 220, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
         AddGroup(snapshot, "blocker_upper_group", "enemy", "blocker_upper", 2, 0, 220, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
         AddGroup(snapshot, "blocker_lower_group", "enemy", "blocker_lower", 2, 2, 220, initialCommandId: "HoldLine", runtimeCommanderGroupId: "enemy_company");
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildBlockedTargetPressureSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_blocked_target_pressure",
+            BattleId = "battle_blocked_target_pressure",
+            TargetLocationId = "site_1"
+        };
+
+        for (int x = 0; x <= 4; x++)
+        {
+            AddSurface(snapshot, x, 0);
+        }
+
+        AddGroup(snapshot, "player_front_group", "player", "player_front", 1, 0, 140, initialCommandId: "HoldLine");
+        AddGroup(snapshot, "player_queue_group", "player", "player_queue", 2, 0, 140, initialCommandId: "HoldLine");
+        AddGroup(snapshot, "player_pressure_group", "player", "player_pressure", 4, 0, 140);
+        AddGroup(snapshot, "enemy_anchor_group", "enemy", "enemy_anchor", 0, 0, 220, initialCommandId: "HoldLine");
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
         return snapshot;

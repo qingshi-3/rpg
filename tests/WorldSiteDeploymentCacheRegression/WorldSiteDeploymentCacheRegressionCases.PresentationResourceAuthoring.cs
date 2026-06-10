@@ -11,7 +11,9 @@ internal static void PresentationUiAuthoringStaysResourceBacked()
         .ToList();
     AssertTrue(files.Count > 0, $"presentation source scan should include WorldSiteRoot partials dir={siteRootDir}");
 
-    files.Add(Path.Combine(root, "src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    files.AddRange(Directory
+        .GetFiles(Path.Combine(root, "src", "Presentation", "Battle", "Entities"), "BattleUnitRoot*.cs")
+        .OrderBy(path => path));
     files.Add(Path.Combine(root, "src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
     files.Add(Path.Combine(root, "src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
 

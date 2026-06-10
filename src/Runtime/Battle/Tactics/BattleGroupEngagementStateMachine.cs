@@ -18,6 +18,7 @@ public static class BattleGroupEngagementStateMachine
     public static IReadOnlyList<BattleEvent> ApplyPerceptionTransitions(
         BattleGroupTacticalStateStore store,
         IReadOnlyDictionary<string, BattleGroupPerceptionSummary> perceptionSummaries,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
         IReadOnlySet<string> groupsWithActiveCombatActions,
         string battleId,
         int runtimeTick,
@@ -49,7 +50,8 @@ public static class BattleGroupEngagementStateMachine
             }
 
             bool hasPerceivedHostile = summary.PerceivedHostileActorIds.Count > 0;
-            if (!hasPerceivedHostile)
+            bool hasCombatZoneOverlap = HasCombatZoneOverlap(summary.BattleGroupId, combatZones);
+            if (!hasPerceivedHostile && !hasCombatZoneOverlap)
             {
                 events.AddRange(ApplyNoPerceptionTransition(
                     store,
@@ -64,11 +66,14 @@ public static class BattleGroupEngagementStateMachine
 
             store.ResetNoPerceivedHostileTicks(summary.BattleGroupId);
             if (state.EngagementState == BattleGroupEngagementState.Engaged ||
-                !CanEnterEngagementFromPerception(state))
+                !CanEnterEngagementFromObservation(state))
             {
                 continue;
             }
 
+            string reasonCode = hasPerceivedHostile
+                ? BattleGroupTacticalReasonCode.EngagementEnterGroupPerception
+                : BattleGroupTacticalReasonCode.EngagementEnterCombatZoneOverlap;
             BattleGroupTacticalMode nextMode = state.TacticalMode == BattleGroupTacticalMode.EnemyHoldDefense
                 ? BattleGroupTacticalMode.EnemyActiveDefense
                 : state.TacticalMode;
@@ -79,11 +84,11 @@ public static class BattleGroupEngagementStateMachine
 
             events.Add(new BattleEvent
             {
-                EventId = $"{battleId}:tick_{runtimeTick}:{summary.BattleGroupId}:engagement:{BattleGroupTacticalReasonCode.EngagementEnterGroupPerception}",
+                EventId = $"{battleId}:tick_{runtimeTick}:{summary.BattleGroupId}:engagement:{reasonCode}",
                 BattleId = battleId ?? "",
                 BattleGroupId = summary.BattleGroupId ?? "",
                 Kind = BattleEventKind.BattleGroupEngagementStateChanged,
-                ReasonCode = BattleGroupTacticalReasonCode.EngagementEnterGroupPerception,
+                ReasonCode = reasonCode,
                 RuntimeTick = runtimeTick,
                 RuntimeTimeSeconds = runtimeTimeSeconds
             });
@@ -281,7 +286,23 @@ public static class BattleGroupEngagementStateMachine
                runtimeTick - lastTriggerTick <= BattleGroupTacticalPolicySettings.DefaultDisengageGraceTicks;
     }
 
-    private static bool CanEnterEngagementFromPerception(BattleGroupTacticalState state)
+    private static bool HasCombatZoneOverlap(
+        string battleGroupId,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
+    {
+        if (string.IsNullOrWhiteSpace(battleGroupId) ||
+            combatZones == null ||
+            combatZones.Count == 0)
+        {
+            return false;
+        }
+
+        return combatZones.Values.Any(zone =>
+            zone?.HasCloseHostileContact == true &&
+            zone.BattleGroupIds?.Contains(battleGroupId ?? "") == true);
+    }
+
+    private static bool CanEnterEngagementFromObservation(BattleGroupTacticalState state)
     {
         BattleGroupTacticalMode mode = state?.TacticalMode ?? BattleGroupTacticalMode.PlayerCommanded;
         bool enemyPolicyCanEnter = mode is BattleGroupTacticalMode.EnemyOffense

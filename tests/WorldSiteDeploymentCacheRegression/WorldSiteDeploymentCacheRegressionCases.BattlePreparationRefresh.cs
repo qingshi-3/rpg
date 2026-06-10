@@ -34,6 +34,34 @@ internal static void BattlePreparationPlanChangesUseLightweightRefresh()
         "objective-map company selection should update plan controls without rebuilding all deployed unit entities");
 }
 
+internal static void BattlePreparationEntryAvoidsDuplicateFullMapRefresh()
+{
+    string rootSource = ReadWorldSitePresentationSource();
+    string applyRequestBody = ExtractMethodBody(rootSource, "private void ApplyBattleStartRequest()");
+    string refreshDirectBody = ExtractMethodBody(rootSource, "private void RefreshBattleRequestMapEntitiesForDirectRuntime(");
+    string enterPreparationBody = ExtractMethodBody(rootSource, "private void EnterBattlePreparation()");
+    string clearPlacementsBody = ExtractMethodBody(rootSource, "private void ClearPlayerBattlePreparationPlacements(");
+
+    AssertTrue(
+        applyRequestBody.Contains("if (!_isBattlePreparationActive)", StringComparison.Ordinal) &&
+        applyRequestBody.Contains("RefreshBattleRequestMapEntitiesForDirectRuntime(request)", StringComparison.Ordinal),
+        "battle request entry should avoid instantiating all request units before battle-preparation owns the first presentation refresh");
+    AssertTrue(
+        refreshDirectBody.Contains("ClearBattleEntities();", StringComparison.Ordinal) &&
+        refreshDirectBody.Contains("AddRequestedForces(request.PlayerForces", StringComparison.Ordinal) &&
+        refreshDirectBody.Contains("AddRequestedForces(request.EnemyForces", StringComparison.Ordinal),
+        "direct-runtime request rendering should keep the old full rebuild path isolated from preparation entry");
+    AssertTrue(
+        enterPreparationBody.Contains("ClearPlayerBattlePreparationPlacements(request, refreshMapEntities: false)", StringComparison.Ordinal) &&
+        enterPreparationBody.Contains("RefreshBattlePreparationUi", StringComparison.Ordinal),
+        "battle-preparation entry should clear player placements and let the initial HUD bind perform the single full map refresh");
+    AssertTrue(
+        rootSource.Contains("ClearPlayerBattlePreparationPlacements(BattleStartRequest request, bool refreshMapEntities = true)", StringComparison.Ordinal) &&
+        clearPlacementsBody.Contains("if (refreshMapEntities)", StringComparison.Ordinal) &&
+        clearPlacementsBody.Contains("RefreshBattlePreparationMapEntities();", StringComparison.Ordinal),
+        "placement clearing should keep an explicit refresh switch so entry can avoid duplicate entity reconstruction");
+}
+
 internal static void BattlePreparationCompanyDragDropRebuildsOnlyMovedCompany()
 {
     string rootSource = ReadWorldSitePresentationSource();

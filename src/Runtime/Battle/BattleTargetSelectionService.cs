@@ -25,7 +25,6 @@ internal static class BattleTargetSelectionService
         BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters)
     {
         string policy = ResolveCommandTargetSelectionPolicy(actorFact);
@@ -40,7 +39,6 @@ internal static class BattleTargetSelectionService
                     policy,
                     navigationGraph,
                     occupancy,
-                    flowFields,
                     performanceCounters));
         }
         finally
@@ -64,7 +62,6 @@ internal static class BattleTargetSelectionService
                 BattleRuntimeAiTargetSelectionPolicy.RegionScoped,
                 navigationGraph: null,
                 occupancy: null,
-                flowFields: null,
                 performanceCounters: null));
     }
 
@@ -73,7 +70,6 @@ internal static class BattleTargetSelectionService
         BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion)
     {
@@ -85,7 +81,6 @@ internal static class BattleTargetSelectionService
                 BattleRuntimeAiTargetSelectionPolicy.CombatZoneScoped,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 localCombatRegion));
     }
@@ -124,7 +119,6 @@ internal static class BattleTargetSelectionService
         string policy,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion = null)
     {
@@ -160,7 +154,6 @@ internal static class BattleTargetSelectionService
                                             candidate,
                                             navigationGraph,
                                             occupancy,
-                                            flowFields,
                                             performanceCounters,
                                             localCombatRegion);
             int tier = combatZoneScoped && !immediate
@@ -178,7 +171,6 @@ internal static class BattleTargetSelectionService
                     actorFact.Anchor,
                     navigationGraph,
                     occupancy,
-                    flowFields,
                     performanceCounters,
                     gridGap,
                     localCombatRegion)
@@ -321,7 +313,6 @@ internal static class BattleTargetSelectionService
         BattleRuntimeTickStartActorFact targetFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion)
     {
@@ -339,7 +330,6 @@ internal static class BattleTargetSelectionService
             navigationGraph,
             occupancy,
             new BattleMovementReservationMap(),
-            flowFields,
             preferSupportSlots: false,
             performanceCounters,
             localCombatRegion,
@@ -387,7 +377,6 @@ internal static class BattleTargetSelectionService
         BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters)
     {
         if (BattleRuntimeTickResolver.IsFocusFireCommand(actorFact.CommandId))
@@ -417,7 +406,7 @@ internal static class BattleTargetSelectionService
                 // acquisition resumes so it can push into combat.
                 return FindImmediateAttackOpportunityEnemyCorps(facts, actorFact) ??
                        FindRetainedEnemyCorps(facts, actorFact) ??
-                       FindFastestAttackOpportunityEnemyCorps(facts, actorFact, navigationGraph, occupancy, flowFields, performanceCounters) ??
+                       FindFastestAttackOpportunityEnemyCorps(facts, actorFact, navigationGraph, occupancy, performanceCounters) ??
                        FindNearestEnemyCorps(facts, actorFact);
             }
 
@@ -425,13 +414,11 @@ internal static class BattleTargetSelectionService
         }
 
         // Mature RTS movement keeps target acquisition sticky while units are
-        // marching. Full attack-opportunity scoring builds flow fields, so doing
-        // it every movement step turns pathing into visible frame spikes. Units
-        // still snap to immediate melee opportunities and fully score when they
-        // do not yet have a live target.
+        // marching. Full attack-opportunity scoring is broader than retained
+        // target reuse, so it runs only when no live target is held.
         return FindImmediateAttackOpportunityEnemyCorps(facts, actorFact) ??
                FindRetainedEnemyCorps(facts, actorFact) ??
-               FindFastestAttackOpportunityEnemyCorps(facts, actorFact, navigationGraph, occupancy, flowFields, performanceCounters) ??
+               FindFastestAttackOpportunityEnemyCorps(facts, actorFact, navigationGraph, occupancy, performanceCounters) ??
                FindNearestEnemyCorps(facts, actorFact);
     }
 
@@ -643,7 +630,6 @@ internal static class BattleTargetSelectionService
         BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters)
     {
         long startedAt = Stopwatch.GetTimestamp();
@@ -667,7 +653,6 @@ internal static class BattleTargetSelectionService
                     retained?.Actor.ActorId ?? "",
                     navigationGraph,
                     occupancy,
-                    flowFields,
                     performanceCounters);
                 if (selected == null || IsBetterAssaultTarget(score, selectedScore))
                 {
@@ -690,7 +675,6 @@ internal static class BattleTargetSelectionService
         string retainedTargetId,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters)
     {
         int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
@@ -703,7 +687,6 @@ internal static class BattleTargetSelectionService
                 actorFact.Anchor,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 gap);
         int retainedPriority = string.Equals(targetFact.Actor.ActorId, retainedTargetId, System.StringComparison.Ordinal)
@@ -718,7 +701,6 @@ internal static class BattleTargetSelectionService
         BattleGridCoord actorAnchor,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         int fallbackGap,
         BattleTacticalRegionSnapshot localCombatRegion = null)
@@ -728,21 +710,27 @@ internal static class BattleTargetSelectionService
             return 100000 + fallbackGap;
         }
 
-        BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
-        BattleFlowField field = cache.GetOrBuild(
+        IReadOnlyList<BattleGridCoord> moveOptions = BattleCrowdMovementPlanner.FindGreedyNextStepCandidatesTowardTarget(
             actor,
             target,
             navigationGraph,
-            preferSupportSlots: false,
-            localCombatRegion: localCombatRegion);
-        field = cache.PreferOpenAttackSlots(actor, navigationGraph, occupancy, field, localCombatRegion);
-        if (!field.TryGetCost(actorAnchor, out int cost))
+            occupancy,
+            new BattleMovementReservationMap(),
+            avoidOpeningNewAxisGapNearEngagedTarget: false,
+            localCombatRegion);
+        if (moveOptions.Count == 0)
         {
             return 100000 + fallbackGap;
         }
 
-        bool hasOpenAttackSlot = HasAttackGoal(field);
-        return hasOpenAttackSlot ? cost : cost + 5000;
+        BattleGridCoord targetAnchor = new(target.GridX, target.GridY, target.GridHeight);
+        int nextGap = BattleActorFootprint.GetGap(actor, moveOptions[0], target, targetAnchor);
+        int nextCenterDistance = GetCenterManhattanDistance(
+            new BattleRuntimeTickStartActorFact(actor, moveOptions[0], actor.HitPoints, 0, actor.TargetActorId ?? "", actor.CommandId ?? ""),
+            new BattleRuntimeTickStartActorFact(target, targetAnchor, target.HitPoints, 0, target.TargetActorId ?? "", target.CommandId ?? ""));
+        // Target acquisition now estimates only the currently executable local
+        // pressure step. It no longer computes a whole-field travel cost.
+        return nextGap * 100 + nextCenterDistance;
     }
 
     internal static bool HasReachableAttackSlot(
@@ -751,7 +739,6 @@ internal static class BattleTargetSelectionService
         BattleGridCoord actorAnchor,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion = null)
     {
@@ -760,30 +747,22 @@ internal static class BattleTargetSelectionService
             return false;
         }
 
-        BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
-        BattleFlowField field = cache.GetOrBuild(
+        int attackRange = System.Math.Max(1, actor.AttackRange);
+        BattleGridCoord targetAnchor = new(target.GridX, target.GridY, target.GridHeight);
+        int currentGap = BattleActorFootprint.GetOrthogonalGap(actor, actorAnchor, target, targetAnchor);
+        if (currentGap > 0 && currentGap <= attackRange)
+        {
+            return true;
+        }
+
+        return BattleCrowdMovementPlanner.FindGreedyNextStepCandidatesTowardTarget(
             actor,
             target,
             navigationGraph,
-            preferSupportSlots: false,
-            localCombatRegion: localCombatRegion);
-        field = cache.PreferOpenAttackSlots(actor, navigationGraph, occupancy, field, localCombatRegion);
-        // Reachability is a topology/open-slot fact. Local combat region penalties
-        // can make an outside slot expensive, but must not erase the fallback.
-        return field.TryGetCost(actorAnchor, out _) && HasAttackGoal(field);
-    }
-
-    private static bool HasAttackGoal(BattleFlowField field)
-    {
-        foreach (BattleCombatSlot slot in field?.GoalSlots ?? System.Array.Empty<BattleCombatSlot>())
-        {
-            if (slot.Kind == BattleCombatSlotKind.Attack)
-            {
-                return true;
-            }
-        }
-
-        return false;
+            occupancy,
+            new BattleMovementReservationMap(),
+            avoidOpeningNewAxisGapNearEngagedTarget: false,
+            localCombatRegion).Count > 0;
     }
 
     private static bool IsBetterAssaultTarget(AssaultTargetScore candidate, AssaultTargetScore known)

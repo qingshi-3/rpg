@@ -13,6 +13,7 @@ namespace Rpg.Presentation.World.Sites;
 public partial class WorldSiteRoot
 {
     private bool _battlePerceptionOverlayVisible;
+    private bool _battlePerceptionOverlayRefreshQueued;
 
     private void EnableBattlePerceptionOverlayForRuntime()
     {
@@ -58,8 +59,32 @@ public partial class WorldSiteRoot
             (BattleGridHighlightKind.EnemyPerception, BuildBattlePerceptionCells(BattleFaction.Enemy)));
     }
 
+    private void QueueBattlePerceptionOverlayRefresh()
+    {
+        if (_battlePerceptionOverlayRefreshQueued)
+        {
+            return;
+        }
+
+        _battlePerceptionOverlayRefreshQueued = true;
+        if (IsInsideTree())
+        {
+            Callable.From(FlushBattlePerceptionOverlayRefresh).CallDeferred();
+            return;
+        }
+
+        FlushBattlePerceptionOverlayRefresh();
+    }
+
+    private void FlushBattlePerceptionOverlayRefresh()
+    {
+        _battlePerceptionOverlayRefreshQueued = false;
+        RefreshBattlePerceptionOverlay();
+    }
+
     private void ClearBattlePerceptionOverlay()
     {
+        _battlePerceptionOverlayRefreshQueued = false;
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.FriendlyPerception);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.EnemyPerception);
     }

@@ -1,5 +1,3 @@
-using Rpg.Definitions.Battle.Abilities;
-using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Battle.Intents;
 
 namespace Rpg.Presentation.Battle.AI;
@@ -53,9 +51,4 @@ public sealed class BattleAiDecisionResult
     public int LocalCombatSelectedSlotCellHeight { get; }
     public string LocalCombatReasonCode { get; } = "";
 
-    public BattleIntent ToIntent(BattleEntity actor, AbilityDefinition preferredAbility)
-    {
-        AbilityDefinition ability = Template == BattleIntentTemplates.Hold ? null : preferredAbility;
-        return Template.Create(actor, ability, Power, Reason);
-    }
 }

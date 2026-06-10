@@ -171,26 +171,27 @@ public sealed class WorldBattleResultApplier
             else
             {
                 bool hasForceResults = HasForceResults(battleResult);
-                foreach (GarrisonState unit in army.GarrisonUnits.Where(item => item.Count > 0))
+                foreach (BattleForceRequest force in EnumeratePlayerArmyForces(request, army.ArmyId))
                 {
                     int transferred = hasForceResults
-                        ? GetSurvivedCountForArmyUnit(request, battleResult, army.ArmyId, unit.UnitTypeId)
-                        : unit.Count;
+                        ? GetSurvivedCountForArmyUnit(request, battleResult, army.ArmyId, force.UnitDefinitionId)
+                        : force.Count;
                     _garrisonMutations.Add(
                         targetSite,
-                        unit.UnitTypeId,
+                        force.UnitDefinitionId,
                         transferred,
                         request.AttackerFactionId,
                         "PlayerArmy",
                         army.ArmyId,
-                        unit.Morale);
+                        ResolveArmyUnitMorale(army, force.UnitDefinitionId));
                 }
             }
 
             WorldSiteDefinition siteDefinition = new StrategicWorldDefinitionQueries(definition).GetSite(targetSite.SiteId);
+            RemoveImportedArmyUnitsOutsideRequest(targetSite, request, army);
+            RemoveRequestedArmyUnitsFromArmy(army, request);
             int removedTransientPlacements = RemoveResolvedAssaultArmyPlacements(targetSite, army.ArmyId);
             _deploymentService.EnsureGarrisonPlacements(targetSite, siteDefinition);
-            army.GarrisonUnits.Clear();
             GameLog.Info(
                 nameof(WorldBattleResultApplier),
                 $"AssaultArmyGarrisoned army={army.ArmyId} site={targetSite.SiteId} removedTransientPlacements={removedTransientPlacements}");
@@ -201,6 +202,8 @@ public sealed class WorldBattleResultApplier
             // runtime starts. Once the army is resolved, those rows are no longer authoritative;
             // survivors are represented by the target garrison and defeated armies by army state.
             int removedTransientPlacements = RemoveResolvedAssaultArmyPlacements(targetSite, army.ArmyId);
+            RemoveImportedArmyUnitsForArmy(targetSite, request, army.ArmyId);
+            ApplyDeployedArmyCasualtiesToArmy(request, battleResult, army);
             GameLog.Info(
                 nameof(WorldBattleResultApplier),
                 $"AssaultArmyDefeated army={army.ArmyId} site={targetSite.SiteId} removedTransientPlacements={removedTransientPlacements}");
@@ -228,20 +231,171 @@ public sealed class WorldBattleResultApplier
             return;
         }
 
-        foreach (GarrisonState unit in army.GarrisonUnits.Where(item => item.Count > 0))
+        foreach (BattleForceRequest force in EnumeratePlayerArmyForces(request, army.ArmyId))
         {
             int survived = HasForceResults(battleResult)
-                ? GetSurvivedCountForArmyUnit(request, battleResult, army.ArmyId, unit.UnitTypeId)
-                : unit.Count;
-            int defeated = System.Math.Max(0, unit.Count - survived);
+                ? GetSurvivedCountForArmyUnit(request, battleResult, army.ArmyId, force.UnitDefinitionId)
+                : force.Count;
+            int defeated = System.Math.Max(0, force.Count - survived);
             _garrisonMutations.Remove(
                 targetSite,
-                unit.UnitTypeId,
+                force.UnitDefinitionId,
                 defeated,
                 request.AttackerFactionId,
                 "PlayerArmy",
                 army.ArmyId);
         }
+    }
+
+    private static IEnumerable<BattleForceRequest> EnumeratePlayerArmyForces(BattleStartRequest request, string armyId)
+    {
+        return request?.PlayerForces?
+            .Where(force =>
+                force != null &&
+                force.Count > 0 &&
+                string.Equals(force.SourceKind, "PlayerArmy", System.StringComparison.Ordinal) &&
+                string.Equals(force.SourceId, armyId, System.StringComparison.Ordinal) &&
+                !string.IsNullOrWhiteSpace(force.UnitDefinitionId)) ??
+            Enumerable.Empty<BattleForceRequest>();
+    }
+
+    private static int ResolveArmyUnitMorale(WorldArmyState army, string unitTypeId)
+    {
+        return army?.GarrisonUnits?
+            .FirstOrDefault(unit => string.Equals(unit.UnitTypeId, unitTypeId, System.StringComparison.Ordinal))
+            ?.Morale ?? 70;
+    }
+
+    private void RemoveImportedArmyUnitsOutsideRequest(
+        WorldSiteState targetSite,
+        BattleStartRequest request,
+        WorldArmyState army)
+    {
+        if (targetSite == null || request == null || army == null)
+        {
+            return;
+        }
+
+        Dictionary<string, int> requestedCounts = EnumeratePlayerArmyForces(request, army.ArmyId)
+            .GroupBy(force => force.UnitDefinitionId)
+            .ToDictionary(group => group.Key, group => group.Sum(force => System.Math.Max(0, force.Count)));
+        foreach (IGrouping<string, GarrisonState> importedGroup in targetSite.Garrison
+                     .Where(garrison =>
+                         garrison != null &&
+                         string.Equals(garrison.SourceKind, "PlayerArmy", System.StringComparison.Ordinal) &&
+                         string.Equals(garrison.SourceId, army.ArmyId, System.StringComparison.Ordinal) &&
+                         !string.IsNullOrWhiteSpace(garrison.UnitTypeId))
+                     .GroupBy(garrison => garrison.UnitTypeId)
+                     .ToArray())
+        {
+            int importedCount = importedGroup.Sum(garrison => System.Math.Max(0, garrison.Count));
+            requestedCounts.TryGetValue(importedGroup.Key, out int requestedCount);
+            int removeCount = System.Math.Max(0, importedCount - requestedCount);
+            if (removeCount <= 0)
+            {
+                continue;
+            }
+
+            _garrisonMutations.Remove(
+                targetSite,
+                importedGroup.Key,
+                removeCount,
+                request.AttackerFactionId,
+                "PlayerArmy",
+                army.ArmyId);
+        }
+    }
+
+    private void RemoveImportedArmyUnitsForArmy(
+        WorldSiteState targetSite,
+        BattleStartRequest request,
+        string armyId)
+    {
+        if (targetSite == null || string.IsNullOrWhiteSpace(armyId))
+        {
+            return;
+        }
+
+        foreach (IGrouping<string, GarrisonState> importedGroup in targetSite.Garrison
+                     .Where(garrison =>
+                         garrison != null &&
+                         string.Equals(garrison.SourceKind, "PlayerArmy", System.StringComparison.Ordinal) &&
+                         string.Equals(garrison.SourceId, armyId, System.StringComparison.Ordinal) &&
+                         !string.IsNullOrWhiteSpace(garrison.UnitTypeId))
+                     .GroupBy(garrison => garrison.UnitTypeId)
+                     .ToArray())
+        {
+            int removeCount = importedGroup.Sum(garrison => System.Math.Max(0, garrison.Count));
+            if (removeCount <= 0)
+            {
+                continue;
+            }
+
+            _garrisonMutations.Remove(
+                targetSite,
+                importedGroup.Key,
+                removeCount,
+                request?.AttackerFactionId ?? "",
+                "PlayerArmy",
+                armyId);
+        }
+    }
+
+    private static void RemoveRequestedArmyUnitsFromArmy(WorldArmyState army, BattleStartRequest request)
+    {
+        if (army == null)
+        {
+            return;
+        }
+
+        foreach (BattleForceRequest force in EnumeratePlayerArmyForces(request, army.ArmyId))
+        {
+            RemoveArmyUnitCount(army, force.UnitDefinitionId, force.Count);
+        }
+    }
+
+    private static void ApplyDeployedArmyCasualtiesToArmy(
+        BattleStartRequest request,
+        BattleResult battleResult,
+        WorldArmyState army)
+    {
+        if (army == null)
+        {
+            return;
+        }
+
+        foreach (BattleForceRequest force in EnumeratePlayerArmyForces(request, army.ArmyId))
+        {
+            int survived = HasForceResults(battleResult)
+                ? GetSurvivedCountForArmyUnit(request, battleResult, army.ArmyId, force.UnitDefinitionId)
+                : 0;
+            RemoveArmyUnitCount(army, force.UnitDefinitionId, System.Math.Max(0, force.Count - survived));
+        }
+    }
+
+    private static void RemoveArmyUnitCount(WorldArmyState army, string unitTypeId, int count)
+    {
+        if (army?.GarrisonUnits == null || string.IsNullOrWhiteSpace(unitTypeId) || count <= 0)
+        {
+            return;
+        }
+
+        int remaining = count;
+        foreach (GarrisonState unit in army.GarrisonUnits
+                     .Where(unit => string.Equals(unit.UnitTypeId, unitTypeId, System.StringComparison.Ordinal))
+                     .ToArray())
+        {
+            if (remaining <= 0)
+            {
+                break;
+            }
+
+            int removed = System.Math.Min(System.Math.Max(0, unit.Count), remaining);
+            unit.Count -= removed;
+            remaining -= removed;
+        }
+
+        army.GarrisonUnits.RemoveAll(unit => unit == null || unit.Count <= 0);
     }
 
     private static int RemoveResolvedAssaultArmyPlacements(WorldSiteState site, string armyId)

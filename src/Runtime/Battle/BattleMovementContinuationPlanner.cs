@@ -16,7 +16,6 @@ internal static class BattleMovementContinuationPlanner
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         string battleId,
         double currentTimeSeconds,
@@ -42,7 +41,6 @@ internal static class BattleMovementContinuationPlanner
                     tickStartFacts,
                     navigationGraph,
                     occupancy,
-                    flowFields,
                     performanceCounters,
                     battleId,
                     currentTimeSeconds,
@@ -86,7 +84,10 @@ internal static class BattleMovementContinuationPlanner
                 continue;
             }
 
-            BattleRuntimeActorStateMachine.ClearMovementIntentSnapshot(actor);
+            bool preserveExhaustedSteering =
+                actor.MovementSteeringMode == BattleLocalSteeringMode.FollowObstacle &&
+                actor.MovementSteeringBudgetRemaining <= 0;
+            BattleRuntimeActorStateMachine.ClearMovementIntentSnapshot(actor, clearSteering: !preserveExhaustedSteering);
         }
     }
 
@@ -95,7 +96,6 @@ internal static class BattleMovementContinuationPlanner
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         string battleId,
         double currentTimeSeconds,
@@ -127,7 +127,6 @@ internal static class BattleMovementContinuationPlanner
                 combatJoinActionZone,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 battleId,
                 tick,
@@ -149,7 +148,6 @@ internal static class BattleMovementContinuationPlanner
                 facts,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 battleId,
                 tick,
@@ -160,7 +158,6 @@ internal static class BattleMovementContinuationPlanner
                 facts,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 battleId,
                 tick,
@@ -174,7 +171,6 @@ internal static class BattleMovementContinuationPlanner
                 facts,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 battleId,
                 tick,
@@ -187,9 +183,10 @@ internal static class BattleMovementContinuationPlanner
                     facts,
                     navigationGraph,
                     occupancy,
-                    flowFields,
                     performanceCounters,
                     currentTimeSeconds,
+                    battleId,
+                    tick,
                     tacticalStateStore,
                     groupActionZones,
                     combatZones,
@@ -203,7 +200,6 @@ internal static class BattleMovementContinuationPlanner
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         string battleId,
         int tick,
@@ -225,7 +221,6 @@ internal static class BattleMovementContinuationPlanner
             actorFact,
             navigationGraph,
             occupancy,
-            flowFields,
             performanceCounters,
             battleId,
             tick);
@@ -243,7 +238,6 @@ internal static class BattleMovementContinuationPlanner
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         string battleId,
         int tick,
@@ -267,7 +261,6 @@ internal static class BattleMovementContinuationPlanner
             actorFact,
             navigationGraph,
             occupancy,
-            flowFields,
             performanceCounters,
             battleId,
             tick);
@@ -285,9 +278,10 @@ internal static class BattleMovementContinuationPlanner
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         double currentTimeSeconds,
+        string battleId,
+        int tick,
         BattleGroupTacticalStateStore tacticalStateStore,
         IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
         IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
@@ -363,12 +357,12 @@ internal static class BattleMovementContinuationPlanner
                                       actorFact.Anchor,
                                       navigationGraph,
                                       occupancy,
-                                      flowFields,
                                       performanceCounters,
                                       scopedLocalCombatRegion);
         bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && movementGap == attackRange + 1;
         BattleCombatSlotIntent? combatSlotIntent = null;
         IReadOnlyList<BattleGridCoord> moveOptions;
+        bool storedSlotBlocked = false;
         if (actor.HasMovementIntentCombatSlot)
         {
             if (BattleCombatSlotIntentResolver.TryResolveStoredIntent(
@@ -386,17 +380,22 @@ internal static class BattleMovementContinuationPlanner
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
-                    flowFields,
                     performanceCounters,
-                    scopedLocalCombatRegion);
+                    scopedLocalCombatRegion,
+                    allowNonImprovingLocalAvoidance: false);
                 combatSlotIntent = moveOptions.Count > 0 ? storedSlotIntent : null;
+                storedSlotBlocked = moveOptions.Count == 0;
             }
             else
             {
                 moveOptions = System.Array.Empty<BattleGridCoord>();
             }
 
+            // A still-valid stored slot that cannot be improved locally is a
+            // queue/hold signal. Do not reinterpret the same movement chain as
+            // a fresh slot search, or crowded large units can orbit the fight.
             if (moveOptions.Count == 0 &&
+                !storedSlotBlocked &&
                 BattleCombatSlotIntentResolver.TrySelectExecutableIntent(
                     tickStartActor,
                     tickStartTarget,
@@ -404,7 +403,6 @@ internal static class BattleMovementContinuationPlanner
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
-                    flowFields,
                     preferSupportSlots,
                     performanceCounters,
                     scopedLocalCombatRegion,
@@ -425,7 +423,6 @@ internal static class BattleMovementContinuationPlanner
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
-                    flowFields,
                     preferSupportSlots,
                     performanceCounters,
                     scopedLocalCombatRegion,
@@ -443,7 +440,6 @@ internal static class BattleMovementContinuationPlanner
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
-                    flowFields,
                     preferSupportSlots,
                     avoidOpeningNewAxisGapNearEngagedTarget,
                     performanceCounters,
@@ -456,6 +452,12 @@ internal static class BattleMovementContinuationPlanner
         }
         if (moveOptions.Count == 0)
         {
+            if (BattleCombatJoinRegionPlanner.TryBuildPressureAdvanceContext(actorFact, targetFact, localCombatSituation, navigationGraph, occupancy, performanceCounters, out BattleRuntimeTickContext pressureAdvanceContext))
+            {
+                context = pressureAdvanceContext;
+                return true;
+            }
+
             return false;
         }
 

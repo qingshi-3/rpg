@@ -109,6 +109,60 @@ internal static void FirstSliceAssaultRequestUsesSelectedHeroCompanyAndBonefield
         "first slice assault should include the Bonefield ranged enemy role");
 }
 
+internal static void FirstSliceAssaultRequestSplitsCarriedCompaniesIntoCommandGroups()
+{
+    const string armyId = "army_first_slice_multi_company";
+    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateConfig: false);
+    StrategicWorldState state = BuildFirstSliceAssaultState(
+        definition,
+        armyId,
+        heroUnitId: "f1_grandmasterzir",
+        corpsUnitId: "f1_azuritelion");
+    state.ArmyStates[armyId].GarrisonUnits.Add(new GarrisonState
+    {
+        UnitTypeId = "f1_windbladecommander",
+        Count = 1,
+        Morale = 80
+    });
+    state.ArmyStates[armyId].GarrisonUnits.Add(new GarrisonState
+    {
+        UnitTypeId = "f1_backlinearcher",
+        Count = 3,
+        Morale = 70
+    });
+
+    BattleStartRequest request = new WorldBattleRequestBuilder().BuildAssaultBonefieldRequest(
+        state,
+        definition,
+        "res://scenes/world/StrategicWorldRoot.tscn",
+        "res://scenes/world/sites/WorldSiteRoot.tscn",
+        armyId);
+
+    AssertEqual(4, request.PlayerForces.Count, "multi-company assault should carry two hero-company force pairs");
+    AssertEqual(8, request.PlayerForces.Sum(force => force.Count), "two carried companies should field two heroes plus six corps soldiers before reserve pruning");
+    AssertTrue(
+        request.PlayerForces.All(force =>
+            string.Equals(force.SourceKind, "PlayerArmy", StringComparison.Ordinal) &&
+            string.Equals(force.SourceId, armyId, StringComparison.Ordinal)),
+        "settlement source identity should remain the strategic army id for every carried company force");
+
+    IGrouping<string, BattleForceRequest>[] commandGroups = request.PlayerForces
+        .GroupBy(ReadCommandGroupId, StringComparer.Ordinal)
+        .Where(group => !string.IsNullOrWhiteSpace(group.Key))
+        .ToArray();
+    AssertEqual(2, commandGroups.Length, "battle preparation should see each carried hero company as a separate command group");
+    AssertTrue(
+        commandGroups.Any(group =>
+            group.Any(force => force.UnitDefinitionId == "f1_grandmasterzir") &&
+            group.Any(force => force.UnitDefinitionId == "f1_azuritelion")),
+        "shield hero and shield corps should share one command group");
+    AssertTrue(
+        commandGroups.Any(group =>
+            group.Any(force => force.UnitDefinitionId == "f1_windbladecommander") &&
+            group.Any(force => force.UnitDefinitionId == "f1_backlinearcher")),
+        "archer hero and archer corps should share one command group");
+}
+
 internal static void FirstSliceAssaultImportsSelectedHeroCompanyIntoTargetSiteUnitPoolOnce()
 {
     const string armyId = "army_first_slice_assault";
@@ -153,6 +207,61 @@ internal static void FirstSliceAssaultImportsSelectedHeroCompanyIntoTargetSiteUn
         "target site pool should remove defeated Bonefield defender units after victory");
 }
 
+internal static void FirstSliceAssaultSettlementKeepsUndeployedReserveCompanyOutOfCasualties()
+{
+    const string armyId = "army_first_slice_reserve";
+    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateConfig: false);
+    StrategicWorldState state = BuildFirstSliceAssaultState(
+        definition,
+        armyId,
+        heroUnitId: "f1_grandmasterzir",
+        corpsUnitId: "f1_azuritelion");
+    state.ArmyStates[armyId].GarrisonUnits.Add(new GarrisonState
+    {
+        UnitTypeId = "f1_windbladecommander",
+        Count = 1,
+        Morale = 80
+    });
+    state.ArmyStates[armyId].GarrisonUnits.Add(new GarrisonState
+    {
+        UnitTypeId = "f1_backlinearcher",
+        Count = 3,
+        Morale = 70
+    });
+    WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
+
+    BattleStartRequest request = new WorldBattleRequestBuilder().BuildAssaultBonefieldRequest(
+        state,
+        definition,
+        "res://scenes/world/StrategicWorldRoot.tscn",
+        "res://scenes/world/sites/WorldSiteRoot.tscn",
+        armyId);
+    string deployedGroupId = ReadCommandGroupId(request.PlayerForces.First(force => force.UnitDefinitionId == "f1_grandmasterzir"));
+    request.PlayerForces = request.PlayerForces
+        .Where(force => string.Equals(ReadCommandGroupId(force), deployedGroupId, StringComparison.Ordinal))
+        .ToList();
+
+    BattleResult battleResult = BuildAssaultVictoryResult(request);
+    new WorldBattleResultApplier().Apply(state, definition, request, battleResult);
+
+    WorldArmyState army = state.ArmyStates[armyId];
+    AssertEqual(
+        1,
+        army.GarrisonUnits.Where(unit => unit.UnitTypeId == "f1_windbladecommander").Sum(unit => unit.Count),
+        "undeployed reserve hero should remain in the strategic army after battle settlement");
+    AssertEqual(
+        3,
+        army.GarrisonUnits.Where(unit => unit.UnitTypeId == "f1_backlinearcher").Sum(unit => unit.Count),
+        "undeployed reserve corps should remain in the strategic army after battle settlement");
+    AssertEqual(
+        0,
+        site.Garrison.Where(garrison =>
+            (garrison.UnitTypeId == "f1_windbladecommander" || garrison.UnitTypeId == "f1_backlinearcher") &&
+            garrison.SourceKind == "PlayerArmy" &&
+            garrison.SourceId == armyId).Sum(garrison => garrison.Count),
+        "undeployed reserve company should not be left in the target battle pool as a deployed garrison");
+}
+
 private static void AssertConfiguredUnitPath(string indexText, string relativePath, string label)
 {
     string normalized = relativePath.Replace('\\', '/');
@@ -173,5 +282,12 @@ private static void AssertUnitDisplayName(string relativePath, string expectedDi
 {
     string unitText = File.ReadAllText(Path.Combine(ProjectRoot(), relativePath));
     AssertTrue(unitText.Contains($"DisplayName = \"{expectedDisplayName}\"", StringComparison.Ordinal), label);
+}
+
+private static string ReadCommandGroupId(BattleForceRequest force)
+{
+    System.Reflection.PropertyInfo? commandGroupId = typeof(BattleForceRequest).GetProperty("CommandGroupId");
+    AssertTrue(commandGroupId != null, "battle force request should carry a command-group id separate from settlement source id");
+    return commandGroupId!.GetValue(force) as string ?? "";
 }
 }

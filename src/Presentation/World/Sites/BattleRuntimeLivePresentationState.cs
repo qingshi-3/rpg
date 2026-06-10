@@ -83,11 +83,11 @@ internal sealed class BattleRuntimeLivePresentationState
         _actorMovementStartGates.TryGetValue(actorId, out Task movementStartGate);
         if (movementStartGate != null && !movementStartGate.IsCompleted)
         {
-            _actorActionTails.TryGetValue(actorId, out Task previousActionTask);
+            _actorActionTails.TryGetValue(actorId, out Task gatedPreviousActionTask);
             // Skill casts are anchored release presentations. Movement may
             // still be simulated later by Runtime, but the visual lane must
             // not start until the caster-side release has finished.
-            Task gatedMovementTask = RunMovementAfterGateAsync(previousActionTask ?? movementStartGate, observeMovement, wait);
+            Task gatedMovementTask = RunMovementAfterGateAsync(gatedPreviousActionTask ?? movementStartGate, observeMovement, wait);
             if (!string.IsNullOrWhiteSpace(actorId))
             {
                 _actorActionTails[actorId] = gatedMovementTask;
@@ -104,12 +104,13 @@ internal sealed class BattleRuntimeLivePresentationState
             return;
         }
 
-        _actorActionTails.TryGetValue(actorId, out Task previousTask);
+        _actorActionTails.TryGetValue(actorId, out Task previousActionTask);
+        _actorMovementTails.TryGetValue(actorId, out Task previousMovementTask);
         // Movement completion is a separate dependency from this actor's
         // action backlog. Incoming hits wait for movement, not for unrelated
         // attack feedback already queued on the target.
-        Task movementTask = wait(movementSeconds);
-        Task tailTask = WaitForActorDependenciesAsync(previousTask, movementTask);
+        Task movementTask = RunMovementTailAsync(previousMovementTask, movementSeconds, wait);
+        Task tailTask = WaitForActorDependenciesAsync(previousActionTask, movementTask);
         if (!string.IsNullOrWhiteSpace(actorId))
         {
             _actorActionTails[actorId] = tailTask;
@@ -173,6 +174,20 @@ internal sealed class BattleRuntimeLivePresentationState
     private static Task WaitForActorDependenciesAsync(Task actorActionTail, Task movementTask)
     {
         return WaitForDependenciesAsync(new[] { actorActionTail, movementTask });
+    }
+
+    private static async Task RunMovementTailAsync(Task previousTask, double movementSeconds, System.Func<double, Task> wait)
+    {
+        if (previousTask != null)
+        {
+            await previousTask;
+        }
+
+        Task movementWait = wait(movementSeconds);
+        if (movementWait != null)
+        {
+            await movementWait;
+        }
     }
 
     private static Task WaitForDependenciesAsync(IReadOnlyList<Task> dependencies)

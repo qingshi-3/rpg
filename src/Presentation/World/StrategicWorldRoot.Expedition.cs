@@ -26,7 +26,8 @@ public partial class StrategicWorldRoot
         _isExpeditionTargeting = false;
         _expeditionSourceSiteId = _selectedSiteId;
         _expeditionUnitCounts.Clear();
-        // The first slice drafts one hero company at a time; the matching corps is attached after the world army exists.
+        // A first-slice expedition is one strategic army that can carry several
+        // hero companies; battle entry later exposes those companies separately.
         string defaultHeroUnitId = FirstSliceHeroCompanyIds.HeroUnitIds
             .FirstOrDefault(heroUnitId => GetAvailableUnitCount(_expeditionSourceSiteId, heroUnitId) > 0);
         if (!string.IsNullOrWhiteSpace(defaultHeroUnitId))
@@ -44,6 +45,13 @@ public partial class StrategicWorldRoot
         if (!HasSelectedExpeditionUnits())
         {
             StrategicWorldRuntime.LastNotice = "请先选择要出征的英雄。";
+            RefreshAll();
+            return;
+        }
+
+        if (!_expeditionService.HasAvailablePlayerExpeditionCapacity(State, out _, out _))
+        {
+            StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason("expedition_capacity_full");
             RefreshAll();
             return;
         }
@@ -74,14 +82,6 @@ public partial class StrategicWorldRoot
         int available = GetAvailableUnitCount(_expeditionSourceSiteId, unitTypeId);
         _expeditionUnitCounts.TryGetValue(unitTypeId, out int selected);
         selected = System.Math.Clamp(selected + delta, 0, FirstSliceHeroCompanyIds.IsHeroUnit(unitTypeId) ? System.Math.Min(1, available) : available);
-        if (selected > 0 && FirstSliceHeroCompanyIds.IsHeroUnit(unitTypeId))
-        {
-            foreach (string otherHeroUnitId in FirstSliceHeroCompanyIds.HeroUnitIds.Where(id => !string.Equals(id, unitTypeId, System.StringComparison.Ordinal)))
-            {
-                _expeditionUnitCounts.Remove(otherHeroUnitId);
-            }
-        }
-
         if (selected <= 0)
         {
             _expeditionUnitCounts.Remove(unitTypeId);
@@ -145,10 +145,17 @@ public partial class StrategicWorldRoot
     private bool TryCreateExpedition(string targetSiteId, Vector2 destination, WorldArmyIntent intent)
     {
         ClampExpeditionDraftCounts();
-        Dictionary<string, int> units = BuildSelectedExpeditionUnits();
-        if (units.Count == 0)
+        Dictionary<string, int> selectedUnits = BuildSelectedExpeditionUnits();
+        if (selectedUnits.Count == 0)
         {
             StrategicWorldRuntime.LastNotice = "请先选择要出征的英雄。";
+            RefreshAll();
+            return true;
+        }
+
+        if (!_expeditionService.HasAvailablePlayerExpeditionCapacity(State, out _, out _))
+        {
+            StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason("expedition_capacity_full");
             RefreshAll();
             return true;
         }
@@ -176,7 +183,7 @@ public partial class StrategicWorldRoot
                 targetSiteId,
                 resolvedDestination,
                 intent,
-                units,
+                selectedUnits,
                 out WorldArmyState army,
                 out string failureReason))
         {
@@ -239,26 +246,43 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        GarrisonState hero = army.GarrisonUnits.FirstOrDefault(unit =>
-            unit != null &&
-            unit.Count > 0 &&
-            FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(unit.UnitTypeId, out _));
-        if (hero == null ||
-            !FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(hero.UnitTypeId, out FirstSliceHeroCompanyDefinition company) ||
-            army.GarrisonUnits.Any(unit => string.Equals(unit.UnitTypeId, company.DefaultCorpsUnit, System.StringComparison.Ordinal)))
+        foreach (GarrisonState hero in army.GarrisonUnits
+                     .Where(unit => unit != null && unit.Count > 0)
+                     .ToArray())
         {
-            return;
-        }
+            if (!FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(hero.UnitTypeId, out FirstSliceHeroCompanyDefinition company))
+            {
+                continue;
+            }
 
-        army.GarrisonUnits.Add(new GarrisonState
-        {
-            UnitTypeId = company.DefaultCorpsUnit,
-            Count = company.DefaultCorpsCount,
-            Morale = 70
-        });
-        GameLog.Info(
-            nameof(StrategicWorldRoot),
-            $"HeroDefaultCorpsAttached army={army.ArmyId} hero={company.HeroUnit} corps={company.DefaultCorpsUnit}:{company.DefaultCorpsCount}");
+            int requiredCorpsCount = System.Math.Max(1, hero.Count) * company.DefaultCorpsCount;
+            GarrisonState existingCorps = army.GarrisonUnits
+                .FirstOrDefault(unit => string.Equals(unit.UnitTypeId, company.DefaultCorpsUnit, System.StringComparison.Ordinal));
+            int existingCorpsCount = existingCorps == null ? 0 : System.Math.Max(0, existingCorps.Count);
+            int missingCorpsCount = requiredCorpsCount - existingCorpsCount;
+            if (missingCorpsCount <= 0)
+            {
+                continue;
+            }
+
+            if (existingCorps == null)
+            {
+                army.GarrisonUnits.Add(new GarrisonState
+                {
+                    UnitTypeId = company.DefaultCorpsUnit,
+                    Count = missingCorpsCount,
+                    Morale = 70
+                });
+            }
+            else
+            {
+                existingCorps.Count += missingCorpsCount;
+            }
+
+            GameLog.Info(
+                nameof(StrategicWorldRoot),
+                $"HeroDefaultCorpsAttached army={army.ArmyId} hero={company.HeroUnit} corps={company.DefaultCorpsUnit}:{missingCorpsCount}");
+        }
     }
 
     private bool TryResolveExpeditionNavigation(
@@ -343,6 +367,12 @@ public partial class StrategicWorldRoot
             site.ControlState is not (SiteControlState.PlayerHeld or SiteControlState.Damaged))
         {
             failureReason = "source_site_not_owned";
+            return false;
+        }
+
+        if (!_expeditionService.HasAvailablePlayerExpeditionCapacity(State, out _, out _))
+        {
+            failureReason = "expedition_capacity_full";
             return false;
         }
 

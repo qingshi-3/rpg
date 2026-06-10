@@ -93,6 +93,7 @@ public sealed class BattleRuntimeSession
 
         BattleNavigationGraph navigationGraph = BattleNavigationGraph.Create(snapshot.LocationContext, state.Actors);
         LogNavigationGraphSummary(battleId, navigationGraph);
+        LogNavigationRouteTopologySummary(battleId, navigationGraph);
         LogNavigationActorStarts(battleId, navigationGraph, state.Actors);
         EmitInitialCommandEvents(stream, battleId, state);
         EmitInitialPlanEvents(stream, battleId, state);
@@ -262,6 +263,13 @@ public sealed class BattleRuntimeSession
         GameLog.Info(
             nameof(BattleRuntimeSession),
             $"BattleRuntimeNavigationGraph battle={battleId ?? ""} {navigationGraph?.DescribeTopology() ?? "graph=missing"}");
+    }
+
+    internal static void LogNavigationRouteTopologySummary(string battleId, BattleNavigationGraph navigationGraph)
+    {
+        GameLog.Info(
+            nameof(BattleRuntimeSession),
+            $"BattleRuntimeRouteTopology battle={battleId ?? ""} {navigationGraph?.DescribeRouteTopology() ?? "routeTopology=missing"}");
     }
 
     internal static void LogNavigationActorStarts(

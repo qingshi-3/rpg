@@ -26,7 +26,6 @@ internal sealed partial class BattleRuntimeTickResolver
         BattleTacticalRegionSnapshot combatJoinRegion,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         double currentTimeSeconds,
         out BattleRuntimeTickContext context)
@@ -84,7 +83,6 @@ internal sealed partial class BattleRuntimeTickResolver
                                           actorFact.Anchor,
                                           navigationGraph,
                                           occupancy,
-                                          flowFields,
                                           performanceCounters,
                                           scopedLocalCombatRegion);
             BattleRuntimeAiActionRequest request = null;
@@ -98,7 +96,6 @@ internal sealed partial class BattleRuntimeTickResolver
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
-                    flowFields,
                     preferSupportSlots,
                     performanceCounters,
                     scopedLocalCombatRegion,
@@ -132,7 +129,6 @@ internal sealed partial class BattleRuntimeTickResolver
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
-                    flowFields,
                     preferSupportSlots,
                     avoidOpeningNewAxisGapNearEngagedTarget: false,
                     performanceCounters,

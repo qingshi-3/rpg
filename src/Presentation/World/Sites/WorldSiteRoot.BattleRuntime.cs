@@ -42,10 +42,14 @@ public partial class WorldSiteRoot
                 return;
             }
 
-            ClearBattleEntities();
-            var reservedDeploymentSurfaces = new HashSet<GridSurfacePosition>();
-            AddRequestedForces(request.PlayerForces, BattleFaction.Player, request, reservedDeploymentSurfaces);
-            AddRequestedForces(request.EnemyForces, BattleFaction.Enemy, request, reservedDeploymentSurfaces);
+            if (!_isBattlePreparationActive)
+            {
+                RefreshBattleRequestMapEntitiesForDirectRuntime(request);
+            }
+            else
+            {
+                ClearBattleEntities();
+            }
         }
 
         GameLog.Info(

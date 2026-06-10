@@ -43,7 +43,6 @@ internal static class BattleCombatSlotIntentResolver
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
-        BattleFlowFieldCache flowFields,
         bool preferSupportSlots,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion,
@@ -77,10 +76,10 @@ internal static class BattleCombatSlotIntentResolver
 
         if (TrySelectExecutableCandidateGroup(
                 actor,
+                target,
                 graph,
                 occupancy,
                 reservations,
-                flowFields,
                 performanceCounters,
                 localCombatRegion,
                 candidates,
@@ -99,7 +98,6 @@ internal static class BattleCombatSlotIntentResolver
                 graph,
                 occupancy,
                 reservations,
-                flowFields,
                 performanceCounters,
                 localCombatRegion,
                 out intent,
@@ -115,10 +113,10 @@ internal static class BattleCombatSlotIntentResolver
 
         if (TrySelectExecutableCandidateGroup(
                 actor,
+                target,
                 graph,
                 occupancy,
                 reservations,
-                flowFields,
                 performanceCounters,
                 localCombatRegion,
                 candidates,
@@ -137,7 +135,6 @@ internal static class BattleCombatSlotIntentResolver
                    graph,
                    occupancy,
                    reservations,
-                   flowFields,
                    performanceCounters,
                    localCombatRegion,
                    out intent,
@@ -151,7 +148,6 @@ internal static class BattleCombatSlotIntentResolver
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion,
         out BattleCombatSlotIntent intent,
@@ -174,10 +170,10 @@ internal static class BattleCombatSlotIntentResolver
             includeLocalCombatJoinSupport: true);
         return TrySelectExecutableCandidateGroup(
             actor,
+            target,
             graph,
             occupancy,
             reservations,
-            flowFields,
             performanceCounters,
             localCombatRegion,
             candidates,
@@ -188,10 +184,10 @@ internal static class BattleCombatSlotIntentResolver
 
     private static bool TrySelectExecutableCandidateGroup(
         BattleRuntimeActor actor,
+        BattleRuntimeActor target,
         BattleNavigationGraph graph,
         BattleDynamicOccupancy occupancy,
         BattleMovementReservationMap reservations,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         BattleTacticalRegionSnapshot localCombatRegion,
         IReadOnlyList<BattleCombatSlot> candidates,
@@ -217,29 +213,45 @@ internal static class BattleCombatSlotIntentResolver
             return false;
         }
 
-        // Candidate groups share one battlefield-scoped multi-goal field. The
-        // movement executor still validates the chosen next step per actor.
-        BattleFlowFieldCache cache = flowFields ?? new BattleFlowFieldCache(performanceCounters);
-        BattleFlowField field = cache.GetOrBuildGoalField(
-            actor,
-            graph,
-            goals,
-            kind,
-            localCombatRegion);
-        moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardCombatField(
-            actor,
-            field,
-            graph,
-            occupancy,
-            reservations,
-            out BattleCombatSlot selectedGoal,
-            localCombatRegion);
-        if (moveOptions.Count == 0)
+        int bestScore = int.MaxValue;
+        BattleCombatSlot bestGoal = default;
+        IReadOnlyList<BattleGridCoord> bestMoveOptions = System.Array.Empty<BattleGridCoord>();
+        foreach (BattleCombatSlot goal in goals)
+        {
+            moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardCombatSlot(
+                actor,
+                goal.Anchor,
+                goal.Kind,
+                graph,
+                occupancy,
+                reservations,
+                performanceCounters,
+                localCombatRegion);
+            if (moveOptions.Count == 0)
+            {
+                continue;
+            }
+
+            int score = ScoreExecutableGoal(actor, target, goal, moveOptions[0], occupancy);
+            if (score < bestScore ||
+                score == bestScore && IsBefore(goal.Anchor, bestGoal.Anchor))
+            {
+                bestScore = score;
+                bestGoal = goal;
+                bestMoveOptions = moveOptions;
+            }
+        }
+
+        if (bestMoveOptions.Count == 0)
         {
             return false;
         }
 
-        intent = new BattleCombatSlotIntent(selectedGoal.Anchor, selectedGoal.Kind);
+        // Slot choice is a state-machine intent. Movement only proves the
+        // immediate local step is executable; it does not construct a field
+        // or claim that the whole future route is globally optimal.
+        intent = new BattleCombatSlotIntent(bestGoal.Anchor, bestGoal.Kind);
+        moveOptions = bestMoveOptions;
         return true;
     }
 
@@ -347,5 +359,79 @@ internal static class BattleCombatSlotIntentResolver
             target,
             new BattleGridCoord(target.GridX, target.GridY, target.GridHeight));
         return gap > 0 && gap <= attackRange;
+    }
+
+    private static int ScoreExecutableGoal(
+        BattleRuntimeActor actor,
+        BattleRuntimeActor target,
+        BattleCombatSlot goal,
+        BattleGridCoord firstStep,
+        BattleDynamicOccupancy occupancy)
+    {
+        int attackRange = System.Math.Max(1, actor?.AttackRange ?? 1);
+        int immediateAttackPenalty = IsAttackCapableAnchor(actor, firstStep, target, attackRange)
+            ? 0
+            : 10000;
+        int targetGap = BattleActorFootprint.GetGap(
+            actor,
+            firstStep,
+            target,
+            new BattleGridCoord(target.GridX, target.GridY, target.GridHeight));
+        int slotStepDistance = System.Math.Abs(firstStep.X - goal.Anchor.X) +
+                               System.Math.Abs(firstStep.Y - goal.Anchor.Y) +
+                               System.Math.Abs(firstStep.Height - goal.Anchor.Height) * 4;
+        return immediateAttackPenalty +
+               GetBlockedLanePenalty(actor, target, firstStep, occupancy) +
+               targetGap * 100 +
+               goal.Priority * 10 +
+               slotStepDistance;
+    }
+
+    private static int GetBlockedLanePenalty(
+        BattleRuntimeActor actor,
+        BattleRuntimeActor target,
+        BattleGridCoord firstStep,
+        BattleDynamicOccupancy occupancy)
+    {
+        if (actor == null || target == null || occupancy == null)
+        {
+            return 0;
+        }
+
+        int targetWidth = BattleActorFootprint.NormalizeSize(target.FootprintWidth);
+        int targetHeight = BattleActorFootprint.NormalizeSize(target.FootprintHeight);
+        int targetMinX = target.GridX;
+        int targetMaxX = target.GridX + targetWidth - 1;
+        int targetMinY = target.GridY;
+        int targetMaxY = target.GridY + targetHeight - 1;
+
+        if (firstStep.X >= targetMinX && firstStep.X <= targetMaxX)
+        {
+            int laneY = firstStep.Y > targetMaxY ? targetMaxY + 1 : firstStep.Y < targetMinY ? targetMinY - 1 : int.MinValue;
+            if (laneY != int.MinValue &&
+                occupancy.IsOccupiedByOther(actor, new BattleGridCoord(firstStep.X, laneY, firstStep.Height)))
+            {
+                return 5000;
+            }
+        }
+
+        if (firstStep.Y >= targetMinY && firstStep.Y <= targetMaxY)
+        {
+            int laneX = firstStep.X > targetMaxX ? targetMaxX + 1 : firstStep.X < targetMinX ? targetMinX - 1 : int.MinValue;
+            if (laneX != int.MinValue &&
+                occupancy.IsOccupiedByOther(actor, new BattleGridCoord(laneX, firstStep.Y, firstStep.Height)))
+            {
+                return 5000;
+            }
+        }
+
+        return 0;
+    }
+
+    private static bool IsBefore(BattleGridCoord candidate, BattleGridCoord known)
+    {
+        return candidate.Height < known.Height ||
+               candidate.Height == known.Height && candidate.Y < known.Y ||
+               candidate.Height == known.Height && candidate.Y == known.Y && candidate.X < known.X;
     }
 }

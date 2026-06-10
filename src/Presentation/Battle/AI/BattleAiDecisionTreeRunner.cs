@@ -3,8 +3,8 @@ using Rpg.Presentation.Battle.Intents;
 
 namespace Rpg.Presentation.Battle.AI;
 
-// First migration slice for LimboAI: keep intent selection in a tree-shaped decision layer
-// while BattleIntentResolver and runtime services remain the action and combat authority.
+// First migration slice for LimboAI: keep intent selection in a tree-shaped
+// decision layer while Runtime remains the action and combat authority.
 public sealed class BattleAiDecisionTreeRunner
 {
     public BattleAiDecisionResult ChooseEnemyIntent(BattleAiDecisionFacts facts)

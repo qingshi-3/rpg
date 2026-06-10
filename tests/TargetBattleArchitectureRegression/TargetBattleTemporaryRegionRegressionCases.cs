@@ -12,6 +12,9 @@ internal static class TargetBattleTemporaryRegionRegressionCases
     {
         run("temporary region builds from player clusters when fixed regions empty", TemporaryRegionBuildsFromPlayerClustersWhenFixedRegionsEmpty);
         run("temporary region refresh interval defaults to five ticks", TemporaryRegionRefreshIntervalDefaultsToFiveTicks);
+        run("player active command blocks autonomous temporary region", PlayerActiveCommandBlocksAutonomousTemporaryRegion);
+        run("player completed command creates autonomous temporary region", PlayerCompletedCommandCreatesAutonomousTemporaryRegion);
+        run("player autonomous temporary region clears on engagement", PlayerAutonomousTemporaryRegionClearsOnEngagement);
     }
 
     private static void TemporaryRegionBuildsFromPlayerClustersWhenFixedRegionsEmpty()
@@ -53,6 +56,60 @@ internal static class TargetBattleTemporaryRegionRegressionCases
 
         controller.AdvanceNextTick();
         AssertEqual(12, controller.State.TacticalStates["enemy_group"].SelectedRegion?.CenterCellX, "temporary region may refresh on fifth tick");
+    }
+
+    private static void PlayerActiveCommandBlocksAutonomousTemporaryRegion()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildPlayerAutonomousRegionSnapshot(playerStartsAtCommand: false));
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+        BattleGroupTacticalState state = controller.State.TacticalStates["player_group"];
+        BattleEvent? regionMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "player_force:1");
+
+        AssertEqual("player_command_region", state.SelectedRegion?.RegionId, "active player command should remain selected");
+        AssertEqual(BattleTacticalRegionKind.FixedTarget, state.SelectedRegion?.Kind, "active player command remains a fixed target");
+        AssertTrue(regionMove != null, "player group should keep advancing toward its active command");
+        AssertEqual("player_command_region", regionMove!.TargetId, "movement should target the player command region");
+    }
+
+    private static void PlayerCompletedCommandCreatesAutonomousTemporaryRegion()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildPlayerAutonomousRegionSnapshot(playerStartsAtCommand: true));
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+        BattleGroupTacticalState state = controller.State.TacticalStates["player_group"];
+        BattleEvent? regionMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "player_force:1");
+
+        AssertEqual(BattleTacticalRegionKind.TemporaryTarget, state.SelectedRegion?.Kind, "completed empty player command should switch to autonomous temporary target");
+        AssertEqual("player_group", state.SelectedRegion?.OwnerBattleGroupId, "autonomous temporary target owner");
+        AssertEqual(22, state.SelectedRegion?.CenterCellX, "autonomous target should prefer the denser enemy cluster before distance");
+        AssertEqual(BattleGroupTacticalReasonCode.PlayerAutonomousTemporaryRegionCreatedCluster, state.SelectedRegion?.ReasonCode, "autonomous temporary target reason");
+        AssertTrue(regionMove != null, "player group should move toward generated autonomous target");
+        AssertEqual(BattleGroupTacticalReasonCode.RegionTemporaryAdvance, regionMove!.ReasonCode, "autonomous temporary movement reason");
+    }
+
+    private static void PlayerAutonomousTemporaryRegionClearsOnEngagement()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildPlayerAutonomousRegionSnapshot(playerStartsAtCommand: true));
+
+        controller.AdvanceNextTick();
+        AssertEqual(BattleTacticalRegionKind.TemporaryTarget, controller.State.TacticalStates["player_group"].SelectedRegion?.Kind, "autonomous temporary target should be selected first");
+
+        BattleRuntimeActor enemy = controller.State.Actors.Single(item => item.ActorId == "enemy_near_force:1");
+        enemy.GridX = 1;
+        enemy.GridY = 0;
+
+        controller.AdvanceNextTick();
+        BattleGroupTacticalState state = controller.State.TacticalStates["player_group"];
+        AssertEqual(BattleGroupEngagementState.Engaged, state.EngagementState, "near hostile should enter player-scoped engagement");
+        AssertTrue(state.SelectedRegion == null, "self-calculated target should clear when combat starts");
     }
 
     private static BattleStartSnapshot BuildTemporaryRegionSnapshot()
@@ -113,6 +170,86 @@ internal static class TargetBattleTemporaryRegionRegressionCases
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
         return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildPlayerAutonomousRegionSnapshot(bool playerStartsAtCommand)
+    {
+        int commandX = playerStartsAtCommand ? 0 : 5;
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = playerStartsAtCommand
+                ? "snapshot_player_autonomous_region"
+                : "snapshot_player_active_command_region",
+            BattleId = playerStartsAtCommand
+                ? "battle_player_autonomous_region"
+                : "battle_player_active_command_region",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                new BattleGroupSnapshot
+                {
+                    BattleGroupId = "player_group",
+                    RuntimeCommanderGroupId = "player_group",
+                    FactionId = "player",
+                    SourceForceId = "player_force",
+                    HeroId = "player_hero",
+                    HeroDefinitionId = "player_hero_definition",
+                    CorpsId = "player_corps",
+                    CorpsDefinitionId = "player_corps_definition",
+                    CorpsStrength = 80,
+                    MaxHitPoints = 80,
+                    AttackDamage = 1,
+                    SourceLocationId = "site_1",
+                    CellX = 0,
+                    CellY = 0,
+                    InitialCorpsCommandId = "Assault",
+                    TacticalMode = BattleGroupTacticalMode.PlayerCommanded,
+                    InitialTacticalRegions =
+                    {
+                        BuildRegion("player_command_region", "player_group", BattleTacticalRegionKind.FixedTarget, commandX, 0)
+                    }
+                },
+                BuildEnemyGroup("enemy_near", "enemy_near_force", 10, 0, 80),
+                BuildEnemyGroup("enemy_dense_a", "enemy_dense_a_force", 22, 0, 80),
+                BuildEnemyGroup("enemy_dense_b", "enemy_dense_b_force", 22, 1, 80)
+            }
+        };
+
+        for (int x = 0; x <= 24; x++)
+        {
+            AddSurface(snapshot, x, 0);
+            AddSurface(snapshot, x, 1);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleGroupSnapshot BuildEnemyGroup(
+        string battleGroupId,
+        string sourceForceId,
+        int cellX,
+        int cellY,
+        int hitPoints)
+    {
+        return new BattleGroupSnapshot
+        {
+            BattleGroupId = battleGroupId,
+            FactionId = "enemy",
+            SourceForceId = sourceForceId,
+            HeroId = $"{battleGroupId}_hero",
+            HeroDefinitionId = "enemy_hero_definition",
+            CorpsId = $"{battleGroupId}_corps",
+            CorpsDefinitionId = "enemy_corps_definition",
+            CorpsStrength = hitPoints,
+            MaxHitPoints = hitPoints,
+            AttackDamage = 1,
+            SourceLocationId = "site_1",
+            CellX = cellX,
+            CellY = cellY,
+            InitialCorpsCommandId = "HoldLine",
+            TacticalMode = BattleGroupTacticalMode.EnemyHoldDefense
+        };
     }
 
     private static BattleTacticalRegionSnapshot BuildRegion(

@@ -29,13 +29,11 @@ internal sealed partial class BattleRuntimeTickResolver
             return false;
         }
 
-        BattleFlowFieldCache flowFields = new(performanceCounters);
         BattleRuntimeTickContext refreshed = BuildTickContext(
             context.ActorFact.Actor,
             tickStartFacts,
             navigationGraph,
             occupancy,
-            flowFields,
             performanceCounters,
             battleId,
             currentTimeSeconds,

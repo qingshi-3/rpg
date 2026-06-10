@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Config;
@@ -18,6 +20,8 @@ public sealed class BattleUnitFactory
     private const string UnitDefinitionIndexPath = BattleUnitDefinitionIndexLoader.DefaultConfigPath;
     private static readonly Dictionary<string, BattleUnitDefinition> SharedDefinitions = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, string> SharedDefinitionPathIndex = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, BattleUnitVisualLayout> SharedVisualLayoutCache = new(StringComparer.Ordinal);
+    private static readonly HashSet<string> SharedLoggedAutoLayoutKeys = new(StringComparer.Ordinal);
     private static readonly HashSet<string> SharedLoggedWarningKeys = new(StringComparer.Ordinal);
     private static bool SharedDefinitionPathIndexBuilt;
 
@@ -529,13 +533,7 @@ public sealed class BattleUnitFactory
         string definitionId,
         Vector2 footprintScale)
     {
-        if (!visual.AutoLayoutFromSpriteFrames ||
-            !BattleUnitVisualLayoutCalculator.TryCalculateAutoLayout(
-                visual.SpriteFrames,
-                visual.TargetMaxSpriteSizePixels * BattleUnitVisualScale.Default.SpriteScaleMultiplier,
-                visual.GroundAnchorOffsetPixels,
-                visual.VisibleAlphaThreshold,
-                out BattleUnitVisualLayout layout))
+        if (!TryResolveAutoLayout(visual, out BattleUnitVisualLayout layout))
         {
             animatedSprite.Position = Vector2.Zero;
             animatedSprite.Offset = new Vector2(0f, visual.Offset.Y);
@@ -547,9 +545,83 @@ public sealed class BattleUnitFactory
         animatedSprite.Position = layout.Position;
         animatedSprite.Offset = Vector2.Zero;
         animatedSprite.Scale = layout.Scale * footprintScale;
-        GameLog.Info(
+        TraceAutoLayoutOnce(visual, definitionId, footprintScale, layout, animatedSprite.Scale);
+    }
+
+    private static bool TryResolveAutoLayout(BattleUnitVisualDefinition visual, out BattleUnitVisualLayout layout)
+    {
+        layout = default;
+        if (visual?.AutoLayoutFromSpriteFrames != true || visual.SpriteFrames == null)
+        {
+            return false;
+        }
+
+        string cacheKey = BuildVisualLayoutCacheKey(visual);
+        if (SharedVisualLayoutCache.TryGetValue(cacheKey, out layout))
+        {
+            return true;
+        }
+
+        if (!BattleUnitVisualLayoutCalculator.TryCalculateAutoLayout(
+                visual.SpriteFrames,
+                visual.TargetMaxSpriteSizePixels * BattleUnitVisualScale.Default.SpriteScaleMultiplier,
+                visual.GroundAnchorOffsetPixels,
+                visual.VisibleAlphaThreshold,
+                out layout))
+        {
+            return false;
+        }
+
+        // Visible-pixel scanning is stable for one visual definition and expensive
+        // enough to cache before battle-preparation repeatedly instantiates units.
+        SharedVisualLayoutCache[cacheKey] = layout;
+        return true;
+    }
+
+    private static string BuildVisualLayoutCacheKey(BattleUnitVisualDefinition visual)
+    {
+        if (visual == null)
+        {
+            return "";
+        }
+
+        return string.Join(
+            "|",
+            ResolveSpriteFramesCacheKey(visual.SpriteFrames),
+            visual.TargetMaxSpriteSizePixels.ToString("R", CultureInfo.InvariantCulture),
+            visual.GroundAnchorOffsetPixels.ToString("R", CultureInfo.InvariantCulture),
+            visual.VisibleAlphaThreshold.ToString("R", CultureInfo.InvariantCulture),
+            BattleUnitVisualScale.Default.SpriteScaleMultiplier.ToString("R", CultureInfo.InvariantCulture));
+    }
+
+    private static string ResolveSpriteFramesCacheKey(SpriteFrames spriteFrames)
+    {
+        if (spriteFrames == null)
+        {
+            return "missing";
+        }
+
+        return string.IsNullOrWhiteSpace(spriteFrames.ResourcePath)
+            ? $"instance:{RuntimeHelpers.GetHashCode(spriteFrames)}"
+            : spriteFrames.ResourcePath;
+    }
+
+    private static void TraceAutoLayoutOnce(
+        BattleUnitVisualDefinition visual,
+        string definitionId,
+        Vector2 footprintScale,
+        BattleUnitVisualLayout layout,
+        Vector2 resolvedScale)
+    {
+        string cacheKey = BuildVisualLayoutCacheKey(visual);
+        if (!SharedLoggedAutoLayoutKeys.Add(cacheKey))
+        {
+            return;
+        }
+
+        GameLog.Trace(
             nameof(BattleUnitFactory),
-            $"Battle unit visual auto layout id={definitionId} visibleSize={layout.VisibleSize} visibleCenterOffset={layout.VisibleCenterOffset} targetMax={visual.TargetMaxSpriteSizePixels:0.##} scaleMultiplier={BattleUnitVisualScale.Default.SpriteScaleMultiplier:0.##} footprintScale={footprintScale} scale={animatedSprite.Scale} scaledHeight={layout.ScaledHeight:0.##} position={layout.Position}");
+            $"Battle unit visual auto layout id={definitionId} visibleSize={layout.VisibleSize} visibleCenterOffset={layout.VisibleCenterOffset} targetMax={visual.TargetMaxSpriteSizePixels:0.##} scaleMultiplier={BattleUnitVisualScale.Default.SpriteScaleMultiplier:0.##} footprintScale={footprintScale} scale={resolvedScale} scaledHeight={layout.ScaledHeight:0.##} position={layout.Position}");
     }
 
     private static Vector2 ResolveFootprintVisualScale(BattleUnitDefinition definition)

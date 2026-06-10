@@ -156,6 +156,83 @@ internal static class TargetBattleMovementIntentRegressionCases
             $"large topology objective movement should use the plan target: target={move.TargetId} reason={move.ReasonCode}");
     }
 
+    public static void RuntimeObjectiveMovementUsesBoundedLocalObstacleAvoidance()
+    {
+        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession()
+            .Begin(BuildObjectiveLocalObstacleSnapshot())
+            .AdvanceNextTick();
+
+        BattleEvent? move = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "force_player:1");
+        string eventSummary = string.Join(
+            ";",
+            tick.Events.Select(item => $"{item.Kind}:{item.ActorId}:{item.ReasonCode}:{item.TargetId}:({item.ToGridX},{item.ToGridY})"));
+
+        AssertTrue(move != null, $"objective movement should not stop when a nearby authored obstacle blocks only the direct greedy step; events={eventSummary}");
+        AssertTrue(
+            move!.TargetId == "objective_gate" &&
+            move.ReasonCode == "plan_objective_advance" &&
+            move.ToGridX == 0 &&
+            move.ToGridY == 0,
+            $"bounded local obstacle avoidance should choose the first step around the nearby obstacle without publishing a route: target={move.TargetId} reason={move.ReasonCode} to=({move.ToGridX},{move.ToGridY})");
+    }
+
+    public static void RuntimeObjectiveMovementFollowsStaticWallUntilRejoin()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildObjectiveLongWallSnapshot());
+        List<(int X, int Y)> startedMoves = new();
+
+        for (int i = 0; i < 24 && !controller.IsComplete; i++)
+        {
+            BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+            foreach (BattleEvent move in tick.Events.Where(item =>
+                         item.Kind == BattleEventKind.MovementStarted &&
+                         item.ActorId == "force_player:1"))
+            {
+                startedMoves.Add((move.ToGridX, move.ToGridY));
+            }
+        }
+
+        string summary = string.Join(";", startedMoves.Select(item => $"({item.X},{item.Y})"));
+        AssertTrue(startedMoves.Count >= 6, $"local steering should keep moving along the static wall instead of reporting no path: moves={summary}");
+        AssertTrue(
+            startedMoves[0] == (0, -1) &&
+            startedMoves[1] == (0, -2) &&
+            startedMoves[2] == (0, -3),
+            $"local steering should keep the same obstacle-follow side before rejoining: moves={summary}");
+        AssertTrue(
+            startedMoves.Any(item => item.X > 0),
+            $"local steering should rejoin objective progress after reaching the wall opening: moves={summary}");
+    }
+
+    public static void RuntimeObjectiveMovementStopsObstacleFollowWhenBudgetExpires()
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildObjectiveDeadWallSnapshot());
+        List<(int X, int Y)> startedMoves = new();
+
+        for (int i = 0; i < 32 && !controller.IsComplete; i++)
+        {
+            BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+            foreach (BattleEvent move in tick.Events.Where(item =>
+                         item.Kind == BattleEventKind.MovementStarted &&
+                         item.ActorId == "force_player:1"))
+            {
+                startedMoves.Add((move.ToGridX, move.ToGridY));
+            }
+        }
+
+        string summary = string.Join(";", startedMoves.Select(item => $"({item.X},{item.Y})"));
+        AssertTrue(
+            startedMoves.Count <= 21,
+            $"local steering should not silently renew the same obstacle-follow budget against a dead wall: moves={summary}");
+        AssertTrue(
+            startedMoves.Count == 0 || startedMoves[^1].Y >= -21,
+            $"local steering should stop or degrade after the bounded follow budget is exhausted: moves={summary}");
+    }
+
     public static void RuntimePlanScopedMovementDoesNotScanFarAttackSlots()
     {
         BattlePerformanceCounters counters = new();
@@ -248,6 +325,31 @@ internal static class TargetBattleMovementIntentRegressionCases
             move.ToGridX == 4 &&
             move.ToGridY == 0,
             $"after objective arrival, move-first plan should resume enemy pursuit: target={move.TargetId} reason={move.ReasonCode} to=({move.ToGridX},{move.ToGridY})");
+    }
+
+    public static void RuntimeRetainedLocalTargetUsesGreedyStepWithoutTargetFlowField()
+    {
+        BattlePerformanceCounters counters = new();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession(performanceCounters: counters)
+            .Begin(BuildRetainedLocalTargetGreedyStepSnapshot());
+        BattleRuntimeActor player = controller.State.Actors.Single(item => item.ActorId == "force_player:1");
+        player.TargetActorId = "enemy:1";
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+
+        BattleEvent? move = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "force_player:1");
+        AssertTrue(move != null, "retained local target pursuit should still move toward the sensed enemy");
+        AssertTrue(
+            move!.TargetId == "enemy:1" &&
+            move.ToGridX == 1 &&
+            move.ToGridY == 1,
+            $"retained local target should use the best legal neighboring step: target={move.TargetId} to=({move.ToGridX},{move.ToGridY})");
+        AssertTrue(
+            counters.FlowFieldBuildCount == 0 &&
+            counters.OpenAttackFlowFieldBuildCount == 0,
+            $"retained local target pursuit should not build target/open-attack flow fields: flowBuilds={counters.FlowFieldBuildCount} openAttackBuilds={counters.OpenAttackFlowFieldBuildCount}");
     }
 
     private static BattleStartSnapshot BuildReroutePastSecondaryTargetSnapshot()
@@ -426,6 +528,149 @@ internal static class TargetBattleMovementIntentRegressionCases
             AddSurface(snapshot, x, 0);
         }
 
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildObjectiveLocalObstacleSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_objective_local_obstacle",
+            BattleId = "battle_objective_local_obstacle",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup(
+                    "group_player",
+                    "player",
+                    "force_player",
+                    0,
+                    1,
+                    160,
+                    plan: new BattleGroupPlanSnapshot
+                    {
+                        BattleGroupId = "group_player",
+                        ObjectiveZoneId = "objective_gate",
+                        EngagementRule = BattleEngagementRule.MoveFirst,
+                        HasObjectiveAnchor = true,
+                        ObjectiveCellX = 4,
+                        ObjectiveCellY = 1,
+                        ObjectiveCellHeight = 0,
+                        ObjectiveWidth = 1,
+                        ObjectiveHeight = 1
+                    }),
+                BuildGroup("group_enemy", "enemy", "enemy", 8, 4, 160, initialCommandId: "HoldLine")
+            }
+        };
+
+        AddSurface(snapshot, 0, 1);
+        for (int x = 0; x <= 4; x++)
+        {
+            AddSurface(snapshot, x, 0);
+        }
+
+        AddSurface(snapshot, 3, 1);
+        AddSurface(snapshot, 4, 1);
+        AddSurface(snapshot, 8, 4);
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildObjectiveLongWallSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_objective_long_wall",
+            BattleId = "battle_objective_long_wall",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup(
+                    "group_player",
+                    "player",
+                    "force_player",
+                    0,
+                    0,
+                    160,
+                    plan: new BattleGroupPlanSnapshot
+                    {
+                        BattleGroupId = "group_player",
+                        ObjectiveZoneId = "objective_gate",
+                        EngagementRule = BattleEngagementRule.MoveFirst,
+                        HasObjectiveAnchor = true,
+                        ObjectiveCellX = 6,
+                        ObjectiveCellY = 0,
+                        ObjectiveCellHeight = 0,
+                        ObjectiveWidth = 1,
+                        ObjectiveHeight = 1
+                    }),
+                BuildGroup("group_enemy", "enemy", "enemy", 10, 10, 160, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int y = -8; y <= 0; y++)
+        {
+            AddSurface(snapshot, 0, y);
+        }
+
+        for (int x = 0; x <= 6; x++)
+        {
+            AddSurface(snapshot, x, -8);
+        }
+
+        for (int x = 2; x <= 6; x++)
+        {
+            for (int y = -8; y <= 0; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        AddSurface(snapshot, 10, 10);
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildObjectiveDeadWallSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_objective_dead_wall",
+            BattleId = "battle_objective_dead_wall",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup(
+                    "group_player",
+                    "player",
+                    "force_player",
+                    0,
+                    0,
+                    160,
+                    plan: new BattleGroupPlanSnapshot
+                    {
+                        BattleGroupId = "group_player",
+                        ObjectiveZoneId = "objective_gate",
+                        EngagementRule = BattleEngagementRule.MoveFirst,
+                        HasObjectiveAnchor = true,
+                        ObjectiveCellX = 100,
+                        ObjectiveCellY = 0,
+                        ObjectiveCellHeight = 0,
+                        ObjectiveWidth = 1,
+                        ObjectiveHeight = 1
+                    }),
+                BuildGroup("group_enemy", "enemy", "enemy", 120, 120, 160, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int y = -40; y <= 0; y++)
+        {
+            AddSurface(snapshot, 0, y);
+        }
+
+        AddSurface(snapshot, 120, 120);
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
         return snapshot;
     }
@@ -649,6 +894,32 @@ internal static class TargetBattleMovementIntentRegressionCases
         for (int x = 3; x <= 7; x++)
         {
             AddSurface(snapshot, x, 0);
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildRetainedLocalTargetGreedyStepSnapshot()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_retained_local_target_greedy_step",
+            BattleId = "battle_retained_local_target_greedy_step",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "player", "force_player", 0, 1, 160),
+                BuildGroup("group_enemy", "enemy", "enemy", 4, 1, 160, initialCommandId: "HoldLine")
+            }
+        };
+
+        for (int x = 0; x <= 4; x++)
+        {
+            for (int y = 0; y <= 2; y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
         }
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);

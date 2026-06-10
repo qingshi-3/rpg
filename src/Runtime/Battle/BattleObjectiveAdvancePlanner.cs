@@ -13,7 +13,6 @@ internal static class BattleObjectiveAdvancePlanner
         BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         string battleId,
         int tick)
@@ -29,8 +28,9 @@ internal static class BattleObjectiveAdvancePlanner
             navigationGraph,
             occupancy,
             new BattleMovementReservationMap(),
-            flowFields,
-            performanceCounters);
+            performanceCounters,
+            battleId,
+            tick);
         if (moveOptions.Count == 0)
         {
             BattleRuntimeAdvanceDiagnostics.LogObjectiveAdvanceFailureDiagnostic(
@@ -42,6 +42,7 @@ internal static class BattleObjectiveAdvancePlanner
             return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "objective_path_not_found");
         }
 
+        BattleRuntimeActorStateMachine.CopyMovementSteering(actorFact.Actor, tickStartActor);
         return BattleRuntimeTickResolver.CreateContext(
             request,
             actorFact,
@@ -57,7 +58,6 @@ internal static class BattleObjectiveAdvancePlanner
         BattleRuntimeTickStartActorFact actorFact,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         string battleId,
         int tick)
@@ -86,8 +86,9 @@ internal static class BattleObjectiveAdvancePlanner
             navigationGraph,
             occupancy,
             new BattleMovementReservationMap(),
-            flowFields,
-            performanceCounters);
+            performanceCounters,
+            battleId,
+            tick);
         if (moveOptions.Count == 0)
         {
             BattleRuntimeAdvanceDiagnostics.LogRegionAdvanceFailureDiagnostic(
@@ -100,6 +101,7 @@ internal static class BattleObjectiveAdvancePlanner
             return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "region_path_not_found", regionMovementGoal: goal);
         }
 
+        BattleRuntimeActorStateMachine.CopyMovementSteering(actorFact.Actor, projectedActor);
         return BattleRuntimeTickResolver.CreateContext(
             request,
             actorFact,

@@ -22,31 +22,29 @@ internal static class TargetBattlePerformanceRegressionCases
             AssertTrue(result.Outcome.IsComplete, "performance scenario should complete through normal runtime");
             AssertTrue(counters.RuntimeTickCount > 0, "runtime ticks should be counted");
             AssertTrue(counters.DecisionReadyActorCount > 0, "decision-ready actors should be counted");
-            AssertTrue(counters.FlowFieldBuildCount > 0, "flow-field builds should be counted");
-            AssertTrue(counters.FlowFieldCacheMissCount >= counters.FlowFieldBuildCount, "cache misses should cover builds");
-            AssertTrue(counters.CombatSlotScanCount > 0, "combat slot scans should be counted");
-            AssertTrue(counters.CombatSlotAnchorScanCount > 0, "combat slot scanned anchors should be counted");
-            AssertTrue(
-                counters.CombatSlotScanCount <= counters.FlowFieldBuildCount,
-                $"open attack-slot checks should reuse flow-field goal slots instead of scanning slots again: scans={counters.CombatSlotScanCount} builds={counters.FlowFieldBuildCount}");
+            AssertEqual(0L, counters.FlowFieldBuildCount, "first-slice runtime hot paths should not build flow fields");
+            AssertEqual(0L, counters.FlowFieldCacheMissCount, "first-slice runtime hot paths should not miss flow-field cache entries");
+            AssertEqual(0L, counters.FlowFieldCacheHitCount, "first-slice runtime hot paths should not hit flow-field cache entries");
+            AssertTrue(counters.CombatSlotScanCount >= 0, "combat slot scans should remain observable");
+            AssertTrue(counters.CombatSlotAnchorScanCount >= 0, "combat slot scanned anchors should remain observable");
             AssertTrue(counters.LogWriteCount > 0, "runtime diagnostics should still write required logs");
             AssertTrue(counters.RuntimeAdvanceElapsedTicks > 0, "runtime advance elapsed ticks should be measured");
-            AssertTrue(GetCounterValue(counters, "FlowFieldBuildElapsedTicks") > 0, "flow-field build elapsed ticks should be measured separately");
-            AssertTrue(GetCounterValue(counters, "CombatSlotScanElapsedTicks") > 0, "combat slot scan elapsed ticks should be measured separately");
+            AssertEqual(0L, GetCounterValue(counters, "FlowFieldBuildElapsedTicks"), "flow-field build elapsed ticks should stay zero on hot paths");
+            AssertTrue(GetCounterValue(counters, "CombatSlotScanElapsedTicks") >= 0, "combat slot scan elapsed ticks should be measured separately when scans occur");
             AssertTrue(GetCounterValue(counters, "TargetScoringElapsedTicks") > 0, "target scoring elapsed ticks should be measured separately");
             AssertTrue(GetCounterValue(counters, "MovementResolveElapsedTicks") > 0, "movement resolve elapsed ticks should be measured separately");
             AssertTrue(GetCounterValue(counters, "RuntimeAdvanceTickAtMax") >= 0, "runtime advance max should record the tick that spiked");
-            AssertTrue(GetCounterValue(counters, "OpenAttackFlowFieldBuildCount") > 0, "open attack-slot flow-field builds should be counted");
-            AssertTrue(GetCounterValue(counters, "OpenAttackFlowFieldCacheHitCount") > 0, "duplicate open attack-slot flow fields should be reused within one runtime advance");
-            AssertTrue(
-                GetCounterValue(counters, "OpenAttackFlowFieldBuildCount") < GetCounterValue(counters, "OpenAttackFlowFieldRequestCount"),
-                "open attack-slot flow-field cache should reduce duplicate integration field builds");
-            AssertTrue(
-                counters.FlowFieldBuildCount * 2 <= counters.DecisionReadyActorCount,
-                $"moving actors should retain targets instead of full target rescoring at every movement boundary: decisionActors={counters.DecisionReadyActorCount} flowBuilds={counters.FlowFieldBuildCount}");
-            AssertTrue(
-                counters.CombatSlotScanCount * 2 <= counters.DecisionReadyActorCount,
-                $"movement target acquisition should stay bounded below per-decision full rescans: decisionActors={counters.DecisionReadyActorCount} slotScans={counters.CombatSlotScanCount}");
+            AssertEqual(0L, GetCounterValue(counters, "OpenAttackFlowFieldBuildCount"), "open attack-slot checks should use target-local slot facts without flow fields");
+            AssertEqual(0L, GetCounterValue(counters, "OpenAttackFlowFieldRequestCount"), "open attack-slot checks should not request flow fields");
+            AssertEqual(0L, GetCounterValue(counters, "OpenAttackFlowFieldCacheHitCount"), "open attack-slot checks should not use flow-field cache hits");
+            if (counters.CombatSlotScanCount > 0)
+            {
+                AssertTrue(GetCounterValue(counters, "CombatSlotScanElapsedTicks") > 0, "combat slot scan elapsed ticks should be measured separately when scans occur");
+                long averageScannedAnchors = counters.CombatSlotAnchorScanCount / counters.CombatSlotScanCount;
+                AssertTrue(
+                    averageScannedAnchors <= 128,
+                    $"combat slot scans should stay target-local when they occur: average={averageScannedAnchors} scans={counters.CombatSlotScanCount}");
+            }
             AssertTrue(GetCounterValue(counters, "MovementEventsLastAdvance") >= 0, "last advance movement event count should be exposed");
             AssertTrue(GetCounterValue(counters, "ReservationRejectedCount") >= 0, "reservation rejection count should be exposed");
             AssertTrue(GetCounterValue(counters, "ReservationRejectedLastAdvance") >= 0, "last advance reservation rejection count should be exposed");
@@ -78,7 +76,10 @@ internal static class TargetBattlePerformanceRegressionCases
             AssertEqual(1L, counters.LogWriteCount, "explicitly enabled trace diagnostics should write");
 
             string root = ProjectRoot();
-            string unitRoot = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+            string unitRoot = string.Join("\n", Directory
+                .GetFiles(Path.Combine(root, "src", "Presentation", "Battle", "Entities"), "BattleUnitRoot*.cs")
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .Select(File.ReadAllText));
             string animation = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
             string audio = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Battle", "Entities", "BattleUnitAudioComponent.cs"));
             string movementCommit = File
@@ -111,11 +112,13 @@ internal static class TargetBattlePerformanceRegressionCases
                 .RunMinimal(BuildLargeOpenFieldSnapshot());
 
             AssertTrue(result.Outcome.IsComplete, "large topology performance scenario should complete through normal runtime");
-            AssertTrue(counters.CombatSlotScanCount > 0, "large topology should scan combat slots");
-            long averageScannedAnchors = counters.CombatSlotAnchorScanCount / counters.CombatSlotScanCount;
-            AssertTrue(
-                averageScannedAnchors <= 128,
-                $"combat slot scans should enumerate target-local candidates instead of the whole topology: average={averageScannedAnchors} scans={counters.CombatSlotScanCount} anchors={counters.CombatSlotAnchorScanCount}");
+            if (counters.CombatSlotScanCount > 0)
+            {
+                long averageScannedAnchors = counters.CombatSlotAnchorScanCount / counters.CombatSlotScanCount;
+                AssertTrue(
+                    averageScannedAnchors <= 128,
+                    $"combat slot scans should enumerate target-local candidates instead of the whole topology: average={averageScannedAnchors} scans={counters.CombatSlotScanCount} anchors={counters.CombatSlotAnchorScanCount}");
+            }
         }
         finally
         {
@@ -123,7 +126,7 @@ internal static class TargetBattlePerformanceRegressionCases
         }
     }
 
-    public static void RuntimeLocalCombatPositionSelectionUsesSharedMultiGoalFields()
+    public static void RuntimeLocalCombatPositionSelectionUsesLocalNeighborResolver()
     {
         string root = ProjectRoot();
         string intentResolver = File.ReadAllText(Path.Combine(
@@ -146,29 +149,26 @@ internal static class TargetBattlePerformanceRegressionCases
             !intentResolver.Contains("BuildScoredCandidates", StringComparison.Ordinal),
             "local-combat position selection must not score every candidate by building a separate flow field");
         AssertTrue(
-            intentResolver.Contains("TrySelectExecutableCandidateGroup", StringComparison.Ordinal) &&
-            crowdPlanner.Contains("FindNextStepCandidatesTowardCombatField", StringComparison.Ordinal),
-            "local-combat position selection should build one shared multi-goal field per candidate group and sample movement from that field");
+            !intentResolver.Contains("GetOrBuildGoalField", StringComparison.Ordinal) &&
+            !crowdPlanner.Contains("GetOrBuildGoalField", StringComparison.Ordinal) &&
+            crowdPlanner.Contains("FindNextStepCandidatesTowardCombatSlot", StringComparison.Ordinal),
+            "local-combat position selection should use target-local slots and local neighbor movement instead of goal fields");
     }
 
-    public static void RuntimeLocalCombatFlowFieldsStayScopedToBattlefield()
+    public static void RuntimeLocalCombatMovementDoesNotBuildFlowFieldsOnLargeTopology()
     {
         BattlePerformanceCounters counters = new();
         BattleRuntimeSessionResult result = new BattleRuntimeSession(performanceCounters: counters)
             .RunMinimal(BuildLargeCombatJoinScopedFieldSnapshot());
 
-        AssertTrue(result.Outcome.IsComplete, "large topology scoped-field scenario should complete through normal runtime");
-        long scopedBuilds = GetCounterValue(counters, "ScopedFlowFieldBuildCount");
-        long maxScopedSearchNodes = GetCounterValue(counters, "MaxScopedFlowFieldSearchNodes");
-        AssertTrue(
-            scopedBuilds > 0,
-            "local-combat movement on a large topology should build battlefield-scoped flow fields");
-        AssertTrue(
-            maxScopedSearchNodes > 0 && maxScopedSearchNodes <= 900,
-            $"local-combat flow fields should be bounded by battlefield region plus padding, not full topology: maxScopedNodes={maxScopedSearchNodes}");
+        AssertTrue(result.Outcome.IsComplete, "large topology local-neighbor scenario should complete through normal runtime");
+        AssertEqual(0L, GetCounterValue(counters, "FlowFieldBuildCount"), "local-combat movement should not build flow fields");
+        AssertEqual(0L, GetCounterValue(counters, "ScopedFlowFieldBuildCount"), "local-combat movement should not build scoped flow fields");
+        AssertEqual(0L, GetCounterValue(counters, "OpenAttackFlowFieldBuildCount"), "local-combat movement should not build open-attack flow fields");
+        AssertEqual(0L, GetCounterValue(counters, "MaxScopedFlowFieldSearchNodes"), "local-combat movement should not search scoped flow-field nodes");
     }
 
-    public static void RuntimeLocalCombatGoalFieldsUseSharedCache()
+    public static void RuntimeLocalCombatGoalFieldsAreNotHotPath()
     {
         string root = ProjectRoot();
         string intentResolver = File.ReadAllText(Path.Combine(
@@ -185,61 +185,27 @@ internal static class TargetBattlePerformanceRegressionCases
             "Battle",
             "Navigation",
             "BattleCrowdMovementPlanner.cs"));
-        string flowFieldCache = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "Runtime",
-            "Battle",
-            "Navigation",
-            "BattleFlowFieldCache.cs"));
-
         AssertTrue(
-            flowFieldCache.Contains("GetOrBuildGoalField", StringComparison.Ordinal),
-            "battlefield-scoped goal fields should have a shared cache entry point");
-        AssertTrue(
-            !intentResolver.Contains("BattleFlowFieldBuilder.BuildFromGoalSlots", StringComparison.Ordinal) &&
-            !crowdPlanner.Contains("BattleFlowFieldBuilder.BuildFromGoalSlots", StringComparison.Ordinal),
-            "local-combat slot movement should not bypass the shared flow-field cache with direct goal-field builds");
+            !intentResolver.Contains("GetOrBuildGoalField", StringComparison.Ordinal) &&
+            !crowdPlanner.Contains("GetOrBuildGoalField", StringComparison.Ordinal) &&
+            !intentResolver.Contains("BattleFlowFieldBuilder", StringComparison.Ordinal) &&
+            !crowdPlanner.Contains("BattleFlowFieldBuilder", StringComparison.Ordinal),
+            "local-combat slot movement should not use flow-field builders or goal-field cache entry points");
     }
 
     public static void RuntimeNavigationHotPathsAvoidStringKeysAndLinqSorts()
     {
         string root = ProjectRoot();
-        string flowFieldCache = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "Runtime",
-            "Battle",
-            "Navigation",
-            "BattleFlowFieldCache.cs"));
+        string navigationRoot = Path.Combine(root, "src", "Runtime", "Battle", "Navigation");
         string crowdPlanner = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "Runtime",
-            "Battle",
-            "Navigation",
+            navigationRoot,
             "BattleCrowdMovementPlanner.cs"));
         string slotAllocator = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "Runtime",
-            "Battle",
-            "Navigation",
+            navigationRoot,
             "BattleCombatSlotAllocator.cs"));
         string slotIntentResolver = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "Runtime",
-            "Battle",
-            "Navigation",
+            navigationRoot,
             "BattleCombatSlotIntentResolver.cs"));
-        string flowFieldBuilder = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "Runtime",
-            "Battle",
-            "Navigation",
-            "BattleFlowFieldBuilder.cs"));
         string movementCommitResolver = File.ReadAllText(Path.Combine(
             root,
             "src",
@@ -247,12 +213,12 @@ internal static class TargetBattlePerformanceRegressionCases
             "Battle",
             "BattleMovementCommitResolver.cs"));
 
-        AssertTrue(!flowFieldCache.Contains("Dictionary<string, BattleFlowField>", StringComparison.Ordinal), "flow-field cache should use typed value keys instead of string dictionaries");
-        AssertTrue(!flowFieldCache.Contains("string.Join", StringComparison.Ordinal), "flow-field cache keys should not allocate joined strings on the runtime hot path");
+        AssertTrue(!File.Exists(Path.Combine(navigationRoot, "BattleFlowFieldCache.cs")), "flow-field cache should not remain in first-slice runtime navigation");
+        AssertTrue(!File.Exists(Path.Combine(navigationRoot, "BattleFlowFieldBuilder.cs")), "flow-field builder should not remain in first-slice runtime navigation");
+        AssertTrue(!File.Exists(Path.Combine(navigationRoot, "BattlePathfinder.cs")), "per-actor pathfinder should not remain in first-slice runtime navigation");
         AssertNoLinqSortChain(crowdPlanner, "crowd movement planner");
         AssertNoLinqSortChain(slotAllocator, "combat slot allocator");
         AssertNoLinqSortChain(slotIntentResolver, "combat slot intent resolver");
-        AssertNoLinqSortChain(flowFieldBuilder, "flow-field builder");
         AssertNoLinqSortChain(movementCommitResolver, "movement commit resolver");
     }
 

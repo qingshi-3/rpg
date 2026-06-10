@@ -59,7 +59,7 @@ internal static void BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary()
 internal static void BattleRuntimeLiveMovementUsesActorMotionLane()
 {
     string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
-    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
 
     AssertTrue(
         runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
@@ -98,6 +98,43 @@ internal static void BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits()
         "same-actor visual tail waiting must not delay enqueueing the next runtime movement event into the actor lane");
 }
 
+internal static void BattleRuntimeLiveMovementBuffersCommittedSegmentsWithoutRestartingMove()
+{
+    string unitRoot = ReadBattleUnitRootSource();
+
+    AssertTrue(
+        unitRoot.Contains("ResolveVisualMoveBufferSeconds", StringComparison.Ordinal) &&
+        unitRoot.Contains("new MovementLane(entity.GlobalPosition, ResolveSurfaceAt(surfacePath, 0), ResolveVisualMoveBufferSeconds())", StringComparison.Ordinal),
+        "live movement lanes should start with a short committed-event buffer instead of requiring prediction");
+    AssertTrue(
+        unitRoot.Contains("StartMoveAnimationForLane(entity, restartMoveAnimation);", StringComparison.Ordinal) &&
+        !unitRoot.Contains("animation?.PlayMove(restartMoveAnimation);", StringComparison.Ordinal),
+        "move animation should start only when entering a visual movement lane, not for every committed grid step");
+    AssertTrue(
+        unitRoot.Contains("lane.BeginContinuationHold(ResolveVisualMoveBufferSeconds());", StringComparison.Ordinal) &&
+        unitRoot.Contains("lane.CancelContinuationHold();", StringComparison.Ordinal),
+        "movement lanes should stay alive briefly between confirmed segments so visual movement does not stop at every cell");
+    AssertTrue(
+        File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"))
+            .Contains("_actorMovementTails.TryGetValue(actorId, out Task previousMovementTask);", StringComparison.Ordinal),
+        "same-actor movement completion should serialize through the previous movement tail without delaying the immediate enqueue");
+}
+
+internal static void BattleRuntimeMovementQueuesPerceptionOverlayRefresh()
+{
+    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattlePerceptionOverlay.cs"));
+
+    AssertTrue(
+        playback.Contains("QueueBattlePerceptionOverlayRefresh();", StringComparison.Ordinal) &&
+        !playback.Contains("        RefreshBattlePerceptionOverlay();\n        return _unitRoot.ResolveVisualMoveStepDurationSeconds", StringComparison.Ordinal),
+        "movement observation should queue perception overlay refresh instead of rebuilding it once per movement event");
+    AssertTrue(
+        overlay.Contains("_battlePerceptionOverlayRefreshQueued", StringComparison.Ordinal) &&
+        overlay.Contains("Callable.From(FlushBattlePerceptionOverlayRefresh).CallDeferred();", StringComparison.Ordinal),
+        "perception overlay refresh should be coalesced on the presentation frame");
+}
+
 internal static void BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue()
 {
     string incremental = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
@@ -127,22 +164,23 @@ internal static void RuntimeSkillDamageDoesNotReplayCasterCast()
 
 internal static void BattleRuntimeVisualMovementKeepsRuntimeActionDuration()
 {
-    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
     string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
 
     AssertTrue(
         unitRoot.Contains("public double ResolveVisualMoveStepDurationSeconds", StringComparison.Ordinal) &&
         unitRoot.Contains("return System.Math.Max(0.01, baseSeconds);", StringComparison.Ordinal),
-        "visual movement duration should stay equal to the Runtime action duration instead of accumulating smoothing time per step");
+        "each visual movement segment should still use the Runtime action duration instead of predicting future cells");
     AssertTrue(
-        playback.Contains("return _unitRoot.ResolveVisualMoveStepDurationSeconds(runtimeEvent.ActionDurationSeconds);", StringComparison.Ordinal),
-        "movement observer should report the same duration that is used for the visual segment and actor tail");
+        playback.Contains("double visualMoveSeconds = _unitRoot.MoveEntityTo", StringComparison.Ordinal) &&
+        playback.Contains("return visualMoveSeconds;", StringComparison.Ordinal),
+        "movement observer should report the actor-local motion lane duration, including only committed-event buffer time");
 }
 
 internal static void BattleRuntimeMovementPlaybackDoesNotUseLookaheadCorrectionPath()
 {
     string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
-    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
 
     AssertTrue(
         !playback.Contains("BuildRuntimeMovementVisualPath", StringComparison.Ordinal) &&
@@ -222,7 +260,7 @@ internal static void BattleRuntimeRegistersGodotPerformanceMonitors()
         .OrderBy(path => path, StringComparer.Ordinal)
         .Select(File.ReadAllText));
     string adapter = File.ReadAllText(Path.Combine("src", "Application", "World", "WorldSiteBattleGroupRuntimeAdapter.cs"));
-    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
     string monitorRegistry = File.ReadAllText(Path.Combine("src", "Presentation", "Debug", "BattlePerformanceMonitorRegistry.cs"));
 
     AssertTrue(
@@ -305,7 +343,7 @@ internal static void RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAtta
 
 internal static void RuntimePlaybackMovementPathUsesFootprintCenterResolver()
 {
-    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
     string worldSiteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
 
     AssertTrue(

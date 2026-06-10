@@ -3,7 +3,7 @@ using Rpg.Presentation.Battle.Flow;
 
 internal static partial class BattleHitFeedbackRegressionCases
 {
-internal static void LimboAiBattleDecisionTreeMirrorsEnemyGreedyBranches()
+internal static void LimboAiBattleDecisionTreeMirrorsEnemyBehaviorBranches()
 {
     BattleAiDecisionTreeRunner runner = new();
 

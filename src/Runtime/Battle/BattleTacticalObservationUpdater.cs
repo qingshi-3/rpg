@@ -4,6 +4,7 @@ using System.Text;
 using Rpg.Infrastructure.Logging;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle.Events;
+using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
@@ -24,13 +25,21 @@ internal static class BattleTacticalObservationUpdater
             .OrderBy(item => item.ActorId, System.StringComparer.Ordinal)
             .ToArray();
 
-        // Perception summaries are observation facts; engagement mutation remains
-        // centralized in the battle-group state machine below.
+        string previousCombatSignature = BuildCombatZoneSignature(state.CombatZoneStore);
+        state.CombatZoneStore = BattleCombatZoneBuilder.Build(livingCorps, tick);
+        bool combatChanged = !string.Equals(
+            previousCombatSignature,
+            BuildCombatZoneSignature(state.CombatZoneStore),
+            System.StringComparison.Ordinal);
+
+        // Perception summaries and combat zones are observation facts; engagement
+        // mutation remains centralized in the battle-group state machine below.
         state.GroupPerceptionSummaryStore = BattleGroupPerceptionSummaryBuilder.BuildForGroups(livingCorps, tick);
         IReadOnlySet<string> groupsWithActiveCombatActions = BuildGroupsWithActiveCombatActions(livingCorps);
         IReadOnlyList<BattleEvent> engagementEvents = BattleGroupEngagementStateMachine.ApplyPerceptionTransitions(
             state.TacticalStateStore,
             state.GroupPerceptionSummaryStore,
+            state.CombatZones,
             groupsWithActiveCombatActions,
             battleId,
             tick,
@@ -42,9 +51,10 @@ internal static class BattleTacticalObservationUpdater
             stream.Add(engagementEvent);
         }
 
-        RefreshCombatAndGroupActionZones(state, livingCorps, tick);
+        RefreshSelectedRegionLifecycles(state, livingCorps);
+        RefreshGroupActionZonesAndLog(state, livingCorps, tick, combatChanged);
         RefreshEngagedLocalCombatRegions(state, livingCorps, stream, tick);
-        RefreshEnemyTemporaryTargetRegions(state, livingCorps, stream, tick);
+        RefreshTemporaryTargetRegions(state, livingCorps, stream, tick);
         return livingCorps;
     }
 
@@ -178,7 +188,51 @@ internal static class BattleTacticalObservationUpdater
         }
     }
 
-    private static void RefreshEnemyTemporaryTargetRegions(
+    private static void RefreshSelectedRegionLifecycles(
+        BattleRuntimeState state,
+        BattleRuntimeActor[] livingCorps)
+    {
+        if (state?.TacticalStateStore == null || livingCorps == null)
+        {
+            return;
+        }
+
+        foreach (BattleGroupTacticalState tacticalState in state.TacticalStates.Values
+                     .OrderBy(item => item.BattleGroupId, System.StringComparer.Ordinal))
+        {
+            BattleTacticalRegionSnapshot selected = tacticalState.SelectedRegion;
+            if (selected == null)
+            {
+                continue;
+            }
+
+            if (tacticalState.SelectedRegionCommandSource == BattleGroupTacticalCommandSource.SelfCalculated &&
+                tacticalState.EngagementState == BattleGroupEngagementState.Engaged)
+            {
+                state.TacticalStateStore.TryClearSelectedRegion(
+                    tacticalState.BattleGroupId,
+                    BattleGroupTacticalCommandSource.SelfCalculated);
+                continue;
+            }
+
+            bool commandOwnedRegion = tacticalState.SelectedRegionCommandSource is
+                BattleGroupTacticalCommandSource.PlayerCommand or
+                BattleGroupTacticalCommandSource.SelfCalculated;
+            if (!commandOwnedRegion ||
+                tacticalState.EngagementState != BattleGroupEngagementState.NotEngaged ||
+                RegionContainsOpposingActor(tacticalState.BattleGroupId, selected, livingCorps) ||
+                !GroupHasReachedRegion(tacticalState.BattleGroupId, selected, livingCorps))
+            {
+                continue;
+            }
+
+            state.TacticalStateStore.TryClearSelectedRegion(
+                tacticalState.BattleGroupId,
+                tacticalState.SelectedRegionCommandSource);
+        }
+    }
+
+    private static void RefreshTemporaryTargetRegions(
         BattleRuntimeState state,
         BattleRuntimeActor[] livingCorps,
         BattleEventStream stream,
@@ -194,6 +248,30 @@ internal static class BattleTacticalObservationUpdater
         {
             if (!ShouldUseEnemyTemporaryRegion(tacticalState, livingCorps, tick))
             {
+                if (!ShouldUsePlayerAutonomousTemporaryRegion(tacticalState, tick))
+                {
+                    continue;
+                }
+
+                BattleTacticalRegionSnapshot autonomousRegion = BattleTemporaryTargetRegionBuilder.BuildForGroup(
+                    tacticalState.BattleGroupId,
+                    livingCorps,
+                    tick);
+                if (autonomousRegion == null)
+                {
+                    continue;
+                }
+
+                autonomousRegion.ReasonCode = BattleGroupTacticalReasonCode.PlayerAutonomousTemporaryRegionCreatedCluster;
+                BattleGroupTacticalRegionMutationResult autonomousResult = state.TacticalStateStore.TrySetPlayerAutonomousTemporaryRegion(
+                    tacticalState.BattleGroupId,
+                    autonomousRegion,
+                    tick);
+                if (autonomousResult.Event != null)
+                {
+                    stream.Add(autonomousResult.Event);
+                }
+
                 continue;
             }
 
@@ -244,6 +322,61 @@ internal static class BattleTacticalObservationUpdater
                tick - tacticalState.LastTemporaryRegionRefreshTick >= BattleGroupTacticalPolicySettings.DefaultTemporaryRegionRefreshTicks;
     }
 
+    private static bool ShouldUsePlayerAutonomousTemporaryRegion(
+        BattleGroupTacticalState tacticalState,
+        int tick)
+    {
+        if (tacticalState == null ||
+            tacticalState.EngagementState != BattleGroupEngagementState.NotEngaged ||
+            tacticalState.TacticalMode != BattleGroupTacticalMode.PlayerCommanded ||
+            !tacticalState.AllowAutonomousFallbackTargeting)
+        {
+            return false;
+        }
+
+        BattleTacticalRegionSnapshot selected = tacticalState.SelectedRegion;
+        if (selected == null)
+        {
+            return true;
+        }
+
+        return tacticalState.SelectedRegionCommandSource == BattleGroupTacticalCommandSource.SelfCalculated &&
+               selected.Kind == BattleTacticalRegionKind.TemporaryTarget &&
+               tick - tacticalState.LastTemporaryRegionRefreshTick >= BattleGroupTacticalPolicySettings.DefaultTemporaryRegionRefreshTicks;
+    }
+
+    private static bool GroupHasReachedRegion(
+        string ownerBattleGroupId,
+        BattleTacticalRegionSnapshot region,
+        IEnumerable<BattleRuntimeActor> livingCorps)
+    {
+        BattleRuntimeActor[] members = (livingCorps ?? System.Array.Empty<BattleRuntimeActor>())
+            .Where(item => string.Equals(item.BattleGroupId ?? "", ownerBattleGroupId ?? "", System.StringComparison.Ordinal))
+            .ToArray();
+        if (members.Length == 0 || region == null)
+        {
+            return false;
+        }
+
+        int width = System.Math.Max(1, region.Width);
+        int height = System.Math.Max(1, region.Height);
+        var regionAnchor = new BattleGridCoord(
+            region.CenterCellX - (width - 1) / 2,
+            region.CenterCellY - (height - 1) / 2,
+            region.CenterCellHeight);
+        var regionActor = new BattleRuntimeActor
+        {
+            GridX = regionAnchor.X,
+            GridY = regionAnchor.Y,
+            GridHeight = regionAnchor.Height,
+            FootprintWidth = width,
+            FootprintHeight = height
+        };
+
+        return members.All(actor =>
+            BattleActorFootprint.GetGap(actor, new BattleGridCoord(actor.GridX, actor.GridY, actor.GridHeight), regionActor, regionAnchor) <= 1);
+    }
+
     private static bool RegionContainsOpposingActor(
         string ownerBattleGroupId,
         BattleTacticalRegionSnapshot region,
@@ -276,22 +409,16 @@ internal static class BattleTacticalObservationUpdater
                           actor.GridY < maxYExclusive);
     }
 
-    private static void RefreshCombatAndGroupActionZones(
+    private static void RefreshGroupActionZonesAndLog(
         BattleRuntimeState state,
         BattleRuntimeActor[] livingCorps,
-        int tick)
+        int tick,
+        bool combatChanged)
     {
         if (state == null)
         {
             return;
         }
-
-        string previousCombatSignature = BuildCombatZoneSignature(state.CombatZoneStore);
-        state.CombatZoneStore = BattleCombatZoneBuilder.Build(livingCorps, tick);
-        bool combatChanged = !string.Equals(
-            previousCombatSignature,
-            BuildCombatZoneSignature(state.CombatZoneStore),
-            System.StringComparison.Ordinal);
 
         string previousActionSignature = BuildGroupActionZoneSignature(state.GroupActionZoneStore);
         state.GroupActionZoneStore = BattleGroupActionZoneBuilder.Build(
@@ -323,6 +450,7 @@ internal static class BattleTacticalObservationUpdater
         {
             builder
                 .Append(zone.CombatZoneId).Append(':')
+                .Append(zone.HasCloseHostileContact).Append(':')
                 .Append(zone.MinCellX).Append(',')
                 .Append(zone.MinCellY).Append(',')
                 .Append(zone.MaxCellX).Append(',')

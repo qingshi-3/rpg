@@ -16,10 +16,13 @@ public static class BattleGroupTacticalReasonCode
     public const string RegionFixedAdvance = "region_fixed_advance";
     public const string RegionTemporaryAdvance = "region_temporary_advance";
     public const string CombatZoneJoinAdvance = "combat_zone_join_advance";
+    public const string CombatPressureAdvance = "combat_pressure_advance";
     public const string TemporaryRegionCreatedCluster = "temporary_region_created_cluster";
+    public const string PlayerAutonomousTemporaryRegionCreatedCluster = "player_autonomous_temporary_region_created_cluster";
     public const string TemporaryRegionReusedRefreshInterval = "temporary_region_reused_refresh_interval";
     public const string TemporaryRegionRefreshedIntervalElapsed = "temporary_region_refreshed_interval_elapsed";
     public const string EngagementEnterGroupPerception = "engagement_enter_group_perception";
+    public const string EngagementEnterCombatZoneOverlap = "engagement_enter_combat_zone_overlap";
     public const string EngagementEnterMemberDamaged = "engagement_enter_member_damaged";
     public const string EngagementEnterMemberAttacked = "engagement_enter_member_attacked";
     public const string EngagementExitNoGroupPerception = "engagement_exit_no_group_perception";

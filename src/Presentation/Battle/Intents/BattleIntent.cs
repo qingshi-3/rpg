@@ -25,8 +25,6 @@ public sealed class BattleIntent
     public int Power { get; }
     public string Reason { get; }
     public string TemplateId => Template.Id;
-    public BattleIntentType Type => Template.Type;
-    public BattleIntentTargetPolicy TargetPolicy => Template.TargetPolicy;
     public string DisplayName => Template.DisplayName;
     public string IconKey => Template.IconKey;
     public string IconText => Template.IconText;
@@ -35,10 +33,7 @@ public sealed class BattleIntent
         : "";
     public string Summary => Actor == null
         ? DisplayName
-        : $"{Actor.DisplayName}：{DisplayName}";
-    public bool CanResolveAction => Actor != null &&
-                                    Type != BattleIntentType.None &&
-                                    Type != BattleIntentType.Hold;
+        : $"{Actor.DisplayName}: {DisplayName}";
 
     public static BattleIntent Hold(BattleEntity actor, string reason)
     {

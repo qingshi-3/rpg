@@ -5,6 +5,7 @@ namespace Rpg.Application.Battle;
 public sealed class BattleForceRequest
 {
     public string ForceId { get; set; } = "";
+    public string CommandGroupId { get; set; } = "";
     public string SourceKind { get; set; } = "";
     public string SourceId { get; set; } = "";
     public string UnitDefinitionId { get; set; } = "";

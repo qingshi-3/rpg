@@ -226,7 +226,7 @@ internal static class BattleRuntimeActorStateMachine
         ClearMovementIntentSnapshot(actor);
     }
 
-    internal static void MarkHolding(BattleRuntimeActor actor, double currentTimeSeconds)
+    internal static void MarkHolding(BattleRuntimeActor actor, double currentTimeSeconds, bool preserveMovementSteering = false)
     {
         if (actor == null)
         {
@@ -238,7 +238,7 @@ internal static class BattleRuntimeActorStateMachine
         actor.ActionLockTicksRemaining = 0;
         actor.ActionLockReason = "";
         actor.ActionReadyAtSeconds = currentTimeSeconds + ResolveDecisionRetrySeconds(actor);
-        ClearMovementIntentSnapshot(actor);
+        ClearMovementIntentSnapshot(actor, clearSteering: !preserveMovementSteering);
     }
 
     internal static void MarkDefeated(BattleRuntimeActor actor)
@@ -258,6 +258,7 @@ internal static class BattleRuntimeActorStateMachine
         actor.ActionLockReason = "";
         actor.HasMovementBacktrackGuardCell = false;
         actor.HasSecondaryMovementBacktrackGuardCell = false;
+        ClearMovementSteering(actor);
         actor.ActionReadyAtSeconds = 0;
         actor.CurrentSkillActionId = "";
         actor.CurrentSkillId = "";
@@ -333,7 +334,7 @@ internal static class BattleRuntimeActorStateMachine
         return ResolveMoveStepSeconds(actor);
     }
 
-    internal static void ClearMovementIntentSnapshot(BattleRuntimeActor actor)
+    internal static void ClearMovementIntentSnapshot(BattleRuntimeActor actor, bool clearSteering = true)
     {
         if (actor == null)
         {
@@ -354,5 +355,37 @@ internal static class BattleRuntimeActorStateMachine
         actor.MovementIntentCombatSlotHeight = 0;
         actor.MovementIntentCombatSlotKind = Rpg.Runtime.Battle.Navigation.BattleCombatSlotKind.Support;
         actor.MovementIntentSegmentDurationSeconds = 0;
+        if (clearSteering)
+        {
+            ClearMovementSteering(actor);
+        }
+    }
+
+    internal static void CopyMovementSteering(BattleRuntimeActor target, BattleRuntimeActor source)
+    {
+        if (target == null || source == null)
+        {
+            return;
+        }
+
+        target.MovementSteeringMode = source.MovementSteeringMode;
+        target.MovementSteeringSide = source.MovementSteeringSide;
+        target.MovementSteeringBestDistance = source.MovementSteeringBestDistance;
+        target.MovementSteeringBudgetRemaining = source.MovementSteeringBudgetRemaining;
+        target.MovementSteeringIntentKey = source.MovementSteeringIntentKey ?? "";
+    }
+
+    private static void ClearMovementSteering(BattleRuntimeActor actor)
+    {
+        if (actor == null)
+        {
+            return;
+        }
+
+        actor.MovementSteeringMode = Rpg.Runtime.Battle.Navigation.BattleLocalSteeringMode.SeekGoal;
+        actor.MovementSteeringSide = 0;
+        actor.MovementSteeringBestDistance = int.MaxValue;
+        actor.MovementSteeringBudgetRemaining = 0;
+        actor.MovementSteeringIntentKey = "";
     }
 }

@@ -17,6 +17,7 @@ public sealed class BattleCombatZoneSnapshot
     public int CenterCellX { get; init; }
     public int CenterCellY { get; init; }
     public int CenterCellHeight { get; init; }
+    public bool HasCloseHostileContact { get; init; }
     public IReadOnlyList<string> ActorIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> BattleGroupIds { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> FactionIds { get; init; } = Array.Empty<string>();

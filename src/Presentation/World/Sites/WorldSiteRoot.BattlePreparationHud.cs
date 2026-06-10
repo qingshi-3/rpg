@@ -40,7 +40,7 @@ public partial class WorldSiteRoot
         _selectedFacilitySlotId = "";
         _selectedBattlePreparationPlanGroupKey = "";
         _explicitBattlePreparationRuleGroups.Clear();
-        ClearPlayerBattlePreparationPlacements(request);
+        ClearPlayerBattlePreparationPlacements(request, refreshMapEntities: false);
         EnsureBattlePreparationPlanDefaults(request);
 
         if (_returnMapButton != null)
@@ -247,6 +247,13 @@ public partial class WorldSiteRoot
     private bool IsBattlePreparationCompanyPlaced(BattleRuntimeCommandGroupView group)
         => BattlePreparationPlanUiModel.IsCompanyPlaced(group);
 
+    private IReadOnlyList<BattleRuntimeCommandGroupView> BuildDeployedBattlePreparationPlayerGroups()
+    {
+        return BuildBattlePreparationPlayerGroups()
+            .Where(IsBattlePreparationCompanyPlaced)
+            .ToArray();
+    }
+
     private void ShowBattlePreparationDeploymentZone()
     {
         string playerFactionId = ResolveBattlePreparationPlayerDeploymentFactionId();
@@ -410,6 +417,7 @@ public partial class WorldSiteRoot
 
         SyncBattlePreparationRequestPlacements(request);
         SyncBattlePreparationPlanToRequest(request);
+        ExcludeUndeployedBattlePreparationReserveGroups(request);
         SetAllDeploymentDragEnabled(false);
         GameLog.Info(
             nameof(WorldSiteRoot),
@@ -417,7 +425,7 @@ public partial class WorldSiteRoot
         ActivateBattleRuntime();
     }
 
-    private void ClearPlayerBattlePreparationPlacements(BattleStartRequest request)
+    private void ClearPlayerBattlePreparationPlacements(BattleStartRequest request, bool refreshMapEntities = true)
     {
         if (request?.PlayerForces == null)
         {
@@ -429,7 +437,11 @@ public partial class WorldSiteRoot
             force?.PreferredPlacements?.Clear();
         }
 
-        RefreshBattlePreparationMapEntities();
+        if (refreshMapEntities)
+        {
+            RefreshBattlePreparationMapEntities();
+        }
+
         GameLog.Info(nameof(WorldSiteRoot), $"BattlePreparationPlayerPlacementsCleared request={request.RequestId}");
     }
 
@@ -494,6 +506,49 @@ public partial class WorldSiteRoot
             $"BattlePreparationPlanSynced request={request.RequestId} groups={synced} selectedGroup={_selectedBattlePreparationPlanGroupKey} objective={request.PlayerBattleGroupPlan?.ObjectiveZoneId ?? ""} rule={request.PlayerBattleGroupPlan?.EngagementRule.ToString() ?? ""}");
     }
 
+    private void ExcludeUndeployedBattlePreparationReserveGroups(BattleStartRequest request)
+    {
+        if (request?.PlayerForces == null)
+        {
+            return;
+        }
+
+        IReadOnlyList<BattleRuntimeCommandGroupView> allGroups = BuildBattlePreparationPlayerGroups();
+        HashSet<string> deployedGroupKeys = allGroups
+            .Where(IsBattlePreparationCompanyPlaced)
+            .Select(group => group.GroupKey)
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .ToHashSet(System.StringComparer.Ordinal);
+        if (deployedGroupKeys.Count == 0)
+        {
+            return;
+        }
+
+        int forceCountBefore = request.PlayerForces.Count;
+        int planCountBefore = request.PlayerBattleGroupPlans?.Count ?? 0;
+        request.PlayerForces = request.PlayerForces
+            .Where(force => deployedGroupKeys.Contains(ResolveBattleRuntimeGroupKey(force)))
+            .ToList();
+        if (request.PlayerBattleGroupPlans != null)
+        {
+            foreach (string key in request.PlayerBattleGroupPlans.Keys
+                         .Where(key => !deployedGroupKeys.Contains(key))
+                         .ToArray())
+            {
+                request.PlayerBattleGroupPlans.Remove(key);
+            }
+        }
+
+        if (!deployedGroupKeys.Contains(_selectedBattlePreparationPlanGroupKey ?? ""))
+        {
+            _selectedBattlePreparationPlanGroupKey = deployedGroupKeys.OrderBy(key => key, System.StringComparer.Ordinal).FirstOrDefault() ?? "";
+        }
+        SyncSelectedBattlePreparationPlanFallback(request);
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"BattlePreparationReserveGroupsExcluded request={request.RequestId} deployed={deployedGroupKeys.Count} reserve={allGroups.Count - deployedGroupKeys.Count} playerForces={forceCountBefore}->{request.PlayerForces.Count} plans={planCountBefore}->{request.PlayerBattleGroupPlans?.Count ?? 0}");
+    }
+
     private void RefreshBattlePreparationMapEntities()
     {
         if (_battlePreparationRequest == null || _unitRoot == null)
@@ -525,13 +580,14 @@ public partial class WorldSiteRoot
             return false;
         }
 
-        if (!BattlePreparationPlanUiModel.ArePlayerRequestSlotsPlaced(request))
+        IReadOnlyList<BattleRuntimeCommandGroupView> deployedGroups = BuildDeployedBattlePreparationPlayerGroups();
+        if (deployedGroups.Count == 0)
         {
-            failureReason = "还有我方单位未部署，不能开战。";
+            failureReason = "至少部署一支我方英雄部队后才能开战。";
             return false;
         }
 
-        foreach (BattleRuntimeCommandGroupView group in BuildBattlePreparationPlayerGroups())
+        foreach (BattleRuntimeCommandGroupView group in deployedGroups)
         {
             if (!IsBattlePreparationCompanyPlaced(group))
             {

@@ -16,7 +16,9 @@ internal static class TargetBattleCombatZoneRegressionCases
         run("runtime rear engaged members use combat zone intent instead of objective advance", RuntimeRearEngagedMembersUseCombatZoneIntentInsteadOfObjectiveAdvance);
         run("runtime combat-zone outsiders path to latest combat zone before slot search", RuntimeCombatZoneOutsidersPathToLatestCombatZoneBeforeSlotSearch);
         run("runtime combat-zone join movement uses action bounds instead of center", RuntimeCombatZoneJoinMovementUsesActionBoundsInsteadOfCenter);
+        run("runtime combat-zone join movement keeps centered goal near map edge", RuntimeCombatZoneJoinMovementKeepsCenteredGoalNearMapEdge);
         run("runtime members inside actor-local combat zone do not march to selected group zone", RuntimeMembersInsideActorLocalCombatZoneDoNotMarchToSelectedGroupZone);
+        run("runtime player combat-zone overlap promotes group action zone", RuntimePlayerCombatZoneOverlapPromotesGroupActionZone);
         run("runtime combat zone keeps member footprints and hot-area padding under cap pressure", RuntimeCombatZoneKeepsMemberFootprintsAndHotAreaPaddingUnderCapPressure);
     }
 
@@ -152,6 +154,36 @@ internal static class TargetBattleCombatZoneRegressionCases
             $"outsider should step toward the action-zone min/max bounds, not treat the center as a top-left goal: from=({outsiderMove.FromGridX},{outsiderMove.FromGridY}) to=({outsiderMove.ToGridX},{outsiderMove.ToGridY}) bounds=({enemyActionZone.MinCellX},{enemyActionZone.MinCellY})-({enemyActionZone.MaxCellX},{enemyActionZone.MaxCellY})");
     }
 
+    private static void RuntimeCombatZoneJoinMovementKeepsCenteredGoalNearMapEdge()
+    {
+        BattleGroupActionZoneSnapshot actionZone = new()
+        {
+            BattleGroupId = "player_group",
+            Kind = BattleGroupActionZoneKind.CombatJoin,
+            TargetCombatZoneId = "combat_zone_1",
+            MinCellX = 42,
+            MinCellY = 0,
+            MaxCellX = 56,
+            MaxCellY = 18,
+            CenterCellX = 49,
+            CenterCellY = 9,
+            CenterCellHeight = 0
+        };
+
+        Type plannerType = typeof(BattleRuntimeSession).Assembly.GetType("Rpg.Runtime.Battle.BattleCombatJoinRegionPlanner")
+            ?? throw new InvalidOperationException("BattleCombatJoinRegionPlanner type not found");
+        System.Reflection.MethodInfo method = plannerType.GetMethod(
+            "BuildMovementGoal",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("BuildMovementGoal method not found");
+        BattleRegionMovementGoal goal = (BattleRegionMovementGoal)method.Invoke(null, new object[] { actionZone })!;
+
+        AssertEqual(49, goal.CenterCellX, "combat join goal should preserve the action-zone center x");
+        AssertEqual(9, goal.CenterCellY, "combat join goal should preserve the action-zone center y");
+        AssertEqual(15, goal.Width, "combat join goal width");
+        AssertEqual(19, goal.Height, "combat join goal height");
+    }
+
     private static void RuntimeMembersInsideActorLocalCombatZoneDoNotMarchToSelectedGroupZone()
     {
         BattleStartSnapshot snapshot = BuildSplitCombatZoneSnapshot("battle_split_actor_local_zone");
@@ -184,6 +216,32 @@ internal static class TargetBattleCombatZoneRegressionCases
             string.Equals(playerRight.TargetActorId, "enemy_right:1", StringComparison.Ordinal) ||
             string.Equals(rightMove?.TargetId, "enemy_right:1", StringComparison.Ordinal),
             $"actor inside a non-selected combat zone should make local combat decisions against that zone's enemy: target={playerRight.TargetActorId} moveTarget={rightMove?.TargetId}");
+    }
+
+    private static void RuntimePlayerCombatZoneOverlapPromotesGroupActionZone()
+    {
+        BattleStartSnapshot snapshot = BuildCombatZoneOverlapEngagementSnapshot("battle_overlap_promotes_group_action");
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        BattleRuntimeActor playerFlank = controller.State.Actors.Single(item => item.ActorId == "player_flank:1");
+        BattleRuntimeActor enemyBoss = controller.State.Actors.Single(item => item.ActorId == "enemy_boss:1");
+        playerFlank.TargetActorId = enemyBoss.ActorId;
+        playerFlank.PlanState = BattleGroupPlanRuntimeState.MovingToAttackSlot;
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+        BattleCombatZoneSnapshot zone = controller.State.CombatZones.Values.Single();
+        BattleGroupTacticalState playerState = controller.State.TacticalStates["player_group"];
+        BattleGroupActionZoneSnapshot playerActionZone = controller.State.GroupActionZones["player_group"];
+        BattleEvent? engagement = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.BattleGroupEngagementStateChanged &&
+            item.BattleGroupId == "player_group");
+
+        AssertTrue(zone.HasCloseHostileContact, "fixture should contain a real local fight as the active combat zone anchor");
+        AssertTrue(zone.ActorIds.Contains(playerFlank.ActorId), "target-linked player should be listed in the active combat zone");
+        AssertTrue(zone.ActorIds.Contains(enemyBoss.ActorId), "target-linked hostile should be listed in the active combat zone");
+        AssertEqual(BattleGroupEngagementState.Engaged, playerState.EngagementState, "combat-zone overlap should enter player-scoped engagement");
+        AssertEqual(BattleGroupActionZoneKind.CombatJoin, playerActionZone.Kind, "combat-zone overlap should publish combat-join intent");
+        AssertEqual(zone.CombatZoneId, playerActionZone.TargetCombatZoneId, "player action zone should target the overlapping combat zone");
+        AssertEqual(BattleGroupTacticalReasonCode.EngagementEnterCombatZoneOverlap, engagement?.ReasonCode, "engagement reason");
     }
 
     private static BattleStartSnapshot BuildCombatZoneSnapshot(string battleId)
@@ -483,6 +541,61 @@ internal static class TargetBattleCombatZoneRegressionCases
                     MoveCost = 1
                 });
             }
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildCombatZoneOverlapEngagementSnapshot(string battleId)
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = $"snapshot_{battleId}",
+            BattleId = battleId,
+            TargetLocationId = "site_1",
+            ObjectiveZones =
+            {
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "player_deployment",
+                    ObjectiveRole = "player_deployment",
+                    DeploymentSide = "Player",
+                    FactionId = "player",
+                    CellX = 0,
+                    CellY = 0,
+                    Width = 2,
+                    Height = 2
+                },
+                new BattleObjectiveZoneSnapshot
+                {
+                    ObjectiveZoneId = "enemy_deployment",
+                    ObjectiveRole = "enemy_deployment",
+                    DeploymentSide = "Enemy",
+                    FactionId = "enemy",
+                    CellX = 20,
+                    CellY = 0,
+                    Width = 2,
+                    Height = 2
+                }
+            },
+            BattleGroups =
+            {
+                BuildGroup("player_group", "player", "player_flank", 0, 0, "enemy_deployment"),
+                BuildGroup("player_anchor_group", "player", "player_anchor", 18, 0, "enemy_deployment"),
+                BuildGroup("enemy_group", "enemy", "enemy_boss", 20, 0, "player_deployment", BattleGroupTacticalMode.EnemyOffense)
+            }
+        };
+
+        for (int x = 0; x <= 20; x++)
+        {
+            snapshot.LocationContext.NavigationSurfaces.Add(new BattleNavigationSurfaceSnapshot
+            {
+                X = x,
+                Y = 0,
+                Height = 0,
+                MoveCost = 1
+            });
         }
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);

@@ -7,23 +7,17 @@ public sealed class BattleIntentTemplate
 {
     public BattleIntentTemplate(
         string id,
-        BattleIntentType type,
-        BattleIntentTargetPolicy targetPolicy,
         string displayName,
         string iconKey,
         bool showValue)
     {
         Id = string.IsNullOrWhiteSpace(id) ? "intent" : id;
-        Type = type;
-        TargetPolicy = targetPolicy;
         DisplayName = displayName ?? "";
         IconKey = BattleIntentIcons.Normalize(Id, iconKey);
         ShowValue = showValue;
     }
 
     public string Id { get; }
-    public BattleIntentType Type { get; }
-    public BattleIntentTargetPolicy TargetPolicy { get; }
     public string DisplayName { get; }
     public string IconKey { get; }
     public string IconText => IconKey;
@@ -43,48 +37,36 @@ public static class BattleIntentTemplates
 {
     public static readonly BattleIntentTemplate MeleePressure = new(
         "melee_pressure",
-        BattleIntentType.Pressure,
-        BattleIntentTargetPolicy.NearestHostile,
         "压迫最近目标",
         "压",
         true);
 
     public static readonly BattleIntentTemplate DirectStrike = new(
         "direct_strike",
-        BattleIntentType.Strike,
-        BattleIntentTargetPolicy.NearestHostile,
         "攻击最近目标",
         "攻",
         true);
 
     public static readonly BattleIntentTemplate RangedPressure = new(
         "ranged_pressure",
-        BattleIntentType.Snipe,
-        BattleIntentTargetPolicy.NearestHostile,
         "远程压制",
         "狙",
         true);
 
     public static readonly BattleIntentTemplate FocusPressure = new(
         "focus_pressure",
-        BattleIntentType.Pressure,
-        BattleIntentTargetPolicy.LowestHealthHostile,
         "推进集火",
         "集",
         true);
 
     public static readonly BattleIntentTemplate FocusStrike = new(
         "focus_strike",
-        BattleIntentType.Strike,
-        BattleIntentTargetPolicy.LowestHealthHostile,
         "集火打击",
         "集",
         true);
 
     public static readonly BattleIntentTemplate Hold = new(
         "hold",
-        BattleIntentType.Hold,
-        BattleIntentTargetPolicy.None,
         "暂不行动",
         "待",
         false);

@@ -212,6 +212,17 @@ public sealed class BattleGroupSessionProbeService
 			if (metadata.PlanSide == BattlePlanSide.Player)
 			{
 				group.TacticalMode = BattleGroupTacticalMode.PlayerCommanded;
+				if (group.InitialTacticalRegions.Count == 0)
+				{
+					BattleTacticalRegionSnapshot playerCommandRegion = BuildPlayerCommandRegionSeed(
+						group,
+						snapshot.ObjectiveZones);
+					if (playerCommandRegion != null)
+					{
+						group.InitialTacticalRegions.Add(playerCommandRegion);
+					}
+				}
+
 				continue;
 			}
 
@@ -296,6 +307,68 @@ public sealed class BattleGroupSessionProbeService
 			CenterCellHeight = group.CellHeight,
 			Width = System.Math.Max(1, group.FootprintWidth),
 			Height = System.Math.Max(1, group.FootprintHeight)
+		};
+	}
+
+	private static BattleTacticalRegionSnapshot BuildPlayerCommandRegionSeed(
+		BattleGroupSnapshot group,
+		IReadOnlyList<BattleObjectiveZoneSnapshot> objectiveZones)
+	{
+		BattleGroupPlanSnapshot plan = group?.Plan;
+		if (plan == null)
+		{
+			return null;
+		}
+
+		string ownerGroupId = BattleCommanderGroupIdentity.Resolve(group);
+		BattleObjectiveZoneSnapshot zone = (objectiveZones ?? Array.Empty<BattleObjectiveZoneSnapshot>())
+			.FirstOrDefault(candidate => string.Equals(
+				candidate?.ObjectiveZoneId ?? "",
+				plan.ObjectiveZoneId ?? "",
+				StringComparison.Ordinal));
+		if (zone != null)
+		{
+			int width = System.Math.Max(1, zone.Width);
+			int height = System.Math.Max(1, zone.Height);
+			return new BattleTacticalRegionSnapshot
+			{
+				RegionId = zone.ObjectiveZoneId ?? "",
+				OwnerBattleGroupId = ownerGroupId,
+				Kind = BattleTacticalRegionKind.FixedTarget,
+				SourceRegionId = zone.ObjectiveZoneId ?? "",
+				ReasonCode = BattleGroupTacticalReasonCode.RegionAccepted,
+				CenterCellX = ResolveCenterCell(zone.CellX, width),
+				CenterCellY = ResolveCenterCell(zone.CellY, height),
+				CenterCellHeight = zone.CellHeight,
+				Width = width,
+				Height = height
+			};
+		}
+
+		if (!plan.HasObjectiveAnchor)
+		{
+			return null;
+		}
+
+		int planWidth = System.Math.Max(1, plan.ObjectiveWidth);
+		int planHeight = System.Math.Max(1, plan.ObjectiveHeight);
+		string regionId = string.IsNullOrWhiteSpace(plan.ObjectiveZoneId)
+			? $"{ownerGroupId}:player_command:{plan.ObjectiveCellX}:{plan.ObjectiveCellY}:{plan.ObjectiveCellHeight}"
+			: plan.ObjectiveZoneId;
+		// Player-selected objectives must enter the tactical store as command
+		// regions; otherwise autonomous fallback treats the group as uncommanded.
+		return new BattleTacticalRegionSnapshot
+		{
+			RegionId = regionId,
+			OwnerBattleGroupId = ownerGroupId,
+			Kind = BattleTacticalRegionKind.FixedTarget,
+			SourceRegionId = plan.ObjectiveZoneId ?? "",
+			ReasonCode = BattleGroupTacticalReasonCode.RegionAccepted,
+			CenterCellX = ResolveCenterCell(plan.ObjectiveCellX, planWidth),
+			CenterCellY = ResolveCenterCell(plan.ObjectiveCellY, planHeight),
+			CenterCellHeight = plan.ObjectiveCellHeight,
+			Width = planWidth,
+			Height = planHeight
 		};
 	}
 
@@ -464,8 +537,7 @@ public sealed class BattleGroupSessionProbeService
 
 		if (sidePlans != null)
 		{
-			string groupKey = ResolveBattleGroupPlanKey(force);
-			foreach (string key in new[] { groupKey, force?.ForceId ?? "" }.Where(key => !string.IsNullOrWhiteSpace(key)))
+			foreach (string key in ResolveBattleGroupPlanKeys(force))
 			{
 				if (sidePlans.TryGetValue(key, out BattleGroupPlanSnapshot plan) &&
 					HasAuthoredPlan(plan))
@@ -478,24 +550,33 @@ public sealed class BattleGroupSessionProbeService
 		return HasAuthoredPlan(fallbackPlan) ? CopyPlanForGroup("", fallbackPlan) : null;
 	}
 
-	private static string ResolveBattleGroupPlanKey(BattleForceRequest force)
+	private static IEnumerable<string> ResolveBattleGroupPlanKeys(BattleForceRequest force)
 	{
 		if (force == null)
 		{
-			return "";
+			yield break;
 		}
 
-		if (!string.IsNullOrWhiteSpace(force.SourceKind) && !string.IsNullOrWhiteSpace(force.SourceId))
+		string fallbackForceId = string.IsNullOrWhiteSpace(force.ForceId)
+			? force.UnitDefinitionId ?? ""
+			: force.ForceId;
+		foreach (string key in new[]
+				 {
+					 BattleCommanderGroupIdentity.BuildProbeCommanderGroupId(force, fallbackForceId),
+					 BattleCommanderGroupIdentity.ResolveForceCommandKey(force, fallbackForceId),
+					 force.ForceId ?? "",
+					 !string.IsNullOrWhiteSpace(force.SourceKind) && !string.IsNullOrWhiteSpace(force.SourceId)
+						 ? $"{force.SourceKind}:{force.SourceId}"
+						 : "",
+					 force.SourceId ?? "",
+					 fallbackForceId
+				 })
 		{
-			return $"{force.SourceKind}:{force.SourceId}";
+			if (!string.IsNullOrWhiteSpace(key))
+			{
+				yield return key;
+			}
 		}
-
-		if (!string.IsNullOrWhiteSpace(force.SourceId))
-		{
-			return force.SourceId;
-		}
-
-		return string.IsNullOrWhiteSpace(force.ForceId) ? force.UnitDefinitionId ?? "" : force.ForceId;
 	}
 
 	private static bool HasAuthoredPlan(BattleGroupPlanSnapshot plan)

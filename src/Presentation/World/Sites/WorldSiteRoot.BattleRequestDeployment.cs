@@ -198,6 +198,15 @@ public partial class WorldSiteRoot
         }
     }
 
+    private void RefreshBattleRequestMapEntitiesForDirectRuntime(BattleStartRequest request)
+    {
+        ClearBattleEntities();
+        var reservedDeploymentSurfaces = new HashSet<GridSurfacePosition>();
+        AddRequestedForces(request.PlayerForces, BattleFaction.Player, request, reservedDeploymentSurfaces);
+        AddRequestedForces(request.EnemyForces, BattleFaction.Enemy, request, reservedDeploymentSurfaces);
+        PlaceBattleEntitiesOnGrid();
+    }
+
     private void RegisterBattlePreparationPlacement(
         BattleEntity entity,
         BattleForceRequest force,

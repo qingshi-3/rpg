@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle.Navigation;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Runtime.Battle.Navigation;
 
@@ -26,6 +27,8 @@ internal sealed class BattleNavigationGraph
     private readonly Dictionary<BattleGridCoord, List<GraphEdge>> _topologyEdges;
     private readonly Dictionary<BattleGridCoord, List<GraphEdge>> _reverseTopologyEdges;
     private readonly Dictionary<GraphCell, int[]> _topologyHeightsByCell;
+    private readonly BattleGroupRouteHintCache _routeHintCache;
+    private readonly HashSet<string> _routeHintDiagnosticKeys = new();
 
     private BattleNavigationGraph(
         int minX,
@@ -44,6 +47,8 @@ internal sealed class BattleNavigationGraph
         _topologyEdges = topologyEdges ?? new Dictionary<BattleGridCoord, List<GraphEdge>>();
         _reverseTopologyEdges = reverseTopologyEdges ?? new Dictionary<BattleGridCoord, List<GraphEdge>>();
         _topologyHeightsByCell = BuildTopologyHeightsByCell(_topologyNodeMoveCosts.Keys);
+        RouteTopology = BattleRouteTopology.Build(this);
+        _routeHintCache = new BattleGroupRouteHintCache(RouteTopology);
     }
 
     public int MinX { get; }
@@ -51,6 +56,7 @@ internal sealed class BattleNavigationGraph
     public int MinY { get; }
     public int MaxY { get; }
     public bool UsesTopology => _topologyNodeMoveCosts.Count > 0;
+    internal BattleRouteTopology RouteTopology { get; }
     public int MaxSearchNodes => UsesTopology
         ? _topologyNodeMoveCosts.Count
         : System.Math.Max(1, (MaxX - MinX + 1) * (MaxY - MinY + 1));
@@ -65,6 +71,60 @@ internal sealed class BattleNavigationGraph
         NavigationTopologySummary summary = BuildTopologySummary();
         int edgeCount = _topologyEdges.Values.Sum(outgoing => outgoing.Count);
         return $"authored=True topologyNodes={_topologyNodeMoveCosts.Count} topologyEdges={edgeCount} components={summary.ComponentCount} largestComponent={summary.LargestComponentSize}";
+    }
+
+    public string DescribeRouteTopology()
+    {
+        return RouteTopology?.Describe() ?? "routeTopology=False";
+    }
+
+    internal bool TryGetRouteHintTowardObjective(
+        BattleRuntimeActor actor,
+        BattleGridCoord targetAnchor,
+        int targetWidth,
+        int targetHeight,
+        out BattleRouteHint hint,
+        string battleId = "",
+        int tick = -1)
+    {
+        hint = default;
+        if (actor == null || RouteTopology == null)
+        {
+            return false;
+        }
+
+        BattleRouteQuery query = BattleRouteQuery.Create(
+            actor.BattleGroupId ?? "",
+            string.IsNullOrWhiteSpace(actor.ObjectiveZoneId)
+                ? $"{targetAnchor.X},{targetAnchor.Y},{targetAnchor.Height}"
+                : actor.ObjectiveZoneId,
+            actor,
+            targetAnchor,
+            targetWidth,
+            targetHeight);
+        bool resolved = _routeHintCache.TryResolve(query, out hint, out BattleRouteHintResolution resolution);
+        LogRouteHintDiagnostic(battleId, tick, actor, query, resolution, resolved ? hint : default);
+        return resolved;
+    }
+
+    private void LogRouteHintDiagnostic(
+        string battleId,
+        int tick,
+        BattleRuntimeActor actor,
+        BattleRouteQuery query,
+        BattleRouteHintResolution resolution,
+        BattleRouteHint hint)
+    {
+        string hintAnchor = resolution.Success ? hint.Anchor.ToString() : "none";
+        string key = $"{battleId}|{actor?.ActorId}|{query.BattleGroupId}|{query.IntentId}|{query.Profile.Width}x{query.Profile.Height}|{resolution.SourceRegionId}|{resolution.TargetRegionId}|{resolution.Result}|{hintAnchor}";
+        if (!_routeHintDiagnosticKeys.Add(key))
+        {
+            return;
+        }
+
+        GameLog.Info(
+            nameof(BattleNavigationGraph),
+            $"BattleRuntimeRouteHint battle={battleId ?? ""} tick={tick} actor={actor?.ActorId ?? ""} group={query.BattleGroupId ?? ""} intent={query.IntentId ?? ""} source={query.SourceAnchor} target={query.TargetAnchor} targetSize={query.TargetWidth}x{query.TargetHeight} profile={query.Profile.Width}x{query.Profile.Height} sourceRegion={resolution.SourceRegionId} targetRegion={resolution.TargetRegionId} result={resolution.Result} success={resolution.Success} builtThisQuery={resolution.BuiltThisQuery} hint={hintAnchor} corridor={(resolution.Success ? hint.CorridorId : "")} builds={resolution.QueryBuildCount}");
     }
 
     public string DescribeStaticReachability(

@@ -606,6 +606,7 @@ public sealed class WorldActionResolver
             "site_not_attackable" => "当前场域不可攻打",
             "site_in_wartime" => "场域正在战时，不能执行经营行动",
             "army_already_en_route" => "已有玩家部队正在执行该目标",
+            "expedition_capacity_full" => "出征队列已满",
             _ => string.IsNullOrWhiteSpace(reason) ? "无法执行" : reason
         };
     }

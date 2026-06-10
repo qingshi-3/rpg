@@ -31,6 +31,7 @@ BattleHitFeedbackRegressionCases.Run("movement path arrows are disabled by defau
 BattleHitFeedbackRegressionCases.Run("unit visual scale uses global and footprint tuning multipliers", BattleHitFeedbackRegressionCases.UnitVisualScaleMultiplier);
 BattleHitFeedbackRegressionCases.Run("unit definitions expose 1x1 footprint defaults", BattleHitFeedbackRegressionCases.UnitDefinitionFootprintDefaults);
 BattleHitFeedbackRegressionCases.Run("battle unit factory scales sprites uniformly by footprint", BattleHitFeedbackRegressionCases.BattleUnitFactoryScalesSpritesUniformlyByFootprint);
+BattleHitFeedbackRegressionCases.Run("battle unit factory caches visual auto layout", BattleHitFeedbackRegressionCases.BattleUnitFactoryCachesVisualAutoLayout);
 BattleHitFeedbackRegressionCases.Run("world site runtime copies definition footprint to battle requests", BattleHitFeedbackRegressionCases.WorldSiteRuntimeCopiesDefinitionFootprintToBattleRequests);
 BattleHitFeedbackRegressionCases.Run("action cue waits before action and hides afterward", BattleHitFeedbackRegressionCases.ActionCueSequencerOrder);
 BattleHitFeedbackRegressionCases.Run("hover info panel anchors to screen edge instead of mouse", BattleHitFeedbackRegressionCases.HoverInfoPanelAnchorsToScreenEdge);
@@ -65,6 +66,8 @@ BattleHitFeedbackRegressionCases.Run("battle runtime playback does not globally 
 BattleHitFeedbackRegressionCases.Run("battle runtime playback plans move idle only at sequence boundary", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement uses actor motion lane", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementUsesActorMotionLane);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement queues before actor visual tail waits", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits);
+BattleHitFeedbackRegressionCases.Run("battle runtime live movement buffers committed segments without restarting move", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementBuffersCommittedSegmentsWithoutRestartingMove);
+BattleHitFeedbackRegressionCases.Run("battle runtime movement queues perception overlay refresh", BattleHitFeedbackRegressionCases.BattleRuntimeMovementQueuesPerceptionOverlayRefresh);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation consumes SkillUsed as cast cue", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue);
 BattleHitFeedbackRegressionCases.Run("runtime skill damage does not replay caster cast", BattleHitFeedbackRegressionCases.RuntimeSkillDamageDoesNotReplayCasterCast);
 BattleHitFeedbackRegressionCases.Run("battle runtime visual movement keeps runtime action duration", BattleHitFeedbackRegressionCases.BattleRuntimeVisualMovementKeepsRuntimeActionDuration);
@@ -93,7 +96,7 @@ BattleHitFeedbackRegressionCases.Run("unit idle and move animation playback is p
 BattleHitFeedbackRegressionCases.Run("unit combat stats are bound into runtime snapshots", BattleHitFeedbackRegressionCases.UnitCombatStatsSnapshotContract);
 BattleHitFeedbackRegressionCases.Run("battle unit base authors health bar and fallback animation", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation);
 BattleHitFeedbackRegressionCases.Run("defeated unit presentation hides health bar before fast death animation", BattleHitFeedbackRegressionCases.DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimation);
-BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors enemy greedy branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsEnemyGreedyBranches);
+BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors enemy behavior branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsEnemyBehaviorBranches);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors allied command branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsAlliedCommandBranches);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle resource boundary is authored", BattleHitFeedbackRegressionCases.LimboAiBattleResourceBoundaryIsAuthored);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle facade writes blackboard and emits intent", BattleHitFeedbackRegressionCases.LimboAiBattleFacadeWritesBlackboardAndEmitsIntent);

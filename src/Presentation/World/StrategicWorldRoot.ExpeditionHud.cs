@@ -25,13 +25,7 @@ public partial class StrategicWorldRoot
             string sourceName = ResolveSiteDisplayName(_expeditionSourceSiteId);
             AddMutedLine(_actionList, $"出发场域：{sourceName}");
             AddMutedLine(_actionList, $"已选英雄：{BuildExpeditionUnitText()}");
-            string selectedHeroUnitId = BuildSelectedExpeditionUnits().Keys
-                .FirstOrDefault(FirstSliceHeroCompanyIds.IsHeroUnit);
-            string defaultCorpsText = !string.IsNullOrWhiteSpace(selectedHeroUnitId) &&
-                                      FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(selectedHeroUnitId, out FirstSliceHeroCompanyDefinition company)
-                ? $"{GetUnitLabel(company.DefaultCorpsUnit)} x{company.DefaultCorpsCount}"
-                : "请选择英雄";
-            AddMutedLine(_actionList, $"默认兵团：{defaultCorpsText}");
+            AddMutedLine(_actionList, $"默认兵团：{BuildSelectedDefaultCorpsText()}");
 
             foreach ((string unitTypeId, int available) in GetAvailableExpeditionUnits(_expeditionSourceSiteId))
             {
@@ -110,6 +104,20 @@ public partial class StrategicWorldRoot
         }
 
         return false;
+    }
+
+    private string BuildSelectedDefaultCorpsText()
+    {
+        string[] corpsLines = BuildSelectedExpeditionUnits()
+            .Keys
+            .Where(FirstSliceHeroCompanyIds.IsHeroUnit)
+            .OrderBy(GetUnitSortKey)
+            .Select(unitTypeId => FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(unitTypeId, out FirstSliceHeroCompanyDefinition company)
+                ? $"{GetUnitLabel(company.DefaultCorpsUnit)} x{company.DefaultCorpsCount}"
+                : "")
+            .Where(text => !string.IsNullOrWhiteSpace(text))
+            .ToArray();
+        return corpsLines.Length == 0 ? "请选择英雄" : string.Join("、", corpsLines);
     }
 
     private void AddExpeditionCountRow(

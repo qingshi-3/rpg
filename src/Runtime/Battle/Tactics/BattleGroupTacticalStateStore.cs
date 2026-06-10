@@ -58,6 +58,7 @@ public sealed class BattleGroupTacticalStateStore
                 BattleGroupId = commanderGroupId,
                 TacticalMode = group.TacticalMode,
                 AllowPlayerScopedEngagement = !string.IsNullOrWhiteSpace(group.RuntimeCommanderGroupId),
+                AllowAutonomousFallbackTargeting = !string.IsNullOrWhiteSpace(group.RuntimeCommanderGroupId),
                 EngagementState = BattleGroupEngagementState.NotEngaged
             };
             store._states[commanderGroupId] = state;
@@ -105,6 +106,7 @@ public sealed class BattleGroupTacticalStateStore
             battleGroupId,
             proposedRegion,
             isEnemyPolicyMutation,
+            BattleGroupTacticalCommandSource.None,
             BattleEventKind.BattleGroupTacticalRegionSelected,
             BattleGroupTacticalReasonCode.RegionAccepted);
     }
@@ -118,6 +120,7 @@ public sealed class BattleGroupTacticalStateStore
             battleGroupId,
             proposedRegion,
             isEnemyPolicyMutation: true,
+            BattleGroupTacticalCommandSource.EnemyPolicy,
             BattleEventKind.BattleGroupTemporaryRegionSelected,
             string.IsNullOrWhiteSpace(proposedRegion?.ReasonCode)
                 ? BattleGroupTacticalReasonCode.TemporaryRegionCreatedCluster
@@ -131,6 +134,52 @@ public sealed class BattleGroupTacticalStateStore
         return result;
     }
 
+    internal BattleGroupTacticalRegionMutationResult TrySetPlayerAutonomousTemporaryRegion(
+        string battleGroupId,
+        BattleTacticalRegionSnapshot proposedRegion,
+        int runtimeTick)
+    {
+        BattleGroupTacticalRegionMutationResult result = TrySetRegionCore(
+            battleGroupId,
+            proposedRegion,
+            isEnemyPolicyMutation: false,
+            BattleGroupTacticalCommandSource.SelfCalculated,
+            BattleEventKind.BattleGroupTemporaryRegionSelected,
+            string.IsNullOrWhiteSpace(proposedRegion?.ReasonCode)
+                ? BattleGroupTacticalReasonCode.PlayerAutonomousTemporaryRegionCreatedCluster
+                : proposedRegion.ReasonCode);
+        if (result.Accepted &&
+            _states.TryGetValue(battleGroupId ?? "", out BattleGroupTacticalState state))
+        {
+            state.LastTemporaryRegionRefreshTick = runtimeTick;
+        }
+
+        return result;
+    }
+
+    internal bool TryClearSelectedRegion(
+        string battleGroupId,
+        BattleGroupTacticalCommandSource requiredSource)
+    {
+        string normalizedGroupId = battleGroupId ?? "";
+        if (!_states.TryGetValue(normalizedGroupId, out BattleGroupTacticalState state) ||
+            state.SelectedRegion == null ||
+            requiredSource != BattleGroupTacticalCommandSource.None &&
+            state.SelectedRegionCommandSource != requiredSource)
+        {
+            return false;
+        }
+
+        // Clearing command-owned region state is a lifecycle transition, not a
+        // new tactical selection. Runtime action events continue to describe the
+        // current execution command for Presentation and reports.
+        state.SelectedRegion = null;
+        state.SelectedRegionCommandSource = BattleGroupTacticalCommandSource.None;
+        state.LastTemporaryRegionRefreshTick = -1;
+        state.Version++;
+        return true;
+    }
+
     internal BattleGroupTacticalRegionMutationResult TrySetLocalCombatRegion(
         string battleGroupId,
         BattleTacticalRegionSnapshot proposedRegion)
@@ -140,6 +189,7 @@ public sealed class BattleGroupTacticalStateStore
             normalizedGroupId,
             proposedRegion,
             isEnemyPolicyMutation: false,
+            BattleGroupTacticalCommandSource.None,
             out BattleGroupTacticalState state);
         if (!validation.Accepted)
         {
@@ -181,6 +231,7 @@ public sealed class BattleGroupTacticalStateStore
         string battleGroupId,
         BattleTacticalRegionSnapshot proposedRegion,
         bool isEnemyPolicyMutation,
+        BattleGroupTacticalCommandSource requestedCommandSource,
         BattleEventKind acceptedEventKind,
         string acceptedReasonCode)
     {
@@ -189,6 +240,7 @@ public sealed class BattleGroupTacticalStateStore
             normalizedGroupId,
             proposedRegion,
             isEnemyPolicyMutation,
+            requestedCommandSource,
             out BattleGroupTacticalState state);
         if (!validation.Accepted)
         {
@@ -198,6 +250,7 @@ public sealed class BattleGroupTacticalStateStore
         BattleTacticalRegionSnapshot accepted = CloneRegion(proposedRegion);
         accepted.Version = state.Version + 1;
         state.SelectedRegion = accepted;
+        state.SelectedRegionCommandSource = ResolveCommandSource(state, isEnemyPolicyMutation, requestedCommandSource);
         state.Version++;
         return new BattleGroupTacticalRegionMutationResult
         {
@@ -211,6 +264,7 @@ public sealed class BattleGroupTacticalStateStore
         string normalizedGroupId,
         BattleTacticalRegionSnapshot proposedRegion,
         bool isEnemyPolicyMutation,
+        BattleGroupTacticalCommandSource requestedCommandSource,
         out BattleGroupTacticalState state)
     {
         state = null;
@@ -241,6 +295,21 @@ public sealed class BattleGroupTacticalStateStore
             return Rejected(normalizedGroupId, proposedRegion, BattleGroupTacticalReasonCode.RegionRejectedPlayerPolicyOverwrite);
         }
 
+        if (requestedCommandSource == BattleGroupTacticalCommandSource.SelfCalculated)
+        {
+            if (state.TacticalMode != BattleGroupTacticalMode.PlayerCommanded ||
+                !state.AllowAutonomousFallbackTargeting)
+            {
+                return Rejected(normalizedGroupId, proposedRegion, BattleGroupTacticalReasonCode.RegionRejectedPlayerPolicyOverwrite);
+            }
+
+            if (state.SelectedRegion != null &&
+                state.SelectedRegionCommandSource == BattleGroupTacticalCommandSource.PlayerCommand)
+            {
+                return Rejected(normalizedGroupId, proposedRegion, BattleGroupTacticalReasonCode.RegionRejectedPlayerPolicyOverwrite);
+            }
+        }
+
         if (proposedRegion.Width < BattleGroupTacticalPolicySettings.MinimumRegionWidth ||
             proposedRegion.Height < BattleGroupTacticalPolicySettings.MinimumRegionHeight)
         {
@@ -253,6 +322,27 @@ public sealed class BattleGroupTacticalStateStore
             ReasonCode = BattleGroupTacticalReasonCode.RegionAccepted,
             Event = null
         };
+    }
+
+    private static BattleGroupTacticalCommandSource ResolveCommandSource(
+        BattleGroupTacticalState state,
+        bool isEnemyPolicyMutation,
+        BattleGroupTacticalCommandSource requestedCommandSource)
+    {
+        if (requestedCommandSource != BattleGroupTacticalCommandSource.None)
+        {
+            return requestedCommandSource;
+        }
+
+        if (isEnemyPolicyMutation ||
+            state?.TacticalMode is BattleGroupTacticalMode.EnemyOffense
+                or BattleGroupTacticalMode.EnemyActiveDefense
+                or BattleGroupTacticalMode.EnemyHoldDefense)
+        {
+            return BattleGroupTacticalCommandSource.EnemyPolicy;
+        }
+
+        return BattleGroupTacticalCommandSource.PlayerCommand;
     }
 
     internal bool TryApplyEngagementState(
@@ -336,8 +426,10 @@ public sealed class BattleGroupTacticalStateStore
             BattleGroupId = state?.BattleGroupId ?? "",
             TacticalMode = state?.TacticalMode ?? BattleGroupTacticalMode.PlayerCommanded,
             AllowPlayerScopedEngagement = state?.AllowPlayerScopedEngagement ?? false,
+            AllowAutonomousFallbackTargeting = state?.AllowAutonomousFallbackTargeting ?? false,
             EngagementState = state?.EngagementState ?? BattleGroupEngagementState.NotEngaged,
             SelectedRegion = CloneRegion(state?.SelectedRegion),
+            SelectedRegionCommandSource = state?.SelectedRegionCommandSource ?? BattleGroupTacticalCommandSource.None,
             LocalCombatRegion = CloneRegion(state?.LocalCombatRegion),
             Version = state?.Version ?? 0,
             LastTemporaryRegionRefreshTick = state?.LastTemporaryRegionRefreshTick ?? -1,

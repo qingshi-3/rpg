@@ -79,7 +79,7 @@ internal static class BattleLocalCombatRegionResolver
         try
         {
             BattleGroupTacticalState tacticalState = tacticalStateStore.GetRequiredSnapshot(actorFact.Actor.BattleGroupId);
-            return EnemyBattleGroupRegionPolicy.ResolveMovementGoal(tacticalState);
+            return BattleGroupRegionMovementPolicy.ResolveMovementGoal(tacticalState);
         }
         catch (KeyNotFoundException)
         {

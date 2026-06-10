@@ -35,6 +35,7 @@ internal static class TargetBattleGroupTacticalRegionRegressionCases
         run("battle entry preserves preauthored player tactical seed", BattleEntryPreservesPreauthoredPlayerTacticalSeed);
         run("enemy region movement ignores moving unit outside perception", EnemyRegionMovementIgnoresMovingUnitOutsidePerception);
         run("player objective movement still uses player plan", PlayerObjectiveMovementStillUsesPlayerPlan);
+        TargetBattlePlayerCommandRegionRegressionCases.Register(run);
         TargetBattleTemporaryRegionRegressionCases.Register(run);
     }
 

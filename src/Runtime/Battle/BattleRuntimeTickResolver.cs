@@ -72,7 +72,6 @@ internal sealed partial class BattleRuntimeTickResolver
 
         Dictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts = BattleTickStartProjectionBuilder.BuildFactMap(livingCorps);
 
-        BattleFlowFieldCache flowFields = new(performanceCounters);
         BattleRuntimeActor[] decisionReadyCorps = livingCorps
             .Where(item => item.Phase == BattleRuntimeActorPhase.AnchoredDecision &&
                            !movementCompletedActorIds.Contains(item.ActorId ?? "") &&
@@ -86,7 +85,6 @@ internal sealed partial class BattleRuntimeTickResolver
                 tickStartFacts,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 battleId,
                 currentTimeSeconds,
@@ -105,7 +103,6 @@ internal sealed partial class BattleRuntimeTickResolver
             tickStartFacts,
             navigationGraph,
             occupancy,
-            flowFields,
             performanceCounters,
             battleId,
             currentTimeSeconds,
@@ -263,7 +260,10 @@ internal sealed partial class BattleRuntimeTickResolver
             if (!string.IsNullOrWhiteSpace(context.Proposal.FailureReason))
             {
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, context.Proposal.FailureReason);
-                BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
+                BattleRuntimeActorStateMachine.MarkHolding(
+                    context.ActorFact.Actor,
+                    currentTimeSeconds,
+                    ShouldPreserveMovementSteeringForFailure(context));
                 if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget ||
                     context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
                     context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
@@ -297,6 +297,17 @@ internal sealed partial class BattleRuntimeTickResolver
         }
     }
 
+    private static bool ShouldPreserveMovementSteeringForFailure(BattleRuntimeTickContext context)
+    {
+        BattleRuntimeActor actor = context?.ActorFact.Actor;
+        return actor != null &&
+               (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective) &&
+               actor.MovementSteeringMode == BattleLocalSteeringMode.FollowObstacle &&
+               actor.MovementSteeringBudgetRemaining <= 0;
+    }
+
     private void LogTickActionResults(
         List<BattleRuntimeTickContext> contexts,
         string battleId,
@@ -326,7 +337,6 @@ internal sealed partial class BattleRuntimeTickResolver
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> facts,
         BattleNavigationGraph navigationGraph,
         BattleDynamicOccupancy occupancy,
-        BattleFlowFieldCache flowFields,
         BattlePerformanceCounters performanceCounters,
         string battleId,
         double currentTimeSeconds,
@@ -356,7 +366,6 @@ internal sealed partial class BattleRuntimeTickResolver
                 combatJoinActionZone,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 battleId,
                 tick,
@@ -373,14 +382,13 @@ internal sealed partial class BattleRuntimeTickResolver
                 : BattleLocalCombatRegionResolver.FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
         BattleTargetSelectionService.BattleTargetCandidateSet targetCandidateSet = combatJoinActionZone != null
             ? BattleTargetSelectionService.BuildCombatZoneScopedTargetCandidates(
-                targetFacts, actorFact, navigationGraph, occupancy, flowFields, performanceCounters, combatJoinRegion)
+                targetFacts, actorFact, navigationGraph, occupancy, performanceCounters, combatJoinRegion)
             : regionMovementGoal == null
             ? BattleTargetSelectionService.BuildTargetCandidatesForCommand(
                 targetFacts,
                 actorFact,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters)
             : BattleTargetSelectionService.BuildRegionScopedTargetCandidates(targetFacts, actorFact);
         // Target choice is part of the behavior-tree decision boundary. The
@@ -449,12 +457,16 @@ internal sealed partial class BattleRuntimeTickResolver
                     combatJoinRegion,
                     navigationGraph,
                     occupancy,
-                    flowFields,
                     performanceCounters,
                     currentTimeSeconds,
                     out BattleRuntimeTickContext alternateCombatJoinContext))
             {
                 return alternateCombatJoinContext;
+            }
+
+            if (BattleCombatJoinRegionPlanner.TryBuildPressureAdvanceContext(actorFact, requestedTarget, localCombatSituation, navigationGraph, occupancy, performanceCounters, out BattleRuntimeTickContext pressureHoldContext))
+            {
+                return pressureHoldContext;
             }
 
             return CreateContext(request, actorFact, requestedTarget, false, default, request.FailureReason, localCombatSituation: localCombatSituation, regionMovementGoal: regionMovementGoal);
@@ -467,7 +479,6 @@ internal sealed partial class BattleRuntimeTickResolver
                 actorFact,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 battleId,
                 tick);
@@ -480,7 +491,6 @@ internal sealed partial class BattleRuntimeTickResolver
                 actorFact,
                 navigationGraph,
                 occupancy,
-                flowFields,
                 performanceCounters,
                 battleId,
                 tick);
@@ -533,7 +543,6 @@ internal sealed partial class BattleRuntimeTickResolver
                                       actorFact.Anchor,
                                       navigationGraph,
                                       occupancy,
-                                      flowFields,
                                       performanceCounters,
                                       scopedLocalCombatRegion);
             bool avoidOpeningNewAxisGapNearEngagedTarget = preferSupport && movementGap == attackRange + 1;
@@ -547,7 +556,6 @@ internal sealed partial class BattleRuntimeTickResolver
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
-                    flowFields,
                     preferSupportSlots,
                     performanceCounters,
                     scopedLocalCombatRegion,
@@ -566,7 +574,6 @@ internal sealed partial class BattleRuntimeTickResolver
                     navigationGraph,
                     occupancy,
                     new BattleMovementReservationMap(),
-                    flowFields,
                     preferSupportSlots,
                     avoidOpeningNewAxisGapNearEngagedTarget,
                     performanceCounters,
@@ -586,12 +593,16 @@ internal sealed partial class BattleRuntimeTickResolver
                         combatJoinRegion,
                         navigationGraph,
                         occupancy,
-                        flowFields,
                         performanceCounters,
                         currentTimeSeconds,
                         out BattleRuntimeTickContext alternateCombatJoinContext))
                 {
                     return alternateCombatJoinContext;
+                }
+
+                if (BattleCombatJoinRegionPlanner.TryBuildPressureAdvanceContext(actorFact, requestedTarget, localCombatSituation, navigationGraph, occupancy, performanceCounters, out BattleRuntimeTickContext pressureAdvanceContext))
+                {
+                    return pressureAdvanceContext;
                 }
 
                 // Runtime validation names blocked local-combat ingress, but

@@ -9,6 +9,10 @@ namespace Rpg.Application.World;
 
 public sealed class WorldExpeditionService
 {
+    // Faction command capacity is not modeled yet. Keep the first-slice queue cap
+    // in Application so Presentation and expedition mutation share one authority.
+    public const int FirstSliceMaxActivePlayerExpeditions = 3;
+
     private readonly WorldSiteDeploymentService _deploymentService = new();
     private readonly WorldGarrisonMutationService _garrisonMutations = new();
 
@@ -52,6 +56,12 @@ public sealed class WorldExpeditionService
         if (requestedUnits.Count == 0)
         {
             failureReason = "no_expedition_units";
+            return false;
+        }
+
+        if (!HasAvailablePlayerExpeditionCapacity(state, out _, out _))
+        {
+            failureReason = "expedition_capacity_full";
             return false;
         }
 
@@ -149,6 +159,41 @@ public sealed class WorldExpeditionService
             nameof(WorldExpeditionService),
             $"WorldExpeditionCreated army={army.ArmyId} source={sourceSiteId} target={army.TargetSiteId} intent={intent} status={army.Status} units={FormatUnits(army.GarrisonUnits)} sourceGarrisonAfter={FormatUnits(sourceSite.Garrison)}");
         return true;
+    }
+
+    public bool HasAvailablePlayerExpeditionCapacity(
+        StrategicWorldState state,
+        out int activeCount,
+        out int maxCount)
+    {
+        return HasAvailablePlayerExpeditionCapacity(state, 1, out activeCount, out maxCount);
+    }
+
+    public bool HasAvailablePlayerExpeditionCapacity(
+        StrategicWorldState state,
+        int requestedCount,
+        out int activeCount,
+        out int maxCount)
+    {
+        maxCount = FirstSliceMaxActivePlayerExpeditions;
+        activeCount = CountActivePlayerExpeditions(state);
+        return activeCount + System.Math.Max(0, requestedCount) <= maxCount;
+    }
+
+    public static int CountActivePlayerExpeditions(StrategicWorldState state)
+    {
+        if (state?.ArmyStates == null)
+        {
+            return 0;
+        }
+
+        string playerFactionId = string.IsNullOrWhiteSpace(state.PlayerFactionId)
+            ? StrategicWorldIds.FactionPlayer
+            : state.PlayerFactionId;
+        return state.ArmyStates.Values.Count(army =>
+            army != null &&
+            string.Equals(army.OwnerFactionId, playerFactionId, System.StringComparison.Ordinal) &&
+            army.Status is not (WorldArmyStatus.Garrisoned or WorldArmyStatus.Defeated));
     }
 
     private static string FormatUnits(IEnumerable<GarrisonState> units)

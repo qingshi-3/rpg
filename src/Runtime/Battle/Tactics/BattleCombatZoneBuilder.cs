@@ -27,6 +27,7 @@ internal static class BattleCombatZoneBuilder
 
         DisjointSet components = new(actors.Length);
         bool[,] hostileLinks = new bool[actors.Length, actors.Length];
+        bool[,] closeHostileLinks = new bool[actors.Length, actors.Length];
         for (int i = 0; i < actors.Length; i++)
         {
             for (int j = i + 1; j < actors.Length; j++)
@@ -48,6 +49,12 @@ internal static class BattleCombatZoneBuilder
                     components.Union(i, j);
                     hostileLinks[i, j] = true;
                     hostileLinks[j, i] = true;
+                    if (closeEnough)
+                    {
+                        closeHostileLinks[i, j] = true;
+                        closeHostileLinks[j, i] = true;
+                    }
+
                     continue;
                 }
 
@@ -62,7 +69,11 @@ internal static class BattleCombatZoneBuilder
             .Select(group => group.Select(index => actors[index]).ToArray())
             .Where(group => group.Select(item => NormalizeFaction(item.FactionId)).Distinct(StringComparer.Ordinal).Count() > 1)
             .Where(group => HasHostileLink(group, actors, hostileLinks))
-            .Select((group, index) => BuildZone(group, index + 1, runtimeTick))
+            .Select((group, index) => BuildZone(
+                group,
+                index + 1,
+                runtimeTick,
+                HasHostileLink(group, actors, closeHostileLinks)))
             .OrderBy(item => item.MinCellX)
             .ThenBy(item => item.MinCellY)
             .ThenBy(item => item.CombatZoneId, StringComparer.Ordinal)
@@ -75,7 +86,8 @@ internal static class BattleCombatZoneBuilder
     private static BattleCombatZoneSnapshot BuildZone(
         IReadOnlyList<BattleRuntimeActor> actors,
         int index,
-        int runtimeTick)
+        int runtimeTick,
+        bool hasCloseHostileContact)
     {
         // Combat-zone bounds are battlefield facts: they must preserve every
         // participant footprint plus join space. Slot/path search owns its own
@@ -101,6 +113,7 @@ internal static class BattleCombatZoneBuilder
             CenterCellX = centerX,
             CenterCellY = centerY,
             CenterCellHeight = heights[heights.Length / 2],
+            HasCloseHostileContact = hasCloseHostileContact,
             ActorIds = actors
                 .Select(item => item.ActorId ?? "")
                 .Where(item => !string.IsNullOrWhiteSpace(item))

@@ -176,7 +176,7 @@ internal static class TargetBattleNavigationRegressionCases
         AssertTrue(source.Contains("BattleNavigationTopology", StringComparison.Ordinal), "runtime graph should consume the explicit topology data layer");
     }
 
-    public static void RuntimeNavigationMainLoopUsesCrowdFlowPlannerInsteadOfActorAStar()
+    public static void RuntimeNavigationMainLoopUsesLocalNeighborPlannerInsteadOfActorAStar()
     {
         string root = ProjectRoot();
         string tickResolver = File.ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeTickResolver.cs"));
@@ -194,9 +194,9 @@ internal static class TargetBattleNavigationRegressionCases
             tickResolver.Contains("BattleCrowdMovementPlanner", StringComparison.Ordinal),
             "runtime main movement loop should route advance decisions through the crowd movement planner");
         AssertTrue(
-            navigationSource.Contains("BattleFlowFieldBuilder", StringComparison.Ordinal) &&
+            navigationSource.Contains("FindGreedyNextStepCandidatesTowardTarget", StringComparison.Ordinal) &&
             navigationSource.Contains("BattleCombatSlotAllocator", StringComparison.Ordinal),
-            "battle navigation should build shared target flow fields from combat slots");
+            "battle navigation should use local neighbor movement over target-local combat slots");
     }
 
     public static void BattleNavigationTopologyDiagnosticsPrintNodesEdgesAndPlacements()

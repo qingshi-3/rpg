@@ -56,7 +56,8 @@ public sealed class WorldBattleRequestBuilder
                 "PlayerArmy",
                 state.PlayerFactionId,
                 sourceFilterKind: "PlayerArmy",
-                sourceFilterId: sourceArmy.ArmyId);
+                sourceFilterId: sourceArmy.ArmyId,
+                assignFirstSliceHeroCompanyCommandGroups: true);
             ApplyDefaultFormation(request.PlayerForces, sourceArmy.DefaultFormationId);
         }
         else if (state.SiteStates.TryGetValue(StrategicWorldIds.SitePlayerCamp, out WorldSiteState sourceSite))
@@ -324,7 +325,8 @@ public sealed class WorldBattleRequestBuilder
         string factionId,
         string factionFilterId = "",
         string sourceFilterKind = "",
-        string sourceFilterId = "")
+        string sourceFilterId = "",
+        bool assignFirstSliceHeroCompanyCommandGroups = false)
     {
         if (target == null || site == null)
         {
@@ -348,6 +350,9 @@ public sealed class WorldBattleRequestBuilder
             BattleForceRequest force = new()
             {
                 ForceId = $"{resolvedSourceId}:{garrison.UnitTypeId}",
+                CommandGroupId = assignFirstSliceHeroCompanyCommandGroups
+                    ? ResolveFirstSliceHeroCompanyCommandGroupId(resolvedSourceKind, resolvedSourceId, garrison.UnitTypeId)
+                    : "",
                 SourceKind = resolvedSourceKind,
                 SourceId = resolvedSourceId,
                 UnitDefinitionId = garrison.UnitTypeId,
@@ -356,6 +361,21 @@ public sealed class WorldBattleRequestBuilder
             };
             target.Add(force);
         }
+    }
+
+    private static string ResolveFirstSliceHeroCompanyCommandGroupId(
+        string sourceKind,
+        string sourceId,
+        string unitTypeId)
+    {
+        if (!string.Equals(sourceKind ?? "", "PlayerArmy", System.StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(sourceId) ||
+            !FirstSliceHeroCompanyIds.TryGetCompanyByAnyUnit(unitTypeId, out FirstSliceHeroCompanyDefinition company))
+        {
+            return "";
+        }
+
+        return $"PlayerArmy:{sourceId}:company:{company.CompanyId}";
     }
 
     private static bool MatchesOptionalFilter(string current, string expected)

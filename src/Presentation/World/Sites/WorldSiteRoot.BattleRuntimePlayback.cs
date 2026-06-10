@@ -43,14 +43,14 @@ public partial class WorldSiteRoot
         GridSurfacePosition nextStep = new(runtimeEvent.ToGridX, runtimeEvent.ToGridY, runtimeEvent.ToGridHeight);
         // Runtime emits one committed grid step per live tick. Presentation keeps
         // the move loop open while later ticks may retarget the same actor.
-        _unitRoot.MoveEntityTo(
+        double visualMoveSeconds = _unitRoot.MoveEntityTo(
             actor,
             new[] { actorGrid.SurfacePosition, nextStep },
             restartMoveAnimation: false,
             returnToIdleOnComplete: returnToIdleOnComplete,
             stepDurationSeconds: runtimeEvent.ActionDurationSeconds);
-        RefreshBattlePerceptionOverlay();
-        return _unitRoot.ResolveVisualMoveStepDurationSeconds(runtimeEvent.ActionDurationSeconds);
+        QueueBattlePerceptionOverlayRefresh();
+        return visualMoveSeconds;
     }
 
     private async Task ObserveRuntimeDamageEventAsync(
@@ -208,7 +208,7 @@ public partial class WorldSiteRoot
         if (BattleRuleQueries.IsDefeated(target))
         {
             _unitRoot.MarkEntityDefeated(target);
-            RefreshBattlePerceptionOverlay();
+            QueueBattlePerceptionOverlayRefresh();
         }
     }
 }
