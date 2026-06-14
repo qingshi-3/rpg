@@ -13,6 +13,8 @@ public sealed class BattleRuntimeState
     public List<BattleRuntimeActor> Actors { get; set; } = new();
     public List<BattleObjectiveZoneSnapshot> ObjectiveZones { get; set; } = new();
     public List<BattleSkillSnapshot> SkillDefinitions { get; set; } = new();
+    public List<BattleRuntimeSpatialMark> SpatialMarks { get; } = new();
+    internal List<BattleRuntimeActiveChannel> ActiveChannels { get; } = new();
     internal List<BattleRuntimePendingHeroSkillCommand> PendingHeroSkillCommands { get; } = new();
     internal HashSet<string> UsedHeroSkillKeys { get; } = new(System.StringComparer.Ordinal);
     internal BattleGroupTacticalStateStore TacticalStateStore { get; set; } = BattleGroupTacticalStateStore.Empty();

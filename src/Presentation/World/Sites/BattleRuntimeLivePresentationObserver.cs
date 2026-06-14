@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Presentation.Battle.Actions;
@@ -8,8 +10,114 @@ using Rpg.Runtime.Battle.Events;
 
 namespace Rpg.Presentation.World.Sites;
 
-public partial class WorldSiteRoot
+internal sealed class BattleRuntimeLivePresentationObserver
 {
+    private readonly System.Func<BattleUnitRoot> _resolveUnitRoot;
+    private readonly System.Func<double, Task> _waitPresentationSeconds;
+    private readonly System.Action _queueBattlePerceptionOverlayRefresh;
+    private readonly System.Action<long> _recordPresentationObserveElapsedTicks;
+
+    public BattleRuntimeLivePresentationObserver(
+        System.Func<BattleUnitRoot> resolveUnitRoot,
+        System.Func<double, Task> waitPresentationSeconds,
+        System.Action queueBattlePerceptionOverlayRefresh,
+        System.Action<long> recordPresentationObserveElapsedTicks)
+    {
+        _resolveUnitRoot = resolveUnitRoot;
+        _waitPresentationSeconds = waitPresentationSeconds;
+        _queueBattlePerceptionOverlayRefresh = queueBattlePerceptionOverlayRefresh;
+        _recordPresentationObserveElapsedTicks = recordPresentationObserveElapsedTicks;
+    }
+
+    public Task ObserveAsync(
+        IReadOnlyList<BattleEvent> events,
+        BattleRuntimeLivePresentationState presentationState)
+    {
+        long observeStartedAt = Stopwatch.GetTimestamp();
+        if (events == null || events.Count == 0 || presentationState == null)
+        {
+            _recordPresentationObserveElapsedTicks?.Invoke(Stopwatch.GetTimestamp() - observeStartedAt);
+            return Task.CompletedTask;
+        }
+
+        foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.SkillUsed))
+        {
+            presentationState.TrackActorAction(
+                runtimeEvent.ActorId,
+                () => ObserveRuntimeSkillUsedEventAsync(
+                    runtimeEvent,
+                    presentationState.EntitiesByRuntimeActor),
+                gateMovementStart: !BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent));
+        }
+
+        foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.ThunderMarkCreated))
+        {
+            BattleRuntimeThunderTagPresentationObserver.ObserveRuntimeThunderMarkCreatedEvent(runtimeEvent, presentationState.EntitiesByRuntimeActor, UnitRoot);
+        }
+
+        foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.ThunderMarkTeleported))
+        {
+            presentationState.ObserveActorTeleportNow(
+                runtimeEvent.ActorId,
+                () => BattleRuntimeTeleportPresentationObserver.ObserveRuntimeTeleportEvent(
+                    runtimeEvent,
+                    presentationState.EntitiesByRuntimeActor,
+                    UnitRoot,
+                    _queueBattlePerceptionOverlayRefresh));
+        }
+
+        foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.MovementStarted))
+        {
+            presentationState.TrackActorMovement(
+                runtimeEvent.ActorId,
+                () => ObserveRuntimeMovementEvent(
+                    runtimeEvent,
+                    presentationState.EntitiesByRuntimeActor),
+                _waitPresentationSeconds);
+        }
+
+        foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.DamageApplied))
+        {
+            BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic =
+                BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic.TryCreate(runtimeEvent);
+            presentationState.TrackActorDamage(
+                runtimeEvent.ActorId,
+                runtimeEvent.TargetId,
+                () => PlayRuntimeDamageFeedbackEventAsync(
+                    runtimeEvent,
+                    presentationState.EntitiesByRuntimeActor,
+                    diagnostic));
+            presentationState.TrackTargetDamage(
+                runtimeEvent.ActorId,
+                runtimeEvent.TargetId,
+                previousTargetDamageTail => ApplyRuntimeDamageEventAsync(
+                    runtimeEvent,
+                    presentationState.EntitiesByRuntimeActor,
+                    diagnostic,
+                    previousTargetDamageTail),
+                diagnostic);
+        }
+
+        _recordPresentationObserveElapsedTicks?.Invoke(Stopwatch.GetTimestamp() - observeStartedAt);
+        return Task.CompletedTask;
+    }
+
+    public Dictionary<string, BattleEntity> BuildRuntimePlaybackEntityMap()
+    {
+        BattleUnitRoot unitRoot = UnitRoot;
+        if (unitRoot == null)
+        {
+            return new Dictionary<string, BattleEntity>(System.StringComparer.Ordinal);
+        }
+
+        return unitRoot.GetEntitiesSnapshot()
+            .Where(entity => entity != null && Godot.GodotObject.IsInstanceValid(entity))
+            .GroupBy(entity => entity.EntityId)
+            .ToDictionary(group => group.Key, group => group.First(), System.StringComparer.Ordinal);
+    }
+
+    private BattleUnitRoot UnitRoot => _resolveUnitRoot?.Invoke();
+
     private double ObserveRuntimeMovementEvent(
         BattleEvent runtimeEvent,
         IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
@@ -25,7 +133,8 @@ public partial class WorldSiteRoot
         IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor,
         bool returnToIdleOnComplete)
     {
-        if (_unitRoot == null ||
+        BattleUnitRoot unitRoot = UnitRoot;
+        if (unitRoot == null ||
             runtimeEvent == null ||
             entitiesByRuntimeActor == null ||
             !entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out BattleEntity actor) ||
@@ -43,22 +152,14 @@ public partial class WorldSiteRoot
         GridSurfacePosition nextStep = new(runtimeEvent.ToGridX, runtimeEvent.ToGridY, runtimeEvent.ToGridHeight);
         // Runtime emits one committed grid step per live tick. Presentation keeps
         // the move loop open while later ticks may retarget the same actor.
-        double visualMoveSeconds = _unitRoot.MoveEntityTo(
+        double visualMoveSeconds = unitRoot.MoveEntityTo(
             actor,
             new[] { actorGrid.SurfacePosition, nextStep },
             restartMoveAnimation: false,
             returnToIdleOnComplete: returnToIdleOnComplete,
             stepDurationSeconds: runtimeEvent.ActionDurationSeconds);
-        QueueBattlePerceptionOverlayRefresh();
+        _queueBattlePerceptionOverlayRefresh?.Invoke();
         return visualMoveSeconds;
-    }
-
-    private async Task ObserveRuntimeDamageEventAsync(
-        BattleEvent runtimeEvent,
-        IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor,
-        BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic = null)
-    {
-        await PlayRuntimeDamageFeedbackEventAsync(runtimeEvent, entitiesByRuntimeActor, diagnostic);
     }
 
     private async Task ObserveRuntimeSkillUsedEventAsync(
@@ -72,7 +173,8 @@ public partial class WorldSiteRoot
         BattleEvent runtimeEvent,
         IReadOnlyDictionary<string, BattleEntity> entitiesByRuntimeActor)
     {
-        if (_unitRoot == null ||
+        BattleUnitRoot unitRoot = UnitRoot;
+        if (unitRoot == null ||
             runtimeEvent == null ||
             entitiesByRuntimeActor == null ||
             !entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out BattleEntity actor))
@@ -81,15 +183,16 @@ public partial class WorldSiteRoot
         }
 
         entitiesByRuntimeActor.TryGetValue(runtimeEvent.TargetId ?? "", out BattleEntity target);
-        double castAnimationSeconds = _unitRoot.PlaySkillCastPresentation(
+        double castAnimationSeconds = unitRoot.PlaySkillCastPresentation(
             actor,
             target,
-            runtimeEvent.ActionDurationSeconds);
+            runtimeEvent.ActionDurationSeconds,
+            preserveMovement: BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent));
         double runtimeActionSeconds = runtimeEvent.ActionDurationSeconds > 0
             ? runtimeEvent.ActionDurationSeconds
             : castAnimationSeconds;
         double castPresentationSeconds = System.Math.Max(0.42, runtimeActionSeconds);
-        await WaitSiteBattlePresentationSeconds(castPresentationSeconds);
+        await WaitPresentationSeconds(castPresentationSeconds);
         return castPresentationSeconds;
     }
 
@@ -118,9 +221,10 @@ public partial class WorldSiteRoot
                                targetHpBeforeHit - System.Math.Min(targetHpBeforeHit, damage) <= 0;
         BattleDamageEvent damageEvent = BuildRuntimeDamageEvent(runtimeEvent, target, previewApplied, previewDefeated);
         bool isSkillDamage = IsRuntimeSkillDamageEvent(runtimeEvent);
+        BattleUnitRoot unitRoot = UnitRoot;
         double attackAnimationSeconds = isSkillDamage
-            ? _unitRoot.PlayRuntimeDamageFeedback(actor, damageEvents: new[] { damageEvent }, playSkillImpactFx: true)
-            : _unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded(
+            ? unitRoot.PlayRuntimeDamageFeedback(actor, damageEvents: new[] { damageEvent }, playSkillImpactFx: true)
+            : unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded(
                 actor,
                 target,
                 new[] { damageEvent },
@@ -139,7 +243,7 @@ public partial class WorldSiteRoot
             ? runtimeEvent.ActionDurationSeconds
             : attackAnimationSeconds;
         double attackPresentationSeconds = System.Math.Max(0.42, runtimeActionSeconds);
-        Task attackPresentationTask = WaitSiteBattlePresentationSeconds(attackPresentationSeconds);
+        Task attackPresentationTask = WaitPresentationSeconds(attackPresentationSeconds);
         await attackPresentationTask;
         return attackPresentationSeconds;
     }
@@ -192,7 +296,7 @@ public partial class WorldSiteRoot
         health = null;
         damage = 0;
 
-        if (_unitRoot == null)
+        if (UnitRoot == null)
         {
             diagnostic?.LogSkipped("missing_unit_root");
             return false;
@@ -301,7 +405,7 @@ public partial class WorldSiteRoot
         diagnostic?.LogImpactDelayResolved(impactDelaySeconds, clampedImpactDelaySeconds, attackAnimationSeconds);
         if (clampedImpactDelaySeconds > 0)
         {
-            await WaitSiteBattlePresentationSeconds(clampedImpactDelaySeconds);
+            await WaitPresentationSeconds(clampedImpactDelaySeconds);
         }
 
         if (previousTargetDamageTail != null)
@@ -332,8 +436,13 @@ public partial class WorldSiteRoot
         if (presentationDefeated)
         {
             diagnostic?.LogMarkDefeatedRequested();
-            _unitRoot.MarkEntityDefeated(target);
-            QueueBattlePerceptionOverlayRefresh();
+            UnitRoot?.MarkEntityDefeated(target);
+            _queueBattlePerceptionOverlayRefresh?.Invoke();
         }
+    }
+
+    private Task WaitPresentationSeconds(double seconds)
+    {
+        return _waitPresentationSeconds?.Invoke(seconds) ?? Task.CompletedTask;
     }
 }

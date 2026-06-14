@@ -25,7 +25,8 @@ public sealed class WorldSiteBattleUnitPoolService
                 .Where(garrison =>
                     garrison.UnitTypeId == unit.UnitTypeId &&
                     garrison.SourceKind == "PlayerArmy" &&
-                    garrison.SourceId == army.ArmyId)
+                    garrison.SourceId == army.ArmyId &&
+                    string.Equals(garrison.StrategicParticipantId ?? "", unit.StrategicParticipantId ?? "", System.StringComparison.Ordinal))
                 .Sum(garrison => garrison.Count);
             int missing = System.Math.Max(0, unit.Count - existing);
             if (missing <= 0)
@@ -40,7 +41,8 @@ public sealed class WorldSiteBattleUnitPoolService
                 factionId,
                 "PlayerArmy",
                 army.ArmyId,
-                unit.Morale);
+                unit.Morale,
+                unit.StrategicParticipantId);
         }
 
         if (imported > 0)

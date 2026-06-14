@@ -1,5 +1,52 @@
+using Rpg.Application.Battle;
+
 internal static partial class WorldSiteDeploymentCacheRegressionCases
 {
+internal static void BattleRuntimePresentationMapsStrategicParticipantActorIds()
+{
+    BattleForceRequest heroForce = new()
+    {
+        ForceId = "strategic:expedition_0001:f1_windbladecommander",
+        UnitDefinitionId = "f1_windbladecommander",
+        StrategicParticipantId = "strategic_participant:expedition_0001:hero_archer_captain:corps_0002",
+        Count = 1
+    };
+    BattleForceRequest corpsForce = new()
+    {
+        ForceId = "strategic:expedition_0001:f1_backlinearcher",
+        UnitDefinitionId = "f1_backlinearcher",
+        StrategicParticipantId = "strategic_participant:expedition_0001:hero_archer_captain:corps_0002",
+        Count = 3
+    };
+    BattleForceRequest enemyForce = new()
+    {
+        ForceId = "bonefield:f6_spiritwolf",
+        UnitDefinitionId = "f6_spiritwolf",
+        Count = 2
+    };
+
+    IReadOnlyDictionary<string, string> map = BattleRuntimeActorIdentity.BuildPresentationEntityToRuntimeActorMap(
+        new[] { heroForce, corpsForce },
+        new[] { enemyForce });
+
+    AssertEqual(
+        "strategic_participant:expedition_0001:hero_archer_captain:corps_0002:1",
+        map["strategic:expedition_0001:f1_windbladecommander:1"],
+        "first force in a strategic participant should map to runtime actor 1");
+    AssertEqual(
+        "strategic_participant:expedition_0001:hero_archer_captain:corps_0002:2",
+        map["strategic:expedition_0001:f1_backlinearcher:1"],
+        "second visual force sharing the participant should continue runtime actor numbering");
+    AssertEqual(
+        "strategic_participant:expedition_0001:hero_archer_captain:corps_0002:4",
+        map["strategic:expedition_0001:f1_backlinearcher:3"],
+        "strategic participant numbering should cover every displayed corps entity");
+    AssertEqual(
+        "bonefield:f6_spiritwolf:1",
+        map["bonefield:f6_spiritwolf:1"],
+        "legacy non-strategic forces should keep their existing runtime actor id");
+}
+
 internal static void BattleRuntimeHudUsesFullscreenHeroFrame()
 {
     string root = ProjectRoot();
@@ -18,6 +65,7 @@ internal static void BattleRuntimeHudUsesFullscreenHeroFrame()
         "battle runtime must not keep a left-side command encyclopedia panel in the active HUD scene");
     AssertTrue(
         siteScene.Contains("BattleRuntimeHeroFrame", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeHeroSelectorList", StringComparison.Ordinal) &&
         siteScene.Contains("BattleRuntimeHeroNameLabel", StringComparison.Ordinal) &&
         siteScene.Contains("BattleRuntimeHeroStateLabel", StringComparison.Ordinal) &&
         siteScene.Contains("BattleRuntimeHeroHealthBar", StringComparison.Ordinal) &&
@@ -27,8 +75,10 @@ internal static void BattleRuntimeHudUsesFullscreenHeroFrame()
         "battle runtime HUD should author a persistent hero frame with HP, mana, a skill list, and regroup controls");
     AssertTrue(
         File.Exists(Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeSkillSlot.tscn")) &&
-        File.Exists(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeSkillSlot.cs")),
-        "runtime skills should use a reusable authored skill-slot scene instead of a hardcoded single button");
+        File.Exists(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeSkillSlot.cs")) &&
+        File.Exists(Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeHeroSwitchButton.tscn")) &&
+        File.Exists(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroSwitchButton.cs")),
+        "runtime hero and skill controls should use reusable authored scenes instead of hardcoded single buttons");
 }
 
 internal static void WorldSiteRuntimeHudBindsHeroFrameInsteadOfLeftCommandPanel()
@@ -51,12 +101,42 @@ internal static void WorldSiteRuntimeHudBindsHeroFrameInsteadOfLeftCommandPanel(
         "WorldSiteRoot should stop binding or toggling the left battle-runtime command panel");
     AssertTrue(
         siteManagementSource.Contains("_battleRuntimeHeroFrame", StringComparison.Ordinal) &&
+        siteManagementSource.Contains("_battleRuntimeHeroSelectorPresenter", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeHeroNameLabel", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeHeroHealthBar", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeHeroManaBar", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeHeroSkillList", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeRegroupButton", StringComparison.Ordinal),
         "WorldSiteRoot should bind the authored runtime hero frame controls");
+}
+
+internal static void BattleRuntimeHudSwitchesSelectedHeroCompany()
+{
+    string root = ProjectRoot();
+    string rootSource = ReadWorldSiteRootSource();
+    string siteScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
+    string sceneFactorySource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs"));
+    string selectorPresenterSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroSelectorPresenter.cs"));
+    string heroFramePresenterSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroFramePresenter.cs"));
+    string switchButtonSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroSwitchButton.cs"));
+    string presenterRefreshBody = ExtractMethodBody(heroFramePresenterSource, "public void Refresh(");
+
+    AssertTrue(
+        siteScene.Contains("BattleRuntimeHeroSelectorList", StringComparison.Ordinal) &&
+        sceneFactorySource.Contains("BattleRuntimeHeroSwitchButtonScenePath", StringComparison.Ordinal) &&
+        sceneFactorySource.Contains("CreateBattleRuntimeHeroSwitchButton", StringComparison.Ordinal),
+        "battle runtime HUD should author and instantiate a reusable hero switch row");
+    AssertTrue(
+        selectorPresenterSource.Contains("SelectBattleRuntimeCommandGroup", StringComparison.Ordinal) &&
+        selectorPresenterSource.Contains("Refresh(", StringComparison.Ordinal) &&
+        switchButtonSource.Contains("SelectedEventHandler", StringComparison.Ordinal),
+        "hero switch buttons should emit selected battle group ids through a focused presenter");
+    AssertTrue(
+        presenterRefreshBody.Contains("_heroSelectorPresenter?.Refresh", StringComparison.Ordinal) &&
+        presenterRefreshBody.Contains("playerGroups", StringComparison.Ordinal) &&
+        presenterRefreshBody.IndexOf("_heroSelectorPresenter?.Refresh", StringComparison.Ordinal) <
+        presenterRefreshBody.IndexOf("RefreshSkillList", StringComparison.Ordinal),
+        "refreshing the hero frame should rebuild hero switch state before refreshing the selected hero skill list");
 }
 
 internal static void BattleRuntimeHudUsesSkillListNotSingleTextButton()
@@ -83,15 +163,23 @@ internal static void BattleRuntimeHudUsesSkillListNotSingleTextButton()
         "Battle",
         "Skills",
         "FirstSliceBattleSkillDefinitions.cs"));
+    string heroFramePresenterSource = File.ReadAllText(Path.Combine(
+        root,
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "BattleRuntimeHeroFramePresenter.cs"));
 
     AssertTrue(
         sceneFactorySource.Contains("BattleRuntimeSkillSlotScenePath", StringComparison.Ordinal) &&
         sceneFactorySource.Contains("CreateBattleRuntimeSkillSlot", StringComparison.Ordinal),
         "runtime skill list should instantiate reusable authored skill-slot resources");
     AssertTrue(
-        rootSource.Contains("RefreshBattleRuntimeSkillList", StringComparison.Ordinal) &&
-        rootSource.Contains("CreateBattleRuntimeSkillSlot", StringComparison.Ordinal) &&
-        rootSource.Contains("skill.DisplayName", StringComparison.Ordinal) &&
+        rootSource.Contains("_battleRuntimeHeroFramePresenter.Refresh", StringComparison.Ordinal) &&
+        heroFramePresenterSource.Contains("RefreshSkillList", StringComparison.Ordinal) &&
+        heroFramePresenterSource.Contains("CreateBattleRuntimeSkillSlot", StringComparison.Ordinal) &&
+        heroFramePresenterSource.Contains("skill.DisplayName", StringComparison.Ordinal) &&
         !rootSource.Contains("_battleRuntimeHeroSkillButton", StringComparison.Ordinal),
         "battle runtime HUD should populate skill slots from skill snapshots instead of hardcoding one '技' button");
     AssertTrue(
@@ -103,8 +191,11 @@ internal static void BattleRuntimeHudUsesSkillListNotSingleTextButton()
     AssertTrue(
         skillDefinitions.Contains("DisplayName = \"曦盾结界\"", StringComparison.Ordinal) &&
         skillDefinitions.Contains("DisplayName = \"贯日一击\"", StringComparison.Ordinal) &&
-        skillDefinitions.Contains("DisplayName = \"回旋破阵\"", StringComparison.Ordinal),
-        "first-slice skill display names should be readable Chinese in the runtime skill list");
+        skillDefinitions.Contains("DisplayName = \"雷签飞投\"", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("DisplayName = \"雷印折跃\"", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("DisplayName = \"雷旋破\"", StringComparison.Ordinal) &&
+        !skillDefinitions.Contains("DisplayName = \"回旋破阵\"", StringComparison.Ordinal),
+        "runtime skill list should expose the thunder demo kit instead of the old single placeholder skill");
 }
 
 internal static void BattleRuntimeLiveSkillButtonEntersTacticalPauseBeforeTargetPicking()
@@ -120,6 +211,64 @@ internal static void BattleRuntimeLiveSkillButtonEntersTacticalPauseBeforeTarget
     AssertTrue(
         rootSource.Contains("BattleRuntimeHeroSkillPressed", StringComparison.Ordinal),
         "skill entry should leave a low-noise diagnostic for the runtime HUD interaction");
+}
+
+internal static void BattleRuntimeTargetPickingLeavesCommandHudClickable()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string presentationSource = ReadWorldSitePresentationSource();
+    string targetInputBody = ExtractMethodBody(rootSource, "private bool TryHandleBattleRuntimeHeroSkillTargetInput(InputEvent inputEvent)");
+    int gateIndex = targetInputBody.IndexOf(
+        "BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeCommandBar, mouseButton.Position)",
+        StringComparison.Ordinal);
+    int rightClickIndex = targetInputBody.IndexOf("mouseButton.ButtonIndex == MouseButton.Right", StringComparison.Ordinal);
+    int handledIndex = targetInputBody.IndexOf("GetViewport()?.SetInputAsHandled()", StringComparison.Ordinal);
+
+    AssertTrue(
+        gateIndex >= 0 &&
+        rightClickIndex >= 0 &&
+        handledIndex >= 0 &&
+        gateIndex < rightClickIndex &&
+        gateIndex < handledIndex,
+        "target-picking input should ignore command HUD pointer clicks before treating them as battlefield cancel or target clicks");
+    AssertTrue(
+        presentationSource.Contains("internal static class BattleRuntimeCommandHudPointerGate", StringComparison.Ordinal) &&
+        presentationSource.Contains("control.GetGlobalRect().HasPoint(globalPosition)", StringComparison.Ordinal),
+        "HUD pointer gating should live in a focused presentation helper instead of growing WorldSiteRoot");
+}
+
+internal static void BattleRuntimePresentationHandlesThunderFoldAsTeleport()
+{
+    string presentationSource = ReadWorldSitePresentationSource();
+    string unitRootSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "Battle", "Entities", "BattleUnitRoot.Movement.cs"));
+    string observeBody = ExtractMethodBody(presentationSource, "public Task ObserveAsync(");
+
+    AssertTrue(
+        observeBody.Contains("BattleEventKind.ThunderMarkTeleported", StringComparison.Ordinal) &&
+        observeBody.Contains("ObserveRuntimeTeleportEvent", StringComparison.Ordinal),
+        "presentation should observe thunder fold teleport events separately from ordinary movement events");
+    AssertTrue(
+        unitRootSource.Contains("SnapEntityToSurface", StringComparison.Ordinal) &&
+        unitRootSource.Contains("StopEntityMovement(entity, snapToLogicalGrid: false)", StringComparison.Ordinal),
+        "teleport presentation should cancel any queued movement lane and snap to the Runtime destination cell");
+}
+
+internal static void BattleRuntimeHudHidesHeroControlsWhenPauseEnds()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string pausePresentationBody = ExtractMethodBody(rootSource, "private void RefreshBattleRuntimeCommandPausePresentation()");
+    string setPauseBody = ExtractMethodBody(rootSource, "private void SetBattleRuntimeCommandPauseActive(bool paused, string reason)");
+
+    AssertTrue(
+        pausePresentationBody.Contains("_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
+        pausePresentationBody.Contains("_battleRuntimeCommandBar.Visible = false", StringComparison.Ordinal) &&
+        pausePresentationBody.IndexOf("_battleRuntimeCommandBar.Visible = false", StringComparison.Ordinal) <
+        pausePresentationBody.IndexOf("_battleRuntimeCommandBar.Visible = true", StringComparison.Ordinal),
+        "turning tactical pause off should hide the hero switch and skill command bar instead of leaving it on screen");
+    AssertTrue(
+        setPauseBody.Contains("CancelBattleRuntimeHeroSkillTargetPicking(\"pause_off\")", StringComparison.Ordinal) &&
+        setPauseBody.Contains("RefreshBattleRuntimeCommandPausePresentation()", StringComparison.Ordinal),
+        "pause-off should cancel target picking and refresh the HUD visibility in the same state transition");
 }
 
 internal static void BattleRuntimeViewportStaysFullscreenDuringHudAndPause()

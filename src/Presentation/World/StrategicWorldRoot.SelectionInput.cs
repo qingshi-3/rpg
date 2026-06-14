@@ -287,19 +287,27 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        foreach (WorldArmyState army in selectedArmies)
+        if (!TrySyncStrategicExpeditionCommand(selectedArmies, "", WorldArmyIntent.MoveToPosition))
         {
-            army.TargetSiteId = "";
-            army.Destination = mapDestination;
-            army.Intent = WorldArmyIntent.MoveToPosition;
-            army.Status = WorldArmyStatus.Moving;
-            army.ClearArrivalApproachOffset();
-            army.ClearTargetApproachDirection();
-            ApplyCommandNavigationPath(army, commandPaths, mapDestination);
+            RefreshAll();
+            return true;
+        }
+
+        WorldArmyCommandResult commandResult = _armyCommandService.ApplyMoveToPosition(
+            selectedArmies,
+            mapDestination,
+            commandPaths,
+            _strategicNavigationContext.Version,
+            State?.PlayerFactionId);
+        if (!commandResult.Success)
+        {
+            StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason(commandResult.FailureReason);
+            GameLog.Warn(nameof(StrategicWorldRoot), $"WorldArmyCommandMoveRejected reason={commandResult.FailureReason}");
+            RefreshAll();
+            return true;
         }
 
         StrategicWorldRuntime.LastNotice = $"已命令 {selectedArmies.Length} 支小队移动。";
-        GameLog.Info(nameof(StrategicWorldRoot), $"WorldArmyCommandMove count={selectedArmies.Length} destination={mapDestination}");
         RefreshAll();
         return true;
     }

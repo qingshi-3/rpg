@@ -1,6 +1,6 @@
-[gd_resource type="SpriteFrames" load_steps=33 format=3]
+[gd_resource type="SpriteFrames" load_steps=33 format=3 uid="uid://dlr0sr3txguok"]
 
-[ext_resource type="Texture2D" path="res://assets/battle/abilities/fx/duelyst/damage/fx_beamfire/fx_beamfire.png" id="1_texture"]
+[ext_resource type="Texture2D" uid="uid://bobmb8b3hiam3" path="res://assets/battle/abilities/fx/duelyst/damage/fx_beamfire/fx_beamfire.png" id="1_texture"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_000"]
 atlas = ExtResource("1_texture")
@@ -221,8 +221,7 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_030")
-}
-],
+}],
 "loop": false,
 "name": &"default",
 "speed": 12.5

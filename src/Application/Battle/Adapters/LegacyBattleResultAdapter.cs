@@ -56,11 +56,14 @@ public sealed class LegacyBattleResultAdapter
             }
 
             int initial = System.Math.Max(0, force.Count);
+            string expectedSourceForceId = string.IsNullOrWhiteSpace(force.StrategicParticipantId)
+                ? force.ForceId
+                : force.StrategicParticipantId;
             int survived = outcome?.IsComplete == true
                 ? actorOutcomes.Count(actor =>
                     actor.Kind == BattleRuntimeActorKind.Corps &&
                     actor.Survived &&
-                    string.Equals(actor.SourceForceId, force.ForceId, System.StringComparison.Ordinal))
+                    string.Equals(actor.SourceForceId, expectedSourceForceId, System.StringComparison.Ordinal))
                 : 0;
 
             result.ForceResults.Add(new BattleForceResult

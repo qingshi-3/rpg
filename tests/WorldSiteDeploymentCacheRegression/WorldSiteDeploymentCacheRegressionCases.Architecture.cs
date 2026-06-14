@@ -436,4 +436,77 @@ internal static void WorldSiteRootAppendsBattleGroupRuntimeReportSummaryToNotice
         !rootSource.Contains("AutoBattleReportSummaryFormatter", StringComparison.Ordinal),
         "this slice should not add a full report panel to WorldSiteRoot");
 }
+
+internal static void StrategicWorldBattleTriggerDialogOmitsStrategicPreparationMetadata()
+{
+    string rootSource = ReadStrategicWorldRootSource();
+    string preBattleBody = ExtractMethodBody(rootSource, "private string BuildPreBattleText(BattleStartRequest request)");
+    string showDialogBody = ExtractMethodBody(rootSource, "private void ShowPreBattleDialog()");
+    string announcementBody = ExtractMethodBody(rootSource, "private void BeginBattleAnnouncement(BattleStartRequest request)");
+    string focusBody = ExtractMethodBody(rootSource, "private Vector2 ResolveBattleFocusMapPosition(BattleStartRequest request)");
+
+    AssertTrue(
+        showDialogBody.Contains("_preBattleDialog.Title = \"触发战斗\"", StringComparison.Ordinal),
+        "world-map battle gate should use the accepted direct trigger title");
+    AssertTrue(
+        announcementBody.Contains("FocusWorldMapOn(focusPosition)", StringComparison.Ordinal) &&
+        announcementBody.IndexOf("FocusWorldMapOn(focusPosition)", StringComparison.Ordinal) <
+        announcementBody.IndexOf("ShowPreBattleDialog()", StringComparison.Ordinal),
+        "battle trigger should focus the map location before showing the confirmation dialog");
+    AssertTrue(
+        focusBody.Contains("request.BattleKind == BattleKind.AssaultSite", StringComparison.Ordinal) &&
+        focusBody.IndexOf("WorldSiteDefinition targetSite = queries.GetSite(request.TargetSiteId)", StringComparison.Ordinal) <
+        focusBody.IndexOf("if (!string.IsNullOrWhiteSpace(request.SourceArmyId)", StringComparison.Ordinal),
+        "assault-site battle trigger focus should prioritize the hostile target site over the arrived source army");
+    AssertTrue(
+        !preBattleBody.Contains("BuildStrategicPreparationSummary", StringComparison.Ordinal) &&
+        !rootSource.Contains("BuildStrategicPreparationSummary", StringComparison.Ordinal) &&
+        !rootSource.Contains("StrategicPreparationDisplayName", StringComparison.Ordinal) &&
+        !rootSource.Contains("StrategicPreparationBriefingText", StringComparison.Ordinal) &&
+        !rootSource.Contains("战前准备", StringComparison.Ordinal),
+        "battle trigger dialog should not expose strategic battle-preparation metadata");
+}
+
+internal static void WorldSiteRuntimeReturnNoticeOmitsStrategicPreparationReportMetadata()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string runtimeBody = ExtractMethodBody(rootSource, "private async Task PlayBattleGroupRuntimeAndApplyResultAsync(");
+
+    AssertTrue(
+        runtimeBody.Contains("BuildBattleGroupRuntimeReturnNotice(applyResult, resolution.Report, resolution.Request)", StringComparison.Ordinal),
+        "battle completion should still pass request and report data into return notice composition");
+    AssertTrue(
+        !rootSource.Contains("BuildBattlePreparationReportSummary", StringComparison.Ordinal) &&
+        !rootSource.Contains("StrategicPreparationReportText", StringComparison.Ordinal) &&
+        !rootSource.Contains("StrategicPreparationDisplayName", StringComparison.Ordinal),
+        "battle return notice should not compose deleted strategic preparation report metadata");
+    AssertTrue(
+        !rootSource.Contains("AutoBattleReportPanel", StringComparison.Ordinal) &&
+        !rootSource.Contains("AutoBattleReportSummaryFormatter", StringComparison.Ordinal),
+        "strategic reward feedback should not add a full report panel to this slice");
+}
+
+internal static void WorldSiteRuntimeReturnNoticeIncludesStrategicRewardAndHeroFeedback()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string applyBody = ExtractMethodBody(rootSource, "private WorldActionResult ApplyStrategicBattleResultToWorld(");
+
+    AssertTrue(
+        applyBody.Contains("BuildStrategicBattleFeedbackReturnNotice", StringComparison.Ordinal),
+        "strategic battle result writeback should compose reward, progression, hero, and equipment feedback into the existing return notice");
+    AssertTrue(
+        rootSource.Contains("StrategicBattleFeedbackRecord", StringComparison.Ordinal) &&
+        rootSource.Contains("HeroFeedback", StringComparison.Ordinal) &&
+        rootSource.Contains("EquipmentSamples", StringComparison.Ordinal),
+        "WorldSiteRoot should format the Strategic Management battle feedback record instead of inventing a presentation-only result model");
+    AssertTrue(
+        rootSource.Contains("奖励", StringComparison.Ordinal) &&
+        rootSource.Contains("英雄反馈", StringComparison.Ordinal) &&
+        rootSource.Contains("装备", StringComparison.Ordinal),
+        "strategic battle feedback notice should include player-facing Chinese labels for reward, hero feedback, and equipment");
+    AssertTrue(
+        !rootSource.Contains("AutoBattleReportPanel", StringComparison.Ordinal) &&
+        !rootSource.Contains("AutoBattleReportSummaryFormatter", StringComparison.Ordinal),
+        "strategic reward feedback should reuse the current return notice surface instead of adding a full report panel");
+}
 }

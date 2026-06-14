@@ -322,7 +322,7 @@ internal static void AbilitySpatialContractDefaults()
 
 internal static void BattleRuntimePlaybackConsumesRuntimeMovementCells()
 {
-    string source = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string source = ReadBattleRuntimePlaybackSource();
 
     AssertTrue(
         source.Contains("runtimeEvent.HasMovementCells", StringComparison.Ordinal),
@@ -341,11 +341,8 @@ internal static void BattleRuntimePlaybackConsumesRuntimeMovementCells()
 
 internal static void BattleRuntimePlaybackKeepsMoveLoopAcrossConsecutiveMoveSteps()
 {
-    string source = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
-    string runtime = string.Join("\n", Directory
-        .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
-        .OrderBy(path => path, StringComparer.Ordinal)
-        .Select(File.ReadAllText));
+    string source = ReadBattleRuntimePlaybackSource();
+    string runtime = ReadBattleRuntimeLiveObservationSource();
 
     AssertTrue(
         source.Contains("restartMoveAnimation: false", StringComparison.Ordinal) &&
@@ -361,24 +358,40 @@ internal static void BattleRuntimePlaybackKeepsMoveLoopAcrossConsecutiveMoveStep
         "runtime presentation should return surviving units to idle after the live battle finishes");
 }
 
+internal static void BattleRuntimeEndIdleClearsMovementLanes()
+{
+    string unitRoot = ReadBattleUnitRootSource();
+    string idleMethod = ExtractMethodBlock(unitRoot, "public void PlayIdleForActiveEntities()");
+    string clearMethod = ExtractMethodBlock(unitRoot, "private void ClearMovementPresentationState()");
+    int clearIndex = idleMethod.IndexOf("ClearMovementPresentationState();", StringComparison.Ordinal);
+    int survivorIdleIndex = idleMethod.IndexOf("foreach (BattleEntity entity", StringComparison.Ordinal);
+
+    AssertTrue(
+        clearIndex >= 0 &&
+        survivorIdleIndex >= 0 &&
+        clearIndex < survivorIdleIndex,
+        "battle end idle should clear movement presentation state before replaying survivor idle animations");
+    AssertTrue(
+        clearMethod.Contains("_movementLanes.Clear();", StringComparison.Ordinal) &&
+        clearMethod.Contains("_pendingMovementIdleSeconds.Clear();", StringComparison.Ordinal),
+        "movement presentation cleanup should clear active lanes and deferred idle timers");
+}
+
 internal static void BattleRuntimePlaybackWaitsForAttackAnimationDuration()
 {
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string playback = ReadBattleRuntimePlaybackSource();
     string unitRoot = ReadBattleUnitRootSource();
-    string runtime = string.Join("\n", Directory
-        .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
-        .OrderBy(path => path, StringComparer.Ordinal)
-        .Select(File.ReadAllText));
+    string runtime = ReadBattleRuntimeLiveObservationSource();
 
     AssertTrue(
         unitRoot.Contains("public double PlayActionResultAnimation(BattleActionResult result)", StringComparison.Ordinal) &&
         unitRoot.Contains("ResolveAttackDurationSeconds()", StringComparison.Ordinal),
         "battle action presentation should expose the resolved attack animation duration to the runtime event observer");
     AssertTrue(
-        playback.Contains("_unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded", StringComparison.Ordinal) &&
+        playback.Contains("unitRoot.PlayActionResultAnimation(BattleActionResult.AttackSucceeded", StringComparison.Ordinal) &&
         playback.Contains("double runtimeActionSeconds = runtimeEvent.ActionDurationSeconds", StringComparison.Ordinal) &&
         playback.Contains("double attackPresentationSeconds = System.Math.Max(0.42, runtimeActionSeconds)", StringComparison.Ordinal) &&
-        playback.Contains("Task attackPresentationTask = WaitSiteBattlePresentationSeconds(attackPresentationSeconds)", StringComparison.Ordinal) &&
+        playback.Contains("Task attackPresentationTask = WaitPresentationSeconds(attackPresentationSeconds)", StringComparison.Ordinal) &&
         playback.Contains("await attackPresentationTask", StringComparison.Ordinal) &&
         runtime.Contains("TrackActorAction", StringComparison.Ordinal),
         "runtime damage presentation should serialize one actor's attack visuals by runtime action seconds without blocking unrelated simulation ticks");
@@ -477,6 +490,7 @@ internal static void BattleRuntimeTacticalPauseFreezesUnitPresentationWithoutRep
 internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
 {
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string hitFeedbackPresenter = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitHitFeedbackPresenter.cs"));
     string presentation = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitPresentationComponent.cs"));
     string normalizedPresentation = NormalizeWhitespace(presentation);
 
@@ -491,7 +505,7 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
         presentation.Contains("SetSelected(bool selected)", StringComparison.Ordinal),
         "command selection should reuse the authored unit selection shader instead of adding a separate hardcoded shader path.");
     AssertTrue(
-        unitRoot.Contains("PlayHitOutlinePulse()", StringComparison.Ordinal) &&
+        hitFeedbackPresenter.Contains("PlayHitOutlinePulse()", StringComparison.Ordinal) &&
         !unitRoot.Contains("SetHitOutlines(hitTargets, visible: true)", StringComparison.Ordinal),
         "hit feedback should pulse the unit outline at impact instead of holding a strong shader outline for the whole attack.");
     AssertTrue(
@@ -558,13 +572,14 @@ internal static void SkillRangeHighlightUsesDeploymentZoneStyleRegionOverlay()
 internal static void SkillTargetPreviewUsesUnitFocusAndFootprintLockRing()
 {
     string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+    string geometry = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightGeometry.cs"));
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
     string siteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
 
     AssertTrue(
         overlay.Contains("AddTargetLockRing", StringComparison.Ordinal) &&
-        overlay.Contains("BuildTargetLockFramePolygon", StringComparison.Ordinal) &&
-        overlay.Contains("BuildHoverFramePolygon(cells)", StringComparison.Ordinal) &&
+        overlay.Contains("_highlightGeometry.BuildTargetLockFramePolygon", StringComparison.Ordinal) &&
+        geometry.Contains("BuildHoverFramePolygon(cells)", StringComparison.Ordinal) &&
         !overlay.Contains("TargetLockVerticalScale", StringComparison.Ordinal) &&
         overlay.Contains("TargetLockRingColor", StringComparison.Ordinal) &&
         overlay.Contains("TargetLockGlowWidth", StringComparison.Ordinal),
@@ -591,8 +606,10 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
 {
     string animationSet = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Animation", "BattleUnitAnimationSet.cs"));
     string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+    string timingPolicy = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationTimingPolicy.cs"));
     string unitRoot = ReadBattleUnitRootSource();
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string hitFeedbackPresenter = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitHitFeedbackPresenter.cs"));
+    string playback = ReadBattleRuntimePlaybackSource();
     string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));
     string fxComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleSkillCastFxComponent.cs"));
     string fxScene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "fx", "BattleSkillCastFx.tscn"));
@@ -604,7 +621,7 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
     AssertTrue(
         animationSet.Contains("public string SkillCastAnimation { get; set; } = \"skill_cast\";", StringComparison.Ordinal) &&
         animationSet.Contains("public double TargetSkillCastSeconds { get; set; } = 1.5;", StringComparison.Ordinal) &&
-        animationComponent.Contains("\"skill_cast\" => AnimationSet?.TargetSkillCastSeconds ?? 1.5", StringComparison.Ordinal),
+        timingPolicy.Contains("\"skill_cast\" => animationSet?.TargetSkillCastSeconds ?? 1.5", StringComparison.Ordinal),
         "unit animation resources should expose an optional authored skill-cast cue paced slightly slower than default attacks");
     AssertTrue(
         animationComponent.Contains("public bool PlaySkillCast()", StringComparison.Ordinal) &&
@@ -680,13 +697,16 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
         "procedural skill cast fallback should keep the unit anchored; release motion belongs to the FX, not the unit body");
     AssertTrue(
         unitRoot.Contains("public double PlaySkillCastPresentation(", StringComparison.Ordinal) &&
+        unitRoot.Contains("bool preserveMovement = false", StringComparison.Ordinal) &&
+        unitRoot.Contains("if (!preserveMovement)", StringComparison.Ordinal) &&
         unitRoot.Contains("StopEntityMovement(actor, snapToLogicalGrid: true)", StringComparison.Ordinal) &&
         unitRoot.Contains("actorAnimation?.PlaySkillCast()", StringComparison.Ordinal) &&
         unitRoot.Contains("actor.GetComponent<BattleSkillCastFxComponent>()?.PlaySkillCastFx", StringComparison.Ordinal) &&
         unitRoot.Contains("public double PlayRuntimeDamageFeedback(", StringComparison.Ordinal) &&
-        unitRoot.Contains("BattleSkillImpactFeedbackPlayer.PlaySkillImpacts(damageEvents, playSkillImpactFx)", StringComparison.Ordinal) &&
+        unitRoot.Contains("HitFeedbackPresenter.PlayAsync", StringComparison.Ordinal) &&
+        hitFeedbackPresenter.Contains("BattleSkillImpactFeedbackPlayer.PlaySkillImpacts(damageEvents, playSkillImpactFx)", StringComparison.Ordinal) &&
         unitRoot.Contains("actorAnimation?.PlayAttack()", StringComparison.Ordinal),
-        "SkillUsed presentation should stop caster movement before playing skill cast animation and caster FX while damage events keep target impact FX");
+        "SkillUsed presentation should keep anchored skills stopping movement while offhand releases can preserve movement and still play caster FX");
     AssertTrue(
         unitRoot.Contains("private void StopEntityMovement(BattleEntity entity, bool snapToLogicalGrid)", StringComparison.Ordinal) &&
         unitRoot.Contains("_movementLanes.Remove(entity)", StringComparison.Ordinal) &&
@@ -695,7 +715,7 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
         "movement lane cancellation should clear queued movement and optionally sync the unit visual to its authoritative grid position");
     AssertTrue(
         playback.Contains("ObserveRuntimeSkillUsedEventAsync", StringComparison.Ordinal) &&
-        playback.Contains("_unitRoot.PlaySkillCastPresentation", StringComparison.Ordinal) &&
+        playback.Contains("unitRoot.PlaySkillCastPresentation", StringComparison.Ordinal) &&
         playback.Contains("PlayRuntimeDamageFeedback", StringComparison.Ordinal) &&
         playback.Contains("IsRuntimeSkillDamageEvent(runtimeEvent)", StringComparison.Ordinal) &&
         !playback.Contains("BattleActionResult.AbilitySucceeded", StringComparison.Ordinal),
@@ -720,7 +740,7 @@ internal static void RealtimeDamageReactionDoesNotPlayHitAnimation()
 
 internal static void RuntimeImpactDamageDoesNotDoubleDelayDefeatedPresentation()
 {
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string playback = ReadBattleRuntimePlaybackSource();
     string damageReaction = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "DamageReactionComponent.cs"));
 
     AssertTrue(
@@ -864,6 +884,7 @@ internal static void DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimat
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
     string animationSet = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Animation", "BattleUnitAnimationSet.cs"));
     string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+    string timingPolicy = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationTimingPolicy.cs"));
     string markDefeatedBody = ExtractMethodBlock(unitRoot, "public void MarkEntityDefeated(");
     int hideHealthBarIndex = markDefeatedBody.IndexOf("HideHealthBarImmediately", StringComparison.Ordinal);
     int playDefeatedIndex = markDefeatedBody.IndexOf("animation.PlayDefeated", StringComparison.Ordinal);
@@ -885,7 +906,7 @@ internal static void DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimat
         "defeated presentation should hide the health bar before starting or delaying the defeated animation");
     AssertTrue(
         animationSet.Contains("public double TargetDefeatedSeconds { get; set; } = 0.4;", StringComparison.Ordinal) &&
-        animationComponent.Contains("\"defeated\" => AnimationSet?.TargetDefeatedSeconds ?? 0.4", StringComparison.Ordinal),
+        timingPolicy.Contains("\"defeated\" => animationSet?.TargetDefeatedSeconds ?? 0.4", StringComparison.Ordinal),
         "default defeated animation target should be twice as fast as the old 0.8 second target");
     AssertTrue(
         animationSet.Contains("public double DefeatedMinimumAttackDurationRatio { get; set; } = 0.2;", StringComparison.Ordinal) &&

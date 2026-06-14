@@ -128,15 +128,27 @@ public sealed class BattleGroupSessionProbeService
 				string forceId = string.IsNullOrWhiteSpace(force.ForceId)
 					? $"force_{groupIndex}"
 					: force.ForceId;
-				string commanderGroupId = BattleCommanderGroupIdentity.BuildProbeCommanderGroupId(force, forceId);
+				string sourceForceId = string.IsNullOrWhiteSpace(force.StrategicParticipantId)
+					? forceId
+					: force.StrategicParticipantId;
+				string commanderGroupId = string.IsNullOrWhiteSpace(force.StrategicParticipantId)
+					? BattleCommanderGroupIdentity.BuildProbeCommanderGroupId(force, forceId)
+					: force.StrategicParticipantId;
 				string factionId = string.IsNullOrWhiteSpace(force.FactionId)
 					? fallbackFactionId
 					: force.FactionId;
 				BattleForcePlacementRequest placement = index < force.PreferredPlacements.Count
 					? force.PreferredPlacements[index]
 					: null;
-				string heroId = $"probe_hero_{groupIndex}";
-				string corpsId = $"probe_corps_{groupIndex}";
+				string heroId = string.IsNullOrWhiteSpace(force.StrategicHeroId)
+					? $"probe_hero_{groupIndex}"
+					: force.StrategicHeroId;
+				string corpsId = string.IsNullOrWhiteSpace(force.StrategicCorpsInstanceId)
+					? $"probe_corps_{groupIndex}"
+					: force.StrategicCorpsInstanceId;
+				string strategicSourceLocationId = string.IsNullOrWhiteSpace(force.StrategicSourceLocationId)
+					? sourceLocationId
+					: force.StrategicSourceLocationId;
 				BattleGroupPlanSnapshot groupPlan = ResolveBattleGroupPlan(request, force, planSide);
 
 				BattleGroupState group = new()
@@ -144,29 +156,35 @@ public sealed class BattleGroupSessionProbeService
 					BattleGroupId = $"probe_group_{forceId}_{index}",
 					HeroId = heroId,
 					CorpsId = corpsId,
-					CurrentLocationId = sourceLocationId,
+					CurrentLocationId = strategicSourceLocationId,
 					Status = BattleGroupStatus.Stationed
 				};
 				HeroState hero = new()
 				{
 					HeroId = heroId,
-					HeroDefinitionId = $"probe_hero_definition_{groupIndex}",
+					HeroDefinitionId = string.IsNullOrWhiteSpace(force.StrategicHeroDefinitionId)
+						? $"probe_hero_definition_{groupIndex}"
+						: force.StrategicHeroDefinitionId,
 					OwnerFactionId = factionId,
 					Level = 1
 				};
 				CorpsState corps = new()
 				{
 					CorpsId = corpsId,
-					CorpsDefinitionId = unitDefinitionId,
+					CorpsDefinitionId = string.IsNullOrWhiteSpace(force.StrategicCorpsDefinitionId)
+						? unitDefinitionId
+						: force.StrategicCorpsDefinitionId,
 					Level = 1,
-					CorpsStrength = CorpsStrengthPolicy.MaxStrength
+					CorpsStrength = force.StrategicPreBattleCorpsStrength > 0
+						? force.StrategicPreBattleCorpsStrength
+						: CorpsStrengthPolicy.MaxStrength
 				};
 
 				seed.Groups.Add(group);
 				seed.GroupMetadata[group.BattleGroupId] = new ProbeGroupMetadata
 				{
 					FactionId = factionId,
-					SourceForceId = forceId,
+					SourceForceId = sourceForceId,
 					RuntimeCommanderGroupId = commanderGroupId,
 					PlanSide = planSide,
 					CellX = placement?.CellX ?? ResolveFallbackCellX(fallbackFactionId),

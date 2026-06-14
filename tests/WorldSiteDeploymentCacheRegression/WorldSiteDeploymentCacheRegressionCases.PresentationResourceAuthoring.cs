@@ -50,9 +50,12 @@ internal static void PresentationUiAuthoringStaysResourceBacked()
     }
 
     string battlePreparationHudPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattlePreparationHud.cs");
+    string battlePreparationHudBinderPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "BattlePreparationHudBinder.cs");
     string battlePreparationHudSource = File.ReadAllText(battlePreparationHudPath);
+    string battlePreparationHudBinderSource = File.ReadAllText(battlePreparationHudBinderPath);
     AssertTrue(
-        battlePreparationHudSource.Contains("GameUiSceneFactory", StringComparison.Ordinal),
+        battlePreparationHudSource.Contains("_battlePreparationHudBinder.BindCompanyRoster", StringComparison.Ordinal) &&
+        battlePreparationHudBinderSource.Contains("GameUiSceneFactory.CreateBattlePreparationRosterRow", StringComparison.Ordinal),
         $"battle preparation dynamic UI rows should be created through GameUiSceneFactory file={battlePreparationHudPath}");
 }
 }

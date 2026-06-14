@@ -284,8 +284,8 @@ public partial class WorldSiteRoot
             .Where(force => force != null && force.Count > 0)
             .ToList();
         return forces
-            .GroupBy(ResolveBattleRuntimeGroupKey, System.StringComparer.Ordinal)
-            .Select(group => BuildBattleRuntimeCommandGroup(group.Key, group.ToArray()))
+            .GroupBy(BattleRuntimeCommandHudModel.ResolveGroupKey, System.StringComparer.Ordinal)
+            .Select(group => BattleRuntimeCommandHudModel.BuildCommandGroup(group.Key, group.ToArray(), _battleUnitFactory.ResolveUnitDisplayName))
             .Where(group => !string.IsNullOrWhiteSpace(group.GroupKey))
             .ToArray();
     }
@@ -296,8 +296,8 @@ public partial class WorldSiteRoot
             .Where(force => force != null && force.Count > 0)
             .ToList();
         return forces
-            .GroupBy(ResolveBattleRuntimeGroupKey, System.StringComparer.Ordinal)
-            .Select(group => BuildBattleRuntimeCommandGroup(group.Key, group.ToArray()))
+            .GroupBy(BattleRuntimeCommandHudModel.ResolveGroupKey, System.StringComparer.Ordinal)
+            .Select(group => BattleRuntimeCommandHudModel.BuildCommandGroup(group.Key, group.ToArray(), _battleUnitFactory.ResolveUnitDisplayName))
             .Where(group => !string.IsNullOrWhiteSpace(group.GroupKey))
             .ToArray();
     }
@@ -537,151 +537,16 @@ public partial class WorldSiteRoot
     private void BindBattleObjectiveMapDialog()
     {
         EnsureSelectedBattlePreparationPlanGroup(_battlePreparationRequest);
-        BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(
+        _battleObjectivePlanningHudBinder.BindDialog(
+            _battleObjectiveMapDialog,
             _battlePreparationRequest,
             _selectedBattlePreparationPlanGroupKey,
-            create: false);
-        _battleObjectiveMapDialog?.Bind(
-            BuildBattleObjectiveCompanyOptions(),
-            _selectedBattlePreparationPlanGroupKey,
-            BuildBattleObjectiveMapCells(),
-            (_battlePreparationRequest?.ObjectiveZones ?? new List<BattleObjectiveZoneSnapshot>())
-                .OrderBy(zone => zone?.Priority ?? int.MaxValue)
-                .ToArray(),
-            plan?.ObjectiveZoneId ?? "",
-            BuildBattleObjectiveMapRegions());
-    }
-
-    private IReadOnlyList<BattleObjectiveCompanyOption> BuildBattleObjectiveCompanyOptions()
-    {
-        return BuildBattlePreparationPlayerGroups()
-            .Select(group =>
-            {
-                BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(
-                    _battlePreparationRequest,
-                    group.GroupKey,
-                    create: false);
-                string objective = ResolveBattlePreparationPlanObjectiveLabel(plan);
-                string rule = plan == null ? "未选择规则" : BattlePreparationPlanUiModel.BuildRuleLabel(plan.EngagementRule);
-                return new BattleObjectiveCompanyOption
-                {
-                    GroupKey = group.GroupKey,
-                    DisplayName = group.DisplayName,
-                    PlanSummary = $"{objective} · {rule}"
-                };
-            })
-            .ToArray();
-    }
-
-    private string ResolveBattlePreparationPlanObjectiveLabel(BattleGroupPlanSnapshot plan)
-    {
-        if (plan == null || string.IsNullOrWhiteSpace(plan.ObjectiveZoneId))
-        {
-            return "未选择目标";
-        }
-
-        BattleObjectiveZoneSnapshot zone = _battlePreparationRequest?.ObjectiveZones?
-            .FirstOrDefault(item => string.Equals(item?.ObjectiveZoneId, plan.ObjectiveZoneId, System.StringComparison.Ordinal));
-        return zone == null ? "目标已失效" : BattlePreparationPlanUiModel.BuildObjectiveLabel(zone);
-    }
-
-    private IReadOnlyList<BattleObjectiveMapCell> BuildBattleObjectiveMapCells()
-    {
-        if (_activeGridMap != null && _activeGridMap.TopSurfacePositions.Count > 0)
-        {
-            return _activeGridMap.TopSurfacePositions.Values
-                .Distinct()
-                .Select(position => _activeGridMap.TryGetSurface(position, out GridCellSurface surface)
-                    ? new BattleObjectiveMapCell
-                    {
-                        X = position.X,
-                        Y = position.Y,
-                        IsWater = BattleGridTerrainQueries.IsWater(surface),
-                        IsWalkable = surface.IsWalkable && surface.MoveCost > 0
-                    }
-                    : null)
-                .Where(cell => cell != null)
-                .ToArray();
-        }
-
-        return (_deploymentCache?.GetCandidates(WorldSiteAttackDirection.Any) ?? System.Array.Empty<WorldSiteDeploymentCell>())
-            .Select(cell => new BattleObjectiveMapCell
-            {
-                X = cell.Cell.X,
-                Y = cell.Cell.Y,
-                IsWater = cell.IsWater,
-                IsWalkable = true
-            })
-            .ToArray();
-    }
-
-    private IReadOnlyList<BattleObjectiveMapRegion> BuildBattleObjectiveMapRegions()
-    {
-        HashSet<string> selectableIds = (_battlePreparationRequest?.ObjectiveZones ?? new List<BattleObjectiveZoneSnapshot>())
-            .Where(zone => zone != null && !string.IsNullOrWhiteSpace(zone.ObjectiveZoneId))
-            .Select(zone => zone.ObjectiveZoneId)
-            .ToHashSet(System.StringComparer.Ordinal);
-        var usedIds = new HashSet<string>(System.StringComparer.Ordinal);
-        List<BattleObjectiveMapRegion> regions = new();
-        int playerDeploymentIndex = 1;
-        int enemyDeploymentIndex = 1;
-        int sharedDeploymentIndex = 1;
-
-        IEnumerable<SemanticMapMarkerData> deploymentMarkers = (_semanticMapMarkers?.Markers ?? new List<SemanticMapMarkerData>())
-            .Where(marker => marker != null && marker.MarkerType == SemanticMapMarkerType.DeploymentZone)
-            .OrderBy(marker => marker.DeploymentSide)
-            .ThenBy(marker => marker.Priority)
-            .ThenBy(marker => marker.SourcePath, System.StringComparer.Ordinal)
-            .ThenBy(marker => marker.MarkerId, System.StringComparer.Ordinal);
-        foreach (SemanticMapMarkerData marker in deploymentMarkers)
-        {
-            int markerIndex = marker.DeploymentSide switch
-            {
-                SemanticDeploymentSide.Player => playerDeploymentIndex++,
-                SemanticDeploymentSide.Enemy => enemyDeploymentIndex++,
-                _ => sharedDeploymentIndex++
-            };
-            BattleObjectiveZoneSnapshot zone = BuildBattlePreparationObjectiveZoneFromMarker(
-                marker,
-                markerIndex,
-                usedIds,
-                selectableTarget: marker.DeploymentSide == SemanticDeploymentSide.Enemy);
-            if (zone == null)
-            {
-                continue;
-            }
-
-            regions.Add(ToBattleObjectiveMapRegion(zone, selectableIds.Contains(zone.ObjectiveZoneId)));
-        }
-
-        foreach (BattleObjectiveZoneSnapshot zone in (_battlePreparationRequest?.ObjectiveZones ?? new List<BattleObjectiveZoneSnapshot>())
-                     .Where(zone => zone != null && !regions.Any(region => region.RegionId == zone.ObjectiveZoneId)))
-        {
-            regions.Add(ToBattleObjectiveMapRegion(zone, selectable: true));
-        }
-
-        return regions
-            .OrderBy(region => region.Priority)
-            .ThenBy(region => region.RegionId, System.StringComparer.Ordinal)
-            .ToArray();
-    }
-
-    private static BattleObjectiveMapRegion ToBattleObjectiveMapRegion(
-        BattleObjectiveZoneSnapshot zone,
-        bool selectable)
-    {
-        return new BattleObjectiveMapRegion
-        {
-            RegionId = zone.ObjectiveZoneId ?? "",
-            DisplayName = zone.DisplayName ?? "",
-            DeploymentSide = zone.DeploymentSide ?? "",
-            Priority = zone.Priority,
-            CellX = zone.CellX,
-            CellY = zone.CellY,
-            Width = System.Math.Max(1, zone.Width),
-            Height = System.Math.Max(1, zone.Height),
-            Selectable = selectable
-        };
+            BuildBattlePreparationPlayerGroups(),
+            (groupKey, create) => ResolveBattlePreparationGroupPlan(_battlePreparationRequest, groupKey, create),
+            _activeGridMap,
+            _deploymentCache,
+            _semanticMapMarkers?.Markers,
+            BuildBattlePreparationObjectiveZoneFromMarker);
     }
 
     private void OnBattleObjectiveDialogCompanySelected(string groupKey)

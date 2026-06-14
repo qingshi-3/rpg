@@ -2,12 +2,13 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
+using Rpg.Definitions.StrategicManagement;
 using Rpg.Definitions.World;
+using Rpg.Domain.StrategicManagement;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
-using Rpg.Presentation.Battle.Entities;
-using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.World;
 
@@ -17,7 +18,7 @@ public partial class StrategicWorldRoot
     {
         if (!CanStartExpeditionFromSite(_selectedSiteId, out string failureReason))
         {
-            StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason(failureReason);
+            StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(failureReason);
             RefreshAll();
             return;
         }
@@ -25,17 +26,16 @@ public partial class StrategicWorldRoot
         _isExpeditionDrafting = true;
         _isExpeditionTargeting = false;
         _expeditionSourceSiteId = _selectedSiteId;
-        _expeditionUnitCounts.Clear();
-        // A first-slice expedition is one strategic army that can carry several
-        // hero companies; battle entry later exposes those companies separately.
-        string defaultHeroUnitId = FirstSliceHeroCompanyIds.HeroUnitIds
-            .FirstOrDefault(heroUnitId => GetAvailableUnitCount(_expeditionSourceSiteId, heroUnitId) > 0);
-        if (!string.IsNullOrWhiteSpace(defaultHeroUnitId))
+        _expeditionHeroIds.Clear();
+        StrategicHeroCompanyViewModel defaultCompany = GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)
+            .FirstOrDefault(company => company.CanCreateExpedition);
+        if (defaultCompany != null)
         {
-            _expeditionUnitCounts[defaultHeroUnitId] = 1;
+            _expeditionHeroIds.Add(defaultCompany.HeroId);
         }
+
         ClampExpeditionDraftCounts();
-        StrategicWorldRuntime.LastNotice = "选择出征英雄。该英雄会自动带上默认兵团。";
+        StrategicWorldRuntime.LastNotice = "选择出征英雄公司。英雄会带领已分配编制出征。";
         RefreshAll();
     }
 
@@ -44,21 +44,14 @@ public partial class StrategicWorldRoot
         ClampExpeditionDraftCounts();
         if (!HasSelectedExpeditionUnits())
         {
-            StrategicWorldRuntime.LastNotice = "请先选择要出征的英雄。";
-            RefreshAll();
-            return;
-        }
-
-        if (!_expeditionService.HasAvailablePlayerExpeditionCapacity(State, out _, out _))
-        {
-            StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason("expedition_capacity_full");
+            StrategicWorldRuntime.LastNotice = "请先选择要出征的英雄公司。";
             RefreshAll();
             return;
         }
 
         _isExpeditionTargeting = true;
         _selectedArmyIds.Clear();
-        StrategicWorldRuntime.LastNotice = "选择出征目的地：右键敌方场域为进攻，右键己方场域为进驻，右键空地为移动。";
+        StrategicWorldRuntime.LastNotice = "选择出征目的地：左键或右键敌方地点为进攻，左键或右键己方地点为进驻，左键或右键空地为移动。";
         RefreshAll();
     }
 
@@ -67,28 +60,28 @@ public partial class StrategicWorldRoot
         _isExpeditionDrafting = false;
         _isExpeditionTargeting = false;
         _expeditionSourceSiteId = "";
-        _expeditionUnitCounts.Clear();
+        _expeditionHeroIds.Clear();
         StrategicWorldRuntime.LastNotice = "已取消出征。";
         RefreshAll();
     }
 
-    private void AdjustExpeditionUnitCount(string unitTypeId, int delta)
+    private void AdjustExpeditionHeroCompanySelection(string heroId, int delta)
     {
-        if (string.IsNullOrWhiteSpace(unitTypeId))
+        if (string.IsNullOrWhiteSpace(heroId))
         {
             return;
         }
 
-        int available = GetAvailableUnitCount(_expeditionSourceSiteId, unitTypeId);
-        _expeditionUnitCounts.TryGetValue(unitTypeId, out int selected);
-        selected = System.Math.Clamp(selected + delta, 0, FirstSliceHeroCompanyIds.IsHeroUnit(unitTypeId) ? System.Math.Min(1, available) : available);
-        if (selected <= 0)
+        if (delta > 0)
         {
-            _expeditionUnitCounts.Remove(unitTypeId);
+            if (_expeditionHeroIds.Count < StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition)
+            {
+                _expeditionHeroIds.Add(heroId);
+            }
         }
-        else
+        else if (delta < 0)
         {
-            _expeditionUnitCounts[unitTypeId] = selected;
+            _expeditionHeroIds.Remove(heroId);
         }
 
         RefreshAll();
@@ -122,7 +115,7 @@ public partial class StrategicWorldRoot
 
         if (siteId == _expeditionSourceSiteId)
         {
-            StrategicWorldRuntime.LastNotice = "出征目标不能是出发场域。";
+            StrategicWorldRuntime.LastNotice = "出征目标不能是出发地点。";
             RefreshAll();
             return true;
         }
@@ -145,17 +138,24 @@ public partial class StrategicWorldRoot
     private bool TryCreateExpedition(string targetSiteId, Vector2 destination, WorldArmyIntent intent)
     {
         ClampExpeditionDraftCounts();
-        Dictionary<string, int> selectedUnits = BuildSelectedExpeditionUnits();
-        if (selectedUnits.Count == 0)
+        IReadOnlyList<string> selectedHeroIds = BuildSelectedExpeditionHeroIds();
+        if (selectedHeroIds.Count == 0)
         {
-            StrategicWorldRuntime.LastNotice = "请先选择要出征的英雄。";
+            StrategicWorldRuntime.LastNotice = "请先选择要出征的英雄公司。";
             RefreshAll();
             return true;
         }
 
-        if (!_expeditionService.HasAvailablePlayerExpeditionCapacity(State, out _, out _))
+        if (!StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(_expeditionSourceSiteId, out string sourceLocationId))
         {
-            StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason("expedition_capacity_full");
+            StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(StrategicFailureReasons.MissingCity);
+            RefreshAll();
+            return true;
+        }
+
+        if (!TryResolveStrategicExpeditionTargetLocationId(targetSiteId, intent, out string targetLocationId, out string targetFailureReason))
+        {
+            StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(targetFailureReason);
             RefreshAll();
             return true;
         }
@@ -175,42 +175,54 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        if (!_expeditionService.TryCreateExpedition(
-                State,
-                Definition,
-                _expeditionSourceSiteId,
-                sourceArmyPosition,
-                targetSiteId,
-                resolvedDestination,
-                intent,
-                selectedUnits,
-                out WorldArmyState army,
-                out string failureReason))
+        StrategicExpeditionIntent strategicIntent = ToStrategicExpeditionIntent(intent);
+        StrategicCommandResult strategicResult = StrategicManagementRuntime.Commands.CreateExpedition(
+            StrategicManagementRuntime.State,
+            sourceLocationId,
+            targetLocationId,
+            strategicIntent,
+            selectedHeroIds);
+        if (!strategicResult.Success ||
+            !StrategicManagementRuntime.State.Expeditions.TryGetValue(strategicResult.CreatedEntityId, out StrategicExpeditionState expedition))
         {
-            StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason(failureReason);
+            StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(strategicResult.FailureReason);
             RefreshAll();
             return true;
         }
 
-        if (expeditionPath?.Points?.Count > 0)
+        WorldArmyState army = _strategicExpeditionWorldArmyAdapter.CreateWorldArmy(
+            StrategicManagementRuntime.Definitions,
+            StrategicManagementRuntime.State,
+            expedition,
+            _expeditionSourceSiteId,
+            targetSiteId,
+            sourceArmyPosition,
+            resolvedDestination,
+            intent,
+            State.WorldTick);
+        if (army == null)
         {
-            army.SetNavigationPath(expeditionPath.Points, army.Destination, _strategicNavigationContext.Version);
+            StrategicWorldRuntime.LastNotice = "战略出征无法创建地图移动对象。";
+            RefreshAll();
+            return true;
         }
-        else
+
+        State.ArmyStates[army.ArmyId] = army;
+        WorldArmyCommandResult commandStateResult = _armyCommandService.ApplyCreatedExpeditionCommandState(
+            army,
+            intent,
+            expeditionPath,
+            _strategicNavigationContext.Version,
+            arrivalApproachOffset,
+            approachDirection,
+            State?.PlayerFactionId);
+        if (!commandStateResult.Success)
         {
-            army.ClearNavigationPath();
+            StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason(commandStateResult.FailureReason);
+            GameLog.Warn(nameof(StrategicWorldRoot), $"WorldExpeditionCommandStateRejected army={army.ArmyId} reason={commandStateResult.FailureReason}");
+            RefreshAll();
+            return true;
         }
-        if (intent == WorldArmyIntent.MoveToPosition)
-        {
-            army.ClearArrivalApproachOffset();
-            army.ClearTargetApproachDirection();
-        }
-        else
-        {
-            army.SetArrivalApproachOffset(arrivalApproachOffset);
-            army.SetTargetApproachDirection(approachDirection);
-        }
-        AttachDefaultCorpsToHeroExpedition(army);
 
         _selectedArmyIds.Clear();
         _selectedArmyIds.Add(army.ArmyId);
@@ -228,61 +240,50 @@ public partial class StrategicWorldRoot
         _isExpeditionDrafting = false;
         _isExpeditionTargeting = false;
         _expeditionSourceSiteId = "";
-        _expeditionUnitCounts.Clear();
+        _expeditionHeroIds.Clear();
         if (expeditionNavigationDeferred)
         {
             GameLog.Info(nameof(StrategicWorldRoot), $"WorldExpeditionNavigationDeferred army={army.ArmyId} intent={intent} target={targetSiteId}");
         }
 
-        GameLog.Info(nameof(StrategicWorldRoot), $"WorldExpeditionIssued army={army.ArmyId} intent={intent} target={targetSiteId}");
+        GameLog.Info(
+            nameof(StrategicWorldRoot),
+            $"StrategicExpeditionIssued expedition={expedition.ExpeditionId} army={army.ArmyId} intent={intent} target={targetSiteId}");
         RefreshAll();
         return true;
     }
 
-    private static void AttachDefaultCorpsToHeroExpedition(WorldArmyState army)
+    private bool TryResolveStrategicExpeditionTargetLocationId(
+        string targetSiteId,
+        WorldArmyIntent intent,
+        out string targetLocationId,
+        out string failureReason)
     {
-        if (army == null)
+        targetLocationId = "";
+        failureReason = "";
+        if (intent == WorldArmyIntent.MoveToPosition)
         {
-            return;
+            return true;
         }
 
-        foreach (GarrisonState hero in army.GarrisonUnits
-                     .Where(unit => unit != null && unit.Count > 0)
-                     .ToArray())
+        if (!StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(targetSiteId, out targetLocationId))
         {
-            if (!FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(hero.UnitTypeId, out FirstSliceHeroCompanyDefinition company))
-            {
-                continue;
-            }
-
-            int requiredCorpsCount = System.Math.Max(1, hero.Count) * company.DefaultCorpsCount;
-            GarrisonState existingCorps = army.GarrisonUnits
-                .FirstOrDefault(unit => string.Equals(unit.UnitTypeId, company.DefaultCorpsUnit, System.StringComparison.Ordinal));
-            int existingCorpsCount = existingCorps == null ? 0 : System.Math.Max(0, existingCorps.Count);
-            int missingCorpsCount = requiredCorpsCount - existingCorpsCount;
-            if (missingCorpsCount <= 0)
-            {
-                continue;
-            }
-
-            if (existingCorps == null)
-            {
-                army.GarrisonUnits.Add(new GarrisonState
-                {
-                    UnitTypeId = company.DefaultCorpsUnit,
-                    Count = missingCorpsCount,
-                    Morale = 70
-                });
-            }
-            else
-            {
-                existingCorps.Count += missingCorpsCount;
-            }
-
-            GameLog.Info(
-                nameof(StrategicWorldRoot),
-                $"HeroDefaultCorpsAttached army={army.ArmyId} hero={company.HeroUnit} corps={company.DefaultCorpsUnit}:{missingCorpsCount}");
+            failureReason = StrategicFailureReasons.MissingLocation;
+            return false;
         }
+
+        return true;
+    }
+
+    private static StrategicExpeditionIntent ToStrategicExpeditionIntent(WorldArmyIntent intent)
+    {
+        return intent switch
+        {
+            WorldArmyIntent.AssaultSite => StrategicExpeditionIntent.AssaultLocation,
+            WorldArmyIntent.ReinforceSite => StrategicExpeditionIntent.ReinforceLocation,
+            WorldArmyIntent.MoveToPosition => StrategicExpeditionIntent.MoveToPosition,
+            _ => StrategicExpeditionIntent.Unknown
+        };
     }
 
     private bool TryResolveExpeditionNavigation(
@@ -356,171 +357,119 @@ public partial class StrategicWorldRoot
     private bool CanStartExpeditionFromSite(string siteId, out string failureReason)
     {
         failureReason = "";
-        if (string.IsNullOrWhiteSpace(siteId) ||
-            !State.SiteStates.TryGetValue(siteId, out WorldSiteState site))
+        IReadOnlyList<StrategicHeroCompanyViewModel> companies = GetAvailableExpeditionHeroCompanies(siteId);
+        if (companies.Count == 0)
         {
-            failureReason = "missing_source_site";
+            failureReason = StrategicFailureReasons.HeroHasNoAssignedCorps;
             return false;
         }
 
-        if (site.OwnerFactionId != State.PlayerFactionId ||
-            site.ControlState is not (SiteControlState.PlayerHeld or SiteControlState.Damaged))
+        StrategicHeroCompanyViewModel firstDispatchable = companies.FirstOrDefault(company => company.CanCreateExpedition);
+        if (firstDispatchable != null)
         {
-            failureReason = "source_site_not_owned";
-            return false;
+            return true;
         }
 
-        if (!_expeditionService.HasAvailablePlayerExpeditionCapacity(State, out _, out _))
-        {
-            failureReason = "expedition_capacity_full";
-            return false;
-        }
-
-        if (GetAvailableExpeditionUnitCount(siteId) <= 0)
-        {
-            failureReason = "no_expedition_units";
-            return false;
-        }
-
-        if (!FirstSliceHeroCompanyIds.HeroUnitIds.Any(heroUnitId => GetAvailableUnitCount(siteId, heroUnitId) > 0))
-        {
-            failureReason = "no_expedition_hero";
-            return false;
-        }
-
-        return true;
+        failureReason = companies.Select(company => company.DisabledReason).FirstOrDefault(reason => !string.IsNullOrWhiteSpace(reason)) ??
+                        StrategicFailureReasons.MissingHero;
+        return false;
     }
 
     private void ClampExpeditionDraftCounts()
     {
-        Dictionary<string, int> availableUnits = GetAvailableExpeditionUnits(_expeditionSourceSiteId);
-        foreach (string unitTypeId in _expeditionUnitCounts.Keys.ToArray())
+        HashSet<string> available = GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)
+            .Where(company => company.CanCreateExpedition)
+            .Select(company => company.HeroId)
+            .ToHashSet(System.StringComparer.Ordinal);
+        foreach (string heroId in _expeditionHeroIds.ToArray())
         {
-            int available = availableUnits.TryGetValue(unitTypeId, out int count) ? count : 0;
-            int selected = System.Math.Clamp(_expeditionUnitCounts[unitTypeId], 0, available);
-            if (selected <= 0)
+            if (!available.Contains(heroId))
             {
-                _expeditionUnitCounts.Remove(unitTypeId);
+                _expeditionHeroIds.Remove(heroId);
             }
-            else
+        }
+
+        if (_expeditionHeroIds.Count > StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition)
+        {
+            string[] kept = _expeditionHeroIds
+                .OrderBy(id => id)
+                .Take(StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition)
+                .ToArray();
+            _expeditionHeroIds.Clear();
+            foreach (string heroId in kept)
             {
-                _expeditionUnitCounts[unitTypeId] = selected;
+                _expeditionHeroIds.Add(heroId);
             }
         }
     }
 
     private bool HasSelectedExpeditionUnits()
     {
-        return GetSelectedExpeditionUnitCount() > 0;
+        return _expeditionHeroIds.Count > 0;
     }
 
     private int GetSelectedExpeditionUnitCount()
     {
-        return _expeditionUnitCounts.Values.Sum(count => System.Math.Max(count, 0));
+        return _expeditionHeroIds.Count;
     }
 
-    private int GetAvailableExpeditionUnitCount(string siteId)
+    private IReadOnlyList<StrategicHeroCompanyViewModel> GetAvailableExpeditionHeroCompanies(string siteId)
     {
-        return GetAvailableExpeditionUnits(siteId).Values.Sum(count => System.Math.Max(count, 0));
-    }
-
-    private Dictionary<string, int> GetAvailableExpeditionUnits(string siteId)
-    {
+        StrategicManagementRuntime.EnsureInitialized();
         if (string.IsNullOrWhiteSpace(siteId) ||
-            !State.SiteStates.TryGetValue(siteId, out WorldSiteState site) ||
-            site.Garrison == null)
+            !StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(siteId, out string cityId))
         {
-            return new Dictionary<string, int>();
+            return System.Array.Empty<StrategicHeroCompanyViewModel>();
         }
 
-        return site.Garrison
-            .Where(unit => !string.IsNullOrWhiteSpace(unit.UnitTypeId) && unit.Count > 0)
-            .Where(unit => FirstSliceHeroCompanyIds.IsHeroUnit(unit.UnitTypeId))
-            .GroupBy(unit => unit.UnitTypeId)
-            .OrderBy(group => GetUnitSortKey(group.Key))
-            .ThenBy(group => GetUnitLabel(group.Key))
-            .ToDictionary(
-                group => group.Key,
-                group => group.Sum(unit => System.Math.Max(unit.Count, 0)));
+        StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
+            StrategicManagementIds.FactionPlayer,
+            cityId);
+        return dashboard.SelectedCity.HeroCompanies;
     }
 
-    private int GetAvailableUnitCount(string siteId, string unitTypeId)
+    private IReadOnlyList<string> BuildSelectedExpeditionHeroIds()
     {
-        return !string.IsNullOrWhiteSpace(siteId) &&
-               !string.IsNullOrWhiteSpace(unitTypeId) &&
-               State.SiteStates.TryGetValue(siteId, out WorldSiteState site)
-            ? site.Garrison
-                .Where(unit => unit.UnitTypeId == unitTypeId)
-                .Sum(unit => System.Math.Max(unit.Count, 0))
-            : 0;
-    }
-
-    private Dictionary<string, int> BuildSelectedExpeditionUnits()
-    {
-        return _expeditionUnitCounts
-            .Where(item => !string.IsNullOrWhiteSpace(item.Key) && item.Value > 0)
-            .ToDictionary(item => item.Key, item => item.Value);
+        return _expeditionHeroIds
+            .Where(heroId => !string.IsNullOrWhiteSpace(heroId))
+            .OrderBy(heroId => heroId)
+            .ToArray();
     }
 
     private string BuildExpeditionUnitText()
     {
-        Dictionary<string, int> selectedUnits = BuildSelectedExpeditionUnits();
-        if (selectedUnits.Count > 0)
-        {
-            return string.Join("、", selectedUnits
-                .OrderBy(item => GetUnitSortKey(item.Key))
-                .ThenBy(item => GetUnitLabel(item.Key))
-                .Select(item => $"{GetUnitLabel(item.Key)} x{item.Value}"));
-        }
+        StrategicHeroCompanyViewModel[] selected = GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)
+            .Where(company => _expeditionHeroIds.Contains(company.HeroId))
+            .OrderBy(company => company.HeroDisplayName)
+            .ToArray();
 
-        int _expeditionHeroCount = 0;
-        int _expeditionMilitiaCount = 0;
-        List<string> parts = new();
-        if (_expeditionHeroCount > 0)
-        {
-            parts.Add($"{GetUnitLabel(StrategicWorldIds.UnitPlayerKnight)} x{_expeditionHeroCount}");
-        }
-
-        if (_expeditionMilitiaCount > 0)
-        {
-            parts.Add($"{GetUnitLabel(StrategicWorldIds.UnitMilitia)} x{_expeditionMilitiaCount}");
-        }
-
-        return parts.Count == 0 ? "未选择单位" : string.Join("、", parts);
+        return selected.Length == 0
+            ? "未选择英雄公司"
+            : string.Join("、", selected.Select(company => $"{company.HeroDisplayName} + {company.CorpsDisplayName}"));
     }
 
-    private static int GetUnitSortKey(string unitTypeId)
+    private static string FormatStrategicExpeditionFailureReason(string reason)
     {
-        int heroIndex = FirstSliceHeroCompanyIds.HeroUnitIds
-            .Select((id, index) => (id, index))
-            .FirstOrDefault(item => string.Equals(item.id, unitTypeId, System.StringComparison.Ordinal))
-            .index;
-        if (FirstSliceHeroCompanyIds.IsHeroUnit(unitTypeId))
+        return reason switch
         {
-            return heroIndex;
-        }
-
-        if (FirstSliceHeroCompanyIds.TryGetCompanyByAnyUnit(unitTypeId, out FirstSliceHeroCompanyDefinition company))
-        {
-            return 10 + FirstSliceHeroCompanyIds.Companies
-                .Select((item, index) => (item, index))
-                .FirstOrDefault(item => string.Equals(item.item.CompanyId, company.CompanyId, System.StringComparison.Ordinal))
-                .index;
-        }
-
-        if (string.Equals(unitTypeId, StrategicWorldIds.UnitPlayerKnight, System.StringComparison.Ordinal))
-        {
-            return 0;
-        }
-
-        if (string.Equals(unitTypeId, StrategicWorldIds.UnitMilitia, System.StringComparison.Ordinal))
-        {
-            return 10;
-        }
-
-        return unitTypeId switch
-        {
-            _ => 20
+            StrategicFailureReasons.MissingCity => "缺少可出征城市",
+            StrategicFailureReasons.MissingLocation => "缺少战略地点",
+            StrategicFailureReasons.MissingHero => "缺少可出征英雄",
+            StrategicFailureReasons.HeroHasNoAssignedCorps => "没有已分配编制的英雄公司",
+            StrategicFailureReasons.CorpsNotAssignedToHero => "编制没有分配给该英雄",
+            StrategicFailureReasons.HeroAlreadyOnExpedition => "英雄已经在出征中",
+            StrategicFailureReasons.CorpsAlreadyOnExpedition => "编制已经在出征中",
+            StrategicFailureReasons.SourceLocationNotOwned => "出发地点不受玩家控制",
+            StrategicFailureReasons.SameLocationTarget => "目标不能是出发地点",
+            StrategicFailureReasons.TargetLocationNotOwned => "目标地点不受玩家控制",
+            StrategicFailureReasons.TargetLocationNotAttackable => "目标地点不可攻击",
+            StrategicFailureReasons.ExpeditionCapacityFull => "出征队列已满",
+            StrategicFailureReasons.ExpeditionNotCommandable => "远征当前不能改派",
+            StrategicFailureReasons.UnsupportedExpeditionIntent => "不支持的出征目标",
+            StrategicFailureReasons.MissingBattleEntryMetadata => "目标地点缺少战斗入口配置",
+            "" => "无法创建出征",
+            null => "无法创建出征",
+            _ => WorldActionResolver.FormatFailureReason(reason)
         };
     }
 

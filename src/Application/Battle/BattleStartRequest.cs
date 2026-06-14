@@ -16,6 +16,12 @@ public sealed class BattleStartRequest
     public string TargetArmyId { get; set; } = "";
     public string SourceSiteId { get; set; } = "";
     public string TargetSiteId { get; set; } = "";
+    // Migration bridge carrier only: Strategic Battle Bridge owns these ids,
+    // while legacy battle preparation still consumes BattleStartRequest.
+    public string StrategicBattleSessionId { get; set; } = "";
+    public string StrategicExpeditionId { get; set; } = "";
+    public string StrategicSourceLocationId { get; set; } = "";
+    public string StrategicTargetLocationId { get; set; } = "";
     public List<string> KnownTacticalTags { get; set; } = new();
     public string AttackerFactionId { get; set; } = "";
     public string DefenderFactionId { get; set; } = "";

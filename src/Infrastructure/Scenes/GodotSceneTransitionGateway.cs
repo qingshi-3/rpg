@@ -12,7 +12,7 @@ public sealed class GodotSceneTransitionGateway : ISceneTransitionGateway
         _getSceneTree = getSceneTree;
     }
 
-    public Error ChangeSceneToFile(string scenePath)
+    public Error ChangeSceneToFile(string scenePath, Action onSceneEntered)
     {
         SceneTree tree = _getSceneTree?.Invoke();
         if (tree == null || string.IsNullOrWhiteSpace(scenePath))
@@ -20,6 +20,19 @@ public sealed class GodotSceneTransitionGateway : ISceneTransitionGateway
             return Error.Failed;
         }
 
-        return tree.ChangeSceneToFile(scenePath);
+        void HandleSceneChanged()
+        {
+            tree.SceneChanged -= HandleSceneChanged;
+            onSceneEntered?.Invoke();
+        }
+
+        tree.SceneChanged += HandleSceneChanged;
+        Error error = tree.ChangeSceneToFile(scenePath);
+        if (error != Error.Ok)
+        {
+            tree.SceneChanged -= HandleSceneChanged;
+        }
+
+        return error;
     }
 }

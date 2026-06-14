@@ -5,10 +5,13 @@ using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Application.StrategicBattleBridge;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
+using Rpg.Domain.StrategicManagement;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle;
@@ -26,7 +29,7 @@ public partial class WorldSiteRoot
     private void ApplyBattleStartRequest()
     {
         _battleStartBlockedReason = "";
-        if (_unitRoot == null || !BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request))
+        if (_unitRoot == null || !TryResolveActiveBattleRequest(out BattleStartRequest request))
         {
             return;
         }
@@ -67,10 +70,11 @@ public partial class WorldSiteRoot
             return false;
         }
 
-        if (BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request))
+        if (TryResolveActiveBattleRequest(out BattleStartRequest request))
         {
             _battleRuntimeRequest = request;
             ApplyBattleNavigationSnapshot(request);
+            AlignBattlePresentationEntityIdsToRuntime(request);
         }
 
         _isBattlePreparationActive = false;
@@ -106,6 +110,46 @@ public partial class WorldSiteRoot
             $"Battle navigation snapshot applied request={request?.RequestId ?? ""} surfaces={request?.NavigationSurfaces.Count ?? 0} connections={request?.NavigationConnections.Count ?? 0} syncedPlacementHeights={syncedPlacementHeights}");
     }
 
+    private void AlignBattlePresentationEntityIdsToRuntime(BattleStartRequest request)
+    {
+        if (_unitRoot == null || request == null)
+        {
+            return;
+        }
+
+        IReadOnlyDictionary<string, string> runtimeActorIdsByPresentationEntity =
+            BattleRuntimeActorIdentity.BuildPresentationEntityToRuntimeActorMap(request);
+        if (runtimeActorIdsByPresentationEntity.Count == 0)
+        {
+            return;
+        }
+
+        int aligned = 0;
+        foreach (BattleEntity entity in _unitRoot.GetEntitiesSnapshot())
+        {
+            string currentEntityId = entity?.EntityId ?? "";
+            if (string.IsNullOrWhiteSpace(currentEntityId) ||
+                !runtimeActorIdsByPresentationEntity.TryGetValue(currentEntityId, out string runtimeActorId) ||
+                string.IsNullOrWhiteSpace(runtimeActorId) ||
+                string.Equals(currentEntityId, runtimeActorId, System.StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // Runtime events address corps actors, not legacy request force ids. Presentation
+            // entities must switch identity at the launch boundary before live events arrive.
+            entity.EntityId = runtimeActorId;
+            aligned++;
+        }
+
+        if (aligned > 0)
+        {
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"BattlePresentationEntityIdsAligned request={request.RequestId} count={aligned}");
+        }
+    }
+
     private void BindBattleRuntimeHud()
     {
         // Battle runtime owns a fullscreen battlefield. Persistent commands stay in
@@ -137,12 +181,12 @@ public partial class WorldSiteRoot
     {
         if (_siteBottomCommandHost != null)
         {
-            _siteBottomCommandHost.Visible = true;
+            _siteBottomCommandHost.Visible = _battleRuntimeCommandPauseActive;
         }
 
         if (_battleRuntimeCommandBar != null)
         {
-            _battleRuntimeCommandBar.Visible = true;
+            _battleRuntimeCommandBar.Visible = _battleRuntimeCommandPauseActive;
         }
 
         RefreshBattleRuntimeCommandControls(runtimeLocked);
@@ -153,7 +197,10 @@ public partial class WorldSiteRoot
 
     private bool ActivateBattleGroupRuntime()
     {
-        if (!_battleGroupRuntimeAdapter.TryStartActiveBattle(out WorldSiteBattleGroupRuntimeResolveResult resolution))
+        bool started = TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext)
+            ? _battleGroupRuntimeAdapter.TryStartActiveBattle(activeContext, out WorldSiteBattleGroupRuntimeResolveResult resolution)
+            : _battleGroupRuntimeAdapter.TryStartActiveBattle(out resolution);
+        if (!started)
         {
             _battleStartBlockedReason = string.IsNullOrWhiteSpace(resolution?.FailureReason)
                 ? "battle_group_runtime_activation_failed"
@@ -180,7 +227,9 @@ public partial class WorldSiteRoot
             GameLog.Warn(nameof(WorldSiteRoot), $"Battle runtime presentation failed request={resolution?.Request?.RequestId ?? ""} error={ex.Message}");
         }
 
-        resolution = _battleGroupRuntimeAdapter.CompleteResolvedBattle(resolution);
+        resolution = resolution?.ActiveContext != null
+            ? _battleGroupRuntimeAdapter.CompleteResolvedBattle(resolution, resolution.ActiveContext)
+            : _battleGroupRuntimeAdapter.CompleteResolvedBattle(resolution);
         if (resolution?.Success != true)
         {
             _battleStartBlockedReason = string.IsNullOrWhiteSpace(resolution?.FailureReason)
@@ -194,8 +243,10 @@ public partial class WorldSiteRoot
         }
 
         _activeBattleGroupRuntimeResolution = null;
-        applyResult = ApplyBattleResultToWorld(resolution.Request, resolution.BattleResult);
-        string battleNotice = BuildBattleGroupRuntimeReturnNotice(applyResult, resolution.Report);
+        applyResult = resolution.ActiveContext != null
+            ? ApplyStrategicBattleResultToWorld(resolution.ActiveContext, resolution.BattleResult)
+            : ApplyBattleResultToWorld(resolution.Request, resolution.BattleResult);
+        string battleNotice = BuildBattleGroupRuntimeReturnNotice(applyResult, resolution.Report, resolution.Request);
         if (!string.IsNullOrWhiteSpace(battleNotice))
         {
             applyResult ??= new WorldActionResult
@@ -264,21 +315,89 @@ public partial class WorldSiteRoot
         }
     }
 
-    private static string BuildBattleGroupRuntimeReturnNotice(WorldActionResult applyResult, BattleReportRecord report)
+    private static string BuildBattleGroupRuntimeReturnNotice(
+        WorldActionResult applyResult,
+        BattleReportRecord report,
+        BattleStartRequest request)
     {
         string worldMessage = applyResult?.Message?.Trim() ?? "";
         string reportSummary = BuildBattleGroupRuntimeReportSummary(report).Trim();
-        if (string.IsNullOrWhiteSpace(reportSummary))
+        List<string> lines = new();
+        if (!string.IsNullOrWhiteSpace(worldMessage))
         {
-            return worldMessage;
+            lines.Add(worldMessage);
         }
 
-        if (string.IsNullOrWhiteSpace(worldMessage))
+        if (!string.IsNullOrWhiteSpace(reportSummary))
         {
-            return reportSummary;
+            lines.Add(reportSummary);
         }
 
-        return $"{worldMessage}\n{reportSummary}";
+        return string.Join("\n", lines);
+    }
+
+    private static string BuildStrategicBattleFeedbackReturnNotice(StrategicBattleFeedbackRecord feedback)
+    {
+        if (feedback == null || string.IsNullOrWhiteSpace(feedback.FeedbackId))
+        {
+            return "";
+        }
+
+        List<string> lines = new()
+        {
+            "战略反馈",
+            string.IsNullOrWhiteSpace(feedback.WorldChangeText)
+                ? $"战斗结果：{feedback.OutcomeText}"
+                : feedback.WorldChangeText
+        };
+
+        if (!string.IsNullOrWhiteSpace(feedback.FailureReasonText))
+        {
+            lines.Add($"失利原因：{feedback.FailureReasonText}");
+        }
+
+        if (feedback.RewardLines.Count > 0)
+        {
+            lines.Add($"奖励：{string.Join("；", feedback.RewardLines)}");
+        }
+
+        if (feedback.ParticipantFeedback.Count > 0)
+        {
+            lines.Add($"编制损失：{string.Join("；", feedback.ParticipantFeedback.Select(item => item.ResultText))}");
+        }
+
+        if (feedback.HeroFeedback.Count > 0)
+        {
+            lines.Add($"英雄反馈：{string.Join("；", feedback.HeroFeedback.Select(item => item.ReactionText))}");
+        }
+
+        IReadOnlyList<StrategicEquipmentSampleFeedbackRecord> visibleEquipment = feedback.EquipmentSamples
+            .Where(item => item.IsReward || !string.IsNullOrWhiteSpace(item.RoleText))
+            .ToList();
+        if (visibleEquipment.Count > 0)
+        {
+            lines.Add($"装备：{string.Join("；", visibleEquipment.Select(FormatEquipmentFeedback))}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(feedback.ProgressionText))
+        {
+            lines.Add(feedback.ProgressionText);
+        }
+
+        return string.Join("\n", lines);
+    }
+
+    private static string FormatEquipmentFeedback(StrategicEquipmentSampleFeedbackRecord equipment)
+    {
+        string prefix = equipment.IsReward ? "获得" : "样本";
+        string slot = equipment.SlotKind switch
+        {
+            "weapon" => "武器",
+            "armor" => "护甲",
+            "token" => "号令道具",
+            _ => equipment.SlotKind ?? ""
+        };
+        return $"{prefix}{slot}：{equipment.DisplayName}。{equipment.RoleText}";
     }
 
     private static string BuildBattleGroupRuntimeReportSummary(BattleReportRecord report)
@@ -715,7 +834,87 @@ public partial class WorldSiteRoot
         return _unitRoot?.FindEntityAt(position);
     }
 
+    private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)
+    {
+        StrategicWorldRuntime.EnsureInitialized();
+        string bridgeFailureReason = StrategicBattleBridgeService.GetActiveContextFailureReason(context);
+        if (!string.IsNullOrWhiteSpace(bridgeFailureReason))
+        {
+            GameLog.Warn(
+                nameof(WorldSiteRoot),
+                $"Strategic battle active context result rejected context={context?.ContextId ?? ""} reason={bridgeFailureReason}");
+            return new WorldActionResult
+            {
+                Success = false,
+                ActionId = "battle_result",
+                Message = "战斗结果与战略战斗上下文不匹配，已阻止回写。"
+            };
+        }
+
+        StrategicManagementRuntime.EnsureInitialized();
+        StrategicBattleBridgeService bridge = new(StrategicManagementRuntime.Definitions);
+        StrategicBattleResultSummary summary = bridge.BuildResultSummary(context);
+        StrategicCommandResult strategicResult = StrategicManagementRuntime.Commands.ApplyBattleResultSummary(
+            StrategicManagementRuntime.State,
+            summary);
+        if (!strategicResult.Success)
+        {
+            GameLog.Warn(
+                nameof(WorldSiteRoot),
+                $"Strategic battle active context result rejected context={context.ContextId} expedition={context.Session?.ExpeditionId ?? ""} reason={strategicResult.FailureReason}");
+            return new WorldActionResult
+            {
+                Success = false,
+                ActionId = "battle_result",
+                Message = "战斗结果无法写回战略经营。"
+            };
+        }
+
+        StrategicBattleFeedbackRecord strategicFeedback = null;
+        if (!string.IsNullOrWhiteSpace(strategicResult.CreatedEntityId))
+        {
+            StrategicManagementRuntime.State.BattleFeedbackRecords.TryGetValue(
+                strategicResult.CreatedEntityId,
+                out strategicFeedback);
+        }
+
+        string strategicNotice = BuildStrategicBattleFeedbackReturnNotice(strategicFeedback);
+        WorldActionResult applyResult = new()
+        {
+            Success = true,
+            ActionId = "battle_result",
+            Message = string.IsNullOrWhiteSpace(strategicNotice)
+                ? "战斗结果已写回战略经营。"
+                : strategicNotice
+        };
+        ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult);
+        StrategicWorldRuntime.LastNotice = applyResult.Message;
+        context.CompatibilityResult = compatibilityResult;
+        context.ResultConsumed = true;
+        StrategicBattleActiveContextStore.Clear("result_consumed");
+        _activeStrategicBattleContext = null;
+        return applyResult;
+    }
+
     private WorldActionResult ApplyBattleResultToWorld(BattleStartRequest request, BattleResult battleResult)
+    {
+        if (!string.IsNullOrWhiteSpace(request?.StrategicExpeditionId))
+        {
+            GameLog.Warn(
+                nameof(WorldSiteRoot),
+                $"Strategic battle reached legacy result applier expedition={request.StrategicExpeditionId} request={request.RequestId}");
+            return new WorldActionResult
+            {
+                Success = false,
+                ActionId = "battle_result",
+                Message = "战斗结果缺少战略战斗上下文，已阻止回写。"
+            };
+        }
+
+        return ApplyLegacyBattleResultToWorld(request, battleResult);
+    }
+
+    private WorldActionResult ApplyLegacyBattleResultToWorld(BattleStartRequest request, BattleResult battleResult)
     {
         if (request == null || battleResult == null || battleResult.BattleKind == BattleKind.Unknown)
         {
@@ -728,12 +927,57 @@ public partial class WorldSiteRoot
         }
 
         StrategicWorldRuntime.EnsureInitialized();
+        // Legacy compatibility is now scoped to non-Strategic battle requests. The
+        // public wrapper rejects Strategic Management requests before reaching here.
         WorldActionResult applyResult = _worldBattleResultApplier.Apply(
             StrategicWorldRuntime.State,
             StrategicWorldRuntime.Definition,
             request,
             battleResult);
+
         StrategicWorldRuntime.LastNotice = applyResult.Message;
         return applyResult;
+    }
+
+    private void ApplyStrategicBattleResultPresentationCleanup(BattleStartRequest request, WorldActionResult result)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.SourceArmyId))
+        {
+            return;
+        }
+
+        string siteId = ResolveRequestSiteId(request);
+        if (string.IsNullOrWhiteSpace(siteId) ||
+            StrategicWorldRuntime.State.SiteStates.TryGetValue(siteId, out WorldSiteState site) != true)
+        {
+            return;
+        }
+
+        // Strategic Management owns the battle result facts. This legacy-site cleanup is
+        // limited to presentation leftovers created by the current map/battle handoff.
+        int removedPlacements = site.UnitPlacements.RemoveAll(placement =>
+            placement != null &&
+            string.Equals(placement.SourceKind, "PlayerArmy", System.StringComparison.Ordinal) &&
+            (string.Equals(placement.SourceId, request.SourceArmyId, System.StringComparison.Ordinal) ||
+             string.Equals(placement.ArmyId, request.SourceArmyId, System.StringComparison.Ordinal)) &&
+            placement.PlacementKind is WorldSiteUnitPlacementKind.VisitingArmy or WorldSiteUnitPlacementKind.Attacker);
+
+        if (site.SiteMode == WorldSiteMode.Wartime)
+        {
+            WorldSiteModeTransitionService.AddEvent(
+                result,
+                _siteModeTransitions.EnterAftermath(
+                    site,
+                    StrategicWorldRuntime.State.WorldTick,
+                    "strategic_battle_result_cleanup",
+                    request.RequestId));
+        }
+
+        if (removedPlacements > 0)
+        {
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"StrategicBattlePresentationCleanup site={site.SiteId} army={request.SourceArmyId} removedPlacements={removedPlacements}");
+        }
     }
 }

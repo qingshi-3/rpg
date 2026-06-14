@@ -14,5 +14,6 @@ public sealed class BattleSkillSnapshot
     public double RecoverySeconds { get; set; }
     public bool CanInterruptBasicAttackWindup { get; set; }
     public bool CanCancelBasicAttackRecovery { get; set; }
+    public bool ReleasesWithoutOccupyingCaster { get; set; }
     public List<BattleSkillEffectSnapshot> Effects { get; set; } = new();
 }

@@ -50,6 +50,11 @@ internal static void FirstSliceHeroCompaniesUseAuthoredUnitResources()
 
     AssertTrue(!initialState.Contains("res://assets/battle/units", StringComparison.Ordinal), "strategic initial state config should store unit ids, not resource paths");
     AssertTrue(companyConfig.Contains("\"defaultCorpsCount\": 3", StringComparison.Ordinal), "selected hero company should attach three corps soldiers through config");
+    AssertTrue(
+        companyConfig.Contains("\"heroUnit\": \"f1_elyxstormblade\"", StringComparison.Ordinal) &&
+        companyConfig.Contains("\"skillId\": \"first_slice_skill_thunder_tag_throw\"", StringComparison.Ordinal) &&
+        !companyConfig.Contains("\"skillId\": \"first_slice_skill_whirling_break\"", StringComparison.Ordinal),
+        "assault hero company should advertise the thunder demo starter skill instead of the old placeholder");
     AssertConfiguredUnitPath(unitIndex, "assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", "shield hero index path");
     AssertConfiguredUnitPath(unitIndex, "assets/battle/units/莱昂纳王国/f1_风刃指挥官/unit.tres", "archer hero index path");
     AssertConfiguredUnitPath(unitIndex, "assets/battle/units/莱昂纳王国/f1_Elyx风暴刃/unit.tres", "assault hero index path");

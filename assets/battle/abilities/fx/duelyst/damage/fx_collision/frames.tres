@@ -1,6 +1,6 @@
-[gd_resource type="SpriteFrames" load_steps=30 format=3]
+[gd_resource type="SpriteFrames" load_steps=30 format=3 uid="uid://bahswwkmx4xd2"]
 
-[ext_resource type="Texture2D" path="res://assets/battle/abilities/fx/duelyst/damage/fx_collision/fx_collision.png" id="1_texture"]
+[ext_resource type="Texture2D" uid="uid://cl70hbj0b7obi" path="res://assets/battle/abilities/fx/duelyst/damage/fx_collision/fx_collision.png" id="1_texture"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_000"]
 atlas = ExtResource("1_texture")
@@ -158,8 +158,7 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_013")
-}
-],
+}],
 "loop": false,
 "name": &"default",
 "speed": 12.5
@@ -206,8 +205,7 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_013")
-}
-],
+}],
 "loop": false,
 "name": &"fx_collisionsparks",
 "speed": 12.5
@@ -254,8 +252,7 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_027")
-}
-],
+}],
 "loop": false,
 "name": &"fx_collisionsparksblue",
 "speed": 12.5

@@ -74,31 +74,53 @@ internal static void StrategicWorldInvariantRepairRemovesResolvedArmyPlacements(
         "state repair should leave no stale player army placements");
 }
 
-internal static void StrategicWorldFirstSliceExpeditionSelectsOneHeroCompany()
+internal static void StrategicWorldFirstSliceExpeditionSelectsOneToThreeHeroCompanies()
 {
     string rootSource = ReadStrategicWorldRootSource();
+    string createBody = ExtractMethodBody(rootSource, "private bool TryCreateExpedition(string targetSiteId, Vector2 destination, WorldArmyIntent intent)");
+    string adjustBody = ExtractMethodBody(rootSource, "private void AdjustExpeditionHeroCompanySelection(string heroId, int delta)");
+    string clampBody = ExtractMethodBody(rootSource, "private void ClampExpeditionDraftCounts()");
+    string adapterSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Application", "World", "StrategicExpeditionWorldArmyAdapter.cs"));
 
     AssertTrue(
-        rootSource.Contains("FirstSliceHeroCompanyIds.HeroUnitIds", StringComparison.Ordinal) ||
-        rootSource.Contains("FirstSliceHeroCompanyIds.Companies", StringComparison.Ordinal),
-        "StrategicWorldRoot should draft from the three first-slice hero ids");
+        rootSource.Contains("StrategicManagementRuntime.BuildDashboard(", StringComparison.Ordinal) &&
+        rootSource.Contains("SelectedCity.HeroCompanies", StringComparison.Ordinal),
+        "StrategicWorldRoot should draft from Strategic Management hero-company view models");
     AssertTrue(
-        rootSource.Contains("AttachDefaultCorpsToHeroExpedition", StringComparison.Ordinal) &&
-        rootSource.Contains("TryGetCompanyByHeroUnit", StringComparison.Ordinal),
-        "StrategicWorldRoot should attach the selected hero company's default corps after expedition creation");
+        createBody.Contains("IReadOnlyList<string> selectedHeroIds = BuildSelectedExpeditionHeroIds()", StringComparison.Ordinal) &&
+        createBody.Contains("StrategicManagementRuntime.Commands.CreateExpedition(", StringComparison.Ordinal) &&
+        createBody.Contains("selectedHeroIds", StringComparison.Ordinal) &&
+        rootSource.Contains("_strategicExpeditionWorldArmyAdapter.CreateWorldArmy(", StringComparison.Ordinal),
+        "StrategicWorldRoot should create one strategic expedition from selected hero ids, then build a WorldArmyState movement adapter");
     AssertTrue(
-        rootSource.Contains("默认兵团", StringComparison.Ordinal),
-        "expedition panel should present the selected default corps as read-only information");
+        adjustBody.Contains("StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition", StringComparison.Ordinal) &&
+        !adjustBody.Contains("_expeditionHeroIds.Clear();", StringComparison.Ordinal),
+        "expedition draft should allow adding hero companies up to the first-slice maximum instead of clearing selection to one");
+    AssertTrue(
+        clampBody.Contains("Take(StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition)", StringComparison.Ordinal),
+        "expedition draft clamping should retain up to the first-slice maximum selected companies");
+    AssertTrue(
+        adapterSource.Contains("foreach (StrategicExpeditionParticipantState participant in participants)", StringComparison.Ordinal) &&
+        adapterSource.Contains("heroDefinition.BattleUnitId", StringComparison.Ordinal) &&
+        adapterSource.Contains("corpsDefinition.BattleUnitId", StringComparison.Ordinal) &&
+        adapterSource.Contains("corpsDefinition.BattleUnitCount", StringComparison.Ordinal) &&
+        !adapterSource.Contains("ResolveFirstSliceCompany", StringComparison.Ordinal),
+        "strategic expedition world armies should materialize all strategic participants from Strategic Management definitions");
+    AssertTrue(
+        rootSource.Contains("编制", StringComparison.Ordinal),
+        "expedition panel should present the selected strategic corps as read-only information");
     AssertTrue(
         !rootSource.Contains("WorldExpeditionIssued army={army.ArmyId} intent={intent} target={targetSiteId}\");\n        if (intent == WorldArmyIntent.AssaultSite)", StringComparison.Ordinal) &&
         !rootSource.Contains("进入战前部署", StringComparison.Ordinal),
         "assault expedition should not bypass world travel immediately after the world army is created");
     AssertTrue(
-        rootSource.Contains("WorldArmyIntent.AssaultSite => $\"已从{sourceName}派出{expeditionText}进攻{targetText}。\"", StringComparison.Ordinal),
+        rootSource.Contains("WorldArmyIntent.AssaultSite =>", StringComparison.Ordinal),
         "assault expedition should clearly issue an attack order instead of entering battle immediately");
     AssertTrue(
+        !rootSource.Contains("_expeditionService.TryCreateExpedition(", StringComparison.Ordinal) &&
+        !rootSource.Contains("AttachDefaultCorpsToHeroExpedition", StringComparison.Ordinal) &&
         !rootSource.Contains("选择出征英雄和小兵", StringComparison.Ordinal),
-        "first slice expedition player text should not ask for troop composition editing");
+        "first slice expedition player text should not ask for troop composition editing or use legacy garrison expedition creation");
 }
 
 internal static void StrategicWorldExpeditionTargetingAcceptsLeftClickTarget()
@@ -117,13 +139,14 @@ internal static void StrategicWorldExpeditionTargetingAcceptsLeftClickTarget()
         selectSiteIndex > issueIndex,
         "expedition target mode should let left-click choose the target before ordinary site selection consumes the click");
     AssertTrue(
-        rootSource.Contains("左键或右键场域", StringComparison.Ordinal),
+        rootSource.Contains("左键或右键确认目标", StringComparison.Ordinal),
         "expedition target prompt should tell players that left-click also confirms the target");
 }
 
 internal static void WorldSiteRootGatesBattleStartBehindDeployment()
 {
     string rootSource = ReadWorldSiteRootSource();
+    string presentationSource = ReadWorldSitePresentationSource();
 
     AssertTrue(
         rootSource.Contains("EnterBattlePreparation", StringComparison.Ordinal),
@@ -182,11 +205,11 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("Preparation can start runtime directly after the player confirms deployment", StringComparison.Ordinal),
         "runtime activation should own the preparation-to-battle UI transition so the deployment roster closes after start battle");
     AssertTrue(
-        rootSource.Contains("runtimeEvent.HasMovementCells", StringComparison.Ordinal) &&
-        rootSource.Contains("runtimeEvent.ToGridX", StringComparison.Ordinal) &&
-        rootSource.Contains("runtimeEvent.ToGridY", StringComparison.Ordinal) &&
-        !rootSource.Contains("TryResolveRuntimeVisualPathStep", StringComparison.Ordinal) &&
-        !rootSource.Contains("MovementRangeFinder.FindReachableCells", StringComparison.Ordinal),
+        presentationSource.Contains("runtimeEvent.HasMovementCells", StringComparison.Ordinal) &&
+        presentationSource.Contains("runtimeEvent.ToGridX", StringComparison.Ordinal) &&
+        presentationSource.Contains("runtimeEvent.ToGridY", StringComparison.Ordinal) &&
+        !presentationSource.Contains("TryResolveRuntimeVisualPathStep", StringComparison.Ordinal) &&
+        !presentationSource.Contains("MovementRangeFinder.FindReachableCells", StringComparison.Ordinal),
         "runtime event playback should consume authoritative runtime cells instead of presentation pathfinding");
 }
 
@@ -259,6 +282,7 @@ internal static void WorldSiteBattleRuntimeHeroSkillSubmitsHeroCastCommand()
 {
     string rootSource = ReadWorldSiteRootSource();
     string pressBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeSkillPress(");
+    string requestFactoryBody = ExtractMethodBody(ReadWorldSitePresentationSource(), "internal static CommandRequest BuildHeroSkillCommandRequest(");
 
     AssertTrue(
         rootSource.Contains("HeroSkillCommandIds.FirstSliceHeroSkillId", StringComparison.Ordinal),
@@ -272,10 +296,10 @@ internal static void WorldSiteBattleRuntimeHeroSkillSubmitsHeroCastCommand()
         "hero skill button should enter tactical pause and target picking instead of submitting a targeted skill without a target");
     AssertTrue(
         rootSource.Contains("BuildBattleRuntimeHeroSkillCommandRequest", StringComparison.Ordinal) &&
-        rootSource.Contains("Channel = CommandChannel.Hero", StringComparison.Ordinal) &&
-        rootSource.Contains("Kind = CommandKind.CastSkill", StringComparison.Ordinal) &&
-        rootSource.Contains("SkillId = skillId", StringComparison.Ordinal) &&
-        rootSource.Contains("TargetActorId = targetActorId", StringComparison.Ordinal),
+        requestFactoryBody.Contains("Channel = CommandChannel.Hero", StringComparison.Ordinal) &&
+        requestFactoryBody.Contains("Kind = CommandKind.CastSkill", StringComparison.Ordinal) &&
+        requestFactoryBody.Contains("SkillId = skillId", StringComparison.Ordinal) &&
+        requestFactoryBody.Contains("TargetActorId = targetActorId", StringComparison.Ordinal),
         "hero skill target click should build a CommandRequest through the hero cast-skill channel with the selected target");
     AssertTrue(
         rootSource.Contains("_activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand", StringComparison.Ordinal) &&
@@ -287,6 +311,7 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
 {
     string root = ProjectRoot();
     string rootSource = ReadWorldSiteRootSource();
+    string presentationSource = ReadWorldSitePresentationSource();
     string siteScene = File.ReadAllText(Path.Combine(
         root,
         "scenes",
@@ -316,9 +341,9 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
     AssertTrue(
         rootSource.Contains("RefreshBattleRuntimeHeroFrame", StringComparison.Ordinal) &&
         rootSource.Contains("SelectBattleRuntimeCommandGroup", StringComparison.Ordinal) &&
-        rootSource.Contains("ResolveBattleRuntimeGroupKey", StringComparison.Ordinal) &&
-        rootSource.Contains("SourceKind", StringComparison.Ordinal) &&
-        rootSource.Contains("SourceId", StringComparison.Ordinal),
+        presentationSource.Contains("ResolveGroupKey", StringComparison.Ordinal) &&
+        presentationSource.Contains("SourceKind", StringComparison.Ordinal) &&
+        presentationSource.Contains("SourceId", StringComparison.Ordinal),
         "battle runtime hero frame should group request forces by their shared source so a hero and attached corps select together.");
     AssertTrue(
         rootSource.Contains("SetCommandSelectionByEntityIds", StringComparison.Ordinal) &&
@@ -835,7 +860,7 @@ internal static void BattlePreparationSupportsDraggingOnHostileSites()
         rootSource.Contains("SyncBattlePreparationRequestPlacements(request)", StringComparison.Ordinal),
         "start battle should sync dragged deployment placements back into the battle request");
     AssertTrue(
-        rootSource.Contains("SyncBattlePreparationRequestPlacement(placementId, movedPlacement)", StringComparison.Ordinal),
+        rootSource.Contains("_battlePreparationDeploymentDragController.SyncRequestPlacement(placementId, movedPlacement)", StringComparison.Ordinal),
         "dropping an existing battle-preparation unit should sync the matching request placement before the UI rebuilds");
     AssertTrue(
         rootSource.Contains("CanLaunchPreparedBattle", StringComparison.Ordinal) &&
@@ -1223,18 +1248,19 @@ internal static void BattlePreparationLaunchExcludesReserveGroupsBeforeRuntime()
 
 internal static void BattlePreparationMapDragUsesRequestBackedPlacements()
 {
-    string rootSource = ReadWorldSiteRootSource();
-    string interactionSource = ReadWorldSiteRootSource();
+    string presentationSource = ReadWorldSitePresentationSource();
+    string interactionSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteInteraction.cs"));
 
     AssertTrue(
-        rootSource.Contains("BattlePreparationPlacementDragContext", StringComparison.Ordinal) &&
-        rootSource.Contains("TryResolveBattlePreparationDragContext", StringComparison.Ordinal),
+        presentationSource.Contains("BattlePreparationPlacementDragContext", StringComparison.Ordinal) &&
+        presentationSource.Contains("BattlePreparationDeploymentDragController", StringComparison.Ordinal) &&
+        interactionSource.Contains("_battlePreparationDeploymentDragController.TryResolveDragContext", StringComparison.Ordinal),
         "battle preparation map drag should resolve placement metadata from the battle request as well as site placements");
     AssertTrue(
-        interactionSource.Contains("TryMoveBattlePreparationPlacement", StringComparison.Ordinal),
+        interactionSource.Contains("_battlePreparationDeploymentDragController.TryMovePlacement", StringComparison.Ordinal),
         "dropping a battle-preparation map entity should update request-backed placements without requiring a WorldSiteState placement row");
     AssertTrue(
-        interactionSource.Contains("dragContext.FootprintSize", StringComparison.Ordinal) &&
+        presentationSource.Contains("FootprintSize = _resolveForceFootprintSize(force)", StringComparison.Ordinal) &&
         interactionSource.Contains("dragContext.ForceId", StringComparison.Ordinal) &&
         interactionSource.Contains("dragContext.ForceIndex", StringComparison.Ordinal),
         "map drag preview, validation, and occupancy should use the dragged request force footprint and self identity");
@@ -1242,18 +1268,18 @@ internal static void BattlePreparationMapDragUsesRequestBackedPlacements()
 
 internal static void BattlePreparationMapDragUsesSameDeploymentZoneRestrictionForBothSides()
 {
-    string rootSource = ReadWorldSiteRootSource();
-    string interactionSource = ReadWorldSiteRootSource();
+    string presentationSource = ReadWorldSitePresentationSource();
+    string interactionSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteInteraction.cs"));
 
     AssertTrue(
-        rootSource.Contains("ShouldRestrictBattlePreparationDeploymentZone", StringComparison.Ordinal),
+        presentationSource.Contains("ShouldRestrictDeploymentZone", StringComparison.Ordinal),
         "battle preparation should make deployment-zone restriction an explicit side-aware rule");
     AssertTrue(
-        interactionSource.Contains("ShouldRestrictBattlePreparationDeploymentZone(dragContext)", StringComparison.Ordinal) &&
+        interactionSource.Contains("BattlePreparationDeploymentDragController.ShouldRestrictDeploymentZone(dragContext)", StringComparison.Ordinal) &&
         interactionSource.Contains("IsBattlePreparationFootprintDeployable", StringComparison.Ordinal),
         "map drag should route both sides through the same authored deployment-zone validation");
     AssertTrue(
-        !rootSource.Contains("dragContext.FallbackFaction != BattleFaction.Enemy", StringComparison.Ordinal),
+        !presentationSource.Contains("dragContext.FallbackFaction != BattleFaction.Enemy", StringComparison.Ordinal),
         "enemy deployment map drags should not bypass authored DeploymentZone markers");
 }
 }

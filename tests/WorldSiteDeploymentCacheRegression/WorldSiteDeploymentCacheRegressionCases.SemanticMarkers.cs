@@ -233,7 +233,7 @@ internal static void BattlePreparationObjectiveSelectionUsesCompactMarkerBackedT
 {
     string root = ProjectRoot();
     string siteSources = ReadWorldSiteRootSource();
-    string planningSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleObjectivePlanningHud.cs"));
+    string planningSource = ReadWorldSitePresentationSource();
     string previewSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleObjectiveMapPreview.cs"));
     string thumbnailSourcePath = Path.Combine(root, "src", "Presentation", "World", "Sites", "BattlePreparationObjectiveThumbnail.cs");
     string thumbnailScenePath = Path.Combine(root, "scenes", "world", "ui", "BattlePreparationObjectiveThumbnail.tscn");
@@ -256,7 +256,7 @@ internal static void BattlePreparationObjectiveSelectionUsesCompactMarkerBackedT
         !planningSource.Contains(".GroupBy(marker => marker.MarkerId", StringComparison.Ordinal),
         "the tactical thumbnail should show each deployment marker instance, including duplicate-id player/enemy zones, while only target regions are selectable");
     AssertTrue(
-        planningSource.Contains("_activeGridMap.TopSurfacePositions", StringComparison.Ordinal) &&
+        planningSource.Contains("activeGridMap.TopSurfacePositions", StringComparison.Ordinal) &&
         planningSource.Contains("BattleGridTerrainQueries.IsWater", StringComparison.Ordinal) &&
         previewSource.Contains("WaterColor", StringComparison.Ordinal) &&
         previewSource.Contains("LandColor", StringComparison.Ordinal),

@@ -36,18 +36,21 @@ public partial class BattleUnitRoot : Node2D
 
     private readonly Dictionary<BattleEntity, BattleIntentMarker> _intentMarkers = new();
     private readonly Dictionary<BattleEntity, BattleActionCue> _actionCues = new();
-    private readonly HashSet<BattleEntity> _hitOutlinedEntities = new();
     private readonly HashSet<BattleEntity> _commandSelectedEntities = new();
     private readonly HashSet<BattleEntity> _attackTargetPreviewedEntities = new();
     private readonly HashSet<BattleEntity> _defeatedEntities = new();
     private readonly HashSet<BattleEntity> _pendingDefeatedPresentations = new();
     private readonly List<TaskCompletionSource<bool>> _defeatedPresentationWaiters = new();
+    private BattleUnitHitFeedbackPresenter _hitFeedbackPresenter;
     private TryResolveCellGlobalPosition _tryResolveCellGlobalPosition;
     private TryResolveFootprintGlobalPosition _tryResolveFootprintGlobalPosition;
     private ApplyEntityRenderSort _applyEntityRenderSort;
     private bool _battlePresentationPaused;
 
     public bool HasPendingDefeatedPresentations => _pendingDefeatedPresentations.Count > 0;
+
+    private BattleUnitHitFeedbackPresenter HitFeedbackPresenter =>
+        _hitFeedbackPresenter ??= new BattleUnitHitFeedbackPresenter(this, () => DamageNumberGlobalOffset, WaitSeconds);
 
     public override void _Ready()
     {
@@ -61,7 +64,8 @@ public partial class BattleUnitRoot : Node2D
         ClearAllActionCues();
         ClearCommandSelection();
         ClearAttackTargetPreview();
-        SetHitOutlines(_hitOutlinedEntities.ToArray(), visible: false);
+        _hitFeedbackPresenter?.ClearHitOutlines();
+        ClearThunderMarkPresentations();
         _pendingDefeatedPresentations.Clear();
         CompleteDefeatedPresentationWaiters();
     }
@@ -179,8 +183,6 @@ public partial class BattleUnitRoot : Node2D
         }
 
         BattleDamageEvent[] damageEvents = result.DamageEvents?.ToArray() ?? System.Array.Empty<BattleDamageEvent>();
-        BattleHitFeedbackPlan feedbackPlan = BattleHitFeedbackPlanner.Build(damageEvents);
-        BattleEntity[] hitTargets = ResolveHitFeedbackTargets(damageEvents, feedbackPlan).ToArray();
         BattleEntity actor = result.Actor;
         UnitAnimationComponent actorAnimation = actor?.GetComponent<UnitAnimationComponent>();
         if (result.Target != null)
@@ -205,7 +207,7 @@ public partial class BattleUnitRoot : Node2D
             actorAnimation?.PlayAttack();
         }
         actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Attack);
-        _ = PlayHitFeedbackAsync(actor, damageEvents, hitTargets, result.Kind == BattleActionKind.Ability);
+        _ = HitFeedbackPresenter.PlayAsync(actor, damageEvents, result.Kind == BattleActionKind.Ability);
         return actionDurationSeconds;
     }
 
@@ -298,114 +300,6 @@ public partial class BattleUnitRoot : Node2D
         }
     }
 
-    private async Task PlayHitFeedbackAsync(
-        BattleEntity actor,
-        IReadOnlyList<BattleDamageEvent> damageEvents,
-        IReadOnlyList<BattleEntity> outlinedTargets,
-        bool playSkillImpactFx,
-        double? impactDelaySecondsOverride = null)
-    {
-        UnitAnimationComponent actorAnimation = actor?.GetComponent<UnitAnimationComponent>();
-        double impactDelaySeconds = impactDelaySecondsOverride ?? actorAnimation?.ResolveAttackImpactDelaySeconds() ?? 0;
-
-        await WaitSeconds(impactDelaySeconds);
-        actor?.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.AttackImpact);
-        BattleSkillImpactFeedbackPlayer.PlaySkillImpacts(damageEvents, playSkillImpactFx);
-        PlayHitOutlinePulses(outlinedTargets);
-        SpawnDamageNumbers(damageEvents);
-    }
-
-    private IEnumerable<BattleEntity> ResolveHitFeedbackTargets(
-        IReadOnlyList<BattleDamageEvent> damageEvents,
-        BattleHitFeedbackPlan plan)
-    {
-        if (damageEvents == null || plan == null)
-        {
-            yield break;
-        }
-
-        foreach (string targetId in plan.OutlinedTargetIds)
-        {
-            BattleEntity target = damageEvents
-                .FirstOrDefault(damage => damage != null && damage.TargetId == targetId)
-                ?.Target;
-            if (target != null && GodotObject.IsInstanceValid(target))
-            {
-                yield return target;
-            }
-        }
-    }
-
-    private void SetHitOutlines(IReadOnlyList<BattleEntity> targets, bool visible)
-    {
-        if (targets == null)
-        {
-            return;
-        }
-
-        foreach (BattleEntity target in targets)
-        {
-            if (target == null || !GodotObject.IsInstanceValid(target))
-            {
-                continue;
-            }
-
-            target.GetComponent<BattleUnitPresentationComponent>()?.SetHitOutlineVisible(visible);
-            if (visible)
-            {
-                _hitOutlinedEntities.Add(target);
-            }
-            else
-            {
-                _hitOutlinedEntities.Remove(target);
-            }
-        }
-    }
-
-    private static void PlayHitOutlinePulses(IReadOnlyList<BattleEntity> targets)
-    {
-        if (targets == null)
-        {
-            return;
-        }
-
-        foreach (BattleEntity target in targets)
-        {
-            if (target == null || !GodotObject.IsInstanceValid(target))
-            {
-                continue;
-            }
-
-            target.GetComponent<BattleUnitPresentationComponent>()?.PlayHitOutlinePulse();
-        }
-    }
-
-    private void SpawnDamageNumbers(IReadOnlyList<BattleDamageEvent> damageEvents)
-    {
-        if (damageEvents == null)
-        {
-            return;
-        }
-
-        foreach (BattleDamageEvent damage in damageEvents.Where(damage => damage?.DamageApplied > 0))
-        {
-            if (damage.Target == null || !GodotObject.IsInstanceValid(damage.Target))
-            {
-                continue;
-            }
-
-            BattleDamageNumber number = GameUiSceneFactory.CreateBattleDamageNumber(nameof(BattleUnitRoot));
-            if (number == null)
-            {
-                continue;
-            }
-
-            AddChild(number);
-            number.GlobalPosition = damage.Target.GlobalPosition + DamageNumberGlobalOffset;
-            number.Play($"-{damage.DamageApplied}");
-        }
-    }
-
     private async Task WaitSeconds(double seconds)
     {
         if (!IsInsideTree() || seconds <= 0)
@@ -462,6 +356,10 @@ public partial class BattleUnitRoot : Node2D
 
     public void PlayIdleForActiveEntities()
     {
+        // Runtime has ended or left battle presentation; queued visual movement
+        // lanes must stop before survivors settle, or move loops can outlive combat.
+        ClearMovementPresentationState();
+
         int count = 0;
         foreach (BattleEntity entity in GetEntitiesSnapshot())
         {

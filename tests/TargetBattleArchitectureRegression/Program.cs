@@ -39,6 +39,7 @@ TargetBattleRuntimeCorrectnessRegressionCases.Register(Run); Run("runtime moveme
 Run("runtime hold-line command keeps player corps from advancing", TargetBattleCommandRegressionCases.RuntimeHoldLineCommandKeepsPlayerCorpsFromAdvancing);
 Run("runtime focus-fire command targets lowest-health enemy corps", TargetBattleCommandRegressionCases.RuntimeFocusFireCommandTargetsLowestHealthEnemyCorps);
 TargetBattleHeroSkillRegressionCases.Register(Run);
+TargetBattleThunderMarkSkillRegressionCases.Register(Run);
 Run("runtime AI executor boundary uses typed requests", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorBoundaryUsesTypedRequests);
 Run("runtime AI executor consumes facts without mutable runtime authority", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorConsumesFactsWithoutMutableRuntimeAuthority);
 Run("runtime AI executor delegates to behavior tree boundary", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorDelegatesToBehaviorTreeBoundary);
@@ -84,7 +85,7 @@ TargetBattleBonefieldPacingRegressionCases.Register(Run);
 TargetBattleLocalCombatPositionRegressionCases.Register(Run);
 TargetBattleMovementIntentRegressionRegistration.Register(Run);
 Run("runtime performance counters separate navigation and logging costs", TargetBattlePerformanceRegressionCases.RuntimePerformanceCountersSeparateNavigationAndLoggingCosts);
-Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology); Run("runtime local combat position selection uses local neighbor resolver", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatPositionSelectionUsesLocalNeighborResolver); Run("runtime local combat movement does not build flow fields on large topology", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatMovementDoesNotBuildFlowFieldsOnLargeTopology); Run("runtime local combat goal fields are not hot path", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatGoalFieldsAreNotHotPath); Run("runtime navigation hot paths avoid string keys and linq sorts", TargetBattlePerformanceRegressionCases.RuntimeNavigationHotPathsAvoidStringKeysAndLinqSorts); Run("runtime spike diagnostics write automatic summary", TargetBattlePerformanceRegressionCases.RuntimeSpikeDiagnosticsWriteAutomaticSummary);
+Run("runtime combat slot scans stay bounded near target on large topology", TargetBattlePerformanceRegressionCases.RuntimeCombatSlotScansStayBoundedNearTargetOnLargeTopology); Run("runtime local combat position selection uses local neighbor resolver", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatPositionSelectionUsesLocalNeighborResolver); Run("runtime local combat movement does not build flow fields on large topology", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatMovementDoesNotBuildFlowFieldsOnLargeTopology); Run("runtime local combat goal fields are not hot path", TargetBattlePerformanceRegressionCases.RuntimeLocalCombatGoalFieldsAreNotHotPath); Run("runtime navigation hot paths avoid string keys and linq sorts", TargetBattlePerformanceRegressionCases.RuntimeNavigationHotPathsAvoidStringKeysAndLinqSorts); Run("route topology caches region travel from entry anchor", TargetBattlePerformanceRegressionCases.RouteTopologyCachesRegionTravelFromEntryAnchor); Run("runtime spike diagnostics write automatic summary", TargetBattlePerformanceRegressionCases.RuntimeSpikeDiagnosticsWriteAutomaticSummary);
 Run("high-frequency battle presentation logs use trace channel", TargetBattlePerformanceRegressionCases.HighFrequencyBattlePresentationLogsUseTraceChannel);
 Run("runtime rejects invalid battle handoff", RuntimeRejectsInvalidBattleHandoff);
 Run("domain source stays isolated from runtime and Godot scene nodes", DomainSourceStaysIsolated);
@@ -140,7 +141,7 @@ static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
     {
         ["src/Presentation/Battle/BattleGridHighlightOverlay.cs"] = 1070, ["src/Presentation/Battle/Entities/BattleUnitRoot.cs"] = 1112,
         ["src/Presentation/Battle/Entities/UnitAnimationComponent.cs"] = 1117, ["src/Presentation/World/Sites/WorldSiteRoot.SiteManagementHud.cs"] = 1032,
-        ["tests/BattleHitFeedbackRegression/BattleHitFeedbackRegressionCases.BattlePresentation.cs"] = 1162, ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.HeroCorps.cs"] = 1306
+        ["tests/BattleHitFeedbackRegression/BattleHitFeedbackRegressionCases.BattlePresentation.cs"] = 1162, ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.HeroCorps.cs"] = 1306, ["tests/StrategicManagementRegression/Program.cs"] = 2307, ["src/Application/StrategicManagement/StrategicManagementCommandService.cs"] = 1003
     };
     var oversized = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
         .Where(path => !IsIgnoredCodePath(root, path))

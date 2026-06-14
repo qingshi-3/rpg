@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.StrategicBattleBridge;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
@@ -28,9 +30,7 @@ public partial class StrategicWorldRoot
         _selectedSiteId = army.TargetSiteId;
         if (!CanBuildAssaultBattleForSite(army.TargetSiteId))
         {
-            army.Status = WorldArmyStatus.Idle;
-            army.Intent = WorldArmyIntent.None;
-            army.ClearNavigationPath();
+            _armyCommandService.ResetUnsupportedAssault(army);
             _worldClockPaused = false;
             StrategicWorldDefinitionQueries queries = new(Definition);
             WorldSiteDefinition siteDefinition = queries.GetSite(army.TargetSiteId);
@@ -40,15 +40,45 @@ public partial class StrategicWorldRoot
             return true;
         }
 
+        string returnScenePath = string.IsNullOrWhiteSpace(SceneFilePath)
+            ? "res://scenes/world/StrategicWorldRoot.tscn"
+            : SceneFilePath;
+        StrategicBattleBridgeService strategicBattleBridge = null;
+        StrategicBattleSession strategicBattleSession = null;
+        if (!string.IsNullOrWhiteSpace(army.StrategicExpeditionId))
+        {
+            StrategicManagementRuntime.EnsureInitialized();
+            strategicBattleBridge = new StrategicBattleBridgeService(StrategicManagementRuntime.Definitions);
+            StrategicBattleSessionResult bridgeSessionResult = strategicBattleBridge.CreateSession(
+                StrategicManagementRuntime.State,
+                army.StrategicExpeditionId,
+                returnScenePath,
+                SiteScenePath);
+            if (!bridgeSessionResult.Success)
+            {
+                _armyCommandService.ResetUnsupportedAssault(army);
+                StrategicManagementRuntime.Commands.CancelExpedition(
+                    StrategicManagementRuntime.State,
+                    army.StrategicExpeditionId,
+                    bridgeSessionResult.FailureReason);
+                _worldClockPaused = false;
+                StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(bridgeSessionResult.FailureReason);
+                GameLog.Warn(
+                    nameof(StrategicWorldRoot),
+                    $"Strategic battle bridge rejected army={army.ArmyId} expedition={army.StrategicExpeditionId} reason={bridgeSessionResult.FailureReason}");
+                RefreshAll();
+                return true;
+            }
+
+            strategicBattleSession = bridgeSessionResult.Session;
+        }
+
         PendingBattleLaunchRollback rollback = CaptureBattleLaunchRollbackForSite(army.TargetSiteId);
         if (State.SiteStates.TryGetValue(army.TargetSiteId, out WorldSiteState site))
         {
             _siteModeTransitions.EnterWartime(site, State.WorldTick, "assault_army_arrived", army.ArmyId);
         }
 
-        string returnScenePath = string.IsNullOrWhiteSpace(SceneFilePath)
-            ? "res://scenes/world/StrategicWorldRoot.tscn"
-            : SceneFilePath;
         BattleStartRequest request = _battleRequestBuilder.BuildAssaultBonefieldRequest(
             State,
             Definition,
@@ -56,6 +86,36 @@ public partial class StrategicWorldRoot
             SiteScenePath,
             army.ArmyId);
         StrategicWorldRuntime.LastNotice = "玩家进攻部队已抵达，进入攻占战。";
+        if (strategicBattleBridge != null)
+        {
+            StrategicBattleActiveContextResult activeContextResult = strategicBattleBridge.CreateActiveContext(
+                StrategicManagementRuntime.State,
+                strategicBattleSession,
+                request);
+            if (!activeContextResult.Success)
+            {
+                _armyCommandService.ResetUnsupportedAssault(army);
+                StrategicManagementRuntime.Commands.CancelExpedition(
+                    StrategicManagementRuntime.State,
+                    army.StrategicExpeditionId,
+                    activeContextResult.FailureReason);
+                _worldClockPaused = false;
+                StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(activeContextResult.FailureReason);
+                GameLog.Warn(
+                    nameof(StrategicWorldRoot),
+                    $"Strategic battle active context rejected army={army.ArmyId} expedition={army.StrategicExpeditionId} reason={activeContextResult.FailureReason}");
+                RefreshAll();
+                return true;
+            }
+
+            if (!TryEnterBattle(activeContextResult.Context, rollback))
+            {
+                RefreshAll();
+            }
+
+            return true;
+        }
+
         if (!TryEnterBattle(request, rollback))
         {
             RefreshAll();
@@ -106,6 +166,7 @@ public partial class StrategicWorldRoot
         }
 
         _pendingBattleRollback = CaptureBattleLaunchRollback(request, transitionEvents);
+        _pendingStrategicBattleActiveContext = null;
         BeginBattleAnnouncement(request);
         return true;
     }
@@ -118,6 +179,23 @@ public partial class StrategicWorldRoot
         }
 
         _pendingBattleRollback = rollback ?? CaptureBattleLaunchRollback(request, null);
+        _pendingStrategicBattleActiveContext = null;
+        BeginBattleAnnouncement(request);
+        return true;
+    }
+
+    private bool TryEnterBattle(StrategicBattleActiveContext activeContext, PendingBattleLaunchRollback rollback)
+    {
+        BattleStartRequest request = activeContext?.CompatibilityRequest;
+        if (request == null)
+        {
+            return false;
+        }
+
+        // The request remains the temporary presentation adapter for the battle gate,
+        // while the active context is the scene-transition authority.
+        _pendingBattleRollback = rollback ?? CaptureBattleLaunchRollback(request, null);
+        _pendingStrategicBattleActiveContext = activeContext;
         BeginBattleAnnouncement(request);
         return true;
     }
@@ -257,7 +335,7 @@ public partial class StrategicWorldRoot
         }
 
         string joinedArmyIds = string.Join(",", blockedArmyIds);
-        StrategicWorldRuntime.LastNotice = $"发现未配置攻占战的进攻状态，世界推进已暂停：{joinedArmyIds}";
+        StrategicWorldRuntime.LastNotice = $"发现未配置攻占战的进攻状态，大地图时间已暂停：{joinedArmyIds}";
         GameLog.Error(nameof(StrategicWorldRoot), $"UnsupportedPlayerAssaultArmiesBlocked armies={joinedArmyIds}");
         return true;
     }
@@ -287,7 +365,7 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        _preBattleDialog.Title = "战前情报";
+        _preBattleDialog.Title = "触发战斗";
         _preBattleDialog.DialogText = BuildPreBattleText(_pendingBattleRequest);
         _activeBattleGateDialog = "prebattle";
         _preBattleDialog.PopupCentered(new Vector2I(560, 460));
@@ -356,7 +434,9 @@ public partial class StrategicWorldRoot
     private void LaunchPendingBattle()
     {
         BattleStartRequest request = _pendingBattleRequest;
+        StrategicBattleActiveContext activeContext = _pendingStrategicBattleActiveContext;
         _pendingBattleRequest = null;
+        _pendingStrategicBattleActiveContext = null;
         _activeBattleGateDialog = "";
         if (request == null)
         {
@@ -366,6 +446,7 @@ public partial class StrategicWorldRoot
         SceneTransitionResult transition = _sceneTransitionRouter.EnterBattlePreparation(new SceneTransitionBattleRequest
         {
             Request = request,
+            ActiveContext = activeContext,
             OnSuccess = ClearPendingBattleLaunchRollback,
             RollbackOnFailure = RollbackPendingBattleLaunch
         });
@@ -452,6 +533,15 @@ public partial class StrategicWorldRoot
             return (playerArmy.WorldPosition + enemyArmy.WorldPosition) / 2.0f;
         }
 
+        StrategicWorldDefinitionQueries queries = new(Definition);
+        WorldSiteDefinition targetSite = queries.GetSite(request.TargetSiteId);
+        // Assault confirmation is anchored to the hostile site. The source army is
+        // only the movement adapter and may stop at an approach point near the site.
+        if (request.BattleKind == BattleKind.AssaultSite && targetSite != null)
+        {
+            return targetSite.MapPosition;
+        }
+
         if (!string.IsNullOrWhiteSpace(request.SourceArmyId) &&
             State.ArmyStates.TryGetValue(request.SourceArmyId, out WorldArmyState sourceArmy))
         {
@@ -464,8 +554,6 @@ public partial class StrategicWorldRoot
             return targetArmy.WorldPosition;
         }
 
-        StrategicWorldDefinitionQueries queries = new(Definition);
-        WorldSiteDefinition targetSite = queries.GetSite(request.TargetSiteId);
         if (targetSite != null)
         {
             return targetSite.MapPosition;

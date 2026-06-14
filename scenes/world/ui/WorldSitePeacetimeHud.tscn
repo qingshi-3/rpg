@@ -162,7 +162,7 @@ anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 24.0
 offset_top = -116.0
-offset_right = 620.0
+offset_right = 920.0
 offset_bottom = -24.0
 grow_horizontal = 1
 grow_vertical = 0
@@ -180,6 +180,11 @@ theme_override_constants/margin_bottom = 8
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
+
+[node name="BattleRuntimeHeroSelectorList" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
+custom_minimum_size = Vector2(252, 62)
+layout_mode = 2
+theme_override_constants/separation = 6
 
 [node name="BattleRuntimeHeroAvatar" type="PanelContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
 custom_minimum_size = Vector2(56, 56)

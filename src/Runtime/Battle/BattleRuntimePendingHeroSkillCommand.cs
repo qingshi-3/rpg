@@ -7,6 +7,11 @@ internal sealed class BattleRuntimePendingHeroSkillCommand
     public string SourceActorId { get; init; } = "";
     public string SkillId { get; init; } = "";
     public string TargetActorId { get; init; } = "";
+    public bool HasTargetGrid { get; init; }
+    public int TargetGridX { get; init; }
+    public int TargetGridY { get; init; }
+    public int TargetGridHeight { get; init; }
+    public string SelectedSpatialMarkId { get; init; } = "";
     public int LockedTargetGridX { get; init; }
     public int LockedTargetGridY { get; init; }
     public int LockedTargetGridHeight { get; init; }

@@ -3,8 +3,11 @@ using System.Diagnostics;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
+using Rpg.Definitions.StrategicManagement;
 using Rpg.Definitions.World;
+using Rpg.Domain.StrategicManagement;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Entities;
@@ -73,7 +76,7 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(_selectedSiteId) || !State.SiteStates.TryGetValue(_selectedSiteId, out WorldSiteState site))
+        if (string.IsNullOrWhiteSpace(_selectedSiteId))
         {
             _selectedSiteId = "";
             HideWorldDetailSections();
@@ -82,68 +85,194 @@ public partial class StrategicWorldRoot
 
         SetSiteDetailSectionsVisible(true);
         WorldSiteDefinition definition = queries.GetSite(_selectedSiteId);
-        List<string> detailLines = new()
-        {
-            definition.Description,
-            ""
-        };
-        detailLines.AddRange(new[]
-        {
-            $"状态：{GetControlStateLabel(site.ControlState)}",
-            $"模式：{GetSiteModeLabel(site.SiteMode)}",
-            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}",
-            $"受损：{site.DamageLevel}"
-        });
 
-        _siteTitleLabel.Text = $"{definition.DisplayName}  ·  {GetSiteKindLabel(definition.SiteKind)}";
-        _siteBodyLabel.Text = string.Join("\n", detailLines);
+        // Large-map detail consumes Strategic Management read models. Legacy WorldSiteState
+        // remains map/scene scaffolding until later slices, but it is not management truth here.
+        StrategicManagementRuntime.EnsureInitialized();
+        if (!StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(_selectedSiteId, out string locationId))
+        {
+            BindUnmappedStrategicLocationDetail(definition);
+            return;
+        }
+
+        StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildLocationDashboard(
+            StrategicManagementIds.FactionPlayer,
+            locationId);
+        StrategicLocationDashboardViewModel location = dashboard.SelectedLocation ?? new StrategicLocationDashboardViewModel();
+        StrategicCityManagementViewModel city = dashboard.SelectedCity ?? new StrategicCityManagementViewModel();
+
+        string title = string.IsNullOrWhiteSpace(location.DisplayName)
+            ? definition?.DisplayName ?? _selectedSiteId
+            : location.DisplayName;
+        string kind = string.IsNullOrWhiteSpace(location.KindDisplayName)
+            ? "战略地点"
+            : location.KindDisplayName;
+
+        _siteTitleLabel.Text = $"{title}  ·  {kind}";
+        _siteBodyLabel.Text = BuildStrategicLocationBody(definition, location, city);
 
         ClearChildren(_facilityList);
-        if (site.Facilities.Count == 0)
+        AddStrategicFacilityLines(_facilityList, location, city);
+
+        ClearChildren(_garrisonList);
+        AddStrategicCorpsLines(_garrisonList, location, city);
+    }
+
+    private void BindUnmappedStrategicLocationDetail(WorldSiteDefinition definition)
+    {
+        string title = definition?.DisplayName ?? _selectedSiteId;
+        _siteTitleLabel.Text = $"{title}  ·  战略经营未配置";
+        _siteBodyLabel.Text = string.Join(
+            "\n",
+            string.IsNullOrWhiteSpace(definition?.Description) ? "该大地图地点还没有战略经营配置。" : definition.Description,
+            "",
+            "该地点暂时只保留地图展示，不显示旧设施或驻军事实。");
+
+        ClearChildren(_facilityList);
+        AddMutedLine(_facilityList, "等待战略经营地点配置。");
+
+        ClearChildren(_garrisonList);
+        AddMutedLine(_garrisonList, "等待战略经营编制配置。");
+    }
+
+    private static string BuildStrategicLocationBody(
+        WorldSiteDefinition definition,
+        StrategicLocationDashboardViewModel location,
+        StrategicCityManagementViewModel city)
+    {
+        List<string> detailLines = new();
+        if (!string.IsNullOrWhiteSpace(definition?.Description))
         {
-            AddMutedLine(_facilityList, "无");
+            detailLines.Add(definition.Description);
+            detailLines.Add("");
+        }
+
+        detailLines.Add($"控制状态：{FormatStrategicText(location?.ControlStateDisplayName, "未知")}");
+        detailLines.Add($"所属势力：{FormatStrategicFactionId(location?.OwnerFactionId)}");
+        detailLines.Add($"来源权限：{FormatStrategicText(location?.SourcePermissionDisplayText, "无")}");
+        detailLines.Add($"大地图时间产出：{FormatStrategicText(location?.ProductionDisplayText, "无")}");
+
+        if (location?.CanManageCity == true)
+        {
+            int creatableTemplates = city?.MusterTemplates?.Count(template => template.CanCreate) ?? 0;
+            int totalTemplates = city?.MusterTemplates?.Count ?? 0;
+            int corpsCount = city?.CorpsInstances?.Count ?? 0;
+            detailLines.Add("");
+            detailLines.Add($"城市底色：{FormatStrategicText(city?.CityIdentityDisplayName, "未配置")}");
+            detailLines.Add($"设施槽：{city?.FacilitySlotsUsed ?? 0}/{city?.FacilitySlotsTotal ?? 0}");
+            detailLines.Add($"可创建编制：{creatableTemplates}/{totalTemplates}");
+            detailLines.Add($"已有编制：{corpsCount}");
         }
         else
         {
-            foreach (FacilityInstance facility in site.Facilities)
-            {
-                FacilityDefinition facilityDefinition = queries.GetFacility(facility.FacilityId);
-                string extra = facility.FacilityId == StrategicWorldIds.FacilityMine
-                    ? $"  占用{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} {facility.AssignedPopulation}  产出 {StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} +2/世界步"
-                    : facility.FacilityId == StrategicWorldIds.FacilityDefenseTower
-                        ? "  防守 +3  塔支援 1 次"
-                        : "";
-                AddMutedLine(_facilityList, $"{facilityDefinition?.DisplayName ?? facility.FacilityId}  {GetFacilityStateLabel(facility.State)}{extra}");
-            }
+            detailLines.Add("");
+            detailLines.Add("城市经营：该地点不开放城市经营。");
         }
 
-        ClearChildren(_garrisonList);
-        AddSiteGarrisonLines(_garrisonList, site);
+        return string.Join("\n", detailLines);
     }
 
-    private void AddSiteGarrisonLines(VBoxContainer list, WorldSiteState site)
+    private void AddStrategicFacilityLines(
+        VBoxContainer list,
+        StrategicLocationDashboardViewModel location,
+        StrategicCityManagementViewModel city)
     {
         if (list == null)
         {
             return;
         }
 
-        if (site?.Garrison == null || site.Garrison.Count == 0)
+        if (location?.CanManageCity == true)
         {
-            AddMutedLine(list, "无");
-        }
-        else
-        {
-            foreach (GarrisonState garrison in site.Garrison)
+            if (city?.BuiltFacilities == null || city.BuiltFacilities.Count == 0)
             {
-                AddMutedLine(list, $"{GetUnitLabel(garrison.UnitTypeId)} x{garrison.Count}");
+                AddMutedLine(list, "当前城市还没有已建设施。");
+                return;
             }
+
+            foreach (StrategicBuiltFacilityViewModel facility in city.BuiltFacilities)
+            {
+                AddMutedLine(list, $"{facility.DisplayName}    槽位 {facility.SlotCost}");
+            }
+
+            return;
+        }
+
+        AddMutedLine(list, "非城市地点没有城市设施。");
+        if (location?.ProductionPerWorldTimePulse?.Count > 0)
+        {
+            AddMutedLine(list, $"大地图时间产出：{location.ProductionDisplayText}");
+        }
+
+        if (location?.SourcePermissionTags?.Count > 0)
+        {
+            AddMutedLine(list, $"来源权限：{location.SourcePermissionDisplayText}");
         }
     }
 
-    private bool TryRefreshStaleSiteDetail(StrategicWorldDefinitionQueries queries, WorldSiteDefinition definition)
+    private void AddStrategicCorpsLines(
+        VBoxContainer list,
+        StrategicLocationDashboardViewModel location,
+        StrategicCityManagementViewModel city)
     {
-        return false;
+        if (list == null)
+        {
+            return;
+        }
+
+        if (location?.CanManageCity != true)
+        {
+            AddMutedLine(list, "该地点不管理城市编制。");
+            return;
+        }
+
+        if (city?.CorpsInstances == null || city.CorpsInstances.Count == 0)
+        {
+            AddMutedLine(list, "当前城市还没有编制实例。");
+            return;
+        }
+
+        foreach (StrategicCorpsInstanceViewModel corps in city.CorpsInstances)
+        {
+            string assignment = string.IsNullOrWhiteSpace(corps.AssignedHeroId)
+                ? ""
+                : $"    英雄 {corps.AssignedHeroId}";
+            AddMutedLine(
+                list,
+                $"{corps.DisplayName}    强度 {corps.Strength}/100    等级 {corps.Level}    装备 {corps.EquipmentLevel}    状态 {FormatStrategicCorpsStatus(corps.Status)}{assignment}");
+        }
+    }
+
+    private static string FormatStrategicText(string text, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(text) ? fallback : text;
+    }
+
+    private static string FormatStrategicFactionId(string factionId)
+    {
+        return factionId switch
+        {
+            StrategicManagementIds.FactionPlayer => "玩家势力",
+            StrategicManagementIds.FactionEnemy => "敌对势力",
+            "" => "未知",
+            null => "未知",
+            _ => factionId
+        };
+    }
+
+    private static string FormatStrategicCorpsStatus(StrategicCorpsInstanceStatus status)
+    {
+        return status switch
+        {
+            StrategicCorpsInstanceStatus.Garrisoned => "驻扎",
+            StrategicCorpsInstanceStatus.AssignedToHero => "已分配",
+            StrategicCorpsInstanceStatus.Expedition => "远征",
+            StrategicCorpsInstanceStatus.Recovering => "恢复中",
+            StrategicCorpsInstanceStatus.Routed => "溃散",
+            StrategicCorpsInstanceStatus.Scattered => "散失",
+            StrategicCorpsInstanceStatus.Rebuilding => "重建中",
+            _ => "未知"
+        };
     }
 
     private bool TryRefreshOpportunityDetail(StrategicWorldDefinitionQueries queries)
@@ -171,7 +300,7 @@ public partial class StrategicWorldRoot
             Description = definition?.Description ?? "临时出现的野外机会。",
             StatusText = GetOpportunityStatusLabel(opportunity.Status),
             SpawnPointText = spawnPoint?.DisplayName ?? opportunity.SpawnPointId,
-            RemainingText = $"{remainingTicks} 世界步",
+            RemainingText = $"{remainingTicks} 次大地图结算",
             RewardText = BuildOpportunityRewardText(queries, definition)
         });
         return true;
@@ -224,7 +353,7 @@ public partial class StrategicWorldRoot
         float remainingDistance = army.WorldPosition.DistanceTo(army.Destination);
         double movementSpeed = System.Math.Max(1.0, army.MoveSpeed * WorldClockSpeedMultipliers[_worldClockSpeedIndex]);
         double etaSeconds = System.Math.Ceiling(remainingDistance / movementSpeed);
-        return $"敌军行军中  预计 {etaSeconds:0}s 抵达";
+        return $"敌军行军中，预计 {etaSeconds:0}s 抵达";
     }
 
     private void RefreshActions()

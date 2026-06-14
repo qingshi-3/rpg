@@ -9,6 +9,15 @@ public sealed class BattleForceRequest
     public string SourceKind { get; set; } = "";
     public string SourceId { get; set; } = "";
     public string UnitDefinitionId { get; set; } = "";
+    // Migration bridge carrier only. Runtime snapshots consume copied values;
+    // this legacy request remains a removable scene-preparation adapter.
+    public string StrategicParticipantId { get; set; } = "";
+    public string StrategicHeroId { get; set; } = "";
+    public string StrategicHeroDefinitionId { get; set; } = "";
+    public string StrategicCorpsInstanceId { get; set; } = "";
+    public string StrategicCorpsDefinitionId { get; set; } = "";
+    public string StrategicSourceLocationId { get; set; } = "";
+    public int StrategicPreBattleCorpsStrength { get; set; }
     public int Count { get; set; }
     public int FootprintWidth { get; set; } = 1;
     public int FootprintHeight { get; set; } = 1;

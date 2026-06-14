@@ -101,6 +101,24 @@ public partial class BattleUnitRoot
         return 0;
     }
 
+    public void SnapEntityToSurface(BattleEntity entity, GridSurfacePosition surfacePosition)
+    {
+        GridOccupantComponent gridOccupant = entity?.GetComponent<GridOccupantComponent>();
+        if (gridOccupant == null)
+        {
+            return;
+        }
+
+        StopEntityMovement(entity, snapToLogicalGrid: false);
+        gridOccupant.SetSurfacePosition(surfacePosition);
+        if (TryResolveMovementGlobalPosition(gridOccupant, surfacePosition, out Vector2 globalPosition))
+        {
+            entity.GlobalPosition = globalPosition;
+            ApplyRenderSort(entity, surfacePosition);
+            entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
+        }
+    }
+
     private void ClearMovementPresentationState()
     {
         _movementLanes.Clear();

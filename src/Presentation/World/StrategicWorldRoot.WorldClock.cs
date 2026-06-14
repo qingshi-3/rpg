@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
@@ -83,8 +84,25 @@ public partial class StrategicWorldRoot
     private void AdvanceWorldClockTick()
     {
         WorldTickResult tickResult = _worldTickService.AdvanceWorldTick(State, Definition);
-        List<string> messages = new() { $"世界推进到 {tickResult.WorldTick}。" };
+        List<string> messages = new() { $"大地图结算完成：{tickResult.WorldTick}。" };
         messages.AddRange(tickResult.Messages);
+        // The legacy world clock still drives map cadence, but durable strategic
+        // elapsed-time effects belong to Strategic Management commands.
+        StrategicCommandResult strategicSettlement = StrategicManagementRuntime.SettleElapsedWorldTime(1);
+        if (strategicSettlement.Success)
+        {
+            if (strategicSettlement.Events.Any(item => item.Kind == "StrategicLocationProductionSettled"))
+            {
+                messages.Add("战略经营产出已结算。");
+            }
+        }
+        else
+        {
+            GameLog.Warn(
+                nameof(StrategicWorldRoot),
+                $"StrategicManagementSettlementSkipped reason={strategicSettlement.FailureReason}");
+        }
+
         StrategicWorldRuntime.LastNotice = string.Join("\n", messages);
         GameLog.Info(nameof(StrategicWorldRoot), $"WorldClockTick tick={State.WorldTick} paused={_worldClockPaused}");
         RefreshAll();
@@ -128,7 +146,7 @@ public partial class StrategicWorldRoot
             string blockedArmyId = result.NavigationBlockedArmyIds[0];
             WorldArmyState blockedArmy = State.ArmyStates.TryGetValue(blockedArmyId, out WorldArmyState army) ? army : null;
             _selectedSiteId = blockedArmy?.TargetSiteId ?? "";
-            StrategicWorldRuntime.LastNotice = result.Messages.Count > 0 ? string.Join("\n", result.Messages) : $"战略导航失败，世界推进已暂停：{blockedArmyId}";
+            StrategicWorldRuntime.LastNotice = result.Messages.Count > 0 ? string.Join("\n", result.Messages) : $"战略导航失败，大地图时间已暂停：{blockedArmyId}";
             GameLog.Error(nameof(StrategicWorldRoot), $"StrategicWorldPausedByNavigationBlocked armies={string.Join(",", result.NavigationBlockedArmyIds)}");
             RefreshAll();
             return true;
@@ -184,7 +202,7 @@ public partial class StrategicWorldRoot
         else
         {
             _worldClockPaused = !_worldClockPaused;
-            StrategicWorldRuntime.LastNotice = _worldClockPaused ? "世界时钟已暂停。" : "世界时钟继续推进。";
+            StrategicWorldRuntime.LastNotice = _worldClockPaused ? "大地图时间已暂停。" : "大地图时间继续运行。";
         }
 
         RefreshAll();
@@ -193,7 +211,7 @@ public partial class StrategicWorldRoot
     private void CycleWorldClockSpeed()
     {
         _worldClockSpeedIndex = (_worldClockSpeedIndex + 1) % WorldClockSpeedMultipliers.Length;
-        StrategicWorldRuntime.LastNotice = $"世界时钟速度 {WorldClockSpeedMultipliers[_worldClockSpeedIndex]:0}x。";
+        StrategicWorldRuntime.LastNotice = $"大地图时间速度 {WorldClockSpeedMultipliers[_worldClockSpeedIndex]:0}x。";
         RefreshAll();
     }
 
@@ -218,12 +236,12 @@ public partial class StrategicWorldRoot
                 : _worldClockPaused
                     ? "暂停"
                     : $"运行 {WorldClockSpeedMultipliers[_worldClockSpeedIndex]:0}x";
-        _worldClockLabel.Text = $"世界推进：{status}\n下一世界步：{System.Math.Ceiling(remaining):0}s";
+        _worldClockLabel.Text = $"大地图时间：{status}\n下次大地图结算：{System.Math.Ceiling(remaining):0}s";
 
         if (_worldClockToggleButton != null)
         {
             _worldClockToggleButton.Text = _worldClockPaused ? "继续" : "暂停";
-            _worldClockToggleButton.TooltipText = _worldClockPaused ? "继续世界推进" : "暂停世界推进";
+            _worldClockToggleButton.TooltipText = _worldClockPaused ? "继续大地图时间" : "暂停大地图时间";
         }
 
         if (_worldClockSpeedButton != null)

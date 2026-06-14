@@ -12,11 +12,7 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
 {
     internal static HashSet<string> BuildGroupEntityIds(IEnumerable<BattleForceRequest> forces)
     {
-        return (forces ?? System.Array.Empty<BattleForceRequest>())
-            .Where(force => !string.IsNullOrWhiteSpace(force?.ForceId))
-            .SelectMany(force => Enumerable.Range(1, System.Math.Max(0, force.Count))
-                .Select(index => $"{force.ForceId}:{index}"))
-            .ToHashSet(System.StringComparer.Ordinal);
+        return BattleRuntimeActorIdentity.BuildRuntimeCorpsActorIdSet(forces);
     }
 
     internal static BattleEntity ResolveSourceEntity(
@@ -108,6 +104,44 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
             : BattleFootprintCells.Enumerate(grid.Position, grid.FootprintWidth, grid.FootprintHeight);
     }
 
+    internal static bool IsTargetInRange(BattleEntity source, BattleEntity target, int range)
+    {
+        GridOccupantComponent sourceGrid = source?.GetComponent<GridOccupantComponent>();
+        GridOccupantComponent targetGrid = target?.GetComponent<GridOccupantComponent>();
+        if (sourceGrid == null ||
+            targetGrid == null ||
+            BattleRuleQueries.IsDefeated(source) ||
+            BattleRuleQueries.IsDefeated(target))
+        {
+            return false;
+        }
+
+        int normalizedRange = System.Math.Max(0, range);
+        int sourceWidth = BattleFootprintCells.NormalizeSize(sourceGrid.FootprintWidth);
+        int sourceHeight = BattleFootprintCells.NormalizeSize(sourceGrid.FootprintHeight);
+        int targetWidth = BattleFootprintCells.NormalizeSize(targetGrid.FootprintWidth);
+        int targetHeight = BattleFootprintCells.NormalizeSize(targetGrid.FootprintHeight);
+        int gapX = GetAxisGap(sourceGrid.GridX, sourceWidth, targetGrid.GridX, targetWidth);
+        int gapY = GetAxisGap(sourceGrid.GridY, sourceHeight, targetGrid.GridY, targetHeight);
+        return gapX + gapY <= normalizedRange;
+    }
+
+    internal static bool IsCellInRange(BattleEntity source, GridPosition cell, int range)
+    {
+        GridOccupantComponent sourceGrid = source?.GetComponent<GridOccupantComponent>();
+        if (sourceGrid == null || BattleRuleQueries.IsDefeated(source))
+        {
+            return false;
+        }
+
+        int normalizedRange = System.Math.Max(0, range);
+        int sourceWidth = BattleFootprintCells.NormalizeSize(sourceGrid.FootprintWidth);
+        int sourceHeight = BattleFootprintCells.NormalizeSize(sourceGrid.FootprintHeight);
+        int gapX = GetAxisGap(sourceGrid.GridX, sourceWidth, cell.X, 1);
+        int gapY = GetAxisGap(sourceGrid.GridY, sourceHeight, cell.Y, 1);
+        return gapX + gapY <= normalizedRange;
+    }
+
     private static bool TryResolveCorpsActorId(BattleEntity entity, out string actorId)
     {
         actorId = "";
@@ -129,12 +163,10 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
 
     private static HashSet<string> BuildPreferredSourceEntityIds(IEnumerable<BattleForceRequest> forces)
     {
-        return (forces ?? System.Array.Empty<BattleForceRequest>())
+        BattleForceRequest[] likelyHeroForces = (forces ?? System.Array.Empty<BattleForceRequest>())
             .Where(IsLikelyHeroForce)
-            .Where(force => !string.IsNullOrWhiteSpace(force.ForceId))
-            .SelectMany(force => Enumerable.Range(1, System.Math.Max(0, force.Count))
-                .Select(index => $"{force.ForceId}:{index}"))
-            .ToHashSet(System.StringComparer.Ordinal);
+            .ToArray();
+        return BattleRuntimeActorIdentity.BuildRuntimeCorpsActorIdSet(likelyHeroForces);
     }
 
     private static bool IsLikelyHeroForce(BattleForceRequest force)

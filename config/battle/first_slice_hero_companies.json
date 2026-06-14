@@ -22,7 +22,7 @@
 	  "heroUnit": "f1_elyxstormblade",
 	  "defaultCorpsUnit": "f1_radiantdragoon",
 	  "defaultCorpsCount": 3,
-	  "skillId": "first_slice_skill_whirling_break"
+	  "skillId": "first_slice_skill_thunder_tag_throw"
 	}
   ],
   "bonefieldRoster": [

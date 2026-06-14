@@ -501,14 +501,18 @@ public sealed class BattleRuntimeSession
                     ImpactDelaySeconds = System.Math.Max(0, skill?.ImpactDelaySeconds ?? 0),
                     RecoverySeconds = System.Math.Max(0, skill?.RecoverySeconds ?? 0),
                     CanInterruptBasicAttackWindup = skill?.CanInterruptBasicAttackWindup ?? true,
-                    CanCancelBasicAttackRecovery = skill?.CanCancelBasicAttackRecovery ?? false
+                    CanCancelBasicAttackRecovery = skill?.CanCancelBasicAttackRecovery ?? false,
+                    ReleasesWithoutOccupyingCaster = skill?.ReleasesWithoutOccupyingCaster ?? false
                 };
                 foreach (BattleSkillEffectSnapshot effect in skill?.Effects ?? Enumerable.Empty<BattleSkillEffectSnapshot>())
                 {
                     clone.Effects.Add(new BattleSkillEffectSnapshot
                     {
                         Kind = effect?.Kind ?? BattleSkillEffectKind.Damage,
-                        Amount = effect?.Amount ?? 0
+                        Amount = effect?.Amount ?? 0,
+                        DurationSeconds = System.Math.Max(0, effect?.DurationSeconds ?? 0),
+                        TickIntervalSeconds = System.Math.Max(0, effect?.TickIntervalSeconds ?? 0),
+                        Radius = System.Math.Max(0, effect?.Radius ?? 0)
                     });
                 }
 

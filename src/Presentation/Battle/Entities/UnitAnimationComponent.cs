@@ -448,7 +448,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return true;
         }
 
-        _animationPlayer.SpeedScale = ResolveAnimationPlayerSpeedScale(cue);
+        _animationPlayer.SpeedScale = UnitAnimationTimingPolicy.ResolveAnimationPlayerSpeedScale(cue, AttackSpeed);
         _animationPlayer.Play(animationName);
         HandleCueStarted(cue, animationName, ResolveAnimationPlayerAnimationSeconds(animationName, cue));
         GameLog.Trace(nameof(UnitAnimationComponent), $"Animation played entity={Entity?.EntityId} cue={cue} animation={animationName}");
@@ -513,7 +513,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         }
 
         StopAnimationPlayer();
-        ApplyAnimatedSpriteLoopMode(spriteFrames, spriteAnimationName, cue);
+        UnitAnimationTimingPolicy.ApplyAnimatedSpriteLoopMode(spriteFrames, spriteAnimationName, cue);
         var playbackTiming = ApplyAnimatedSpritePlaybackSpeed(animationName, cue, minimumTargetSeconds);
         if (!restart &&
             _animatedSprite.IsPlaying() &&
@@ -530,23 +530,6 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         return true;
     }
 
-    private static void ApplyAnimatedSpriteLoopMode(SpriteFrames spriteFrames, StringName animationName, string cue)
-    {
-        if (spriteFrames == null)
-        {
-            return;
-        }
-
-        if (cue is "attack" or "skill_cast" or "hit" or "defeated")
-        {
-            spriteFrames.SetAnimationLoop(animationName, false);
-        }
-        else if (cue is "idle" or "move")
-        {
-            spriteFrames.SetAnimationLoop(animationName, true);
-        }
-    }
-
     private void HandleCueStarted(string cue, string animationName, double authoredSeconds)
     {
         if (cue == "defeated")
@@ -556,14 +539,16 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return;
         }
 
-        if (!ShouldReturnToIdleAfterCue(cue))
+        if (!UnitAnimationTimingPolicy.ShouldReturnToIdleAfterCue(cue))
         {
             InvalidateOneShotReturn();
             return;
         }
 
         int version = InvalidateOneShotReturn();
-        double delaySeconds = authoredSeconds > 0 ? authoredSeconds + 0.05 : ResolveTargetSpriteSeconds(cue) + 0.05;
+        double delaySeconds = authoredSeconds > 0
+            ? authoredSeconds + 0.05
+            : UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds(cue, AnimationSet, AttackSpeed) + 0.05;
         QueueOneShotReturnToIdle(version, animationName, delaySeconds);
     }
 
@@ -605,7 +590,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return (0, 0, 0, 1f);
         }
 
-        double targetSeconds = ResolveTargetSpriteSeconds(cue, minimumTargetSeconds);
+        double targetSeconds = UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds(cue, minimumTargetSeconds, AnimationSet, AttackSpeed);
         bool shouldBalance = AnimationSet?.BalanceSpriteSpeedByFrameCount ?? true;
         float speedScale = ResolveBalancedSpriteSpeedScale(authoredSeconds, targetSeconds);
 
@@ -636,7 +621,9 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         if (!string.IsNullOrWhiteSpace(animationName) &&
             TryResolveAnimatedSpriteAnimationTiming(animationName, out _, out double authoredSeconds))
         {
-            float speedScale = ResolveBalancedSpriteSpeedScale(authoredSeconds, ResolveTargetSpriteSeconds(cue));
+            float speedScale = ResolveBalancedSpriteSpeedScale(
+                authoredSeconds,
+                UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds(cue, AnimationSet, AttackSpeed));
             return speedScale > 0 ? authoredSeconds / speedScale : authoredSeconds;
         }
 
@@ -648,36 +635,11 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             Animation animation = _animationPlayer.GetAnimation(animationName);
             if (animation != null && animation.Length > 0)
             {
-                return ScaleAnimationSecondsByAttackSpeed(animation.Length, cue);
+                return UnitAnimationTimingPolicy.ScaleAnimationSecondsByAttackSpeed(animation.Length, cue, AttackSpeed);
             }
         }
 
-        return ResolveTargetSpriteSeconds(cue);
-    }
-
-    private double ResolveTargetSpriteSeconds(string cue)
-    {
-        return ResolveTargetSpriteSeconds(cue, minimumTargetSeconds: 0);
-    }
-
-    private double ResolveTargetSpriteSeconds(string cue, double minimumTargetSeconds)
-    {
-        double targetSeconds = cue switch
-        {
-            "idle" => AnimationSet?.TargetIdleCycleSeconds ?? 2.0,
-            "move" => AnimationSet?.TargetMoveCycleSeconds ?? 0.55,
-            "attack" => AnimationSet?.TargetAttackSeconds ?? 1.2,
-            "skill_cast" => AnimationSet?.TargetSkillCastSeconds ?? 1.5,
-            "hit" => AnimationSet?.TargetHitSeconds ?? 0.48,
-            "defeated" => AnimationSet?.TargetDefeatedSeconds ?? 0.4,
-            _ => 0
-        };
-
-        return cue is "hit" or "defeated"
-            ? System.Math.Max(targetSeconds, minimumTargetSeconds)
-            : cue == "attack"
-                ? BattleAttackSpeedPolicy.ScaleTargetSeconds(targetSeconds, AttackSpeed)
-                : targetSeconds;
+        return UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds(cue, AnimationSet, AttackSpeed);
     }
 
     private bool PlayProceduralCue(string cue, bool restart, double minimumTargetSeconds = 0)
@@ -728,7 +690,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
                 break;
 
             case "skill_cast":
-                double skillCastSeconds = System.Math.Max(0.28, ResolveTargetSpriteSeconds("skill_cast"));
+                double skillCastSeconds = System.Math.Max(0.28, UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds("skill_cast", AnimationSet, AttackSpeed));
                 double castRiseSeconds = System.Math.Min(0.14, skillCastSeconds * 0.24);
                 double castReleaseSeconds = System.Math.Max(0.12, skillCastSeconds - castRiseSeconds);
                 _proceduralTween.TweenProperty(_visualRoot, "scale", new Vector2(1.22f, 1.22f), castRiseSeconds);
@@ -749,7 +711,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             case "defeated":
                 _proceduralTween.TweenProperty(_visualRoot, "rotation", 0.18f, 0.08);
                 _proceduralTween.TweenProperty(_visualRoot, "scale", new Vector2(0.86f, 0.86f), 0.08);
-                PlayDefeatedFade(ResolveDefeatedFadeSeconds(ResolveTargetSpriteSeconds("defeated", minimumTargetSeconds)));
+                PlayDefeatedFade(ResolveDefeatedFadeSeconds(UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds("defeated", minimumTargetSeconds, AnimationSet, AttackSpeed)));
                 break;
 
             default:
@@ -831,7 +793,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
     private double ResolveDefeatedFadeSeconds(double authoredSeconds)
     {
-        double targetSeconds = ResolveTargetSpriteSeconds("defeated", _defeatedMinimumDurationSeconds);
+        double targetSeconds = UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds("defeated", _defeatedMinimumDurationSeconds, AnimationSet, AttackSpeed);
         double fadeSeconds = authoredSeconds > 0 ? authoredSeconds : targetSeconds;
         return System.Math.Max(System.Math.Max(fadeSeconds, targetSeconds), _defeatedMinimumDurationSeconds);
     }
@@ -924,11 +886,6 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             : configuredName;
     }
 
-    private static bool ShouldReturnToIdleAfterCue(string cue)
-    {
-        return cue is "attack" or "skill_cast" or "hit";
-    }
-
     private bool IsCurrentAnimation(string animationName)
     {
         if (string.IsNullOrWhiteSpace(animationName))
@@ -970,21 +927,9 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         }
 
         double seconds = _animationPlayer.CurrentAnimationLength;
-        return seconds > 0 ? ScaleAnimationSecondsByAttackSpeed(seconds, cue) : 0;
-    }
-
-    private float ResolveAnimationPlayerSpeedScale(string cue)
-    {
-        return cue == "attack"
-            ? (float)BattleAttackSpeedPolicy.Normalize(AttackSpeed)
-            : 1f;
-    }
-
-    private double ScaleAnimationSecondsByAttackSpeed(double seconds, string cue)
-    {
-        return cue == "attack"
-            ? BattleAttackSpeedPolicy.ScaleTargetSeconds(seconds, AttackSpeed)
-            : seconds;
+        return seconds > 0
+            ? UnitAnimationTimingPolicy.ScaleAnimationSecondsByAttackSpeed(seconds, cue, AttackSpeed)
+            : 0;
     }
 
     private async Task CompleteDefeatedAfterFallbackDelay(int version, double seconds)

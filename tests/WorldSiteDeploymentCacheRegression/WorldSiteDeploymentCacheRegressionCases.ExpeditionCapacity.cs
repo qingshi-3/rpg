@@ -1,4 +1,5 @@
 using Godot;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
@@ -46,30 +47,31 @@ internal static void FirstSliceExpeditionCapacityAllowsMultipleSeparateArmies()
 internal static void FirstSliceExpeditionDraftKeepsHeroCompanySelectionsIndependent()
 {
     string rootSource = ReadStrategicWorldRootSource();
-    string adjustBody = ExtractMethodBody(rootSource, "private void AdjustExpeditionUnitCount(");
-    string attachBody = ExtractMethodBody(rootSource, "private static void AttachDefaultCorpsToHeroExpedition(");
+    string beginBody = ExtractMethodBody(rootSource, "private void BeginExpeditionDraft()");
+    string createBody = ExtractMethodBody(rootSource, "private bool TryCreateExpedition(string targetSiteId, Vector2 destination, WorldArmyIntent intent)");
+    string availableBody = ExtractMethodBody(rootSource, "private IReadOnlyList<StrategicHeroCompanyViewModel> GetAvailableExpeditionHeroCompanies(");
 
     AssertTrue(
-        !adjustBody.Contains("_expeditionUnitCounts.Remove(otherHeroUnitId)", StringComparison.Ordinal),
-        "selecting one hero company in the expedition draft should not clear other selected hero companies");
+        beginBody.Contains("GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)", StringComparison.Ordinal),
+        "expedition draft should read dispatchable hero companies through the Strategic Management helper");
     AssertTrue(
-        !rootSource.Contains("BuildSelectedExpeditionUnitBatches", StringComparison.Ordinal),
-        "a multi-company draft should create one strategic expedition army instead of splitting into one-company armies");
+        availableBody.Contains("StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(", StringComparison.Ordinal) &&
+        availableBody.Contains("StrategicManagementRuntime.BuildDashboard(", StringComparison.Ordinal) &&
+        availableBody.Contains("dashboard.SelectedCity.HeroCompanies", StringComparison.Ordinal) &&
+        !availableBody.Contains("site.Garrison", StringComparison.Ordinal),
+        "available expedition companies should resolve the selected strategic city and must not read legacy garrison");
     AssertTrue(
-        rootSource.Contains("Dictionary<string, int> selectedUnits = BuildSelectedExpeditionUnits();", StringComparison.Ordinal),
-        "expedition creation should pass the whole selected-company unit set into one strategic army");
+        createBody.Contains("StrategicManagementRuntime.Commands.CreateExpedition(", StringComparison.Ordinal) &&
+        createBody.Contains("_strategicExpeditionWorldArmyAdapter.CreateWorldArmy(", StringComparison.Ordinal),
+        "expedition creation should mutate Strategic Management first and then create a movement adapter army");
     AssertTrue(
-        rootSource.Contains("HasAvailablePlayerExpeditionCapacity(State, out _, out _)", StringComparison.Ordinal) &&
-        !rootSource.Contains("HasAvailablePlayerExpeditionCapacity(State, expeditionUnitBatches.Count", StringComparison.Ordinal),
-        "target confirmation should reserve one expedition slot for the carried multi-company army");
+        rootSource.Contains("HashSet<string> _expeditionHeroIds", StringComparison.Ordinal) &&
+        !rootSource.Contains("Dictionary<string, int> _expeditionUnitCounts", StringComparison.Ordinal),
+        "expedition draft selection should store selected strategic hero ids instead of old unit counts");
     AssertTrue(
-        attachBody.Contains("foreach", StringComparison.Ordinal) &&
-        attachBody.Contains("TryGetCompanyByHeroUnit", StringComparison.Ordinal) &&
-        !attachBody.Contains("GarrisonState hero = army.GarrisonUnits.FirstOrDefault", StringComparison.Ordinal),
-        "default corps attachment should loop over every selected hero company in the army");
-    AssertTrue(
-        rootSource.Contains("BuildSelectedDefaultCorpsText", StringComparison.Ordinal),
-        "the expedition panel should summarize default corps for every selected hero company");
+        !rootSource.Contains("_expeditionService.TryCreateExpedition(", StringComparison.Ordinal) &&
+        !rootSource.Contains("AttachDefaultCorpsToHeroExpedition", StringComparison.Ordinal),
+        "large-map expedition formation must not use legacy garrison expedition creation or default-corps injection");
 }
 
 private static bool CreateExpedition(

@@ -18,7 +18,8 @@ public sealed class WorldGarrisonMutationService
         string factionId,
         string sourceKind,
         string sourceId,
-        int morale = 50)
+        int morale = 50,
+        string strategicParticipantId = "")
     {
         if (site == null || string.IsNullOrWhiteSpace(unitTypeId) || count <= 0)
         {
@@ -29,7 +30,8 @@ public sealed class WorldGarrisonMutationService
             item.UnitTypeId == unitTypeId &&
             SameOptionalValue(item.FactionId, factionId) &&
             SameOptionalValue(item.SourceKind, sourceKind) &&
-            SameOptionalValue(item.SourceId, sourceId));
+            SameOptionalValue(item.SourceId, sourceId) &&
+            SameOptionalValue(item.StrategicParticipantId, strategicParticipantId));
         if (garrison == null)
         {
             site.Garrison.Add(new GarrisonState
@@ -39,6 +41,7 @@ public sealed class WorldGarrisonMutationService
                 FactionId = factionId ?? "",
                 SourceKind = sourceKind ?? "",
                 SourceId = sourceId ?? "",
+                StrategicParticipantId = strategicParticipantId ?? "",
                 Morale = morale
             });
         }
@@ -58,6 +61,11 @@ public sealed class WorldGarrisonMutationService
             if (!string.IsNullOrWhiteSpace(sourceId))
             {
                 garrison.SourceId = sourceId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(strategicParticipantId))
+            {
+                garrison.StrategicParticipantId = strategicParticipantId;
             }
         }
 

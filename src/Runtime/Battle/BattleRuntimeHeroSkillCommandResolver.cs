@@ -9,7 +9,7 @@ using Rpg.Runtime.Battle.Navigation;
 
 namespace Rpg.Runtime.Battle;
 
-internal static class BattleRuntimeHeroSkillCommandResolver
+internal static partial class BattleRuntimeHeroSkillCommandResolver
 {
     internal static string NormalizeSkillId(string skillId)
     {
@@ -24,7 +24,8 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         string battleId,
         int runtimeTick,
         double runtimeTimeSeconds,
-        CommandRequest request)
+        CommandRequest request,
+        BattleNavigationGraph navigationGraph = null)
     {
         int startIndex = stream?.Events.Count ?? 0;
         string reason = ValidateSubmission(
@@ -32,7 +33,9 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             stream,
             battleId,
             runtimeTick,
+            runtimeTimeSeconds,
             request,
+            navigationGraph,
             out string commandId,
             out BattleSkillSnapshot skill,
             out BattleRuntimeActor caster,
@@ -57,17 +60,33 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             return BuildResult(stream, startIndex, accepted: false, reason);
         }
 
-        string skillKey = BuildSkillKey(request.BattleGroupId, skill.SkillId);
+        if (!IsActiveSkillLocked(caster))
+        {
+            SupersedeIdleCasterPendingCommands(
+                state,
+                stream,
+                battleId,
+                runtimeTick,
+                runtimeTimeSeconds,
+                caster,
+                commandId);
+        }
+
         state.PendingHeroSkillCommands.Add(new BattleRuntimePendingHeroSkillCommand
         {
             CommandId = commandId,
             BattleGroupId = request.BattleGroupId ?? "",
             SourceActorId = caster.ActorId ?? "",
             SkillId = skill.SkillId,
-            TargetActorId = target.ActorId ?? "",
-            LockedTargetGridX = target.GridX,
-            LockedTargetGridY = target.GridY,
-            LockedTargetGridHeight = target.GridHeight,
+            TargetActorId = target?.ActorId ?? "",
+            HasTargetGrid = request.HasTargetGrid,
+            TargetGridX = request.TargetGridX,
+            TargetGridY = request.TargetGridY,
+            TargetGridHeight = request.TargetGridHeight,
+            SelectedSpatialMarkId = request.SelectedSpatialMarkId ?? "",
+            LockedTargetGridX = target?.GridX ?? request.TargetGridX,
+            LockedTargetGridY = target?.GridY ?? request.TargetGridY,
+            LockedTargetGridHeight = target?.GridHeight ?? request.TargetGridHeight,
             AcceptedAtSeconds = runtimeTimeSeconds
         });
 
@@ -77,17 +96,17 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             BattleId = battleId ?? "",
             BattleGroupId = request.BattleGroupId ?? "",
             ActorId = caster.ActorId ?? "",
-            TargetId = target.ActorId ?? "",
+            TargetId = target?.ActorId ?? "",
             SourceCommandId = commandId,
             SourceDefinitionId = skill.SkillId,
             Kind = BattleEventKind.CommandAccepted,
             ReasonCode = skill.SkillId,
             RuntimeTick = runtimeTick,
             RuntimeTimeSeconds = runtimeTimeSeconds,
-            HasTargetCells = true,
-            TargetGridX = target.GridX,
-            TargetGridY = target.GridY,
-            TargetGridHeight = target.GridHeight
+            HasTargetCells = target != null || request.HasTargetGrid,
+            TargetGridX = target?.GridX ?? request.TargetGridX,
+            TargetGridY = target?.GridY ?? request.TargetGridY,
+            TargetGridHeight = target?.GridHeight ?? request.TargetGridHeight
         });
         return BuildResult(stream, startIndex, accepted: true, skill.SkillId);
     }
@@ -97,7 +116,9 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         BattleEventStream stream,
         string battleId,
         int runtimeTick,
+        double runtimeTimeSeconds,
         CommandRequest request,
+        BattleNavigationGraph navigationGraph,
         out string commandId,
         out BattleSkillSnapshot skill,
         out BattleRuntimeActor caster,
@@ -161,15 +182,72 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             return "skill_target_required";
         }
 
-        target = ResolveSubmittedTarget(state, caster, request.TargetActorId);
+        if (skill.TargetingMode == BattleSkillTargetingMode.TargetedCell &&
+            !request.HasTargetGrid)
+        {
+            return "skill_target_cell_required";
+        }
+
+        if (skill.TargetingMode == BattleSkillTargetingMode.TargetedActorOrCell &&
+            string.IsNullOrWhiteSpace(request.TargetActorId) &&
+            !request.HasTargetGrid)
+        {
+            return "skill_target_required";
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.TargetActorId))
+        {
+            target = ResolveSubmittedTarget(state, caster, request.TargetActorId);
+        }
+
         if (skill.TargetingMode == BattleSkillTargetingMode.TargetedActor && target == null)
         {
             return "skill_target_invalid";
         }
 
-        if (target != null && !IsTargetInRange(caster, target, skill.Range))
+        if (skill.TargetingMode == BattleSkillTargetingMode.TargetedActorOrCell &&
+            !string.IsNullOrWhiteSpace(request.TargetActorId) &&
+            target == null)
+        {
+            return "skill_target_invalid";
+        }
+
+        if ((skill.TargetingMode == BattleSkillTargetingMode.TargetedActor ||
+             skill.TargetingMode == BattleSkillTargetingMode.TargetedActorOrCell) &&
+            target != null &&
+            !IsTargetInRange(caster, target, skill.Range))
         {
             return "skill_target_out_of_range";
+        }
+
+        if (skill.TargetingMode == BattleSkillTargetingMode.TargetedActorOrCell &&
+            target == null &&
+            request.HasTargetGrid &&
+            !IsTargetCellInRange(caster, request.TargetGridX, request.TargetGridY, request.TargetGridHeight, skill.Range))
+        {
+            return "skill_target_out_of_range";
+        }
+
+        if (UsesThunderMarkTeleport(skill) &&
+            string.IsNullOrWhiteSpace(request.SelectedSpatialMarkId))
+        {
+            return "thunder_mark_selection_required";
+        }
+
+        if (UsesThunderMarkTeleport(skill) &&
+            !ValidateThunderMarkTeleportDestination(
+                state,
+                caster,
+                skill,
+                request.SelectedSpatialMarkId,
+                request.TargetGridX,
+                request.TargetGridY,
+                request.TargetGridHeight,
+                runtimeTimeSeconds,
+                navigationGraph,
+                out string teleportReason))
+        {
+            return teleportReason;
         }
 
         string requestedSkillKey = BuildSkillKey(request.BattleGroupId, skill.SkillId);
@@ -178,13 +256,53 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             return "hero_skill_already_used";
         }
 
-        if (state.PendingHeroSkillCommands.Any(command =>
-                string.Equals(BuildSkillKey(command.BattleGroupId, command.SkillId), requestedSkillKey, System.StringComparison.Ordinal)))
+        return "";
+    }
+
+    private static bool IsActiveSkillLocked(BattleRuntimeActor caster)
+    {
+        return caster?.Phase is BattleRuntimeActorPhase.SkillCasting or BattleRuntimeActorPhase.SkillRecovery;
+    }
+
+    private static void SupersedeIdleCasterPendingCommands(
+        BattleRuntimeState state,
+        BattleEventStream stream,
+        string battleId,
+        int runtimeTick,
+        double runtimeTimeSeconds,
+        BattleRuntimeActor caster,
+        string replacingCommandId)
+    {
+        if (state?.PendingHeroSkillCommands == null || caster == null)
         {
-            return "hero_skill_already_pending";
+            return;
         }
 
-        return "";
+        foreach (BattleRuntimePendingHeroSkillCommand pending in state.PendingHeroSkillCommands
+                     .Where(command => string.Equals(command.SourceActorId ?? "", caster.ActorId ?? "", System.StringComparison.Ordinal))
+                     .ToArray())
+        {
+            state.PendingHeroSkillCommands.Remove(pending);
+            stream?.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:tick_{runtimeTick}:{pending.CommandId}:superseded_by:{replacingCommandId}",
+                BattleId = battleId ?? "",
+                BattleGroupId = pending.BattleGroupId ?? "",
+                ActorId = caster.ActorId ?? "",
+                TargetId = pending.TargetActorId ?? "",
+                SourceCommandId = pending.CommandId ?? "",
+                SourceDefinitionId = pending.SkillId ?? "",
+                SourceActionId = replacingCommandId ?? "",
+                Kind = BattleEventKind.CommandInterrupted,
+                ReasonCode = "skill_intent_superseded",
+                RuntimeTick = runtimeTick,
+                RuntimeTimeSeconds = runtimeTimeSeconds,
+                HasTargetCells = pending.HasTargetGrid,
+                TargetGridX = pending.TargetGridX,
+                TargetGridY = pending.TargetGridY,
+                TargetGridHeight = pending.TargetGridHeight
+            });
+        }
     }
 
     private static bool IsSkillAllowedForCasterGroup(
@@ -220,6 +338,7 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         string battleId,
         int runtimeTick,
         double runtimeTimeSeconds,
+        BattleNavigationGraph navigationGraph,
         IReadOnlySet<string> actionBlockedActorIds = null,
         ISet<string> waitingActionActorIds = null)
     {
@@ -229,7 +348,16 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             return startedActionActorIds;
         }
 
-        AdvanceActiveSkillActions(state, stream, battleId, runtimeTick, runtimeTimeSeconds);
+        AdvanceActiveSkillActions(state, stream, battleId, runtimeTick, runtimeTimeSeconds, navigationGraph);
+        foreach (BattleEvent channelEvent in BattleEffectResolver.AdvanceActiveChannels(
+                     state,
+                     battleId,
+                     runtimeTick,
+                     runtimeTimeSeconds))
+        {
+            stream.Add(channelEvent);
+        }
+
         if (state.PendingHeroSkillCommands.Count == 0)
         {
             return startedActionActorIds;
@@ -245,6 +373,7 @@ internal static class BattleRuntimeHeroSkillCommandResolver
                 runtimeTick,
                 runtimeTimeSeconds,
                 command,
+                navigationGraph,
                 actionBlockedActorIds,
                 waitingActionActorIds,
                 out string startedActorId);
@@ -267,7 +396,8 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         BattleEventStream stream,
         string battleId,
         int runtimeTick,
-        double runtimeTimeSeconds)
+        double runtimeTimeSeconds,
+        BattleNavigationGraph navigationGraph)
     {
         // Skill actions are actor execution state; visible corps casters must
         // recover through the same clock as hidden hero-proxy compatibility casts.
@@ -284,7 +414,9 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             {
                 BattleSkillSnapshot skill = ResolveSkill(state, actor.CurrentSkillId);
                 BattleRuntimeActor target = ResolveActorById(state, actor.CurrentSkillTargetActorId);
-                if (skill == null || target == null || !IsValidLiveTarget(actor, target))
+                if (skill == null ||
+                    SkillRequiresLiveActorAtRelease(skill, actor.CurrentSkillTargetActorId) &&
+                    (target == null || !IsValidLiveTarget(actor, target)))
                 {
                     AddCommandFailed(
                         stream,
@@ -300,12 +432,12 @@ internal static class BattleRuntimeHeroSkillCommandResolver
                     continue;
                 }
 
-                ApplySkillEffects(state, stream, battleId, runtimeTick, runtimeTimeSeconds, actor, target, skill, actor.CurrentSkillSourceCommandId, actor.CurrentSkillActionId);
+                ApplySkillEffects(state, stream, battleId, runtimeTick, runtimeTimeSeconds, actor, target, skill, actor.CurrentSkillSourceCommandId, actor.CurrentSkillActionId, navigationGraph);
                 actor.CurrentSkillImpactApplied = true;
-                double recoverySeconds = System.Math.Max(0, skill.RecoverySeconds);
-                if (recoverySeconds > 0)
+                double postImpactLockSeconds = ResolvePostImpactSkillLockSeconds(state, actor, skill, runtimeTimeSeconds);
+                if (postImpactLockSeconds > 0)
                 {
-                    BattleRuntimeActorStateMachine.MarkSkillRecovery(actor, runtimeTimeSeconds, recoverySeconds);
+                    BattleRuntimeActorStateMachine.MarkSkillRecovery(actor, runtimeTimeSeconds, postImpactLockSeconds);
                 }
                 else
                 {
@@ -327,6 +459,7 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         int runtimeTick,
         double runtimeTimeSeconds,
         BattleRuntimePendingHeroSkillCommand command,
+        BattleNavigationGraph navigationGraph,
         IReadOnlySet<string> actionBlockedActorIds,
         ISet<string> waitingActionActorIds,
         out string startedActorId)
@@ -341,13 +474,15 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             return PendingSkillResolution.Completed;
         }
 
-        if (target == null || !IsValidLiveTarget(hero, target))
+        if (SkillRequiresLiveActorAtRelease(skill, command?.TargetActorId) &&
+            (target == null || !IsValidLiveTarget(hero, target)))
         {
             AddCommandFailed(stream, battleId, runtimeTick, runtimeTimeSeconds, hero, command?.TargetActorId ?? "", command?.CommandId ?? "", skill.SkillId, "skill_target_invalid_before_release");
             return PendingSkillResolution.Completed;
         }
 
         if (!CanStartSkillNow(
+                state,
                 hero,
                 skill,
                 runtimeTimeSeconds,
@@ -361,12 +496,17 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             return PendingSkillResolution.Waiting;
         }
 
-        StartSkillAction(state, stream, battleId, runtimeTick, runtimeTimeSeconds, hero, target, skill, command);
-        startedActorId = hero.ActorId ?? "";
+        bool consumedActorAction = StartSkillAction(state, stream, battleId, runtimeTick, runtimeTimeSeconds, hero, target, skill, command, navigationGraph);
+        if (consumedActorAction)
+        {
+            startedActorId = hero.ActorId ?? "";
+        }
+
         return PendingSkillResolution.Completed;
     }
 
     private static bool CanStartSkillNow(
+        BattleRuntimeState state,
         BattleRuntimeActor hero,
         BattleSkillSnapshot skill,
         double runtimeTimeSeconds,
@@ -377,6 +517,12 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         IReadOnlySet<string> actionBlockedActorIds,
         ISet<string> waitingActionActorIds)
     {
+        if (ReleasesImmediatelyWithoutOccupyingCaster(state, hero, skill, runtimeTimeSeconds) &&
+            hero.Phase is BattleRuntimeActorPhase.Moving or BattleRuntimeActorPhase.AnchoredDecision)
+        {
+            return true;
+        }
+
         if (actionBlockedActorIds?.Contains(hero?.ActorId ?? "") == true)
         {
             // Movement completion is a runtime action boundary. A queued skill may
@@ -429,7 +575,7 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         if (hero.Phase == BattleRuntimeActorPhase.SkillCasting ||
             hero.Phase == BattleRuntimeActorPhase.SkillRecovery)
         {
-            return false;
+            return CanInterruptActiveChannelWithSkill(state, hero, skill, runtimeTimeSeconds);
         }
 
         if (hero.Phase != BattleRuntimeActorPhase.AnchoredDecision &&
@@ -446,7 +592,7 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         return true;
     }
 
-    private static void StartSkillAction(
+    private static bool StartSkillAction(
         BattleRuntimeState state,
         BattleEventStream stream,
         string battleId,
@@ -455,57 +601,47 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         BattleRuntimeActor hero,
         BattleRuntimeActor target,
         BattleSkillSnapshot skill,
-        BattleRuntimePendingHeroSkillCommand command)
+        BattleRuntimePendingHeroSkillCommand command,
+        BattleNavigationGraph navigationGraph)
     {
         string actionId = $"{command.CommandId}:action:{skill.SkillId}";
         double impactDelaySeconds = System.Math.Max(0, skill.CastSeconds + skill.ImpactDelaySeconds);
+        double postImpactLockSeconds = ResolvePostImpactSkillLockSeconds(state, hero, skill, runtimeTimeSeconds);
+        if (ReleasesImmediatelyWithoutOccupyingCaster(state, hero, skill, runtimeTimeSeconds))
+        {
+            AddSkillUsed(stream, battleId, runtimeTick, runtimeTimeSeconds, hero, target, skill, command, actionId);
+            ApplySkillEffects(state, stream, battleId, runtimeTick, runtimeTimeSeconds, hero, target, skill, command.CommandId, actionId, navigationGraph, command);
+            return false;
+        }
+
         BattleRuntimeActorStateMachine.MarkSkillCasting(
             hero,
             actionId,
             skill.SkillId,
             command.CommandId,
-            target.ActorId,
+            target?.ActorId ?? "",
             runtimeTimeSeconds,
             impactDelaySeconds,
-            skill.RecoverySeconds);
+            postImpactLockSeconds);
 
-        stream.Add(new BattleEvent
-        {
-            EventId = $"{battleId}:tick_{runtimeTick}:{hero.ActorId}:skill:{target.ActorId}",
-            BattleId = battleId ?? "",
-            BattleGroupId = hero.BattleGroupId ?? "",
-            ActorId = hero.ActorId ?? "",
-            TargetId = target.ActorId ?? "",
-            SourceCommandId = command.CommandId ?? "",
-            SourceActionId = actionId,
-            SourceDefinitionId = skill.SkillId ?? "",
-            Kind = BattleEventKind.SkillUsed,
-            ReasonCode = skill.SkillId ?? "",
-            RuntimeTick = runtimeTick,
-            RuntimeTimeSeconds = runtimeTimeSeconds,
-            HasActorCells = true,
-            ActorGridX = hero.GridX,
-            ActorGridY = hero.GridY,
-            ActorGridHeight = hero.GridHeight,
-            HasTargetCells = true,
-            TargetGridX = target.GridX,
-            TargetGridY = target.GridY,
-            TargetGridHeight = target.GridHeight
-        });
+        AddSkillUsed(stream, battleId, runtimeTick, runtimeTimeSeconds, hero, target, skill, command, actionId);
 
         if (impactDelaySeconds <= 0.0001)
         {
-            ApplySkillEffects(state, stream, battleId, runtimeTick, runtimeTimeSeconds, hero, target, skill, command.CommandId, actionId);
+            ApplySkillEffects(state, stream, battleId, runtimeTick, runtimeTimeSeconds, hero, target, skill, command.CommandId, actionId, navigationGraph, command);
             hero.CurrentSkillImpactApplied = true;
-            if (skill.RecoverySeconds > 0)
+            postImpactLockSeconds = ResolvePostImpactSkillLockSeconds(state, hero, skill, runtimeTimeSeconds);
+            if (postImpactLockSeconds > 0)
             {
-                BattleRuntimeActorStateMachine.MarkSkillRecovery(hero, runtimeTimeSeconds, skill.RecoverySeconds);
+                BattleRuntimeActorStateMachine.MarkSkillRecovery(hero, runtimeTimeSeconds, postImpactLockSeconds);
             }
             else
             {
                 BattleRuntimeActorStateMachine.MarkAnchoredDecision(hero);
             }
         }
+
+        return true;
     }
 
     private static void ApplySkillEffects(
@@ -518,7 +654,9 @@ internal static class BattleRuntimeHeroSkillCommandResolver
         BattleRuntimeActor target,
         BattleSkillSnapshot skill,
         string sourceCommandId,
-        string sourceActionId)
+        string sourceActionId,
+        BattleNavigationGraph navigationGraph,
+        BattleRuntimePendingHeroSkillCommand command = null)
     {
         foreach (BattleSkillEffectSnapshot effect in skill.Effects)
         {
@@ -531,20 +669,30 @@ internal static class BattleRuntimeHeroSkillCommandResolver
                              SourceCommandId = sourceCommandId ?? "",
                              SourceActionId = sourceActionId ?? "",
                              SourceDefinitionId = skill.SkillId ?? "",
+                             State = state,
+                             NavigationGraph = navigationGraph,
                              Actor = hero,
-                             Target = target
+                             Target = target ?? new BattleRuntimeActor(),
+                             HasTargetGrid = command?.HasTargetGrid ?? false,
+                             TargetGridX = command?.TargetGridX ?? 0,
+                             TargetGridY = command?.TargetGridY ?? 0,
+                             TargetGridHeight = command?.TargetGridHeight ?? 0,
+                             SelectedSpatialMarkId = command?.SelectedSpatialMarkId ?? ""
                          },
                          new BattleEffectPayload
                          {
                              EffectKind = effect.Kind,
-                             Amount = effect.Amount
+                             Amount = effect.Amount,
+                             DurationSeconds = effect.DurationSeconds,
+                             TickIntervalSeconds = effect.TickIntervalSeconds,
+                             Radius = effect.Radius
                          }))
             {
                 stream.Add(effectEvent);
             }
         }
 
-        if (target.HitPoints <= 0)
+        if (target != null && target.HitPoints <= 0)
         {
             BattleRuntimeActorStateMachine.MarkDefeated(target);
         }
@@ -640,6 +788,92 @@ internal static class BattleRuntimeHeroSkillCommandResolver
             target,
             new BattleGridCoord(target.GridX, target.GridY, target.GridHeight)) <= normalizedRange;
     }
+
+    private static bool IsTargetCellInRange(BattleRuntimeActor hero, int x, int y, int height, int range)
+    {
+        if (hero == null || height != hero.GridHeight)
+        {
+            return false;
+        }
+
+        int normalizedRange = System.Math.Max(0, range);
+        int width = BattleActorFootprint.NormalizeSize(hero.FootprintWidth);
+        int heightSize = BattleActorFootprint.NormalizeSize(hero.FootprintHeight);
+        int dx = x < hero.GridX ? hero.GridX - x : x >= hero.GridX + width ? x - (hero.GridX + width - 1) : 0;
+        int dy = y < hero.GridY ? hero.GridY - y : y >= hero.GridY + heightSize ? y - (hero.GridY + heightSize - 1) : 0;
+        return dx + dy <= normalizedRange;
+    }
+
+    private static bool ReleasesImmediatelyWithoutOccupyingCaster(
+        BattleRuntimeState state,
+        BattleRuntimeActor actor,
+        BattleSkillSnapshot skill,
+        double runtimeTimeSeconds)
+    {
+        if (skill?.ReleasesWithoutOccupyingCaster != true)
+        {
+            return false;
+        }
+
+        // Current offhand support is for immediate projectile-like releases.
+        // Timed casts, recovery locks, and channels still need actor action state
+        // until Runtime has a separate delayed projectile/action scheduler.
+        double impactDelaySeconds = System.Math.Max(0, skill.CastSeconds + skill.ImpactDelaySeconds);
+        double lockSeconds = ResolvePostImpactSkillLockSeconds(state, actor, skill, runtimeTimeSeconds);
+        return impactDelaySeconds <= 0.0001 && lockSeconds <= 0.0001;
+    }
+
+    private static bool CanInterruptActiveChannelWithSkill(
+        BattleRuntimeState state,
+        BattleRuntimeActor actor,
+        BattleSkillSnapshot skill,
+        double runtimeTimeSeconds) =>
+        UsesThunderMarkTeleport(skill) &&
+        ResolveActiveChannelRemainingSeconds(state, actor, runtimeTimeSeconds) > 0.0001;
+
+    private static double ResolvePostImpactSkillLockSeconds(
+        BattleRuntimeState state,
+        BattleRuntimeActor actor,
+        BattleSkillSnapshot skill,
+        double runtimeTimeSeconds)
+    {
+        // Channeled hero skills are runtime action locks, not presentation-only effects:
+        // ordinary movement must stay blocked while the active damage window follows the caster.
+        double lockSeconds = System.Math.Max(0, skill?.RecoverySeconds ?? 0);
+        foreach (BattleSkillEffectSnapshot effect in skill?.Effects ?? Enumerable.Empty<BattleSkillEffectSnapshot>())
+        {
+            if (effect?.Kind == BattleSkillEffectKind.StartChanneledAreaDamage)
+            {
+                lockSeconds = System.Math.Max(lockSeconds, System.Math.Max(0, effect.DurationSeconds));
+            }
+        }
+
+        return System.Math.Max(lockSeconds, ResolveActiveChannelRemainingSeconds(state, actor, runtimeTimeSeconds));
+    }
+
+    private static double ResolveActiveChannelRemainingSeconds(
+        BattleRuntimeState state,
+        BattleRuntimeActor actor,
+        double runtimeTimeSeconds)
+    {
+        if (state?.ActiveChannels == null || actor == null || string.IsNullOrWhiteSpace(actor.ActorId))
+        {
+            return 0;
+        }
+
+        return state.ActiveChannels
+            .Where(channel =>
+                channel != null &&
+                string.Equals(channel.ActorId ?? "", actor.ActorId ?? "", System.StringComparison.Ordinal))
+            .Select(channel => channel.EndsAtSeconds - runtimeTimeSeconds)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
+    private static bool SkillRequiresLiveActorAtRelease(BattleSkillSnapshot skill, string targetActorId) =>
+        skill?.TargetingMode == BattleSkillTargetingMode.TargetedActor ||
+        skill?.TargetingMode == BattleSkillTargetingMode.TargetedActorOrCell &&
+        !string.IsNullOrWhiteSpace(targetActorId);
 
     private static void ResolveSkillRangeDiagnostic(
         BattleRuntimeActor caster,

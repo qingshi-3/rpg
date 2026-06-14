@@ -59,6 +59,7 @@ internal sealed partial class BattleRuntimeTickResolver
             battleId,
             tick,
             currentTimeSeconds,
+            navigationGraph,
             movementCompletedActorIds,
             skillWaitingAfterMovementActorIds);
         HashSet<string> skillConsumedActorIds = new(skillActionActorIds, System.StringComparer.Ordinal);

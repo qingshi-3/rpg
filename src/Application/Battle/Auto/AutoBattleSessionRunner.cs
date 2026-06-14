@@ -1,14 +1,13 @@
-using System;
+using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Application.Battle.Auto;
 
 public sealed class AutoBattleSessionRunner
 {
-    private readonly AutoBattleSimulation _simulation;
+    public const string FormalHandoffDisabledReason = "auto_battle_handoff_disabled_runtime_authority";
 
     public AutoBattleSessionRunner(AutoBattleSimulation simulation = null)
     {
-        _simulation = simulation ?? new AutoBattleSimulation();
     }
 
     public bool TryRunActiveBattle(
@@ -24,26 +23,12 @@ public sealed class AutoBattleSessionRunner
             return false;
         }
 
-        try
-        {
-            simulationResult = _simulation.RunToEnd(request);
-            BattleSessionResult sessionResult = BattleSessionHandoff.CompleteBattle(simulationResult.BattleResult);
-            if (sessionResult == null)
-            {
-                failureReason = "battle_handoff_completion_failed";
-                simulationResult = null;
-                return false;
-            }
-
-            return true;
-        }
-        catch (Exception exception)
-        {
-            simulationResult = null;
-            failureReason = string.IsNullOrWhiteSpace(exception.Message)
-                ? exception.GetType().Name
-                : exception.Message;
-            return false;
-        }
+        // Formal battle handoff belongs to the Runtime battle path. AutoBattleSimulation remains
+        // available only as isolated legacy simulation/report coverage, not as a competing runtime.
+        failureReason = FormalHandoffDisabledReason;
+        GameLog.Warn(
+            nameof(AutoBattleSessionRunner),
+            $"AutoBattleFormalHandoffRejected request={request.RequestId} reason={failureReason}");
+        return false;
     }
 }

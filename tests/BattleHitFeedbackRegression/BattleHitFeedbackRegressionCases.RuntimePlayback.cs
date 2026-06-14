@@ -28,10 +28,11 @@ internal static void BattleRuntimePlaybackDoesNotGloballyGateMovementOnAttackAni
         .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
         .OrderBy(path => path, StringComparer.Ordinal)
         .Select(File.ReadAllText));
+    string liveObservation = ReadBattleRuntimeLiveObservationSource();
     AssertTrue(
         runtime.Contains("AdvanceBattleGroupRuntimeOnLiveClockAsync", StringComparison.Ordinal) &&
-        runtime.Contains("ObserveRuntimeEventsOnPresentationAsync", StringComparison.Ordinal) &&
-        runtime.Contains("TrackActorAction", StringComparison.Ordinal),
+        runtime.Contains("_battleRuntimeLivePresentationObserver.ObserveAsync", StringComparison.Ordinal) &&
+        liveObservation.Contains("TrackActorAction", StringComparison.Ordinal),
         "world site runtime should advance the simulation clock directly and let presentation observe events asynchronously");
     AssertTrue(
         runtime.Contains("ResolveRuntimePlaybackTickSeconds", StringComparison.Ordinal) &&
@@ -44,11 +45,8 @@ internal static void BattleRuntimePlaybackDoesNotGloballyGateMovementOnAttackAni
 
 internal static void BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary()
 {
-    string runtime = string.Join("\n", Directory
-        .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
-        .OrderBy(path => path, StringComparer.Ordinal)
-        .Select(File.ReadAllText));
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string runtime = ReadBattleRuntimeLiveObservationSource();
+    string playback = ReadBattleRuntimePlaybackSource();
 
     AssertTrue(
         runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
@@ -58,7 +56,7 @@ internal static void BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary()
 
 internal static void BattleRuntimeLiveMovementUsesActorMotionLane()
 {
-    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
+    string runtime = ReadBattleRuntimeLiveObservationSource();
     string unitRoot = ReadBattleUnitRootSource();
 
     AssertTrue(
@@ -67,7 +65,7 @@ internal static void BattleRuntimeLiveMovementUsesActorMotionLane()
         runtime.Contains("WaitSiteBattlePresentationSeconds", StringComparison.Ordinal),
         "live movement should enqueue same-actor visual steps immediately while extending the actor motion tail");
     AssertTrue(
-        runtime.Contains("_ = ObserveRuntimeEventsOnPresentationAsync", StringComparison.Ordinal),
+        runtime.Contains("_ = _battleRuntimeLivePresentationObserver.ObserveAsync", StringComparison.Ordinal),
         "same-actor movement serialization must not globally await presentation before advancing the runtime clock");
     AssertTrue(
         unitRoot.Contains("MovementLane", StringComparison.Ordinal) &&
@@ -86,7 +84,7 @@ internal static void BattleRuntimeLiveMovementUsesActorMotionLane()
 
 internal static void BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits()
 {
-    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
+    string runtime = ReadBattleRuntimeLiveObservationSource();
 
     AssertTrue(
         runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
@@ -120,13 +118,55 @@ internal static void BattleRuntimeLiveMovementBuffersCommittedSegmentsWithoutRes
         "same-actor movement completion should serialize through the previous movement tail without delaying the immediate enqueue");
 }
 
+internal static void BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation()
+{
+    string state = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"));
+    string liveObservation = ReadBattleRuntimeLiveObservationSource();
+    string teleportObserver = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeTeleportPresentationObserver.cs"));
+    string effectResolver = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "Effects", "BattleEffectResolver.cs"));
+
+    AssertTrue(
+        state.Contains("_actorMovementGenerations", StringComparison.Ordinal) &&
+        state.Contains("AdvanceActorTeleportGeneration", StringComparison.Ordinal) &&
+        state.Contains("IsActorMovementGenerationCurrent", StringComparison.Ordinal) &&
+        state.Contains("BattleRuntimeStaleMovementSkipped", StringComparison.Ordinal),
+        "teleport should advance an actor-local movement generation so queued pre-teleport movement observers cannot mutate presentation after the snap");
+    AssertTrue(
+        state.Contains("AdvanceActorTeleportGeneration(actorId)", StringComparison.Ordinal) &&
+        state.IndexOf("AdvanceActorTeleportGeneration(actorId)", StringComparison.Ordinal) <
+        state.IndexOf("observeTeleport()", StringComparison.Ordinal),
+        "ObserveActorTeleportNow should install the teleport movement barrier before observing the snap");
+    string teleportLoopBody = ExtractForeachBlock(liveObservation, "item?.Kind == BattleEventKind.ThunderMarkTeleported");
+    AssertTrue(
+        teleportLoopBody.Contains("presentationState.ObserveActorTeleportNow", StringComparison.Ordinal) &&
+        !teleportLoopBody.Contains("presentationState.TrackActorMovement", StringComparison.Ordinal),
+        "teleport is a presentation hard barrier: it must snap immediately instead of waiting behind the actor movement tail");
+    AssertTrue(
+        state.Contains("ObserveActorTeleportNow", StringComparison.Ordinal) &&
+        state.Contains("_actorMovementStartGates.Remove(actorId)", StringComparison.Ordinal) &&
+        state.Contains("_actorActionTails.Remove(actorId)", StringComparison.Ordinal),
+        "teleport should clear actor-local presentation gates and action/movement tails so old visual work cannot delay the snap");
+    AssertTrue(
+        state.Contains("RunActorActionIfGenerationCurrentAsync", StringComparison.Ordinal) &&
+        state.Contains("BattleRuntimeStaleActionSkipped", StringComparison.Ordinal),
+        "actor actions queued before a teleport barrier should not run later and stop post-teleport movement presentation");
+    AssertTrue(
+        teleportObserver.Contains("BattleRuntimeTeleportPresentation", StringComparison.Ordinal) &&
+        teleportObserver.Contains("activeMovementTweens", StringComparison.Ordinal),
+        "teleport presentation should log the visual snap boundary and active movement lanes for manual QA");
+    AssertTrue(
+        effectResolver.Contains("BattleRuntimeThunderFoldDisplacementCommitted", StringComparison.Ordinal) &&
+        effectResolver.Contains("DescribeActorDisplacementState", StringComparison.Ordinal),
+        "runtime thunder fold should log displacement state before and after CommitDisplacement so movement-command conflicts are diagnosable");
+}
+
 internal static void BattleRuntimeMovementQueuesPerceptionOverlayRefresh()
 {
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string playback = ReadBattleRuntimePlaybackSource();
     string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattlePerceptionOverlay.cs"));
 
     AssertTrue(
-        playback.Contains("QueueBattlePerceptionOverlayRefresh();", StringComparison.Ordinal) &&
+        playback.Contains("_queueBattlePerceptionOverlayRefresh?.Invoke();", StringComparison.Ordinal) &&
         !playback.Contains("        RefreshBattlePerceptionOverlay();\n        return _unitRoot.ResolveVisualMoveStepDurationSeconds", StringComparison.Ordinal),
         "movement observation should queue perception overlay refresh instead of rebuilding it once per movement event");
     AssertTrue(
@@ -137,14 +177,14 @@ internal static void BattleRuntimeMovementQueuesPerceptionOverlayRefresh()
 
 internal static void BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue()
 {
-    string incremental = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string liveObservation = ReadBattleRuntimeLiveObservationSource();
+    string playback = ReadBattleRuntimePlaybackSource();
     string unitRoot = ReadBattleUnitRootSource();
 
     AssertTrue(
-        incremental.Contains("BattleEventKind.SkillUsed", StringComparison.Ordinal) &&
-        incremental.Contains("ObserveRuntimeSkillUsedEventAsync", StringComparison.Ordinal) &&
-        incremental.Contains("TrackActorAction(", StringComparison.Ordinal),
+        liveObservation.Contains("BattleEventKind.SkillUsed", StringComparison.Ordinal) &&
+        liveObservation.Contains("ObserveRuntimeSkillUsedEventAsync", StringComparison.Ordinal) &&
+        liveObservation.Contains("TrackActorAction(", StringComparison.Ordinal),
         "live runtime observation should consume SkillUsed as the caster-side cast cue on the actor action tail");
     AssertTrue(
         playback.Contains("ObserveRuntimeSkillUsedEventAsync", StringComparison.Ordinal) &&
@@ -152,9 +192,79 @@ internal static void BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue()
         "runtime SkillUsed playback should call a dedicated caster-side skill presentation entry point");
 }
 
+internal static void ThunderTagOffhandPresentationDoesNotInterruptMovement()
+{
+    string liveObservation = ReadBattleRuntimeLiveObservationSource();
+    string playback = ReadBattleRuntimePlaybackSource();
+    string thunderObserver = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeThunderTagPresentationObserver.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
+    string skillPresentationBody = ExtractMethodBlock(unitRoot, "public double PlaySkillCastPresentation(");
+
+    AssertTrue(
+        liveObservation.Contains("IsOffhandSkillReleaseEvent(runtimeEvent)", StringComparison.Ordinal) &&
+        liveObservation.Contains("gateMovementStart: !BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent)", StringComparison.Ordinal),
+        "offhand skill releases should not gate later runtime movement starts in live presentation");
+    AssertTrue(
+        playback.Contains("preserveMovement: BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent)", StringComparison.Ordinal) &&
+        thunderObserver.Contains("HeroSkillCommandIds.ThunderTagThrowSkillId", StringComparison.Ordinal),
+        "thunder tag SkillUsed playback should pass the offhand movement-preservation trait from the runtime event");
+    AssertTrue(
+        unitRoot.Contains("bool preserveMovement = false", StringComparison.Ordinal) &&
+        skillPresentationBody.Contains("if (!preserveMovement)", StringComparison.Ordinal) &&
+        skillPresentationBody.Contains("StopEntityMovement(actor, snapToLogicalGrid: true)", StringComparison.Ordinal) &&
+        skillPresentationBody.Contains("actor.GetComponent<BattleSkillCastFxComponent>()?.PlaySkillCastFx", StringComparison.Ordinal),
+        "caster skill presentation should keep anchored skills snapping, while offhand thunder tag keeps movement lanes alive and still plays release FX");
+}
+
+internal static void ThunderTagPresentationShowsLightningAndMark()
+{
+    string liveObservation = ReadBattleRuntimeLiveObservationSource();
+    string thunderObserver = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeThunderTagPresentationObserver.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
+    string thunderLinkScenePath = Path.Combine("scenes", "battle", "entities", "fx", "BattleThunderLinkFx.tscn");
+    string thunderMarkScenePath = Path.Combine("scenes", "battle", "entities", "fx", "BattleThunderMarkFx.tscn");
+
+    AssertTrue(
+        liveObservation.Contains("BattleEventKind.ThunderMarkCreated", StringComparison.Ordinal) &&
+        liveObservation.Contains("ObserveRuntimeThunderMarkCreatedEvent", StringComparison.Ordinal),
+        "live presentation should consume ThunderMarkCreated so the runtime mark is visible");
+    AssertTrue(
+        thunderObserver.Contains("ObserveRuntimeThunderMarkCreatedEvent", StringComparison.Ordinal) &&
+        thunderObserver.Contains("unitRoot.PlayThunderTagPresentation", StringComparison.Ordinal),
+        "thunder mark playback should route through BattleUnitRoot instead of leaving the mark as a log-only runtime event");
+    AssertTrue(
+        unitRoot.Contains("public double PlayThunderTagPresentation(", StringComparison.Ordinal) &&
+        unitRoot.Contains("BattleThunderLinkFx.tscn", StringComparison.Ordinal) &&
+        unitRoot.Contains("BattleThunderMarkFx.tscn", StringComparison.Ordinal),
+        "battle unit root should instantiate authored lightning-link and thunder-mark FX resources for thunder tag");
+    AssertTrue(File.Exists(thunderLinkScenePath), "thunder tag should have an authored lightning link scene");
+    AssertTrue(File.Exists(thunderMarkScenePath), "thunder tag should have an authored persistent mark scene");
+}
+
+internal static void ThunderTagProjectileReusesChainLightningFxFrames()
+{
+    string linkScene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "fx", "BattleThunderLinkFx.tscn"));
+    string linkScript = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleThunderLinkFx.cs"));
+
+    AssertTrue(
+        linkScene.Contains("assets/battle/abilities/fx/duelyst/damage/fx_chainlightning/frames.tres", StringComparison.Ordinal),
+        "thunder tag projectile should reuse the authored chain lightning SpriteFrames asset");
+    AssertTrue(
+        !linkScene.Contains("fx_f2_killingedge/frames.tres", StringComparison.Ordinal) &&
+        !linkScene.Contains("[node name=\"GlowBolt\" type=\"Line2D\"", StringComparison.Ordinal) &&
+        !linkScene.Contains("[node name=\"CoreBolt\" type=\"Line2D\"", StringComparison.Ordinal),
+        "thunder tag projectile should not use the sword-edge substitute or hand-drawn bolt lines as the primary lightning");
+    AssertTrue(
+        linkScene.Contains("[node name=\"ChainLightningSprite\" type=\"AnimatedSprite2D\"", StringComparison.Ordinal) &&
+        linkScript.Contains("ChainLightningSpritePath", StringComparison.Ordinal) &&
+        linkScript.Contains("_projectileRoot.Rotation = endpointLocal.Angle()", StringComparison.Ordinal) &&
+        linkScript.Contains("ChainLightningFrameWidthPixels", StringComparison.Ordinal),
+        "chain lightning presentation should author an AnimatedSprite2D and rotate/scale it along the cast direction");
+}
+
 internal static void RuntimeSkillDamageDoesNotReplayCasterCast()
 {
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string playback = ReadBattleRuntimePlaybackSource();
 
     AssertTrue(
         playback.Contains("PlayRuntimeDamageFeedback(", StringComparison.Ordinal) &&
@@ -165,21 +275,21 @@ internal static void RuntimeSkillDamageDoesNotReplayCasterCast()
 internal static void BattleRuntimeVisualMovementKeepsRuntimeActionDuration()
 {
     string unitRoot = ReadBattleUnitRootSource();
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string playback = ReadBattleRuntimePlaybackSource();
 
     AssertTrue(
         unitRoot.Contains("public double ResolveVisualMoveStepDurationSeconds", StringComparison.Ordinal) &&
         unitRoot.Contains("return System.Math.Max(0.01, baseSeconds);", StringComparison.Ordinal),
         "each visual movement segment should still use the Runtime action duration instead of predicting future cells");
     AssertTrue(
-        playback.Contains("double visualMoveSeconds = _unitRoot.MoveEntityTo", StringComparison.Ordinal) &&
+        playback.Contains("double visualMoveSeconds = unitRoot.MoveEntityTo", StringComparison.Ordinal) &&
         playback.Contains("return visualMoveSeconds;", StringComparison.Ordinal),
         "movement observer should report the actor-local motion lane duration, including only committed-event buffer time");
 }
 
 internal static void BattleRuntimeMovementPlaybackDoesNotUseLookaheadCorrectionPath()
 {
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string playback = ReadBattleRuntimePlaybackSource();
     string unitRoot = ReadBattleUnitRootSource();
 
     AssertTrue(
@@ -313,16 +423,13 @@ internal static void BattleRuntimePlaybackDelaysDamageUntilSameTickTargetMovemen
     AssertTrue(
         runtime.Contains("TrackActorDamage", StringComparison.Ordinal) &&
         runtime.Contains("_actorMovementTails", StringComparison.Ordinal) &&
-        runtime.Contains("ObserveRuntimeDamageEventAsync", StringComparison.Ordinal),
+        runtime.Contains("PlayRuntimeDamageFeedbackEventAsync", StringComparison.Ordinal),
         "live presentation should delay dependent damage through actor and target movement tails instead of a same-tick duration heuristic");
 }
 
 internal static void BattleRuntimeLiveObservationWaitsForSameTickMovementBeforeDependentAttack()
 {
-    string runtime = string.Join("\n", Directory
-        .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
-        .OrderBy(path => path, StringComparer.Ordinal)
-        .Select(File.ReadAllText));
+    string runtime = ReadBattleRuntimeLiveObservationSource();
     AssertTrue(
         runtime.Contains("TrackActorDamage", StringComparison.Ordinal) &&
         runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
@@ -344,8 +451,8 @@ internal static void RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAtta
 internal static void RuntimePlaybackAppliesDamageSemanticsThroughTargetQueue()
 {
     string state = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"));
-    string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string runtime = ReadBattleRuntimeLiveObservationSource();
+    string playback = ReadBattleRuntimePlaybackSource();
 
     AssertTrue(
         state.Contains("_targetDamageTails", StringComparison.Ordinal) &&
@@ -366,7 +473,7 @@ internal static void RuntimePlaybackAppliesDamageSemanticsThroughTargetQueue()
 internal static void RuntimePlaybackTargetDamageQueueDoesNotSerializeImpactDelay()
 {
     string state = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"));
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string playback = ReadBattleRuntimePlaybackSource();
 
     AssertTrue(
         state.Contains("System.Func<Task, Task> createTask", StringComparison.Ordinal) &&
@@ -374,7 +481,7 @@ internal static void RuntimePlaybackTargetDamageQueueDoesNotSerializeImpactDelay
         !state.Contains("new[] { actorMovementTail, targetMovementTail, previousTargetDamageTail }", StringComparison.Ordinal),
         "target damage queue should pass the previous target damage tail into the task instead of waiting it before impact delay starts");
 
-    int impactWaitIndex = playback.IndexOf("await WaitSiteBattlePresentationSeconds(clampedImpactDelaySeconds)", StringComparison.Ordinal);
+    int impactWaitIndex = playback.IndexOf("await WaitPresentationSeconds(clampedImpactDelaySeconds)", StringComparison.Ordinal);
     int previousTailIndex = playback.IndexOf("await previousTargetDamageTail", StringComparison.Ordinal);
     AssertTrue(
         impactWaitIndex >= 0 &&
@@ -454,17 +561,17 @@ internal static void BattleRuntimeLiveObservationDoesNotAwaitMovementOrAttackDur
         .GetFiles(Path.Combine("src", "Presentation", "World", "Sites"), "WorldSiteRoot.BattleRuntime*.cs")
         .OrderBy(path => path, StringComparer.Ordinal)
         .Select(File.ReadAllText));
-    string playback = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimePlayback.cs"));
+    string playback = ReadBattleRuntimePlaybackSource();
 
     AssertTrue(
-        runtime.Contains("ObserveRuntimeEventsOnPresentationAsync", StringComparison.Ordinal) &&
-        runtime.Contains("_ = ObserveRuntimeEventsOnPresentationAsync", StringComparison.Ordinal),
+        runtime.Contains("_battleRuntimeLivePresentationObserver.ObserveAsync", StringComparison.Ordinal) &&
+        runtime.Contains("_ = _battleRuntimeLivePresentationObserver.ObserveAsync", StringComparison.Ordinal),
         "runtime events should be observed by presentation without awaiting the whole visual action lane");
     AssertTrue(
         playback.Contains("ObserveRuntimeMovementEvent", StringComparison.Ordinal) &&
-        playback.Contains("ObserveRuntimeDamageEventAsync", StringComparison.Ordinal) &&
-        !playback.Contains("await WaitSiteBattlePresentationSeconds(movementSeconds)", StringComparison.Ordinal) &&
-        !playback.Contains("await WaitSiteBattlePresentationSeconds(attackPresentationSeconds)", StringComparison.Ordinal),
+        playback.Contains("PlayRuntimeDamageFeedbackEventAsync", StringComparison.Ordinal) &&
+        !playback.Contains("await WaitPresentationSeconds(movementSeconds)", StringComparison.Ordinal) &&
+        !playback.Contains("await WaitPresentationSeconds(attackPresentationSeconds)", StringComparison.Ordinal),
         "movement and attack visuals must not block unrelated future simulation ticks");
 }
 

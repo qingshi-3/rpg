@@ -9,17 +9,17 @@ System.Environment.SetEnvironmentVariable(
 Run("auto battle spawns from preferred placements and returns victory force results", AutoBattleSpawnsFromPreferredPlacementsAndReturnsVictoryForceResults);
 Run("auto battle returns defeat when player force is defeated", AutoBattleReturnsDefeatWhenPlayerForceIsDefeated);
 Run("auto battle runtime stays isolated from legacy turn and world state owners", AutoBattleRuntimeStaysIsolatedFromLegacyTurnAndWorldStateOwners);
-Run("auto battle session runner completes active handoff with force results", AutoBattleSessionRunnerCompletesActiveHandoffWithForceResults);
-Run("auto battle session runner leaves active handoff when simulation cannot run", AutoBattleSessionRunnerLeavesActiveHandoffWhenSimulationCannotRun);
+Run("auto battle session runner rejects formal handoff without consuming it", AutoBattleSessionRunnerRejectsFormalHandoffWithoutConsumingIt);
+Run("auto battle session runner rejects invalid formal handoff before simulation", AutoBattleSessionRunnerRejectsInvalidFormalHandoffBeforeSimulation);
 Run("auto battle report builder summarizes victory force results and event feed", AutoBattleReportBuilderSummarizesVictoryForceResultsAndEventFeed);
 Run("auto battle report builder explains player defeat", AutoBattleReportBuilderExplainsPlayerDefeat);
 Run("auto battle report summary formatter writes victory notice", AutoBattleReportSummaryFormatterWritesVictoryNotice);
 Run("auto battle report summary formatter explains defeat reason", AutoBattleReportSummaryFormatterExplainsDefeatReason);
-Run("auto battle runtime controller starts active battle and reveals report events", AutoBattleRuntimeControllerStartsActiveBattleAndRevealsReportEvents);
-Run("auto battle runtime controller pause speed and skip control playback cursor", AutoBattleRuntimeControllerPauseSpeedAndSkipControlPlaybackCursor);
-Run("auto battle runtime controller reports failed start without consuming handoff", AutoBattleRuntimeControllerReportsFailedStartWithoutConsumingHandoff);
-Run("world site auto battle adapter resolves active handoff result and report", WorldSiteAutoBattleAdapterResolvesActiveHandoffResultAndReport);
-Run("world site auto battle adapter preserves active handoff on failure", WorldSiteAutoBattleAdapterPreservesActiveHandoffOnFailure);
+Run("auto battle runtime controller rejects formal handoff without playback", AutoBattleRuntimeControllerRejectsFormalHandoffWithoutPlayback);
+Run("auto battle runtime controller playback controls do not consume disabled formal handoff", AutoBattleRuntimeControllerPlaybackControlsDoNotConsumeDisabledFormalHandoff);
+Run("auto battle runtime controller reports disabled start without consuming handoff", AutoBattleRuntimeControllerReportsDisabledStartWithoutConsumingHandoff);
+Run("world site auto battle adapter rejects formal handoff", WorldSiteAutoBattleAdapterRejectsFormalHandoff);
+Run("world site auto battle adapter preserves invalid formal handoff on rejection", WorldSiteAutoBattleAdapterPreservesInvalidFormalHandoffOnRejection);
 
 static void AutoBattleSpawnsFromPreferredPlacementsAndReturnsVictoryForceResults()
 {
@@ -119,7 +119,7 @@ static void AutoBattleRuntimeStaysIsolatedFromLegacyTurnAndWorldStateOwners()
     AssertTrue(!combinedSource.Contains(" : Node", StringComparison.Ordinal), "auto battle runtime should not define Godot nodes");
 }
 
-static void AutoBattleSessionRunnerCompletesActiveHandoffWithForceResults()
+static void AutoBattleSessionRunnerRejectsFormalHandoffWithoutConsumingIt()
 {
     BattleSessionHandoff.CancelBattle();
     BattleStartRequest request = BuildRequest(
@@ -141,25 +141,18 @@ static void AutoBattleSessionRunnerCompletesActiveHandoffWithForceResults()
 
     bool completed = runner.TryRunActiveBattle(out AutoBattleSimulationResult? simulation, out string failureReason);
 
-    AssertTrue(completed, $"runner should complete active handoff failure={failureReason}");
-    AssertTrue(simulation != null, "simulation result should be returned");
-    AssertEqual("", failureReason, "failure reason");
-    AssertTrue(!BattleSessionHandoff.HasActiveLaunch, "active handoff should be cleared");
+    AssertTrue(!completed, "runner should reject formal handoff");
+    AssertTrue(simulation == null, "disabled formal handoff should not run a simulation");
+    AssertEqual(DisabledAutoBattleHandoffReason(), failureReason, "failure reason");
+    AssertTrue(BattleSessionHandoff.HasActiveLaunch, "disabled formal handoff should remain active for the Runtime path");
     AssertTrue(
-        BattleSessionHandoff.TryConsumeLastBattleResult(out BattleStartRequest consumedRequest, out BattleResult consumedResult),
-        "completed auto battle result should be consumable");
-    AssertTrue(object.ReferenceEquals(request, consumedRequest), "consumed request should be active request");
-    AssertTrue(object.ReferenceEquals(simulation!.BattleResult, consumedResult), "handoff should preserve the simulation BattleResult instance");
-    AssertEqual(BattleOutcome.Victory, consumedResult.Outcome, "consumed outcome");
+        !BattleSessionHandoff.TryConsumeLastBattleResult(out _, out _),
+        "disabled formal handoff should not produce a consumable result");
 
-    BattleForceResult playerResult = FindForceResult(consumedResult, "player_force");
-    BattleForceResult enemyResult = FindForceResult(consumedResult, "enemy_force");
-    AssertEqual(2, playerResult.SurvivedCount, "player survived count");
-    AssertEqual(0, enemyResult.SurvivedCount, "enemy survived count");
-    AssertEqual(1, enemyResult.DefeatedCount, "enemy defeated count");
+    BattleSessionHandoff.CancelBattle();
 }
 
-static void AutoBattleSessionRunnerLeavesActiveHandoffWhenSimulationCannotRun()
+static void AutoBattleSessionRunnerRejectsInvalidFormalHandoffBeforeSimulation()
 {
     BattleSessionHandoff.CancelBattle();
     BattleStartRequest request = BuildRequest(
@@ -181,15 +174,13 @@ static void AutoBattleSessionRunnerLeavesActiveHandoffWhenSimulationCannotRun()
 
     bool completed = runner.TryRunActiveBattle(out AutoBattleSimulationResult? simulation, out string failureReason);
 
-    AssertTrue(!completed, "runner should not complete invalid simulation");
-    AssertTrue(simulation == null, "failed run should not return a simulation result");
-    AssertTrue(
-        failureReason.Contains("auto_battle_missing_preferred_placement", StringComparison.Ordinal),
-        $"failure reason should expose authoritative deployment problem actual={failureReason}");
-    AssertTrue(BattleSessionHandoff.HasActiveLaunch, "active handoff should remain unresolved after failed simulation");
+    AssertTrue(!completed, "runner should reject invalid formal handoff");
+    AssertTrue(simulation == null, "disabled formal handoff should not run a simulation");
+    AssertEqual(DisabledAutoBattleHandoffReason(), failureReason, "failure reason");
+    AssertTrue(BattleSessionHandoff.HasActiveLaunch, "disabled formal handoff should remain unresolved for the Runtime path");
     AssertTrue(
         !BattleSessionHandoff.TryConsumeLastBattleResult(out _, out _),
-        "failed auto battle should not produce a consumable result");
+        "disabled formal handoff should not produce a consumable result");
 
     BattleSessionHandoff.CancelBattle();
 }
@@ -341,7 +332,7 @@ static void AutoBattleReportSummaryFormatterExplainsDefeatReason()
     AssertTrue(summary.Contains("主要贡献：enemy_force 造成 8 伤害，击败 2。", StringComparison.Ordinal), $"summary should include top contribution actual={summary}");
 }
 
-static void AutoBattleRuntimeControllerStartsActiveBattleAndRevealsReportEvents()
+static void AutoBattleRuntimeControllerRejectsFormalHandoffWithoutPlayback()
 {
     BattleSessionHandoff.CancelBattle();
     BattleStartRequest request = BuildRequest(
@@ -354,28 +345,21 @@ static void AutoBattleRuntimeControllerStartsActiveBattleAndRevealsReportEvents(
     AutoBattleRuntimeController controller = BuildRuntimeController();
     bool started = controller.StartActiveBattle(out string failureReason);
 
-    AssertTrue(started, $"controller should start active battle failure={failureReason}");
-    AssertEqual("", failureReason, "failure reason");
-    AssertEqual(AutoBattleRuntimePhase.Playing, controller.Phase, "phase after start");
-    AssertTrue(controller.SimulationResult != null, "simulation result should be stored");
-    AssertTrue(controller.Report != null, "report should be stored");
-    AssertTrue(!BattleSessionHandoff.HasActiveLaunch, "active handoff should be consumed after successful start");
-    AssertEqual(0, controller.VisibleEventCount, "visible feed count after start");
+    AssertTrue(!started, "controller should reject formal handoff");
+    AssertEqual(DisabledAutoBattleHandoffReason(), failureReason, "failure reason");
+    AssertEqual(AutoBattleRuntimePhase.Failed, controller.Phase, "phase after disabled start");
+    AssertTrue(controller.SimulationResult == null, "disabled start should not store simulation result");
+    AssertTrue(controller.Report == null, "disabled start should not build report");
+    AssertEqual(0, controller.VisibleEventCount, "disabled start should not reveal playback events");
+    AssertTrue(BattleSessionHandoff.HasActiveLaunch, "disabled start should not consume active handoff");
+    AssertTrue(
+        !BattleSessionHandoff.TryConsumeLastBattleResult(out _, out _),
+        "disabled start should not produce a consumable result");
 
-    controller.AdvancePlayback(1.0);
-
-    AssertTrue(controller.VisibleEventCount >= 2, "one second should reveal at least two events with 0.5s event cadence");
-    AssertTrue(controller.VisibleEventFeed.Count == controller.VisibleEventCount, "visible feed count should match feed view");
-
-    controller.AdvancePlayback(99.0);
-
-    AssertEqual(AutoBattleRuntimePhase.Completed, controller.Phase, "phase after playback finishes");
-    AssertEqual(controller.Report!.EventFeed.Count, controller.VisibleEventCount, "all events should be visible at completion");
-
-    BattleSessionHandoff.TryConsumeLastBattleResult(out _, out _);
+    BattleSessionHandoff.CancelBattle();
 }
 
-static void AutoBattleRuntimeControllerPauseSpeedAndSkipControlPlaybackCursor()
+static void AutoBattleRuntimeControllerPlaybackControlsDoNotConsumeDisabledFormalHandoff()
 {
     BattleSessionHandoff.CancelBattle();
     BattleStartRequest request = BuildRequest(
@@ -386,30 +370,25 @@ static void AutoBattleRuntimeControllerPauseSpeedAndSkipControlPlaybackCursor()
     BattleSessionHandoff.BeginBattle(request);
 
     AutoBattleRuntimeController controller = BuildRuntimeController();
-    AssertTrue(controller.StartActiveBattle(out string failureReason), $"controller start failure={failureReason}");
-
-    controller.AdvancePlayback(0.5);
-    int afterFirstAdvance = controller.VisibleEventCount;
-    AssertTrue(afterFirstAdvance > 0, "initial advance should reveal events");
+    AssertTrue(!controller.StartActiveBattle(out string failureReason), "controller should reject formal handoff");
+    AssertEqual(DisabledAutoBattleHandoffReason(), failureReason, "failure reason");
 
     controller.Pause();
-    AssertEqual(AutoBattleRuntimePhase.Paused, controller.Phase, "phase after pause");
     controller.AdvancePlayback(10.0);
-    AssertEqual(afterFirstAdvance, controller.VisibleEventCount, "paused playback should not reveal events");
-
     controller.Resume();
     controller.SetPlaybackSpeed(2.0);
     controller.AdvancePlayback(0.5);
-    AssertTrue(controller.VisibleEventCount >= afterFirstAdvance + 2, "2x speed should reveal at least two additional events");
-
     controller.SkipToEnd();
-    AssertEqual(AutoBattleRuntimePhase.Completed, controller.Phase, "phase after skip");
-    AssertEqual(controller.Report!.EventFeed.Count, controller.VisibleEventCount, "skip should reveal all events");
 
-    BattleSessionHandoff.TryConsumeLastBattleResult(out _, out _);
+    AssertEqual(AutoBattleRuntimePhase.Failed, controller.Phase, "playback controls should not leave failed disabled state");
+    AssertEqual(0, controller.VisibleEventCount, "playback controls should not reveal events after disabled start");
+    AssertTrue(controller.VisibleEventFeed.Count == 0, "visible feed should remain empty after disabled start");
+    AssertTrue(BattleSessionHandoff.HasActiveLaunch, "playback controls should not consume disabled formal handoff");
+
+    BattleSessionHandoff.CancelBattle();
 }
 
-static void AutoBattleRuntimeControllerReportsFailedStartWithoutConsumingHandoff()
+static void AutoBattleRuntimeControllerReportsDisabledStartWithoutConsumingHandoff()
 {
     BattleSessionHandoff.CancelBattle();
     BattleStartRequest request = BuildRequest(
@@ -424,9 +403,7 @@ static void AutoBattleRuntimeControllerReportsFailedStartWithoutConsumingHandoff
 
     AssertTrue(!started, "invalid request should fail controller start");
     AssertEqual(AutoBattleRuntimePhase.Failed, controller.Phase, "phase after failed start");
-    AssertTrue(
-        failureReason.Contains("auto_battle_missing_preferred_placement", StringComparison.Ordinal),
-        $"failure reason should expose missing placement actual={failureReason}");
+    AssertEqual(DisabledAutoBattleHandoffReason(), failureReason, "failure reason");
     AssertEqual(failureReason, controller.FailureReason, "controller failure reason");
     AssertTrue(controller.Report == null, "failed start should not build report");
     AssertTrue(controller.SimulationResult == null, "failed start should not store simulation");
@@ -435,7 +412,7 @@ static void AutoBattleRuntimeControllerReportsFailedStartWithoutConsumingHandoff
     BattleSessionHandoff.CancelBattle();
 }
 
-static void WorldSiteAutoBattleAdapterResolvesActiveHandoffResultAndReport()
+static void WorldSiteAutoBattleAdapterRejectsFormalHandoff()
 {
     BattleSessionHandoff.CancelBattle();
     BattleStartRequest request = BuildRequest(
@@ -448,21 +425,22 @@ static void WorldSiteAutoBattleAdapterResolvesActiveHandoffResultAndReport()
     WorldSiteAutoBattleAdapter adapter = new(BuildRuntimeController());
     bool resolved = adapter.TryResolveActiveBattle(out WorldSiteAutoBattleResolveResult result);
 
-    AssertTrue(resolved, $"adapter should resolve active handoff failure={result.FailureReason}");
-    AssertTrue(result.Success, "result success");
-    AssertTrue(object.ReferenceEquals(request, result.Request), "adapter should return consumed request");
-    AssertEqual(BattleOutcome.Victory, result.BattleResult.Outcome, "battle outcome");
-    AssertEqual(BattleOutcome.Victory, result.Report.Outcome, "report outcome");
-    AssertEqual(2, FindForceResult(result.BattleResult, "player_force").SurvivedCount, "player survived count");
-    AssertEqual(1, FindForceResult(result.BattleResult, "enemy_force").DefeatedCount, "enemy defeated count");
+    AssertTrue(!resolved, "adapter should reject formal handoff");
+    AssertTrue(!result.Success, "result success");
+    AssertEqual(DisabledAutoBattleHandoffReason(), result.FailureReason, "failure reason");
+    AssertTrue(result.Request == null, "disabled adapter result should not include request");
+    AssertTrue(result.BattleResult == null, "disabled adapter result should not include battle result");
+    AssertTrue(result.Report == null, "disabled adapter result should not include report");
     AssertTrue(result.RuntimeController != null, "runtime controller should be exposed for playback state");
-    AssertTrue(!BattleSessionHandoff.HasActiveLaunch, "active handoff should be cleared after adapter success");
+    AssertTrue(BattleSessionHandoff.HasActiveLaunch, "disabled adapter should preserve active handoff");
     AssertTrue(
         !BattleSessionHandoff.TryConsumeLastBattleResult(out _, out _),
-        "adapter should consume completed handoff result");
+        "disabled adapter should not produce a consumable result");
+
+    BattleSessionHandoff.CancelBattle();
 }
 
-static void WorldSiteAutoBattleAdapterPreservesActiveHandoffOnFailure()
+static void WorldSiteAutoBattleAdapterPreservesInvalidFormalHandoffOnRejection()
 {
     BattleSessionHandoff.CancelBattle();
     BattleStartRequest request = BuildRequest(
@@ -477,9 +455,7 @@ static void WorldSiteAutoBattleAdapterPreservesActiveHandoffOnFailure()
 
     AssertTrue(!resolved, "adapter should not resolve invalid handoff");
     AssertTrue(!result.Success, "result success");
-    AssertTrue(
-        result.FailureReason.Contains("auto_battle_missing_preferred_placement", StringComparison.Ordinal),
-        $"failure reason should expose missing placement actual={result.FailureReason}");
+    AssertEqual(DisabledAutoBattleHandoffReason(), result.FailureReason, "failure reason");
     AssertTrue(result.Request == null, "failed adapter result should not include request");
     AssertTrue(result.BattleResult == null, "failed adapter result should not include battle result");
     AssertTrue(result.Report == null, "failed adapter result should not include report");
@@ -628,6 +604,11 @@ static AutoBattleRuntimeController BuildRuntimeController()
         {
             SecondsPerReportEvent = 0.5
         });
+}
+
+static string DisabledAutoBattleHandoffReason()
+{
+    return "auto_battle_handoff_disabled_runtime_authority";
 }
 
 static string ProjectRoot()

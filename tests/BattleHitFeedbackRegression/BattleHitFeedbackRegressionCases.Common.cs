@@ -69,13 +69,29 @@ internal static string ReadWorldSiteRootSource()
 
 internal static string ReadBattleRuntimePresentationSource()
 {
+    return ReadBattleRuntimeLiveObservationSource();
+}
+
+internal static string ReadBattleRuntimeLiveObservationSource()
+{
     string dir = Path.Combine("src", "Presentation", "World", "Sites");
     string[] files = Directory.GetFiles(dir, "WorldSiteRoot.BattleRuntime*.cs")
-        .Append(Path.Combine(dir, "BattleRuntimeLivePresentationState.cs"))
+        .Concat(new[]
+        {
+            Path.Combine(dir, "BattleRuntimeLivePresentationObserver.cs"),
+            Path.Combine(dir, "BattleRuntimeLivePresentationState.cs"),
+            Path.Combine(dir, "BattleRuntimeTeleportPresentationObserver.cs"),
+            Path.Combine(dir, "BattleRuntimeThunderTagPresentationObserver.cs")
+        })
         .Where(File.Exists)
         .OrderBy(path => path, StringComparer.Ordinal)
         .ToArray();
     return string.Join("\n", files.Select(File.ReadAllText));
+}
+
+internal static string ReadBattleRuntimePlaybackSource()
+{
+    return ReadBattleRuntimeLiveObservationSource();
 }
 
 internal static string ReadBattleUnitRootSource()
@@ -119,6 +135,51 @@ internal static string ExtractMethodBlock(string source, string methodSignature)
     }
 
     throw new InvalidOperationException($"unterminated method body: {methodSignature}");
+}
+
+internal static string ExtractForeachBlock(string source, string marker)
+{
+    int markerIndex = source.IndexOf(marker, StringComparison.Ordinal);
+    if (markerIndex < 0)
+    {
+        throw new InvalidOperationException($"missing foreach marker: {marker}");
+    }
+
+    int foreachIndex = source.LastIndexOf("foreach", markerIndex, StringComparison.Ordinal);
+    if (foreachIndex < 0)
+    {
+        throw new InvalidOperationException($"missing foreach before marker: {marker}");
+    }
+
+    return ExtractBlockAt(source, foreachIndex, marker);
+}
+
+private static string ExtractBlockAt(string source, int startIndex, string description)
+{
+    int braceIndex = source.IndexOf('{', startIndex);
+    if (braceIndex < 0)
+    {
+        throw new InvalidOperationException($"missing block body: {description}");
+    }
+
+    int depth = 0;
+    for (int i = braceIndex; i < source.Length; i++)
+    {
+        if (source[i] == '{')
+        {
+            depth++;
+        }
+        else if (source[i] == '}')
+        {
+            depth--;
+            if (depth == 0)
+            {
+                return source[braceIndex..(i + 1)];
+            }
+        }
+    }
+
+    throw new InvalidOperationException($"unterminated block body: {description}");
 }
 
 internal static string NormalizeWhitespace(string source)

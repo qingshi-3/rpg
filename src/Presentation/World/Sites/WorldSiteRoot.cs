@@ -4,6 +4,8 @@ using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.Maps;
+using Rpg.Application.StrategicBattleBridge;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
 using Rpg.Definitions.World;
@@ -92,6 +94,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private ProgressBar _battleRuntimeHeroHealthBar;
 	private ProgressBar _battleRuntimeHeroManaBar;
 	private HBoxContainer _battleRuntimeHeroSkillList;
+	private BattleRuntimeHeroSelectorPresenter _battleRuntimeHeroSelectorPresenter;
+	private BattleRuntimeHeroFramePresenter _battleRuntimeHeroFramePresenter;
 	private Button _battleRuntimeRegroupButton;
 	private Control _siteFacilityBuildCard;
 	private Control _siteFacilityCard;
@@ -117,6 +121,9 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private VBoxContainer _siteFacilityList;
 	private VBoxContainer _siteGarrisonList;
 	private VBoxContainer _siteActionList;
+	private StrategicManagementDashboardPanelBinder _strategicManagementDashboardPanelBinder;
+	private readonly BattleObjectivePlanningHudBinder _battleObjectivePlanningHudBinder = new();
+	private readonly BattlePreparationHudBinder _battlePreparationHudBinder = new();
 	private readonly Dictionary<string, Node2D> _sitePlacementEntities = new();
 	private readonly Dictionary<string, WorldFacilitySlotEntity> _siteFacilitySlotEntities = new();
 	private readonly Dictionary<string, WorldFacilitySlotRuntimeLayout> _siteFacilitySlotLayouts = new();
@@ -130,6 +137,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private bool _isBattlePreparationActive;
 	private BattleStartRequest _battlePreparationRequest;
 	private BattleStartRequest _battleRuntimeRequest;
+	private StrategicBattleActiveContext _activeStrategicBattleContext;
 	private WorldSiteBattleGroupRuntimeResolveResult _activeBattleGroupRuntimeResolution;
 	private string _siteHudReturnScenePath = "";
 	private string _siteHudSiteId = "";
@@ -141,7 +149,9 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattleRuntimeCommandGroupView _battleRuntimeHeroSkillTargetPickingGroup;
 	private string _battleRuntimeHeroSkillTargetPickingSkillId = "";
 	private string _battleRuntimeHeroSkillPreviewTargetActorId = "";
-	private readonly Dictionary<string, BattleRuntimeSkillSlot> _battleRuntimeSkillSlots = new(System.StringComparer.Ordinal);
+	private ThunderFoldTargetingStage _battleRuntimeThunderFoldTargetingStage = ThunderFoldTargetingStage.None;
+	private string _battleRuntimeThunderFoldSelectedMarkId = "";
+	private GridSurfacePosition _battleRuntimeThunderFoldSelectedMarkSurface;
 	private string _selectedBattlePreparationPlanGroupKey = "";
 	private readonly HashSet<string> _explicitBattlePreparationRuleGroups = new(System.StringComparer.Ordinal);
 	private readonly Dictionary<Node, ProcessModeEnum> _battleRuntimePauseProcessModeRestore = new();
@@ -168,6 +178,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private readonly WorldSiteBattleLauncher _battleLauncher = new();
 	private readonly BattlePerformanceCounters _battlePerformanceCounters = new();
 	private readonly WorldSiteBattleGroupRuntimeAdapter _battleGroupRuntimeAdapter;
+	private readonly BattleRuntimeLivePresentationObserver _battleRuntimeLivePresentationObserver;
+	private readonly BattlePreparationDeploymentDragController _battlePreparationDeploymentDragController;
 	private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
 	private readonly SemanticMapMarkerExtractor _semanticMapMarkerExtractor = new();
 	private readonly SceneTransitionRouter _sceneTransitionRouter;
@@ -184,8 +196,73 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	public WorldSiteRoot()
 	{
 		_battleGroupRuntimeAdapter = new(_battlePerformanceCounters);
+		_battleRuntimeLivePresentationObserver = new(
+			() => _unitRoot,
+			WaitSiteBattlePresentationSeconds,
+			QueueBattlePerceptionOverlayRefresh,
+			_battlePerformanceCounters.RecordPresentationObserveElapsedTicks);
 		_worldActionResolver = new WorldActionResolver(_battleUnitFactory.ResolveUnitDisplayName);
 		_sceneTransitionRouter = new SceneTransitionRouter(new GodotSceneTransitionGateway(() => GetTree()));
+		_battlePreparationDeploymentDragController = new BattlePreparationDeploymentDragController(
+			() => _isBattlePreparationActive,
+			() => _battlePreparationRequest,
+			() => _activeGridMap,
+			_deploymentTargetEvaluator,
+			ResolveForceFootprintSize,
+			ResolveForceCanEnterWater,
+			ResolveUnitFootprintSize,
+			ResolvePlacementCanEnterWater,
+			ResolveBattleFaction,
+			SetDeploymentDragEntityToFootprintCenter,
+			ResolveEntitySurfaceHeight,
+			ApplyEntityRenderSort);
+	}
+
+	private bool TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext)
+	{
+		if (_activeStrategicBattleContext != null)
+		{
+			activeContext = _activeStrategicBattleContext;
+			return true;
+		}
+
+		if (StrategicBattleActiveContextStore.TryPeek(out activeContext))
+		{
+			_activeStrategicBattleContext = activeContext;
+			return true;
+		}
+
+		activeContext = null;
+		return false;
+	}
+
+	private bool TryResolveActiveBattleRequest(out BattleStartRequest request)
+	{
+		if (TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext) &&
+			activeContext.CompatibilityRequest != null)
+		{
+			request = activeContext.CompatibilityRequest;
+			return true;
+		}
+
+		return BattleSessionHandoff.TryPeekActiveRequest(out request);
+	}
+
+	private bool HasActiveBattleLaunch()
+	{
+		return TryResolveActiveBattleRequest(out _);
+	}
+
+	private void CancelActiveBattleLaunch(string reason)
+	{
+		if (_activeStrategicBattleContext != null || StrategicBattleActiveContextStore.HasActiveContext)
+		{
+			StrategicBattleActiveContextStore.Clear(reason);
+			_activeStrategicBattleContext = null;
+			return;
+		}
+
+		BattleSessionHandoff.CancelBattle();
 	}
 
 	public override void _Ready()
@@ -210,7 +287,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		UpdateMainWorldViewportLayout("ready");
 		EnsureBattleRenderSortDomain();
 
-		bool hasActiveBattleLaunch = BattleSessionHandoff.HasActiveLaunch;
+		bool hasActiveBattleLaunch = HasActiveBattleLaunch();
 		if (_unitRoot != null)
 		{
 			_unitRoot.Initialize(TryGetCellGlobalPosition, TryGetFootprintCenterGlobalPosition, ApplyEntityRenderSort);
@@ -236,7 +313,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		{
 			_isBattlePreparationActive = false;
 			_battlePreparationRequest = null;
-			BattleSessionHandoff.CancelBattle();
+			CancelActiveBattleLaunch(_battleStartBlockedReason);
 			StrategicWorldRuntime.LastNotice = _battleStartBlockedReason;
 			SwitchToNonBattleUi(BattleOutcome.None, null, null, _battleStartBlockedReason);
 		}
@@ -611,7 +688,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 	private PackedScene ResolveConfiguredSiteMapScene()
 	{
-		if (!BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request))
+		if (!TryResolveActiveBattleRequest(out BattleStartRequest request))
 		{
 			return SiteMapScene;
 		}
@@ -678,7 +755,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 	private string ResolveActiveWorldSiteId()
 	{
-		if (BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request) &&
+		if (TryResolveActiveBattleRequest(out BattleStartRequest request) &&
 			!string.IsNullOrWhiteSpace(request.TargetSiteId))
 		{
 			return request.TargetSiteId;
@@ -718,7 +795,9 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 		SceneTransitionResult transition = _sceneTransitionRouter.ReturnFromSite(new SceneTransitionReturnRequest
 		{
-			TargetScenePath = scenePath
+			TargetScenePath = scenePath,
+			// The large-map scene entry is the Strategic Management resume boundary.
+			OnEntered = StrategicManagementRuntime.ResumeWorldMapTime
 		});
 		if (!transition.Success)
 		{

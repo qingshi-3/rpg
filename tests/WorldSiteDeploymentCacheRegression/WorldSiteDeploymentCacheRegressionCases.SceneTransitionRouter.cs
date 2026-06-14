@@ -1,5 +1,7 @@
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Snapshots;
+using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.World;
 using Rpg.Infrastructure.Scenes;
 
@@ -64,6 +66,71 @@ internal static void SceneTransitionRouterBeginsBattleAndCancelsHandoffOnSceneFa
     BattleSessionHandoff.CancelBattle();
 }
 
+internal static void SceneTransitionRouterEntersStrategicBattleThroughActiveContext()
+{
+    BattleSessionHandoff.CancelBattle();
+    StrategicBattleActiveContextStore.Clear();
+    FakeSceneTransitionGateway gateway = new(Error.Ok);
+    SceneTransitionRouter router = new(gateway);
+    int successCalls = 0;
+    StrategicBattleActiveContext context = BuildSceneTransitionActiveContext("strategic_context_success");
+
+    SceneTransitionResult result = router.EnterBattlePreparation(new SceneTransitionBattleRequest
+    {
+        ActiveContext = context,
+        OnSuccess = () => successCalls++
+    });
+
+    AssertTrue(result.Success, "strategic battle transition should start when scene change is accepted");
+    AssertEqual(1, gateway.ChangeCalls, "strategic battle transition should attempt one scene change");
+    AssertEqual(context.ScenePath, gateway.LastScenePath, "strategic battle transition target scene");
+    AssertTrue(StrategicBattleActiveContextStore.HasActiveContext, "strategic transition should publish active context for the destination scene");
+    AssertTrue(
+        StrategicBattleActiveContextStore.TryPeek(out StrategicBattleActiveContext active) &&
+        ReferenceEquals(context, active),
+        "destination scene should be able to peek the exact strategic active context");
+    AssertTrue(!BattleSessionHandoff.HasActiveLaunch, "strategic active context path must not begin legacy battle handoff");
+    AssertEqual(0, successCalls, "strategic battle success callback should wait for scene entered");
+
+    gateway.CompleteSceneChange();
+
+    AssertEqual(1, successCalls, "strategic battle success callback should run once after scene entered");
+    AssertTrue(!router.IsTransitioning, "strategic battle transition should release busy state after scene entered");
+    AssertTrue(StrategicBattleActiveContextStore.HasActiveContext, "scene entry should not consume strategic active context");
+    AssertTrue(!BattleSessionHandoff.HasActiveLaunch, "scene entry should still not create legacy handoff");
+
+    StrategicBattleActiveContextStore.Clear();
+}
+
+internal static void SceneTransitionRouterCancelsStrategicActiveContextOnSceneFailure()
+{
+    BattleSessionHandoff.CancelBattle();
+    StrategicBattleActiveContextStore.Clear();
+    FakeSceneTransitionGateway gateway = new(Error.Failed);
+    SceneTransitionRouter router = new(gateway);
+    int rollbackCalls = 0;
+    StrategicBattleActiveContext context = BuildSceneTransitionActiveContext("strategic_context_failure");
+
+    SceneTransitionResult result = router.EnterBattlePreparation(new SceneTransitionBattleRequest
+    {
+        ActiveContext = context,
+        RollbackOnFailure = reason =>
+        {
+            rollbackCalls++;
+            AssertEqual("scene_change_failed:Failed", reason, "strategic battle rollback reason");
+        }
+    });
+
+    AssertTrue(!result.Success, "failed strategic battle transition should report failure");
+    AssertEqual(Error.Failed, result.Error, "strategic battle transition error");
+    AssertEqual(1, gateway.ChangeCalls, "strategic battle transition should attempt one scene change");
+    AssertEqual(context.ScenePath, gateway.LastScenePath, "strategic battle transition target scene");
+    AssertTrue(!StrategicBattleActiveContextStore.HasActiveContext, "failed strategic transition should clear active context");
+    AssertTrue(!BattleSessionHandoff.HasActiveLaunch, "failed strategic transition must not create legacy handoff");
+    AssertEqual(1, rollbackCalls, "failed strategic transition should run supplied rollback once");
+    AssertTrue(!router.IsTransitioning, "failed strategic transition should release busy state");
+}
+
 internal static void SceneTransitionRouterRejectsOverlappingTransitions()
 {
     StrategicWorldRuntime.ClearPendingSiteVisit();
@@ -88,6 +155,147 @@ internal static void SceneTransitionRouterRejectsOverlappingTransitions()
     AssertEqual(1, gateway.ChangeCalls, "rejected transition should not call scene change");
 }
 
+internal static void SceneTransitionRouterRunsSiteEnteredCallbackAfterSceneEntered()
+{
+    StrategicWorldRuntime.ClearPendingSiteVisit();
+    FakeSceneTransitionGateway gateway = new(Error.Ok);
+    SceneTransitionRouter router = new(gateway);
+    int callbackCalls = 0;
+
+    SceneTransitionResult result = router.EnterSiteDetail(new SceneTransitionSiteVisitRequest
+    {
+        SiteId = "site_under_test",
+        TargetScenePath = "res://scenes/world/sites/WorldSiteRoot.tscn",
+        ReturnScenePath = "res://scenes/world/StrategicWorldRoot.tscn",
+        OnEntered = () => callbackCalls++
+    });
+
+    AssertTrue(result.Success, "site transition should start when scene change is accepted");
+    AssertEqual(0, callbackCalls, "site entered callback should wait for scene entered");
+
+    gateway.CompleteSceneChange();
+
+    AssertEqual(1, callbackCalls, "site entered callback should run once after scene entered");
+    AssertTrue(!router.IsTransitioning, "site transition should release busy state after scene entered");
+}
+
+internal static void SceneTransitionRouterRunsReturnEnteredCallbackAfterSceneEntered()
+{
+    FakeSceneTransitionGateway gateway = new(Error.Ok);
+    SceneTransitionRouter router = new(gateway);
+    int callbackCalls = 0;
+
+    SceneTransitionResult result = router.ReturnFromSite(new SceneTransitionReturnRequest
+    {
+        TargetScenePath = "res://scenes/world/StrategicWorldRoot.tscn",
+        OnEntered = () => callbackCalls++
+    });
+
+    AssertTrue(result.Success, "return transition should start when scene change is accepted");
+    AssertEqual(0, callbackCalls, "return entered callback should wait for scene entered");
+
+    gateway.CompleteSceneChange();
+
+    AssertEqual(1, callbackCalls, "return entered callback should run once after scene entered");
+    AssertTrue(!router.IsTransitioning, "return transition should release busy state after scene entered");
+}
+
+internal static void SceneTransitionRouterSkipsEnteredCallbacksOnSceneFailure()
+{
+    StrategicWorldRuntime.ClearPendingSiteVisit();
+    FakeSceneTransitionGateway gateway = new(Error.Failed);
+    SceneTransitionRouter router = new(gateway);
+    int siteCallbackCalls = 0;
+    int returnCallbackCalls = 0;
+
+    SceneTransitionResult siteResult = router.EnterSiteDetail(new SceneTransitionSiteVisitRequest
+    {
+        SiteId = "site_under_test",
+        TargetScenePath = "res://missing_site_scene.tscn",
+        ReturnScenePath = "res://scenes/world/StrategicWorldRoot.tscn",
+        OnEntered = () => siteCallbackCalls++
+    });
+    SceneTransitionResult returnResult = router.ReturnFromSite(new SceneTransitionReturnRequest
+    {
+        TargetScenePath = "res://missing_world_scene.tscn",
+        OnEntered = () => returnCallbackCalls++
+    });
+
+    AssertTrue(!siteResult.Success, "failed site transition should report failure");
+    AssertTrue(!returnResult.Success, "failed return transition should report failure");
+    AssertEqual(0, siteCallbackCalls, "failed site transition must not run entered callback");
+    AssertEqual(0, returnCallbackCalls, "failed return transition must not run entered callback");
+    AssertTrue(!router.IsTransitioning, "failed transitions should release busy state");
+}
+
+internal static void SceneTransitionRouterCompletesBattleSuccessAfterSceneEntered()
+{
+    BattleSessionHandoff.CancelBattle();
+    FakeSceneTransitionGateway gateway = new(Error.Ok);
+    SceneTransitionRouter router = new(gateway);
+    int successCalls = 0;
+    BattleStartRequest request = new()
+    {
+        RequestId = "request_scene_entered_success",
+        SiteScenePath = "res://scenes/world/sites/WorldSiteRoot.tscn",
+        ReturnScenePath = "res://scenes/world/StrategicWorldRoot.tscn",
+        BattleKind = BattleKind.AssaultSite
+    };
+
+    SceneTransitionResult result = router.EnterBattlePreparation(new SceneTransitionBattleRequest
+    {
+        Request = request,
+        OnSuccess = () => successCalls++
+    });
+
+    AssertTrue(result.Success, "battle transition should start when scene change is accepted");
+    AssertEqual(1, gateway.ChangeCalls, "battle transition should request one scene change");
+    AssertEqual(0, successCalls, "battle success callback should wait for scene entered");
+    AssertTrue(router.IsTransitioning, "battle transition should remain busy until scene entered");
+    AssertTrue(BattleSessionHandoff.HasActiveLaunch, "started battle transition should keep handoff active for destination scene");
+
+    gateway.CompleteSceneChange();
+
+    AssertEqual(1, successCalls, "battle success callback should run once after scene entered");
+    AssertTrue(!router.IsTransitioning, "battle transition should release busy state after scene entered");
+    AssertTrue(BattleSessionHandoff.HasActiveLaunch, "scene entry should not consume the active battle handoff");
+
+    BattleSessionHandoff.CancelBattle();
+}
+
+internal static void SceneTransitionRouterClearsBusyAfterSceneEntered()
+{
+    StrategicWorldRuntime.ClearPendingSiteVisit();
+    FakeSceneTransitionGateway gateway = new(Error.Ok);
+    SceneTransitionRouter router = new(gateway);
+
+    SceneTransitionResult first = router.EnterSiteDetail(new SceneTransitionSiteVisitRequest
+    {
+        SiteId = "site_under_test",
+        TargetScenePath = "res://scenes/world/sites/WorldSiteRoot.tscn",
+        ReturnScenePath = "res://scenes/world/StrategicWorldRoot.tscn"
+    });
+    SceneTransitionResult overlapping = router.ReturnFromSite(new SceneTransitionReturnRequest
+    {
+        TargetScenePath = "res://scenes/world/StrategicWorldRoot.tscn"
+    });
+
+    AssertTrue(first.Success, "site transition should start");
+    AssertTrue(!overlapping.Success, "overlapping transition should be rejected before scene entered");
+    AssertTrue(router.IsTransitioning, "site transition should stay busy before scene entered");
+
+    gateway.CompleteSceneChange();
+
+    AssertTrue(!router.IsTransitioning, "site transition should release busy state after scene entered");
+
+    SceneTransitionResult afterEntered = router.ReturnFromSite(new SceneTransitionReturnRequest
+    {
+        TargetScenePath = "res://scenes/world/StrategicWorldRoot.tscn"
+    });
+
+    AssertTrue(afterEntered.Success, "router should accept another transition after scene entered");
+}
+
 internal static void RootSceneChangesAreRoutedThroughSceneTransitionRouter()
 {
     string strategicSource = ReadStrategicWorldRootSource();
@@ -103,6 +311,12 @@ internal static void RootSceneChangesAreRoutedThroughSceneTransitionRouter()
         siteSource.Contains("_sceneTransitionRouter.ReturnFromSite", StringComparison.Ordinal),
         "WorldSiteRoot should route return scene transitions through SceneTransitionRouter");
     AssertTrue(
+        strategicSource.Contains("StrategicManagementRuntime.PauseWorldTimeForCityManagement", StringComparison.Ordinal),
+        "StrategicWorldRoot should pause Strategic Management world time after entering site management");
+    AssertTrue(
+        siteSource.Contains("StrategicManagementRuntime.ResumeWorldMapTime", StringComparison.Ordinal),
+        "WorldSiteRoot should resume Strategic Management world time after returning to the world map");
+    AssertTrue(
         !strategicSource.Contains("ChangeSceneToFile", StringComparison.Ordinal) &&
         !siteSource.Contains("ChangeSceneToFile", StringComparison.Ordinal),
         "presentation roots should not directly call root scene changes after router migration");
@@ -115,6 +329,7 @@ internal static void RootSceneChangesAreRoutedThroughSceneTransitionRouter()
 private sealed class FakeSceneTransitionGateway : ISceneTransitionGateway
 {
     private readonly Error _result;
+    private Action? _onSceneEntered;
 
     public FakeSceneTransitionGateway(Error result)
     {
@@ -124,11 +339,51 @@ private sealed class FakeSceneTransitionGateway : ISceneTransitionGateway
     public int ChangeCalls { get; private set; }
     public string LastScenePath { get; private set; } = "";
 
-    public Error ChangeSceneToFile(string scenePath)
+    public Error ChangeSceneToFile(string scenePath, Action onSceneEntered)
     {
         ChangeCalls++;
         LastScenePath = scenePath ?? "";
+        _onSceneEntered = _result == Error.Ok ? onSceneEntered : null;
         return _result;
     }
+
+    public void CompleteSceneChange()
+    {
+        Action? callback = _onSceneEntered;
+        _onSceneEntered = null;
+        callback?.Invoke();
+    }
+}
+
+private static StrategicBattleActiveContext BuildSceneTransitionActiveContext(string contextId)
+{
+    BattleStartRequest request = new()
+    {
+        RequestId = $"request:{contextId}",
+        SiteScenePath = "res://scenes/world/sites/WorldSiteRoot.tscn",
+        ReturnScenePath = "res://scenes/world/StrategicWorldRoot.tscn",
+        BattleKind = BattleKind.AssaultSite
+    };
+    return new StrategicBattleActiveContext
+    {
+        ContextId = contextId,
+        ScenePath = request.SiteScenePath,
+        ReturnScenePath = request.ReturnScenePath,
+        CompatibilityRequest = request,
+        Session = new StrategicBattleSession
+        {
+            SessionId = contextId,
+            ExpeditionId = $"expedition:{contextId}",
+            TargetLocationId = "target_location",
+            SiteScenePath = request.SiteScenePath,
+            ReturnScenePath = request.ReturnScenePath
+        },
+        Snapshot = new BattleStartSnapshot
+        {
+            SnapshotId = $"snapshot:{contextId}",
+            BattleId = contextId,
+            TargetLocationId = "target_location"
+        }
+    };
 }
 }

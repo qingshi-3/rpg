@@ -28,6 +28,7 @@ internal static class TargetBattleHeroSkillRegressionCases
         run("runtime skill waits for basic attack recovery by default", RuntimeSkillWaitsForBasicAttackRecoveryByDefault);
         run("runtime skill interrupts pre impact attack windup", RuntimeSkillInterruptsPreImpactAttackWindup);
         run("runtime skill command waits behind active skill by default", RuntimeSkillCommandWaitsBehindActiveSkillByDefault);
+        run("runtime idle caster keeps only latest pending skill intent", RuntimeIdleCasterKeepsOnlyLatestPendingSkillIntent);
         run("runtime skill waits one tick after movement boundary", RuntimeSkillWaitsOneTickAfterMovementBoundary);
         run("runtime skill release consumes actor decision slice", RuntimeSkillReleaseConsumesActorDecisionSlice);
         run("runtime effect events carry skill source attribution", RuntimeEffectEventsCarrySkillSourceAttribution);
@@ -398,6 +399,42 @@ internal static class TargetBattleHeroSkillRegressionCases
                 item.Kind == BattleEventKind.SkillUsed &&
                 item.SourceCommandId == "cmd_skill_casting_second"),
             "second skill should start only after the first skill recovery boundary");
+    }
+
+    internal static void RuntimeIdleCasterKeepsOnlyLatestPendingSkillIntent()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_hero_skill_latest_pending", enemyStrength: 60);
+        AddFollowUpSkill(snapshot, "latest_skill", damage: 5);
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        BattleRuntimeCommandSubmitResult first = SubmitTargetedSkill(
+            controller,
+            "battle_hero_skill_latest_pending",
+            "cmd_pending_first",
+            EnemyActorId);
+        BattleRuntimeCommandSubmitResult latest = SubmitTargetedSkill(
+            controller,
+            "battle_hero_skill_latest_pending",
+            "cmd_pending_latest",
+            EnemyActorId,
+            skillId: "latest_skill");
+
+        AssertTrue(first.Accepted && latest.Accepted, "idle caster should accept replacement skill intent");
+        BattleRuntimeAdvanceResult advance = controller.AdvanceFixedTick();
+
+        AssertTrue(
+            advance.Events.All(item =>
+                item.SourceCommandId != "cmd_pending_first" ||
+                item.Kind is not (BattleEventKind.SkillUsed or BattleEventKind.DamageApplied)),
+            "superseded pending skill must not start or apply after a newer idle-caster intent");
+        AssertTrue(
+            latest.Events.Any(item =>
+                item.Kind == BattleEventKind.CommandInterrupted &&
+                item.SourceCommandId == "cmd_pending_first" &&
+                item.ReasonCode == "skill_intent_superseded"),
+            "replacing an idle caster's pending skill should emit a supersession event for reports and diagnostics");
+        AssertEffectDamage(advance, "cmd_pending_latest", 5, "latest pending skill should be the only released command", expectedSkillId: "latest_skill");
+        AssertEqual(55, EnemyCorps(controller).HitPoints, "only the replacement skill damage should apply");
     }
 
     internal static void RuntimeSkillWaitsOneTickAfterMovementBoundary()
@@ -861,7 +898,8 @@ internal static class TargetBattleHeroSkillRegressionCases
         string commandId,
         int expectedDamage,
         string message,
-        string expectedActorId = "group_player:hero")
+        string expectedActorId = "group_player:hero",
+        string expectedSkillId = FirstSliceSkillId)
     {
         BattleEvent? damage = advance.Events.FirstOrDefault(item =>
             item.Kind == BattleEventKind.DamageApplied &&
@@ -869,7 +907,7 @@ internal static class TargetBattleHeroSkillRegressionCases
             item.TargetId == EnemyActorId &&
             item.SourceCommandId == commandId);
         AssertTrue(damage != null, $"{message} should apply damage");
-        AssertEqual(FirstSliceSkillId, damage!.SourceDefinitionId, $"{message} source definition");
+        AssertEqual(expectedSkillId, damage!.SourceDefinitionId, $"{message} source definition");
         AssertEqual(-expectedDamage, damage.CorpsStrengthDelta, $"{message} amount");
     }
 

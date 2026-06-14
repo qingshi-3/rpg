@@ -1,5 +1,7 @@
+using System;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.World;
 using Rpg.Infrastructure.Logging;
 
@@ -30,7 +32,13 @@ public sealed class SceneTransitionRouter
         }
 
         StrategicWorldRuntime.BeginSiteVisit(request.SiteId, request.ReturnScenePath, request.ArmyId);
-        Error error = _gateway.ChangeSceneToFile(request.TargetScenePath);
+        Error error = _gateway.ChangeSceneToFile(
+            request.TargetScenePath,
+            () => CompleteTransition(
+                "SiteDetail",
+                request.TargetScenePath,
+                $"SiteDetailTransitionEntered site={request.SiteId} scene={request.TargetScenePath}",
+                request.OnEntered));
         if (error == Error.Ok)
         {
             GameLog.Info(nameof(SceneTransitionRouter), $"SiteDetailTransitionStarted site={request.SiteId} scene={request.TargetScenePath}");
@@ -50,6 +58,11 @@ public sealed class SceneTransitionRouter
             return busyResult;
         }
 
+        if (request?.ActiveContext != null)
+        {
+            return EnterStrategicBattlePreparation(request);
+        }
+
         BattleStartRequest battleRequest = request?.Request;
         if (battleRequest == null || string.IsNullOrWhiteSpace(battleRequest.SiteScenePath))
         {
@@ -58,10 +71,15 @@ public sealed class SceneTransitionRouter
         }
 
         BattleSessionHandoff.BeginBattle(battleRequest);
-        Error error = _gateway.ChangeSceneToFile(battleRequest.SiteScenePath);
+        Error error = _gateway.ChangeSceneToFile(
+            battleRequest.SiteScenePath,
+            () => CompleteTransition(
+                "Battle",
+                battleRequest.SiteScenePath,
+                $"BattleTransitionEntered request={battleRequest.RequestId} scene={battleRequest.SiteScenePath}",
+                request.OnSuccess));
         if (error == Error.Ok)
         {
-            request.OnSuccess?.Invoke();
             GameLog.Info(nameof(SceneTransitionRouter), $"BattleTransitionStarted request={battleRequest.RequestId} scene={battleRequest.SiteScenePath}");
             return SceneTransitionResult.Ok();
         }
@@ -71,6 +89,42 @@ public sealed class SceneTransitionRouter
         string failureReason = $"scene_change_failed:{error}";
         request.RollbackOnFailure?.Invoke(failureReason);
         GameLog.Warn(nameof(SceneTransitionRouter), $"BattleTransitionFailed request={battleRequest.RequestId} scene={battleRequest.SiteScenePath} error={error}");
+        return SceneTransitionResult.Fail(failureReason, error);
+    }
+
+    private SceneTransitionResult EnterStrategicBattlePreparation(SceneTransitionBattleRequest request)
+    {
+        StrategicBattleActiveContext activeContext = request.ActiveContext;
+        string scenePath = string.IsNullOrWhiteSpace(activeContext.ScenePath)
+            ? activeContext.CompatibilityRequest?.SiteScenePath ?? ""
+            : activeContext.ScenePath;
+        if (string.IsNullOrWhiteSpace(scenePath))
+        {
+            IsTransitioning = false;
+            return SceneTransitionResult.Fail("invalid_strategic_battle_transition_request");
+        }
+
+        // Strategic battles publish Bridge Active Context for the destination scene.
+        // The legacy BattleSessionHandoff branch below remains only for non-Strategic compatibility.
+        StrategicBattleActiveContextStore.Begin(activeContext);
+        Error error = _gateway.ChangeSceneToFile(
+            scenePath,
+            () => CompleteTransition(
+                "StrategicBattle",
+                scenePath,
+                $"StrategicBattleTransitionEntered context={activeContext.ContextId} scene={scenePath}",
+                request.OnSuccess));
+        if (error == Error.Ok)
+        {
+            GameLog.Info(nameof(SceneTransitionRouter), $"StrategicBattleTransitionStarted context={activeContext.ContextId} scene={scenePath}");
+            return SceneTransitionResult.Ok();
+        }
+
+        StrategicBattleActiveContextStore.Clear($"scene_change_failed:{error}");
+        IsTransitioning = false;
+        string failureReason = $"scene_change_failed:{error}";
+        request.RollbackOnFailure?.Invoke(failureReason);
+        GameLog.Warn(nameof(SceneTransitionRouter), $"StrategicBattleTransitionFailed context={activeContext.ContextId} scene={scenePath} error={error}");
         return SceneTransitionResult.Fail(failureReason, error);
     }
 
@@ -92,7 +146,13 @@ public sealed class SceneTransitionRouter
             StrategicWorldRuntime.MarkWorldResumeAfterSiteReturn();
         }
 
-        Error error = _gateway.ChangeSceneToFile(request.TargetScenePath);
+        Error error = _gateway.ChangeSceneToFile(
+            request.TargetScenePath,
+            () => CompleteTransition(
+                "Return",
+                request.TargetScenePath,
+                $"ReturnTransitionEntered scene={request.TargetScenePath}",
+                request.OnEntered));
         if (error == Error.Ok)
         {
             GameLog.Info(nameof(SceneTransitionRouter), $"ReturnTransitionStarted scene={request.TargetScenePath}");
@@ -115,5 +175,31 @@ public sealed class SceneTransitionRouter
         IsTransitioning = true;
         result = null;
         return true;
+    }
+
+    private void CompleteTransition(
+        string transitionKind,
+        string scenePath,
+        string enteredLogMessage,
+        Action onEntered = null)
+    {
+        // The authoritative "entered" boundary is SceneTree.SceneChanged. Until this callback runs,
+        // current_scene may still be null and rollback/duplicate-transition guards must stay active.
+        IsTransitioning = false;
+        GameLog.Info(nameof(SceneTransitionRouter), enteredLogMessage);
+
+        try
+        {
+            onEntered?.Invoke();
+        }
+        catch (Exception exception)
+        {
+            string reason = string.IsNullOrWhiteSpace(exception.Message)
+                ? exception.GetType().Name
+                : exception.Message;
+            GameLog.Warn(
+                nameof(SceneTransitionRouter),
+                $"SceneTransitionEnteredCallbackFailed kind={transitionKind} scene={scenePath} reason={reason}");
+        }
     }
 }

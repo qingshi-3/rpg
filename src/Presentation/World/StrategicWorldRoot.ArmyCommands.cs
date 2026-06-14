@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.World;
+using Rpg.Domain.StrategicManagement;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Entities;
@@ -52,6 +54,12 @@ public partial class StrategicWorldRoot
                 return true;
             }
 
+            if (!TrySyncStrategicExpeditionCommand(selectedArmies, siteDefinition.Id, WorldArmyIntent.ReinforceSite))
+            {
+                RefreshAll();
+                return true;
+            }
+
             if (!TryBuildCommandPaths(
                     selectedArmies,
                     siteArmyPosition,
@@ -63,7 +71,24 @@ public partial class StrategicWorldRoot
                 return true;
             }
 
-            CommandArmiesToSite(selectedArmies, siteDefinition, siteArmyPosition, siteArrivalOffset, siteApproachDirection, WorldArmyIntent.ReinforceSite, commandPaths);
+            WorldArmyCommandResult commandResult = _armyCommandService.ApplySiteCommand(
+                selectedArmies,
+                siteDefinition.Id,
+                siteArmyPosition,
+                siteArrivalOffset,
+                siteApproachDirection,
+                WorldArmyIntent.ReinforceSite,
+                commandPaths,
+                _strategicNavigationContext.Version,
+                State?.PlayerFactionId);
+            if (!commandResult.Success)
+            {
+                StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason(commandResult.FailureReason);
+                GameLog.Warn(nameof(StrategicWorldRoot), $"WorldArmyCommandReinforceRejected site={siteId} reason={commandResult.FailureReason}");
+                RefreshAll();
+                return true;
+            }
+
             StrategicWorldRuntime.LastNotice = $"已命令 {selectedArmies.Length} 支小队进驻 {siteDefinition.DisplayName}。";
             RefreshAll();
             return true;
@@ -73,6 +98,12 @@ public partial class StrategicWorldRoot
         {
             StrategicWorldRuntime.LastNotice = BuildUnsupportedAssaultNotice(siteDefinition);
             GameLog.Info(nameof(StrategicWorldRoot), $"WorldArmyCommandAssaultRejected site={siteDefinition.Id} reason=missing_assault_battle_config");
+            RefreshAll();
+            return true;
+        }
+
+        if (!TrySyncStrategicExpeditionCommand(selectedArmies, siteDefinition.Id, WorldArmyIntent.AssaultSite))
+        {
             RefreshAll();
             return true;
         }
@@ -95,33 +126,99 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        CommandArmiesToSite(selectedArmies, siteDefinition, assaultSiteArmyPosition, assaultArrivalOffset, assaultApproachDirection, WorldArmyIntent.AssaultSite, commandPathsToSite);
+        WorldArmyCommandResult assaultCommandResult = _armyCommandService.ApplySiteCommand(
+            selectedArmies,
+            siteDefinition.Id,
+            assaultSiteArmyPosition,
+            assaultArrivalOffset,
+            assaultApproachDirection,
+            WorldArmyIntent.AssaultSite,
+            commandPathsToSite,
+            _strategicNavigationContext.Version,
+            State?.PlayerFactionId);
+        if (!assaultCommandResult.Success)
+        {
+            StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason(assaultCommandResult.FailureReason);
+            GameLog.Warn(nameof(StrategicWorldRoot), $"WorldArmyCommandAssaultRejected site={siteDefinition.Id} reason={assaultCommandResult.FailureReason}");
+            RefreshAll();
+            return true;
+        }
+
         StrategicWorldRuntime.LastNotice = $"已命令 {selectedArmies.Length} 支小队进攻 {siteDefinition.DisplayName}。";
         RefreshAll();
         return true;
     }
 
-    private void CommandArmiesToSite(
-        WorldArmyState[] armies,
-        WorldSiteDefinition siteDefinition,
-        Vector2 siteArmyPosition,
-        Vector2 arrivalApproachOffset,
-        WorldSiteAttackDirection approachDirection,
-        WorldArmyIntent intent,
-        IReadOnlyDictionary<string, StrategicNavigationPath> commandPaths)
+    private bool TrySyncStrategicExpeditionCommand(
+        IReadOnlyList<WorldArmyState> armies,
+        string targetSiteId,
+        WorldArmyIntent worldIntent)
     {
-        foreach (WorldArmyState army in armies)
+        WorldArmyState[] strategicArmies = (armies ?? System.Array.Empty<WorldArmyState>())
+            .Where(army => !string.IsNullOrWhiteSpace(army?.StrategicExpeditionId))
+            .ToArray();
+        if (strategicArmies.Length == 0)
         {
-            army.TargetSiteId = siteDefinition.Id;
-            army.Destination = siteArmyPosition;
-            army.Intent = intent;
-            army.Status = WorldArmyStatus.Moving;
-            army.SetArrivalApproachOffset(arrivalApproachOffset);
-            army.SetTargetApproachDirection(approachDirection);
-            ApplyCommandNavigationPath(army, commandPaths, siteArmyPosition);
+            return true;
         }
 
-        GameLog.Info(nameof(StrategicWorldRoot), $"WorldArmyCommandSite count={armies.Length} target={siteDefinition.Id} intent={intent} approachDirection={approachDirection}");
+        StrategicExpeditionIntent strategicIntent = ToStrategicExpeditionIntent(worldIntent);
+        if (strategicIntent == StrategicExpeditionIntent.Unknown)
+        {
+            StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(StrategicFailureReasons.UnsupportedExpeditionIntent);
+            GameLog.Warn(nameof(StrategicWorldRoot), $"StrategicExpeditionCommandSyncRejected intent={worldIntent} reason={StrategicFailureReasons.UnsupportedExpeditionIntent}");
+            return false;
+        }
+
+        StrategicManagementRuntime.EnsureInitialized();
+        string targetLocationId = "";
+        if (strategicIntent != StrategicExpeditionIntent.MoveToPosition &&
+            !StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(targetSiteId, out targetLocationId))
+        {
+            StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(StrategicFailureReasons.MissingLocation);
+            GameLog.Warn(nameof(StrategicWorldRoot), $"StrategicExpeditionCommandSyncRejected targetSite={targetSiteId} intent={worldIntent} reason={StrategicFailureReasons.MissingLocation}");
+            return false;
+        }
+
+        foreach (WorldArmyState army in strategicArmies)
+        {
+            string failureReason = StrategicManagementRuntime.Rules.GetExpeditionRetargetFailureReason(
+                StrategicManagementRuntime.State,
+                army.StrategicExpeditionId,
+                targetLocationId,
+                strategicIntent);
+            if (string.IsNullOrWhiteSpace(failureReason))
+            {
+                continue;
+            }
+
+            StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(failureReason);
+            GameLog.Warn(
+                nameof(StrategicWorldRoot),
+                $"StrategicExpeditionCommandSyncRejected army={army.ArmyId} expedition={army.StrategicExpeditionId} targetSite={targetSiteId} targetLocation={targetLocationId} intent={strategicIntent} reason={failureReason}");
+            return false;
+        }
+
+        foreach (WorldArmyState army in strategicArmies)
+        {
+            StrategicCommandResult result = StrategicManagementRuntime.Commands.RetargetExpedition(
+                StrategicManagementRuntime.State,
+                army.StrategicExpeditionId,
+                targetLocationId,
+                strategicIntent);
+            if (result.Success)
+            {
+                continue;
+            }
+
+            StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(result.FailureReason);
+            GameLog.Warn(
+                nameof(StrategicWorldRoot),
+                $"StrategicExpeditionCommandSyncFailed army={army.ArmyId} expedition={army.StrategicExpeditionId} targetSite={targetSiteId} targetLocation={targetLocationId} intent={strategicIntent} reason={result.FailureReason}");
+            return false;
+        }
+
+        return true;
     }
 
     private bool TryBuildCommandPaths(
@@ -146,27 +243,6 @@ public partial class StrategicWorldRoot
         commandPaths = result.CommandPaths;
         navigationDeferred = result.HasDeferredPaths;
         return true;
-    }
-
-    private void ApplyCommandNavigationPath(
-        WorldArmyState army,
-        IReadOnlyDictionary<string, StrategicNavigationPath> commandPaths,
-        Vector2 destination)
-    {
-        if (army == null)
-        {
-            return;
-        }
-
-        if (commandPaths != null &&
-            commandPaths.TryGetValue(army.ArmyId, out StrategicNavigationPath path) &&
-            path?.Points?.Count > 0)
-        {
-            army.SetNavigationPath(path.Points, destination, _strategicNavigationContext.Version);
-            return;
-        }
-
-        army.ClearNavigationPath();
     }
 
     private static Vector2 GetAverageArmyPosition(IReadOnlyList<WorldArmyState> armies)
@@ -426,45 +502,32 @@ public partial class StrategicWorldRoot
                 continue;
             }
 
-            bool changed = false;
+            Vector2? resolvedWorldPosition = null;
+            Vector2? resolvedDestination = null;
+            Vector2 arrivalApproachOffset = default;
+            WorldSiteAttackDirection approachDirection = army.TargetApproachDirection;
+            Vector2 effectiveWorldPosition = army.WorldPosition;
             if (!string.IsNullOrWhiteSpace(army.SourceSiteId) &&
                 queries.GetSite(army.SourceSiteId) is { } sourceSite &&
                 army.WorldPosition.DistanceSquaredTo(GetSiteMapPosition(sourceSite)) <= SiteNavigationPointSnapDistance * SiteNavigationPointSnapDistance &&
                 TryResolveSiteExitArmyNavigationPoint(army.SourceSiteId, army.Destination, out Vector2 sourcePosition, out _))
             {
-                if (army.WorldPosition.DistanceSquaredTo(sourcePosition) > 0.001f)
-                {
-                    army.WorldPosition = sourcePosition;
-                    changed = true;
-                }
+                resolvedWorldPosition = sourcePosition;
+                effectiveWorldPosition = sourcePosition;
             }
 
             if (!string.IsNullOrWhiteSpace(army.TargetSiteId) &&
-                TryResolveSiteArmyNavigationPoint(army.TargetSiteId, army.WorldPosition, out Vector2 destinationPosition, out Vector2 arrivalApproachOffset, out WorldSiteAttackDirection approachDirection, out _))
+                TryResolveSiteArmyNavigationPoint(army.TargetSiteId, effectiveWorldPosition, out Vector2 destinationPosition, out arrivalApproachOffset, out approachDirection, out _))
             {
-                if (army.Destination.DistanceSquaredTo(destinationPosition) > 0.001f)
-                {
-                    army.Destination = destinationPosition;
-                    army.SetArrivalApproachOffset(arrivalApproachOffset);
-                    changed = true;
-                }
-
-                if (army.TargetApproachDirection != approachDirection)
-                {
-                    army.SetTargetApproachDirection(approachDirection);
-                    changed = true;
-                }
+                resolvedDestination = destinationPosition;
             }
 
-            if (!changed)
-            {
-                continue;
-            }
-
-            army.ClearNavigationPath();
-            GameLog.Info(
-                nameof(StrategicWorldRoot),
-                $"WorldArmySiteNavigationPointsResolved army={army.ArmyId} source={army.SourceSiteId} target={army.TargetSiteId} position={army.WorldPosition} destination={army.Destination}");
+            _armyCommandService.ApplyResolvedSiteNavigationPoints(
+                army,
+                resolvedWorldPosition,
+                resolvedDestination,
+                arrivalApproachOffset,
+                approachDirection);
         }
     }
 

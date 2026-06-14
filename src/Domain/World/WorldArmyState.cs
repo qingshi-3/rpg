@@ -7,6 +7,9 @@ namespace Rpg.Domain.World;
 public sealed class WorldArmyState
 {
     public string ArmyId { get; set; } = "";
+    public string StrategicExpeditionId { get; set; } = "";
+    public string StrategicHeroId { get; set; } = "";
+    public string StrategicCorpsInstanceId { get; set; } = "";
     public string OwnerFactionId { get; set; } = "";
     public string SourceSiteId { get; set; } = "";
     public string TargetSiteId { get; set; } = "";

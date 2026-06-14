@@ -222,6 +222,22 @@ internal static class TargetBattlePerformanceRegressionCases
         AssertNoLinqSortChain(movementCommitResolver, "movement commit resolver");
     }
 
+    public static void RouteTopologyCachesRegionTravelFromEntryAnchor()
+    {
+        string routeTopology = File.ReadAllText(Path.Combine(
+            ProjectRoot(),
+            "src",
+            "Runtime",
+            "Battle",
+            "Navigation",
+            "BattleRouteTopology.cs"));
+
+        AssertTrue(
+            routeTopology.Contains("BattleRouteRegionTravelStartKey", StringComparison.Ordinal) &&
+            routeTopology.Contains("GetOrBuildRegionTravelCosts", StringComparison.Ordinal),
+            "route topology should cache one region-local search per entry anchor instead of rebuilding travel cost for every portal pair");
+    }
+
     public static void RuntimeSpikeDiagnosticsWriteAutomaticSummary()
     {
         const string ThresholdEnvironmentVariable = "RPG_BATTLE_RUNTIME_SPIKE_DIAGNOSTIC_MS";

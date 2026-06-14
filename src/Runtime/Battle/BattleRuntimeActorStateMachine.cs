@@ -211,6 +211,59 @@ internal static class BattleRuntimeActorStateMachine
         actor.CurrentSkillImpactApplied = false;
     }
 
+    internal static void CommitDisplacement(
+        BattleRuntimeActor actor,
+        BattleGridCoord destination,
+        double currentTimeSeconds)
+    {
+        if (actor == null || actor.HitPoints <= 0)
+        {
+            return;
+        }
+
+        bool keepSkillLock = actor.Phase is BattleRuntimeActorPhase.SkillCasting or BattleRuntimeActorPhase.SkillRecovery;
+
+        actor.GridX = destination.X;
+        actor.GridY = destination.Y;
+        actor.GridHeight = destination.Height;
+        actor.Position = destination.X;
+        actor.MotionState = BattleRuntimeActorMotionState.Anchored;
+        actor.TargetActorId = "";
+        actor.HasReservedGridCell = false;
+        actor.ReservedGridX = 0;
+        actor.ReservedGridY = 0;
+        actor.ReservedGridHeight = 0;
+        actor.HasMovementTarget = false;
+        actor.MovementFromGridX = destination.X;
+        actor.MovementFromGridY = destination.Y;
+        actor.MovementFromGridHeight = destination.Height;
+        actor.MovementToGridX = destination.X;
+        actor.MovementToGridY = destination.Y;
+        actor.MovementToGridHeight = destination.Height;
+        actor.MovementStartedAtSeconds = currentTimeSeconds;
+        actor.MovementDurationSeconds = 0;
+        actor.MovementProgress = 1;
+        actor.HasMovementBacktrackGuardCell = false;
+        actor.MovementBacktrackGuardGridX = 0;
+        actor.MovementBacktrackGuardGridY = 0;
+        actor.MovementBacktrackGuardGridHeight = 0;
+        actor.HasSecondaryMovementBacktrackGuardCell = false;
+        actor.SecondaryMovementBacktrackGuardGridX = 0;
+        actor.SecondaryMovementBacktrackGuardGridY = 0;
+        actor.SecondaryMovementBacktrackGuardGridHeight = 0;
+        // Displacement invalidates movement and target context derived from the
+        // previous anchor; later perception and targeting rebuild from this cell.
+        ClearMovementIntentSnapshot(actor);
+
+        if (!keepSkillLock)
+        {
+            actor.Phase = BattleRuntimeActorPhase.AnchoredDecision;
+            actor.ActionReadyAtSeconds = currentTimeSeconds;
+            actor.ActionLockTicksRemaining = 0;
+            actor.ActionLockReason = "";
+        }
+    }
+
     internal static void MarkWaitingForCharge(BattleRuntimeActor actor, double currentTimeSeconds)
     {
         if (actor == null)

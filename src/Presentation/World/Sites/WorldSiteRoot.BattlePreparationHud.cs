@@ -12,7 +12,6 @@ using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Battle.Flow;
-using Rpg.Presentation.Common;
 using Rpg.Presentation.World;
 
 namespace Rpg.Presentation.World.Sites;
@@ -21,15 +20,15 @@ public partial class WorldSiteRoot
 {
     private void EnterBattlePreparation()
     {
-        if (!BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request))
+        if (!TryResolveActiveBattleRequest(out BattleStartRequest request))
         {
             return;
         }
 
         _isBattlePreparationActive = true;
         _battlePreparationRequest = request;
-        _selectedBattleCorpsCommand = ResolveBattleCorpsCommand(request.InitialCorpsCommandId);
-        ApplyBattleRuntimeCommandToRequest(request, BuildBattleRuntimeCommandRequest(_selectedBattleCorpsCommand));
+        _selectedBattleCorpsCommand = BattleRuntimeCommandHudModel.ResolveCorpsCommand(request.InitialCorpsCommandId);
+        BattleRuntimeCommandHudModel.ApplyRuntimeCommandToRequest(request, BuildBattleRuntimeCommandRequest(_selectedBattleCorpsCommand));
         SetBattleRuntimeEnabled(false, keepBattlePresentation: true);
         StrategicWorldRuntime.EnsureInitialized();
         _siteHudSiteId = ResolveRequestSiteId(request);
@@ -122,27 +121,16 @@ public partial class WorldSiteRoot
 
     private void BindBattlePreparationCompanyRoster()
     {
-        if (_battlePreparationRosterList == null)
-        {
-            return;
-        }
-
-        ClearChildren(_battlePreparationRosterList);
         EnsureSelectedBattlePreparationPlanGroup(_battlePreparationRequest);
-        foreach (BattleRuntimeCommandGroupView group in BuildBattlePreparationPlayerGroups())
-        {
-            BattlePreparationRosterRow row = GameUiSceneFactory.CreateBattlePreparationRosterRow(nameof(WorldSiteRoot));
-            if (row == null)
-            {
-                continue;
-            }
-
-            bool selected = string.Equals(group.GroupKey, _selectedBattlePreparationPlanGroupKey, System.StringComparison.Ordinal);
-            row.Bind(group.GroupKey, group.DisplayName, ResolveBattlePreparationCompanyPlanStatus(group), selected);
-            row.Selected += OnBattlePreparationCompanySelected;
-            row.DragStarted += BeginBattlePreparationCompanyDrag;
-            _battlePreparationRosterList.AddChild(row);
-        }
+        _battlePreparationHudBinder.BindCompanyRoster(
+            _battlePreparationRosterList,
+            BuildBattlePreparationPlayerGroups(),
+            _selectedBattlePreparationPlanGroupKey,
+            (groupKey, create) => ResolveBattlePreparationGroupPlan(_battlePreparationRequest, groupKey, create),
+            _battlePreparationRequest?.ObjectiveZones,
+            _explicitBattlePreparationRuleGroups,
+            OnBattlePreparationCompanySelected,
+            BeginBattlePreparationCompanyDrag);
     }
 
     private void OnBattlePreparationCompanySelected(string groupKey)
@@ -163,66 +151,33 @@ public partial class WorldSiteRoot
             _battlePreparationRequest,
             _selectedBattlePreparationPlanGroupKey,
             create: false);
-        if (_battlePreparationCompanyLabel != null)
-        {
-            _battlePreparationCompanyLabel.Text = selectedGroup?.DisplayName ?? "未选择部队";
-        }
-
-        if (_battlePreparationObjectiveLabel != null)
-        {
-            _battlePreparationObjectiveLabel.Text = $"目标：{BattlePreparationPlanUiModel.ResolveObjectiveText(plan, _battlePreparationRequest?.ObjectiveZones)}";
-        }
-
-        BindBattlePreparationRuleButton(_battlePreparationMoveFirstButton, BattleEngagementRule.MoveFirst, plan);
-        BindBattlePreparationRuleButton(_battlePreparationAttackFirstButton, BattleEngagementRule.AttackFirst, plan);
-        BindBattlePreparationRuleButton(_battlePreparationHoldButton, BattleEngagementRule.Hold, plan);
-
-        if (_battlePreparationStartButton != null)
-        {
-            bool canLaunch = CanLaunchPreparedBattle(_battlePreparationRequest, out string failureReason);
-            _battlePreparationStartButton.Disabled = !canLaunch;
-            _battlePreparationStartButton.TooltipText = canLaunch ? "开始实时战斗" : failureReason;
-        }
-    }
-
-    private void BindBattlePreparationRuleButton(
-        Button button,
-        BattleEngagementRule rule,
-        BattleGroupPlanSnapshot plan)
-    {
-        if (button == null)
-        {
-            return;
-        }
-
-        bool explicitSelected = plan != null &&
-                                plan.EngagementRule == rule &&
-                                _explicitBattlePreparationRuleGroups.Contains(_selectedBattlePreparationPlanGroupKey);
-        button.Text = explicitSelected ? $"✓{BattlePreparationPlanUiModel.BuildRuleLabel(rule)}" : BattlePreparationPlanUiModel.BuildRuleLabel(rule);
-        button.Disabled = string.IsNullOrWhiteSpace(_selectedBattlePreparationPlanGroupKey);
-        button.TooltipText = BattlePreparationPlanUiModel.BuildRuleTooltip(rule);
+        _battlePreparationHudBinder.BindCompactPlanControls(
+            _battlePreparationCompanyLabel,
+            _battlePreparationObjectiveLabel,
+            _battlePreparationMoveFirstButton,
+            _battlePreparationAttackFirstButton,
+            _battlePreparationHoldButton,
+            _battlePreparationStartButton,
+            selectedGroup,
+            _selectedBattlePreparationPlanGroupKey,
+            plan,
+            _battlePreparationRequest,
+            _explicitBattlePreparationRuleGroups,
+            CanLaunchPreparedBattle);
     }
 
     private void BindBattlePreparationObjectiveThumbnail()
     {
-        if (_battlePreparationObjectiveThumbnail == null)
-        {
-            return;
-        }
-
-        BattleRuntimeCommandGroupView selectedGroup = ResolveSelectedBattlePreparationGroup();
-        BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(
+        _battleObjectivePlanningHudBinder.BindThumbnail(
+            _battlePreparationObjectiveThumbnail,
             _battlePreparationRequest,
+            ResolveSelectedBattlePreparationGroup()?.DisplayName ?? "当前部队",
             _selectedBattlePreparationPlanGroupKey,
-            create: false);
-        _battlePreparationObjectiveThumbnail.Bind(
-            selectedGroup?.DisplayName ?? "当前部队",
-            BuildBattleObjectiveMapCells(),
-            (_battlePreparationRequest?.ObjectiveZones ?? new List<BattleObjectiveZoneSnapshot>())
-                .OrderBy(zone => zone?.Priority ?? int.MaxValue)
-                .ToArray(),
-            plan?.ObjectiveZoneId ?? "",
-            BuildBattleObjectiveMapRegions());
+            (groupKey, create) => ResolveBattlePreparationGroupPlan(_battlePreparationRequest, groupKey, create),
+            _activeGridMap,
+            _deploymentCache,
+            _semanticMapMarkers?.Markers,
+            BuildBattlePreparationObjectiveZoneFromMarker);
     }
 
     private BattleRuntimeCommandGroupView ResolveSelectedBattlePreparationGroup()
@@ -232,16 +187,6 @@ public partial class WorldSiteRoot
                 group.GroupKey,
                 _selectedBattlePreparationPlanGroupKey,
                 System.StringComparison.Ordinal));
-    }
-
-    private BattlePreparationCompanyPlanStatus ResolveBattlePreparationCompanyPlanStatus(
-        BattleRuntimeCommandGroupView group)
-    {
-        return BattlePreparationPlanUiModel.ResolveCompanyPlanStatus(
-            group,
-            ResolveBattlePreparationGroupPlan(_battlePreparationRequest, group?.GroupKey, create: false),
-            _battlePreparationRequest?.ObjectiveZones,
-            _explicitBattlePreparationRuleGroups);
     }
 
     private bool IsBattlePreparationCompanyPlaced(BattleRuntimeCommandGroupView group)
@@ -329,6 +274,7 @@ public partial class WorldSiteRoot
         {
             return;
         }
+
         request.ObjectiveZones ??= new List<BattleObjectiveZoneSnapshot>();
         IReadOnlyList<BattleObjectiveZoneSnapshot> markerZones = BuildMarkerBackedBattlePreparationObjectiveZones(request);
         if (markerZones.Count > 0 || ContainsGeneratedBattlePreparationObjectiveZones(request.ObjectiveZones))
@@ -336,6 +282,7 @@ public partial class WorldSiteRoot
             request.ObjectiveZones.Clear();
             request.ObjectiveZones.AddRange(markerZones);
         }
+
         request.PlayerBattleGroupPlan ??= new BattleGroupPlanSnapshot();
         request.PlayerBattleGroupPlans ??= new Dictionary<string, BattleGroupPlanSnapshot>(System.StringComparer.Ordinal);
         EnsureSelectedBattlePreparationPlanGroup(request);
@@ -351,6 +298,7 @@ public partial class WorldSiteRoot
                     : BattleEngagementRule.MoveFirst;
             }
         }
+
         EnsureBattlePreparationEnemyPlanDefaults(request);
         SyncSelectedBattlePreparationPlanFallback(request);
     }
@@ -392,7 +340,7 @@ public partial class WorldSiteRoot
         _selectedBattleCorpsCommand = rule == BattleEngagementRule.Hold
             ? BattleCorpsCommand.HoldLine
             : BattleCorpsCommand.Assault;
-        ApplyBattleRuntimeCommandToRequest(_battlePreparationRequest, BuildBattleRuntimeCommandRequest(_selectedBattleCorpsCommand));
+        BattleRuntimeCommandHudModel.ApplyRuntimeCommandToRequest(_battlePreparationRequest, BuildBattleRuntimeCommandRequest(_selectedBattleCorpsCommand));
 
         string label = BattlePreparationPlanUiModel.BuildRuleLabel(rule);
         RefreshBattlePreparationPlanUi($"推进策略已设为：{label}。", "battle_preparation_rule_selected");
@@ -527,7 +475,7 @@ public partial class WorldSiteRoot
         int forceCountBefore = request.PlayerForces.Count;
         int planCountBefore = request.PlayerBattleGroupPlans?.Count ?? 0;
         request.PlayerForces = request.PlayerForces
-            .Where(force => deployedGroupKeys.Contains(ResolveBattleRuntimeGroupKey(force)))
+            .Where(force => deployedGroupKeys.Contains(BattleRuntimeCommandHudModel.ResolveGroupKey(force)))
             .ToList();
         if (request.PlayerBattleGroupPlans != null)
         {
@@ -543,6 +491,7 @@ public partial class WorldSiteRoot
         {
             _selectedBattlePreparationPlanGroupKey = deployedGroupKeys.OrderBy(key => key, System.StringComparer.Ordinal).FirstOrDefault() ?? "";
         }
+
         SyncSelectedBattlePreparationPlanFallback(request);
         GameLog.Info(
             nameof(WorldSiteRoot),

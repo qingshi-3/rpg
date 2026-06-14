@@ -127,10 +127,13 @@ public static class FirstSliceHeroCompanyIds
 
     public static string ShieldHeroUnit => GetRequiredCompanyByRole("shield").HeroUnit;
     public static string ShieldCorpsUnit => GetRequiredCompanyByRole("shield").DefaultCorpsUnit;
+    public static int ShieldCorpsCount => GetRequiredCompanyByRole("shield").DefaultCorpsCount;
     public static string ArcherHeroUnit => GetRequiredCompanyByRole("archer").HeroUnit;
     public static string ArcherCorpsUnit => GetRequiredCompanyByRole("archer").DefaultCorpsUnit;
+    public static int ArcherCorpsCount => GetRequiredCompanyByRole("archer").DefaultCorpsCount;
     public static string AssaultHeroUnit => GetRequiredCompanyByRole("assault").HeroUnit;
     public static string AssaultCorpsUnit => GetRequiredCompanyByRole("assault").DefaultCorpsUnit;
+    public static int AssaultCorpsCount => GetRequiredCompanyByRole("assault").DefaultCorpsCount;
 
     public static string BonefieldLeaderUnit => GetRequiredBonefieldRosterByRole("leader").Unit;
     public static string BonefieldHarassmentUnit => GetRequiredBonefieldRosterByRole("harassment").Unit;

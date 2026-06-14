@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
@@ -95,8 +96,9 @@ public partial class StrategicWorldRoot : Control
 	private readonly WorldActionResolver _actionResolver;
 	private readonly WorldBattleResultApplier _battleResultApplier = new();
 	private readonly WorldBattleRequestBuilder _battleRequestBuilder = new();
+	private readonly WorldArmyCommandService _armyCommandService = new();
 	private readonly WorldArmyMovementService _armyMovementService = new();
-	private readonly WorldExpeditionService _expeditionService = new();
+	private readonly StrategicExpeditionWorldArmyAdapter _strategicExpeditionWorldArmyAdapter = new();
 	private readonly WorldOpportunityService _opportunityService = new();
 	private readonly WorldSiteDeploymentService _deploymentService = new();
 	private readonly WorldSiteModeTransitionService _siteModeTransitions = new();
@@ -152,7 +154,7 @@ public partial class StrategicWorldRoot : Control
 	private bool _isExpeditionDrafting;
 	private bool _isExpeditionTargeting;
 	private string _expeditionSourceSiteId = "";
-	private readonly Dictionary<string, int> _expeditionUnitCounts = new();
+	private readonly HashSet<string> _expeditionHeroIds = new();
 	private bool _isArmyBoxSelecting;
 	private Vector2 _armySelectionStartScreen;
 	private Vector2 _armySelectionCurrentScreen;
@@ -162,6 +164,7 @@ public partial class StrategicWorldRoot : Control
 	private bool _reportedStrategicNavigationNotSynchronized;
 	private bool _worldMapOverlaySignalsConnected;
 	private BattleStartRequest _pendingBattleRequest;
+	private StrategicBattleActiveContext _pendingStrategicBattleActiveContext;
 	private PendingBattleLaunchRollback _pendingBattleRollback;
 	private AcceptDialog _preBattleDialog;
 	private string _activeBattleGateDialog = "";

@@ -182,6 +182,7 @@ public partial class BattleGridHighlightOverlay : Node2D
     private readonly Dictionary<BattleGridHighlightKind, HashSet<GridPosition>> _cellsByKind = new();
     private readonly List<GridPosition> _pathCells = new();
     private readonly BattleGridHighlightTileLayerRenderer _tileLayerRenderer = new();
+    private readonly BattleGridHighlightGeometry _highlightGeometry;
 
     private WorldSiteRoot _siteRoot;
     private BattleMapView _battleMapView;
@@ -191,6 +192,11 @@ public partial class BattleGridHighlightOverlay : Node2D
     private readonly HashSet<GridPosition> _hoverCells = new();
     private bool _hoverOverrideActive;
     private bool _tacticalPauseVisualsStatic;
+
+    public BattleGridHighlightOverlay()
+    {
+        _highlightGeometry = new BattleGridHighlightGeometry(this, () => _coordinateLayer);
+    }
 
     public override void _Ready()
     {
@@ -527,7 +533,7 @@ public partial class BattleGridHighlightOverlay : Node2D
 
         if (_hoverCells.Count > 0)
         {
-            AddHoverFrame(BuildHoverFramePolygon(_hoverCells));
+            AddHoverFrame(_highlightGeometry.BuildHoverFramePolygon(_hoverCells));
         }
     }
 
@@ -581,7 +587,7 @@ public partial class BattleGridHighlightOverlay : Node2D
         {
             var fillNode = new Polygon2D
             {
-                Polygon = BuildCellPolygon(cell),
+                Polygon = _highlightGeometry.BuildCellPolygon(cell),
                 Color = SkillRangeFillColor,
                 ZIndex = fillZIndex
             };
@@ -589,7 +595,7 @@ public partial class BattleGridHighlightOverlay : Node2D
             ApplyDynamicRangeStyle(fillNode, BattleGridHighlightKind.Skill);
         }
 
-        foreach ((Vector2 start, Vector2 end) in BuildBoundarySegments(cells))
+        foreach ((Vector2 start, Vector2 end) in _highlightGeometry.BuildBoundarySegments(cells))
         {
             var glowLine = new Line2D
             {
@@ -615,7 +621,7 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     private void AddCellHighlight(BattleGridHighlightKind kind, GridPosition cell)
     {
-        Vector2[] polygon = BuildCellPolygon(cell);
+        Vector2[] polygon = _highlightGeometry.BuildCellPolygon(cell);
 
         if (kind == BattleGridHighlightKind.Hover)
         {
@@ -636,7 +642,7 @@ public partial class BattleGridHighlightOverlay : Node2D
 
         var borderNode = new Line2D
         {
-            Points = ClosePolygon(polygon),
+            Points = BattleGridHighlightGeometry.ClosePolygon(polygon),
             Width = borderWidth,
             DefaultColor = border,
             Closed = true,
@@ -712,7 +718,7 @@ public partial class BattleGridHighlightOverlay : Node2D
             return;
         }
 
-        Vector2[] ringPoints = BuildTargetLockFramePolygon(cells);
+        Vector2[] ringPoints = _highlightGeometry.BuildTargetLockFramePolygon(cells);
         if (ringPoints.Length < 4)
         {
             return;
@@ -742,13 +748,6 @@ public partial class BattleGridHighlightOverlay : Node2D
         ApplyDynamicRangeStyle(ring, BattleGridHighlightKind.Target);
     }
 
-    private Vector2[] BuildTargetLockFramePolygon(HashSet<GridPosition> cells)
-    {
-        // Skill target selection must share hover's footprint geometry so the
-        // selectable target hint matches the unit under the cursor exactly.
-        return BuildHoverFramePolygon(cells);
-    }
-
     private void AddPathArrows()
     {
         if (!ShowPathArrows)
@@ -769,8 +768,8 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     private void AddPathArrow(GridPosition from, GridPosition to)
     {
-        Vector2 fromCenter = BuildCellCenter(from);
-        Vector2 toCenter = BuildCellCenter(to);
+        Vector2 fromCenter = _highlightGeometry.BuildCellCenter(from);
+        Vector2 toCenter = _highlightGeometry.BuildCellCenter(to);
         Vector2 delta = toCenter - fromCenter;
         float length = delta.Length();
         if (length <= 0.01f)
@@ -781,7 +780,7 @@ public partial class BattleGridHighlightOverlay : Node2D
         Vector2 direction = delta / length;
         float padding = Mathf.Min(
             length * 0.35f,
-            GetCellHalfExtent(from) * Mathf.Clamp(PathArrowCellPaddingRatio, 0f, 0.45f));
+            _highlightGeometry.GetCellHalfExtent(from) * Mathf.Clamp(PathArrowCellPaddingRatio, 0f, 0.45f));
         Vector2 start = fromCenter + direction * padding;
         Vector2 end = toCenter - direction * padding;
 
@@ -816,120 +815,6 @@ public partial class BattleGridHighlightOverlay : Node2D
             DefaultColor = PathArrowColor,
             ZIndex = zIndex
         });
-    }
-
-    private Vector2 BuildCellCenter(GridPosition cell)
-    {
-        var origin = new Vector2I(cell.X, cell.Y);
-        return ToLocal(_coordinateLayer.ToGlobal(_coordinateLayer.MapToLocal(origin)));
-    }
-
-    private float GetCellHalfExtent(GridPosition cell)
-    {
-        Vector2 center = BuildCellCenter(cell);
-        Vector2 right = BuildCellCenter(new GridPosition(cell.X + 1, cell.Y));
-        Vector2 down = BuildCellCenter(new GridPosition(cell.X, cell.Y + 1));
-        return Mathf.Min((right - center).Length(), (down - center).Length()) * 0.5f;
-    }
-
-    private Vector2[] BuildCellPolygon(GridPosition cell)
-    {
-        var origin = new Vector2I(cell.X, cell.Y);
-        Vector2 center = _coordinateLayer.MapToLocal(origin);
-        Vector2 stepX = _coordinateLayer.MapToLocal(new Vector2I(cell.X + 1, cell.Y)) - center;
-        Vector2 stepY = _coordinateLayer.MapToLocal(new Vector2I(cell.X, cell.Y + 1)) - center;
-
-        Vector2[] localPoints =
-        {
-            center - (stepX + stepY) * 0.5f,
-            center + (stepX - stepY) * 0.5f,
-            center + (stepX + stepY) * 0.5f,
-            center + (-stepX + stepY) * 0.5f
-        };
-
-        return localPoints
-            .Select(point => ToLocal(_coordinateLayer.ToGlobal(point)))
-            .ToArray();
-    }
-
-    private IEnumerable<(Vector2 Start, Vector2 End)> BuildBoundarySegments(HashSet<GridPosition> cells)
-    {
-        foreach (GridPosition cell in cells.OrderBy(cell => cell.Y).ThenBy(cell => cell.X))
-        {
-            Vector2[] polygon = BuildCellPolygon(cell);
-
-            if (!cells.Contains(new GridPosition(cell.X, cell.Y - 1)))
-            {
-                yield return (polygon[0], polygon[1]);
-            }
-
-            if (!cells.Contains(new GridPosition(cell.X + 1, cell.Y)))
-            {
-                yield return (polygon[1], polygon[2]);
-            }
-
-            if (!cells.Contains(new GridPosition(cell.X, cell.Y + 1)))
-            {
-                yield return (polygon[2], polygon[3]);
-            }
-
-            if (!cells.Contains(new GridPosition(cell.X - 1, cell.Y)))
-            {
-                yield return (polygon[3], polygon[0]);
-            }
-        }
-    }
-
-    private Vector2[] BuildHoverFramePolygon(IEnumerable<GridPosition> cells)
-    {
-        GridPosition[] hoverCells = cells?.Distinct().ToArray() ?? System.Array.Empty<GridPosition>();
-        if (hoverCells.Length == 0)
-        {
-            return System.Array.Empty<Vector2>();
-        }
-
-        if (hoverCells.Length == 1)
-        {
-            return BuildCellPolygon(hoverCells[0]);
-        }
-
-        // Explicit hover is used by rectangular deployment footprints; one outer frame preserves the existing hover language without tile fills.
-        int minX = hoverCells.Min(cell => cell.X);
-        int maxX = hoverCells.Max(cell => cell.X);
-        int minY = hoverCells.Min(cell => cell.Y);
-        int maxY = hoverCells.Max(cell => cell.Y);
-        return BuildCellBlockPolygon(minX, minY, maxX, maxY);
-    }
-
-    private Vector2[] BuildCellBlockPolygon(int minX, int minY, int maxX, int maxY)
-    {
-        var topLeftOrigin = new Vector2I(minX, minY);
-        Vector2 topLeftCenter = _coordinateLayer.MapToLocal(topLeftOrigin);
-        Vector2 topRightCenter = _coordinateLayer.MapToLocal(new Vector2I(maxX, minY));
-        Vector2 bottomRightCenter = _coordinateLayer.MapToLocal(new Vector2I(maxX, maxY));
-        Vector2 bottomLeftCenter = _coordinateLayer.MapToLocal(new Vector2I(minX, maxY));
-        Vector2 stepX = _coordinateLayer.MapToLocal(new Vector2I(minX + 1, minY)) - topLeftCenter;
-        Vector2 stepY = _coordinateLayer.MapToLocal(new Vector2I(minX, minY + 1)) - topLeftCenter;
-
-        Vector2[] localPoints =
-        {
-            topLeftCenter - (stepX + stepY) * 0.5f,
-            topRightCenter + (stepX - stepY) * 0.5f,
-            bottomRightCenter + (stepX + stepY) * 0.5f,
-            bottomLeftCenter + (-stepX + stepY) * 0.5f
-        };
-
-        return localPoints
-            .Select(point => ToLocal(_coordinateLayer.ToGlobal(point)))
-            .ToArray();
-    }
-
-    private static Vector2[] ClosePolygon(Vector2[] polygon)
-    {
-        Vector2[] closed = new Vector2[polygon.Length + 1];
-        polygon.CopyTo(closed, 0);
-        closed[^1] = polygon[0];
-        return closed;
     }
 
     private (Color fill, Color border, float borderWidth) GetStyle(BattleGridHighlightKind kind)

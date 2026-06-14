@@ -9,5 +9,10 @@ public sealed class CommandRequest
 	public CommandChannel Channel { get; set; }
 	public CommandKind Kind { get; set; }
 	public string TargetActorId { get; set; } = "";
+	public bool HasTargetGrid { get; set; }
+	public int TargetGridX { get; set; }
+	public int TargetGridY { get; set; }
+	public int TargetGridHeight { get; set; }
+	public string SelectedSpatialMarkId { get; set; } = "";
 	public string SkillId { get; set; } = "";
 }

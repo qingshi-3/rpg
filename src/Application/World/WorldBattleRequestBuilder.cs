@@ -351,11 +351,12 @@ public sealed class WorldBattleRequestBuilder
             {
                 ForceId = $"{resolvedSourceId}:{garrison.UnitTypeId}",
                 CommandGroupId = assignFirstSliceHeroCompanyCommandGroups
-                    ? ResolveFirstSliceHeroCompanyCommandGroupId(resolvedSourceKind, resolvedSourceId, garrison.UnitTypeId)
+                    ? ResolveFirstSliceHeroCompanyCommandGroupId(resolvedSourceKind, resolvedSourceId, garrison.UnitTypeId, garrison.StrategicParticipantId)
                     : "",
                 SourceKind = resolvedSourceKind,
                 SourceId = resolvedSourceId,
                 UnitDefinitionId = garrison.UnitTypeId,
+                StrategicParticipantId = garrison.StrategicParticipantId ?? "",
                 Count = garrison.Count,
                 FactionId = string.IsNullOrWhiteSpace(garrison.FactionId) ? factionId : garrison.FactionId
             };
@@ -366,8 +367,14 @@ public sealed class WorldBattleRequestBuilder
     private static string ResolveFirstSliceHeroCompanyCommandGroupId(
         string sourceKind,
         string sourceId,
-        string unitTypeId)
+        string unitTypeId,
+        string strategicParticipantId = "")
     {
+        if (!string.IsNullOrWhiteSpace(strategicParticipantId))
+        {
+            return strategicParticipantId;
+        }
+
         if (!string.Equals(sourceKind ?? "", "PlayerArmy", System.StringComparison.Ordinal) ||
             string.IsNullOrWhiteSpace(sourceId) ||
             !FirstSliceHeroCompanyIds.TryGetCompanyByAnyUnit(unitTypeId, out FirstSliceHeroCompanyDefinition company))

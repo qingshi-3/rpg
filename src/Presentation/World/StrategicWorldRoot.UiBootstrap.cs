@@ -2,7 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
+using Rpg.Definitions.StrategicManagement;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
@@ -273,6 +275,7 @@ public partial class StrategicWorldRoot
     private void ResetWorld()
     {
         StrategicWorldRuntime.Reset();
+        StrategicManagementRuntime.Reset();
         _selectedSiteId = "";
         _selectedOpportunityId = "";
         _selectedArmyIds.Clear();
@@ -296,13 +299,13 @@ public partial class StrategicWorldRoot
 
     private void RefreshResources()
     {
-        ResourceStore resources = State.PlayerResources;
-        StrategicWorldDefinitionQueries queries = new(Definition);
-        _resourceLabel.Text =
-            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} {resources.GetAvailable(StrategicWorldIds.ResourcePopulation)}/{resources.GetAmount(StrategicWorldIds.ResourcePopulation)}    " +
-            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceEconomy)} {resources.GetAmount(StrategicWorldIds.ResourceEconomy)}    " +
-            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} {resources.GetAmount(StrategicWorldIds.ResourceStone)}    " +
-            $"世界步 {State.WorldTick}";
+        StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
+            StrategicManagementIds.FactionPlayer,
+            StrategicManagementIds.LocationPlainsCity);
+        string resources = string.Join(
+            "    ",
+            dashboard.Resources.Select(resource => $"{resource.DisplayName} {resource.Amount}"));
+        _resourceLabel.Text = $"{resources}    大地图结算 {State.WorldTick}";
     }
 
     private void RefreshSiteButtons(StrategicWorldDefinitionQueries queries)

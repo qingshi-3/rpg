@@ -3,7 +3,14 @@ internal static partial class WorldSiteDeploymentCacheRegressionCases
 internal static void BattlePreparationMapDragRequiresRequestBackedPlacementBeforeSiteMove()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string moveBody = ExtractMethodBody(rootSource, "private bool TryMoveBattlePreparationPlacement(");
+    string controllerSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "BattlePreparationDeploymentDragController.cs"));
+    string moveBody = ExtractMethodBody(controllerSource, "public bool TryMovePlacement(");
     int requestGuardIndex = moveBody.IndexOf("dragContext.RequestPlacement == null", StringComparison.Ordinal);
     int siteMoveIndex = moveBody.IndexOf("_deploymentTargetEvaluator.TryMoveToGridCell", StringComparison.Ordinal);
 

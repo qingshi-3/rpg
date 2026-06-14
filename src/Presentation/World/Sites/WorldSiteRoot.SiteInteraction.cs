@@ -210,9 +210,9 @@ public partial class WorldSiteRoot
         }
 
         if (_isBattlePreparationActive &&
-            TryResolveBattlePreparationDragContext(placementId, site, out BattlePreparationPlacementDragContext dragContext))
+            _battlePreparationDeploymentDragController.TryResolveDragContext(placementId, site, out BattlePreparationPlacementDragContext dragContext))
         {
-            if (TryMoveBattlePreparationPlacement(
+            if (_battlePreparationDeploymentDragController.TryMovePlacement(
                     dragContext,
                     site,
                     definition,
@@ -246,7 +246,7 @@ public partial class WorldSiteRoot
             if (draggedEntity is BattleEntity battleEntity && movedPlacement != null)
             {
                 SyncSitePlacementGridOccupant(battleEntity, movedPlacement);
-                SyncBattlePreparationRequestPlacement(placementId, movedPlacement);
+                _battlePreparationDeploymentDragController.SyncRequestPlacement(placementId, movedPlacement);
             }
             else
             {
@@ -299,13 +299,15 @@ public partial class WorldSiteRoot
             out bool hasGridPosition,
             out _);
 
-        TryResolveBattlePreparationDragContext(_draggedPlacementId, site, out BattlePreparationPlacementDragContext dragContext);
+        _battlePreparationDeploymentDragController.TryResolveDragContext(_draggedPlacementId, site, out BattlePreparationPlacementDragContext dragContext);
         WorldSiteUnitPlacement placement = dragContext?.SitePlacement ??
                                            site?.UnitPlacements.FirstOrDefault(item => item.PlacementId == _draggedPlacementId);
         Vector2I footprintSize = dragContext?.FootprintSize ?? ResolveUnitFootprintSize(placement?.UnitTypeId);
         SetBattlePreparationDragFootprintPreview(
             hasGridPosition
-                ? BuildSiteDeploymentDragFootprintCells(dragContext, placement, gridPosition)
+                ? dragContext != null
+                    ? _battlePreparationDeploymentDragController.BuildFootprintCells(dragContext, gridPosition)
+                    : BuildSitePlacementFootprintCells(placement, gridPosition)
                 : System.Array.Empty<GridPosition>());
         if (hasGridPosition)
         {
@@ -327,7 +329,7 @@ public partial class WorldSiteRoot
         failureReason = "";
 
         WorldSiteUnitPlacement activePlacement = site?.UnitPlacements.FirstOrDefault(item => item.PlacementId == placementId);
-        TryResolveBattlePreparationDragContext(placementId, site, out BattlePreparationPlacementDragContext dragContext);
+        _battlePreparationDeploymentDragController.TryResolveDragContext(placementId, site, out BattlePreparationPlacementDragContext dragContext);
         Vector2I footprintSize = dragContext?.FootprintSize ?? ResolveUnitFootprintSize(activePlacement?.UnitTypeId);
         if (!TryResolveMouseFootprintAnchor(footprintSize, out gridPosition))
         {
@@ -338,9 +340,8 @@ public partial class WorldSiteRoot
         hasGridPosition = true;
         if (_isBattlePreparationActive && dragContext != null)
         {
-            IReadOnlyList<GridPosition> dragFootprintCells = BuildSiteDeploymentDragFootprintCells(
+            IReadOnlyList<GridPosition> dragFootprintCells = _battlePreparationDeploymentDragController.BuildFootprintCells(
                 dragContext,
-                activePlacement,
                 gridPosition);
             if (!IsBattlePreparationFootprintOnValidTerrain(dragFootprintCells, dragContext.CanEnterWater, out failureReason))
             {
@@ -348,7 +349,7 @@ public partial class WorldSiteRoot
             }
 
             SemanticDeploymentSide dragDeploymentSide = ResolveBattlePreparationDeploymentSide(dragContext.FactionId, dragContext.FallbackFaction);
-            if (ShouldRestrictBattlePreparationDeploymentZone(dragContext) &&
+            if (BattlePreparationDeploymentDragController.ShouldRestrictDeploymentZone(dragContext) &&
                 !IsBattlePreparationFootprintDeployable(
                     dragFootprintCells,
                     dragDeploymentSide,

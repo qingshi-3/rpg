@@ -13,6 +13,7 @@ internal static void UnitAttackSpeedContract()
     string unitFactory = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"));
     string attackComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "AttackComponent.cs"));
     string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+    string timingPolicy = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationTimingPolicy.cs"));
     string siteRuntime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRequestDeployment.cs"));
 
     AssertTrue(
@@ -52,9 +53,10 @@ internal static void UnitAttackSpeedContract()
         animationComponent.Contains("public double AttackImpactNormalizedTimeOverride { get; set; } = -1.0;", StringComparison.Ordinal),
         "unit factory should apply the per-unit impact timing override to presentation hit feedback");
     AssertTrue(
-        animationComponent.Contains("BattleAttackSpeedPolicy.ScaleTargetSeconds(targetSeconds, AttackSpeed)", StringComparison.Ordinal) &&
+        timingPolicy.Contains("BattleAttackSpeedPolicy.ScaleTargetSeconds(targetSeconds, attackSpeed)", StringComparison.Ordinal) &&
+        animationComponent.Contains("UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds", StringComparison.Ordinal) &&
         animationComponent.Contains("ResolveAttackImpactNormalizedTime()", StringComparison.Ordinal),
-        "attack animation target duration and impact point should use the configured unit attack timing");
+        "attack animation target duration policy and impact point should use the configured unit attack timing");
     AssertTrue(
         siteRuntime.Contains("ResolveAttackImpactNormalizedTime(definition)", StringComparison.Ordinal) &&
         siteRuntime.Contains("definition.AttackImpactNormalizedTimeOverride >= 0", StringComparison.Ordinal),
@@ -65,6 +67,7 @@ internal static void UnitIdleAndMoveAnimationPlaybackIsPacedForReadability()
 {
     string animationSet = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Animation", "BattleUnitAnimationSet.cs"));
     string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
+    string timingPolicy = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationTimingPolicy.cs"));
 
     AssertTrue(
         animationSet.Contains("public float MinBalancedSpeedScale { get; set; } = 0.5f;", StringComparison.Ordinal) &&
@@ -72,14 +75,14 @@ internal static void UnitIdleAndMoveAnimationPlaybackIsPacedForReadability()
         "unit sprite frame balancing should allow slowing authored idle/move frames below their imported fps");
     AssertTrue(
         animationSet.Contains("public double TargetIdleCycleSeconds { get; set; } = 2.0;", StringComparison.Ordinal) &&
-        animationComponent.Contains("\"idle\" => AnimationSet?.TargetIdleCycleSeconds ?? 2.0", StringComparison.Ordinal),
+        timingPolicy.Contains("\"idle\" => animationSet?.TargetIdleCycleSeconds ?? 2.0", StringComparison.Ordinal),
         "idle animation should default to a slower readable loop");
     AssertTrue(
         animationSet.Contains("public double TargetMoveCycleSeconds { get; set; } = 0.55;", StringComparison.Ordinal) &&
-        animationComponent.Contains("\"move\" => AnimationSet?.TargetMoveCycleSeconds ?? 0.55", StringComparison.Ordinal),
+        timingPolicy.Contains("\"move\" => animationSet?.TargetMoveCycleSeconds ?? 0.55", StringComparison.Ordinal),
         "move animation should default to a responsive loop while idle remains slower and readable");
     AssertTrue(
-        animationComponent.Contains("ResolveTargetSpriteSeconds(cue, minimumTargetSeconds)", StringComparison.Ordinal) &&
+        animationComponent.Contains("UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds(cue, minimumTargetSeconds, AnimationSet, AttackSpeed)", StringComparison.Ordinal) &&
         animationComponent.Contains("ResolveBalancedSpriteSpeedScale(authoredSeconds, targetSeconds)", StringComparison.Ordinal),
         "animation pacing should stay inside Presentation sprite playback, not runtime movement timing");
 }

@@ -291,13 +291,24 @@ internal sealed class BattleRouteTopology
             return false;
         }
 
-        BattleRouteRegionTravelKey key = new(region, entryAnchor, exitAnchor);
-        if (profileGraph.RegionTravelCosts.TryGetValue(key, out int cached))
+        Dictionary<BattleGridCoord, int> travelCosts = GetOrBuildRegionTravelCosts(profileGraph, region, entryAnchor);
+        return travelCosts.TryGetValue(exitAnchor, out cost);
+    }
+
+    private Dictionary<BattleGridCoord, int> GetOrBuildRegionTravelCosts(
+        ProfileRouteGraph profileGraph,
+        BattleRouteRegionId region,
+        BattleGridCoord entryAnchor)
+    {
+        BattleRouteRegionTravelStartKey key = new(region, entryAnchor);
+        if (profileGraph.RegionTravelCostsByStart.TryGetValue(key, out Dictionary<BattleGridCoord, int> cached))
         {
-            cost = cached;
-            return true;
+            return cached;
         }
 
+        // Route topology is immutable during a battle. Build all same-region
+        // travel costs from one portal entry once, then reuse them for every
+        // candidate exit checked by the route search.
         Dictionary<BattleGridCoord, int> bestCost = new();
         PriorityQueue<BattleGridCoord, int> frontier = new();
         bestCost[entryAnchor] = 0;
@@ -309,13 +320,6 @@ internal sealed class BattleRouteTopology
                 queuedCost != currentCost)
             {
                 continue;
-            }
-
-            if (current == exitAnchor)
-            {
-                profileGraph.RegionTravelCosts[key] = currentCost;
-                cost = currentCost;
-                return true;
             }
 
             foreach (BattleGridCoord neighbor in _graph.GetNeighbors(current))
@@ -338,7 +342,8 @@ internal sealed class BattleRouteTopology
             }
         }
 
-        return false;
+        profileGraph.RegionTravelCostsByStart[key] = bestCost;
+        return bestCost;
     }
 
     private static string BuildCorridorId(
@@ -384,7 +389,7 @@ internal sealed class BattleRouteTopology
         public HashSet<BattleGridCoord> LegalAnchors { get; }
         public Dictionary<BattleRouteRegionId, List<BattleGridCoord>> RegionAnchors { get; }
         public Dictionary<BattleRouteRegionId, List<BattleRouteEdge>> EdgesByRegion { get; }
-        public Dictionary<BattleRouteRegionTravelKey, int> RegionTravelCosts { get; } = new();
+        public Dictionary<BattleRouteRegionTravelStartKey, Dictionary<BattleGridCoord, int>> RegionTravelCostsByStart { get; } = new();
     }
 
     private readonly record struct BattleRouteSearchNode(
@@ -395,10 +400,9 @@ internal sealed class BattleRouteTopology
         BattleRouteSearchNode PreviousNode,
         BattleRouteEdge Edge);
 
-    private readonly record struct BattleRouteRegionTravelKey(
+    private readonly record struct BattleRouteRegionTravelStartKey(
         BattleRouteRegionId Region,
-        BattleGridCoord FromAnchor,
-        BattleGridCoord ToAnchor);
+        BattleGridCoord EntryAnchor);
 
     private readonly record struct BattleRouteEdge(
         BattleRouteRegionId FromRegion,

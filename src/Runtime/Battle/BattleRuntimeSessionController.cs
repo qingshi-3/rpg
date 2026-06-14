@@ -116,7 +116,8 @@ public sealed class BattleRuntimeSessionController
             BattleId,
             _nextTick,
             CurrentTimeSeconds,
-            request);
+            request,
+            _navigationGraph);
     }
 
     public BattleRuntimeAdvanceResult AdvanceFixedTick(double fixedDeltaSeconds = BattleActionTimingPolicy.DefaultSimulationTickSeconds)

@@ -15,6 +15,7 @@ internal sealed class BattleRuntimeLivePresentationState
     private readonly Dictionary<string, Task> _actorActionTails = new(System.StringComparer.Ordinal);
     private readonly Dictionary<string, Task> _actorMovementTails = new(System.StringComparer.Ordinal);
     private readonly Dictionary<string, Task> _actorMovementStartGates = new(System.StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _actorMovementGenerations = new(System.StringComparer.Ordinal);
     private readonly Dictionary<string, Task> _targetDamageTails = new(System.StringComparer.Ordinal);
 
     public BattleRuntimeLivePresentationState(Dictionary<string, BattleEntity> entitiesByRuntimeActor)
@@ -52,8 +53,9 @@ internal sealed class BattleRuntimeLivePresentationState
         }
 
         actorId ??= "";
+        int actionGeneration = ResolveActorMovementGeneration(actorId);
         _actorActionTails.TryGetValue(actorId, out Task previousTask);
-        Task task = RunAfterActorTailAsync(previousTask, createTask);
+        Task task = RunActorActionIfGenerationCurrentAsync(actorId, actionGeneration, previousTask, createTask);
         if (!string.IsNullOrWhiteSpace(actorId))
         {
             _actorActionTails[actorId] = task;
@@ -125,6 +127,7 @@ internal sealed class BattleRuntimeLivePresentationState
         }
 
         actorId ??= "";
+        int movementGeneration = ResolveActorMovementGeneration(actorId);
         _actorMovementStartGates.TryGetValue(actorId, out Task movementStartGate);
         if (movementStartGate != null && !movementStartGate.IsCompleted)
         {
@@ -132,7 +135,10 @@ internal sealed class BattleRuntimeLivePresentationState
             // Skill casts are anchored release presentations. Movement may
             // still be simulated later by Runtime, but the visual lane must
             // not start until the caster-side release has finished.
-            Task gatedMovementTask = RunMovementAfterGateAsync(gatedPreviousActionTask ?? movementStartGate, observeMovement, wait);
+            Task gatedMovementTask = RunMovementAfterGateAsync(
+                gatedPreviousActionTask ?? movementStartGate,
+                () => ObserveMovementIfGenerationCurrent(actorId, movementGeneration, observeMovement),
+                wait);
             if (!string.IsNullOrWhiteSpace(actorId))
             {
                 _actorActionTails[actorId] = gatedMovementTask;
@@ -143,7 +149,7 @@ internal sealed class BattleRuntimeLivePresentationState
             return;
         }
 
-        double movementSeconds = System.Math.Max(0, observeMovement());
+        double movementSeconds = System.Math.Max(0, ObserveMovementIfGenerationCurrent(actorId, movementGeneration, observeMovement));
         if (movementSeconds <= 0)
         {
             return;
@@ -165,6 +171,44 @@ internal sealed class BattleRuntimeLivePresentationState
         Track(tailTask);
     }
 
+    public void ObserveActorTeleportNow(string actorId, System.Func<double> observeTeleport)
+    {
+        if (observeTeleport == null)
+        {
+            return;
+        }
+
+        actorId ??= "";
+        AdvanceActorTeleportGeneration(actorId);
+
+        // Teleport is a Runtime displacement fact, not a visual movement lane.
+        // It must preempt actor-local presentation backlog so the next Runtime
+        // movement observes from the post-displacement anchor.
+        observeTeleport();
+    }
+
+    public void AdvanceActorTeleportGeneration(string actorId)
+    {
+        actorId ??= "";
+        if (string.IsNullOrWhiteSpace(actorId))
+        {
+            return;
+        }
+
+        int nextGeneration = ResolveActorMovementGeneration(actorId) + 1;
+        _actorMovementGenerations[actorId] = nextGeneration;
+        _actorMovementTails.TryGetValue(actorId, out Task previousMovementTail);
+        _actorMovementStartGates.TryGetValue(actorId, out Task previousMovementStartGate);
+        _actorActionTails.TryGetValue(actorId, out Task previousActionTail);
+        _actorMovementTails.Remove(actorId);
+        _actorMovementStartGates.Remove(actorId);
+        _actorActionTails.Remove(actorId);
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"BattleRuntimeTeleportMovementBarrier actor={actorId} generation={nextGeneration} clearedMovementTailPending={IsPending(previousMovementTail)} clearedMovementStartGatePending={IsPending(previousMovementStartGate)} clearedActionTailPending={IsPending(previousActionTail)}");
+    }
+
     public async Task WaitForAllAsync()
     {
         PruneCompleted();
@@ -182,11 +226,76 @@ internal sealed class BattleRuntimeLivePresentationState
         _pendingPresentationTasks.RemoveAll(task => task == null || task.IsCompleted);
     }
 
-    private static async Task RunAfterActorTailAsync(Task previousTask, System.Func<Task> createTask)
+    private double ObserveMovementIfGenerationCurrent(
+        string actorId,
+        int movementGeneration,
+        System.Func<double> observeMovement)
+    {
+        if (!IsActorMovementGenerationCurrent(actorId, movementGeneration))
+        {
+            return 0;
+        }
+
+        return observeMovement();
+    }
+
+    private bool IsActorMovementGenerationCurrent(string actorId, int movementGeneration)
+    {
+        return IsActorPresentationGenerationCurrent(
+            actorId,
+            movementGeneration,
+            "BattleRuntimeStaleMovementSkipped");
+    }
+
+    private bool IsActorActionGenerationCurrent(string actorId, int actionGeneration)
+    {
+        return IsActorPresentationGenerationCurrent(
+            actorId,
+            actionGeneration,
+            "BattleRuntimeStaleActionSkipped");
+    }
+
+    private bool IsActorPresentationGenerationCurrent(string actorId, int enqueuedGeneration, string logName)
+    {
+        int currentGeneration = ResolveActorMovementGeneration(actorId);
+        if (currentGeneration == enqueuedGeneration)
+        {
+            return true;
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"{logName} actor={actorId ?? ""} enqueuedGeneration={enqueuedGeneration} currentGeneration={currentGeneration} reason=teleport_generation_changed");
+        return false;
+    }
+
+    private int ResolveActorMovementGeneration(string actorId)
+    {
+        return !string.IsNullOrWhiteSpace(actorId) &&
+               _actorMovementGenerations.TryGetValue(actorId, out int generation)
+            ? generation
+            : 0;
+    }
+
+    private static bool IsPending(Task task)
+    {
+        return task != null && !task.IsCompleted;
+    }
+
+    private async Task RunActorActionIfGenerationCurrentAsync(
+        string actorId,
+        int actionGeneration,
+        Task previousTask,
+        System.Func<Task> createTask)
     {
         if (previousTask != null)
         {
             await previousTask;
+        }
+
+        if (!IsActorActionGenerationCurrent(actorId, actionGeneration))
+        {
+            return;
         }
 
         Task task = createTask();

@@ -11,10 +11,9 @@ using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Rules;
 using Rpg.Presentation.Common;
+using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
-
 namespace Rpg.Presentation.World.Sites;
-
 public partial class WorldSiteRoot
 {
     internal enum BattleRuntimeSkillUsageState
@@ -24,7 +23,7 @@ public partial class WorldSiteRoot
         Pending,
         Used
     }
-
+    private enum ThunderFoldTargetingStage { None, MarkSelection, LandingSelection }
     private bool TryHandleBattleRuntimePauseInput(InputEvent inputEvent)
     {
         if (!_battleRuntimeEnabled ||
@@ -34,17 +33,14 @@ public partial class WorldSiteRoot
         {
             return false;
         }
-
         ToggleBattleRuntimeCommandPause();
         GetViewport()?.SetInputAsHandled();
         return true;
     }
-
     private void ToggleBattleRuntimeCommandPause()
     {
         SetBattleRuntimeCommandPauseActive(!_battleRuntimeCommandPauseActive, "space_toggle");
     }
-
     private void SubmitBattleRuntimeCommand(BattleCorpsCommand command)
     {
         CommandRequest commandRequest = BuildBattleRuntimeCommandRequest(command);
@@ -57,100 +53,78 @@ public partial class WorldSiteRoot
                 $"BattleRuntimeCommandRejected command={commandRequest.CommandId} reason=runtime_locked request={commandRequest.BattleId}");
             return;
         }
-
         _selectedBattleCorpsCommand = command;
-        ApplyBattleRuntimeCommandToRequest(_battlePreparationRequest, commandRequest);
+        BattleRuntimeCommandHudModel.ApplyRuntimeCommandToRequest(_battlePreparationRequest, commandRequest);
         if (_isBattlePreparationActive)
         {
             RefreshBattlePreparationPlanUi($"战斗姿态已设为：{BattleCorpsCommandLabels.ToDisplayText(command)}。", "battle_preparation_command_selected");
         }
-
         RefreshBattleRuntimeHeroFrame();
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattleRuntimeCommandSelected command={commandRequest.CommandId} kind={commandRequest.Kind} request={commandRequest.BattleId}");
     }
-
     private CommandRequest BuildBattleRuntimeCommandRequest(BattleCorpsCommand command)
     {
         BattleStartRequest request = _battlePreparationRequest;
-        if (request == null && BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest activeRequest))
-        {
-            request = activeRequest;
-        }
-
+        if (request == null && TryResolveActiveBattleRequest(out BattleStartRequest activeRequest)) { request = activeRequest; }
         return new CommandRequest
         {
-            CommandId = NormalizeBattleCorpsCommandId(command),
+            CommandId = BattleRuntimeCommandHudModel.NormalizeCorpsCommandId(command),
             BattleId = request?.RequestId ?? "",
             BattleGroupId = "player_corps_initial_posture",
             Channel = CommandChannel.Corps,
-            Kind = ToCommandKind(command)
+            Kind = BattleRuntimeCommandHudModel.ToCommandKind(command)
         };
     }
-
-    private static void ApplyBattleRuntimeCommandToRequest(
-        BattleStartRequest request,
-        CommandRequest commandRequest)
-    {
-        if (request == null || commandRequest == null)
-        {
-            return;
-        }
-
-        request.InitialCorpsCommandId = commandRequest.CommandId ?? "";
-    }
-
     private void RefreshBattleRuntimeCommandControls(bool runtimeLocked)
     {
         RefreshBattleRuntimeHeroFrame();
     }
-
     private void RefreshBattleRuntimeCommandPausePresentation()
     {
+        if (!_battleRuntimeCommandPauseActive)
+        {
+            if (_siteBottomCommandHost != null) { _siteBottomCommandHost.Visible = false; }
+            if (_battleRuntimeCommandBar != null) { _battleRuntimeCommandBar.Visible = false; }
+            UpdateMainWorldViewportLayout("battle_runtime_command_resume");
+            return;
+        }
         if (_siteHudRoot != null)
         {
             _siteHudRoot.Visible = true;
             ApplySiteHudFullRect("battle_runtime_command_pause");
         }
-
         if (_siteHudTopBar != null)
         {
             _siteHudTopBar.Visible = false;
         }
-
         if (_sitePeacetimePanel != null)
         {
             _sitePeacetimePanel.Visible = false;
         }
-
         if (_siteBottomCommandHost != null)
         {
             _siteBottomCommandHost.Visible = true;
         }
-
         if (_battleRuntimeCommandBar != null)
         {
             _battleRuntimeCommandBar.Visible = true;
         }
-
         RefreshBattleRuntimeHeroFrame();
         UpdateMainWorldViewportLayout("battle_runtime_command_pause");
     }
-
     private void SelectBattleRuntimeCommandGroup(string groupKey)
     {
         if (!string.Equals(groupKey ?? "", _selectedBattleRuntimeGroupKey, System.StringComparison.Ordinal))
         {
             CancelBattleRuntimeHeroSkillTargetPicking("group_changed");
         }
-
         _selectedBattleRuntimeGroupKey = groupKey ?? "";
         ApplyBattleRuntimeCommandGroupHighlight();
         RefreshBattleRuntimeHeroFrame();
         GameLog.Info(nameof(WorldSiteRoot), $"BattleRuntimeCommandGroupSelected group={_selectedBattleRuntimeGroupKey}");
     }
-
     private void EnsureSelectedBattleRuntimeCommandGroup()
     {
         IReadOnlyList<BattleRuntimeCommandGroupView> groups = BuildBattleRuntimePlayerGroups();
@@ -159,11 +133,9 @@ public partial class WorldSiteRoot
             ApplyBattleRuntimeCommandGroupHighlight();
             return;
         }
-
         _selectedBattleRuntimeGroupKey = groups.FirstOrDefault()?.GroupKey ?? "";
         ApplyBattleRuntimeCommandGroupHighlight();
     }
-
     private void ApplyBattleRuntimeCommandGroupHighlight()
     {
         BattleRuntimeCommandGroupView selected = ResolveSelectedBattleRuntimeGroup();
@@ -172,125 +144,38 @@ public partial class WorldSiteRoot
             _unitRoot?.ClearCommandSelection();
             return;
         }
-
         HashSet<string> entityIds = BuildBattleRuntimeCommandGroupEntityIds(selected);
         int highlighted = _unitRoot == null ? 0 : _unitRoot.SetCommandSelectionByEntityIds(entityIds);
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattleRuntimeCommandGroupHighlighted group={selected.GroupKey} entities={highlighted}");
     }
-
     private static HashSet<string> BuildBattleRuntimeCommandGroupEntityIds(BattleRuntimeCommandGroupView selected)
     {
         return BattleRuntimeHeroSkillTargetPresentation.BuildGroupEntityIds(selected?.Forces);
     }
-
     private void RefreshBattleRuntimeHeroFrame()
     {
         BattleRuntimeCommandGroupView selected = ResolveSelectedBattleRuntimeGroup();
         bool hasRuntime = _activeBattleGroupRuntimeResolution?.RuntimeController != null &&
                           _activeBattleGroupRuntimeResolution.RuntimeController.IsComplete == false;
         bool hasReadySkill = HasReadyBattleRuntimeSkill(selected, hasRuntime);
-
-        if (_battleRuntimeHeroFrame != null)
-        {
-            _battleRuntimeHeroFrame.Visible = true;
-        }
-
-        if (_battleRuntimeHeroNameLabel != null)
-        {
-            _battleRuntimeHeroNameLabel.Text = selected?.DisplayName ?? "参战英雄";
-        }
-
-        if (_battleRuntimeHeroStateLabel != null)
-        {
-            _battleRuntimeHeroStateLabel.Text = BuildBattleRuntimeHeroStateText(selected, hasRuntime, hasReadySkill);
-        }
-
         BattleEntity heroEntity = BuildBattleRuntimeHeroSkillSourceEntity(selected);
-        HealthComponent health = heroEntity?.GetComponent<HealthComponent>();
-        SetProgressBar(_battleRuntimeHeroHealthBar, health?.Hp ?? 1, health?.MaxHp ?? 1);
-        // V0 has no Runtime-owned mana yet. Keep the authored mana bar visible as
-        // future resource space without inventing a second gameplay resource.
-        SetProgressBar(_battleRuntimeHeroManaBar, 1, 1);
-        RefreshBattleRuntimeSkillList(selected, hasRuntime);
-
-        if (_battleRuntimeRegroupButton != null)
-        {
-            _battleRuntimeRegroupButton.Disabled = selected == null || !hasRuntime;
-            _battleRuntimeRegroupButton.TooltipText = "重整：先作为战斗中指挥入口，后续接入完整重整命令。";
-        }
-
+        IReadOnlyList<BattleSkillSnapshot> skills = BuildBattleRuntimeSkillSnapshots(selected);
+        _battleRuntimeHeroFramePresenter.Refresh(
+            selected,
+            BuildBattleRuntimePlayerGroups(),
+            hasRuntime,
+            _battleRuntimeCommandPauseActive,
+            hasReadySkill,
+            heroEntity,
+            skills,
+            group => HasReadyBattleRuntimeSkill(group, hasRuntime),
+            skillId => ResolveSelectedHeroSkillUsageState(selected, skillId));
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattleRuntimeHeroFrameRefreshed group={selected?.GroupKey ?? ""} skillReady={hasReadySkill}");
     }
-    private static void SetProgressBar(ProgressBar progressBar, int value, int maxValue)
-    {
-        if (progressBar == null)
-        {
-            return;
-        }
-
-        int safeMax = System.Math.Max(1, maxValue);
-        progressBar.MinValue = 0;
-        progressBar.MaxValue = safeMax;
-        progressBar.Value = System.Math.Clamp(value, 0, safeMax);
-    }
-
-    private void RefreshBattleRuntimeSkillList(BattleRuntimeCommandGroupView selected, bool hasRuntime)
-    {
-        if (_battleRuntimeHeroSkillList == null)
-        {
-            return;
-        }
-
-        IReadOnlyList<BattleSkillSnapshot> skills = BuildBattleRuntimeSkillSnapshots(selected);
-        HashSet<string> liveSkillIds = skills
-            .Where(skill => !string.IsNullOrWhiteSpace(skill?.SkillId))
-            .Select(skill => skill.SkillId)
-            .ToHashSet(System.StringComparer.Ordinal);
-        foreach (string staleSkillId in _battleRuntimeSkillSlots.Keys.Where(skillId => !liveSkillIds.Contains(skillId)).ToArray())
-        {
-            if (_battleRuntimeSkillSlots.Remove(staleSkillId, out BattleRuntimeSkillSlot staleSlot))
-            {
-                staleSlot?.QueueFree();
-            }
-        }
-
-        foreach (BattleSkillSnapshot skill in skills)
-        {
-            if (skill == null || string.IsNullOrWhiteSpace(skill.SkillId))
-            {
-                continue;
-            }
-
-            if (!_battleRuntimeSkillSlots.TryGetValue(skill.SkillId, out BattleRuntimeSkillSlot slot) ||
-                slot == null ||
-                !GodotObject.IsInstanceValid(slot))
-            {
-                slot = GameUiSceneFactory.CreateBattleRuntimeSkillSlot(nameof(WorldSiteRoot));
-                if (slot == null)
-                {
-                    continue;
-                }
-
-                slot.Pressed += OnBattleRuntimeSkillSlotPressed;
-                _battleRuntimeHeroSkillList.AddChild(slot);
-                _battleRuntimeSkillSlots[skill.SkillId] = slot;
-            }
-
-            BattleRuntimeSkillUsageState usageState = ResolveSelectedHeroSkillUsageState(selected, skill.SkillId);
-            bool available = selected != null && hasRuntime && usageState == BattleRuntimeSkillUsageState.Ready;
-            slot.Bind(
-                skill.SkillId,
-                skill.DisplayName,
-                available,
-                BattleRuntimeSkillHudText.BuildStatusText(selected, hasRuntime, usageState),
-                cooldownRemainingSeconds: 0.0);
-        }
-    }
-
     private IReadOnlyList<BattleSkillSnapshot> BuildBattleRuntimeSkillSnapshots(BattleRuntimeCommandGroupView selected)
     {
         IReadOnlyList<BattleSkillSnapshot> runtimeSkills = _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SkillDefinitions;
@@ -299,87 +184,27 @@ public partial class WorldSiteRoot
             : BattleSkillSnapshotFactory.CreateSelectedHeroSkillSnapshots();
         return BattleRuntimeSkillFilter.FilterForGroup(skills, selected);
     }
-
-    private static bool IsBattleRuntimeSkillAvailableForGroup(
-        BattleRuntimeCommandGroupView selected,
-        BattleSkillSnapshot skill) =>
-        skill != null &&
-        BattleRuntimeSkillFilter.IsBattleRuntimeSkillAvailableForGroup(selected, skill, skill.CasterUnitIds);
-
     private bool HasReadyBattleRuntimeSkill(BattleRuntimeCommandGroupView selected, bool hasRuntime) =>
         selected != null &&
         hasRuntime &&
         BuildBattleRuntimeSkillSnapshots(selected).Any(skill =>
             skill != null &&
             ResolveSelectedHeroSkillUsageState(selected, skill.SkillId) == BattleRuntimeSkillUsageState.Ready);
-
-    private string BuildBattleRuntimeHeroStateText(
-        BattleRuntimeCommandGroupView selected,
-        bool hasRuntime,
-        bool skillReady)
-    {
-        if (selected == null)
-        {
-            return "未选择";
-        }
-
-        string pauseText = _battleRuntimeCommandPauseActive ? "暂停指挥" : "战斗中";
-        string skillText = skillReady ? "技能可用" : "技能锁定";
-        return $"{pauseText} / {skillText}";
-    }
     private bool IsSelectedHeroSkillUsedOrPending(BattleRuntimeCommandGroupView selected, string skillId)
     {
         BattleRuntimeSkillUsageState state = ResolveSelectedHeroSkillUsageState(selected, skillId);
         return state is BattleRuntimeSkillUsageState.Pending or BattleRuntimeSkillUsageState.Used;
     }
-
     private BattleRuntimeSkillUsageState ResolveSelectedHeroSkillUsageState(
         BattleRuntimeCommandGroupView selected,
         string skillId)
     {
-        if (selected == null)
-        {
-            return BattleRuntimeSkillUsageState.Unavailable;
-        }
-
-        string normalizedSkillId = string.IsNullOrWhiteSpace(skillId)
-            ? HeroSkillCommandIds.FirstSliceHeroSkillId
-            : skillId.Trim();
-        IReadOnlyList<BattleEvent> events = _activeBattleGroupRuntimeResolution?.RuntimeController?.EventStream?.Events;
-        if (events == null)
-        {
-            return BattleRuntimeSkillUsageState.Ready;
-        }
-
-        bool used = events.Any(item =>
-            item != null &&
-            item.Kind == BattleEventKind.SkillUsed &&
-            string.Equals(item.BattleGroupId ?? "", selected.GroupKey, System.StringComparison.Ordinal) &&
-            string.Equals(item.SourceDefinitionId ?? "", normalizedSkillId, System.StringComparison.Ordinal));
-        if (used)
-        {
-            return BattleRuntimeSkillUsageState.Used;
-        }
-
-        HashSet<string> failedCommandIds = events
-            .Where(item =>
-                item != null &&
-                item.Kind == BattleEventKind.CommandFailed &&
-                string.Equals(item.BattleGroupId ?? "", selected.GroupKey, System.StringComparison.Ordinal) &&
-                string.Equals(item.SourceDefinitionId ?? "", normalizedSkillId, System.StringComparison.Ordinal) &&
-                !string.IsNullOrWhiteSpace(item.SourceCommandId))
-            .Select(item => item.SourceCommandId)
-            .ToHashSet(System.StringComparer.Ordinal);
-
-        bool pending = events.Any(item =>
-            item != null &&
-            string.Equals(item.BattleGroupId ?? "", selected.GroupKey, System.StringComparison.Ordinal) &&
-            string.Equals(item.SourceDefinitionId ?? "", normalizedSkillId, System.StringComparison.Ordinal) &&
-            item.Kind == BattleEventKind.CommandAccepted &&
-            !failedCommandIds.Contains(item.SourceCommandId ?? ""));
-        return pending
-            ? BattleRuntimeSkillUsageState.Pending
-            : BattleRuntimeSkillUsageState.Ready;
+        return BattleRuntimeSkillUsageResolver.Resolve(
+            selected,
+            skillId,
+            _activeBattleGroupRuntimeResolution?.RuntimeController?.EventStream?.Events,
+            _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SpatialMarks,
+            _activeBattleGroupRuntimeResolution?.RuntimeController?.CurrentTimeSeconds ?? 0);
     }
     private void OnBattleRuntimeHeroSkillPressed()
     {
@@ -387,10 +212,8 @@ public partial class WorldSiteRoot
         string skillId = BuildBattleRuntimeSkillSnapshots(selected).FirstOrDefault()?.SkillId ?? HeroSkillCommandIds.FirstSliceHeroSkillId;
         BeginBattleRuntimeSkillPress(selected, skillId);
     }
-
     private void OnBattleRuntimeSkillSlotPressed(string skillId) =>
         BeginBattleRuntimeSkillPress(ResolveSelectedBattleRuntimeGroup(), skillId);
-
     private void BeginBattleRuntimeSkillPress(BattleRuntimeCommandGroupView selected, string skillId)
     {
         if (selected == null)
@@ -398,32 +221,40 @@ public partial class WorldSiteRoot
             SetSiteNoticeText("请选择参战英雄。");
             return;
         }
-
         string normalizedSkillId = string.IsNullOrWhiteSpace(skillId)
             ? HeroSkillCommandIds.FirstSliceHeroSkillId
             : skillId.Trim();
-        if (!BuildBattleRuntimeSkillSnapshots(selected).Any(skill => string.Equals(skill.SkillId, normalizedSkillId, System.StringComparison.Ordinal)))
+        IReadOnlyList<BattleSkillSnapshot> availableSkills = BuildBattleRuntimeSkillSnapshots(selected);
+        BattleSkillSnapshot pressedSkill = availableSkills.FirstOrDefault(skill => string.Equals(skill.SkillId, normalizedSkillId, System.StringComparison.Ordinal));
+        if (pressedSkill == null)
         {
             SetSiteNoticeText($"技能暂不可用：{BattleRuntimeSkillHudText.BuildUnavailableText("skill_caster_not_allowed")}");
             RefreshBattleRuntimeHeroFrame();
             return;
         }
-
         if (ResolveSelectedHeroSkillUsageState(selected, normalizedSkillId) != BattleRuntimeSkillUsageState.Ready)
         {
             SetSiteNoticeText($"技能暂不可用：{BattleRuntimeSkillHudText.BuildUnavailableText(IsSelectedHeroSkillUsedOrPending(selected, normalizedSkillId) ? "hero_skill_already_used" : "hero_actor_unavailable")}");
             RefreshBattleRuntimeHeroFrame();
             return;
         }
-
         if (!_battleRuntimeCommandPauseActive)
         {
             SetBattleRuntimeCommandPauseActive(true, "hero_skill_button");
         }
-
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattleRuntimeHeroSkillPressed group={selected.GroupKey} skill={normalizedSkillId} pause={_battleRuntimeCommandPauseActive}");
+        if (pressedSkill.TargetingMode == BattleSkillTargetingMode.None)
+        {
+            CancelBattleRuntimeHeroSkillTargetPicking("self_skill_submit");
+            _battleRuntimeHeroSkillTargetPickingGroup = selected;
+            _battleRuntimeHeroSkillTargetPickingSkillId = normalizedSkillId;
+            BattleEntity source = BuildBattleRuntimeHeroSkillSourceEntity(selected);
+            if (!TryResolveBattleRuntimeHeroSkillSourceActorId(source, out string sourceActorId)) { SetSiteNoticeText("技能暂不可用：当前英雄无法行动。"); RefreshBattleRuntimeHeroFrame(); return; }
+            SubmitBattleRuntimeHeroSkillCommand(selected, sourceActorId, "");
+            return;
+        }
         BeginBattleRuntimeHeroSkillTargetPicking(selected, normalizedSkillId);
     }
     private void OnBattleRuntimeRegroupPressed()
@@ -434,16 +265,13 @@ public partial class WorldSiteRoot
             SetSiteNoticeText("请选择参战英雄。");
             return;
         }
-
         if (!_battleRuntimeCommandPauseActive)
         {
             SetBattleRuntimeCommandPauseActive(true, "regroup_button");
         }
-
         SetSiteNoticeText($"{selected.DisplayName}：重整指令已选中，后续会接入完整运行时执行。");
         GameLog.Info(nameof(WorldSiteRoot), $"BattleRuntimeRegroupPressed group={selected.GroupKey}");
     }
-
     private void BeginBattleRuntimeHeroSkillTargetPicking(BattleRuntimeCommandGroupView selected, string skillId)
     {
         if (selected == null ||
@@ -454,15 +282,21 @@ public partial class WorldSiteRoot
             RefreshBattleRuntimeHeroFrame();
             return;
         }
-
         _battleRuntimeHeroSkillTargetPickingActive = true;
         _battleRuntimeHeroSkillTargetPickingGroup = selected;
         _battleRuntimeHeroSkillTargetPickingSkillId = string.IsNullOrWhiteSpace(skillId)
             ? HeroSkillCommandIds.FirstSliceHeroSkillId
             : skillId.Trim();
         _battleRuntimeHeroSkillPreviewTargetActorId = "";
+        _battleRuntimeThunderFoldTargetingStage = string.Equals(_battleRuntimeHeroSkillTargetPickingSkillId, HeroSkillCommandIds.ThunderMarkFoldSkillId, System.StringComparison.Ordinal)
+            ? ThunderFoldTargetingStage.MarkSelection
+            : ThunderFoldTargetingStage.None;
+        _battleRuntimeThunderFoldSelectedMarkId = "";
+        _battleRuntimeThunderFoldSelectedMarkSurface = default;
         RefreshBattleRuntimeHeroSkillTargetPreview();
-        SetSiteNoticeText($"{selected.DisplayName}：选择一个敌方目标释放技能。");
+        SetSiteNoticeText(_battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.MarkSelection
+            ? $"{selected.DisplayName}：选择一个已有雷印。"
+            : $"{selected.DisplayName}：选择一个敌方目标释放技能。");
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattleRuntimeHeroSkillTargetPickingStarted group={selected.GroupKey} skill={_battleRuntimeHeroSkillTargetPickingSkillId}");
@@ -473,30 +307,29 @@ public partial class WorldSiteRoot
         {
             return false;
         }
-
         if (inputEvent is InputEventMouseMotion)
         {
             RefreshBattleRuntimeHeroSkillTargetPreview();
             return false;
         }
-
         if (inputEvent is not InputEventMouseButton { Pressed: true } mouseButton)
         {
             return false;
         }
-
+        if (BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeCommandBar, mouseButton.Position))
+        {
+            return false;
+        }
         if (mouseButton.ButtonIndex == MouseButton.Right)
         {
             CancelBattleRuntimeHeroSkillTargetPicking("cancel_click");
             GetViewport()?.SetInputAsHandled();
             return true;
         }
-
         if (mouseButton.ButtonIndex != MouseButton.Left)
         {
             return false;
         }
-
         RefreshBattleRuntimeHeroSkillTargetPreview();
         if (!TryGetMouseGridPosition(out GridPosition position))
         {
@@ -504,7 +337,6 @@ public partial class WorldSiteRoot
             GetViewport()?.SetInputAsHandled();
             return true;
         }
-
         BattleEntity source = BuildBattleRuntimeHeroSkillSourceEntity(_battleRuntimeHeroSkillTargetPickingGroup);
         if (!TryResolveBattleRuntimeHeroSkillSourceActorId(source, out string sourceActorId))
         {
@@ -512,23 +344,81 @@ public partial class WorldSiteRoot
             GetViewport()?.SetInputAsHandled();
             return true;
         }
-
+        BattleSkillSnapshot pickedSkill = BuildBattleRuntimeSkillSnapshots(_battleRuntimeHeroSkillTargetPickingGroup)
+            .FirstOrDefault(item => string.Equals(item?.SkillId, _battleRuntimeHeroSkillTargetPickingSkillId, System.StringComparison.Ordinal))
+            ?? _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SkillDefinitions?
+                .FirstOrDefault(item => string.Equals(item?.SkillId, _battleRuntimeHeroSkillTargetPickingSkillId, System.StringComparison.Ordinal));
         BattleEntity target = FindEntityAt(position);
-        if (!TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out string targetActorId))
+        if (string.Equals(pickedSkill?.SkillId, HeroSkillCommandIds.ThunderMarkFoldSkillId, System.StringComparison.Ordinal))
+        {
+            if (_battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.LandingSelection)
+            {
+                TrySubmitBattleRuntimeThunderFoldLanding(position, sourceActorId);
+            }
+            else if (TrySelectBattleRuntimeThunderFoldMark(position, target, out BattleRuntimeSpatialMark mark, out GridSurfacePosition markSurface))
+            {
+                BeginBattleRuntimeThunderFoldLandingSelection(mark, markSurface);
+            }
+            else
+            {
+                SetSiteNoticeText("雷印折跃需要先选择已有雷印。");
+            }
+            GetViewport()?.SetInputAsHandled();
+            return true;
+        }
+        if (pickedSkill?.TargetingMode == BattleSkillTargetingMode.TargetedActorOrCell)
+        {
+            if (TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out string targetActorOrCellId) &&
+                IsBattleRuntimeHeroSkillTargetInRange(source, target, pickedSkill.Range))
+            {
+                SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, targetActorOrCellId);
+            }
+            else if (IsBattleRuntimeHeroSkillCellInRange(source, position, pickedSkill.Range))
+            {
+                SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, "", position);
+            }
+            else
+            {
+                SetSiteNoticeText("请选择技能范围内的目标。");
+                RefreshBattleRuntimeHeroSkillTargetPreview();
+            }
+            GetViewport()?.SetInputAsHandled();
+            return true;
+        }
+        if (pickedSkill?.TargetingMode == BattleSkillTargetingMode.TargetedCell)
+        {
+            if (!IsBattleRuntimeHeroSkillCellInRange(source, position, pickedSkill.Range))
+            {
+                SetSiteNoticeText("请选择技能范围内的地块。");
+                RefreshBattleRuntimeHeroSkillTargetPreview();
+                GetViewport()?.SetInputAsHandled();
+                return true;
+            }
+
+            SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, "", position);
+            GetViewport()?.SetInputAsHandled();
+            return true;
+        }
+        if (!TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out string targetActorId) ||
+            !IsBattleRuntimeHeroSkillTargetInRange(source, target, pickedSkill?.Range ?? 0))
         {
             SetSiteNoticeText("请选择可被技能影响的敌方单位。");
             GetViewport()?.SetInputAsHandled();
             return true;
         }
-
         SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, targetActorId);
         GetViewport()?.SetInputAsHandled();
         return true;
     }
-
-    private void SubmitBattleRuntimeHeroSkillCommand(BattleRuntimeCommandGroupView selected, string sourceActorId, string targetActorId)
+    private void SubmitBattleRuntimeHeroSkillCommand(BattleRuntimeCommandGroupView selected, string sourceActorId, string targetActorId, GridPosition? targetGrid = null, string selectedSpatialMarkId = "")
     {
-        CommandRequest commandRequest = BuildBattleRuntimeHeroSkillCommandRequest(selected, sourceActorId, targetActorId);
+        CommandRequest commandRequest = targetGrid.HasValue
+            ? string.IsNullOrWhiteSpace(selectedSpatialMarkId)
+                ? BuildBattleRuntimeHeroSkillCommandRequest(selected, sourceActorId, targetActorId, targetGrid)
+                : BuildBattleRuntimeHeroSkillCommandRequest(selected, sourceActorId, targetActorId, targetGrid, selectedSpatialMarkId)
+            : string.IsNullOrWhiteSpace(selectedSpatialMarkId)
+                ? BuildBattleRuntimeHeroSkillCommandRequest(selected, sourceActorId, targetActorId)
+                : BuildBattleRuntimeHeroSkillCommandRequest(selected, sourceActorId, targetActorId, null, selectedSpatialMarkId);
         Rpg.Runtime.Battle.BattleRuntimeCommandSubmitResult result =
             _activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand(commandRequest);
         bool accepted = result?.Accepted == true;
@@ -540,7 +430,6 @@ public partial class WorldSiteRoot
         {
             SetSiteNoticeText($"技能暂不可用：{BattleRuntimeSkillHudText.BuildUnavailableText(result?.ReasonCode)}");
         }
-
         if (accepted)
         {
             CancelBattleRuntimeHeroSkillTargetPicking("submitted");
@@ -549,60 +438,65 @@ public partial class WorldSiteRoot
         {
             RefreshBattleRuntimeHeroSkillTargetPreview();
         }
-
         RefreshBattleRuntimeHeroFrame();
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattleRuntimeHeroSkillSubmitted group={commandRequest.BattleGroupId} source={commandRequest.SourceActorId} skill={commandRequest.SkillId} target={commandRequest.TargetActorId} accepted={result?.Accepted == true} reason={result?.ReasonCode ?? "runtime_missing"} events={result?.Events.Count ?? 0}");
     }
-
-    private CommandRequest BuildBattleRuntimeHeroSkillCommandRequest(BattleRuntimeCommandGroupView selected, string sourceActorId, string targetActorId)
+    private CommandRequest BuildBattleRuntimeHeroSkillCommandRequest(BattleRuntimeCommandGroupView selected, string sourceActorId, string targetActorId, GridPosition? targetGrid = null, string selectedSpatialMarkId = "")
     {
         string groupKey = selected?.GroupKey ?? _selectedBattleRuntimeGroupKey ?? "";
         string battleId = _activeBattleGroupRuntimeResolution?.RuntimeController?.BattleId ?? _battleRuntimeRequest?.ContextId ?? "";
         string skillId = string.IsNullOrWhiteSpace(_battleRuntimeHeroSkillTargetPickingSkillId)
             ? HeroSkillCommandIds.FirstSliceHeroSkillId
             : _battleRuntimeHeroSkillTargetPickingSkillId;
-        return new CommandRequest
-        {
-            CommandId = $"hero_skill:{groupKey}:{skillId}",
-            BattleId = battleId,
-            BattleGroupId = groupKey,
-            SourceActorId = sourceActorId ?? "",
-            Channel = CommandChannel.Hero,
-            Kind = CommandKind.CastSkill,
-            SkillId = skillId,
-            TargetActorId = targetActorId
-        };
+        return BattleRuntimeHeroSkillCommandRequestFactory.BuildHeroSkillCommandRequest(groupKey, battleId, skillId, sourceActorId, targetActorId, targetGrid, selectedSpatialMarkId);
     }
-
     private void RefreshBattleRuntimeHeroSkillTargetPreview()
     {
         if (!_battleRuntimeHeroSkillTargetPickingActive)
         {
             return;
         }
-
         BattleEntity source = BuildBattleRuntimeHeroSkillSourceEntity(_battleRuntimeHeroSkillTargetPickingGroup);
         IReadOnlyList<GridPosition> rangeCells = BuildBattleRuntimeHeroSkillRangeCells(source);
         IReadOnlyList<GridPosition> targetCells = System.Array.Empty<GridPosition>();
         string targetActorId = "";
+        bool isThunderFold = string.Equals(_battleRuntimeHeroSkillTargetPickingSkillId, HeroSkillCommandIds.ThunderMarkFoldSkillId, System.StringComparison.Ordinal);
+        if (isThunderFold && _battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.MarkSelection) { rangeCells = BuildBattleRuntimeThunderFoldMarkCells(); }
+        else if (isThunderFold && _battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.LandingSelection) { rangeCells = BuildBattleRuntimeThunderFoldLandingCells(source); }
         if (TryGetMouseGridPosition(out GridPosition position))
         {
-            BattleEntity target = FindEntityAt(position);
-            if (TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out targetActorId))
+            if (isThunderFold && _battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.LandingSelection)
             {
-                targetCells = BattleRuntimeHeroSkillTargetPresentation.BuildFootprintCells(target);
+                targetCells = rangeCells.Contains(position) ? new[] { position } : System.Array.Empty<GridPosition>();
+            }
+            else
+            {
+                BattleEntity target = FindEntityAt(position);
+                if (isThunderFold && _battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.MarkSelection)
+                {
+                    if (TrySelectBattleRuntimeThunderFoldMark(position, target, out BattleRuntimeSpatialMark mark, out GridSurfacePosition markSurface))
+                    {
+                        targetActorId = string.IsNullOrWhiteSpace(mark?.AttachedActorId) ? "" : mark.AttachedActorId;
+                        targetCells = string.IsNullOrWhiteSpace(targetActorId)
+                            ? new[] { new GridPosition(markSurface.X, markSurface.Y) }
+                            : BattleRuntimeHeroSkillTargetPresentation.BuildFootprintCells(target);
+                    }
+                }
+                else if (TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out targetActorId) &&
+                         IsBattleRuntimeHeroSkillTargetInRange(source, target, ResolveBattleRuntimeHeroSkillRange()))
+                {
+                    targetCells = BattleRuntimeHeroSkillTargetPresentation.BuildFootprintCells(target);
+                }
             }
         }
-
         _battleRuntimeHeroSkillPreviewTargetActorId = targetActorId;
         _highlightOverlay?.SetCellsBatch(
             (BattleGridHighlightKind.Skill, rangeCells),
             (BattleGridHighlightKind.Target, targetCells));
         _unitRoot?.SetAttackTargetPreviewByEntityId(targetActorId);
     }
-
     private void CancelBattleRuntimeHeroSkillTargetPicking(string reason)
     {
         if (!_battleRuntimeHeroSkillTargetPickingActive &&
@@ -610,61 +504,61 @@ public partial class WorldSiteRoot
         {
             return;
         }
-
         _battleRuntimeHeroSkillTargetPickingActive = false;
         _battleRuntimeHeroSkillTargetPickingGroup = null;
         _battleRuntimeHeroSkillTargetPickingSkillId = "";
         _battleRuntimeHeroSkillPreviewTargetActorId = "";
+        _battleRuntimeThunderFoldTargetingStage = ThunderFoldTargetingStage.None;
+        _battleRuntimeThunderFoldSelectedMarkId = "";
+        _battleRuntimeThunderFoldSelectedMarkSurface = default;
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Skill);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Target);
         _unitRoot?.ClearAttackTargetPreview();
         GameLog.Info(nameof(WorldSiteRoot), $"BattleRuntimeHeroSkillTargetPickingCancelled reason={reason ?? ""}");
     }
-
-    private bool TryResolveBattleRuntimeHeroSkillTargetActorId(BattleEntity source, BattleEntity target, out string targetActorId)
+    private bool TrySelectBattleRuntimeThunderFoldMark(GridPosition position, BattleEntity target, out BattleRuntimeSpatialMark mark, out GridSurfacePosition surface) => BattleRuntimeThunderFoldTargetingPresentation.TrySelectMark(_activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SpatialMarks, _battleRuntimeHeroSkillTargetPickingGroup?.GroupKey ?? _selectedBattleRuntimeGroupKey, _activeBattleGroupRuntimeResolution?.RuntimeController?.CurrentTimeSeconds ?? 0, position, target, out mark, out surface);
+    private void BeginBattleRuntimeThunderFoldLandingSelection(BattleRuntimeSpatialMark mark, GridSurfacePosition surface)
     {
-        return BattleRuntimeHeroSkillTargetPresentation.TryResolveTargetActorId(
-            source,
-            target,
-            out targetActorId);
+        _battleRuntimeThunderFoldTargetingStage = ThunderFoldTargetingStage.LandingSelection; _battleRuntimeThunderFoldSelectedMarkId = mark?.MarkId ?? ""; _battleRuntimeThunderFoldSelectedMarkSurface = surface; _battleRuntimeHeroSkillPreviewTargetActorId = ""; RefreshBattleRuntimeHeroSkillTargetPreview();
+        SetSiteNoticeText("雷印已选定：请选择雷印周围3格内的空地。");
     }
-
+    private IReadOnlyList<GridPosition> BuildBattleRuntimeThunderFoldMarkCells() => BattleRuntimeThunderFoldTargetingPresentation.BuildMarkCells(_activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SpatialMarks, _battleRuntimeHeroSkillTargetPickingGroup?.GroupKey ?? _selectedBattleRuntimeGroupKey, _activeBattleGroupRuntimeResolution?.RuntimeController?.CurrentTimeSeconds ?? 0, _unitRoot);
+    private IReadOnlyList<GridPosition> BuildBattleRuntimeThunderFoldLandingCells(BattleEntity source) =>
+        BattleRuntimeThunderFoldTargetingPresentation.BuildLandingCells(_activeGridMap, _unitRoot, source, _battleRuntimeThunderFoldSelectedMarkSurface);
+    private void TrySubmitBattleRuntimeThunderFoldLanding(GridPosition position, string sourceActorId)
+    {
+        BattleEntity source = BuildBattleRuntimeHeroSkillSourceEntity(_battleRuntimeHeroSkillTargetPickingGroup);
+        if (!BuildBattleRuntimeThunderFoldLandingCells(source).Contains(position))
+        {
+            SetSiteNoticeText("请选择雷印周围3格内的空地。");
+            RefreshBattleRuntimeHeroSkillTargetPreview();
+            return;
+        }
+        // The first click selects the Runtime mark; only this second legal landing click submits command intent.
+        SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, "", position, _battleRuntimeThunderFoldSelectedMarkId);
+    }
+    private bool TryResolveBattleRuntimeHeroSkillTargetActorId(BattleEntity source, BattleEntity target, out string targetActorId) => BattleRuntimeHeroSkillTargetPresentation.TryResolveTargetActorId(source, target, out targetActorId);
     private bool TryResolveBattleRuntimeHeroSkillSourceActorId(BattleEntity source, out string sourceActorId) => BattleRuntimeHeroSkillTargetPresentation.TryResolveSourceActorId(source, out sourceActorId);
-
+    // Local picking mirrors the drawn preview; Runtime remains the command authority.
+    private bool IsBattleRuntimeHeroSkillTargetInRange(BattleEntity source, BattleEntity target, int range) => BattleRuntimeHeroSkillTargetPresentation.IsTargetInRange(source, target, range);
+    private bool IsBattleRuntimeHeroSkillCellInRange(BattleEntity source, GridPosition position, int range) => BattleRuntimeHeroSkillTargetPresentation.IsCellInRange(source, position, range);
     private BattleEntity BuildBattleRuntimeHeroSkillSourceEntity(BattleRuntimeCommandGroupView selected) => BattleRuntimeHeroSkillTargetPresentation.ResolveSourceEntity(_unitRoot, selected?.Forces);
-
     private IReadOnlyList<GridPosition> BuildBattleRuntimeHeroSkillRangeCells(BattleEntity source) => BattleRuntimeHeroSkillTargetPresentation.BuildRangeCells(source, _activeGridMap, ResolveBattleRuntimeHeroSkillRange());
-
     private int ResolveBattleRuntimeHeroSkillRange()
     {
-        string skillId = string.IsNullOrWhiteSpace(_battleRuntimeHeroSkillTargetPickingSkillId)
-            ? HeroSkillCommandIds.FirstSliceHeroSkillId
-            : _battleRuntimeHeroSkillTargetPickingSkillId;
-        BattleSkillSnapshot skill = BuildBattleRuntimeSkillSnapshots(_battleRuntimeHeroSkillTargetPickingGroup)
-            .FirstOrDefault(item => string.Equals(item?.SkillId, skillId, System.StringComparison.Ordinal))
-            ?? _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SkillDefinitions?
-                .FirstOrDefault(item => string.Equals(item?.SkillId, skillId, System.StringComparison.Ordinal));
-        return skill?.Range ?? 0;
+        string skillId = string.IsNullOrWhiteSpace(_battleRuntimeHeroSkillTargetPickingSkillId) ? HeroSkillCommandIds.FirstSliceHeroSkillId : _battleRuntimeHeroSkillTargetPickingSkillId;
+        return (BuildBattleRuntimeSkillSnapshots(_battleRuntimeHeroSkillTargetPickingGroup).FirstOrDefault(item => string.Equals(item?.SkillId, skillId, System.StringComparison.Ordinal))
+            ?? _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SkillDefinitions?.FirstOrDefault(item => string.Equals(item?.SkillId, skillId, System.StringComparison.Ordinal)))?.Range ?? 0;
     }
-
     private IReadOnlyList<BattleRuntimeCommandGroupView> BuildBattleRuntimePlayerGroups()
     {
         BattleStartRequest request = _battleRuntimeRequest;
-        if (request == null && BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest activeRequest))
+        if (request == null && TryResolveActiveBattleRequest(out BattleStartRequest activeRequest))
         {
             request = activeRequest;
         }
-
-        List<BattleForceRequest> forces = (request?.PlayerForces ?? new List<BattleForceRequest>())
-            .Where(force => force != null && force.Count > 0)
-            .ToList();
-        return forces
-            .GroupBy(ResolveBattleRuntimeGroupKey, System.StringComparer.Ordinal)
-            .Select(group => BuildBattleRuntimeCommandGroup(group.Key, group.ToArray()))
-            .Where(group => !string.IsNullOrWhiteSpace(group.GroupKey))
-            .ToArray();
+        return BattleRuntimeCommandHudModel.BuildPlayerGroups(request, _battleUnitFactory.ResolveUnitDisplayName);
     }
-
     private BattleRuntimeCommandGroupView ResolveSelectedBattleRuntimeGroup()
     {
         IReadOnlyList<BattleRuntimeCommandGroupView> groups = BuildBattleRuntimePlayerGroups();
@@ -674,103 +568,8 @@ public partial class WorldSiteRoot
         {
             return selected;
         }
-
         selected = groups.FirstOrDefault();
         _selectedBattleRuntimeGroupKey = selected?.GroupKey ?? "";
         return selected;
-    }
-
-    private BattleRuntimeCommandGroupView BuildBattleRuntimeCommandGroup(
-        string groupKey,
-        IReadOnlyList<BattleForceRequest> forces)
-    {
-        BattleForceRequest heroForce = forces?.FirstOrDefault(IsLikelyHeroForce) ?? forces?.FirstOrDefault();
-        string heroName = _battleUnitFactory.ResolveUnitDisplayName(heroForce?.UnitDefinitionId ?? "");
-        string corpsSummary = BuildBattleRuntimeCorpsSummary(forces, heroForce);
-        return new BattleRuntimeCommandGroupView
-        {
-            GroupKey = groupKey ?? "",
-            DisplayName = string.IsNullOrWhiteSpace(heroName) ? groupKey ?? "参战英雄" : heroName,
-            HeroName = string.IsNullOrWhiteSpace(heroName) ? "英雄：参战英雄" : $"英雄：{heroName}",
-            CorpsSummary = corpsSummary,
-            DefaultFormationId = BattlePreparationPlanUiModel.ResolveDefaultFormationId(forces),
-            Forces = forces?.ToArray() ?? System.Array.Empty<BattleForceRequest>()
-        };
-    }
-
-    private string BuildBattleRuntimeCorpsSummary(
-        IReadOnlyList<BattleForceRequest> forces,
-        BattleForceRequest heroForce)
-    {
-        List<string> corps = (forces ?? System.Array.Empty<BattleForceRequest>())
-            .Where(force => force != null && !ReferenceEquals(force, heroForce))
-            .Select(force => $"{_battleUnitFactory.ResolveUnitDisplayName(force.UnitDefinitionId)} x{force.Count}")
-            .ToList();
-        return corps.Count == 0
-            ? "部队：无附属部队"
-            : $"部队：{string.Join("，", corps)}";
-    }
-
-    private static bool IsLikelyHeroForce(BattleForceRequest force)
-    {
-        return force != null &&
-               (Rpg.Application.World.FirstSliceHeroCompanyIds.IsHeroUnit(force.UnitDefinitionId) ||
-                force.UnitDefinitionId?.Contains("hero", System.StringComparison.OrdinalIgnoreCase) == true ||
-                force.SourceKind?.Contains("Hero", System.StringComparison.OrdinalIgnoreCase) == true);
-    }
-
-    private static string ResolveBattleRuntimeGroupKey(BattleForceRequest force)
-    {
-        if (force == null)
-        {
-            return "";
-        }
-
-        string runtimeCommanderGroupId = BattleCommanderGroupIdentity.BuildProbeCommanderGroupId(
-            force,
-            string.IsNullOrWhiteSpace(force.ForceId) ? force.UnitDefinitionId ?? "" : force.ForceId);
-        if (!string.IsNullOrWhiteSpace(runtimeCommanderGroupId))
-        {
-            return runtimeCommanderGroupId;
-        }
-
-        if (!string.IsNullOrWhiteSpace(force.SourceKind) && !string.IsNullOrWhiteSpace(force.SourceId))
-        {
-            return $"{force.SourceKind}:{force.SourceId}";
-        }
-
-        if (!string.IsNullOrWhiteSpace(force.SourceId))
-        {
-            return force.SourceId;
-        }
-
-        return string.IsNullOrWhiteSpace(force.ForceId) ? force.UnitDefinitionId ?? "" : force.ForceId;
-    }
-
-    private static CommandKind ToCommandKind(BattleCorpsCommand command)
-    {
-        return command == BattleCorpsCommand.HoldLine
-            ? CommandKind.Hold
-            : CommandKind.Attack;
-    }
-
-    private static string NormalizeBattleCorpsCommandId(BattleCorpsCommand command)
-    {
-        return command switch
-        {
-            BattleCorpsCommand.FocusFire => nameof(BattleCorpsCommand.FocusFire),
-            BattleCorpsCommand.HoldLine => nameof(BattleCorpsCommand.HoldLine),
-            _ => nameof(BattleCorpsCommand.Assault)
-        };
-    }
-
-    private static BattleCorpsCommand ResolveBattleCorpsCommand(string commandId)
-    {
-        if (System.Enum.TryParse(commandId?.Trim() ?? "", ignoreCase: true, out BattleCorpsCommand command))
-        {
-            return command;
-        }
-
-        return BattleCorpsCommand.Assault;
     }
 }

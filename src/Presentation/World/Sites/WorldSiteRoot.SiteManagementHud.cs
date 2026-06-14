@@ -4,10 +4,13 @@ using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.Battle;
+using Rpg.Definitions.StrategicManagement;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
+using Rpg.Domain.StrategicManagement;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle;
@@ -19,7 +22,6 @@ using Rpg.Presentation.Common;
 using Rpg.Presentation.World;
 
 namespace Rpg.Presentation.World.Sites;
-
 public partial class WorldSiteRoot
 {
     private void BuildSiteHud()
@@ -74,6 +76,7 @@ public partial class WorldSiteRoot
             _siteHudRoot,
             "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame",
             nameof(WorldSiteRoot));
+        _battleRuntimeHeroSelectorPresenter = new BattleRuntimeHeroSelectorPresenter(GameUiSceneFactory.GetRequiredNode<HBoxContainer>(_siteHudRoot, "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroSelectorList", nameof(WorldSiteRoot)), SelectBattleRuntimeCommandGroup);
         _battleRuntimeHeroNameLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
             "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroNameLabel",
@@ -98,6 +101,16 @@ public partial class WorldSiteRoot
             _siteHudRoot,
             "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeRegroupButton",
             nameof(WorldSiteRoot));
+        _battleRuntimeHeroFramePresenter = new BattleRuntimeHeroFramePresenter(
+            _battleRuntimeHeroFrame,
+            _battleRuntimeHeroNameLabel,
+            _battleRuntimeHeroStateLabel,
+            _battleRuntimeHeroHealthBar,
+            _battleRuntimeHeroManaBar,
+            _battleRuntimeHeroSelectorPresenter,
+            _battleRuntimeHeroSkillList,
+            _battleRuntimeRegroupButton,
+            OnBattleRuntimeSkillSlotPressed);
         ApplySiteHudFullRect("bound");
         _siteHudTitle = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
@@ -207,6 +220,19 @@ public partial class WorldSiteRoot
             _siteHudRoot,
             "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/SiteActionList",
             nameof(WorldSiteRoot));
+        _strategicManagementDashboardPanelBinder = new StrategicManagementDashboardPanelBinder(
+            _siteResourceLabel,
+            _siteHudBody,
+            _siteSelectionLabel,
+            _siteFacilityList,
+            _siteFacilityBuildCard,
+            _siteFacilityBuildTitle,
+            _siteFacilityBuildList,
+            _siteGarrisonList,
+            _siteActionList,
+            OnStrategicBuildFacilityPressed,
+            OnStrategicCreateCorpsPressed,
+            OnStrategicHeroAssignmentPressed);
         _siteNoticeLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             _siteHudRoot,
             "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/SiteNoticeLabel",
@@ -613,6 +639,26 @@ public partial class WorldSiteRoot
         return string.IsNullOrWhiteSpace(definition?.DisplayName) ? siteId : definition.DisplayName;
     }
 
+    private static bool TryResolveStrategicManagementCityId(string worldSiteId, out string cityId)
+    {
+        StrategicManagementRuntime.EnsureInitialized();
+        return StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(worldSiteId, out cityId);
+    }
+
+    private static bool TryResolveStrategicManagementLocationId(string worldSiteId, out string locationId)
+    {
+        StrategicManagementRuntime.EnsureInitialized();
+        return StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(worldSiteId, out locationId);
+    }
+
+    private static string BuildStrategicManagementCityUnavailableNotice(string worldSiteId)
+    {
+        StrategicManagementRuntime.EnsureInitialized();
+        return StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(worldSiteId, out _)
+            ? "当前战略地点不是可经营城市。"
+            : "当前场景尚未映射到战略经营地点。";
+    }
+
     private static bool CanOpenSiteDetail(WorldSiteState site)
     {
         return site != null &&
@@ -623,6 +669,95 @@ public partial class WorldSiteRoot
     private void RefreshSiteManagementUi(string notice = "", BattleOutcome outcome = BattleOutcome.None)
     {
         BindSiteManagementPanel(notice, outcome);
+    }
+
+    private void OnStrategicBuildFacilityPressed(string facilityDefinitionId)
+    {
+        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
+        {
+            RefreshSiteManagementUi(BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId));
+            return;
+        }
+
+        StrategicManagementRuntime.EnsureInitialized();
+        StrategicCommandResult result = StrategicManagementRuntime.Commands.BuildFacility(
+            StrategicManagementRuntime.State,
+            cityId,
+            facilityDefinitionId);
+        HandleStrategicManagementCommandResult("建设设施", result);
+    }
+
+    private void OnStrategicCreateCorpsPressed(string corpsDefinitionId)
+    {
+        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
+        {
+            RefreshSiteManagementUi(BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId));
+            return;
+        }
+
+        StrategicManagementRuntime.EnsureInitialized();
+        StrategicCommandResult result = StrategicManagementRuntime.Commands.CreateCorps(
+            StrategicManagementRuntime.State,
+            cityId,
+            corpsDefinitionId);
+        HandleStrategicManagementCommandResult("创建编制", result);
+    }
+
+    private void OnStrategicHeroAssignmentPressed(string heroId)
+    {
+        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
+        {
+            RefreshSiteManagementUi(BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId));
+            return;
+        }
+
+        StrategicManagementRuntime.EnsureInitialized();
+        StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
+            StrategicManagementIds.FactionPlayer,
+            cityId);
+        StrategicHeroAssignmentViewModel hero = dashboard.Heroes.FirstOrDefault(item => item.HeroId == heroId);
+
+        StrategicCommandResult result;
+        if (hero?.HasAssignedCorps == true)
+        {
+            result = StrategicManagementRuntime.Commands.UnassignCorpsFromHero(
+                StrategicManagementRuntime.State,
+                heroId);
+            HandleStrategicManagementCommandResult("解除英雄编制", result);
+            return;
+        }
+
+        StrategicCorpsInstanceViewModel availableCorps = dashboard.SelectedCity.CorpsInstances.FirstOrDefault(corps =>
+            corps.Status == StrategicCorpsInstanceStatus.Garrisoned &&
+            string.IsNullOrWhiteSpace(corps.AssignedHeroId));
+        result = StrategicManagementRuntime.Commands.AssignCorpsToHero(
+            StrategicManagementRuntime.State,
+            heroId,
+            availableCorps?.CorpsInstanceId ?? "");
+        HandleStrategicManagementCommandResult("分配英雄编制", result);
+    }
+
+    private void HandleStrategicManagementCommandResult(string actionName, StrategicCommandResult result)
+    {
+        RefreshSiteManagementUi(BuildStrategicManagementCommandNotice(actionName, result));
+    }
+
+    private static string BuildStrategicManagementCommandNotice(string actionName, StrategicCommandResult result)
+    {
+        string commandName = string.IsNullOrWhiteSpace(actionName) ? "战略经营命令" : actionName.Trim();
+        if (result == null)
+        {
+            return $"{commandName}失败：定义缺失";
+        }
+
+        if (!result.Success)
+        {
+            return $"{commandName}失败：{StrategicManagementDashboardPanelBinder.FormatFailureReason(result.FailureReason)}";
+        }
+
+        return string.IsNullOrWhiteSpace(result.CreatedEntityId)
+            ? $"{commandName}完成"
+            : $"{commandName}完成：{result.CreatedEntityId}";
     }
 
     private void BindSiteManagementPanel(string notice = "", BattleOutcome outcome = BattleOutcome.None)
@@ -650,19 +785,44 @@ public partial class WorldSiteRoot
         _deploymentService.EnsureGarrisonPlacements(site, definition);
         EnsureSitePlacementsRespectTerrain(site, definition);
 
-        _siteHudTitle.Text = outcome == BattleOutcome.None
-            ? $"{ResolveSiteName(_siteHudSiteId)} · 场域经营"
-            : $"{ResolveSiteName(_siteHudSiteId)} · {GetBattleOutcomeLabel(outcome)}";
-        _siteResourceLabel.Text = BuildResourceLine();
-        _siteHudBody.Text = BuildSiteOverview(_siteHudSiteId);
-        _siteNoticeLabel.Text = string.IsNullOrWhiteSpace(notice) ? StrategicWorldRuntime.LastNotice : notice.Trim();
+        if (TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
+        {
+            StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
+                StrategicManagementIds.FactionPlayer,
+                cityId);
+            _siteHudTitle.Text = outcome == BattleOutcome.None
+                ? $"{dashboard.SelectedCity.DisplayName} · 战略经营"
+                : $"{dashboard.SelectedCity.DisplayName} · {GetBattleOutcomeLabel(outcome)}";
+            _strategicManagementDashboardPanelBinder.Bind(dashboard);
+            _siteNoticeLabel.Text = string.IsNullOrWhiteSpace(notice) ? StrategicWorldRuntime.LastNotice : notice.Trim();
+        }
+        else if (TryResolveStrategicManagementLocationId(_siteHudSiteId, out string locationId))
+        {
+            StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildLocationDashboard(
+                StrategicManagementIds.FactionPlayer,
+                locationId);
+            _siteHudTitle.Text = outcome == BattleOutcome.None
+                ? $"{dashboard.SelectedLocation.DisplayName} · 战略地点"
+                : $"{dashboard.SelectedLocation.DisplayName} · {GetBattleOutcomeLabel(outcome)}";
+            _strategicManagementDashboardPanelBinder.BindLocation(dashboard);
+            _siteNoticeLabel.Text = string.IsNullOrWhiteSpace(notice)
+                ? BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId)
+                : notice.Trim();
+        }
+        else
+        {
+            _siteHudTitle.Text = outcome == BattleOutcome.None
+                ? $"{ResolveSiteName(_siteHudSiteId)} · 战略经营未开放"
+                : $"{ResolveSiteName(_siteHudSiteId)} · {GetBattleOutcomeLabel(outcome)}";
+            _strategicManagementDashboardPanelBinder.Bind(new StrategicManagementDashboardViewModel());
+            _siteNoticeLabel.Text = string.IsNullOrWhiteSpace(notice)
+                ? BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId)
+                : notice.Trim();
+        }
+
         SetBattlePreparationHudVisible(false);
 
         RefreshSiteMapEntities(site, definition);
-        RefreshFacilityList(site, definition);
-        RefreshFacilityBuildList(site, definition);
-        RefreshGarrisonList(site);
-        RefreshActionList(site);
         UpdateSitePeacetimePanelVisibility("refresh");
     }
 
@@ -786,247 +946,4 @@ public partial class WorldSiteRoot
         }
     }
 
-    private string BuildResourceLine()
-    {
-        ResourceStore resources = StrategicWorldRuntime.State.PlayerResources;
-        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-        return
-            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} {resources.GetAvailable(StrategicWorldIds.ResourcePopulation)}/{resources.GetAmount(StrategicWorldIds.ResourcePopulation)}    " +
-            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceEconomy)} {resources.GetAmount(StrategicWorldIds.ResourceEconomy)}    " +
-            $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} {resources.GetAmount(StrategicWorldIds.ResourceStone)}    " +
-            $"世界步 {StrategicWorldRuntime.State.WorldTick}";
-    }
-
-    private string BuildSiteOverview(string siteId)
-    {
-        WorldSiteState site = ResolveSiteState(siteId);
-        WorldSiteDefinition definition = ResolveSiteDefinition(siteId);
-        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-        if (site == null)
-        {
-            return "当前场地状态缺失。";
-        }
-
-        int facilityCount = site.Facilities.Count(facility => facility.State != FacilityState.Destroyed);
-        string garrisonOverviewText = BuildSiteGarrisonOverviewText(site);
-        List<string> overviewLines = new()
-        {
-            definition?.Description ?? ResolveSiteName(siteId),
-            $"控制：{GetControlStateLabel(site.ControlState)}    模式：{GetSiteModeLabel(site.SiteMode)}",
-            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}    受损：{site.DamageLevel}",
-            $"建筑：{facilityCount}    驻军：{garrisonOverviewText}"
-        };
-
-        return string.Join("\n", overviewLines);
-    }
-    private void RefreshFacilityList(WorldSiteState site, WorldSiteDefinition definition)
-    {
-        ClearChildren(_siteFacilityList);
-        if (site == null || definition == null || definition.FacilitySlots.Count == 0)
-        {
-            AddMutedLine(_siteFacilityList, "无可经营建筑点");
-            _siteSelectionLabel.Text = "";
-            return;
-        }
-
-        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-        IEnumerable<FacilitySlotDefinition> visibleSlots = definition.FacilitySlots
-            .OrderByDescending(slot => slot.SlotId == _selectedFacilitySlotId)
-            .ThenBy(slot => slot.DisplayName);
-        foreach (FacilitySlotDefinition slot in visibleSlots)
-        {
-            FacilityInstance facility = site.Facilities.FirstOrDefault(item => item.SlotId == slot.SlotId && item.State != FacilityState.Destroyed);
-            string facilityText = facility == null
-                ? $"空置，可建：{BuildAllowedFacilityNames(slot, queries)}"
-                : $"{queries.GetFacility(facility.FacilityId)?.DisplayName ?? facility.FacilityId} · {GetFacilityStateLabel(facility.State)}";
-            string slotTitle = slot.SlotId == _selectedFacilitySlotId
-                ? $"已选 · {slot.DisplayName}"
-                : slot.DisplayName;
-            AddMutedLine(_siteFacilityList, $"{slotTitle}\n{facilityText}");
-        }
-
-        RefreshSelectedSlotLabel(site);
-    }
-
-    private void RefreshFacilityBuildList(WorldSiteState site, WorldSiteDefinition definition)
-    {
-        ClearChildren(_siteFacilityBuildList);
-
-        if (_siteFacilityBuildTitle == null || _siteFacilityBuildList == null)
-        {
-            return;
-        }
-
-        if (site == null || definition == null || definition.FacilitySlots.Count == 0)
-        {
-            if (_siteFacilityBuildCard != null)
-            {
-                _siteFacilityBuildCard.Visible = false;
-            }
-            _siteFacilityBuildTitle.Visible = false;
-            _siteFacilityBuildList.Visible = false;
-            GameLog.Info(
-                nameof(WorldSiteRoot),
-                $"SiteFacilityBuildPanelRefreshed site={site?.SiteId ?? _siteHudSiteId} visible=false reason=no_site_or_slots hasSite={site != null} hasDefinition={definition != null} definedSlots={definition?.FacilitySlots.Count ?? 0}");
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_selectedFacilitySlotId))
-        {
-            if (_siteFacilityBuildCard != null)
-            {
-                _siteFacilityBuildCard.Visible = false;
-            }
-            _siteFacilityBuildTitle.Visible = false;
-            _siteFacilityBuildList.Visible = false;
-            GameLog.Info(
-                nameof(WorldSiteRoot),
-                $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=false reason=no_selected_slot definedSlots={definition.FacilitySlots.Count} registeredSlots={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count}");
-            return;
-        }
-
-        FacilitySlotDefinition selectedSlot = definition.FacilitySlots.FirstOrDefault(item => item.SlotId == _selectedFacilitySlotId);
-        if (selectedSlot == null)
-        {
-            if (_siteFacilityBuildCard != null)
-            {
-                _siteFacilityBuildCard.Visible = false;
-            }
-            _siteFacilityBuildTitle.Visible = false;
-            _siteFacilityBuildList.Visible = false;
-            GameLog.Warn(
-                nameof(WorldSiteRoot),
-                $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=false reason=selected_slot_missing selectedSlot={_selectedFacilitySlotId} definedSlots={definition.FacilitySlots.Count}");
-            return;
-        }
-
-        if (_siteFacilityBuildCard != null)
-        {
-            _siteFacilityBuildCard.Visible = true;
-        }
-        _siteFacilityBuildTitle.Visible = true;
-        _siteFacilityBuildList.Visible = true;
-
-        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-        FacilityInstance existingFacility = ResolveFacilityInSlot(site, selectedSlot.SlotId);
-        if (existingFacility != null)
-        {
-            string facilityName = queries.GetFacility(existingFacility.FacilityId)?.DisplayName ?? existingFacility.FacilityId;
-            _siteFacilityBuildTitle.Text = $"建筑信息 · {selectedSlot.DisplayName}";
-            AddMutedLine(_siteFacilityBuildList, $"{facilityName}\n状态：{GetFacilityStateLabel(existingFacility.State)}");
-            GameLog.Info(
-                nameof(WorldSiteRoot),
-                $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=true reason=occupied selectedSlot={_selectedFacilitySlotId} facility={existingFacility.FacilityId} definedSlots={definition.FacilitySlots.Count} registeredSlots={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count} buttons=0");
-            return;
-        }
-
-        _siteFacilityBuildTitle.Text = $"可建建筑 · {selectedSlot.DisplayName}";
-        IReadOnlyList<WorldActionViewModel> buildActions = ResolveBuildActionsForSlot(site, selectedSlot);
-        if (buildActions.Count == 0)
-        {
-            AddMutedLine(_siteFacilityBuildList, "暂无可建建筑。");
-            GameLog.Info(
-                nameof(WorldSiteRoot),
-                $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=true reason=no_build_actions selectedSlot={_selectedFacilitySlotId} definedSlots={definition.FacilitySlots.Count} registeredSlots={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count} buttons=0");
-            return;
-        }
-
-        int buildButtonCount = 0;
-        int enabledBuildButtonCount = 0;
-        foreach (WorldActionViewModel action in buildActions)
-        {
-            Button button = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(WorldSiteRoot));
-            if (button == null)
-            {
-                continue;
-            }
-
-            button.Text = BuildFacilityBuildButtonText(action);
-            button.Disabled = !action.IsEnabled;
-            button.TooltipText = BuildActionTooltip(action);
-            if (action.IsEnabled)
-            {
-                enabledBuildButtonCount++;
-                string targetSlotId = selectedSlot.SlotId;
-                button.Pressed += () => ExecuteSiteAction(action, targetSlotId);
-            }
-
-            _siteFacilityBuildList.AddChild(button);
-            buildButtonCount++;
-        }
-
-        GameLog.Info(
-            nameof(WorldSiteRoot),
-            $"SiteFacilityBuildPanelRefreshed site={site.SiteId} visible=true selectedSlot={_selectedFacilitySlotId} buildSlots=1 buttons={buildButtonCount} enabled={enabledBuildButtonCount} definedSlots={definition.FacilitySlots.Count} registeredSlots={_siteFacilitySlotEntities.Count} layouts={_siteFacilitySlotLayouts.Count}");
-    }
-
-    private void RefreshGarrisonList(WorldSiteState site)
-    {
-        ClearChildren(_siteGarrisonList);
-        AddSiteGarrisonLines(_siteGarrisonList, site);
-    }
-
-    private string BuildSiteGarrisonOverviewText(WorldSiteState site)
-    {
-        return site?.Garrison?.Sum(garrison => garrison.Count).ToString() ?? "0";
-    }
-
-    private void AddSiteGarrisonLines(VBoxContainer list, WorldSiteState site)
-    {
-        if (list == null)
-        {
-            return;
-        }
-
-        if (site == null || site.Garrison.Count == 0)
-        {
-            AddMutedLine(list, "无");
-            return;
-        }
-
-        WorldSiteDefinition definition = ResolveSiteDefinition(site.SiteId);
-        AddMutedLine(list, $"驻军区：{_deploymentService.BuildGarrisonSummary(site, definition)}");
-        foreach (GarrisonState garrison in site.Garrison)
-        {
-            AddMutedLine(list, $"{GetUnitLabel(garrison.UnitTypeId)} x{garrison.Count}    士气 {garrison.Morale}");
-        }
-    }
-    private void RefreshActionList(WorldSiteState site)
-    {
-        ClearChildren(_siteActionList);
-
-        IReadOnlyList<WorldActionViewModel> actions = _worldActionResolver.GetAvailableActions(
-            StrategicWorldRuntime.State,
-            StrategicWorldRuntime.Definition,
-            _siteHudSiteId);
-
-        foreach (WorldActionViewModel action in actions)
-        {
-            if (IsFacilityBuildAction(action.ActionId))
-            {
-                continue;
-            }
-
-            Button button = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(WorldSiteRoot));
-            if (button == null)
-            {
-                continue;
-            }
-
-            button.Text = BuildActionButtonText(action);
-            button.Disabled = !action.IsEnabled;
-
-            if (action.IsEnabled)
-            {
-                button.Pressed += () => ExecuteSiteAction(action);
-            }
-
-            _siteActionList.AddChild(button);
-        }
-
-        if (_siteActionList.GetChildCount() == 0)
-        {
-            AddMutedLine(_siteActionList, "暂无可执行行动");
-        }
-    }
 }

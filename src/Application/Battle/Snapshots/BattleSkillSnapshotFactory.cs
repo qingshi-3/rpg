@@ -41,7 +41,8 @@ public static class BattleSkillSnapshotFactory
             ImpactDelaySeconds = System.Math.Max(0, definition.Timing?.ImpactDelaySeconds ?? 0),
             RecoverySeconds = System.Math.Max(0, definition.Timing?.RecoverySeconds ?? 0),
             CanInterruptBasicAttackWindup = definition.InterruptPolicy?.CanInterruptBasicAttackWindup ?? false,
-            CanCancelBasicAttackRecovery = definition.InterruptPolicy?.CanCancelBasicAttackRecovery ?? false
+            CanCancelBasicAttackRecovery = definition.InterruptPolicy?.CanCancelBasicAttackRecovery ?? false,
+            ReleasesWithoutOccupyingCaster = definition.InterruptPolicy?.ReleasesWithoutOccupyingCaster ?? false
         };
 
         foreach (BattleSkillEffectDefinition effect in definition.Effects ?? Enumerable.Empty<BattleSkillEffectDefinition>())
@@ -49,7 +50,10 @@ public static class BattleSkillSnapshotFactory
             snapshot.Effects.Add(new BattleSkillEffectSnapshot
             {
                 Kind = MapEffectKind(effect.Kind),
-                Amount = System.Math.Max(0, effect.Amount)
+                Amount = System.Math.Max(0, effect.Amount),
+                DurationSeconds = System.Math.Max(0, effect.DurationSeconds),
+                TickIntervalSeconds = System.Math.Max(0, effect.TickIntervalSeconds),
+                Radius = System.Math.Max(0, effect.Radius)
             });
         }
 
@@ -58,15 +62,23 @@ public static class BattleSkillSnapshotFactory
 
     private static SnapshotTargetingMode MapTargetingMode(DefinitionTargetingMode mode)
     {
-        return mode == DefinitionTargetingMode.TargetedActor
-            ? SnapshotTargetingMode.TargetedActor
-            : SnapshotTargetingMode.None;
+        return mode switch
+        {
+            DefinitionTargetingMode.TargetedActor => SnapshotTargetingMode.TargetedActor,
+            DefinitionTargetingMode.TargetedCell => SnapshotTargetingMode.TargetedCell,
+            DefinitionTargetingMode.TargetedActorOrCell => SnapshotTargetingMode.TargetedActorOrCell,
+            _ => SnapshotTargetingMode.None
+        };
     }
 
     private static SnapshotEffectKind MapEffectKind(DefinitionEffectKind kind)
     {
-        return kind == DefinitionEffectKind.Damage
-            ? SnapshotEffectKind.Damage
-            : SnapshotEffectKind.Damage;
+        return kind switch
+        {
+            DefinitionEffectKind.CreateThunderMark => SnapshotEffectKind.CreateThunderMark,
+            DefinitionEffectKind.TeleportToThunderMark => SnapshotEffectKind.TeleportToThunderMark,
+            DefinitionEffectKind.StartChanneledAreaDamage => SnapshotEffectKind.StartChanneledAreaDamage,
+            _ => SnapshotEffectKind.Damage
+        };
     }
 }

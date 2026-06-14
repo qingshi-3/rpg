@@ -1,0 +1,711 @@
+# Content Systems Long-Term Design
+
+This document defines the long-term gameplay design for units, hero-led corps combat, progression, equipment, city management, and non-city strategic locations.
+
+It is a clean design reference kept outside the older `docs/` hierarchy.
+
+## Core Direction
+
+The long-term content system balances three pillars:
+
+```text
+people and heroes: 40%
+city and strategic-location management: 30%
+combat build and command: 30%
+```
+
+The game should not become a pure hero RPG, a pure city builder, a TFT clone, or a heavy RTS. The target combat feel is hero-led light RTS inspired by Sanguo Qunying:
+
+```text
+prepare heroes, corps, equipment, professions, cities, and resources
+-> enter a full authored battle map
+-> command heroes and their troops separately at medium frequency
+-> resolve real-time combat through automatic unit behavior and player commands
+-> read a battle report that explains why the result happened
+-> write consequences back to cities, resources, corps, and campaign state
+```
+
+## Combat Product Identity
+
+The combat layer is a low-frequency spatial realtime tactical battle. The player is a battlefield commander who makes local war decisions through terrain, timing, reserves, and high-impact commands instead of winning through APM or individual soldier micro.
+
+The combat experience should naturally ask the player to:
+
+- hold or break chokepoints such as bridges, gates, passes, and alleys;
+- contest terrain such as high ground, forests, routes, and multiple entrances;
+- commit, delay, or preserve reserves;
+- shift forces between local fronts;
+- wait for cooldowns, reinforcements, flanks, or another-front breakthrough;
+- respond to telegraphed enemy actions;
+- retreat before local collapse becomes unrecoverable.
+
+Combat features should be judged by whether they create these spatial decisions. Damage output, animation spectacle, and unit count are supporting tools, not the core combat identity.
+
+## Battle Preparation And Plans
+
+Battle preparation should express commander intent before real-time execution starts.
+
+The default battle-preparation loop is:
+
+```text
+select a hero company
+-> deploy that hero company with its selected formation
+-> choose a configured objective area for that company
+-> choose the company's engagement rule
+-> repeat for every participating hero company
+-> start battle
+```
+
+Hero-company formation is a planning preference, not individual soldier micromanagement. Strategic management may let the player set a long-term default formation for each hero company, such as standard, assault, guard, loose, or column. Battle preparation initializes the current battle's selected formation from that default. The player may switch the selected formation before or after placement, but the selected formation belongs to the current battle plan unless the player explicitly saves it as the company's default in a future management flow.
+
+Drag deployment uses the selected formation. Formation adaptation may help the company fit narrow or irregular deployment zones, but it must preserve the player's tactical intent and every member footprint. The system may compress spacing or fall back to a column-like arrangement; it must not overlap members, place only part of a footprint in the zone, or silently scatter the company into unrelated positions.
+
+The objective area is a player-facing tactical region authored on the battle map, such as a gate approach, high ground, flank route, bridgehead, reserve point, or enemy core. It is not an arbitrary hidden coordinate chosen by AI. The UI should present objective areas in a polished zoomed-out tactical view while preserving the horizontal battle identity of the map.
+
+The engagement rule tells the company how to behave while advancing and after contact. Initial rules should cover:
+
+| Rule | Player Expectation |
+|---|---|
+| Fire-on-the-move | Keep advancing, but stop briefly for nearby valid attacks. |
+| Move-first | Reach the objective unless blocked, threatened at close range, or explicitly commanded otherwise. |
+| Attack-first | Prefer engaging sensed enemies inside the plan scope before continuing. |
+| Hold | Defend the deployed or selected area and avoid deep pursuit. |
+| Retreat-first | Break away when survival, morale, or rule thresholds trigger retreat. |
+| Protect-hero | Keep the corps near the hero and prioritize threats to the hero. |
+
+This plan does not turn battle into pure auto-playback. It gives each hero company an initial battle intention that can later be overridden by accepted hero, corps, or combined commands. Mature automatic behavior should be readable as execution of the player's plan, not as every unit independently searching the whole map for the globally best target or attack position.
+
+### Local Combat Response
+
+Automatic battle behavior should understand active local fights, not only global objectives and direct target pursuit. When combat starts near a company, nearby units that satisfy the local combat rules should evaluate whether they should join the local fight, take an open attack position, hold a named support position, or remain on their objective/defense task.
+
+This behavior should make enemies and allies read as battlefield participants with local awareness:
+
+- front-line units try to occupy valid attack positions when available;
+- support units do not idle beside a fight simply because direct attack positions are full;
+- defenders reinforce local fights inside their defense scope but do not chase indefinitely;
+- objective movement remains the plan's main direction, but active local combat may temporarily interrupt it according to engagement rule.
+
+Local combat response is not global per-unit target optimization. It is a scoped tactical reaction to nearby combat that preserves player plans, defensive leashes, readable support positions, and Runtime movement authority.
+
+Local response must remain readable by role:
+
+- shield and infantry units reinforce lines, chokepoints, and nearby attack positions;
+- ranged units prefer legal firing positions and avoid blocking the front;
+- cavalry or other mobile units should not clog chokepoints and should join mainly when a side or rear approach is available.
+
+Each hero company should preserve its command identity. Local response may temporarily redirect a company into a nearby fight, but it should not scatter visible soldiers into independent long-term behaviors or pull every nearby company into one fight without budget, leash, and return rules.
+
+
+### Region-Directed Enemy Combat
+
+Enemy battle behavior should separate non-engaged movement from engaged combat.
+
+Non-engaged enemy groups move toward battle-group-owned regions, not toward individual moving units. Offense selects player defensive deployment regions first. Active defense selects player offensive deployment regions first. Hold defense remains in its held region until a group member is damaged, attacks, or perceives a player unit; then the whole group switches to active assault. The first implementation does not require activated defenders to return home.
+
+When fixed target regions no longer contain relevant player units, enemy groups may generate temporary target regions from player unit clusters. Temporary regions are battle-group-owned runtime observations, not authored map facts. They should be rebuilt only at bounded intervals, with a default interval of 5 Runtime ticks.
+
+Engaged enemy groups should use local-optimal combat inside a bounded local combat region. The local region is built from the group's own perception coverage. Overlapping perception coverage increases region value, but the region has a strict cap so local intelligence does not become global per-unit optimization.
+
+Player groups may reuse the same perception, local combat-region, target, slot, and Runtime validation systems, but player target regions and posture remain controlled by player commands or accepted player battle plans. Enemy region policy must not rewrite player intent.
+
+## Strategic Location Naming
+
+Use **strategic location** as the design umbrella for large-map locations.
+
+`WorldSite` can remain a technical abstraction. Player-facing and design documents should prefer concrete terms:
+
+| Type | Role |
+|---|---|
+| City / Stronghold | Core long-term management, training, armament, garrison, defense, and major warfare. |
+| Resource Site | Lightweight resource-producing point. |
+| Gate / Pass | Route control and defensive chokepoint. |
+| Ruin | Neutral special-content location with direct battles, resources, equipment, lore, unlocks, or sealing/clearing outcomes. |
+| Dungeon | Combat-focused challenge location with direct battles, rewards, materials, and progression. |
+| Opportunity | Short-lived map event such as ambush, caravan, refugees, rescue, or monster attack. |
+
+Do not force every strategic location into the full city management model. Only core cities should carry the full management surface.
+
+## Combat Model
+
+Combat is hero-led light RTS.
+
+```text
+hero company = 1 hero + 1 main corps
+```
+
+The player selects a hero company, but command is split into three channels:
+
+```text
+hero command
+corps command
+combined command
+```
+
+This supports Sanguo Qunying-style decisions such as leaving a hero behind while sending the troops forward.
+
+### Hero Command
+
+Hero commands affect the hero directly:
+
+- move;
+- attack;
+- hold position;
+- retreat;
+- cast hero skill;
+- move closer to or away from the corps.
+
+### Corps Command
+
+Corps commands affect the hero's troops as a group. The player never controls individual soldiers.
+
+- advance;
+- return to guard;
+- hold area;
+- attack a target or area;
+- protect the hero;
+- retreat.
+
+### Combined Command
+
+Combined commands affect the hero and corps together:
+
+- company move;
+- company attack;
+- company defend;
+- company retreat;
+- regroup.
+
+Combat should support medium-frequency command. The player often selects hero companies, moves, focuses targets, casts hero skills, and redirects troops, but does not perform high-frequency individual soldier micro.
+
+Long-term hero capacity may allow one hero to manage multiple corps slots, such as a `4-6` upper limit. The first playable combat slices may still use one hero plus one main corps as the battle-group shape. That is an implementation staging rule, not a rejection of later reserve or multi-corps capacity.
+
+## Corps Presentation And Casualties
+
+Each hero brings one visible corps.
+
+```text
+normal company: 1 hero + 3-8 visible soldiers
+normal battle: 3-5 friendly hero companies
+```
+
+Soldiers are visible and participate in movement, attacks, formation, and death presentation. Long-term state does not track each soldier independently.
+
+Corps casualties use shared corps strength:
+
+```text
+CorpsStrength: 0-100
+VisibleSoldiers: 3-8
+```
+
+Visible soldiers disappear at strength thresholds. Example for a 5-soldier corps:
+
+```text
+100-81: 5 soldiers
+80-61: 4 soldiers
+60-41: 3 soldiers
+40-21: 2 soldiers
+20-1: 1 soldier
+0: corps routed
+```
+
+The hero can survive while the corps routs. Post-battle recovery, losses, and restoration costs are resolved from corps strength, battle outcome, retreat state, and city support.
+
+## Attributes
+
+Use two attribute layers:
+
+```text
+hero base attributes: long-term growth and build requirements
+combat stats: readable battle-facing values
+```
+
+### Hero Base Attributes
+
+Hero base attributes are:
+
+| Attribute | Use |
+|---|---|
+| Martial | Melee, assault, and physical skill direction. |
+| Vitality | HP, survival, pressure resistance. |
+| Technique | Precision, ranged skill, critical or technical execution. |
+| Tactics | Command, tactical skill efficiency, battle planning. |
+| Willpower | Control resistance, sustained fighting, morale stability. |
+| Charisma | Troop leadership, morale, command presence. |
+| Craft | Facilities, machines, armament, repair, engineering. |
+| Mystic | Magic, rituals, special energy, supernatural skills. |
+
+These attributes should not be the main battle report language. They support progression, profession fit, skill pools, equipment requirements, and a small number of city or strategic-location actions.
+
+### Combat Stats
+
+Readable combat-facing stats are:
+
+```text
+HP
+Attack
+Defense
+AttackSpeed
+Speed
+Range
+Mobility
+Mana
+ManaRegen
+Cooldown
+```
+
+`AttackSpeed` is the readable basic-attack cadence stat. Runtime uses it to pace basic attack events, and battle presentation uses the same value to scale attack animation playback so the stat and visible swing speed do not drift.
+
+Do not add `Discipline` as a standalone core stat. Discipline-like behavior should come from morale, current command, corps level, equipment level, profession behavior, and hero-corps aptitude.
+
+## Corps Definition
+
+A corps is defined by gameplay role and fantasy form.
+
+```text
+CombatClass: battlefield role
+Form: fantasy body or presentation
+Tags: content and rule hooks
+```
+
+Examples:
+
+```text
+dragon riders = cavalry class + flying / dragon / beast tags
+armored crabs = shield class + armored / aquatic / beast tags
+treants = shield or infantry class + plant / giant tags
+mechanical artillery = archer or mage class + construct / siege tags
+```
+
+Combat class is for player-readable battlefield responsibility. Form and tags provide fantasy identity, special resources, and limited special rules.
+
+### Strategic Corps Muster
+
+Strategic management treats corps options as city-supported muster templates and persistent corps instances.
+
+A muster template is the right for a city to create or rebuild a corps type. It comes from the city's identity, controlled source locations, facilities, special resources, relationships, or later accepted systems. A template is not a free unit and does not bypass resource, time, facility, or capacity costs.
+
+A corps instance is an actual persistent force attached to a city, garrison, expedition, or hero company. It tracks readiness facts such as strength, training, equipment level, experience, state, and current assignment. Long-term state still does not track individual soldiers independently.
+
+Severe losses should not permanently delete a corps instance by default in the first strategic-management model. A wiped or shattered corps should enter a routed, scattered, or rebuilding state that requires city support and resources to restore if the relevant muster template remains available.
+
+Losing a template source, such as a special site or required facility, should not immediately erase existing corps instances. It should prevent new creation and restrict recovery, training, or upgrades until the source is restored.
+
+## Professions And Bonds
+
+The first profession layer is combat class:
+
+| Class | Battlefield Role |
+|---|---|
+| Infantry | Balanced advance. |
+| Shield | Frontline protection, guarding, holding. |
+| Spear | Anti-charge and line pressure. |
+| Archer | Ranged fire and focus pressure. |
+| Cavalry | Mobility, charge, pursuit. |
+| Mage | Area damage, control, burst. |
+| Medic | Healing, cleansing, protection. |
+| Assassin | Flank, dive, hero threat. |
+
+Bond systems should be profession/tag-based rather than specific historical relationship-based, because the setting can combine historical, fictional, and fantasy content.
+
+Bonds should not mainly be "deploy N of class X for +Y%". They should modify tactics, behavior, and interaction:
+
+```text
+shield + archer: safer ranged firing line
+spear + archer: anti-charge firing line
+cavalry + assassin: stronger flank pressure and pursuit
+mage + shield: better protection during casting
+medic + infantry: stronger sustained advance and post-battle recovery
+```
+
+Tag bonds can express fantasy interaction:
+
+```text
+flying: ignores some terrain, but is vulnerable to anti-air pressure
+aquatic: stronger in water-heavy locations
+undead: morale-resistant, but limited by healing type
+construct: requires repair instead of normal healing
+dragon: high shock value and cost
+```
+
+## Hero-Corps Aptitude
+
+Heroes can lead any corps class, but aptitude determines how well the combination works.
+
+```text
+S: strong corps stat modifier, advanced or unique skill link, better corps auto-skill efficiency
+A: good corps stat modifier, standard skill link, better corps auto-skill efficiency
+B: normal performance
+C: light stat penalty, lower auto-skill efficiency
+D: poor fit, most skill links unavailable
+```
+
+Hero-corps aptitude only affects:
+
+- corps automatic skill efficiency;
+- hero and corps skill links;
+- corps stat modifiers.
+
+It must not affect command response, morale loss, formation stability, or post-battle recovery cost.
+
+## Progression
+
+### Hero Progression
+
+Hero progression uses low level cap plus rank breakthroughs.
+
+```text
+level: 1-20
+rank: ordinary / elite / renowned / legendary / mythic or unique
+profession mastery: per hero profession
+```
+
+Hero level provides base growth. Rank unlocks stage goals such as:
+
+- skill slots;
+- equipment slots;
+- stronger corps access;
+- advanced profession branches;
+- unique skill mechanics;
+- higher equipment-grade eligibility.
+
+### Hero Skills
+
+Hero skills are player-cast.
+
+```text
+skill availability = cooldown + mana cost
+```
+
+Skill tiers:
+
+- normal active skill: short cooldown, low mana cost;
+- core tactical skill: medium cooldown, medium mana cost;
+- ultimate: long cooldown, high mana cost, limited per battle by resource pressure.
+
+### Corps Progression
+
+Corps growth has two axes:
+
+```text
+corps level
+corps equipment level
+```
+
+Corps level represents training and battle experience:
+
+```text
+training raises level cap and can provide limited experience
+battle provides primary level-up experience
+```
+
+Corps equipment level represents standardized arms, gear, tools, beasts, magical components, or equivalent fantasy upgrades:
+
+```text
+city resources + required facility capacity -> equipment level upgrade
+```
+
+Examples:
+
+```text
+dragon cavalry: leather, dragon scale, sky crystal, stable or nest support
+armored crab shield corps: building material, shell, water resource
+mechanical archer corps: metal, core crystal, workshop capacity
+undead infantry: grave soil, soul dust, black stone
+```
+
+Corps do not equip individual items.
+
+## Equipment
+
+Hero equipment uses light slots and a deep collection pool:
+
+```text
+weapon
+armor
+token / command item
+```
+
+Equipment depth comes from:
+
+- grade;
+- series;
+- profession fit;
+- hero fit;
+- corps interaction;
+- location or origin theme;
+- limited fixed affixes or template variants.
+
+Equipment grades:
+
+```text
+common -> fine -> rare -> epic -> legendary -> artifact / unique
+```
+
+Do not make random affix farming the main loop. High-grade equipment should support collection desire, identity, and build direction without becoming the only progression axis.
+
+The token or command item slot is important because it connects equipment to hero-led corps play: banners, seals, horns, manuals, relics, contracts, or command artifacts can improve troop interaction and tactical identity.
+
+## City Management
+
+Cities are the core long-term managed strategic locations.
+
+First-phase city attributes are:
+
+```text
+Control
+Population
+Food
+Money
+BuildingMaterials
+SpecialResources
+GarrisonCapacity
+TrainingCapacity
+WorkshopCapacity
+DefenseValue
+FacilitySlots
+```
+
+Do not include public order, intelligence, or damage as first-phase core city attributes.
+
+Cities should have a local identity, such as plains human city, forest settlement, dwarf mine city, undead grave city, frontier pass, or beast-border stronghold. City identity defines the natural military and economic routes that are cheap, stable, and easy to recover there. Foreign or special corps routes can be added through facilities and source permissions, but they should compete for limited facility slots and carry higher support requirements.
+
+First-phase resources use faction-shared storage. Cross-city transport loss, regional logistics, and supply efficiency may be added later, but they are not first-phase requirements.
+
+### City Attribute Roles
+
+| Attribute | Role |
+|---|---|
+| Control | Who owns the city and whether it can be built, trained, defended, or upgraded. |
+| Population | Labor, recruits, tax base, facility staffing. |
+| Food | Sustains population, garrison, training, and long defense. |
+| Money | Construction, recruitment, training, maintenance, equipment upgrades. |
+| BuildingMaterials | Construction, defense, workshops, repair-like costs when added later. |
+| SpecialResources | Fantasy corps and equipment upgrades. |
+| GarrisonCapacity | How many hero companies, corps, or guards can be stationed. |
+| TrainingCapacity | Corps level cap increase and training efficiency. |
+| WorkshopCapacity | Corps equipment level cap and upgrade efficiency. |
+| DefenseValue | City defense, walls, gates, towers, and defensive auto-resolution. |
+| FacilitySlots | Constrained city development choices. |
+
+### City And Corps Growth
+
+City management should directly feed corps growth:
+
+```text
+city training capacity -> corps level cap
+battle -> corps level experience
+city workshop capacity + resources -> corps equipment level
+city garrison capacity -> how many companies can be stationed
+city defense value -> defensive battle conditions and auto-resolution
+```
+
+City support should also feed corps muster:
+
+```text
+city identity + controlled source locations + facilities -> muster templates
+muster template + resources + capacity -> corps instance creation or rebuilding
+city training capacity -> corps training and recovery efficiency
+city workshop capacity + resources -> corps equipment-level upgrades
+hero-corps aptitude -> whether a hero can use the corps well
+```
+
+## Facilities
+
+Cities use limited facility slots instead of freeform city building.
+
+Facility categories:
+
+| Category | Examples | Role |
+|---|---|---|
+| Resource Support | farms, markets, warehouses, local processing, special gathering support | Food, money, storage, conversion, and support for resource-site income. |
+| Military | barracks, training grounds, stables, beast nests, archery ranges, mage towers | Garrison, training, class unlocks. |
+| Workshop | smithy, armor forge, machine workshop, arcane workshop, beast gear workshop | Corps equipment level and special processing. |
+| Defense | walls, towers, gates, barricades, wards | Defense value and defensive battle support. |
+| Storage | granary, warehouse, quartermaster | Resource caps or cost reduction. |
+| Special | summoning circle, ruin laboratory, purification altar, dragon nest, graveyard, portal | Unique content, special corps, resources, or story hooks. |
+
+Cities should develop different identities:
+
+```text
+main city: balanced
+frontier city: garrison and defense
+resource city: production
+workshop city: equipment upgrades
+special city: unique corps or special resources
+```
+
+Facilities are not RTS-style production buildings. They open, stabilize, and improve city-supported muster templates, recovery, training, garrison, workshop, and defense capabilities. A basic barracks or training ground may support common local troops, but it should not unlock every fantasy corps type. Specialized facilities such as archery ranges, stables, beast pens, siege workshops, mage towers, sanctuaries, graveyards, or unique local structures should define city roles and force tradeoffs.
+
+Resource extraction buildings such as mines or lumber camps belong to resource sites in the first strategic-management model and do not consume city facility slots by default.
+
+## Non-City Strategic Locations
+
+### Resource Sites
+
+Resource sites provide specific resources and can be occupied, guarded, contested through direct battles, or linked to nearby cities.
+
+They should not carry full city systems such as population, broad facilities, and full training or workshop layers.
+
+Some lightweight non-city sites may provide source permissions for special muster templates in addition to or instead of normal income. For example, a beast lair, old hunting ground, or abandoned taming yard can provide the source permission needed before a city with a beast pen can create beast corps. These sites remain smaller than cities: first-phase versions track control, simple rewards or income, and whether their source permission is active.
+
+The first special-route validation should use a beast minor site. Capturing it provides beast source permission and small passive rewards. The site does not upgrade in the first version. A city must still build a beast pen or equivalent special facility before it can create beast corps instances.
+
+### Gates And Passes
+
+Gates and passes control routes and defensive chokepoints.
+
+Minimal attributes:
+
+```text
+Control
+GarrisonCapacity
+DefenseValue
+RouteLinks
+LimitedFacilitySlots
+```
+
+### Ruins
+
+Ruins are special-content locations resolved through direct strategic actions, direct battles, rewards, sealing, clearing, occupation, or depletion.
+
+Possible states:
+
+```text
+unknown
+available
+cleared
+occupied
+sealed
+depleted
+```
+
+Ruins can provide special equipment, resources, corps unlocks, story clues, summoning materials, or facility blueprints.
+
+Only important ruins should become managed strategic locations.
+
+### Dungeons
+
+Dungeons are combat-focused challenge locations.
+
+They can track:
+
+```text
+challenge progress
+depth or floors
+enemy strength
+reward pool
+reset rules
+```
+
+Dungeons should not use full city management.
+
+### Opportunities
+
+Opportunities are short-lived map events. They become strategic locations only if they turn into persistent content.
+
+## Battle Reports
+
+Battle reports explain command, build, and resource outcomes.
+
+Minimum report facts:
+
+- outcome;
+- hero company contribution;
+- corps strength loss;
+- hero skill use and impact;
+- corps automatic skill performance;
+- profession or tag bond triggers;
+- equipment and command item contribution;
+- city or facility influence;
+- main failure reason;
+- post-battle rewards, corps experience, equipment materials, city/resource changes.
+
+Failure reasons should be actionable:
+
+```text
+frontline collapsed
+hero overextended during assault
+ranged company lacked protection
+cavalry was countered by spear or chokepoint pressure
+mana ran out before key skill timing
+corps equipment level was too low
+defense value was insufficient
+retreat was ordered too late, causing high corps loss
+```
+
+## First-Phase Scope
+
+The first implementation slice should validate the core loop before expanding breadth.
+
+Recommended first-phase content:
+
+```text
+1 core city
+1-2 resource sites
+1 optional minor source site for a special corps route when validating strategic management
+1 direct ruin or dungeon battle/reward site
+3 heroes
+3 corps classes
+1 city light-RTS battle
+1 equipment-grade sample set
+1 corps level and equipment-level progression sample
+basic battle report
+```
+
+Recommended first corps classes:
+
+```text
+shield: holding and protection
+archer: ranged pressure
+cavalry: charge and pursuit
+```
+
+The first strategic-management extension should validate one special corps route rather than a broad taxonomy. The accepted first route is beast taming:
+
+```text
+source: captured beast minor site
+city facility: beast pen / beast camp
+corps identity: shock assault
+first examples: wolf pack assault, great beast charge
+cost identity: high creation cost, slow recovery, and dependence on both source site and city facility
+excluded first-version rule: random beast-control failure
+```
+
+First-phase city attributes:
+
+```text
+Control
+Population
+Food
+Money
+BuildingMaterials
+SpecialResources
+GarrisonCapacity
+TrainingCapacity
+WorkshopCapacity
+DefenseValue
+FacilitySlots
+```
+
+First-phase commands:
+
+```text
+hero: move / hold / attack / retreat / cast skill
+corps: advance / return to guard / hold / attack target / retreat
+combined: company move / company attack / company retreat / regroup
+```
+
+## Non-Goals
+
+Do not treat these as first-phase requirements:
+
+- complex national diplomacy or government simulation;
+- public order, intelligence, and damage as core city attributes;
+- multiple main corps under one hero;
+- individual soldier long-term progression;
+- individual corps equipment items;
+- large-scale RTS box selection;
+- heavy random-affix gear farming;
+- many simultaneous battlefronts on one map;
+- pure post-deployment autobattler playback with no player command authority.

@@ -1,12 +1,9 @@
-using System.Collections.Generic;
 using System.Linq;
 using Godot;
-using Rpg.Application.Battle;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
-using Rpg.Infrastructure.Logging;
-using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.World;
@@ -23,32 +20,26 @@ public partial class StrategicWorldRoot
         {
             ClampExpeditionDraftCounts();
             string sourceName = ResolveSiteDisplayName(_expeditionSourceSiteId);
-            AddMutedLine(_actionList, $"出发场域：{sourceName}");
-            AddMutedLine(_actionList, $"已选英雄：{BuildExpeditionUnitText()}");
-            AddMutedLine(_actionList, $"默认兵团：{BuildSelectedDefaultCorpsText()}");
+            AddMutedLine(_actionList, $"出发地点：{sourceName}");
+            AddMutedLine(_actionList, $"已选英雄公司：{BuildExpeditionUnitText()}");
+            AddMutedLine(_actionList, $"编制：{BuildSelectedDefaultCorpsText()}");
 
-            foreach ((string unitTypeId, int available) in GetAvailableExpeditionUnits(_expeditionSourceSiteId))
+            foreach (StrategicHeroCompanyViewModel company in GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId))
             {
-                _expeditionUnitCounts.TryGetValue(unitTypeId, out int selected);
+                bool selected = _expeditionHeroIds.Contains(company.HeroId);
+                string status = company.CanCreateExpedition
+                    ? $"{company.HeroDisplayName} + {company.CorpsDisplayName}"
+                    : $"{company.HeroDisplayName} + {company.CorpsDisplayName}\n{FormatStrategicExpeditionFailureReason(company.DisabledReason)}";
                 AddExpeditionCountRow(
-                    GetUnitLabel(unitTypeId),
-                    selected,
-                    available,
-                    delta => AdjustExpeditionUnitCount(unitTypeId, delta));
+                    status,
+                    selected ? 1 : 0,
+                    company.CanCreateExpedition &&
+                    (selected || _expeditionHeroIds.Count < StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition)
+                        ? 1
+                        : 0,
+                    delta => AdjustExpeditionHeroCompanySelection(company.HeroId, delta));
             }
 
-            /*
-            AddExpeditionCountRow(
-                $"英雄：{GetUnitLabel(StrategicWorldIds.UnitPlayerKnight)}",
-                _expeditionHeroCount,
-                availableHeroes,
-                AdjustExpeditionHeroCount);
-            AddExpeditionCountRow(
-                $"小兵：{GetUnitLabel(StrategicWorldIds.UnitMilitia)}",
-                _expeditionMilitiaCount,
-                availableMilitia,
-                AdjustExpeditionMilitiaCount);
-            */
             AddExpeditionTargetButton(HasSelectedExpeditionUnits());
             AddExpeditionCancelButton();
             return true;
@@ -70,8 +61,8 @@ public partial class StrategicWorldRoot
             }
 
             enterButton.Text = canEnter
-                ? "查看场地详情"
-                : $"查看场地详情\n{WorldActionResolver.FormatFailureReason(enterFailureReason)}";
+                ? "查看地点详情"
+                : $"查看地点详情\n{WorldActionResolver.FormatFailureReason(enterFailureReason)}";
             enterButton.Disabled = !canEnter;
             if (canEnter)
             {
@@ -81,25 +72,29 @@ public partial class StrategicWorldRoot
             _actionList.AddChild(enterButton);
         }
 
-        if (selectedSite?.OwnerFactionId == State.PlayerFactionId &&
-            selectedSite.ControlState is SiteControlState.PlayerHeld or SiteControlState.Damaged)
+        if (CanStartExpeditionFromSite(_selectedSiteId, out string failureReason))
         {
-            bool canStart = CanStartExpeditionFromSite(_selectedSiteId, out string failureReason);
             Button expeditionButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
             if (expeditionButton == null)
             {
                 return false;
             }
 
-            expeditionButton.Text = canStart
-                ? "出征\n选择英雄"
-                : $"出征\n{WorldActionResolver.FormatFailureReason(failureReason)}";
-            expeditionButton.Disabled = !canStart;
-            if (canStart)
+            expeditionButton.Text = "出征\n选择英雄公司";
+            expeditionButton.Pressed += BeginExpeditionDraft;
+            _actionList.AddChild(expeditionButton);
+        }
+        else if (selectedSite?.OwnerFactionId == State.PlayerFactionId &&
+                 selectedSite.ControlState is SiteControlState.PlayerHeld or SiteControlState.Damaged)
+        {
+            Button expeditionButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
+            if (expeditionButton == null)
             {
-                expeditionButton.Pressed += BeginExpeditionDraft;
+                return false;
             }
 
+            expeditionButton.Text = $"出征\n{FormatStrategicExpeditionFailureReason(failureReason)}";
+            expeditionButton.Disabled = true;
             _actionList.AddChild(expeditionButton);
         }
 
@@ -108,16 +103,14 @@ public partial class StrategicWorldRoot
 
     private string BuildSelectedDefaultCorpsText()
     {
-        string[] corpsLines = BuildSelectedExpeditionUnits()
-            .Keys
-            .Where(FirstSliceHeroCompanyIds.IsHeroUnit)
-            .OrderBy(GetUnitSortKey)
-            .Select(unitTypeId => FirstSliceHeroCompanyIds.TryGetCompanyByHeroUnit(unitTypeId, out FirstSliceHeroCompanyDefinition company)
-                ? $"{GetUnitLabel(company.DefaultCorpsUnit)} x{company.DefaultCorpsCount}"
-                : "")
-            .Where(text => !string.IsNullOrWhiteSpace(text))
+        StrategicHeroCompanyViewModel[] selected = GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)
+            .Where(company => _expeditionHeroIds.Contains(company.HeroId))
+            .OrderBy(company => company.HeroDisplayName)
             .ToArray();
-        return corpsLines.Length == 0 ? "请选择英雄" : string.Join("、", corpsLines);
+        return selected.Length == 0
+            ? "请选择英雄公司"
+            : string.Join("、", selected.Select(company =>
+                $"{company.CorpsDisplayName} 强度 {company.Strength}/100 等级 {company.Level} 装备 {company.EquipmentLevel}"));
     }
 
     private void AddExpeditionCountRow(
@@ -174,7 +167,7 @@ public partial class StrategicWorldRoot
         }
 
         targetButton.Text = _isExpeditionTargeting
-            ? "选择目的地中\n左键或右键场域/空地"
+            ? "选择目的地\n左键或右键确认目标"
             : "选择目的地\n敌方=进攻 己方=进驻 空地=移动";
         targetButton.Disabled = !canChooseTarget;
         targetButton.Pressed += BeginExpeditionTargeting;

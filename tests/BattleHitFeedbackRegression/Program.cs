@@ -21,11 +21,13 @@ Environment.SetEnvironmentVariable("RPG_GAMELOG_DIR", Path.Combine(Path.GetTempP
 BattleHitFeedbackRegressionCases.Run("multi-target hit feedback outlines every target and formats damage numbers", BattleHitFeedbackRegressionCases.MultiTargetHitFeedback);
 BattleHitFeedbackRegressionCases.Run("skill damage feedback preserves runtime source attribution", BattleHitFeedbackRegressionCases.SkillDamageFeedbackPreservesRuntimeSourceAttribution);
 BattleHitFeedbackRegressionCases.Run("damage number starts close to target and drifts lightly right upward", BattleHitFeedbackRegressionCases.DamageNumberMotionDefaults);
+BattleHitFeedbackRegressionCases.Run("battle unit root delegates hit feedback presentation", BattleHitFeedbackRegressionCases.BattleUnitRootDelegatesHitFeedbackPresentation);
 BattleHitFeedbackRegressionCases.Run("friendly hover uses green movement and yellow attack preview kinds", BattleHitFeedbackRegressionCases.FriendlyHoverStyle);
 BattleHitFeedbackRegressionCases.Run("friendly hover keeps combined post-move attack preview", BattleHitFeedbackRegressionCases.FriendlyHoverWorkload);
 BattleHitFeedbackRegressionCases.Run("friendly hover suppresses yellow attack cells under target units", BattleHitFeedbackRegressionCases.FriendlyHoverSuppressesAttackCellsUnderTargets);
 BattleHitFeedbackRegressionCases.Run("hover frame uses unit footprint", BattleHitFeedbackRegressionCases.HoverFrameUsesUnitFootprint);
 BattleHitFeedbackRegressionCases.Run("highlight tile layer updates only changed cells", BattleHitFeedbackRegressionCases.HighlightTileLayerDiff);
+BattleHitFeedbackRegressionCases.Run("battle grid highlight overlay delegates geometry", BattleHitFeedbackRegressionCases.BattleGridHighlightOverlayDelegatesGeometry);
 BattleHitFeedbackRegressionCases.Run("attack target presentation outlines units instead of target cells", BattleHitFeedbackRegressionCases.AttackTargetPresentation);
 BattleHitFeedbackRegressionCases.Run("movement path arrows are disabled by default", BattleHitFeedbackRegressionCases.MovementPathArrowsDisabled);
 BattleHitFeedbackRegressionCases.Run("unit visual scale uses global and footprint tuning multipliers", BattleHitFeedbackRegressionCases.UnitVisualScaleMultiplier);
@@ -60,6 +62,7 @@ BattleHitFeedbackRegressionCases.Run("battle result applier messages use configu
 BattleHitFeedbackRegressionCases.Run("battle unit factory keeps definition caches shared across scenes", BattleHitFeedbackRegressionCases.BattleUnitFactoryKeepsDefinitionCachesShared);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback consumes runtime movement cells", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackConsumesRuntimeMovementCells);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback keeps move loop across consecutive move steps", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackKeepsMoveLoopAcrossConsecutiveMoveSteps);
+BattleHitFeedbackRegressionCases.Run("battle runtime end idle clears movement lanes", BattleHitFeedbackRegressionCases.BattleRuntimeEndIdleClearsMovementLanes);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback waits for attack animation duration", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackWaitsForAttackAnimationDuration);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation uses tick clock", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationUsesTickClock);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback does not globally gate movement on attack animation", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackDoesNotGloballyGateMovementOnAttackAnimation);
@@ -67,8 +70,12 @@ BattleHitFeedbackRegressionCases.Run("battle runtime playback plans move idle on
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement uses actor motion lane", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementUsesActorMotionLane);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement queues before actor visual tail waits", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement buffers committed segments without restarting move", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementBuffersCommittedSegmentsWithoutRestartingMove);
+BattleHitFeedbackRegressionCases.Run("battle runtime teleport cancels stale queued movement presentation", BattleHitFeedbackRegressionCases.BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation);
 BattleHitFeedbackRegressionCases.Run("battle runtime movement queues perception overlay refresh", BattleHitFeedbackRegressionCases.BattleRuntimeMovementQueuesPerceptionOverlayRefresh);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation consumes SkillUsed as cast cue", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue);
+BattleHitFeedbackRegressionCases.Run("thunder tag offhand presentation does not interrupt movement", BattleHitFeedbackRegressionCases.ThunderTagOffhandPresentationDoesNotInterruptMovement);
+BattleHitFeedbackRegressionCases.Run("thunder tag presentation shows lightning and mark", BattleHitFeedbackRegressionCases.ThunderTagPresentationShowsLightningAndMark);
+BattleHitFeedbackRegressionCases.Run("thunder tag projectile reuses chain lightning fx frames", BattleHitFeedbackRegressionCases.ThunderTagProjectileReusesChainLightningFxFrames);
 BattleHitFeedbackRegressionCases.Run("runtime skill damage does not replay caster cast", BattleHitFeedbackRegressionCases.RuntimeSkillDamageDoesNotReplayCasterCast);
 BattleHitFeedbackRegressionCases.Run("battle runtime visual movement keeps runtime action duration", BattleHitFeedbackRegressionCases.BattleRuntimeVisualMovementKeepsRuntimeActionDuration);
 BattleHitFeedbackRegressionCases.Run("battle runtime movement playback does not use lookahead correction path", BattleHitFeedbackRegressionCases.BattleRuntimeMovementPlaybackDoesNotUseLookaheadCorrectionPath);
@@ -95,6 +102,7 @@ BattleHitFeedbackRegressionCases.Run("realtime damage reaction does not play hit
 BattleHitFeedbackRegressionCases.Run("runtime impact damage does not double delay defeated presentation", BattleHitFeedbackRegressionCases.RuntimeImpactDamageDoesNotDoubleDelayDefeatedPresentation);
 BattleHitFeedbackRegressionCases.Run("unit attack speed is bound to runtime and attack animation speed", BattleHitFeedbackRegressionCases.UnitAttackSpeedContract);
 BattleHitFeedbackRegressionCases.Run("unit idle and move animation playback is paced for readability", BattleHitFeedbackRegressionCases.UnitIdleAndMoveAnimationPlaybackIsPacedForReadability);
+BattleHitFeedbackRegressionCases.Run("unit animation component delegates cue timing policy", BattleHitFeedbackRegressionCases.UnitAnimationComponentDelegatesCueTimingPolicy);
 BattleHitFeedbackRegressionCases.Run("unit combat stats are bound into runtime snapshots", BattleHitFeedbackRegressionCases.UnitCombatStatsSnapshotContract);
 BattleHitFeedbackRegressionCases.Run("battle unit base authors health bar and fallback animation", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation);
 BattleHitFeedbackRegressionCases.Run("defeated unit presentation hides health bar before fast death animation", BattleHitFeedbackRegressionCases.DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimation);

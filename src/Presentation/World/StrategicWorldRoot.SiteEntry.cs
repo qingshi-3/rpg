@@ -1,6 +1,8 @@
 ﻿using System.Linq;
 using Godot;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
+using Rpg.Definitions.StrategicManagement;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
@@ -30,7 +32,9 @@ public partial class StrategicWorldRoot
         {
             SiteId = _selectedSiteId,
             TargetScenePath = SiteScenePath,
-            ReturnScenePath = returnScenePath
+            ReturnScenePath = returnScenePath,
+            // Scene entry, not button press, is the Strategic Management pause boundary.
+            OnEntered = StrategicManagementRuntime.PauseWorldTimeForCityManagement
         });
         if (transition.Success)
         {
@@ -86,15 +90,16 @@ public partial class StrategicWorldRoot
 
     private void AddArrivedAssaultChoiceButtons(WorldArmyState army)
     {
-        AddMutedLine(_actionList, $"部队已抵达{ResolveSiteDisplayName(army.TargetSiteId)}，请选择进入方式。");
+        AddMutedLine(_actionList, $"部队已抵达{ResolveSiteDisplayName(army.TargetSiteId)}，可触发战斗。");
         Button assaultButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
         if (assaultButton == null)
         {
             return;
         }
 
-        assaultButton.Text = "进入攻占战";
+        assaultButton.Text = "触发战斗";
         assaultButton.Pressed += () => TryEnterBattleForArrivedArmy(army.ArmyId);
+
         _actionList.AddChild(assaultButton);
     }
 
