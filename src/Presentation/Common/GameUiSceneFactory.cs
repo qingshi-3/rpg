@@ -99,6 +99,11 @@ public static class GameUiSceneFactory
         return Instantiate<BattleRuntimeHeroSwitchButton>(BattleRuntimeHeroSwitchButtonScenePath, ownerName);
     }
 
+    public static StrategicBattleGateDialog CreateStrategicBattleGateDialog(string ownerName)
+    {
+        return Instantiate<StrategicBattleGateDialog>(PreBattleDialogScenePath, ownerName);
+    }
+
     public static Label CreateWorldMutedLine(string ownerName)
     {
         return Instantiate<Label>(WorldMutedLineScenePath, ownerName);

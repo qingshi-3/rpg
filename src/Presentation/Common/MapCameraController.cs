@@ -5,6 +5,11 @@ namespace Rpg.Presentation.Common;
 
 public partial class MapCameraController : Camera2D
 {
+    private const string CameraMoveLeftAction = "camera_move_left";
+    private const string CameraMoveRightAction = "camera_move_right";
+    private const string CameraMoveUpAction = "camera_move_up";
+    private const string CameraMoveDownAction = "camera_move_down";
+
     [ExportGroup("Movement")]
 
     [Export]
@@ -69,7 +74,8 @@ public partial class MapCameraController : Camera2D
     private bool _suppressPolledKeyboardUntilRelease;
 
     public bool HasMapBounds => _hasMapBounds;
-    public bool IsUserNavigationActive => _isMiddleMouseDragging || GetMoveDirection() != Vector2.Zero;
+    public bool IsPointerNavigationActive => _isMiddleMouseDragging;
+    public bool IsUserNavigationActive => IsPointerNavigationActive || GetMoveDirection() != Vector2.Zero;
 
     public override void _Ready()
     {
@@ -85,6 +91,11 @@ public partial class MapCameraController : Camera2D
 
     public override void _Process(double delta)
     {
+        if (!CanProcessViewportCameraInput())
+        {
+            return;
+        }
+
         ApplyViewportSizeConstraintsIfChanged();
 
         if (!KeyboardMoveEnabled)
@@ -110,10 +121,10 @@ public partial class MapCameraController : Camera2D
                              _moveLeftPressed ||
                              _moveRightPressed ||
                              _isMiddleMouseDragging ||
-                             AnyPolledMoveKeyPressed();
+                             AnyPolledMoveActionPressed();
 
-        // Scene transitions can miss key or mouse release events. The next scene must
-        // start with no camera intent, then re-enable global key polling after release.
+        // Scene transitions can miss action or mouse release events. The next scene must
+        // start with no camera intent, then re-enable global action polling after release.
         _moveUpPressed = false;
         _moveDownPressed = false;
         _moveLeftPressed = false;
@@ -129,36 +140,34 @@ public partial class MapCameraController : Camera2D
 
     public override void _Input(InputEvent @event)
     {
-        if (!KeyboardMoveEnabled || @event is not InputEventKey keyEvent || keyEvent.Echo)
+        if (!CanProcessViewportCameraInput() ||
+            !KeyboardMoveEnabled ||
+            IsEchoKeyEvent(@event))
         {
             return;
         }
 
-        if (ShouldIgnoreSuppressedMoveKeyEvent(keyEvent))
+        if (ShouldIgnoreSuppressedMoveActionEvent(@event))
         {
             return;
         }
 
-        if (IsMoveKey(keyEvent, Key.W))
+        if (IsAnyMoveActionEvent(@event))
         {
-            _moveUpPressed = keyEvent.Pressed;
-        }
-        else if (IsMoveKey(keyEvent, Key.S))
-        {
-            _moveDownPressed = keyEvent.Pressed;
-        }
-        else if (IsMoveKey(keyEvent, Key.A))
-        {
-            _moveLeftPressed = keyEvent.Pressed;
-        }
-        else if (IsMoveKey(keyEvent, Key.D))
-        {
-            _moveRightPressed = keyEvent.Pressed;
+            _moveUpPressed = IsMoveActionPressed(@event, CameraMoveUpAction, _moveUpPressed);
+            _moveDownPressed = IsMoveActionPressed(@event, CameraMoveDownAction, _moveDownPressed);
+            _moveLeftPressed = IsMoveActionPressed(@event, CameraMoveLeftAction, _moveLeftPressed);
+            _moveRightPressed = IsMoveActionPressed(@event, CameraMoveRightAction, _moveRightPressed);
         }
     }
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (!CanProcessViewportCameraInput())
+        {
+            return;
+        }
+
         TryHandlePointerNavigationAndZoomInput(@event);
     }
 
@@ -368,24 +377,29 @@ public partial class MapCameraController : Camera2D
         Vector2 direction = Vector2.Zero;
         bool allowPolledKeyboard = !ShouldSuppressPolledKeyboard();
 
-        if (_moveUpPressed || allowPolledKeyboard && Input.IsKeyPressed(Key.W))
+        if (_moveUpPressed)
         {
             direction.Y -= 1f;
         }
 
-        if (_moveDownPressed || allowPolledKeyboard && Input.IsKeyPressed(Key.S))
+        if (_moveDownPressed)
         {
             direction.Y += 1f;
         }
 
-        if (_moveLeftPressed || allowPolledKeyboard && Input.IsKeyPressed(Key.A))
+        if (_moveLeftPressed)
         {
             direction.X -= 1f;
         }
 
-        if (_moveRightPressed || allowPolledKeyboard && Input.IsKeyPressed(Key.D))
+        if (_moveRightPressed)
         {
             direction.X += 1f;
+        }
+
+        if (allowPolledKeyboard)
+        {
+            direction += Input.GetVector(CameraMoveLeftAction, CameraMoveRightAction, CameraMoveUpAction, CameraMoveDownAction);
         }
 
         return direction;
@@ -398,7 +412,7 @@ public partial class MapCameraController : Camera2D
             return false;
         }
 
-        if (AnyPolledMoveKeyPressed())
+        if (AnyPolledMoveActionPressed())
         {
             return true;
         }
@@ -407,22 +421,22 @@ public partial class MapCameraController : Camera2D
         return false;
     }
 
-    private bool ShouldIgnoreSuppressedMoveKeyEvent(InputEventKey keyEvent)
+    private bool ShouldIgnoreSuppressedMoveActionEvent(InputEvent @event)
     {
-        if (!_suppressPolledKeyboardUntilRelease || !IsAnyMoveKey(keyEvent))
+        if (!_suppressPolledKeyboardUntilRelease || !IsAnyMoveActionEvent(@event))
         {
             return false;
         }
 
-        if (keyEvent.Pressed)
+        if (IsMoveActionPressed(@event))
         {
-            // Scene swaps may deliver a queued press after reset; accepting it would
+            // Scene swaps may deliver a queued press after reset; accepting it could
             // recreate a stuck event-backed camera pan before the matching release.
-            GameLog.Info("Camera", $"SuppressedMoveKeyPressAfterReset key={keyEvent.Keycode} physical={keyEvent.PhysicalKeycode}");
+            GameLog.Info("Camera", "SuppressedMoveActionPressAfterReset");
             return true;
         }
 
-        if (!AnyPolledMoveKeyPressed())
+        if (!AnyPolledMoveActionPressed())
         {
             _suppressPolledKeyboardUntilRelease = false;
         }
@@ -430,25 +444,54 @@ public partial class MapCameraController : Camera2D
         return false;
     }
 
-    private static bool AnyPolledMoveKeyPressed()
+    private bool CanProcessViewportCameraInput()
     {
-        return Input.IsKeyPressed(Key.W) ||
-               Input.IsKeyPressed(Key.S) ||
-               Input.IsKeyPressed(Key.A) ||
-               Input.IsKeyPressed(Key.D);
+        // Strategic world uses this node as an explicit camera-state object while
+        // rendering through a SubViewport transform; it must not consume global UI input.
+        return UseViewportCamera && Enabled;
     }
 
-    private static bool IsAnyMoveKey(InputEventKey keyEvent)
+    private static bool AnyPolledMoveActionPressed()
     {
-        return IsMoveKey(keyEvent, Key.W) ||
-               IsMoveKey(keyEvent, Key.S) ||
-               IsMoveKey(keyEvent, Key.A) ||
-               IsMoveKey(keyEvent, Key.D);
+        return Input.IsActionPressed(CameraMoveUpAction) ||
+               Input.IsActionPressed(CameraMoveDownAction) ||
+               Input.IsActionPressed(CameraMoveLeftAction) ||
+               Input.IsActionPressed(CameraMoveRightAction);
     }
 
-    private static bool IsMoveKey(InputEventKey keyEvent, Key key)
+    private static bool IsAnyMoveActionEvent(InputEvent @event)
     {
-        return keyEvent.Keycode == key || keyEvent.PhysicalKeycode == key;
+        return @event.IsActionPressed(CameraMoveUpAction) ||
+               @event.IsActionReleased(CameraMoveUpAction) ||
+               @event.IsActionPressed(CameraMoveDownAction) ||
+               @event.IsActionReleased(CameraMoveDownAction) ||
+               @event.IsActionPressed(CameraMoveLeftAction) ||
+               @event.IsActionReleased(CameraMoveLeftAction) ||
+               @event.IsActionPressed(CameraMoveRightAction) ||
+               @event.IsActionReleased(CameraMoveRightAction);
+    }
+
+    private static bool IsMoveActionPressed(InputEvent @event)
+    {
+        return @event.IsActionPressed(CameraMoveUpAction) ||
+               @event.IsActionPressed(CameraMoveDownAction) ||
+               @event.IsActionPressed(CameraMoveLeftAction) ||
+               @event.IsActionPressed(CameraMoveRightAction);
+    }
+
+    private static bool IsMoveActionPressed(InputEvent @event, string action, bool currentValue)
+    {
+        if (@event.IsActionPressed(action))
+        {
+            return true;
+        }
+
+        return @event.IsActionReleased(action) ? false : currentValue;
+    }
+
+    private static bool IsEchoKeyEvent(InputEvent @event)
+    {
+        return @event is InputEventKey { Echo: true };
     }
 
     private float GetEffectiveMoveSpeed()

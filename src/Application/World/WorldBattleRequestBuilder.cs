@@ -49,15 +49,31 @@ public sealed class WorldBattleRequestBuilder
         AddEntrances(request, siteDefinition, StrategicWorldIds.FactionUndead, "", includeGarrisonEntrances: false);
         if (sourceArmy != null)
         {
-            _battleUnitPool.ImportArmyForSiteBattle(site, sourceArmy, state.PlayerFactionId);
-            AddSiteGarrisonForces(
-                request.PlayerForces,
-                site,
-                "PlayerArmy",
-                state.PlayerFactionId,
-                sourceFilterKind: "PlayerArmy",
-                sourceFilterId: sourceArmy.ArmyId,
-                assignFirstSliceHeroCompanyCommandGroups: true);
+            if (IsStrategicManagementArmy(sourceArmy))
+            {
+                AddArmyForces(
+                    request.PlayerForces,
+                    sourceArmy,
+                    "PlayerArmy",
+                    state.PlayerFactionId,
+                    assignFirstSliceHeroCompanyCommandGroups: true);
+                GameLog.Info(
+                    nameof(WorldBattleRequestBuilder),
+                    $"StrategicArmySkippedLegacyGarrisonImport army={sourceArmy.ArmyId} expedition={sourceArmy.StrategicExpeditionId} target={site.SiteId} forces={request.PlayerForces.Count}");
+            }
+            else
+            {
+                _battleUnitPool.ImportArmyForSiteBattle(site, sourceArmy, state.PlayerFactionId);
+                AddSiteGarrisonForces(
+                    request.PlayerForces,
+                    site,
+                    "PlayerArmy",
+                    state.PlayerFactionId,
+                    sourceFilterKind: "PlayerArmy",
+                    sourceFilterId: sourceArmy.ArmyId,
+                    assignFirstSliceHeroCompanyCommandGroups: true);
+            }
+
             ApplyDefaultFormation(request.PlayerForces, sourceArmy.DefaultFormationId);
         }
         else if (state.SiteStates.TryGetValue(StrategicWorldIds.SitePlayerCamp, out WorldSiteState sourceSite))
@@ -421,21 +437,34 @@ public sealed class WorldBattleRequestBuilder
         System.Collections.Generic.ICollection<BattleForceRequest> target,
         WorldArmyState army,
         string sourceKind,
-        string factionId)
+        string factionId,
+        bool assignFirstSliceHeroCompanyCommandGroups = false)
     {
         foreach (GarrisonState unit in army.GarrisonUnits.Where(item => item.Count > 0))
         {
+            string forceId = string.IsNullOrWhiteSpace(unit.SourceId)
+                ? $"{army.ArmyId}:{unit.UnitTypeId}"
+                : $"{army.ArmyId}:{unit.SourceId}:{unit.UnitTypeId}";
             target.Add(new BattleForceRequest
             {
-                ForceId = $"{army.ArmyId}:{unit.UnitTypeId}",
+                ForceId = forceId,
+                CommandGroupId = assignFirstSliceHeroCompanyCommandGroups
+                    ? ResolveFirstSliceHeroCompanyCommandGroupId(sourceKind, army.ArmyId, unit.UnitTypeId, unit.StrategicParticipantId)
+                    : "",
                 SourceKind = sourceKind,
                 SourceId = army.ArmyId,
                 UnitDefinitionId = unit.UnitTypeId,
+                StrategicParticipantId = unit.StrategicParticipantId ?? "",
                 Count = unit.Count,
                 FactionId = factionId,
                 DefaultFormationId = army.DefaultFormationId ?? ""
             });
         }
+    }
+
+    private static bool IsStrategicManagementArmy(WorldArmyState army)
+    {
+        return !string.IsNullOrWhiteSpace(army?.StrategicExpeditionId);
     }
 
     private static void ApplyDefaultFormation(

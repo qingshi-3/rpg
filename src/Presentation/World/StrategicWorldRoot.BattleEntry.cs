@@ -365,10 +365,29 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        _preBattleDialog.Title = "触发战斗";
-        _preBattleDialog.DialogText = BuildPreBattleText(_pendingBattleRequest);
+        HideWorldDetailSections();
+        _preBattleDialog.Bind(BuildPreBattleDialogData(_pendingBattleRequest));
         _activeBattleGateDialog = "prebattle";
-        _preBattleDialog.PopupCentered(new Vector2I(560, 460));
+        _preBattleDialog.OpenBrief();
+    }
+
+    private void ShowPreBattleDetails()
+    {
+        if (_pendingBattleRequest == null)
+        {
+            return;
+        }
+
+        EnsurePreBattleDialog();
+        if (_preBattleDialog == null)
+        {
+            return;
+        }
+
+        HideWorldDetailSections();
+        _preBattleDialog.Bind(BuildPreBattleDialogData(_pendingBattleRequest));
+        _activeBattleGateDialog = "prebattle_detail";
+        _preBattleDialog.OpenDetail();
     }
 
     private void EnsurePreBattleDialog()
@@ -378,41 +397,16 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        _preBattleDialog = GameUiSceneFactory.Instantiate<AcceptDialog>(
-            GameUiSceneFactory.PreBattleDialogScenePath,
-            nameof(StrategicWorldRoot));
+        _preBattleDialog = GameUiSceneFactory.CreateStrategicBattleGateDialog(nameof(StrategicWorldRoot));
         if (_preBattleDialog == null)
         {
             return;
         }
 
-        GameUiSkin.ApplyDialog(_preBattleDialog);
-        ConfigureBattleGateDialog(_preBattleDialog);
-        _preBattleDialog.CloseRequested += OnBattleGateDialogCloseRequested;
-        _preBattleDialog.Confirmed += LaunchPendingBattle;
-        AddChild(_preBattleDialog);
-    }
-
-    private static void ConfigureBattleGateDialog(AcceptDialog dialog)
-    {
-        if (dialog == null)
-        {
-            return;
-        }
-
-        dialog.Exclusive = true;
-        dialog.Unresizable = true;
-        dialog.Borderless = true;
-    }
-
-    private void OnBattleGateDialogCloseRequested()
-    {
-        if (_pendingBattleRequest == null)
-        {
-            return;
-        }
-
-        CallDeferred(nameof(ReopenActiveBattleGateDialog));
+        _preBattleDialog.EnterBattlePressed += LaunchPendingBattle;
+        _preBattleDialog.ViewDetailsPressed += ShowPreBattleDetails;
+        _preBattleDialog.DeferPressed += DeferPendingBattleDecision;
+        (_modalHost ?? (Node)this).AddChild(_preBattleDialog);
     }
 
     private void ReopenActiveBattleGateDialog()
@@ -422,9 +416,9 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        if (_activeBattleGateDialog == "prebattle")
+        if (_activeBattleGateDialog == "prebattle_detail")
         {
-            ShowPreBattleDialog();
+            ShowPreBattleDetails();
             return;
         }
 
@@ -438,6 +432,7 @@ public partial class StrategicWorldRoot
         _pendingBattleRequest = null;
         _pendingStrategicBattleActiveContext = null;
         _activeBattleGateDialog = "";
+        _preBattleDialog?.Close();
         if (request == null)
         {
             return;
@@ -462,6 +457,168 @@ public partial class StrategicWorldRoot
         RefreshAll();
     }
 
+    private void DeferPendingBattleDecision()
+    {
+        if (_pendingBattleRequest == null)
+        {
+            _preBattleDialog?.Close();
+            return;
+        }
+
+        string requestId = _pendingBattleRequest.RequestId;
+        bool standbyMoveStarted = TryDeferPendingAssaultBattleToStandby(_pendingBattleRequest);
+        _pendingBattleRequest = null;
+        _pendingStrategicBattleActiveContext = null;
+        _pendingBattleRollback = null;
+        _activeBattleGateDialog = "";
+        _selectedSiteId = "";
+        _selectedOpportunityId = "";
+        _preBattleDialog?.Close();
+        _worldClockPaused = false;
+        _worldClockAccumulator = 0.0;
+        StrategicWorldRuntime.LastNotice = standbyMoveStarted
+            ? "战斗已暂缓，部队正在离开城池边缘。"
+            : "战斗已暂缓。";
+        GameLog.Info(nameof(StrategicWorldRoot), $"BattleGateDeferred request={requestId} standbyMove={standbyMoveStarted}");
+        RefreshAll();
+    }
+
+    private bool TryDeferPendingAssaultBattleToStandby(BattleStartRequest request)
+    {
+        if (request?.BattleKind != BattleKind.AssaultSite ||
+            string.IsNullOrWhiteSpace(request.SourceArmyId) ||
+            State?.ArmyStates?.TryGetValue(request.SourceArmyId, out WorldArmyState army) != true)
+        {
+            return false;
+        }
+
+        if (!TrySyncStrategicExpeditionCommand(new[] { army }, "", WorldArmyIntent.MoveToPosition))
+        {
+            return false;
+        }
+
+        Vector2 destination = ResolveDeferredBattleStandbyDestination(request, army);
+        Dictionary<string, StrategicNavigationPath> commandPaths = BuildDeferredBattleStandbyPath(army, destination);
+        WorldArmyCommandResult commandResult = _armyCommandService.ApplyDeferredAssaultStandbyMovement(
+            army,
+            destination,
+            commandPaths,
+            _strategicNavigationContext?.Version ?? 0,
+            State?.PlayerFactionId);
+        if (commandResult.Success)
+        {
+            return true;
+        }
+
+        GameLog.Warn(nameof(StrategicWorldRoot), $"BattleGateDeferredStandbyRejected army={army.ArmyId} reason={commandResult.FailureReason}");
+        return false;
+    }
+
+    private Vector2 ResolveDeferredBattleStandbyDestination(BattleStartRequest request, WorldArmyState army)
+    {
+        Vector2 current = army?.WorldPosition ?? Vector2.Zero;
+        StrategicWorldDefinitionQueries queries = new(Definition);
+        WorldSiteDefinition targetSite = queries.GetSite(request?.TargetSiteId);
+        Vector2 siteCenter = targetSite != null ? GetSiteMapPosition(targetSite) : current;
+        Vector2 fromSite = current - siteCenter;
+        if (!IsFinite(fromSite) || fromSite.LengthSquared() <= 0.001f)
+        {
+            fromSite = (army?.Destination ?? current) - siteCenter;
+        }
+
+        if (!IsFinite(fromSite) || fromSite.LengthSquared() <= 0.001f)
+        {
+            fromSite = Vector2.Right;
+        }
+
+        Vector2 side = new(-fromSite.Y, fromSite.X);
+        if (side.LengthSquared() <= 0.001f)
+        {
+            side = Vector2.Right;
+        }
+
+        side = side.Normalized();
+        Vector2[] candidates =
+        {
+            current + side * DeferredBattleStandbyDistance,
+            current - side * DeferredBattleStandbyDistance,
+            current + fromSite.Normalized() * DeferredBattleStandbyDistance
+        };
+        Vector2 pathStart = ResolveDeferredBattleStandbyPathStart(army);
+        foreach (Vector2 candidate in candidates)
+        {
+            if (_strategicNavigationContext?.TryGetNearestReachableNavigablePoint(
+                    pathStart,
+                    candidate,
+                    SiteNavigationPointSearchCellRadius,
+                    out Vector2 navigableDestination,
+                    out _,
+                    out _) == true)
+            {
+                return navigableDestination;
+            }
+        }
+
+        return candidates[0];
+    }
+
+    private Dictionary<string, StrategicNavigationPath> BuildDeferredBattleStandbyPath(WorldArmyState army, Vector2 destination)
+    {
+        Dictionary<string, StrategicNavigationPath> commandPaths = new();
+        if (army == null || _strategicNavigationContext == null)
+        {
+            return commandPaths;
+        }
+
+        Vector2 pathStart = ResolveDeferredBattleStandbyPathStart(army);
+        if (_strategicNavigationContext.TryBuildPath(pathStart, destination, out StrategicNavigationPath path, out string failureReason))
+        {
+            commandPaths[army.ArmyId] = path;
+            return commandPaths;
+        }
+
+        GameLog.Warn(nameof(StrategicWorldRoot), $"BattleGateDeferredStandbyPathMissing army={army.ArmyId} reason={failureReason}");
+        return commandPaths;
+    }
+
+    private Vector2 ResolveDeferredBattleStandbyPathStart(WorldArmyState army)
+    {
+        Vector2 current = army?.WorldPosition ?? Vector2.Zero;
+        if (_strategicNavigationContext?.IsPointNavigable(current, out _) == true)
+        {
+            return current;
+        }
+
+        Vector2 destination = army?.Destination ?? current;
+        return _strategicNavigationContext?.IsPointNavigable(destination, out _) == true
+            ? destination
+            : current;
+    }
+
+    private StrategicBattleGateDialogData BuildPreBattleDialogData(BattleStartRequest request)
+    {
+        string battleKind = GetBattleKindLabel(request.BattleKind);
+        return new StrategicBattleGateDialogData
+        {
+            Title = "触发战斗",
+            BriefText = BuildPreBattleBriefText(request),
+            DetailTitle = $"{battleKind}详情",
+            DetailText = BuildPreBattleText(request)
+        };
+    }
+
+    private string BuildPreBattleBriefText(BattleStartRequest request)
+    {
+        List<string> lines = new()
+        {
+            $"区域：{ResolvePreBattleLocationLabel(request)}",
+            $"部队：{BuildForceSummary(request.PlayerForces, request.SourceArmyId, true)}",
+            $"敌方：{BuildForceSummary(request.EnemyForces, request.TargetArmyId, false)}"
+        };
+
+        return string.Join("\n", lines.Where(line => !string.IsNullOrWhiteSpace(line)));
+    }
+
     private string BuildPreBattleText(BattleStartRequest request)
     {
         List<string> lines = new()
@@ -481,6 +638,30 @@ public partial class StrategicWorldRoot
         }
 
         return string.Join("\n", lines);
+    }
+
+    private string ResolvePreBattleLocationLabel(BattleStartRequest request)
+    {
+        StrategicWorldDefinitionQueries queries = new(Definition);
+        if (!string.IsNullOrWhiteSpace(request.TargetSiteId))
+        {
+            WorldSiteDefinition targetSite = queries.GetSite(request.TargetSiteId);
+            if (targetSite != null)
+            {
+                return targetSite.DisplayName;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.SourceSiteId))
+        {
+            WorldSiteDefinition sourceSite = queries.GetSite(request.SourceSiteId);
+            if (sourceSite != null)
+            {
+                return sourceSite.DisplayName;
+            }
+        }
+
+        return request.BattleKind == BattleKind.FieldIntercept ? "野外遭遇区域" : "未知区域";
     }
 
     private string BuildForceSummary(IReadOnlyCollection<BattleForceRequest> forces, string armyId, bool playerSide)

@@ -64,8 +64,6 @@ offset_right = 35.0
 offset_bottom = 4.0
 color = Color(0.34, 0.78, 0.38, 0.92)
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
-
 [node name="FactionComponent" type="Node" parent="."]
 script = ExtResource("2_faction")
 
@@ -98,7 +96,6 @@ script = ExtResource("10_ability")
 
 [node name="UnitAnimationComponent" type="Node" parent="."]
 script = ExtResource("11_anim")
-EnableProceduralFallback = true
 
 [node name="DamageReactionComponent" type="Node" parent="."]
 script = ExtResource("12_damage_reaction")

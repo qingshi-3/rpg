@@ -35,6 +35,9 @@ public sealed class BattleStartRequest
     public BattleGroupPlanSnapshot EnemyBattleGroupPlan { get; set; } = new();
     public Dictionary<string, BattleGroupPlanSnapshot> EnemyBattleGroupPlans { get; set; } =
         new(StringComparer.Ordinal);
+    public BattleTacticalIntentPlanSnapshot EnemyTacticalIntentPlan { get; set; } = new();
+    public Dictionary<string, BattleTacticalIntentPlanSnapshot> EnemyTacticalIntentPlans { get; set; } =
+        new(StringComparer.Ordinal);
     public List<BattleEntranceRequest> AvailableEntrances { get; set; } = new();
     public List<BattleForceRequest> PlayerForces { get; set; } = new();
     public List<BattleForceRequest> EnemyForces { get; set; } = new();

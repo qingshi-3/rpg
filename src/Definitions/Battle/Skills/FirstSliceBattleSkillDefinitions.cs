@@ -128,8 +128,8 @@ public static class FirstSliceBattleSkillDefinitions
                 SkillId = HeroSkillCommandIds.ThunderSpiralBreakSkillId,
                 DisplayName = "雷旋破",
                 CasterUnitIds = { "f1_elyxstormblade" },
-                TargetingMode = BattleSkillTargetingMode.None,
-                Range = 0,
+                TargetingMode = BattleSkillTargetingMode.TargetedCell,
+                Range = 3,
                 Timing = new BattleSkillActionTimingDefinition
                 {
                     CastSeconds = 0,
@@ -147,7 +147,7 @@ public static class FirstSliceBattleSkillDefinitions
                     {
                         Kind = BattleSkillEffectKind.StartChanneledAreaDamage,
                         Amount = 14,
-                        DurationSeconds = 0.8,
+                        DurationSeconds = 1.6,
                         TickIntervalSeconds = 0.2,
                         Radius = 1
                     }

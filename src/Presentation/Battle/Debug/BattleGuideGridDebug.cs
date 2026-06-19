@@ -4,16 +4,18 @@ namespace Rpg.Presentation.Battle.Debug;
 
 public partial class BattleGuideGridDebug : BattleDebugComponent
 {
+    private const string BattleGuideGridToggleAction = "battle_guide_grid_toggle";
+
     [ExportGroup("辅助网格")]
 
     [Export]
     public bool VisibleOnStart { get; set; }
 
     [Export]
-    public bool ToggleByKey { get; set; } = true;
+    public bool ToggleByInputAction { get; set; } = true;
 
     [Export]
-    public Key ToggleKey { get; set; } = Key.F4;
+    public string ToggleAction { get; set; } = BattleGuideGridToggleAction;
 
     [Export]
     public int GridSpacingPixels { get; set; } = 16;
@@ -37,12 +39,12 @@ public partial class BattleGuideGridDebug : BattleDebugComponent
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (!DebugEnabled || !ToggleByKey || @event is not InputEventKey keyEvent)
+        if (!DebugEnabled || !ToggleByInputAction || string.IsNullOrWhiteSpace(ToggleAction))
         {
             return;
         }
 
-        if (!keyEvent.Pressed || keyEvent.Echo || keyEvent.Keycode != ToggleKey)
+        if (!@event.IsActionPressed(ToggleAction))
         {
             return;
         }

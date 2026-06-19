@@ -14,6 +14,7 @@ public sealed class BattleGroupTacticalState
 {
     public string BattleGroupId { get; set; } = "";
     public BattleGroupTacticalMode TacticalMode { get; set; } = BattleGroupTacticalMode.PlayerCommanded;
+    public BattleTacticalIntentPlanSnapshot TacticalIntentPlan { get; set; } = new();
     public bool AllowPlayerScopedEngagement { get; set; }
     public bool AllowAutonomousFallbackTargeting { get; set; }
     public BattleGroupEngagementState EngagementState { get; set; } = BattleGroupEngagementState.NotEngaged;

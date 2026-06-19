@@ -83,6 +83,7 @@ public partial class StrategicWorldRoot
             return;
         }
 
+        SetWorldDetailPanelVisible(true);
         SetSiteDetailSectionsVisible(true);
         WorldSiteDefinition definition = queries.GetSite(_selectedSiteId);
 
@@ -109,33 +110,21 @@ public partial class StrategicWorldRoot
             : location.KindDisplayName;
 
         _siteTitleLabel.Text = $"{title}  ·  {kind}";
-        _siteBodyLabel.Text = BuildStrategicLocationBody(definition, location, city);
+        _siteBodyLabel.Text = BuildStrategicLocationContextSummary(definition, location, city);
 
-        ClearChildren(_facilityList);
-        AddStrategicFacilityLines(_facilityList, location, city);
-
-        ClearChildren(_garrisonList);
-        AddStrategicCorpsLines(_garrisonList, location, city);
     }
 
     private void BindUnmappedStrategicLocationDetail(WorldSiteDefinition definition)
     {
         string title = definition?.DisplayName ?? _selectedSiteId;
-        _siteTitleLabel.Text = $"{title}  ·  战略经营未配置";
+        _siteTitleLabel.Text = $"{title}  ·  战略地点";
         _siteBodyLabel.Text = string.Join(
             "\n",
-            string.IsNullOrWhiteSpace(definition?.Description) ? "该大地图地点还没有战略经营配置。" : definition.Description,
-            "",
-            "该地点暂时只保留地图展示，不显示旧设施或驻军事实。");
-
-        ClearChildren(_facilityList);
-        AddMutedLine(_facilityList, "等待战略经营地点配置。");
-
-        ClearChildren(_garrisonList);
-        AddMutedLine(_garrisonList, "等待战略经营编制配置。");
+            string.IsNullOrWhiteSpace(definition?.Description) ? "该地点暂未接入战略经营。" : definition.Description,
+            "当前仅保留地图上下文。");
     }
 
-    private static string BuildStrategicLocationBody(
+    private static string BuildStrategicLocationContextSummary(
         WorldSiteDefinition definition,
         StrategicLocationDashboardViewModel location,
         StrategicCityManagementViewModel city)
@@ -144,103 +133,33 @@ public partial class StrategicWorldRoot
         if (!string.IsNullOrWhiteSpace(definition?.Description))
         {
             detailLines.Add(definition.Description);
-            detailLines.Add("");
         }
 
-        detailLines.Add($"控制状态：{FormatStrategicText(location?.ControlStateDisplayName, "未知")}");
-        detailLines.Add($"所属势力：{FormatStrategicFactionId(location?.OwnerFactionId)}");
-        detailLines.Add($"来源权限：{FormatStrategicText(location?.SourcePermissionDisplayText, "无")}");
-        detailLines.Add($"大地图时间产出：{FormatStrategicText(location?.ProductionDisplayText, "无")}");
+        detailLines.Add(BuildStrategicLocationStatusLine(location));
+        detailLines.Add(location?.CanManageCity == true
+            ? BuildCityCompactOperationSummary(city)
+            : "当前没有城市经营入口。");
 
-        if (location?.CanManageCity == true)
-        {
-            int creatableTemplates = city?.MusterTemplates?.Count(template => template.CanCreate) ?? 0;
-            int totalTemplates = city?.MusterTemplates?.Count ?? 0;
-            int corpsCount = city?.CorpsInstances?.Count ?? 0;
-            detailLines.Add("");
-            detailLines.Add($"城市底色：{FormatStrategicText(city?.CityIdentityDisplayName, "未配置")}");
-            detailLines.Add($"设施槽：{city?.FacilitySlotsUsed ?? 0}/{city?.FacilitySlotsTotal ?? 0}");
-            detailLines.Add($"可创建编制：{creatableTemplates}/{totalTemplates}");
-            detailLines.Add($"已有编制：{corpsCount}");
-        }
-        else
-        {
-            detailLines.Add("");
-            detailLines.Add("城市经营：该地点不开放城市经营。");
-        }
-
-        return string.Join("\n", detailLines);
+        return string.Join("\n", detailLines.Where(line => !string.IsNullOrWhiteSpace(line)));
     }
 
-    private void AddStrategicFacilityLines(
-        VBoxContainer list,
-        StrategicLocationDashboardViewModel location,
-        StrategicCityManagementViewModel city)
+    private static string BuildStrategicLocationStatusLine(StrategicLocationDashboardViewModel location)
     {
-        if (list == null)
-        {
-            return;
-        }
-
-        if (location?.CanManageCity == true)
-        {
-            if (city?.BuiltFacilities == null || city.BuiltFacilities.Count == 0)
-            {
-                AddMutedLine(list, "当前城市还没有已建设施。");
-                return;
-            }
-
-            foreach (StrategicBuiltFacilityViewModel facility in city.BuiltFacilities)
-            {
-                AddMutedLine(list, $"{facility.DisplayName}    槽位 {facility.SlotCost}");
-            }
-
-            return;
-        }
-
-        AddMutedLine(list, "非城市地点没有城市设施。");
-        if (location?.ProductionPerWorldTimePulse?.Count > 0)
-        {
-            AddMutedLine(list, $"大地图时间产出：{location.ProductionDisplayText}");
-        }
-
-        if (location?.SourcePermissionTags?.Count > 0)
-        {
-            AddMutedLine(list, $"来源权限：{location.SourcePermissionDisplayText}");
-        }
+        string control = FormatStrategicText(location?.ControlStateDisplayName, "未知");
+        string owner = FormatStrategicFactionId(location?.OwnerFactionId);
+        string production = FormatStrategicText(location?.ProductionDisplayText, "无");
+        string permission = FormatStrategicText(location?.SourcePermissionDisplayText, "无");
+        return $"控制 {control}  ·  {owner}\n产出 {production}  ·  权限 {permission}";
     }
 
-    private void AddStrategicCorpsLines(
-        VBoxContainer list,
-        StrategicLocationDashboardViewModel location,
-        StrategicCityManagementViewModel city)
+    private static string BuildCityCompactOperationSummary(StrategicCityManagementViewModel city)
     {
-        if (list == null)
-        {
-            return;
-        }
-
-        if (location?.CanManageCity != true)
-        {
-            AddMutedLine(list, "该地点不管理城市编制。");
-            return;
-        }
-
-        if (city?.CorpsInstances == null || city.CorpsInstances.Count == 0)
-        {
-            AddMutedLine(list, "当前城市还没有编制实例。");
-            return;
-        }
-
-        foreach (StrategicCorpsInstanceViewModel corps in city.CorpsInstances)
-        {
-            string assignment = string.IsNullOrWhiteSpace(corps.AssignedHeroId)
-                ? ""
-                : $"    英雄 {corps.AssignedHeroId}";
-            AddMutedLine(
-                list,
-                $"{corps.DisplayName}    强度 {corps.Strength}/100    等级 {corps.Level}    装备 {corps.EquipmentLevel}    状态 {FormatStrategicCorpsStatus(corps.Status)}{assignment}");
-        }
+        int builtFacilities = city?.BuiltFacilities?.Count ?? 0;
+        int facilitySlotsUsed = city?.FacilitySlotsUsed ?? 0;
+        int facilitySlotsTotal = city?.FacilitySlotsTotal ?? 0;
+        int availableCompanies = city?.HeroCompanies?.Count(company => company.CanCreateExpedition) ?? 0;
+        int totalCompanies = city?.HeroCompanies?.Count ?? 0;
+        return $"建设 {builtFacilities} 项  ·  槽位 {facilitySlotsUsed}/{facilitySlotsTotal}\n出征队伍 {availableCompanies}/{totalCompanies}";
     }
 
     private static string FormatStrategicText(string text, string fallback)
@@ -292,6 +211,7 @@ public partial class StrategicWorldRoot
         WorldOpportunityDefinition definition = queries.GetOpportunity(opportunity.DefinitionId);
         OpportunitySpawnPointDefinition spawnPoint = queries.GetOpportunitySpawnPoint(opportunity.SpawnPointId);
         int remainingTicks = System.Math.Max(0, opportunity.ExpiresTick - State.WorldTick);
+        SetWorldDetailPanelVisible(true);
         SetSiteDetailSectionsVisible(false);
         _opportunityDetailPanel.Visible = true;
         _opportunityDetailPanel.Bind(new WorldOpportunityDetailPanelData
@@ -313,16 +233,6 @@ public partial class StrategicWorldRoot
             _siteSummaryCard.Visible = visible;
         }
 
-        if (_facilityCard != null)
-        {
-            _facilityCard.Visible = visible;
-        }
-
-        if (_defenseCard != null)
-        {
-            _defenseCard.Visible = visible;
-        }
-
         if (_actionCard != null)
         {
             _actionCard.Visible = visible;
@@ -339,13 +249,143 @@ public partial class StrategicWorldRoot
         }
     }
 
+    private void SetWorldDetailPanelVisible(bool visible)
+    {
+        if (_siteDetailPanel == null || _siteDetailPanelVisibleRequested == visible)
+        {
+            return;
+        }
+
+        _siteDetailPanelVisibleRequested = visible;
+        if (visible)
+        {
+            AnimateWorldDetailPanelIn();
+            return;
+        }
+
+        AnimateWorldDetailPanelOut();
+    }
+
+    private void AnimateWorldDetailPanelIn()
+    {
+        if (_siteDetailPanel == null)
+        {
+            return;
+        }
+
+        Vector2 restPosition = ResolveWorldDetailPanelRestPosition();
+        KillWorldDetailPanelTween();
+        ConfigureWorldDetailPanelPivot();
+        _siteDetailPanel.Visible = true;
+        _siteDetailPanel.Position = restPosition + new Vector2(0.0f, SiteDetailPanelSlidePixels);
+        _siteDetailPanel.Scale = new Vector2(0.98f, 0.94f);
+        _siteDetailPanel.Modulate = new Color(1.0f, 1.0f, 1.0f, 0.0f);
+
+        _siteDetailPanelTween = CreateTween().BindNode(this);
+        _siteDetailPanelTween.TweenProperty(_siteDetailPanel, "position", restPosition - new Vector2(0.0f, SiteDetailPanelOvershootPixels), SiteDetailPanelEnterSeconds)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.Out);
+        _siteDetailPanelTween.Parallel().TweenProperty(_siteDetailPanel, "scale", new Vector2(1.02f, 1.03f), SiteDetailPanelEnterSeconds)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.Out);
+        _siteDetailPanelTween.Parallel().TweenProperty(_siteDetailPanel, "modulate", Colors.White, SiteDetailPanelEnterSeconds)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.Out);
+        _siteDetailPanelTween.Chain().TweenProperty(_siteDetailPanel, "position", restPosition, SiteDetailPanelSettleSeconds)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.Out);
+        _siteDetailPanelTween.Parallel().TweenProperty(_siteDetailPanel, "scale", Vector2.One, SiteDetailPanelSettleSeconds)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.Out);
+        _siteDetailPanelTween.TweenCallback(Callable.From(() => CompleteWorldDetailPanelAnimation(restPosition, true)));
+    }
+
+    private void AnimateWorldDetailPanelOut()
+    {
+        if (_siteDetailPanel == null)
+        {
+            return;
+        }
+
+        Vector2 restPosition = ResolveWorldDetailPanelRestPosition();
+        KillWorldDetailPanelTween();
+        ConfigureWorldDetailPanelPivot();
+        _siteDetailPanel.Visible = true;
+
+        _siteDetailPanelTween = CreateTween().BindNode(this);
+        _siteDetailPanelTween.TweenProperty(_siteDetailPanel, "position", restPosition + new Vector2(0.0f, SiteDetailPanelSlidePixels), SiteDetailPanelExitSeconds)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.In);
+        _siteDetailPanelTween.Parallel().TweenProperty(_siteDetailPanel, "scale", new Vector2(0.98f, 0.94f), SiteDetailPanelExitSeconds)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.In);
+        _siteDetailPanelTween.Parallel().TweenProperty(_siteDetailPanel, "modulate", new Color(1.0f, 1.0f, 1.0f, 0.0f), SiteDetailPanelExitSeconds)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.In);
+        _siteDetailPanelTween.TweenCallback(Callable.From(() => CompleteWorldDetailPanelAnimation(restPosition, false)));
+    }
+
+    private Vector2 ResolveWorldDetailPanelRestPosition()
+    {
+        if (_siteDetailPanelTween != null && _siteDetailPanelHasRestPosition)
+        {
+            return _siteDetailPanelRestPosition;
+        }
+
+        _siteDetailPanelRestPosition = _siteDetailPanel?.Position ?? Vector2.Zero;
+        _siteDetailPanelHasRestPosition = true;
+        return _siteDetailPanelRestPosition;
+    }
+
+    private void ConfigureWorldDetailPanelPivot()
+    {
+        if (_siteDetailPanel == null)
+        {
+            return;
+        }
+
+        _siteDetailPanel.PivotOffset = new Vector2(_siteDetailPanel.Size.X * 0.5f, _siteDetailPanel.Size.Y);
+    }
+
+    private void KillWorldDetailPanelTween()
+    {
+        _siteDetailPanelTween?.Kill();
+        _siteDetailPanelTween = null;
+    }
+
+    private void CompleteWorldDetailPanelAnimation(Vector2 restPosition, bool visible)
+    {
+        if (_siteDetailPanel == null)
+        {
+            return;
+        }
+
+        _siteDetailPanel.Position = restPosition;
+        _siteDetailPanel.Scale = Vector2.One;
+        _siteDetailPanel.Modulate = visible ? Colors.White : new Color(1.0f, 1.0f, 1.0f, 0.0f);
+        if (visible)
+        {
+            _siteDetailPanel.Show();
+        }
+        else
+        {
+            _siteDetailPanel.Hide();
+        }
+        _siteDetailPanelTween = null;
+
+        if (!visible)
+        {
+            SetSiteDetailSectionsVisible(false);
+            if (_opportunityDetailPanel != null)
+            {
+                _opportunityDetailPanel.Visible = false;
+            }
+        }
+    }
+
     private void HideWorldDetailSections()
     {
-        SetSiteDetailSectionsVisible(false);
-        if (_opportunityDetailPanel != null)
-        {
-            _opportunityDetailPanel.Visible = false;
-        }
+        SetWorldDetailPanelVisible(false);
     }
 
     private string BuildArmyArrivalText(WorldArmyState army)
@@ -392,7 +432,8 @@ public partial class StrategicWorldRoot
                 continue;
             }
 
-            button.Text = BuildActionButtonText(action);
+            button.Text = BuildActionButtonLabel(action);
+            button.TooltipText = BuildActionTooltip(action);
             button.Disabled = !action.IsEnabled;
 
             if (action.IsEnabled)

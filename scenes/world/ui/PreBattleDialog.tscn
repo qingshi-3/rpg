@@ -1,11 +1,183 @@
-[gd_scene format=3 uid="uid://oxeim6qbsyi4"]
+[gd_scene load_steps=5 format=3 uid="uid://oxeim6qbsyi4"]
 
-[node name="PreBattleDialog" type="AcceptDialog"]
-oversampling_override = 1.0
-title = "战前情报"
-size = Vector2i(166, 124)
+[ext_resource type="Script" path="res://src/Presentation/World/StrategicBattleGateDialog.cs" id="1_dialog"]
+[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
+[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_large.tres" id="3_panel_large"]
+[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_card.tres" id="4_panel_card"]
+
+[node name="PreBattleDialog" type="Control"]
 visible = false
-exclusive = true
-unresizable = true
-borderless = true
-ok_button_text = "进入战斗"
+z_index = 720
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme = ExtResource("2_theme")
+script = ExtResource("1_dialog")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.02, 0.018, 0.012, 0.54)
+
+[node name="BriefPanel" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(500, 220)
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -110.0
+offset_right = 250.0
+offset_bottom = 110.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_styles/panel = ExtResource("3_panel_large")
+
+[node name="BriefMargin" type="MarginContainer" parent="BriefPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="BriefStack" type="VBoxContainer" parent="BriefPanel/BriefMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="BriefTitle" type="Label" parent="BriefPanel/BriefMargin/BriefStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 22
+text = "触发战斗"
+horizontal_alignment = 1
+
+[node name="BriefBody" type="Label" parent="BriefPanel/BriefMargin/BriefStack"]
+custom_minimum_size = Vector2(0, 78)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.9, 0.94, 0.86, 1)
+text = "目标：敌方城池
+我方：出征部队
+敌方：驻守部队"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="BriefActions" type="HBoxContainer" parent="BriefPanel/BriefMargin/BriefStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="BriefEnterButton" type="Button" parent="BriefPanel/BriefMargin/BriefStack/BriefActions"]
+custom_minimum_size = Vector2(136, 48)
+layout_mode = 2
+focus_mode = 2
+mouse_default_cursor_shape = 2
+theme_type_variation = &"WorldPrimaryActionButton"
+text = "进入战斗"
+
+[node name="BriefDetailsButton" type="Button" parent="BriefPanel/BriefMargin/BriefStack/BriefActions"]
+custom_minimum_size = Vector2(136, 48)
+layout_mode = 2
+focus_mode = 2
+mouse_default_cursor_shape = 2
+theme_type_variation = &"WorldSecondaryActionButton"
+text = "查看详情"
+
+[node name="BriefDeferButton" type="Button" parent="BriefPanel/BriefMargin/BriefStack/BriefActions"]
+custom_minimum_size = Vector2(136, 48)
+layout_mode = 2
+focus_mode = 2
+mouse_default_cursor_shape = 2
+theme_type_variation = &"WorldSecondaryActionButton"
+text = "稍后处理"
+
+[node name="DetailPanel" type="PanelContainer" parent="."]
+visible = false
+custom_minimum_size = Vector2(860, 560)
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -430.0
+offset_top = -280.0
+offset_right = 430.0
+offset_bottom = 280.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_styles/panel = ExtResource("3_panel_large")
+
+[node name="DetailMargin" type="MarginContainer" parent="DetailPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 20
+
+[node name="DetailStack" type="VBoxContainer" parent="DetailPanel/DetailMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="DetailTitle" type="Label" parent="DetailPanel/DetailMargin/DetailStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 24
+text = "战斗详情"
+horizontal_alignment = 1
+
+[node name="DetailScroll" type="ScrollContainer" parent="DetailPanel/DetailMargin/DetailStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="DetailBody" type="Label" parent="DetailPanel/DetailMargin/DetailStack/DetailScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.9, 0.94, 0.86, 1)
+text = "双方部队"
+autowrap_mode = 3
+
+[node name="DetailActions" type="HBoxContainer" parent="DetailPanel/DetailMargin/DetailStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="DetailEnterButton" type="Button" parent="DetailPanel/DetailMargin/DetailStack/DetailActions"]
+custom_minimum_size = Vector2(160, 50)
+layout_mode = 2
+focus_mode = 2
+mouse_default_cursor_shape = 2
+theme_type_variation = &"WorldPrimaryActionButton"
+text = "进入战斗"
+
+[node name="DetailDeferButton" type="Button" parent="DetailPanel/DetailMargin/DetailStack/DetailActions"]
+custom_minimum_size = Vector2(160, 50)
+layout_mode = 2
+focus_mode = 2
+mouse_default_cursor_shape = 2
+theme_type_variation = &"WorldSecondaryActionButton"
+text = "稍后处理"

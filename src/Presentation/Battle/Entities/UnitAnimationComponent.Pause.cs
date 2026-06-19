@@ -7,9 +7,6 @@ public partial class UnitAnimationComponent
     private bool _presentationPaused;
     private bool _pausedAnimatedSpriteWasPlaying;
     private float _pausedAnimatedSpriteSpeedScale = 1f;
-    private bool _pausedAnimationPlayerWasPlaying;
-    private float _pausedAnimationPlayerSpeedScale = 1f;
-    private bool _pausedProceduralTweenWasRunning;
     private bool _pausedDefeatedFadeTweenWasRunning;
 
     public void SetPresentationPaused(bool paused)
@@ -23,15 +20,11 @@ public partial class UnitAnimationComponent
         if (paused)
         {
             PauseAnimatedSpritePlayback();
-            PauseAnimationPlayerPlayback();
-            PauseProceduralTweenPlayback();
             PauseDefeatedFadeTweenPlayback();
             return;
         }
 
         ResumeAnimatedSpritePlayback();
-        ResumeAnimationPlayerPlayback();
-        ResumeProceduralTweenPlayback();
         ResumeDefeatedFadeTweenPlayback();
     }
 
@@ -71,75 +64,6 @@ public partial class UnitAnimationComponent
         }
 
         _pausedAnimatedSpriteWasPlaying = false;
-    }
-
-    private void PauseAnimationPlayerPlayback()
-    {
-        if (_animationPlayer == null)
-        {
-            ResolveAnimationPlayer();
-        }
-
-        if (_animationPlayer == null || !GodotObject.IsInstanceValid(_animationPlayer))
-        {
-            _pausedAnimationPlayerWasPlaying = false;
-            return;
-        }
-
-        _pausedAnimationPlayerSpeedScale = _animationPlayer.SpeedScale;
-        _pausedAnimationPlayerWasPlaying = _animationPlayer.IsPlaying();
-        if (_pausedAnimationPlayerWasPlaying)
-        {
-            _animationPlayer.Pause();
-        }
-    }
-
-    private void ResumeAnimationPlayerPlayback()
-    {
-        if (_animationPlayer == null || !GodotObject.IsInstanceValid(_animationPlayer))
-        {
-            _pausedAnimationPlayerWasPlaying = false;
-            return;
-        }
-
-        _animationPlayer.SpeedScale = _pausedAnimationPlayerSpeedScale;
-        if (_pausedAnimationPlayerWasPlaying)
-        {
-            _animationPlayer.Play();
-        }
-
-        _pausedAnimationPlayerWasPlaying = false;
-    }
-
-    private void PauseProceduralTweenPlayback()
-    {
-        if (_proceduralTween == null || !GodotObject.IsInstanceValid(_proceduralTween))
-        {
-            _pausedProceduralTweenWasRunning = false;
-            return;
-        }
-
-        _pausedProceduralTweenWasRunning = _proceduralTween.IsRunning();
-        if (_pausedProceduralTweenWasRunning)
-        {
-            _proceduralTween.Pause();
-        }
-    }
-
-    private void ResumeProceduralTweenPlayback()
-    {
-        if (_proceduralTween == null || !GodotObject.IsInstanceValid(_proceduralTween))
-        {
-            _pausedProceduralTweenWasRunning = false;
-            return;
-        }
-
-        if (_pausedProceduralTweenWasRunning)
-        {
-            _proceduralTween.Play();
-        }
-
-        _pausedProceduralTweenWasRunning = false;
     }
 
     private void PauseDefeatedFadeTweenPlayback()

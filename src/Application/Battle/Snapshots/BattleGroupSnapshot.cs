@@ -14,6 +14,9 @@ public sealed class BattleGroupSnapshot
     public int HeroLevel { get; set; }
     public string CorpsId { get; set; } = "";
     public string CorpsDefinitionId { get; set; } = "";
+    // Strategic ids identify durable hero/corps records; battle unit ids identify authored Runtime unit resources.
+    public string HeroBattleUnitId { get; set; } = "";
+    public string CorpsBattleUnitId { get; set; } = "";
     public int CorpsLevel { get; set; }
     public int CorpsEquipmentLevel { get; set; }
     public int CorpsStrength { get; set; }
@@ -32,6 +35,7 @@ public sealed class BattleGroupSnapshot
     public double AttackImpactDelaySeconds { get; set; }
     public string InitialCorpsCommandId { get; set; } = "";
     public BattleGroupPlanSnapshot Plan { get; set; } = new();
+    public BattleTacticalIntentPlanSnapshot TacticalIntentPlan { get; set; } = new();
     public BattleGroupTacticalMode TacticalMode { get; set; } = BattleGroupTacticalMode.PlayerCommanded;
     public List<BattleTacticalRegionSnapshot> InitialTacticalRegions { get; set; } = new();
 }

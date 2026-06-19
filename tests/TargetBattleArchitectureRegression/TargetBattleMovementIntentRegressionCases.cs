@@ -108,10 +108,10 @@ internal static class TargetBattleMovementIntentRegressionCases
         AssertTrue(move != null, "move-first plan should advance toward the objective when only distant enemies are present");
         AssertTrue(
             move!.TargetId == "objective_gate" &&
-            move.ReasonCode == "plan_objective_advance" &&
+            move.ReasonCode == "region_fixed_advance" &&
             move.ToGridX == 1 &&
             move.ToGridY == 0,
-            $"move-first plan should step toward the objective instead of distant target: target={move.TargetId} reason={move.ReasonCode} to=({move.ToGridX},{move.ToGridY})");
+            $"move-first tactical intent should step toward the selected region instead of distant target: target={move.TargetId} reason={move.ReasonCode} to=({move.ToGridX},{move.ToGridY})");
     }
 
     public static void RuntimeMovementStartedDoesNotPublishLookaheadCorrectionPath()
@@ -152,8 +152,8 @@ internal static class TargetBattleMovementIntentRegressionCases
         AssertTrue(move != null, "move-first plan should find a first objective step on the full battle-site topology");
         AssertTrue(
             move!.TargetId == "enemy_deployment" &&
-            move.ReasonCode == "plan_objective_advance",
-            $"large topology objective movement should use the plan target: target={move.TargetId} reason={move.ReasonCode}");
+            move.ReasonCode == "region_fixed_advance",
+            $"large topology region movement should use the plan target: target={move.TargetId} reason={move.ReasonCode}");
     }
 
     public static void RuntimeObjectiveMovementUsesBoundedLocalObstacleAvoidance()
@@ -172,10 +172,10 @@ internal static class TargetBattleMovementIntentRegressionCases
         AssertTrue(move != null, $"objective movement should not stop when a nearby authored obstacle blocks only the direct greedy step; events={eventSummary}");
         AssertTrue(
             move!.TargetId == "objective_gate" &&
-            move.ReasonCode == "plan_objective_advance" &&
+            move.ReasonCode == "region_fixed_advance" &&
             move.ToGridX == 0 &&
             move.ToGridY == 0,
-            $"bounded local obstacle avoidance should choose the first step around the nearby obstacle without publishing a route: target={move.TargetId} reason={move.ReasonCode} to=({move.ToGridX},{move.ToGridY})");
+            $"bounded local obstacle avoidance should choose the first region step around the nearby obstacle without publishing a route: target={move.TargetId} reason={move.ReasonCode} to=({move.ToGridX},{move.ToGridY})");
     }
 
     public static void RuntimeObjectiveMovementFollowsStaticWallUntilRejoin()
@@ -261,8 +261,8 @@ internal static class TargetBattleMovementIntentRegressionCases
         AssertTrue(move != null, "enemy move-first plan should advance toward player deployment objective");
         AssertTrue(
             move!.TargetId == "player_deployment" &&
-            move.ReasonCode == "plan_objective_advance",
-            $"enemy plan should move by objective before sensing contact: target={move.TargetId} reason={move.ReasonCode}");
+            move.ReasonCode == "region_fixed_advance",
+            $"enemy plan should move by selected region before sensing contact: target={move.TargetId} reason={move.ReasonCode}");
         AssertTrue(
             counters.CombatSlotScanCount == 0 &&
             counters.OpenAttackFlowFieldBuildCount == 0,

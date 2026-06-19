@@ -20,6 +20,9 @@ internal static void WorldViewportLayoutUsesResolvedControlRects()
     string root = ProjectRoot();
     string siteRootSource = ReadWorldSiteRootSource();
     string strategicSource = ReadStrategicWorldRootSource();
+    string strategicResolveBody = ExtractMethodBody(strategicSource, "private Rect2 ResolveMainWorldViewportRect()");
+    string strategicLayoutBody = ExtractMethodBody(strategicSource, "private void UpdateMainWorldViewportLayout(Rect2 mapBounds)");
+    string strategicScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "StrategicWorldRoot.tscn"));
 
     AssertTrue(
         !siteRootSource.Contains("MainWorldViewportLeftWhenUiVisible", StringComparison.Ordinal) &&
@@ -42,9 +45,17 @@ internal static void WorldViewportLayoutUsesResolvedControlRects()
         "strategic viewport bounds should not duplicate left-panel dimensions in geometry code");
     AssertTrue(
         strategicSource.Contains("ResolveMainWorldViewportRect", StringComparison.Ordinal) &&
-        strategicSource.Contains("_leftPrimaryPanelHost.GetGlobalRect()", StringComparison.Ordinal) &&
-        strategicSource.Contains("_topBarHost.GetGlobalRect()", StringComparison.Ordinal),
-        "strategic viewport bounds should derive from the actual layout host rectangles");
+        strategicResolveBody.Contains("_mainWorldViewportHost.GetGlobalRect()", StringComparison.Ordinal) &&
+        !strategicResolveBody.Contains("TryResolveFirstControlChildRect", StringComparison.Ordinal) &&
+        !strategicResolveBody.Contains("_leftPrimaryPanelHost", StringComparison.Ordinal) &&
+        !strategicResolveBody.Contains("_topBarHost", StringComparison.Ordinal) &&
+        !strategicLayoutBody.Contains("SetFixedRect(_mainWorldViewportHost", StringComparison.Ordinal) &&
+        !strategicLayoutBody.Contains("_worldMapOverlay.Size =", StringComparison.Ordinal) &&
+        strategicLayoutBody.Contains("SetFullRect(_worldMapOverlay)", StringComparison.Ordinal) &&
+        strategicScene.Contains("node name=\"MainWorldViewportHost\" type=\"SubViewportContainer\" parent=\".\"", StringComparison.Ordinal) &&
+        strategicScene.Contains("anchor_right = 1.0", StringComparison.Ordinal) &&
+        strategicScene.Contains("anchor_bottom = 1.0", StringComparison.Ordinal),
+        "strategic viewport bounds should derive from the authored MainWorldViewportHost rect, not mutable HUD child geometry or code-overwritten host anchors");
 }
 
 internal static void BattleCameraUsesMapBoundsSourceContract()

@@ -103,6 +103,15 @@ internal static string ReadBattleUnitRootSource()
         .Select(File.ReadAllText));
 }
 
+internal static string ReadBattleGridHighlightOverlaySource()
+{
+    string dir = Path.Combine("src", "Presentation", "Battle");
+    return string.Join("\n", Directory
+        .GetFiles(dir, "BattleGridHighlightOverlay*.cs")
+        .OrderBy(path => path, StringComparer.Ordinal)
+        .Select(File.ReadAllText));
+}
+
 internal static string ExtractMethodBlock(string source, string methodSignature)
 {
     int signatureIndex = source.IndexOf(methodSignature, StringComparison.Ordinal);

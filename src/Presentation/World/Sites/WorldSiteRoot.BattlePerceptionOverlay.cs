@@ -12,12 +12,14 @@ namespace Rpg.Presentation.World.Sites;
 
 public partial class WorldSiteRoot
 {
+    private const string BattlePerceptionOverlayToggleAction = "battle_perception_overlay_toggle";
+
     private bool _battlePerceptionOverlayVisible;
     private bool _battlePerceptionOverlayRefreshQueued;
 
     private void EnableBattlePerceptionOverlayForRuntime()
     {
-        // Local sensing is visible by default during runtime tuning; E remains
+        // Local sensing is visible by default during runtime tuning; the toggle action remains
         // the escape hatch when the overlay obscures combat readability.
         _battlePerceptionOverlayVisible = true;
         RefreshBattlePerceptionOverlay();
@@ -26,8 +28,7 @@ public partial class WorldSiteRoot
     private bool TryHandleBattlePerceptionOverlayInput(InputEvent @event)
     {
         if (!_battleRuntimeEnabled ||
-            @event is not InputEventKey { Pressed: true, Echo: false } keyEvent ||
-            keyEvent.Keycode != Key.E)
+            !@event.IsActionPressed(BattlePerceptionOverlayToggleAction))
         {
             return false;
         }

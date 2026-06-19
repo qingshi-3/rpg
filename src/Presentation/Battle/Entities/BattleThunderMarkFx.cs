@@ -20,6 +20,7 @@ public partial class BattleThunderMarkFx : Node2D
     private Line2D _outerRing;
     private Line2D _innerGlyph;
     private Line2D _pulseRing;
+    private int _lifetimeVersion;
 
     public override void _Ready()
     {
@@ -31,18 +32,20 @@ public partial class BattleThunderMarkFx : Node2D
 
     public override void _ExitTree()
     {
+        _lifetimeVersion++;
         KillTween();
     }
 
     public void Play()
     {
         KillTween();
+        int lifetimeVersion = ++_lifetimeVersion;
         Modulate = Colors.White;
         PrepareLine(_outerRing, new Color(0.52f, 0.9f, 1f, 0.76f), Vector2.One);
         PrepareLine(_innerGlyph, new Color(0.9f, 1f, 1f, 0.95f), Vector2.One);
         PrepareLine(_pulseRing, new Color(0.45f, 0.82f, 1f, 0.34f), Vector2.One);
 
-        _pulseTween = CreateTween();
+        _pulseTween = CreateTween().BindNode(this);
         _pulseTween.SetLoops();
         _pulseTween.TweenProperty(_pulseRing, "scale", new Vector2(1.28f, 0.58f), 0.58)
             .SetTrans(Tween.TransitionType.Sine)
@@ -55,12 +58,12 @@ public partial class BattleThunderMarkFx : Node2D
             PrepareLine(_pulseRing, new Color(0.45f, 0.82f, 1f, 0.34f), Vector2.One);
         }));
 
-        _ = QueueFreeAfterLifetime();
+        _ = QueueFreeAfterLifetime(lifetimeVersion);
     }
 
-    private async System.Threading.Tasks.Task QueueFreeAfterLifetime()
+    private async System.Threading.Tasks.Task QueueFreeAfterLifetime(int lifetimeVersion)
     {
-        if (!IsInsideTree())
+        if (!IsLifetimeVersionCurrent(lifetimeVersion))
         {
             return;
         }
@@ -68,10 +71,18 @@ public partial class BattleThunderMarkFx : Node2D
         await ToSignal(
             GetTree().CreateTimer(System.Math.Max(0.5, LifetimeSeconds), processAlways: false),
             SceneTreeTimer.SignalName.Timeout);
-        if (GodotObject.IsInstanceValid(this))
+        if (IsLifetimeVersionCurrent(lifetimeVersion))
         {
             QueueFree();
         }
+    }
+
+    private bool IsLifetimeVersionCurrent(int lifetimeVersion)
+    {
+        // Fire-and-forget timer waits must not let a stale Play cycle free the current mark.
+        return GodotObject.IsInstanceValid(this) &&
+            IsInsideTree() &&
+            lifetimeVersion == _lifetimeVersion;
     }
 
     private static void PrepareLine(Line2D line, Color color, Vector2 scale)

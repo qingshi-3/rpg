@@ -48,59 +48,21 @@ public partial class WorldSiteRoot
 
         // Layout hosts are Presentation-only containers. Site data, battle requests,
         // and settlement authority stay in Application/Runtime paths.
-        _siteHudTopBar = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "TopBarHost/SiteTopBar",
-            nameof(WorldSiteRoot));
-        _sitePeacetimePanel = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel",
-            nameof(WorldSiteRoot));
-        _siteBottomCommandHost = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "BottomCommandHost",
-            nameof(WorldSiteRoot));
-        _siteMinimapHost = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "MinimapHost",
-            nameof(WorldSiteRoot));
-        _siteModalHost = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "ModalHost",
-            nameof(WorldSiteRoot));
-        _battleRuntimeCommandBar = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar",
-            nameof(WorldSiteRoot));
-        _battleRuntimeHeroFrame = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame",
-            nameof(WorldSiteRoot));
-        _battleRuntimeHeroSelectorPresenter = new BattleRuntimeHeroSelectorPresenter(GameUiSceneFactory.GetRequiredNode<HBoxContainer>(_siteHudRoot, "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroSelectorList", nameof(WorldSiteRoot)), SelectBattleRuntimeCommandGroup);
-        _battleRuntimeHeroNameLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroNameLabel",
-            nameof(WorldSiteRoot));
-        _battleRuntimeHeroStateLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroStateLabel",
-            nameof(WorldSiteRoot));
-        _battleRuntimeHeroHealthBar = GameUiSceneFactory.GetRequiredNode<ProgressBar>(
-            _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroHealthBar",
-            nameof(WorldSiteRoot));
-        _battleRuntimeHeroManaBar = GameUiSceneFactory.GetRequiredNode<ProgressBar>(
-            _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroManaBar",
-            nameof(WorldSiteRoot));
-        _battleRuntimeHeroSkillList = GameUiSceneFactory.GetRequiredNode<HBoxContainer>(
-            _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroSkillList",
-            nameof(WorldSiteRoot));
-        _battleRuntimeRegroupButton = GameUiSceneFactory.GetRequiredNode<Button>(
-            _siteHudRoot,
-            "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeRegroupButton",
-            nameof(WorldSiteRoot));
+        WorldSitePeacetimeHudNodeRefs hudRefs = WorldSitePeacetimeHudNodeRefs.Resolve(_siteHudRoot, nameof(WorldSiteRoot));
+        _siteHudTopBar = hudRefs.SiteTopBar;
+        _sitePeacetimePanel = hudRefs.SitePeacetimePanel;
+        _siteBottomCommandHost = hudRefs.BottomCommandHost;
+        _siteMinimapHost = hudRefs.MinimapHost;
+        _siteModalHost = hudRefs.ModalHost;
+        _battleRuntimeCommandBar = hudRefs.BattleRuntimeCommandBar;
+        _battleRuntimeHeroFrame = hudRefs.BattleRuntimeHeroFrame;
+        _battleRuntimeHeroSelectorPresenter = new BattleRuntimeHeroSelectorPresenter(hudRefs.BattleRuntimeHeroSelectorList, SelectBattleRuntimeCommandGroup);
+        _battleRuntimeHeroNameLabel = hudRefs.BattleRuntimeHeroNameLabel;
+        _battleRuntimeHeroStateLabel = hudRefs.BattleRuntimeHeroStateLabel;
+        _battleRuntimeHeroHealthBar = hudRefs.BattleRuntimeHeroHealthBar;
+        _battleRuntimeHeroManaBar = hudRefs.BattleRuntimeHeroManaBar;
+        _battleRuntimeHeroSkillList = hudRefs.BattleRuntimeHeroSkillList;
+        _battleRuntimeRegroupButton = hudRefs.BattleRuntimeRegroupButton;
         _battleRuntimeHeroFramePresenter = new BattleRuntimeHeroFramePresenter(
             _battleRuntimeHeroFrame,
             _battleRuntimeHeroNameLabel,
@@ -112,114 +74,33 @@ public partial class WorldSiteRoot
             _battleRuntimeRegroupButton,
             OnBattleRuntimeSkillSlotPressed);
         ApplySiteHudFullRect("bound");
-        _siteHudTitle = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "TopBarHost/SiteTopBar/TopMargin/TopBox/SiteHudTitle",
-            nameof(WorldSiteRoot));
-        _siteResourceLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "TopBarHost/SiteTopBar/TopMargin/TopBox/SiteResourceLabel",
-            nameof(WorldSiteRoot));
-        _returnMapButton = GameUiSceneFactory.GetRequiredNode<Button>(
-            _siteHudRoot,
-            "TopBarHost/SiteTopBar/TopMargin/TopBox/ReturnMapButton",
-            nameof(WorldSiteRoot));
-        _siteHudBody = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin/OverviewStack/SiteHudBody",
-            nameof(WorldSiteRoot));
-        _siteSelectionLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin/OverviewStack/SiteSelectionLabel",
-            nameof(WorldSiteRoot));
-        _siteOverviewCard = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/OverviewCard",
-            nameof(WorldSiteRoot));
-        _siteFacilityBuildCard = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BuildCard",
-            nameof(WorldSiteRoot));
-        _siteFacilityCard = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/FacilityCard",
-            nameof(WorldSiteRoot));
-        _siteDefenseCard = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard",
-            nameof(WorldSiteRoot));
-        _siteActionCard = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard",
-            nameof(WorldSiteRoot));
-        _battlePreparationRosterDock = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationRosterDock",
-            nameof(WorldSiteRoot));
-        _battlePreparationRosterList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationRosterDock/RosterMargin/BattlePreparationRosterList",
-            nameof(WorldSiteRoot));
-        _battlePreparationPlanBar = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationPlanBar",
-            nameof(WorldSiteRoot));
-        _battlePreparationCompanyLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationCompanyLabel",
-            nameof(WorldSiteRoot));
-        _battlePreparationObjectiveLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationObjectiveLabel",
-            nameof(WorldSiteRoot));
-        _battlePreparationRuleButtonRow = GameUiSceneFactory.GetRequiredNode<HBoxContainer>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow",
-            nameof(WorldSiteRoot));
-        _battlePreparationMoveFirstButton = GameUiSceneFactory.GetRequiredNode<Button>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow/MoveFirstRuleButton",
-            nameof(WorldSiteRoot));
-        _battlePreparationAttackFirstButton = GameUiSceneFactory.GetRequiredNode<Button>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow/AttackFirstRuleButton",
-            nameof(WorldSiteRoot));
-        _battlePreparationHoldButton = GameUiSceneFactory.GetRequiredNode<Button>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow/HoldRuleButton",
-            nameof(WorldSiteRoot));
-        _battlePreparationStartButton = GameUiSceneFactory.GetRequiredNode<Button>(
-            _siteHudRoot,
-            "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationStartButton",
-            nameof(WorldSiteRoot));
-        _battlePreparationObjectiveThumbnailDock = GameUiSceneFactory.GetRequiredNode<Control>(
-            _siteHudRoot,
-            "MinimapHost/BattlePreparationObjectiveThumbnailDock",
-            nameof(WorldSiteRoot));
-        _battlePreparationObjectiveThumbnail = GameUiSceneFactory.GetRequiredNode<BattlePreparationObjectiveThumbnail>(
-            _siteHudRoot,
-            "MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail",
-            nameof(WorldSiteRoot));
-        _siteFacilityBuildTitle = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin/BuildStack/BuildTitle",
-            nameof(WorldSiteRoot));
-        _siteFacilityBuildList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin/BuildStack/SiteFacilityBuildList",
-            nameof(WorldSiteRoot));
-        _siteFacilityList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin/FacilityStack/SiteFacilityList",
-            nameof(WorldSiteRoot));
-        _siteGarrisonList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/SiteGarrisonList",
-            nameof(WorldSiteRoot));
-        _siteActionList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/SiteActionList",
-            nameof(WorldSiteRoot));
+        _siteHudTitle = hudRefs.SiteHudTitle;
+        _siteResourceLabel = hudRefs.SiteResourceLabel;
+        _returnMapButton = hudRefs.ReturnMapButton;
+        _siteHudBody = hudRefs.SiteHudBody;
+        _siteSelectionLabel = hudRefs.SiteSelectionLabel;
+        _siteOverviewCard = hudRefs.SiteOverviewCard;
+        _siteFacilityBuildCard = hudRefs.SiteFacilityBuildCard;
+        _siteFacilityCard = hudRefs.SiteFacilityCard;
+        _siteDefenseCard = hudRefs.SiteDefenseCard;
+        _siteActionCard = hudRefs.SiteActionCard;
+        _battlePreparationRosterDock = hudRefs.BattlePreparationRosterDock;
+        _battlePreparationRosterList = hudRefs.BattlePreparationRosterList;
+        _battlePreparationPlanBar = hudRefs.BattlePreparationPlanBar;
+        _battlePreparationCompanyLabel = hudRefs.BattlePreparationCompanyLabel;
+        _battlePreparationObjectiveLabel = hudRefs.BattlePreparationObjectiveLabel;
+        _battlePreparationRuleButtonRow = hudRefs.BattlePreparationRuleButtonRow;
+        _battlePreparationMoveFirstButton = hudRefs.BattlePreparationMoveFirstButton;
+        _battlePreparationAttackFirstButton = hudRefs.BattlePreparationAttackFirstButton;
+        _battlePreparationHoldButton = hudRefs.BattlePreparationHoldButton;
+        _battlePreparationStartButton = hudRefs.BattlePreparationStartButton;
+        _battlePreparationObjectiveThumbnailDock = hudRefs.BattlePreparationObjectiveThumbnailDock;
+        _battlePreparationObjectiveThumbnail = hudRefs.BattlePreparationObjectiveThumbnail;
+        _siteFacilityBuildTitle = hudRefs.SiteFacilityBuildTitle;
+        _siteFacilityBuildList = hudRefs.SiteFacilityBuildList;
+        _siteFacilityList = hudRefs.SiteFacilityList;
+        _siteGarrisonList = hudRefs.SiteGarrisonList;
+        _siteActionList = hudRefs.SiteActionList;
         _strategicManagementDashboardPanelBinder = new StrategicManagementDashboardPanelBinder(
             _siteResourceLabel,
             _siteHudBody,
@@ -233,30 +114,12 @@ public partial class WorldSiteRoot
             OnStrategicBuildFacilityPressed,
             OnStrategicCreateCorpsPressed,
             OnStrategicHeroAssignmentPressed);
-        _siteNoticeLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/SiteNoticeLabel",
-            nameof(WorldSiteRoot));
-        Label operationHintLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "TopBarHost/SiteTopBar/TopMargin/TopBox/SiteOperationHintLabel",
-            nameof(WorldSiteRoot));
-        Label facilityTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin/FacilityStack/FacilityTitle",
-            nameof(WorldSiteRoot));
-        Label garrisonTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/GarrisonTitle",
-            nameof(WorldSiteRoot));
-        Label actionTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionTitle",
-            nameof(WorldSiteRoot));
-        Label noticeTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            _siteHudRoot,
-            "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/NoticeTitle",
-            nameof(WorldSiteRoot));
+        _siteNoticeLabel = hudRefs.SiteNoticeLabel;
+        Label operationHintLabel = hudRefs.SiteOperationHintLabel;
+        Label facilityTitleLabel = hudRefs.FacilityTitleLabel;
+        Label garrisonTitleLabel = hudRefs.GarrisonTitleLabel;
+        Label actionTitleLabel = hudRefs.ActionTitleLabel;
+        Label noticeTitleLabel = hudRefs.NoticeTitleLabel;
 
         if (operationHintLabel != null)
         {

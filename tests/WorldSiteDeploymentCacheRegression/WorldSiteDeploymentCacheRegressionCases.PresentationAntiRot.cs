@@ -16,6 +16,120 @@ internal static void WorldSiteRootPartialSetStaysBelowAntiRotLineBudget()
         $"WorldSiteRoot total line count should stay below 8200 actual={totalLines}. WorldSiteRoot is a known god-node pending UI redesign; do not grow it further\u2014extract into focused components/scenes instead");
 }
 
+internal static void BattleGridHighlightOverlayDelegatesVectorRendering()
+{
+    string root = ProjectRoot();
+    string overlayPath = Path.Combine(root, "src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs");
+    string rendererPath = Path.Combine(root, "src", "Presentation", "Battle", "BattleGridVectorHighlightRenderer.cs");
+
+    AssertTrue(File.Exists(overlayPath), $"battle grid highlight overlay source should exist path={overlayPath}");
+    AssertTrue(File.Exists(rendererPath), $"vector highlight renderer should exist path={rendererPath}");
+
+    string overlaySource = File.ReadAllText(overlayPath);
+    string rendererSource = File.ReadAllText(rendererPath);
+    int overlayLines = File.ReadAllLines(overlayPath).Length;
+
+    AssertTrue(
+        overlayLines < 350,
+        $"BattleGridHighlightOverlay should stay below 350 lines after renderer decomposition actual={overlayLines}");
+    AssertTrue(
+        overlaySource.Contains("BattleGridVectorHighlightRenderer", StringComparison.Ordinal),
+        "BattleGridHighlightOverlay should delegate dynamic vector drawing to BattleGridVectorHighlightRenderer");
+    AssertTrue(
+        !overlaySource.Contains("new Polygon2D", StringComparison.Ordinal) &&
+        !overlaySource.Contains("new Line2D", StringComparison.Ordinal),
+        "BattleGridHighlightOverlay should not construct vector drawing nodes inline");
+
+    foreach (string required in new[]
+    {
+        "internal sealed class BattleGridVectorHighlightRenderer",
+        "new Polygon2D",
+        "new Line2D",
+        "AddSkillRangeDeploymentStyle",
+        "AddPathArrows",
+        "AddTargetLockRing",
+        "AddHoverFrame"
+    })
+    {
+        AssertTrue(rendererSource.Contains(required, StringComparison.Ordinal), $"vector highlight renderer should own renderer fragment={required}");
+    }
+}
+
+internal static void BattleSiteMapLoadedSubscribersDisconnectOnExitTree()
+{
+    string root = ProjectRoot();
+    string battlePresentationDir = Path.Combine(root, "src", "Presentation", "Battle");
+    AssertTrue(Directory.Exists(battlePresentationDir), $"battle Presentation source directory should exist path={battlePresentationDir}");
+
+    string[] subscriberFiles = Directory.GetFiles(battlePresentationDir, "*.cs", SearchOption.AllDirectories)
+        .Where(file => File.ReadAllText(file).Contains(".SiteMapLoaded += OnSiteMapLoaded", StringComparison.Ordinal))
+        .OrderBy(path => path)
+        .ToArray();
+    AssertTrue(
+        subscriberFiles.Length >= 3,
+        "battle Presentation should include the known SiteMapLoaded subscribers in the lifecycle guard");
+
+    foreach (string file in subscriberFiles)
+    {
+        string source = File.ReadAllText(file);
+        AssertTrue(
+            source.Contains("public override void _ExitTree()", StringComparison.Ordinal) &&
+            source.Contains(".SiteMapLoaded -= OnSiteMapLoaded", StringComparison.Ordinal),
+            $"C# signal subscribers must disconnect from WorldSiteRoot.SiteMapLoaded in _ExitTree file={file}");
+    }
+
+    AssertTrue(
+        subscriberFiles.Any(file => file.EndsWith("BattleDeploymentZoneOverlay.cs", StringComparison.Ordinal)) &&
+        subscriberFiles.Any(file => file.EndsWith("BattleGridHighlightOverlay.cs", StringComparison.Ordinal)) &&
+        subscriberFiles.Any(file => file.EndsWith("BattleDebugController.cs", StringComparison.Ordinal)),
+        "battle SiteMapLoaded lifecycle guard should cover deployment zone overlay, grid highlight overlay, and debug controller");
+}
+
+internal static void DebugTogglesUseInputMapActions()
+{
+    string root = ProjectRoot();
+    string projectConfig = File.ReadAllText(Path.Combine(root, "project.godot"));
+    foreach (string action in new[]
+    {
+        "performance_debug_toggle",
+        "battle_debug_toggle",
+        "battle_guide_grid_toggle"
+    })
+    {
+        AssertTrue(
+            projectConfig.Contains(action + "={", StringComparison.Ordinal),
+            $"debug toggle should be declared in the Project Input Map action={action}");
+    }
+
+    AssertTrue(
+        projectConfig.Contains("\"physical_keycode\":4194338", StringComparison.Ordinal) &&
+        projectConfig.Contains("\"physical_keycode\":4194339", StringComparison.Ordinal),
+        "debug toggle Input Map actions should keep the default F3/F4 keyboard bindings");
+
+    string[] debugInputFiles =
+    {
+        Path.Combine(root, "src", "Presentation", "Debug", "PerformanceDebugOverlay.cs"),
+        Path.Combine(root, "src", "Presentation", "Battle", "Debug", "BattleDebugController.cs"),
+        Path.Combine(root, "src", "Presentation", "Battle", "Debug", "BattleGuideGridDebug.cs")
+    };
+
+    foreach (string file in debugInputFiles)
+    {
+        AssertTrue(File.Exists(file), $"debug input source should exist path={file}");
+        string source = File.ReadAllText(file);
+        AssertTrue(
+            source.Contains(".IsActionPressed(", StringComparison.Ordinal),
+            $"debug toggles should read Input Map actions instead of raw keycodes file={file}");
+
+        foreach (string forbidden in new[] { "ToggleKey", "Key.F3", "Key.F4", "InputEventKey" })
+        {
+            AssertTrue(
+                !source.Contains(forbidden, StringComparison.Ordinal),
+                $"debug toggles should not use hardcoded keyboard checks fragment={forbidden} file={file}");
+        }
+    }
+}
+
 internal static void PresentationDoesNotConstructBattleRuntimeSession()
 {
     string root = ProjectRoot();
@@ -173,8 +287,8 @@ internal static void StrategicWorldDetailReadsStrategicManagementLocationDashboa
         "StrategicCityManagementViewModel",
         "ProductionDisplayText",
         "SourcePermissionDisplayText",
-        "AddStrategicFacilityLines(",
-        "AddStrategicCorpsLines("
+        "BuildStrategicLocationContextSummary(",
+        "BuildCityCompactOperationSummary("
     })
     {
         AssertTrue(source.Contains(required, StringComparison.Ordinal), $"strategic world detail should consume Strategic Management dashboard fragment={required}");
@@ -188,6 +302,8 @@ internal static void StrategicWorldDetailReadsStrategicManagementLocationDashboa
         "site.Garrison",
         "AddSiteGarrisonLines(",
         "GetFacilityStateLabel(",
+        "AddStrategicFacilityLines(",
+        "AddStrategicCorpsLines(",
         "StrategicWorldDisplayNames.GetFactionLabel",
         "StrategicWorldDisplayNames.GetResourceLabel",
         "StrategicWorldIds.FacilityMine",
@@ -477,6 +593,42 @@ internal static void WorldSiteRootDelegatesBattleRuntimeHeroFrame()
         "runtime hero frame presenter should own progress-bar and skill-slot binding");
 }
 
+internal static void WorldSiteRootCentralizesWorldSiteHudNodeRefs()
+{
+    string siteRootDir = Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites");
+    string siteManagementPath = Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs");
+    string nodeRefsPath = Path.Combine(siteRootDir, "WorldSitePeacetimeHudNodeRefs.cs");
+    AssertTrue(File.Exists(nodeRefsPath), "world-site HUD scene node lookups should live in WorldSitePeacetimeHudNodeRefs");
+
+    string siteManagementSource = File.ReadAllText(siteManagementPath);
+    string nodeRefsSource = File.ReadAllText(nodeRefsPath);
+    string buildHudBody = ExtractMethodBody(siteManagementSource, "private void BuildSiteHud()");
+
+    AssertTrue(
+        buildHudBody.Contains("WorldSitePeacetimeHudNodeRefs.Resolve", StringComparison.Ordinal) &&
+        !buildHudBody.Contains("GameUiSceneFactory.GetRequiredNode<", StringComparison.Ordinal),
+        "BuildSiteHud should instantiate the HUD and wire callbacks, while a focused node refs class owns deep scene paths");
+    foreach (string required in new[]
+    {
+        "internal sealed class WorldSitePeacetimeHudNodeRefs",
+        "Resolve(Control root, string ownerName)",
+        "GameUiSceneFactory.GetRequiredNode",
+        "TopBarHost/SiteTopBar",
+        "LeftPrimaryPanelHost/SitePeacetimePanel",
+        "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroNameLabel",
+        "OverlayHost/BattlePreparationRosterDock",
+        "MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail"
+    })
+    {
+        AssertTrue(nodeRefsSource.Contains(required, StringComparison.Ordinal), $"world-site HUD node refs should own binding fragment={required}");
+    }
+
+    AssertTrue(
+        !nodeRefsSource.Contains("Rpg.Application", StringComparison.Ordinal) &&
+        !nodeRefsSource.Contains("Rpg.Runtime", StringComparison.Ordinal),
+        "world-site HUD node refs should only locate Presentation scene nodes and must not gain Application or Runtime authority");
+}
+
 internal static void WorldSiteRootDelegatesBattleObjectivePlanningHudBinding()
 {
     string siteRootDir = Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites");
@@ -585,7 +737,7 @@ internal static void WorldSiteRootDelegatesBattleRuntimeLivePresentationObservat
         "presentationState.ObserveActorTeleportNow",
         "BattleEventKind.MovementStarted",
         "restartMoveAnimation: false",
-        "returnToIdleOnComplete: false",
+        "returnToIdleOnComplete: true",
         "TrackTargetDamage",
         "previousTargetDamageTail"
     })

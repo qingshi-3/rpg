@@ -141,7 +141,7 @@ static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
     {
         ["src/Presentation/Battle/BattleGridHighlightOverlay.cs"] = 1070, ["src/Presentation/Battle/Entities/BattleUnitRoot.cs"] = 1112,
         ["src/Presentation/Battle/Entities/UnitAnimationComponent.cs"] = 1117, ["src/Presentation/World/Sites/WorldSiteRoot.SiteManagementHud.cs"] = 1032,
-        ["tests/BattleHitFeedbackRegression/BattleHitFeedbackRegressionCases.BattlePresentation.cs"] = 1162, ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.HeroCorps.cs"] = 1306, ["tests/StrategicManagementRegression/Program.cs"] = 2307, ["src/Application/StrategicManagement/StrategicManagementCommandService.cs"] = 1003
+        ["tests/BattleHitFeedbackRegression/BattleHitFeedbackRegressionCases.BattlePresentation.cs"] = 1162, ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.HeroCorps.cs"] = 1306
     };
     var oversized = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
         .Where(path => !IsIgnoredCodePath(root, path))

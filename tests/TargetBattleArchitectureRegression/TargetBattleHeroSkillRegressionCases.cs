@@ -21,6 +21,7 @@ internal static class TargetBattleHeroSkillRegressionCases
         run("targeted hero skill rejects out of range at submission", TargetedHeroSkillRejectsOutOfRangeAtSubmission);
         run("targeted hero skill accepts diamond range at submission", TargetedHeroSkillAcceptsDiamondRangeAtSubmission);
         run("runtime rejects hero skill not bound to caster company", RuntimeRejectsHeroSkillNotBoundToCasterCompany);
+        run("runtime skill binding uses hero battle unit identity distinct from corps", RuntimeSkillBindingUsesHeroBattleUnitIdentityDistinctFromCorps);
         run("targeted hero skill uses explicit source actor for range and release", TargetedHeroSkillUsesExplicitSourceActorForRangeAndRelease);
         run("runtime visible caster skill recovery completes", RuntimeVisibleCasterSkillRecoveryCompletes);
         run("runtime locks target at skill acceptance and ignores later range drift", RuntimeLocksTargetAtAcceptanceAndIgnoresLaterRangeDrift);
@@ -147,6 +148,38 @@ internal static class TargetBattleHeroSkillRegressionCases
             skillId: SunPiercerSkillId);
 
         AssertTrue(accepted.Accepted, "caster should be able to use its own hero company's active skill");
+    }
+
+    internal static void RuntimeSkillBindingUsesHeroBattleUnitIdentityDistinctFromCorps()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot(
+            "battle_hero_skill_distinct_hero_corps_identity",
+            enemyStrength: 40);
+        BattleGroupSnapshot playerGroup = snapshot.BattleGroups.Single(item => item.BattleGroupId == "group_player");
+        SetRequiredStringProperty(playerGroup, "HeroBattleUnitId", "f1_elyxstormblade");
+        SetRequiredStringProperty(playerGroup, "CorpsBattleUnitId", "f1_radiantdragoon");
+        snapshot.SkillDefinitions.Clear();
+        AddBoundSkill(snapshot, "first_slice_skill_thunder_tag_throw", "Thunder Tag", "f1_elyxstormblade", damage: 12);
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        AssertEqual("f1_elyxstormblade", Hero(controller).UnitDefinitionId, "runtime hero actor should use the hero battle unit id");
+        AssertEqual("f1_radiantdragoon", PlayerCorps(controller).UnitDefinitionId, "runtime corps actor should use the corps battle unit id");
+
+        BattleRuntimeCommandSubmitResult submit = controller.SubmitCommand(new CommandRequest
+        {
+            CommandId = "cmd_thunder_tag_distinct_identity",
+            BattleId = "battle_hero_skill_distinct_hero_corps_identity",
+            BattleGroupId = "group_player",
+            SourceActorId = PlayerCorps(controller).ActorId,
+            Channel = CommandChannel.Hero,
+            Kind = CommandKind.CastSkill,
+            SkillId = "first_slice_skill_thunder_tag_throw",
+            TargetActorId = EnemyActorId
+        });
+
+        AssertTrue(
+            submit.Accepted,
+            $"hero skill bound to the hero battle unit should accept even when the selected visible caster is a different corps unit reason={submit.ReasonCode}");
     }
 
     internal static void TargetedHeroSkillUsesExplicitSourceActorForRangeAndRelease()
@@ -844,6 +877,19 @@ internal static class TargetBattleHeroSkillRegressionCases
         }
 
         throw new Exception("BattleSkillSnapshot.CasterUnitIds should be writable or expose a writable collection");
+    }
+
+    private static void SetRequiredStringProperty(object instance, string propertyName, string value)
+    {
+        if (instance == null)
+        {
+            throw new InvalidOperationException($"missing instance while setting {propertyName}");
+        }
+
+        System.Reflection.PropertyInfo property = instance.GetType().GetProperty(propertyName);
+        AssertTrue(property != null, $"{instance.GetType().Name} should expose {propertyName} for battle-unit identity mapping");
+        AssertTrue(property.PropertyType == typeof(string) && property.CanWrite, $"{propertyName} should be a writable string property");
+        property.SetValue(instance, value ?? "");
     }
 
     private static BattleRuntimeActor EnemyCorps(BattleRuntimeSessionController controller)

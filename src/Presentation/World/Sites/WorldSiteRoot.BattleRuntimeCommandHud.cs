@@ -16,6 +16,8 @@ using Rpg.Runtime.Battle.Events;
 namespace Rpg.Presentation.World.Sites;
 public partial class WorldSiteRoot
 {
+    private const string BattleRuntimePauseAction = "battle_runtime_pause";
+
     internal enum BattleRuntimeSkillUsageState
     {
         Unavailable,
@@ -28,8 +30,7 @@ public partial class WorldSiteRoot
     {
         if (!_battleRuntimeEnabled ||
             _isBattlePreparationActive ||
-            inputEvent is not InputEventKey { Pressed: true, Echo: false } key ||
-            key.Keycode != Key.Space)
+            !inputEvent.IsActionPressed(BattleRuntimePauseAction))
         {
             return false;
         }
@@ -39,7 +40,7 @@ public partial class WorldSiteRoot
     }
     private void ToggleBattleRuntimeCommandPause()
     {
-        SetBattleRuntimeCommandPauseActive(!_battleRuntimeCommandPauseActive, "space_toggle");
+        SetBattleRuntimeCommandPauseActive(!_battleRuntimeCommandPauseActive, "pause_action_toggle");
     }
     private void SubmitBattleRuntimeCommand(BattleCorpsCommand command)
     {
@@ -366,6 +367,12 @@ public partial class WorldSiteRoot
             GetViewport()?.SetInputAsHandled();
             return true;
         }
+        if (string.Equals(pickedSkill?.SkillId, HeroSkillCommandIds.ThunderSpiralBreakSkillId, System.StringComparison.Ordinal))
+        {
+            TrySubmitBattleRuntimeThunderSpiralDirection(position, sourceActorId);
+            GetViewport()?.SetInputAsHandled();
+            return true;
+        }
         if (pickedSkill?.TargetingMode == BattleSkillTargetingMode.TargetedActorOrCell)
         {
             if (TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out string targetActorOrCellId) &&
@@ -463,11 +470,16 @@ public partial class WorldSiteRoot
         IReadOnlyList<GridPosition> targetCells = System.Array.Empty<GridPosition>();
         string targetActorId = "";
         bool isThunderFold = string.Equals(_battleRuntimeHeroSkillTargetPickingSkillId, HeroSkillCommandIds.ThunderMarkFoldSkillId, System.StringComparison.Ordinal);
+        bool isThunderSpiral = string.Equals(_battleRuntimeHeroSkillTargetPickingSkillId, HeroSkillCommandIds.ThunderSpiralBreakSkillId, System.StringComparison.Ordinal);
         if (isThunderFold && _battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.MarkSelection) { rangeCells = BuildBattleRuntimeThunderFoldMarkCells(); }
         else if (isThunderFold && _battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.LandingSelection) { rangeCells = BuildBattleRuntimeThunderFoldLandingCells(source); }
         if (TryGetMouseGridPosition(out GridPosition position))
         {
-            if (isThunderFold && _battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.LandingSelection)
+            if (isThunderSpiral)
+            {
+                targetCells = BuildBattleRuntimeThunderSpiralAreaCells(source, position);
+            }
+            else if (isThunderFold && _battleRuntimeThunderFoldTargetingStage == ThunderFoldTargetingStage.LandingSelection)
             {
                 targetCells = rangeCells.Contains(position) ? new[] { position } : System.Array.Empty<GridPosition>();
             }
@@ -525,6 +537,24 @@ public partial class WorldSiteRoot
     private IReadOnlyList<GridPosition> BuildBattleRuntimeThunderFoldMarkCells() => BattleRuntimeThunderFoldTargetingPresentation.BuildMarkCells(_activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SpatialMarks, _battleRuntimeHeroSkillTargetPickingGroup?.GroupKey ?? _selectedBattleRuntimeGroupKey, _activeBattleGroupRuntimeResolution?.RuntimeController?.CurrentTimeSeconds ?? 0, _unitRoot);
     private IReadOnlyList<GridPosition> BuildBattleRuntimeThunderFoldLandingCells(BattleEntity source) =>
         BattleRuntimeThunderFoldTargetingPresentation.BuildLandingCells(_activeGridMap, _unitRoot, source, _battleRuntimeThunderFoldSelectedMarkSurface);
+    private IReadOnlyList<GridPosition> BuildBattleRuntimeThunderSpiralAreaCells(BattleEntity source, GridPosition position) =>
+        BattleRuntimeHeroSkillTargetPresentation.BuildThunderSpiralAreaCells(source, position, _activeGridMap);
+    private bool ResolveBattleRuntimeThunderSpiralTargetCenter(BattleEntity source, GridPosition position, out GridPosition center) =>
+        BattleRuntimeHeroSkillTargetPresentation.TryResolveThunderSpiralTargetCenter(source, position, out center);
+    private void TrySubmitBattleRuntimeThunderSpiralDirection(GridPosition position, string sourceActorId)
+    {
+        BattleEntity source = BuildBattleRuntimeHeroSkillSourceEntity(_battleRuntimeHeroSkillTargetPickingGroup);
+        if (!ResolveBattleRuntimeThunderSpiralTargetCenter(source, position, out GridPosition center) ||
+            !IsBattleRuntimeHeroSkillCellInRange(source, center, ResolveBattleRuntimeHeroSkillRange()))
+        {
+            SetSiteNoticeText("雷旋破：请选择英雄周围的释放方向。");
+            RefreshBattleRuntimeHeroSkillTargetPreview();
+            return;
+        }
+
+        // HUD submits the resolved area center; Runtime owns damage, lock timing, and hit validation.
+        SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, "", center);
+    }
     private void TrySubmitBattleRuntimeThunderFoldLanding(GridPosition position, string sourceActorId)
     {
         BattleEntity source = BuildBattleRuntimeHeroSkillSourceEntity(_battleRuntimeHeroSkillTargetPickingGroup);

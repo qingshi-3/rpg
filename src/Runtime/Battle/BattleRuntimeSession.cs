@@ -119,7 +119,10 @@ public sealed class BattleRuntimeSession
             SkillDefinitions = CloneSkillDefinitions(snapshot?.SkillDefinitions),
             // Runtime owns group tactical truth; snapshots only seed battle-local intent at session start.
             TacticalStateStore = BattleGroupTacticalStateStore
-                .FromBattleGroups(snapshot?.BattleGroups ?? Enumerable.Empty<BattleGroupSnapshot>(), snapshot?.BattleId ?? "")
+                .FromBattleGroups(
+                    snapshot?.BattleGroups ?? Enumerable.Empty<BattleGroupSnapshot>(),
+                    snapshot?.BattleId ?? "",
+                    snapshot?.ObjectiveZones)
         };
 
         var sourceForceIndexes = new Dictionary<string, int>();
@@ -137,13 +140,15 @@ public sealed class BattleRuntimeSession
             int corpsHitPoints = ResolveCombatHitPoints(group);
             int corpsFootprintWidth = BattleActorFootprint.NormalizeSize(group.FootprintWidth);
             int corpsFootprintHeight = BattleActorFootprint.NormalizeSize(group.FootprintHeight);
+            string heroBattleUnitId = ResolveHeroBattleUnitId(group);
+            string corpsBattleUnitId = ResolveCorpsBattleUnitId(group);
             BattleGroupPlanSnapshot plan = ResolveBattleGroupPlan(group, snapshot?.ObjectiveZones);
             state.Actors.Add(new BattleRuntimeActor
             {
                 ActorId = $"{group.BattleGroupId}:hero",
                 BattleGroupId = commanderGroupId,
                 FactionId = group.FactionId ?? "",
-                UnitDefinitionId = group.CorpsDefinitionId ?? "",
+                UnitDefinitionId = heroBattleUnitId,
                 SourceForceId = sourceForceId,
                 SourceStateId = group.HeroId,
                 Kind = BattleRuntimeActorKind.Hero,
@@ -166,7 +171,7 @@ public sealed class BattleRuntimeSession
                 ActorId = $"{sourceForceId}:{sourceForceIndex + 1}",
                 BattleGroupId = commanderGroupId,
                 FactionId = group.FactionId ?? "",
-                UnitDefinitionId = group.CorpsDefinitionId ?? "",
+                UnitDefinitionId = corpsBattleUnitId,
                 SourceForceId = sourceForceId,
                 SourceStateId = group.CorpsId,
                 Kind = BattleRuntimeActorKind.Corps,
@@ -360,6 +365,31 @@ public sealed class BattleRuntimeSession
         }
 
         return System.Math.Max(1, group?.CorpsStrength ?? 0);
+    }
+
+    private static string ResolveHeroBattleUnitId(BattleGroupSnapshot group)
+    {
+        if (!string.IsNullOrWhiteSpace(group?.HeroBattleUnitId))
+        {
+            return group.HeroBattleUnitId;
+        }
+
+        if (!string.IsNullOrWhiteSpace(group?.HeroDefinitionId))
+        {
+            return group.HeroDefinitionId;
+        }
+
+        return ResolveCorpsBattleUnitId(group);
+    }
+
+    private static string ResolveCorpsBattleUnitId(BattleGroupSnapshot group)
+    {
+        if (!string.IsNullOrWhiteSpace(group?.CorpsBattleUnitId))
+        {
+            return group.CorpsBattleUnitId;
+        }
+
+        return group?.CorpsDefinitionId ?? "";
     }
 
     private static int ResolveAttackDamage(int attackDamage)

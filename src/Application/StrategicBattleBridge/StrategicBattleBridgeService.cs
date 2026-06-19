@@ -37,6 +37,11 @@ public sealed class StrategicBattleBridgeService
             return StrategicBattleSessionResult.Failed(StrategicFailureReasons.MissingExpedition);
         }
 
+        if (expedition.Status != StrategicExpeditionStatus.Moving)
+        {
+            return StrategicBattleSessionResult.Failed(StrategicFailureReasons.ExpeditionNotCommandable);
+        }
+
         if (expedition.Intent != StrategicExpeditionIntent.AssaultLocation)
         {
             return StrategicBattleSessionResult.Failed(StrategicFailureReasons.UnsupportedExpeditionIntent);
@@ -150,6 +155,8 @@ public sealed class StrategicBattleBridgeService
             group.FactionId = participant.FactionId;
             group.SourceForceId = participant.ParticipantId;
             group.RuntimeCommanderGroupId = participant.ParticipantId;
+            group.HeroBattleUnitId = GetHeroBattleUnitId(participant);
+            group.CorpsBattleUnitId = GetCorpsBattleUnitId(participant);
         }
 
         return StrategicBattleSnapshotResult.Ok(snapshot);
@@ -237,8 +244,10 @@ public sealed class StrategicBattleBridgeService
             force.StrategicParticipantId = participant.ParticipantId;
             force.StrategicHeroId = participant.HeroId;
             force.StrategicHeroDefinitionId = participant.HeroDefinitionId;
+            force.StrategicHeroBattleUnitId = GetHeroBattleUnitId(participant);
             force.StrategicCorpsInstanceId = participant.CorpsInstanceId;
             force.StrategicCorpsDefinitionId = participant.CorpsDefinitionId;
+            force.StrategicCorpsBattleUnitId = GetCorpsBattleUnitId(participant);
             force.StrategicSourceLocationId = participant.SourceLocationId;
             force.StrategicPreBattleCorpsStrength = participant.PreBattleCorpsStrength;
         }
@@ -341,6 +350,14 @@ public sealed class StrategicBattleBridgeService
             return summary;
         }
 
+        if (IsStrategicCompatibilityRequest(request))
+        {
+            GameLog.Warn(
+                nameof(StrategicBattleBridgeService),
+                $"StrategicBattleLegacyResultSummaryRejected session={request?.StrategicBattleSessionId ?? ""} expedition={request?.StrategicExpeditionId ?? ""} request={request?.RequestId ?? ""}");
+            return summary;
+        }
+
         foreach (IGrouping<string, BattleForceRequest> group in (request?.PlayerForces ?? new List<BattleForceRequest>())
                      .Where(force => !string.IsNullOrWhiteSpace(force.StrategicCorpsInstanceId))
                      .GroupBy(force => force.StrategicCorpsInstanceId))
@@ -369,6 +386,13 @@ public sealed class StrategicBattleBridgeService
         }
 
         return summary;
+    }
+
+    private static bool IsStrategicCompatibilityRequest(BattleStartRequest request)
+    {
+        return !string.IsNullOrWhiteSpace(request?.StrategicBattleSessionId) ||
+               !string.IsNullOrWhiteSpace(request?.StrategicExpeditionId) ||
+               !string.IsNullOrWhiteSpace(request?.StrategicTargetLocationId);
     }
 
     public static string GetLegacyResultFailureReason(BattleStartRequest request, BattleResult result)

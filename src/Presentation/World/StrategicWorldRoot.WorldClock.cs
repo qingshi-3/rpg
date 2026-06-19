@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using Godot;
 using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Domain.World;
@@ -9,6 +10,16 @@ namespace Rpg.Presentation.World;
 
 public partial class StrategicWorldRoot
 {
+    private static readonly Texture2D WorldClockPauseNormalTexture = GD.Load<Texture2D>("res://assets/textures/ui/basic-ui/1/button_pause.png");
+    private static readonly Texture2D WorldClockPauseHoverTexture = GD.Load<Texture2D>("res://assets/textures/ui/basic-ui/1/button_pause_hover.png");
+    private static readonly Texture2D WorldClockPausePressedTexture = GD.Load<Texture2D>("res://assets/textures/ui/basic-ui/1/button_pause_pressed.png");
+    private static readonly Texture2D WorldClockPlayNormalTexture = GD.Load<Texture2D>("res://assets/textures/ui/basic-ui/1/button_play.png");
+    private static readonly Texture2D WorldClockPlayHoverTexture = GD.Load<Texture2D>("res://assets/textures/ui/basic-ui/1/button_play_hover.png");
+    private static readonly Texture2D WorldClockPlayPressedTexture = GD.Load<Texture2D>("res://assets/textures/ui/basic-ui/1/button_play_pressed.png");
+    private static readonly Texture2D WorldClockQuickNormalTexture = GD.Load<Texture2D>("res://assets/textures/ui/basic-ui/1/button_quick.png");
+    private static readonly Texture2D WorldClockQuickHoverTexture = GD.Load<Texture2D>("res://assets/textures/ui/basic-ui/1/button_quick_hover.png");
+    private static readonly Texture2D WorldClockQuickPressedTexture = GD.Load<Texture2D>("res://assets/textures/ui/basic-ui/1/button_quick_pressed.png");
+
     private bool EnsureStrategicRuntimeReady()
     {
         if (_runtimeStage == StrategicRuntimeStage.Active)
@@ -240,14 +251,47 @@ public partial class StrategicWorldRoot
 
         if (_worldClockToggleButton != null)
         {
-            _worldClockToggleButton.Text = _worldClockPaused ? "继续" : "暂停";
+            if (_worldClockPaused)
+            {
+                ApplyTextureButtonStates(
+                    _worldClockToggleButton,
+                    WorldClockPlayNormalTexture,
+                    WorldClockPlayHoverTexture,
+                    WorldClockPlayPressedTexture);
+            }
+            else
+            {
+                ApplyTextureButtonStates(
+                    _worldClockToggleButton,
+                    WorldClockPauseNormalTexture,
+                    WorldClockPauseHoverTexture,
+                    WorldClockPausePressedTexture);
+            }
+
             _worldClockToggleButton.TooltipText = _worldClockPaused ? "继续大地图时间" : "暂停大地图时间";
         }
 
         if (_worldClockSpeedButton != null)
         {
-            _worldClockSpeedButton.Text = $"{WorldClockSpeedMultipliers[_worldClockSpeedIndex]:0}x";
+            ApplyTextureButtonStates(
+                _worldClockSpeedButton,
+                WorldClockQuickNormalTexture,
+                WorldClockQuickHoverTexture,
+                WorldClockQuickPressedTexture);
             _worldClockSpeedButton.TooltipText = $"快进速度：{WorldClockSpeedMultipliers[_worldClockSpeedIndex]:0}x";
         }
+    }
+
+    private static void ApplyTextureButtonStates(
+        TextureButton button,
+        Texture2D normal,
+        Texture2D hover,
+        Texture2D pressed)
+    {
+        // Top-right controls use authored TextureButton states so hover/click
+        // feedback stays resource-driven instead of mouse-event styling logic.
+        button.TextureNormal = normal;
+        button.TextureHover = hover;
+        button.TexturePressed = pressed;
     }
 }

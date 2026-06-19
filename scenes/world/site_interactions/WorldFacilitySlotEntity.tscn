@@ -9,13 +9,10 @@ script = ExtResource("1_script")
 [node name="EmptyVisual" type="Node2D" parent="."]
 
 [node name="BuildingVisual" type="Node2D" parent="."]
-visible = false
 
 [node name="BuiltVisualRoot" type="Node2D" parent="."]
-visible = false
 
 [node name="HintLabel" type="Label" parent="."]
-visible = false
 z_index = 20
 offset_left = -52.0
 offset_top = -48.0

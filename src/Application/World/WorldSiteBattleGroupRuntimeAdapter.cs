@@ -105,20 +105,33 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             return false;
         }
 
-        BattleGroupSessionProbeResult sessionResult = _sessionService.PrepareSnapshot(request);
-        if (!sessionResult.Success)
+        BattleStartSnapshot activeSnapshot = activeContext.Snapshot;
+        if (activeSnapshot == null || string.IsNullOrWhiteSpace(activeSnapshot.SnapshotId))
         {
-            result = Reject(sessionResult.FailureReason, request, sessionResult.FlowResult, activeContext);
+            result = Reject("strategic_battle_active_context_snapshot_missing", request, null, activeContext);
             return false;
         }
 
-        activeContext.Snapshot = sessionResult.Snapshot;
-        BattleRuntimeSessionController runtimeController = _runtimeSession.Begin(sessionResult.Snapshot);
+        if (activeContext.Session != null &&
+            (!string.Equals(activeContext.Session.SessionId ?? "", activeContext.ContextId ?? "", System.StringComparison.Ordinal) ||
+             !string.Equals(activeSnapshot.BattleId ?? "", activeContext.Session.SessionId ?? "", System.StringComparison.Ordinal)))
+        {
+            result = Reject("strategic_battle_active_context_snapshot_mismatch", request, null, activeContext);
+            return false;
+        }
+
+        if (!TryBuildStrategicLaunchSnapshot(activeContext, request, out BattleStartSnapshot snapshot, out string syncFailureReason))
+        {
+            result = Reject(syncFailureReason, request, null, activeContext);
+            return false;
+        }
+
+        BattleRuntimeSessionController runtimeController = _runtimeSession.Begin(snapshot);
         if (IsInvalidRuntimeStart(runtimeController))
         {
             result = Reject("battle_group_runtime_start_failed", request, new BattleGroupBattleFlowResult
             {
-                Snapshot = sessionResult.Snapshot,
+                Snapshot = snapshot,
                 RuntimeResult = runtimeController.BuildResult()
             }, activeContext);
             return false;
@@ -128,18 +141,78 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
         {
             Success = true,
             Request = request,
-            Snapshot = sessionResult.Snapshot,
+            Snapshot = snapshot,
             RuntimeController = runtimeController,
             ActiveContext = activeContext,
             FlowResult = new BattleGroupBattleFlowResult
             {
-                Snapshot = sessionResult.Snapshot,
+                Snapshot = snapshot,
                 RuntimeResult = runtimeController.BuildResult()
             }
         };
         GameLog.Info(
             nameof(WorldSiteBattleGroupRuntimeAdapter),
-            $"StrategicBattleGroupRuntimeStarted context={activeContext.ContextId} request={request.RequestId} snapshot={sessionResult.Snapshot.SnapshotId} initialEvents={runtimeController.EventStream.Events.Count}");
+            $"StrategicBattleGroupRuntimeStarted context={activeContext.ContextId} session={activeContext.Session?.SessionId ?? ""} request={request.RequestId} snapshot={snapshot.SnapshotId} initialEvents={runtimeController.EventStream.Events.Count}");
+        return true;
+    }
+
+    private bool TryBuildStrategicLaunchSnapshot(
+        StrategicBattleActiveContext activeContext,
+        BattleStartRequest request,
+        out BattleStartSnapshot snapshot,
+        out string failureReason)
+    {
+        snapshot = null;
+        failureReason = "";
+        BattleStartSnapshot activeSnapshot = activeContext?.Snapshot;
+        if (activeContext == null ||
+            request == null ||
+            activeSnapshot == null ||
+            string.IsNullOrWhiteSpace(activeSnapshot.SnapshotId))
+        {
+            failureReason = "strategic_battle_active_context_snapshot_missing";
+            return false;
+        }
+
+        BattleGroupSessionProbeResult prepared = _sessionService.PrepareSnapshot(request);
+        if (!prepared.Success)
+        {
+            failureReason = string.IsNullOrWhiteSpace(prepared.FailureReason)
+                ? "strategic_battle_launch_snapshot_sync_failed"
+                : prepared.FailureReason;
+            return false;
+        }
+
+        snapshot = prepared.Snapshot ?? new BattleStartSnapshot();
+        string battleId = !string.IsNullOrWhiteSpace(activeContext.Session?.SessionId)
+            ? activeContext.Session.SessionId
+            : !string.IsNullOrWhiteSpace(activeContext.ContextId)
+                ? activeContext.ContextId
+                : activeSnapshot.BattleId ?? "";
+        if (string.IsNullOrWhiteSpace(battleId))
+        {
+            failureReason = "strategic_battle_active_context_snapshot_mismatch";
+            return false;
+        }
+
+        // The current preparation UI still edits the compatibility request. At launch
+        // this adapter converts those draft facts into the active context snapshot so
+        // Runtime consumes one bridge-owned handoff, not a parallel legacy authority.
+        snapshot.SnapshotId = activeSnapshot.SnapshotId;
+        snapshot.BattleId = battleId;
+        if (!string.IsNullOrWhiteSpace(activeContext.Session?.TargetLocationId))
+        {
+            snapshot.TargetLocationId = activeContext.Session.TargetLocationId;
+        }
+
+        activeContext.Snapshot = snapshot;
+        activeContext.FlowResult = new BattleGroupBattleFlowResult
+        {
+            Snapshot = snapshot
+        };
+        GameLog.Info(
+            nameof(WorldSiteBattleGroupRuntimeAdapter),
+            $"StrategicBattleLaunchSnapshotSynced context={activeContext.ContextId ?? ""} request={request.RequestId ?? ""} snapshot={snapshot.SnapshotId} battle={snapshot.BattleId} groups={snapshot.BattleGroups.Count}");
         return true;
     }
 

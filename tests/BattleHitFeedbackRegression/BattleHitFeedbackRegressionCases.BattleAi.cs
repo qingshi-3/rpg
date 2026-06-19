@@ -121,7 +121,7 @@ internal static void LimboAiBattleResourceBoundaryIsAuthored()
     AssertTrue(File.Exists(hostPath), "LimboAI battle host scene should be authored under scenes/ai/battle");
     AssertTrue(File.Exists(selectTaskPath), "LimboAI target selection task should exist");
     AssertTrue(File.Exists(strikeConditionPath), "LimboAI strike condition task should exist");
-    AssertTrue(File.Exists(emitTaskPath), "LimboAI intent emission task should exist");
+    AssertTrue(File.Exists(emitTaskPath), "Limbotactical intent emission task should exist");
 
     string tree = File.ReadAllText(treePath);
     AssertTrue(tree.Contains("type=\"BehaviorTree\"", StringComparison.Ordinal), "battle tree should be a LimboAI BehaviorTree resource");

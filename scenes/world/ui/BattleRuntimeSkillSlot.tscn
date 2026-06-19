@@ -1,23 +1,12 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleRuntimeSkillSlot.cs" id="1_skill_slot"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_skill_slot"]
-bg_color = Color(0.055, 0.065, 0.06, 0.88)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.62, 0.58, 0.42, 0.88)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_slot.tres" id="2_panel_slot"]
 
 [node name="BattleRuntimeSkillSlot" type="PanelContainer"]
 custom_minimum_size = Vector2(68, 62)
 mouse_filter = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_skill_slot")
+theme_override_styles/panel = ExtResource("2_panel_slot")
 script = ExtResource("1_skill_slot")
 
 [node name="Margin" type="MarginContainer" parent="."]

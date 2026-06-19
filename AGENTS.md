@@ -118,6 +118,18 @@ Do not revive old manual tactical chess, pure post-deployment autobattler playba
 
 For Godot engine API, editor behavior, scene/resource semantics, and C# integration questions, prefer the local official Godot 4.5 documentation clone at `.codex/external/godot-docs-4.5/` before web search.
 
+## GodotPrompter Skill Routing
+
+Installed GodotPrompter skills are implementation aids, not project authority. For Godot code, scene, UI, resource, debugging, testing, or review work, complete the project design/proposal gates first, then load the matching installed skill before editing.
+
+Use the installed subset by system: C# and signals (`csharp-godot`, `csharp-signals`); scene/resource/component/state/event structure (`scene-organization`, `resource-pattern`, `component-system`, `state-machine`, `event-bus`); UI and HUD (`godot-ui`, `responsive-ui`, `hud-system`); gameplay runtime support (`input-handling`, `camera-system`, `ai-navigation`, `ability-system`); persistence, assets, diagnostics, tests, and review (`save-load`, `assets-pipeline`, `godot-debugging`, `godot-testing`, `godot-code-review`).
+
+Implementation proposals and execution notes must name the GodotPrompter skill(s) used, or explicitly state that no installed GodotPrompter skill applies.
+
+## Git Network
+
+If GitHub HTTPS direct access times out but local port `127.0.0.1:7890` is reachable, use a command-scoped proxy, e.g. `git -c http.proxy=http://127.0.0.1:7890 -c https.proxy=http://127.0.0.1:7890 push origin HEAD:main`; do not set global Git proxy config unless the user asks.
+
 ## Content Authoring
 
 Story, campaign, dialogue, reward, relationship, encounter, unit, and city content should be data-driven through definitions/configuration. Avoid hardcoded one-off plot, unit, or location logic unless a proposal explicitly accepts that cost.

@@ -8,7 +8,8 @@ Read active proposals only when they are relevant to the current task. Active pr
 
 | Proposal | Requirement | Status | Archive Readiness |
 |---|---|---|---|
-| None |  |  |  |
+| `2026-06-17-strategic-world-context-ui/` | UI-CTX-001 | Draft | Pending written proposal review, authority merge, and follow-up implementation proposal. |
+| `2026-06-17-site-map-layout-authoring/` | SMLA-001 | Draft | Pending written proposal review, authority merge, archive, and follow-up implementation proposal. |
 
 ## Rules
 

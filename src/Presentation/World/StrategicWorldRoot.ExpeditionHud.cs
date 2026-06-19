@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.StrategicManagement;
@@ -60,9 +61,10 @@ public partial class StrategicWorldRoot
                 return false;
             }
 
-            enterButton.Text = canEnter
+            enterButton.Text = "查看详情";
+            enterButton.TooltipText = canEnter
                 ? "查看地点详情"
-                : $"查看地点详情\n{WorldActionResolver.FormatFailureReason(enterFailureReason)}";
+                : $"查看地点详情：{WorldActionResolver.FormatFailureReason(enterFailureReason)}";
             enterButton.Disabled = !canEnter;
             if (canEnter)
             {
@@ -80,7 +82,8 @@ public partial class StrategicWorldRoot
                 return false;
             }
 
-            expeditionButton.Text = "出征\n选择英雄公司";
+            expeditionButton.Text = "出征";
+            expeditionButton.TooltipText = "选择英雄公司";
             expeditionButton.Pressed += BeginExpeditionDraft;
             _actionList.AddChild(expeditionButton);
         }
@@ -93,7 +96,8 @@ public partial class StrategicWorldRoot
                 return false;
             }
 
-            expeditionButton.Text = $"出征\n{FormatStrategicExpeditionFailureReason(failureReason)}";
+            expeditionButton.Text = "出征";
+            expeditionButton.TooltipText = FormatStrategicExpeditionFailureReason(failureReason);
             expeditionButton.Disabled = true;
             _actionList.AddChild(expeditionButton);
         }
@@ -166,9 +170,10 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        targetButton.Text = _isExpeditionTargeting
-            ? "选择目的地\n左键或右键确认目标"
-            : "选择目的地\n敌方=进攻 己方=进驻 空地=移动";
+        targetButton.Text = "选择目的地";
+        targetButton.TooltipText = _isExpeditionTargeting
+            ? "左键或右键确认目标"
+            : "敌方=进攻，己方=进驻，空地=移动";
         targetButton.Disabled = !canChooseTarget;
         targetButton.Pressed += BeginExpeditionTargeting;
         _actionList.AddChild(targetButton);
@@ -187,11 +192,33 @@ public partial class StrategicWorldRoot
         _actionList.AddChild(cancelButton);
     }
 
-    private static string BuildActionButtonText(WorldActionViewModel action)
+    private static string BuildActionButtonLabel(WorldActionViewModel action)
     {
-        string costs = action.CostLines.Count == 0 ? "无消耗" : string.Join("，", action.CostLines);
-        string suffix = action.IsEnabled ? costs : action.DisabledReason;
-        return $"{action.DisplayName}\n{suffix}";
+        return action?.DisplayName ?? "";
+    }
+
+    private static string BuildActionTooltip(WorldActionViewModel action)
+    {
+        if (action == null)
+        {
+            return "";
+        }
+
+        List<string> lines = new();
+        if (!string.IsNullOrWhiteSpace(action.Description))
+        {
+            lines.Add(action.Description);
+        }
+
+        lines.Add(action.CostLines.Count == 0 ? "无消耗" : $"消耗：{string.Join("，", action.CostLines)}");
+        lines.AddRange(action.EffectLines);
+        lines.AddRange(action.WarningLines);
+        if (!action.IsEnabled && !string.IsNullOrWhiteSpace(action.DisabledReason))
+        {
+            lines.Add(action.DisabledReason);
+        }
+
+        return string.Join("\n", lines.Where(line => !string.IsNullOrWhiteSpace(line)));
     }
 
     private bool TryGetSelectedActiveOpportunity(out WorldOpportunityState opportunity)

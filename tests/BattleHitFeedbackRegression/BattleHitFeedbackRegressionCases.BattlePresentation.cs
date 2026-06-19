@@ -108,7 +108,7 @@ internal static void FriendlyHoverSuppressesAttackCellsUnderTargets()
 
 internal static void HoverFrameUsesUnitFootprint()
 {
-    string overlaySource = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+    string overlaySource = ReadBattleGridHighlightOverlaySource();
     string unitRootSource = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
     string normalizedOverlaySource = NormalizeWhitespace(overlaySource);
 
@@ -343,12 +343,18 @@ internal static void BattleRuntimePlaybackKeepsMoveLoopAcrossConsecutiveMoveStep
 {
     string source = ReadBattleRuntimePlaybackSource();
     string runtime = ReadBattleRuntimeLiveObservationSource();
+    string unitRoot = ReadBattleUnitRootSource();
 
     AssertTrue(
         source.Contains("restartMoveAnimation: false", StringComparison.Ordinal) &&
         source.Contains("returnToIdleOnComplete: returnToIdleOnComplete", StringComparison.Ordinal) &&
-        !source.Contains("returnToIdleOnComplete: true", StringComparison.Ordinal),
-        "runtime movement presentation should keep the move loop unless a caller explicitly closes it");
+        source.Contains("returnToIdleOnComplete: true", StringComparison.Ordinal),
+        "runtime movement presentation should keep lower-level movement configurable while live movement closes to idle after the continuation window");
+    AssertTrue(
+        unitRoot.Contains("lane.BeginContinuationHold(ResolveVisualMoveBufferSeconds());", StringComparison.Ordinal) &&
+        unitRoot.Contains("if (lane.ReturnToIdleOnComplete)", StringComparison.Ordinal) &&
+        unitRoot.Contains("_movementLanes.ContainsKey(entity)", StringComparison.Ordinal),
+        "consecutive runtime steps should keep the move loop through the movement lane continuation hold instead of pinning live movement open forever");
     AssertTrue(
         runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
         runtime.Contains("AdvanceBattleGroupRuntimeOnLiveClockAsync", StringComparison.Ordinal),
@@ -458,22 +464,20 @@ internal static void BattleRuntimeTacticalPauseFreezesUnitPresentationWithoutRep
         "unit-root pause should apply to all current unit animation components.");
     AssertTrue(
         animationPauseMethod.Contains("PauseAnimatedSpritePlayback()", StringComparison.Ordinal) &&
-        animationPauseMethod.Contains("PauseAnimationPlayerPlayback()", StringComparison.Ordinal) &&
-        animationPauseMethod.Contains("PauseProceduralTweenPlayback()", StringComparison.Ordinal) &&
         animationPauseMethod.Contains("PauseDefeatedFadeTweenPlayback()", StringComparison.Ordinal) &&
         animationPauseMethod.Contains("ResumeAnimatedSpritePlayback()", StringComparison.Ordinal) &&
-        animationPauseMethod.Contains("ResumeAnimationPlayerPlayback()", StringComparison.Ordinal) &&
-        animationPauseMethod.Contains("ResumeProceduralTweenPlayback()", StringComparison.Ordinal) &&
         animationPauseMethod.Contains("ResumeDefeatedFadeTweenPlayback()", StringComparison.Ordinal) &&
+        !animationPauseMethod.Contains("PauseAnimationPlayerPlayback()", StringComparison.Ordinal) &&
+        !animationPauseMethod.Contains("ResumeAnimationPlayerPlayback()", StringComparison.Ordinal) &&
+        !animationPauseMethod.Contains("PauseProceduralTweenPlayback()", StringComparison.Ordinal) &&
+        !animationPauseMethod.Contains("ResumeProceduralTweenPlayback()", StringComparison.Ordinal) &&
         animation.Contains("_animatedSprite.Pause()", StringComparison.Ordinal) &&
-        animation.Contains("_animationPlayer.Pause()", StringComparison.Ordinal) &&
-        animation.Contains("_proceduralTween.Pause()", StringComparison.Ordinal) &&
         animation.Contains("_defeatedFadeTween.Pause()", StringComparison.Ordinal) &&
         animation.Contains("_animatedSprite.Play()", StringComparison.Ordinal) &&
-        animation.Contains("_animationPlayer.Play()", StringComparison.Ordinal) &&
-        animation.Contains("_proceduralTween.Play()", StringComparison.Ordinal) &&
-        animation.Contains("_defeatedFadeTween.Play()", StringComparison.Ordinal),
-        "unit animation pause should freeze and resume existing playback state instead of stopping or starting a new cue.");
+        animation.Contains("_defeatedFadeTween.Play()", StringComparison.Ordinal) &&
+        !animation.Contains("_animationPlayer", StringComparison.Ordinal) &&
+        !animation.Contains("_proceduralTween", StringComparison.Ordinal),
+        "unit animation pause should freeze and resume SpriteFrames playback state without hidden fallback playback backends.");
     AssertTrue(
         !animationPauseMethod.Contains("PlayIdle()", StringComparison.Ordinal) &&
         !animationPauseMethod.Contains("PlayMove", StringComparison.Ordinal) &&
@@ -481,7 +485,6 @@ internal static void BattleRuntimeTacticalPauseFreezesUnitPresentationWithoutRep
         "unit animation pause must not return to idle, replay movement, or stop playback because that restarts cues after resume.");
     AssertTrue(
         unitRoot.Contains("CreateTimer(seconds, processAlways: false)", StringComparison.Ordinal) &&
-        animation.Contains("CreateTimer(delaySeconds, processAlways: false)", StringComparison.Ordinal) &&
         animation.Contains("CreateTimer(seconds, processAlways: false)", StringComparison.Ordinal) &&
         damageReaction.Contains("CreateTimer(delaySeconds, processAlways: false)", StringComparison.Ordinal),
         "unit presentation timers should respect SceneTree pause instead of completing one-shot cues while paused.");
@@ -554,11 +557,12 @@ internal static void DeploymentZonesUseDedicatedOverlayShader()
 
 internal static void SkillRangeHighlightUsesDeploymentZoneStyleRegionOverlay()
 {
-    string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+    string overlay = ReadBattleGridHighlightOverlaySource();
+    string vectorRenderer = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridVectorHighlightRenderer.cs"));
 
     AssertTrue(
-        overlay.Contains("AddSkillRangeDeploymentStyle", StringComparison.Ordinal) &&
-        overlay.Contains("BuildBoundarySegments", StringComparison.Ordinal) &&
+        vectorRenderer.Contains("AddSkillRangeDeploymentStyle", StringComparison.Ordinal) &&
+        vectorRenderer.Contains("geometry.BuildBoundarySegments", StringComparison.Ordinal) &&
         overlay.Contains("SkillRangeFillColor", StringComparison.Ordinal) &&
         overlay.Contains("SkillRangeGlowWidth", StringComparison.Ordinal),
         "skill range should use the deployment-zone-style area fill, outer boundary, and glow presentation");
@@ -571,14 +575,15 @@ internal static void SkillRangeHighlightUsesDeploymentZoneStyleRegionOverlay()
 
 internal static void SkillTargetPreviewUsesUnitFocusAndFootprintLockRing()
 {
-    string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+    string overlay = ReadBattleGridHighlightOverlaySource();
+    string vectorRenderer = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridVectorHighlightRenderer.cs"));
     string geometry = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightGeometry.cs"));
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
     string siteRoot = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
 
     AssertTrue(
-        overlay.Contains("AddTargetLockRing", StringComparison.Ordinal) &&
-        overlay.Contains("_highlightGeometry.BuildTargetLockFramePolygon", StringComparison.Ordinal) &&
+        vectorRenderer.Contains("AddTargetLockRing", StringComparison.Ordinal) &&
+        vectorRenderer.Contains("geometry.BuildTargetLockFramePolygon", StringComparison.Ordinal) &&
         geometry.Contains("BuildHoverFramePolygon(cells)", StringComparison.Ordinal) &&
         !overlay.Contains("TargetLockVerticalScale", StringComparison.Ordinal) &&
         overlay.Contains("TargetLockRingColor", StringComparison.Ordinal) &&
@@ -681,20 +686,14 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
         "fallback skill cast FX should include simple authored glyph strokes so the ellipse reads as a spell array");
     AssertTrue(
         fxComponent.Contains("BattleSkillCastFx.tscn", StringComparison.Ordinal) &&
-        animationComponent.Contains("new Color(1f, 0.86f, 0.32f, 1f)", StringComparison.Ordinal) &&
         File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleSkillCastFx.cs")).Contains("BuildEllipsePoints", StringComparison.Ordinal) &&
         File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleSkillCastFx.cs")).Contains("DissolveRiseOffset", StringComparison.Ordinal),
         "skill cast FX script should generate smooth ellipse points and tween the magic circle upward while fading");
     AssertTrue(
-        animationComponent.Contains("new Vector2(1.22f, 1.22f)", StringComparison.Ordinal) &&
-        animationComponent.Contains("new Color(1f, 0.86f, 0.32f, 1f)", StringComparison.Ordinal),
-        "the specialized skill-cast body cue should stay visibly stronger than basic hit feedback when it is explicitly used");
-    string skillCastFallback = animationComponent[
-        animationComponent.IndexOf("case \"skill_cast\":", StringComparison.Ordinal)..
-        animationComponent.IndexOf("case \"hit\":", StringComparison.Ordinal)];
-    AssertTrue(
-        !skillCastFallback.Contains("\"position\"", StringComparison.Ordinal),
-        "procedural skill cast fallback should keep the unit anchored; release motion belongs to the FX, not the unit body");
+        !animationComponent.Contains("PlayProceduralCue", StringComparison.Ordinal) &&
+        !animationComponent.Contains("EnableProceduralFallback", StringComparison.Ordinal) &&
+        !animationComponent.Contains("AnimationPlayer", StringComparison.Ordinal),
+        "unit body animation should use authored SpriteFrames only; missing body cues must not silently fall back to another backend");
     AssertTrue(
         unitRoot.Contains("public double PlaySkillCastPresentation(", StringComparison.Ordinal) &&
         unitRoot.Contains("bool preserveMovement = false", StringComparison.Ordinal) &&
@@ -798,7 +797,7 @@ internal static void UnitCombatStatsSnapshotContract()
         "runtime actors should use snapshot combat hp and attack damage instead of hardcoded combat values");
 }
 
-internal static void BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation()
+internal static void BattleUnitBaseSceneAuthorsHealthBarAndSpriteAnimationBackend()
 {
     string scene = File.ReadAllText(Path.Combine("scenes", "battle", "entities", "units", "BattleUnitBase.tscn"));
     string healthBar = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitHealthBarComponent.cs"));
@@ -814,8 +813,10 @@ internal static void BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation()
         scene.Contains("[node name=\"HealthFill\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal),
         "battle unit base scene should author a reusable overlay anchor and visible health bar resource tree");
     AssertTrue(
-        scene.Contains("EnableProceduralFallback = true", StringComparison.Ordinal),
-        "battle unit base should keep a procedural attack fallback when a visual resource lacks configured animations");
+        scene.Contains("[node name=\"AnimatedSprite2D\" type=\"AnimatedSprite2D\" parent=\"VisualRoot\"]", StringComparison.Ordinal) &&
+        !scene.Contains("AnimationPlayer", StringComparison.Ordinal) &&
+        !scene.Contains("EnableProceduralFallback", StringComparison.Ordinal),
+        "battle unit base should author only the SpriteFrames unit animation backend");
     AssertTrue(
         healthBar.Contains("HealthChanged", StringComparison.Ordinal) &&
         healthBar.Contains("QueueRedraw", StringComparison.Ordinal),

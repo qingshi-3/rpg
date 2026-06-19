@@ -7,16 +7,18 @@ namespace Rpg.Presentation.Battle.Debug;
 
 public partial class BattleDebugController : Node
 {
+    private const string BattleDebugToggleAction = "battle_debug_toggle";
+
     [ExportGroup("Debug总开关")]
 
     [Export]
     public bool DebugEnabled { get; set; } = true;
 
     [Export]
-    public bool ToggleByKey { get; set; } = true;
+    public bool ToggleByInputAction { get; set; } = true;
 
     [Export]
-    public Key ToggleKey { get; set; } = Key.F3;
+    public string ToggleAction { get; set; } = BattleDebugToggleAction;
 
     private WorldSiteRoot _siteRoot;
     private BattleMapView _battleMapView;
@@ -36,14 +38,22 @@ public partial class BattleDebugController : Node
         ApplyDebugEnabled();
     }
 
+    public override void _ExitTree()
+    {
+        if (_siteRoot != null)
+        {
+            _siteRoot.SiteMapLoaded -= OnSiteMapLoaded;
+        }
+    }
+
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (!ToggleByKey || @event is not InputEventKey keyEvent)
+        if (!ToggleByInputAction || string.IsNullOrWhiteSpace(ToggleAction))
         {
             return;
         }
 
-        if (!keyEvent.Pressed || keyEvent.Echo || keyEvent.Keycode != ToggleKey)
+        if (!@event.IsActionPressed(ToggleAction))
         {
             return;
         }

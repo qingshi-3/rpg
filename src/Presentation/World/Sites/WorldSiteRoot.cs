@@ -168,6 +168,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private readonly Dictionary<Control, Vector2> _battlePreparationHudRestPositions = new();
 	private readonly BattleUnitFactory _battleUnitFactory = new();
 	private readonly WorldBattleResultApplier _worldBattleResultApplier = new();
+	private readonly WorldArmyCommandService _armyCommandService = new();
 	private readonly WorldActionResolver _worldActionResolver;
 	private readonly WorldSiteDeploymentService _deploymentService = new();
 	private readonly WorldSiteRuntimeDeploymentCacheBuilder _deploymentCacheBuilder = new();

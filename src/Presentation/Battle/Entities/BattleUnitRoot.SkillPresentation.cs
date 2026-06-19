@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Godot;
+using Rpg.Application.Battle.Commands;
 using Rpg.Definitions.Battle.Audio;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Presentation.Battle.Actions;
@@ -21,7 +23,8 @@ public partial class BattleUnitRoot
         BattleEntity actor,
         BattleEntity target,
         double durationSeconds = 0,
-        bool preserveMovement = false)
+        bool preserveMovement = false,
+        string sourceDefinitionId = "")
     {
         if (actor == null || !GodotObject.IsInstanceValid(actor))
         {
@@ -29,6 +32,9 @@ public partial class BattleUnitRoot
         }
 
         UnitAnimationComponent actorAnimation = actor.GetComponent<UnitAnimationComponent>();
+        double actionDurationSeconds = durationSeconds > 0
+            ? durationSeconds
+            : actorAnimation?.ResolveSkillCastDurationSeconds() ?? 0;
         if (!preserveMovement)
         {
             StopEntityMovement(actor, snapToLogicalGrid: true);
@@ -37,15 +43,54 @@ public partial class BattleUnitRoot
                 actorAnimation?.FaceToward(target.GlobalPosition);
             }
 
-            actorAnimation?.PlaySkillCast();
+            if (IsChanneledSkillCastPresentation(sourceDefinitionId) &&
+                actorAnimation != null &&
+                actorAnimation.PlaySkillCastHoldAtFrame(actorAnimation.ResolveChanneledSkillCastHoldFrame()))
+            {
+                QueueHeldSkillCastResume(actorAnimation, actionDurationSeconds);
+            }
+            else
+            {
+                actorAnimation?.PlaySkillCast();
+            }
         }
 
-        double actionDurationSeconds = durationSeconds > 0
-            ? durationSeconds
-            : actorAnimation?.ResolveSkillCastDurationSeconds() ?? 0;
         actor.GetComponent<BattleSkillCastFxComponent>()?.PlaySkillCastFx(actionDurationSeconds);
         actor.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Attack);
         return actionDurationSeconds;
+    }
+
+    private static bool IsChanneledSkillCastPresentation(string sourceDefinitionId)
+    {
+        return string.Equals(
+            sourceDefinitionId ?? "",
+            HeroSkillCommandIds.ThunderSpiralBreakSkillId,
+            System.StringComparison.Ordinal);
+    }
+
+    private void QueueHeldSkillCastResume(UnitAnimationComponent animation, double durationSeconds)
+    {
+        if (animation == null || !GodotObject.IsInstanceValid(animation))
+        {
+            return;
+        }
+
+        if (durationSeconds <= 0 || !IsInsideTree())
+        {
+            animation.ResumeHeldAnimationFromNextFrame();
+            return;
+        }
+
+        _ = ResumeHeldSkillCastAfterDelay(animation, durationSeconds);
+    }
+
+    private async Task ResumeHeldSkillCastAfterDelay(UnitAnimationComponent animation, double durationSeconds)
+    {
+        await ToSignal(GetTree().CreateTimer(durationSeconds, processAlways: false), SceneTreeTimer.SignalName.Timeout);
+        if (animation != null && GodotObject.IsInstanceValid(animation))
+        {
+            animation.ResumeHeldAnimationFromNextFrame();
+        }
     }
 
     public double PlayThunderTagPresentation(

@@ -201,74 +201,17 @@ public partial class StrategicWorldRoot
     private Rect2 ResolveMainWorldViewportRect()
     {
         Vector2 viewport = GetViewportRect().Size;
-        if (_topBarHost == null ||
-            _leftPrimaryPanelHost == null ||
-            _mainWorldViewportHost == null)
+        if (_mainWorldViewportHost == null)
         {
-            Rect2 hostRect = _mainWorldViewportHost?.GetGlobalRect() ?? new Rect2(Vector2.Zero, viewport);
-            return hostRect.Size.X > 0.0f && hostRect.Size.Y > 0.0f
-                ? hostRect
-                : new Rect2(Vector2.Zero, viewport);
+            return new Rect2(Vector2.Zero, viewport);
         }
 
-        Rect2 leftHostRect = _leftPrimaryPanelHost.GetGlobalRect();
-        Rect2 topHostRect = _topBarHost.GetGlobalRect();
-        if (!TryResolveFirstControlChildRect(_leftPrimaryPanelHost, leftHostRect, out Rect2 primaryPanelRect) ||
-            !TryResolveFirstControlChildRect(_topBarHost, topHostRect, out Rect2 topBarRect))
-        {
-            Rect2 hostRect = _mainWorldViewportHost.GetGlobalRect();
-            return hostRect.Size.X > 0.0f && hostRect.Size.Y > 0.0f
-                ? hostRect
-                : new Rect2(Vector2.Zero, viewport);
-        }
-
-        Rect2 authoredWorldRect = _mainWorldViewportHost.GetGlobalRect();
-        float sideMargin = Mathf.Max(0.0f, primaryPanelRect.Position.X - leftHostRect.Position.X);
-        float gapAfterPanel = Mathf.Max(sideMargin, authoredWorldRect.Position.X - primaryPanelRect.End.X);
-        float topGap = Mathf.Max(0.0f, primaryPanelRect.Position.Y - topBarRect.End.Y);
-        float topOffset = Mathf.Max(0.0f, authoredWorldRect.Position.Y - primaryPanelRect.Position.Y);
-        float bottomMargin = Mathf.Max(sideMargin, topGap * 2.0f);
-        Vector2 position = new(primaryPanelRect.End.X + gapAfterPanel, topBarRect.End.Y + topGap + topOffset);
-
-        // MainWorldViewport follows the authored HUD host geometry. The world view no
-        // longer owns a separate copy of left-panel or top-bar dimensions.
-        return new Rect2(
-            position,
-            new Vector2(
-                Mathf.Max(1.0f, viewport.X - position.X - sideMargin),
-                Mathf.Max(1.0f, viewport.Y - position.Y - bottomMargin)));
-    }
-
-    private static bool TryResolveFirstControlChildRect(Control host, Rect2 hostRect, out Rect2 rect)
-    {
-        rect = default;
-        if (host == null)
-        {
-            return false;
-        }
-
-        foreach (Node child in host.GetChildren())
-        {
-            if (child is not Control control)
-            {
-                continue;
-            }
-
-            Rect2 childRect = control.GetGlobalRect();
-            if (childRect.Size.X > 0.0f && childRect.Size.Y > 0.0f)
-            {
-                rect = childRect;
-                return true;
-            }
-        }
-
-        if (hostRect.Size.X <= 0.0f || hostRect.Size.Y <= 0.0f)
-        {
-            return false;
-        }
-
-        rect = hostRect;
-        return true;
+        Rect2 hostRect = _mainWorldViewportHost.GetGlobalRect();
+        // The strategic world viewport is a scene-authored host contract. HUD skins,
+        // selected-site content, and child minimum sizes must not move the map camera.
+        return hostRect.Size.X > 1.0f && hostRect.Size.Y > 1.0f
+            ? hostRect
+            : new Rect2(Vector2.Zero, viewport);
     }
 
     private Vector2 MapToScreen(Vector2 mapPosition)

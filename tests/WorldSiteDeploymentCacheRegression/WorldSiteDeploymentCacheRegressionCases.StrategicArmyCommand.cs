@@ -81,6 +81,37 @@ internal static void StrategicArmyCommandServiceResetsUnsupportedAssault()
     AssertTrue(!army.HasNavigationPath, "reset should clear navigation path");
 }
 
+internal static void StrategicArmyCommandServiceDefersArrivedAssaultToStandbyMove()
+{
+    WorldArmyState army = BuildCommandableArmy("army_defer_assault");
+    army.TargetSiteId = "site_target";
+    army.Intent = WorldArmyIntent.AssaultSite;
+    army.Status = WorldArmyStatus.Attacking;
+    army.SetArrivalApproachOffset(new Vector2(2, 0));
+    army.SetTargetApproachDirection(WorldSiteAttackDirection.East);
+    Dictionary<string, StrategicNavigationPath> paths = BuildCommandPaths(
+        army.ArmyId,
+        new Vector2(10, 10),
+        new Vector2(48, 16));
+
+    WorldArmyCommandResult result = new WorldArmyCommandService().ApplyDeferredAssaultStandbyMovement(
+        army,
+        new Vector2(48, 16),
+        paths,
+        navigationSurfaceVersion: 17);
+
+    AssertTrue(result.Success, $"deferred assault standby command should succeed reason={result.FailureReason}");
+    AssertEqual(1, result.CommandedArmyIds.Count, "deferred assault army count");
+    AssertEqual("", army.TargetSiteId, "deferred assault should clear target site");
+    AssertEqual(new Vector2(48, 16), army.Destination, "deferred assault standby destination");
+    AssertEqual(WorldArmyIntent.MoveToPosition, army.Intent, "deferred assault intent");
+    AssertEqual(WorldArmyStatus.Moving, army.Status, "deferred assault status");
+    AssertTrue(!army.HasArrivalApproachOffset, "deferred assault should clear arrival approach");
+    AssertEqual(WorldSiteAttackDirection.Any, army.TargetApproachDirection, "deferred assault should clear approach direction");
+    AssertTrue(army.HasNavigationPath, "deferred assault should apply standby path");
+    AssertEqual(17, army.NavigationSurfaceVersion, "deferred assault navigation version");
+}
+
 internal static void StrategicArmyCommandServiceAppliesResolvedSiteNavigationPoints()
 {
     WorldArmyState army = BuildCommandableArmy("army_resolution");
@@ -149,6 +180,35 @@ internal static void StrategicArmyCommandServiceAppliesCreatedExpeditionCommandS
     AssertTrue(!mapArmy.HasNavigationPath, "map expedition without a path should clear stale command path");
     AssertTrue(!mapArmy.HasArrivalApproachOffset, "map expedition should clear arrival approach");
     AssertEqual(WorldSiteAttackDirection.Any, mapArmy.TargetApproachDirection, "map expedition should clear approach direction");
+}
+
+internal static void StrategicArmyCommandServiceRemovesResolvedExpeditionCarrier()
+{
+    const string armyId = "strategic:expedition_resolved";
+    const string expeditionId = "expedition_resolved";
+    WorldArmyState army = BuildCommandableArmy(armyId);
+    army.StrategicExpeditionId = expeditionId;
+    army.StrategicHeroId = "hero";
+    army.StrategicCorpsInstanceId = "corps";
+    army.TargetSiteId = StrategicWorldIds.SiteBonefield;
+    army.Intent = WorldArmyIntent.AssaultSite;
+    army.Status = WorldArmyStatus.Attacking;
+    army.SetNavigationPath(new[] { new Vector2(4, 4), new Vector2(8, 8) }, new Vector2(8, 8), 5);
+    Dictionary<string, WorldArmyState> armies = new()
+    {
+        [army.ArmyId] = army
+    };
+
+    WorldArmyCommandResult result = new WorldArmyCommandService().RemoveResolvedStrategicExpeditionCarrier(
+        armies,
+        armyId,
+        expeditionId,
+        "battle_result_applied");
+
+    AssertTrue(result.Success, $"resolved expedition carrier removal should succeed reason={result.FailureReason}");
+    AssertEqual(1, result.CommandedArmyIds.Count, "removed carrier count");
+    AssertTrue(!armies.ContainsKey(armyId), "resolved strategic expedition carrier should leave the world army map");
+    AssertTrue(result.Events.Any(item => item.Kind == "WorldArmyStrategicExpeditionCarrierRemoved"), "removal should be observable in low-noise diagnostics");
 }
 
 internal static void StrategicArmyCommandServiceRejectsUncommandableArmies()
@@ -273,6 +333,35 @@ internal static void StrategicWorldRootSyncsStrategicExpeditionBeforeSelectedArm
         "strategic expedition sync should prevalidate and then mutate through Strategic Management command authority");
 }
 
+internal static void StrategicWorldRootDefersBattleGateToStandbyWithoutBottomSheet()
+{
+    string source = ReadStrategicWorldRootSource();
+    string deferBody = ExtractMethodBody(source, "private void DeferPendingBattleDecision()");
+    string standbyBody = ExtractMethodBody(source, "private bool TryDeferPendingAssaultBattleToStandby(BattleStartRequest request)");
+
+    AssertTrue(
+        deferBody.Contains("TryDeferPendingAssaultBattleToStandby(_pendingBattleRequest)", StringComparison.Ordinal),
+        "battle gate defer should move the arrived assault army into a standby move before clearing pending state");
+    AssertTrue(
+        deferBody.Contains("_selectedSiteId = \"\"", StringComparison.Ordinal) &&
+        deferBody.Contains("_selectedOpportunityId = \"\"", StringComparison.Ordinal),
+        "battle gate defer should clear selected location context so the bottom sheet does not reopen");
+    AssertTrue(
+        standbyBody.Contains("_armyCommandService.ApplyDeferredAssaultStandbyMovement", StringComparison.Ordinal) &&
+        standbyBody.Contains("ResolveDeferredBattleStandbyDestination", StringComparison.Ordinal) &&
+        standbyBody.Contains("TrySyncStrategicExpeditionCommand", StringComparison.Ordinal),
+        "battle gate defer should use Application army command authority and strategic expedition sync for standby movement");
+    AssertTrue(
+        source.Contains("DeferredBattleStandbyDistance = 32.0f", StringComparison.Ordinal),
+        "deferred battle standby should move only a few map steps, not a long strategic distance");
+    AssertTrue(
+        !deferBody.Contains("ResetUnsupportedAssault", StringComparison.Ordinal) &&
+        !deferBody.Contains("CancelExpedition", StringComparison.Ordinal) &&
+        !standbyBody.Contains("ResetUnsupportedAssault", StringComparison.Ordinal) &&
+        !standbyBody.Contains("CancelExpedition", StringComparison.Ordinal),
+        "battle gate defer should not retreat, cancel, or reset the arrived assault");
+}
+
 internal static void StrategicWorldRootDoesNotWaitForStrategicPreparationOnArrivedAssault()
 {
     string source = ReadStrategicWorldRootSource();
@@ -374,16 +463,22 @@ internal static void StrategicBattleResultKeepsPresentationCleanupOnly()
     string body = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
     int strategicApplyIndex = body.IndexOf("StrategicManagementRuntime.Commands.ApplyBattleResultSummary", StringComparison.Ordinal);
     int cleanupIndex = body.IndexOf("ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult)", StringComparison.Ordinal);
+    int carrierCleanupIndex = body.IndexOf("ApplyStrategicBattleResultWorldArmyCarrierCleanup(context.CompatibilityRequest, applyResult)", StringComparison.Ordinal);
     int strategicNoticeIndex = body.IndexOf("BuildStrategicBattleFeedbackReturnNotice(strategicFeedback)", StringComparison.Ordinal);
     int strategicReturnIndex = strategicNoticeIndex < 0
         ? -1
         : body.IndexOf("return applyResult;", strategicNoticeIndex, StringComparison.Ordinal);
     string cleanupBody = ExtractMethodBody(source, "private void ApplyStrategicBattleResultPresentationCleanup(BattleStartRequest request, WorldActionResult result)");
+    string carrierCleanupBody = ExtractMethodBody(source, "private void ApplyStrategicBattleResultWorldArmyCarrierCleanup(BattleStartRequest request, WorldActionResult result)");
 
     AssertTrue(
         cleanupIndex > strategicApplyIndex &&
         cleanupIndex < strategicReturnIndex,
         "Strategic Management battle result branch should run presentation cleanup before returning and before legacy result settlement");
+    AssertTrue(
+        carrierCleanupIndex > strategicApplyIndex &&
+        carrierCleanupIndex < strategicReturnIndex,
+        "Strategic Management battle result branch should retire the world army carrier after Strategic Management writeback succeeds");
     AssertTrue(
         cleanupBody.Contains("WorldSiteUnitPlacementKind.VisitingArmy", StringComparison.Ordinal) &&
         cleanupBody.Contains("WorldSiteUnitPlacementKind.Attacker", StringComparison.Ordinal) &&
@@ -411,6 +506,13 @@ internal static void StrategicBattleResultKeepsPresentationCleanupOnly()
             !cleanupBody.Contains(fragment, StringComparison.Ordinal),
             $"presentation cleanup should not mutate old strategic authority fragment={fragment}");
     }
+
+    AssertTrue(
+        carrierCleanupBody.Contains("_armyCommandService.RemoveResolvedStrategicExpeditionCarrier", StringComparison.Ordinal),
+        "world army carrier cleanup should route through the Application command boundary");
+    AssertTrue(
+        !carrierCleanupBody.Contains(".Remove(", StringComparison.Ordinal),
+        "world army carrier cleanup should not directly remove armies from Presentation");
 }
 
 internal static void BattleGroupProbePreservesStrategicForceIdentity()

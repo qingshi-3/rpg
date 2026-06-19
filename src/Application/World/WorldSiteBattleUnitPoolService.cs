@@ -62,4 +62,32 @@ public sealed class WorldSiteBattleUnitPoolService
             garrison.SourceId == armyId &&
             garrison.Count > 0) == true;
     }
+
+    public int RemoveImportedArmyForSiteBattle(WorldSiteState site, string armyId)
+    {
+        if (site == null || string.IsNullOrWhiteSpace(armyId))
+        {
+            return 0;
+        }
+
+        int removedUnits = site.Garrison
+            .Where(garrison =>
+                garrison != null &&
+                string.Equals(garrison.SourceKind, "PlayerArmy", System.StringComparison.Ordinal) &&
+                string.Equals(garrison.SourceId, armyId, System.StringComparison.Ordinal))
+            .Sum(garrison => System.Math.Max(0, garrison.Count));
+        if (removedUnits <= 0)
+        {
+            return 0;
+        }
+
+        site.Garrison.RemoveAll(garrison =>
+            garrison != null &&
+            string.Equals(garrison.SourceKind, "PlayerArmy", System.StringComparison.Ordinal) &&
+            string.Equals(garrison.SourceId, armyId, System.StringComparison.Ordinal));
+        GameLog.Info(
+            nameof(WorldSiteBattleUnitPoolService),
+            $"ImportedArmyRemovedFromSiteBattlePool site={site.SiteId} army={armyId} units={removedUnits}");
+        return removedUnits;
+    }
 }

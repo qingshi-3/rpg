@@ -56,6 +56,7 @@ BattleHitFeedbackRegressionCases.Run("world site hover summary uses local resour
 BattleHitFeedbackRegressionCases.Run("world site hover summary stays inside viewport", BattleHitFeedbackRegressionCases.WorldSiteHoverSummaryStaysInsideViewport);
 BattleHitFeedbackRegressionCases.Run("game ui skin installs project cursor assets", BattleHitFeedbackRegressionCases.GameUiSkinInstallsProjectCursorAssets);
 BattleHitFeedbackRegressionCases.Run("strategic world forwards middle mouse camera navigation", BattleHitFeedbackRegressionCases.StrategicWorldForwardsMiddleMouseCameraNavigation);
+BattleHitFeedbackRegressionCases.Run("strategic world camera input stays inside map viewport", BattleHitFeedbackRegressionCases.StrategicWorldCameraInputStaysInsideMapViewport);
 BattleHitFeedbackRegressionCases.Run("strategic world resets camera navigation input on scene entry", BattleHitFeedbackRegressionCases.StrategicWorldResetsCameraNavigationInputOnSceneEntry);
 BattleHitFeedbackRegressionCases.Run("map camera ignores stale move press events after scene reset", BattleHitFeedbackRegressionCases.MapCameraIgnoresStaleMovePressEventsAfterSceneReset);
 BattleHitFeedbackRegressionCases.Run("battle result applier messages use configured display names", BattleHitFeedbackRegressionCases.BattleResultApplierMessagesUseConfiguredDisplayNames);
@@ -75,6 +76,7 @@ BattleHitFeedbackRegressionCases.Run("battle runtime movement queues perception 
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation consumes SkillUsed as cast cue", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue);
 BattleHitFeedbackRegressionCases.Run("thunder tag offhand presentation does not interrupt movement", BattleHitFeedbackRegressionCases.ThunderTagOffhandPresentationDoesNotInterruptMovement);
 BattleHitFeedbackRegressionCases.Run("thunder tag presentation shows lightning and mark", BattleHitFeedbackRegressionCases.ThunderTagPresentationShowsLightningAndMark);
+BattleHitFeedbackRegressionCases.Run("thunder mark lifetime timer is generation guarded", BattleHitFeedbackRegressionCases.ThunderMarkLifetimeTimerIsGenerationGuarded);
 BattleHitFeedbackRegressionCases.Run("thunder tag projectile reuses chain lightning fx frames", BattleHitFeedbackRegressionCases.ThunderTagProjectileReusesChainLightningFxFrames);
 BattleHitFeedbackRegressionCases.Run("runtime skill damage does not replay caster cast", BattleHitFeedbackRegressionCases.RuntimeSkillDamageDoesNotReplayCasterCast);
 BattleHitFeedbackRegressionCases.Run("battle runtime visual movement keeps runtime action duration", BattleHitFeedbackRegressionCases.BattleRuntimeVisualMovementKeepsRuntimeActionDuration);
@@ -85,6 +87,7 @@ BattleHitFeedbackRegressionCases.Run("battle runtime registers Godot performance
 BattleHitFeedbackRegressionCases.Run("battle runtime playback delays damage until same tick target movement settles", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackDelaysDamageUntilSameTickTargetMovementSettles);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation waits for same tick movement before dependent attack", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationWaitsForSameTickMovementBeforeDependentAttack);
 BattleHitFeedbackRegressionCases.Run("runtime playback damage waits for target movement but not target attack backlog", BattleHitFeedbackRegressionCases.RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAttackBacklog);
+BattleHitFeedbackRegressionCases.Run("runtime target damage does not wait for attacker movement backlog", BattleHitFeedbackRegressionCases.RuntimeTargetDamageDoesNotWaitForAttackerMovementBacklog);
 BattleHitFeedbackRegressionCases.Run("runtime playback applies damage semantics through target queue", BattleHitFeedbackRegressionCases.RuntimePlaybackAppliesDamageSemanticsThroughTargetQueue);
 BattleHitFeedbackRegressionCases.Run("runtime playback target damage queue does not serialize impact delay", BattleHitFeedbackRegressionCases.RuntimePlaybackTargetDamageQueueDoesNotSerializeImpactDelay);
 BattleHitFeedbackRegressionCases.Run("runtime playback movement path uses footprint center resolver", BattleHitFeedbackRegressionCases.RuntimePlaybackMovementPathUsesFootprintCenterResolver);
@@ -103,8 +106,9 @@ BattleHitFeedbackRegressionCases.Run("runtime impact damage does not double dela
 BattleHitFeedbackRegressionCases.Run("unit attack speed is bound to runtime and attack animation speed", BattleHitFeedbackRegressionCases.UnitAttackSpeedContract);
 BattleHitFeedbackRegressionCases.Run("unit idle and move animation playback is paced for readability", BattleHitFeedbackRegressionCases.UnitIdleAndMoveAnimationPlaybackIsPacedForReadability);
 BattleHitFeedbackRegressionCases.Run("unit animation component delegates cue timing policy", BattleHitFeedbackRegressionCases.UnitAnimationComponentDelegatesCueTimingPolicy);
+BattleHitFeedbackRegressionCases.Run("unit animation component supports SpriteFrames frame hold and resume", BattleHitFeedbackRegressionCases.UnitAnimationComponentSupportsSpriteFrameHoldAndResume);
 BattleHitFeedbackRegressionCases.Run("unit combat stats are bound into runtime snapshots", BattleHitFeedbackRegressionCases.UnitCombatStatsSnapshotContract);
-BattleHitFeedbackRegressionCases.Run("battle unit base authors health bar and fallback animation", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAuthorsHealthBarAndFallbackAnimation);
+BattleHitFeedbackRegressionCases.Run("battle unit base authors health bar and SpriteFrames animation backend", BattleHitFeedbackRegressionCases.BattleUnitBaseSceneAuthorsHealthBarAndSpriteAnimationBackend);
 BattleHitFeedbackRegressionCases.Run("defeated unit presentation hides health bar before fast death animation", BattleHitFeedbackRegressionCases.DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimation);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors enemy behavior branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsEnemyBehaviorBranches);
 BattleHitFeedbackRegressionCases.Run("limbo ai battle decision tree mirrors allied command branches", BattleHitFeedbackRegressionCases.LimboAiBattleDecisionTreeMirrorsAlliedCommandBranches);

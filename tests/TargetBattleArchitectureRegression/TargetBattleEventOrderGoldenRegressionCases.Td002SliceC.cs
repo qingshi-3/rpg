@@ -224,6 +224,12 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
             }
         };
 
+        snapshot.BattleGroups.Single(item => item.BattleGroupId == "group_td002_enemy_temp").TacticalIntentPlan = new BattleTacticalIntentPlanSnapshot
+        {
+            IntentId = BattleTacticalIntentIds.AssaultTarget,
+            PrimaryTargetSelector = BattleTargetSelectors.RuntimeObservedHostileCluster,
+            RetargetPolicyId = BattleRetargetPolicyIds.AllowVolatileObservation
+        };
         AddRectSurfaces(snapshot, 0, 0, 10, 0);
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
         return snapshot;

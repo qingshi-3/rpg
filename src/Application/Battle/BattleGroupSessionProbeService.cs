@@ -149,7 +149,14 @@ public sealed class BattleGroupSessionProbeService
 				string strategicSourceLocationId = string.IsNullOrWhiteSpace(force.StrategicSourceLocationId)
 					? sourceLocationId
 					: force.StrategicSourceLocationId;
+				string heroBattleUnitId = string.IsNullOrWhiteSpace(force.StrategicHeroBattleUnitId)
+					? ""
+					: force.StrategicHeroBattleUnitId;
+				string corpsBattleUnitId = string.IsNullOrWhiteSpace(force.StrategicCorpsBattleUnitId)
+					? unitDefinitionId
+					: force.StrategicCorpsBattleUnitId;
 				BattleGroupPlanSnapshot groupPlan = ResolveBattleGroupPlan(request, force, planSide);
+				BattleTacticalIntentPlanSnapshot tacticalIntentPlan = ResolveBattleTacticalIntentPlan(request, force, planSide);
 
 				BattleGroupState group = new()
 				{
@@ -186,6 +193,8 @@ public sealed class BattleGroupSessionProbeService
 					FactionId = factionId,
 					SourceForceId = sourceForceId,
 					RuntimeCommanderGroupId = commanderGroupId,
+					HeroBattleUnitId = heroBattleUnitId,
+					CorpsBattleUnitId = corpsBattleUnitId,
 					PlanSide = planSide,
 					CellX = placement?.CellX ?? ResolveFallbackCellX(fallbackFactionId),
 					CellY = placement?.CellY ?? index,
@@ -200,7 +209,8 @@ public sealed class BattleGroupSessionProbeService
 					AttackActionSeconds = force.AttackActionSeconds,
 					AttackImpactDelaySeconds = force.AttackImpactDelaySeconds,
 					InitialCorpsCommandId = initialCorpsCommandId ?? "",
-					Plan = CopyPlanForGroup(commanderGroupId, groupPlan)
+					Plan = CopyPlanForGroup(commanderGroupId, groupPlan),
+					TacticalIntentPlan = CopyTacticalIntentPlan(tacticalIntentPlan)
 				};
 				seed.Heroes[hero.HeroId] = hero;
 				seed.Corps[corps.CorpsId] = corps;
@@ -524,6 +534,8 @@ public sealed class BattleGroupSessionProbeService
 			group.FactionId = metadata.FactionId;
 			group.SourceForceId = metadata.SourceForceId;
 			group.RuntimeCommanderGroupId = metadata.RuntimeCommanderGroupId;
+			group.HeroBattleUnitId = metadata.HeroBattleUnitId;
+			group.CorpsBattleUnitId = metadata.CorpsBattleUnitId;
 			group.CellX = metadata.CellX;
 			group.CellY = metadata.CellY;
 			group.CellHeight = metadata.CellHeight;
@@ -538,6 +550,7 @@ public sealed class BattleGroupSessionProbeService
 			group.AttackImpactDelaySeconds = metadata.AttackImpactDelaySeconds;
 			group.InitialCorpsCommandId = metadata.InitialCorpsCommandId;
 			group.Plan = CopyPlanForGroup(BattleCommanderGroupIdentity.Resolve(group), metadata.Plan);
+			group.TacticalIntentPlan = CopyTacticalIntentPlan(metadata.TacticalIntentPlan);
 		}
 	}
 
@@ -566,6 +579,39 @@ public sealed class BattleGroupSessionProbeService
 		}
 
 		return HasAuthoredPlan(fallbackPlan) ? CopyPlanForGroup("", fallbackPlan) : null;
+	}
+
+	private static BattleTacticalIntentPlanSnapshot ResolveBattleTacticalIntentPlan(
+		BattleStartRequest request,
+		BattleForceRequest force,
+		BattlePlanSide side)
+	{
+		if (side != BattlePlanSide.Enemy)
+		{
+			return null;
+		}
+
+		foreach (string key in ResolveBattleGroupPlanKeys(force))
+		{
+			if (request?.EnemyTacticalIntentPlans != null &&
+				request.EnemyTacticalIntentPlans.TryGetValue(key, out BattleTacticalIntentPlanSnapshot explicitPlan) &&
+				HasAuthoredTacticalIntentPlan(explicitPlan))
+			{
+				return CopyTacticalIntentPlan(explicitPlan, BattleTacticalIntentPlanSources.ExplicitGroup);
+			}
+		}
+
+		if (HasAuthoredTacticalIntentPlan(force?.TacticalIntentPlan))
+		{
+			return CopyTacticalIntentPlan(force.TacticalIntentPlan, BattleTacticalIntentPlanSources.ForceDefault);
+		}
+
+		if (HasAuthoredTacticalIntentPlan(request?.EnemyTacticalIntentPlan))
+		{
+			return CopyTacticalIntentPlan(request.EnemyTacticalIntentPlan, BattleTacticalIntentPlanSources.ScenarioDefault);
+		}
+
+		return null;
 	}
 
 	private static IEnumerable<string> ResolveBattleGroupPlanKeys(BattleForceRequest force)
@@ -606,6 +652,19 @@ public sealed class BattleGroupSessionProbeService
 				plan.EngagementRule != BattleEngagementRule.AttackFirst);
 	}
 
+	private static bool HasAuthoredTacticalIntentPlan(BattleTacticalIntentPlanSnapshot plan)
+	{
+		return plan != null &&
+			   (!string.IsNullOrWhiteSpace(plan.IntentId) ||
+				!string.IsNullOrWhiteSpace(plan.PrimaryTargetSelector) ||
+				(plan.SecondaryTargetSelectors?.Count ?? 0) > 0 ||
+				!string.IsNullOrWhiteSpace(plan.StyleProfileId) ||
+				!string.IsNullOrWhiteSpace(plan.LeashSelector) ||
+				!string.IsNullOrWhiteSpace(plan.RetargetPolicyId) ||
+				!string.IsNullOrWhiteSpace(plan.EngagementPolicyId) ||
+				!string.IsNullOrWhiteSpace(plan.FallbackIntentId));
+	}
+
 	private static BattleGroupPlanSnapshot CopyPlanForGroup(
 		string battleGroupId,
 		BattleGroupPlanSnapshot source)
@@ -629,6 +688,33 @@ public sealed class BattleGroupSessionProbeService
 			ObjectiveCellHeight = source.ObjectiveCellHeight,
 			ObjectiveWidth = source.ObjectiveWidth,
 			ObjectiveHeight = source.ObjectiveHeight
+		};
+	}
+
+	private static BattleTacticalIntentPlanSnapshot CopyTacticalIntentPlan(
+		BattleTacticalIntentPlanSnapshot source,
+		string intentSource = "")
+	{
+		if (source == null)
+		{
+			return new BattleTacticalIntentPlanSnapshot();
+		}
+
+		return new BattleTacticalIntentPlanSnapshot
+		{
+			IntentId = source.IntentId ?? "",
+			PrimaryTargetSelector = source.PrimaryTargetSelector ?? "",
+			SecondaryTargetSelectors = (source.SecondaryTargetSelectors ?? new List<string>())
+				.Where(item => !string.IsNullOrWhiteSpace(item))
+				.ToList(),
+			StyleProfileId = source.StyleProfileId ?? "",
+			LeashSelector = source.LeashSelector ?? "",
+			RetargetPolicyId = source.RetargetPolicyId ?? "",
+			EngagementPolicyId = source.EngagementPolicyId ?? "",
+			FallbackIntentId = source.FallbackIntentId ?? "",
+			IntentSource = string.IsNullOrWhiteSpace(intentSource)
+				? source.IntentSource ?? ""
+				: intentSource
 		};
 	}
 
@@ -670,6 +756,8 @@ public sealed class BattleGroupSessionProbeService
 		public string FactionId { get; init; } = "";
 		public string SourceForceId { get; init; } = "";
 		public string RuntimeCommanderGroupId { get; init; } = "";
+		public string HeroBattleUnitId { get; init; } = "";
+		public string CorpsBattleUnitId { get; init; } = "";
 		public BattlePlanSide PlanSide { get; init; }
 		public int CellX { get; init; }
 		public int CellY { get; init; }
@@ -685,5 +773,6 @@ public sealed class BattleGroupSessionProbeService
 		public double AttackImpactDelaySeconds { get; init; }
 		public string InitialCorpsCommandId { get; init; } = "";
 		public BattleGroupPlanSnapshot Plan { get; init; } = new();
+		public BattleTacticalIntentPlanSnapshot TacticalIntentPlan { get; init; } = new();
 	}
 }

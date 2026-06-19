@@ -37,8 +37,9 @@ Runtime state exists only during an active battle or recoverable runtime handoff
 | Battle-group plan execution | Active objective zone, engagement rule, formation intent, plan revision, current battle-group state. |
 | Command execution | Current command, accepted runtime order, target area, retreat/protect/follow state, plan supersession state. |
 | Local movement steering | Current route hint, route corridor id, steering mode, obstacle-follow side, best distance, and bounded stuck-recovery budget for the active movement intent. |
-| Tactical observations | Global combat zones, temporary local combat situations, tactical fact versions, dirty reasons, and bounded cached slot facts. |
-| Battle tactical areas | Group-owned action zones, target regions, temporary regions, engagement state, perception summary, and replan timing. |
+| Tactical observations | Target object catalog snapshots, global combat zones, temporary local combat situations, tactical fact versions, dirty reasons, and bounded cached slot facts. |
+| Battle tactical areas | Group-owned action zones, selected target objects, target regions, temporary regions, engagement state, perception summary, and replan timing. |
+| Tactical intent | Enemy active intent plan, selector source, resolved target object, retarget cooldown, leash target, fallback target, and degradation reason. |
 | Group route intent | Low-frequency route hints from static route topology, including route profile, next portal or anchor, corridor revision, and invalidation reason. |
 | Battle process | Event stream, skill impact, formation density, map-trigger facts received through snapshots. |
 
@@ -55,7 +56,7 @@ observation facts
 -> runtime validation
 ```
 
-Observation facts run continuously from authoritative runtime state. They include perception, contact, global combat-zone candidates, group action-zone snapshots, local slot facts, route-blocking facts, and reachability diagnostics. Observation facts are read-only inputs for decision systems; they do not own command intent, do not select group objectives by themselves, and do not mutate actor phases.
+Observation facts run continuously from authoritative runtime state. They include perception, contact, target object catalog snapshots, global combat-zone candidates, group action-zone snapshots, local slot facts, route-blocking facts, and reachability diagnostics. Observation facts are read-only inputs for decision systems; they do not own command or tactical intent, do not select group objectives by themselves, and do not mutate actor phases.
 
 Battle-group commander state owns plan progression and tactical intent for the hero-led group. It decides whether the group is deploying, advancing, sensing contact, locked to a local fight, moving actors into attack or support slots, attacking, regrouping, returning, retreating, routed, or defeated. It consumes observation facts and commands, then exposes typed actor intents.
 
@@ -78,7 +79,7 @@ Runtime may maintain global caches of combat-zone and group action-zone snapshot
 
 Group engagement state is driven by decoupled facts: perception summaries, damage events, attack events, command changes, and region reachability. Unit-level action logic consumes the group state; it does not own the group state machine.
 
-Non-engaged groups request movement toward their current group action zone or selected target region. Engaged groups request local target, attack-slot, support-slot, queue, flank, regroup, or fallback actions inside a selected combat zone. Runtime remains the final validator for topology, occupancy, reservations, movement, attacks, damage, defeat, events, and outcome.
+Non-engaged groups request movement toward their current group action zone, selected target object, or selected target region. Engaged groups request local target, attack-slot, support-slot, queue, flank, regroup, or fallback actions inside a selected combat zone. Runtime remains the final validator for topology, occupancy, reservations, movement, attacks, damage, defeat, events, and outcome.
 
 Group route intent is stored with commander-owned movement state, not as independent actor path authority. A route hint may identify the next static portal, route anchor, gate, chokepoint, or corridor segment for the group. Actors consume that hint through their local movement resolver, and every committed step still validates through Runtime topology, footprint, occupancy, and reservation rules.
 

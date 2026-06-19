@@ -183,6 +183,39 @@ public sealed class WorldArmyCommandService
         return result;
     }
 
+    public WorldArmyCommandResult ApplyDeferredAssaultStandbyMovement(
+        WorldArmyState army,
+        Vector2 destination,
+        IReadOnlyDictionary<string, StrategicNavigationPath> paths,
+        int navigationSurfaceVersion,
+        string requiredOwnerFactionId = StrategicWorldIds.FactionPlayer)
+    {
+        if (!TryValidateDeferredAssaultArmy(army, requiredOwnerFactionId, out string failureReason))
+        {
+            return WorldArmyCommandResult.Fail(failureReason);
+        }
+
+        string targetSiteId = army.TargetSiteId ?? "";
+        army.TargetSiteId = "";
+        army.Destination = destination;
+        army.Intent = WorldArmyIntent.MoveToPosition;
+        army.Status = WorldArmyStatus.Moving;
+        army.ClearArrivalApproachOffset();
+        army.ClearTargetApproachDirection();
+        ApplyNavigationPath(army, paths, destination, navigationSurfaceVersion);
+
+        WorldArmyCommandResult result = new() { Success = true };
+        result.CommandedArmyIds.Add(army.ArmyId);
+        result.Events.Add(BuildCommandEvent(
+            "WorldArmyArrivedAssaultDeferred",
+            result.CommandedArmyIds,
+            destination,
+            targetSiteId,
+            WorldArmyIntent.MoveToPosition));
+        GameLog.Info(nameof(WorldArmyCommandService), $"WorldArmyArrivedAssaultDeferred army={army.ArmyId} previousTarget={targetSiteId} destination={destination}");
+        return result;
+    }
+
     public WorldArmyCommandResult ApplyResolvedSiteNavigationPoints(
         WorldArmyState army,
         Vector2? resolvedWorldPosition,
@@ -239,6 +272,61 @@ public sealed class WorldArmyCommandService
         return result;
     }
 
+    public WorldArmyCommandResult RemoveResolvedStrategicExpeditionCarrier(
+        IDictionary<string, WorldArmyState> armies,
+        string armyId,
+        string expeditionId,
+        string reason = "")
+    {
+        if (armies == null || string.IsNullOrWhiteSpace(armyId))
+        {
+            return WorldArmyCommandResult.Fail("missing_army");
+        }
+
+        if (!armies.TryGetValue(armyId, out WorldArmyState army) || army == null)
+        {
+            return new WorldArmyCommandResult { Success = true };
+        }
+
+        if (string.IsNullOrWhiteSpace(army.StrategicExpeditionId))
+        {
+            return WorldArmyCommandResult.Fail($"army_not_strategic_expedition_carrier:{DescribeArmyId(army)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(expeditionId) &&
+            !string.Equals(army.StrategicExpeditionId, expeditionId, System.StringComparison.Ordinal))
+        {
+            return WorldArmyCommandResult.Fail($"army_expedition_mismatch:{DescribeArmyId(army)}");
+        }
+
+        string previousTargetSiteId = army.TargetSiteId ?? "";
+        WorldArmyStatus previousStatus = army.Status;
+        WorldArmyIntent previousIntent = army.Intent;
+        string resolvedExpeditionId = army.StrategicExpeditionId ?? "";
+        armies.Remove(armyId);
+
+        WorldArmyCommandResult result = new() { Success = true };
+        result.CommandedArmyIds.Add(armyId);
+        result.Events.Add(new GameEvent
+        {
+            Kind = "WorldArmyStrategicExpeditionCarrierRemoved",
+            SourceSystem = nameof(WorldArmyCommandService),
+            TargetIds = { armyId, resolvedExpeditionId, previousTargetSiteId },
+            Payload =
+            {
+                ["expedition"] = resolvedExpeditionId,
+                ["targetSite"] = previousTargetSiteId,
+                ["previousStatus"] = previousStatus.ToString(),
+                ["previousIntent"] = previousIntent.ToString(),
+                ["reason"] = reason ?? ""
+            }
+        });
+        GameLog.Info(
+            nameof(WorldArmyCommandService),
+            $"WorldArmyStrategicExpeditionCarrierRemoved army={armyId} expedition={resolvedExpeditionId} previousStatus={previousStatus} previousIntent={previousIntent} target={previousTargetSiteId} reason={reason ?? ""}");
+        return result;
+    }
+
     private static bool TryValidateCommandableArmies(
         IReadOnlyList<WorldArmyState> armies,
         string requiredOwnerFactionId,
@@ -274,7 +362,51 @@ public sealed class WorldArmyCommandService
         return true;
     }
 
+    private static bool TryValidateDeferredAssaultArmy(
+        WorldArmyState army,
+        string requiredOwnerFactionId,
+        out string failureReason)
+    {
+        if (!TryValidateOwnedArmy(army, requiredOwnerFactionId, out failureReason))
+        {
+            return false;
+        }
+
+        if (army.Status != WorldArmyStatus.Attacking || army.Intent != WorldArmyIntent.AssaultSite)
+        {
+            failureReason = $"army_not_deferable_assault:{DescribeArmyId(army)}:{army.Status}:{army.Intent}";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(army.TargetSiteId))
+        {
+            failureReason = $"army_missing_assault_target:{DescribeArmyId(army)}";
+            return false;
+        }
+
+        return true;
+    }
+
     private static bool TryValidateCommandableArmy(
+        WorldArmyState army,
+        string requiredOwnerFactionId,
+        out string failureReason)
+    {
+        if (!TryValidateOwnedArmy(army, requiredOwnerFactionId, out failureReason))
+        {
+            return false;
+        }
+
+        if (army.Status is WorldArmyStatus.Defeated or WorldArmyStatus.Garrisoned or WorldArmyStatus.Attacking)
+        {
+            failureReason = $"army_not_commandable:{DescribeArmyId(army)}:{army.Status}";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryValidateOwnedArmy(
         WorldArmyState army,
         string requiredOwnerFactionId,
         out string failureReason)
@@ -292,12 +424,6 @@ public sealed class WorldArmyCommandService
         if (!string.Equals(army.OwnerFactionId, normalizedOwner, System.StringComparison.Ordinal))
         {
             failureReason = $"army_not_owned:{DescribeArmyId(army)}";
-            return false;
-        }
-
-        if (army.Status is WorldArmyStatus.Defeated or WorldArmyStatus.Garrisoned or WorldArmyStatus.Attacking)
-        {
-            failureReason = $"army_not_commandable:{DescribeArmyId(army)}:{army.Status}";
             return false;
         }
 

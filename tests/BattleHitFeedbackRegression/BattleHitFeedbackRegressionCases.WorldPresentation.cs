@@ -134,11 +134,49 @@ internal static void StrategicWorldForwardsMiddleMouseCameraNavigation()
         "strategic world root should delegate middle mouse navigation and wheel zoom to MapCameraController");
 }
 
+internal static void StrategicWorldCameraInputStaysInsideMapViewport()
+{
+    string strategicRoot = ReadStrategicWorldRootSource();
+    string cameraController = File.ReadAllText(Path.Combine("src", "Presentation", "Common", "MapCameraController.cs"));
+    string rootGuiBody = ExtractMethodBlock(strategicRoot, "public override void _GuiInput(InputEvent @event)");
+    string processBody = ExtractMethodBlock(cameraController, "public override void _Process(double delta)");
+    string inputBody = ExtractMethodBlock(cameraController, "public override void _Input(InputEvent @event)");
+    string unhandledInputBody = ExtractMethodBlock(cameraController, "public override void _UnhandledInput(InputEvent @event)");
+
+    AssertTrue(
+        rootGuiBody.Contains("IsRootScreenMapInput(@event)", StringComparison.Ordinal) &&
+        rootGuiBody.IndexOf("IsRootScreenMapInput(@event)", StringComparison.Ordinal) <
+        rootGuiBody.IndexOf("TryHandleWorldCameraPointerInput(@event)", StringComparison.Ordinal),
+        "strategic root-level pointer input should be gated to the map viewport before reaching camera navigation");
+    AssertTrue(
+        strategicRoot.Contains("private bool IsRootScreenMapInput(InputEvent @event)", StringComparison.Ordinal) &&
+        strategicRoot.Contains("ResolveMainWorldViewportRect().HasPoint(", StringComparison.Ordinal),
+        "strategic root-level input gate should use the resolved map viewport rect so HUD panels cannot leak scroll or drag events to the map camera");
+    AssertTrue(
+        strategicRoot.Contains("_isArmyBoxSelecting", StringComparison.Ordinal) &&
+        strategicRoot.Contains("_worldCamera?.IsPointerNavigationActive == true", StringComparison.Ordinal) &&
+        cameraController.Contains("public bool IsPointerNavigationActive => _isMiddleMouseDragging", StringComparison.Ordinal),
+        "active map-origin gestures should keep receiving motion/release events even when the pointer leaves the viewport");
+
+    foreach ((string body, string name) in new[]
+    {
+        (processBody, "_Process"),
+        (inputBody, "_Input"),
+        (unhandledInputBody, "_UnhandledInput")
+    })
+    {
+        AssertTrue(
+            body.Contains("CanProcessViewportCameraInput()", StringComparison.Ordinal),
+            $"MapCameraController {name} should ignore global engine input when the controller is used as a non-viewport camera state object");
+    }
+}
+
 internal static void StrategicWorldResetsCameraNavigationInputOnSceneEntry()
 {
     string strategicRoot = ReadStrategicWorldRootSource();
     string readyBody = ExtractMethodBlock(strategicRoot, "public override void _Ready()");
     string cameraController = File.ReadAllText(Path.Combine("src", "Presentation", "Common", "MapCameraController.cs"));
+    string projectConfig = File.ReadAllText("project.godot");
     string resetBody = ExtractMethodBlock(cameraController, "public void ResetNavigationInputState");
     string exitTreeBody = ExtractMethodBlock(cameraController, "public override void _ExitTree()");
     string moveDirectionBody = ExtractMethodBlock(cameraController, "private Vector2 GetMoveDirection()");
@@ -158,8 +196,24 @@ internal static void StrategicWorldResetsCameraNavigationInputOnSceneEntry()
     AssertTrue(
         resetBody.Contains("_suppressPolledKeyboardUntilRelease = true", StringComparison.Ordinal) &&
         moveDirectionBody.Contains("ShouldSuppressPolledKeyboard()", StringComparison.Ordinal) &&
-        suppressionBody.Contains("_suppressPolledKeyboardUntilRelease", StringComparison.Ordinal),
-        "map camera reset should ignore already-held or stale polled movement keys until they are released");
+        moveDirectionBody.Contains("Input.GetVector(CameraMoveLeftAction, CameraMoveRightAction, CameraMoveUpAction, CameraMoveDownAction)", StringComparison.Ordinal) &&
+        suppressionBody.Contains("_suppressPolledKeyboardUntilRelease", StringComparison.Ordinal) &&
+        suppressionBody.Contains("AnyPolledMoveActionPressed()", StringComparison.Ordinal) &&
+        !cameraController.Contains("Input.IsKeyPressed(Key.W)", StringComparison.Ordinal) &&
+        !cameraController.Contains("Input.IsKeyPressed(Key.A)", StringComparison.Ordinal) &&
+        !cameraController.Contains("Input.IsKeyPressed(Key.S)", StringComparison.Ordinal) &&
+        !cameraController.Contains("Input.IsKeyPressed(Key.D)", StringComparison.Ordinal),
+        "map camera reset should ignore already-held or stale polled movement actions until they are released");
+    AssertTrue(
+        projectConfig.Contains("camera_move_left", StringComparison.Ordinal) &&
+        projectConfig.Contains("camera_move_right", StringComparison.Ordinal) &&
+        projectConfig.Contains("camera_move_up", StringComparison.Ordinal) &&
+        projectConfig.Contains("camera_move_down", StringComparison.Ordinal) &&
+        projectConfig.Contains("\"physical_keycode\":65", StringComparison.Ordinal) &&
+        projectConfig.Contains("\"physical_keycode\":68", StringComparison.Ordinal) &&
+        projectConfig.Contains("\"physical_keycode\":87", StringComparison.Ordinal) &&
+        projectConfig.Contains("\"physical_keycode\":83", StringComparison.Ordinal),
+        "project Input Map should define camera movement actions bound to A/D/W/S by default");
     AssertTrue(
         exitTreeBody.Contains("ResetNavigationInputState(\"exit_tree\")", StringComparison.Ordinal),
         "map camera should clear transient navigation state when leaving the scene tree");
@@ -169,19 +223,19 @@ internal static void MapCameraIgnoresStaleMovePressEventsAfterSceneReset()
 {
     string cameraController = File.ReadAllText(Path.Combine("src", "Presentation", "Common", "MapCameraController.cs"));
     string inputBody = ExtractMethodBlock(cameraController, "public override void _Input(InputEvent @event)");
-    string stalePressGuardBody = ExtractMethodBlock(cameraController, "private bool ShouldIgnoreSuppressedMoveKeyEvent");
+    string stalePressGuardBody = ExtractMethodBlock(cameraController, "private bool ShouldIgnoreSuppressedMoveActionEvent");
 
     AssertTrue(
-        inputBody.Contains("ShouldIgnoreSuppressedMoveKeyEvent(keyEvent)", StringComparison.Ordinal),
-        "map camera input should reject queued move-key press events while scene-entry suppression is active");
+        inputBody.Contains("ShouldIgnoreSuppressedMoveActionEvent(@event)", StringComparison.Ordinal),
+        "map camera input should reject queued move-action press events while scene-entry suppression is active");
     AssertTrue(
         stalePressGuardBody.Contains("_suppressPolledKeyboardUntilRelease", StringComparison.Ordinal) &&
-        stalePressGuardBody.Contains("keyEvent.Pressed", StringComparison.Ordinal) &&
-        stalePressGuardBody.Contains("IsAnyMoveKey(keyEvent)", StringComparison.Ordinal),
-        "stale move-key guard should only suppress already-held movement press events after a reset");
+        stalePressGuardBody.Contains("IsMoveActionPressed(@event", StringComparison.Ordinal) &&
+        stalePressGuardBody.Contains("IsAnyMoveActionEvent(@event)", StringComparison.Ordinal),
+        "stale move-action guard should only suppress already-held movement press events after a reset");
     AssertTrue(
         stalePressGuardBody.Contains("_suppressPolledKeyboardUntilRelease = false", StringComparison.Ordinal) &&
-        stalePressGuardBody.Contains("!AnyPolledMoveKeyPressed()", StringComparison.Ordinal),
-        "move-key suppression should end after all movement keys are released so normal camera control still works");
+        stalePressGuardBody.Contains("!AnyPolledMoveActionPressed()", StringComparison.Ordinal),
+        "move-action suppression should end after all movement actions are released so normal camera control still works");
 }
 }

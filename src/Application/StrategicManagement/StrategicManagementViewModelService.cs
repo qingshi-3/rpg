@@ -342,9 +342,12 @@ public sealed class StrategicManagementViewModelService
         return state.Heroes.Values
             .Where(hero =>
                 string.Equals(hero.FactionId, factionId, System.StringComparison.Ordinal) &&
+                string.IsNullOrWhiteSpace(hero.CurrentExpeditionId) &&
                 !string.IsNullOrWhiteSpace(hero.AssignedCorpsInstanceId) &&
                 state.CorpsInstances.TryGetValue(hero.AssignedCorpsInstanceId, out StrategicCorpsInstanceState corps) &&
-                string.Equals(corps.HomeCityId, cityId, System.StringComparison.Ordinal))
+                string.Equals(corps.HomeCityId, cityId, System.StringComparison.Ordinal) &&
+                string.IsNullOrWhiteSpace(corps.CurrentExpeditionId) &&
+                corps.Status == StrategicCorpsInstanceStatus.AssignedToHero)
             .OrderBy(hero => hero.HeroId)
             .Select(hero => BuildHeroCompany(state, cityId, hero))
             .ToList();

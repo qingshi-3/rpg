@@ -106,21 +106,23 @@ Runtime replanning is a simulation concern, not a render-frame concern. Fixed si
 
 Actors that are already in `Moving`, `AttackRecovery`, casting, interruption, or another non-decision phase do not replan just because another render frame elapsed. Moving actors may refresh the next legal neighbor at Runtime movement-continuation boundaries; attack recovery, casting, interruption, and other locked phases replan only when the Runtime state machine reaches the next valid anchored decision boundary or when a valid interrupt explicitly cancels the current action.
 
-## Region-Directed Movement
+## Intent-Directed Region Movement
 
-Battle-group movement goals are tactical regions. Player groups normally use authored objective zones carried by accepted battle-group plans or live player commands. Enemy groups may use battle-group-owned target regions or temporary target regions chosen by enemy policy. Runtime movement resolution treats all of them as region goals or route constraints, not as hidden target actors.
+Battle-group movement goals are resolved from command, battle plan, or tactical intent into target objects and tactical regions. Player groups normally use authored objective zones carried by accepted battle-group plans or live player commands. Enemy groups use battle-group-owned target objects selected by configurable tactical intent plans. Runtime movement resolution treats all of them as region goals or route constraints, not as hidden target actors.
 
-Region-directed movement should be resolved before local attack-slot movement:
+Intent-directed region movement should be resolved before local attack-slot movement:
 
 ```text
-active battle-group objective, target, temporary, hold, protect, or retreat region
+active battle-group objective, selected target object, hold, protect, retreat, or intent-derived region
 -> region candidate anchors
 -> route hints from lanes, chokepoints, flank routes, reserve points, or defend points
 -> footprint-aware next-step ranking
 -> local occupancy and reservation validation
 ```
 
-When no enemy is locked, a battle group advances, holds, or withdraws toward its current region. When a local target is locked, movement may temporarily switch to attack-slot approach inside the group-owned local combat region. When that target dies, becomes invalid, exceeds pursuit limits, or cannot be reached under the engagement rule, movement returns to the current objective zone, target region, temporary target region, hold area, protect-hero area, or retreat path.
+When no enemy is locked, a battle group advances, holds, or withdraws toward its selected stable target object or region. When a local target is locked, movement may temporarily switch to attack-slot approach inside the group-owned local combat region. When that target dies, becomes invalid, exceeds pursuit limits, or cannot be reached under the engagement rule, movement returns to the current objective zone, AI-intent target object, hold area, protect-hero area, fallback target, or retreat path.
+
+Runtime-observed clusters and temporary regions are volatile tactical observations. They may support local combat or explicit cluster-hunting intents, but ordinary non-engaged enemy movement must not rebuild its long-term navigation goal from those observations at high frequency.
 
 For the first slice, region-directed movement is resolved through a group-scoped route hint plus local neighbor scoring. The route hint gives a coarse next anchor such as a portal, entrance, gate, chokepoint, lane anchor, or bridge approach. Local movement still commits only neighboring cells and validates every step against topology, footprint, occupancy, reservations, command facts, and actor state.
 
@@ -128,7 +130,7 @@ Route hints are low-frequency coarse anchors, not a field or full route. They ma
 
 The first route-topology implementation should route a battle group by the largest footprint profile needed by that group. Smaller actors may consume the same coarse route when it is legal for the group profile. Larger actors must not consume a smaller-footprint route that crosses narrow-only portals.
 
-This separation is a product rule as much as a performance rule: ordinary movement should read as executing the group plan or enemy region policy, not as every unit independently searching the whole battlefield for the globally best attack anchor.
+This separation is a product rule as much as a performance rule: ordinary movement should read as executing the group plan or tactical intent, not as every unit independently searching the whole battlefield for the globally best attack anchor.
 
 ## Continuous Movement And Local Neighbor Resolution
 

@@ -1,6 +1,6 @@
 internal static partial class WorldSiteDeploymentCacheRegressionCases
 {
-    internal static void BattleRuntimePerceptionOverlayDefaultsVisibleAndTogglesWithE()
+    internal static void BattleRuntimePerceptionOverlayDefaultsVisibleAndTogglesWithInputAction()
     {
         string root = ProjectRoot();
         string siteRootSource = ReadWorldSiteRootSource();
@@ -17,12 +17,7 @@ internal static partial class WorldSiteDeploymentCacheRegressionCases
             "Presentation",
             "Battle",
             "BattleGridHighlightKind.cs"));
-        string highlightSource = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "Presentation",
-            "Battle",
-            "BattleGridHighlightOverlay.cs"));
+        string highlightSource = ReadBattleGridHighlightOverlaySource();
         string tileFactorySource = File.ReadAllText(Path.Combine(
             root,
             "src",
@@ -54,6 +49,7 @@ internal static partial class WorldSiteDeploymentCacheRegressionCases
             Directory.GetFiles(Path.Combine(root, "src", "Runtime", "Battle"), "*.cs", SearchOption.AllDirectories)
                 .OrderBy(path => path)
                 .Select(File.ReadAllText));
+        string projectConfig = File.ReadAllText(Path.Combine(root, "project.godot"));
 
         AssertTrue(
             policySource.Contains("DefaultLocalPerceptionRange = 4", StringComparison.Ordinal) &&
@@ -61,14 +57,18 @@ internal static partial class WorldSiteDeploymentCacheRegressionCases
             "runtime and presentation should share the same local perception range policy");
         AssertTrue(
             siteRootSource.Contains("TryHandleBattlePerceptionOverlayInput(@event)", StringComparison.Ordinal) &&
-            overlaySource.Contains("Key.E", StringComparison.Ordinal) &&
+            overlaySource.Contains("battle_perception_overlay_toggle", StringComparison.Ordinal) &&
+            overlaySource.Contains(".IsActionPressed(", StringComparison.Ordinal) &&
+            !overlaySource.Contains("Key.E", StringComparison.Ordinal) &&
+            projectConfig.Contains("battle_perception_overlay_toggle", StringComparison.Ordinal) &&
+            projectConfig.Contains("\"physical_keycode\":69", StringComparison.Ordinal) &&
             overlaySource.Contains("BattlePerceptionOverlayToggled", StringComparison.Ordinal),
-            "battle runtime should toggle perception range debug overlay with E");
+            "battle runtime should toggle perception range debug overlay through the Input Map action bound to E by default");
         AssertTrue(
             siteRootSource.Contains("EnableBattlePerceptionOverlayForRuntime();", StringComparison.Ordinal) &&
             overlaySource.Contains("_battlePerceptionOverlayVisible = true;", StringComparison.Ordinal) &&
             overlaySource.Contains("RefreshBattlePerceptionOverlay();", StringComparison.Ordinal),
-            "battle runtime should show unit perception ranges by default while preserving the E toggle");
+            "battle runtime should show unit perception ranges by default while preserving the overlay toggle action");
         AssertTrue(
             highlightKindSource.Contains("FriendlyPerception", StringComparison.Ordinal) &&
             highlightKindSource.Contains("EnemyPerception", StringComparison.Ordinal) &&

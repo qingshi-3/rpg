@@ -312,6 +312,13 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
     string root = ProjectRoot();
     string rootSource = ReadWorldSiteRootSource();
     string presentationSource = ReadWorldSitePresentationSource();
+    string commandHudSource = File.ReadAllText(Path.Combine(
+        root,
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
     string siteScene = File.ReadAllText(Path.Combine(
         root,
         "scenes",
@@ -324,6 +331,7 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
         "world",
         "sites",
         "WorldSiteRoot.tscn"));
+    string projectConfig = File.ReadAllText(Path.Combine(root, "project.godot"));
 
     AssertTrue(
         siteScene.Contains("BattleRuntimeHeroFrame", StringComparison.Ordinal) &&
@@ -333,11 +341,15 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
         !siteScene.Contains("BattleRuntimeHeroCommandList", StringComparison.Ordinal),
         "battle runtime command UI should be authored as a persistent hero frame, not a left hero/corps/combined command panel.");
     AssertTrue(
-        rootSource.Contains("TryHandleBattleRuntimePauseInput", StringComparison.Ordinal) &&
-        rootSource.Contains("Key.Space", StringComparison.Ordinal) &&
+        commandHudSource.Contains("TryHandleBattleRuntimePauseInput", StringComparison.Ordinal) &&
+        commandHudSource.Contains("BattleRuntimePauseAction = \"battle_runtime_pause\"", StringComparison.Ordinal) &&
+        commandHudSource.Contains("inputEvent.IsActionPressed(BattleRuntimePauseAction)", StringComparison.Ordinal) &&
+        !rootSource.Contains("Key.Space", StringComparison.Ordinal) &&
+        projectConfig.Contains("battle_runtime_pause", StringComparison.Ordinal) &&
+        projectConfig.Contains("\"physical_keycode\":32", StringComparison.Ordinal) &&
         rootSource.Contains("_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
         rootSource.Contains("ToggleBattleRuntimeCommandPause", StringComparison.Ordinal),
-        "WorldSiteRoot should treat Space as a presentation-only battle command pause toggle.");
+        "WorldSiteRoot should treat the battle runtime pause action as a presentation-only command pause toggle bound to Space by default.");
     AssertTrue(
         rootSource.Contains("RefreshBattleRuntimeHeroFrame", StringComparison.Ordinal) &&
         rootSource.Contains("SelectBattleRuntimeCommandGroup", StringComparison.Ordinal) &&
@@ -412,7 +424,10 @@ internal static void WorldSiteRootBattlePreparationDragUsesTemporaryHighZAndSurf
 internal static void WorldSiteRootBattlePreparationDragPreviewUsesFootprint()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string highlightSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+    string highlightSource = ReadBattleGridHighlightOverlaySource();
+    string battlePresentationDir = Path.Combine(ProjectRoot(), "src", "Presentation", "Battle");
+    string vectorRendererSource = File.ReadAllText(Path.Combine(battlePresentationDir, "BattleGridVectorHighlightRenderer.cs"));
+    string geometrySource = File.ReadAllText(Path.Combine(battlePresentationDir, "BattleGridHighlightGeometry.cs"));
 
     AssertTrue(
         rootSource.Contains("BuildBattlePreparationCompanyFormationDraft", StringComparison.Ordinal) &&
@@ -439,7 +454,8 @@ internal static void WorldSiteRootBattlePreparationDragPreviewUsesFootprint()
     AssertTrue(
         highlightSource.Contains("_hoverCells", StringComparison.Ordinal) &&
         highlightSource.Contains("_hoverOverrideActive", StringComparison.Ordinal) &&
-        highlightSource.Contains("BuildHoverFramePolygon", StringComparison.Ordinal),
+        vectorRendererSource.Contains("BuildHoverFramePolygon", StringComparison.Ordinal) &&
+        geometrySource.Contains("BuildHoverFramePolygon", StringComparison.Ordinal),
         "hover selection overlay should support an explicit multi-cell footprint frame");
     AssertTrue(
         !highlightSource.Contains("yield return BattleGridHighlightKind.Selected;", StringComparison.Ordinal),
@@ -534,11 +550,11 @@ internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
         "strategic-world and site HUD scenes should expose stable layout host names.");
 
     AssertTrue(
-        tacticalWorldHudSource.Contains("node name=\"TopResourceBar\" type=\"PanelContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal) &&
-        tacticalWorldHudSource.Contains("node name=\"SiteDetailPanel\" type=\"PanelContainer\" parent=\"LeftPrimaryPanelHost\"", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("node name=\"TopLeftStatus\" type=\"VBoxContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("node name=\"SiteDetailPanel\" type=\"PanelContainer\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
         peacetimeHudSource.Contains("node name=\"SiteTopBar\" type=\"PanelContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal) &&
         peacetimeHudSource.Contains("node name=\"SitePeacetimePanel\" type=\"PanelContainer\" parent=\"LeftPrimaryPanelHost\"", StringComparison.Ordinal),
-        "existing top bars and primary panels should be mapped into the target layout hosts.");
+        "strategic-world uses fullscreen overlay context UI while site management keeps its dedicated workspace panel.");
 
     AssertTrue(
         managementSource.Contains("Layout hosts are Presentation-only containers", StringComparison.Ordinal),
@@ -546,9 +562,11 @@ internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
 
     AssertTrue(
         tacticalWorldHudSource.Contains("node name=\"SiteDetailPanel\"", StringComparison.Ordinal) &&
-        tacticalWorldHudSource.Contains("offset_left = 24.0", StringComparison.Ordinal) &&
-        tacticalWorldHudSource.Contains("offset_right = 544.0", StringComparison.Ordinal),
-        "UI layout migration should move tactical site detail panel into the left primary workspace.");
+        tacticalWorldHudSource.Contains("anchor_left = 0.25", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("anchor_top = 0.75", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("anchor_right = 0.75", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("anchor_bottom = 1.0", StringComparison.Ordinal),
+        "strategic site detail panel should be a bottom-centered overlay sheet.");
 
     AssertTrue(
         !peacetimeHudSource.Contains("node name=\"BattlePreparationContent\"", StringComparison.Ordinal) &&
@@ -597,16 +615,16 @@ internal static void PresentationUiScenePathsPreserveCodeBindings()
     string siteHud = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
 
     AssertTrue(
-        strategicHud.Contains("node name=\"Margin\" type=\"MarginContainer\" parent=\"LeftPrimaryPanelHost/SiteDetailPanel\"", StringComparison.Ordinal) &&
-        strategicHud.Contains("node name=\"TopResourceBarContent\" type=\"MarginContainer\" parent=\"TopBarHost/TopResourceBar\"", StringComparison.Ordinal),
-        "strategic HUD moved panels must keep full parent paths so code-bound labels/lists remain reachable.");
+        strategicHud.Contains("node name=\"Margin\" type=\"MarginContainer\" parent=\"OverlayHost/SiteDetailPanel\"", StringComparison.Ordinal) &&
+        strategicHud.Contains("node name=\"TopLeftStatus\" type=\"VBoxContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal),
+        "strategic HUD overlay panels must keep full parent paths so code-bound labels/lists remain reachable.");
     AssertTrue(
         siteHud.Contains("node name=\"Margin\" type=\"MarginContainer\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel\"", StringComparison.Ordinal) &&
         siteHud.Contains("node name=\"TopMargin\" type=\"MarginContainer\" parent=\"TopBarHost/SiteTopBar\"", StringComparison.Ordinal),
         "site HUD moved panels must keep full parent paths so management and battle-preparation data binders reach their controls.");
 }
 
-internal static void StrategicWorldMapViewportStartsAfterLeftPanel()
+internal static void StrategicWorldMapViewportFillsScreenBehindHud()
 {
     string geometrySource = File.ReadAllText(Path.Combine(
         ProjectRoot(),
@@ -614,13 +632,24 @@ internal static void StrategicWorldMapViewportStartsAfterLeftPanel()
         "Presentation",
         "World",
         "StrategicWorldRoot.GeometryFormatting.cs"));
+    string scene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "world", "StrategicWorldRoot.tscn"));
+    string resolveBody = ExtractMethodBody(geometrySource, "private Rect2 ResolveMainWorldViewportRect()");
+    string viewportHostBlock = ExtractSceneNodeBlock(scene, "[node name=\"MainWorldViewportHost\"");
 
     AssertTrue(
         geometrySource.Contains("ResolveMainWorldViewportRect", StringComparison.Ordinal) &&
-        geometrySource.Contains("_leftPrimaryPanelHost.GetGlobalRect()", StringComparison.Ordinal) &&
-        geometrySource.Contains("_topBarHost.GetGlobalRect()", StringComparison.Ordinal) &&
+        resolveBody.Contains("_mainWorldViewportHost.GetGlobalRect()", StringComparison.Ordinal) &&
+        !resolveBody.Contains("_leftPrimaryPanelHost", StringComparison.Ordinal) &&
+        !resolveBody.Contains("_topBarHost", StringComparison.Ordinal) &&
+        scene.Contains("node name=\"MainWorldViewportHost\" type=\"SubViewportContainer\" parent=\".\"", StringComparison.Ordinal) &&
+        viewportHostBlock.Contains("anchor_right = 1.0", StringComparison.Ordinal) &&
+        viewportHostBlock.Contains("anchor_bottom = 1.0", StringComparison.Ordinal) &&
+        !viewportHostBlock.Contains("offset_left", StringComparison.Ordinal) &&
+        !viewportHostBlock.Contains("offset_top", StringComparison.Ordinal) &&
+        !viewportHostBlock.Contains("offset_right", StringComparison.Ordinal) &&
+        !viewportHostBlock.Contains("offset_bottom", StringComparison.Ordinal) &&
         !geometrySource.Contains("float mapLeft = DetailWidth + OuterMargin * 2.0f", StringComparison.Ordinal),
-        "strategic map viewport should derive from the left primary and top-bar layout hosts instead of drawing from duplicated constants.");
+        "strategic map viewport should fill the screen; HUD panels must overlay it without changing map/camera layout.");
 }
 
 internal static void StrategicWorldUsesDedicatedMainWorldViewport()

@@ -441,12 +441,13 @@ internal static void StrategicWorldBattleTriggerDialogOmitsStrategicPreparationM
 {
     string rootSource = ReadStrategicWorldRootSource();
     string preBattleBody = ExtractMethodBody(rootSource, "private string BuildPreBattleText(BattleStartRequest request)");
+    string preBattleDataBody = ExtractMethodBody(rootSource, "private StrategicBattleGateDialogData BuildPreBattleDialogData(BattleStartRequest request)");
     string showDialogBody = ExtractMethodBody(rootSource, "private void ShowPreBattleDialog()");
     string announcementBody = ExtractMethodBody(rootSource, "private void BeginBattleAnnouncement(BattleStartRequest request)");
     string focusBody = ExtractMethodBody(rootSource, "private Vector2 ResolveBattleFocusMapPosition(BattleStartRequest request)");
 
     AssertTrue(
-        showDialogBody.Contains("_preBattleDialog.Title = \"触发战斗\"", StringComparison.Ordinal),
+        preBattleDataBody.Contains("Title = \"触发战斗\"", StringComparison.Ordinal),
         "world-map battle gate should use the accepted direct trigger title");
     AssertTrue(
         announcementBody.Contains("FocusWorldMapOn(focusPosition)", StringComparison.Ordinal) &&
@@ -465,6 +466,46 @@ internal static void StrategicWorldBattleTriggerDialogOmitsStrategicPreparationM
         !rootSource.Contains("StrategicPreparationBriefingText", StringComparison.Ordinal) &&
         !rootSource.Contains("战前准备", StringComparison.Ordinal),
         "battle trigger dialog should not expose strategic battle-preparation metadata");
+}
+
+internal static void StrategicWorldBattleGateUsesTwoStageFocusedModal()
+{
+    string root = ProjectRoot();
+    string rootSource = ReadStrategicWorldRootSource();
+    string scene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "PreBattleDialog.tscn"));
+    string showDialogBody = ExtractMethodBody(rootSource, "private void ShowPreBattleDialog()");
+    string deferBody = ExtractMethodBody(rootSource, "private void DeferPendingBattleDecision()");
+
+    string briefDetailsButton = ExtractSceneNodeBlock(scene, "[node name=\"BriefDetailsButton\"");
+    string briefDeferButton = ExtractSceneNodeBlock(scene, "[node name=\"BriefDeferButton\"");
+    string detailPanel = ExtractSceneNodeBlock(scene, "[node name=\"DetailPanel\"");
+    string detailDeferButton = ExtractSceneNodeBlock(scene, "[node name=\"DetailDeferButton\"");
+
+    AssertTrue(
+        !scene.Contains("type=\"AcceptDialog\"", StringComparison.Ordinal) &&
+        scene.Contains("StrategicBattleGateDialog.cs", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"BriefPanel\"", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"DetailPanel\"", StringComparison.Ordinal),
+        "strategic battle gate should be a resource-authored two-stage modal, not a one-button AcceptDialog");
+    AssertTrue(
+        scene.Contains("text = \"进入战斗\"", StringComparison.Ordinal) &&
+        briefDetailsButton.Contains("text = \"查看详情\"", StringComparison.Ordinal) &&
+        briefDeferButton.Contains("text = \"稍后处理\"", StringComparison.Ordinal) &&
+        detailDeferButton.Contains("text = \"稍后处理\"", StringComparison.Ordinal) &&
+        !detailPanel.Contains("text = \"查看详情\"", StringComparison.Ordinal),
+        "brief battle gate should offer enter/details/defer, while detail state should offer only enter/defer");
+    AssertTrue(
+        showDialogBody.Contains("HideWorldDetailSections()", StringComparison.Ordinal) &&
+        showDialogBody.Contains("OpenBrief", StringComparison.Ordinal) &&
+        !showDialogBody.Contains("PopupCentered", StringComparison.Ordinal),
+        "showing the battle gate should hide the selected-site sheet and open the brief modal state instead of popping a legacy dialog");
+    AssertTrue(
+        deferBody.Contains("_pendingBattleRequest = null", StringComparison.Ordinal) &&
+        deferBody.Contains("_pendingStrategicBattleActiveContext = null", StringComparison.Ordinal) &&
+        deferBody.Contains("_worldClockPaused = false", StringComparison.Ordinal) &&
+        !deferBody.Contains("CancelExpedition", StringComparison.Ordinal) &&
+        !deferBody.Contains("ResetUnsupportedAssault", StringComparison.Ordinal),
+        "defer should close the decision UI without retreating or cancelling the arrived assault army");
 }
 
 internal static void WorldSiteRuntimeReturnNoticeOmitsStrategicPreparationReportMetadata()

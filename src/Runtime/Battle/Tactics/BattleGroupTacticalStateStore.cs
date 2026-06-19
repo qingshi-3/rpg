@@ -34,6 +34,14 @@ public sealed class BattleGroupTacticalStateStore
 
     public static BattleGroupTacticalStateStore FromBattleGroups(IEnumerable<BattleGroupSnapshot> groups, string battleId)
     {
+        return FromBattleGroups(groups, battleId, objectiveZones: null);
+    }
+
+    public static BattleGroupTacticalStateStore FromBattleGroups(
+        IEnumerable<BattleGroupSnapshot> groups,
+        string battleId,
+        IReadOnlyList<BattleObjectiveZoneSnapshot> objectiveZones)
+    {
         BattleGroupTacticalStateStore store = new(battleId);
         foreach (BattleGroupSnapshot group in groups ?? Enumerable.Empty<BattleGroupSnapshot>())
         {
@@ -57,16 +65,36 @@ public sealed class BattleGroupTacticalStateStore
             {
                 BattleGroupId = commanderGroupId,
                 TacticalMode = group.TacticalMode,
+                TacticalIntentPlan = BattleTacticalIntentPolicy.NormalizeForRuntime(group),
                 AllowPlayerScopedEngagement = !string.IsNullOrWhiteSpace(group.RuntimeCommanderGroupId),
                 AllowAutonomousFallbackTargeting = !string.IsNullOrWhiteSpace(group.RuntimeCommanderGroupId),
                 EngagementState = BattleGroupEngagementState.NotEngaged
             };
             store._states[commanderGroupId] = state;
 
+            bool hasAuthoredInitialRegion = false;
             foreach (BattleTacticalRegionSnapshot initialRegion in group.InitialTacticalRegions ?? Enumerable.Empty<BattleTacticalRegionSnapshot>())
             {
+                hasAuthoredInitialRegion = true;
                 BattleGroupTacticalRegionMutationResult result = store.TrySetRegion(commanderGroupId, initialRegion, isEnemyPolicyMutation: false);
                 store.RecordInitializationResult(commanderGroupId, result);
+            }
+
+            if (!hasAuthoredInitialRegion &&
+                group.TacticalMode == BattleGroupTacticalMode.PlayerCommanded)
+            {
+                BattleTacticalRegionSnapshot playerPlanRegion = BuildPlayerPlanRegionSeed(
+                    group,
+                    commanderGroupId,
+                    objectiveZones);
+                if (playerPlanRegion != null)
+                {
+                    BattleGroupTacticalRegionMutationResult result = store.TrySetRegion(
+                        commanderGroupId,
+                        playerPlanRegion,
+                        isEnemyPolicyMutation: false);
+                    store.RecordInitializationResult(commanderGroupId, result);
+                }
             }
         }
 
@@ -425,6 +453,7 @@ public sealed class BattleGroupTacticalStateStore
         {
             BattleGroupId = state?.BattleGroupId ?? "",
             TacticalMode = state?.TacticalMode ?? BattleGroupTacticalMode.PlayerCommanded,
+            TacticalIntentPlan = BattleTacticalIntentPolicy.CopyIntentPlan(state?.TacticalIntentPlan),
             AllowPlayerScopedEngagement = state?.AllowPlayerScopedEngagement ?? false,
             AllowAutonomousFallbackTargeting = state?.AllowAutonomousFallbackTargeting ?? false,
             EngagementState = state?.EngagementState ?? BattleGroupEngagementState.NotEngaged,
@@ -510,6 +539,83 @@ public sealed class BattleGroupTacticalStateStore
                current.Height == proposed.Height &&
                string.Equals(current.SourceRegionId ?? "", proposed.SourceRegionId ?? "", StringComparison.Ordinal) &&
                string.Equals(current.ReasonCode ?? "", proposed.ReasonCode ?? "", StringComparison.Ordinal);
+    }
+
+    private static BattleTacticalRegionSnapshot BuildPlayerPlanRegionSeed(
+        BattleGroupSnapshot group,
+        string commanderGroupId,
+        IReadOnlyList<BattleObjectiveZoneSnapshot> objectiveZones)
+    {
+        BattleGroupPlanSnapshot plan = group?.Plan;
+        if (plan == null || string.IsNullOrWhiteSpace(commanderGroupId))
+        {
+            return null;
+        }
+
+        BattleObjectiveZoneSnapshot zone = (objectiveZones ?? Array.Empty<BattleObjectiveZoneSnapshot>())
+            .FirstOrDefault(candidate => string.Equals(
+                candidate?.ObjectiveZoneId ?? "",
+                plan.ObjectiveZoneId ?? "",
+                StringComparison.Ordinal));
+        if (zone != null)
+        {
+            int width = Math.Max(1, zone.Width);
+            int height = Math.Max(1, zone.Height);
+            return BuildPlanRegion(
+                zone.ObjectiveZoneId,
+                commanderGroupId,
+                zone.ObjectiveZoneId,
+                zone.CellX,
+                zone.CellY,
+                zone.CellHeight,
+                width,
+                height);
+        }
+
+        if (!plan.HasObjectiveAnchor)
+        {
+            return null;
+        }
+
+        int planWidth = Math.Max(1, plan.ObjectiveWidth);
+        int planHeight = Math.Max(1, plan.ObjectiveHeight);
+        string regionId = string.IsNullOrWhiteSpace(plan.ObjectiveZoneId)
+            ? $"{commanderGroupId}:player_command:{plan.ObjectiveCellX}:{plan.ObjectiveCellY}:{plan.ObjectiveCellHeight}"
+            : plan.ObjectiveZoneId;
+        return BuildPlanRegion(
+            regionId,
+            commanderGroupId,
+            plan.ObjectiveZoneId ?? "",
+            plan.ObjectiveCellX,
+            plan.ObjectiveCellY,
+            plan.ObjectiveCellHeight,
+            planWidth,
+            planHeight);
+    }
+
+    private static BattleTacticalRegionSnapshot BuildPlanRegion(
+        string regionId,
+        string commanderGroupId,
+        string sourceRegionId,
+        int cellX,
+        int cellY,
+        int cellHeight,
+        int width,
+        int height)
+    {
+        return new BattleTacticalRegionSnapshot
+        {
+            RegionId = regionId ?? "",
+            OwnerBattleGroupId = commanderGroupId ?? "",
+            Kind = BattleTacticalRegionKind.FixedTarget,
+            SourceRegionId = sourceRegionId ?? "",
+            ReasonCode = BattleGroupTacticalReasonCode.RegionAccepted,
+            CenterCellX = cellX + (Math.Max(1, width) - 1) / 2,
+            CenterCellY = cellY + (Math.Max(1, height) - 1) / 2,
+            CenterCellHeight = cellHeight,
+            Width = Math.Max(1, width),
+            Height = Math.Max(1, height)
+        };
     }
 
     private BattleEvent BuildEvent(

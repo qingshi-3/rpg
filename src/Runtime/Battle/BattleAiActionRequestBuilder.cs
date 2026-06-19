@@ -45,19 +45,22 @@ internal static class BattleAiActionRequestBuilder
             }
         }
 
-        if (actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst &&
-            actorFact.Actor.HasObjectiveAnchor &&
-            !BattleObjectiveAdvancePlanner.IsObjectiveReached(actorFact) &&
-            (targetFact == null ||
-             BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
-        {
-            return BattleRuntimeAiActionRequest.AdvanceTowardObjective(actorFact.Actor.ActorId);
-        }
-
-        if (targetFact == null &&
+        bool shouldAdvanceInsideCommandScope =
+            targetFact == null ||
+            actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst &&
+            BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange);
+        if (shouldAdvanceInsideCommandScope &&
             regionMovementGoal != null)
         {
             return BattleRuntimeAiActionRequest.AdvanceTowardRegion(actorFact.Actor.ActorId, regionMovementGoal);
+        }
+
+        if (actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst &&
+            actorFact.Actor.HasObjectiveAnchor &&
+            !BattleObjectiveAdvancePlanner.IsObjectiveReached(actorFact) &&
+            shouldAdvanceInsideCommandScope)
+        {
+            return BattleRuntimeAiActionRequest.AdvanceTowardObjective(actorFact.Actor.ActorId);
         }
 
         if (targetFact == null &&

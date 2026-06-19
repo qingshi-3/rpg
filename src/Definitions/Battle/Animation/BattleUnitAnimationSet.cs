@@ -25,11 +25,6 @@ public partial class BattleUnitAnimationSet : Resource
     [Export]
     public string DefeatedAnimation { get; set; } = "defeated";
 
-    [ExportGroup("AnimatedSprite2D")]
-
-    [Export]
-    public bool PreferAnimatedSprite { get; set; } = true;
-
     [ExportGroup("AnimatedSprite2D Frame Balancing")]
 
     [Export]
@@ -63,6 +58,13 @@ public partial class BattleUnitAnimationSet : Resource
 
     [Export]
     public double TargetDefeatedSeconds { get; set; } = 0.4;
+
+    [ExportGroup("Frame Control")]
+
+    [Export(PropertyHint.Range, "0,64,1")]
+    // Channeled releases hold the authored cast body cue on this concrete
+    // SpriteFrames frame, then resume the remaining frames after Runtime ends it.
+    public int ChanneledSkillCastHoldFrame { get; set; } = 2;
 
     [ExportGroup("Combat Timing")]
 

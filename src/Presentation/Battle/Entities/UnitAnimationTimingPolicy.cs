@@ -62,13 +62,6 @@ internal static class UnitAnimationTimingPolicy
                 : targetSeconds;
     }
 
-    internal static float ResolveAnimationPlayerSpeedScale(string cue, double attackSpeed)
-    {
-        return cue == "attack"
-            ? (float)BattleAttackSpeedPolicy.Normalize(attackSpeed)
-            : 1f;
-    }
-
     internal static double ScaleAnimationSecondsByAttackSpeed(double seconds, string cue, double attackSpeed)
     {
         return cue == "attack"

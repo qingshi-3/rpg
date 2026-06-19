@@ -10,14 +10,15 @@ internal static class TargetBattleTemporaryRegionRegressionCases
 
     public static void Register(Action<string, Action> run)
     {
-        run("temporary region builds from player clusters when fixed regions empty", TemporaryRegionBuildsFromPlayerClustersWhenFixedRegionsEmpty);
+        run("default enemy intent keeps stable fixed region when cluster moves", DefaultEnemyIntentKeepsStableFixedRegionWhenClusterMoves);
+        run("explicit enemy cluster pursuit intent may use temporary region", ExplicitEnemyClusterPursuitIntentMayUseTemporaryRegion);
         run("temporary region refresh interval defaults to five ticks", TemporaryRegionRefreshIntervalDefaultsToFiveTicks);
         run("player active command blocks autonomous temporary region", PlayerActiveCommandBlocksAutonomousTemporaryRegion);
         run("player completed command creates autonomous temporary region", PlayerCompletedCommandCreatesAutonomousTemporaryRegion);
         run("player autonomous temporary region clears on engagement", PlayerAutonomousTemporaryRegionClearsOnEngagement);
     }
 
-    private static void TemporaryRegionBuildsFromPlayerClustersWhenFixedRegionsEmpty()
+    private static void DefaultEnemyIntentKeepsStableFixedRegionWhenClusterMoves()
     {
         BattleRuntimeSessionController controller = new BattleRuntimeSession()
             .Begin(BuildTemporaryRegionSnapshot());
@@ -28,7 +29,30 @@ internal static class TargetBattleTemporaryRegionRegressionCases
             item.Kind == BattleEventKind.MovementStarted &&
             item.ActorId == "enemy_force:1");
 
-        AssertEqual(BattleTacticalRegionKind.TemporaryTarget, state.SelectedRegion?.Kind, "enemy should replace empty fixed region with temporary target");
+        AssertEqual(BattleTacticalRegionKind.FixedTarget, state.SelectedRegion?.Kind, "default enemy intent should retain the stable fixed target");
+        AssertEqual("empty_fixed_region", state.SelectedRegion?.RegionId, "default enemy intent should not replace fixed target with volatile cluster");
+        AssertEqual("enemy_group", state.SelectedRegion?.OwnerBattleGroupId, "fixed region owner");
+        AssertEqual(5, state.SelectedRegion?.CenterCellX, "fixed region center x");
+        AssertEqual(0, state.SelectedRegion?.CenterCellY, "fixed region center y");
+        AssertTrue(regionMove != null, "enemy should keep moving through the fixed region goal");
+        AssertEqual("empty_fixed_region", regionMove!.TargetId, "movement should target the retained fixed region");
+        AssertEqual(BattleGroupTacticalReasonCode.RegionFixedAdvance, regionMove.ReasonCode, "stable region movement reason");
+    }
+
+    private static void ExplicitEnemyClusterPursuitIntentMayUseTemporaryRegion()
+    {
+        BattleStartSnapshot snapshot = BuildTemporaryRegionSnapshot();
+        AllowVolatileClusterPursuit(snapshot);
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(snapshot);
+
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
+        BattleGroupTacticalState state = controller.State.TacticalStates["enemy_group"];
+        BattleEvent? regionMove = tick.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.MovementStarted &&
+            item.ActorId == "enemy_force:1");
+
+        AssertEqual(BattleTacticalRegionKind.TemporaryTarget, state.SelectedRegion?.Kind, "explicit cluster pursuit may replace the fixed target");
         AssertEqual("enemy_group", state.SelectedRegion?.OwnerBattleGroupId, "temporary region owner");
         AssertEqual(10, state.SelectedRegion?.CenterCellX, "temporary region center x");
         AssertEqual(0, state.SelectedRegion?.CenterCellY, "temporary region center y");
@@ -39,8 +63,10 @@ internal static class TargetBattleTemporaryRegionRegressionCases
 
     private static void TemporaryRegionRefreshIntervalDefaultsToFiveTicks()
     {
+        BattleStartSnapshot snapshot = BuildTemporaryRegionSnapshot();
+        AllowVolatileClusterPursuit(snapshot);
         BattleRuntimeSessionController controller = new BattleRuntimeSession()
-            .Begin(BuildTemporaryRegionSnapshot());
+            .Begin(snapshot);
 
         controller.AdvanceNextTick();
         AssertEqual(10, controller.State.TacticalStates["enemy_group"].SelectedRegion?.CenterCellX, "initial temporary center");
@@ -139,7 +165,7 @@ internal static class TargetBattleTemporaryRegionRegressionCases
                     TacticalMode = BattleGroupTacticalMode.EnemyOffense,
                     InitialTacticalRegions =
                     {
-                        BuildRegion("empty_fixed_region", "enemy_group", BattleTacticalRegionKind.FixedTarget, 0, 0)
+                        BuildRegion("empty_fixed_region", "enemy_group", BattleTacticalRegionKind.FixedTarget, 5, 0)
                     }
                 },
                 new BattleGroupSnapshot
@@ -170,6 +196,16 @@ internal static class TargetBattleTemporaryRegionRegressionCases
 
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
         return snapshot;
+    }
+
+    private static void AllowVolatileClusterPursuit(BattleStartSnapshot snapshot)
+    {
+        snapshot.BattleGroups.Single(item => item.BattleGroupId == "enemy_group").TacticalIntentPlan = new BattleTacticalIntentPlanSnapshot
+        {
+            IntentId = BattleTacticalIntentIds.AssaultTarget,
+            PrimaryTargetSelector = BattleTargetSelectors.RuntimeObservedHostileCluster,
+            RetargetPolicyId = BattleRetargetPolicyIds.AllowVolatileObservation
+        };
     }
 
     private static BattleStartSnapshot BuildPlayerAutonomousRegionSnapshot(bool playerStartsAtCommand)

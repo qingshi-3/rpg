@@ -1,7 +1,11 @@
-[gd_scene format=3]
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="1_theme"]
 
 [node name="WorldSecondaryActionButton" type="Button"]
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 54)
 size_flags_horizontal = 3
 focus_mode = 2
 autowrap_mode = 3
+theme = ExtResource("1_theme")
+theme_type_variation = &"WorldSecondaryActionButton"

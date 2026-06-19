@@ -110,7 +110,10 @@ internal sealed class BattleRuntimeLivePresentationState
         _actorMovementTails.TryGetValue(targetId, out Task targetMovementTail);
         _targetDamageTails.TryGetValue(targetId, out Task previousTargetDamageTail);
         diagnostic?.LogQueued(actorMovementTail, targetMovementTail, previousTargetDamageTail, _pendingPresentationTasks.Count);
-        Task task = RunAfterTargetDamageDependenciesAsync(actorMovementTail, targetMovementTail, previousTargetDamageTail, createTask, diagnostic);
+        // Damage and defeat are Runtime semantics. They wait for the target's
+        // visual movement and same-target damage order, but stale attacker
+        // movement backlog must not make an already-resolved kill look delayed.
+        Task task = RunAfterTargetDamageDependenciesAsync(targetMovementTail, previousTargetDamageTail, createTask, diagnostic);
         if (!string.IsNullOrWhiteSpace(targetId))
         {
             _targetDamageTails[targetId] = task;
@@ -314,13 +317,12 @@ internal sealed class BattleRuntimeLivePresentationState
     }
 
     private static Task RunAfterTargetDamageDependenciesAsync(
-        Task actorMovementTail,
         Task targetMovementTail,
         Task previousTargetDamageTail,
         System.Func<Task, Task> createTask,
         BattlePresentationFatalDamageDiagnostic diagnostic = null)
     {
-        return RunAfterTargetDamageDependenciesAsync(new[] { actorMovementTail, targetMovementTail }, previousTargetDamageTail, createTask, diagnostic);
+        return RunAfterTargetDamageDependenciesAsync(new[] { targetMovementTail }, previousTargetDamageTail, createTask, diagnostic);
     }
 
     private static async Task RunAfterDependenciesAsync(
@@ -452,7 +454,7 @@ internal sealed class BattleRuntimeLivePresentationState
         {
             Log(
                 "Queued",
-                $"pendingTasks={pendingPresentationTasks} actorMovementTailPending={IsPending(actorMovementTail)} targetMovementTailPending={IsPending(targetMovementTail)} previousTargetDamageTailPending={IsPending(previousTargetDamageTail)} actionDuration={Format(ActionDurationSeconds)} impactDelay={Format(ActionImpactDelaySeconds)}");
+                $"pendingTasks={pendingPresentationTasks} attackerMovementTailIgnoredPending={IsPending(actorMovementTail)} targetMovementTailPending={IsPending(targetMovementTail)} previousTargetDamageTailPending={IsPending(previousTargetDamageTail)} actionDuration={Format(ActionDurationSeconds)} impactDelay={Format(ActionImpactDelaySeconds)}");
         }
 
         public void LogDependenciesReady()

@@ -381,10 +381,11 @@ internal sealed partial class BattleRuntimeTickResolver
             : localCombatRegion == null
                 ? facts
                 : BattleLocalCombatRegionResolver.FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
+        bool useCommandScopedTargets = regionMovementGoal == null || actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst;
         BattleTargetSelectionService.BattleTargetCandidateSet targetCandidateSet = combatJoinActionZone != null
             ? BattleTargetSelectionService.BuildCombatZoneScopedTargetCandidates(
                 targetFacts, actorFact, navigationGraph, occupancy, performanceCounters, combatJoinRegion)
-            : regionMovementGoal == null
+            : useCommandScopedTargets
             ? BattleTargetSelectionService.BuildTargetCandidatesForCommand(
                 targetFacts,
                 actorFact,
@@ -392,9 +393,7 @@ internal sealed partial class BattleRuntimeTickResolver
                 occupancy,
                 performanceCounters)
             : BattleTargetSelectionService.BuildRegionScopedTargetCandidates(targetFacts, actorFact);
-        // Target choice is part of the behavior-tree decision boundary. The
-        // resolver only builds scoped candidate facts, then uses the selected id
-        // to build target-specific local combat facts for the final action pass.
+        // Target choice remains the behavior-tree boundary; the resolver only scopes candidate facts.
         BattleRuntimeAiDecisionFacts targetSelectionFacts = BattleAiActionRequestBuilder.BuildDecisionFacts(
             actorFact,
             null,

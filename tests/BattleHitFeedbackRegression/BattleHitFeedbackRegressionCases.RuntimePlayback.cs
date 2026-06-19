@@ -1,4 +1,5 @@
 using Rpg.Runtime.Battle.Events;
+using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Battle.Flow;
 
 internal static partial class BattleHitFeedbackRegressionCases
@@ -45,13 +46,19 @@ internal static void BattleRuntimePlaybackDoesNotGloballyGateMovementOnAttackAni
 
 internal static void BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary()
 {
-    string runtime = ReadBattleRuntimeLiveObservationSource();
-    string playback = ReadBattleRuntimePlaybackSource();
+    string liveObservation = ReadBattleRuntimeLiveObservationSource();
+    string unitRoot = ReadBattleUnitRootSource();
 
     AssertTrue(
-        runtime.Contains("TrackActorMovement", StringComparison.Ordinal) &&
-        playback.Contains("returnToIdleOnComplete: false", StringComparison.Ordinal),
-        "live movement observation should not close the move loop after every single runtime step");
+        liveObservation.Contains("TrackActorMovement", StringComparison.Ordinal) &&
+        liveObservation.Contains("returnToIdleOnComplete: true", StringComparison.Ordinal) &&
+        !liveObservation.Contains("returnToIdleOnComplete: false", StringComparison.Ordinal),
+        "live movement observation should let movement lanes close the move loop once no committed continuation arrives");
+    AssertTrue(
+        unitRoot.Contains("lane.BeginContinuationHold(ResolveVisualMoveBufferSeconds());", StringComparison.Ordinal) &&
+        unitRoot.Contains("if (lane.ReturnToIdleOnComplete)", StringComparison.Ordinal) &&
+        unitRoot.Contains("_pendingMovementIdleSeconds[entity] = ResolveMovementIdleGraceSeconds();", StringComparison.Ordinal),
+        "movement lanes should still hold briefly for a continuation before returning a stopped unit to idle");
 }
 
 internal static void BattleRuntimeLiveMovementUsesActorMotionLane()
@@ -239,6 +246,48 @@ internal static void ThunderTagPresentationShowsLightningAndMark()
         "battle unit root should instantiate authored lightning-link and thunder-mark FX resources for thunder tag");
     AssertTrue(File.Exists(thunderLinkScenePath), "thunder tag should have an authored lightning link scene");
     AssertTrue(File.Exists(thunderMarkScenePath), "thunder tag should have an authored persistent mark scene");
+}
+
+internal static void ThunderMarkLifetimeTimerIsGenerationGuarded()
+{
+    string source = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleThunderMarkFx.cs"));
+    string playBody = ExtractMethodBlock(source, "public void Play()");
+    string exitTreeBody = ExtractMethodBlock(source, "public override void _ExitTree()");
+    string lifetimeBody = ExtractMethodBlock(source, "private async System.Threading.Tasks.Task QueueFreeAfterLifetime(");
+
+    AssertTrue(
+        source.Contains("private int _lifetimeVersion", StringComparison.Ordinal),
+        "thunder mark FX should keep a local lifetime generation for repeated Play calls");
+    AssertTrue(
+        playBody.Contains("int lifetimeVersion = ++_lifetimeVersion", StringComparison.Ordinal) &&
+        playBody.Contains("QueueFreeAfterLifetime(lifetimeVersion)", StringComparison.Ordinal),
+        "each Play call should start a lifetime wait scoped to the current generation");
+    AssertTrue(
+        exitTreeBody.Contains("_lifetimeVersion++", StringComparison.Ordinal) &&
+        exitTreeBody.IndexOf("_lifetimeVersion++", StringComparison.Ordinal) <
+        exitTreeBody.IndexOf("KillTween()", StringComparison.Ordinal),
+        "exiting the tree should invalidate pending lifetime waits before killing local presentation state");
+    AssertTrue(
+        lifetimeBody.Contains("CreateTimer(System.Math.Max(0.5, LifetimeSeconds), processAlways: false)", StringComparison.Ordinal),
+        "thunder mark lifetime timer should remain pause-aware instead of completing while the battle scene tree is paused");
+
+    string lifetimeGuard = ExtractMethodBlock(source, "private bool IsLifetimeVersionCurrent(");
+    int awaitIndex = lifetimeBody.IndexOf("await ToSignal(", StringComparison.Ordinal);
+    int postAwaitGuardIndex = lifetimeBody.IndexOf("if (IsLifetimeVersionCurrent(lifetimeVersion))", awaitIndex, StringComparison.Ordinal);
+    int queueFreeIndex = lifetimeBody.IndexOf("QueueFree()", StringComparison.Ordinal);
+    AssertTrue(
+        lifetimeGuard.Contains("GodotObject.IsInstanceValid(this)", StringComparison.Ordinal) &&
+        lifetimeGuard.Contains("IsInsideTree()", StringComparison.Ordinal) &&
+        lifetimeGuard.Contains("lifetimeVersion == _lifetimeVersion", StringComparison.Ordinal),
+        "post-await lifetime continuation should require the node to still be valid, inside the tree, and on the same generation");
+    AssertTrue(
+        awaitIndex >= 0 &&
+        postAwaitGuardIndex > awaitIndex &&
+        queueFreeIndex > postAwaitGuardIndex,
+        "QueueFree should only run after the lifetime timer continuation rechecks the current generation and node lifecycle");
+    AssertTrue(
+        source.Contains("CreateTween().BindNode(this)", StringComparison.Ordinal),
+        "thunder mark pulse Tween should be bound to the FX node lifecycle");
 }
 
 internal static void ThunderTagProjectileReusesChainLightningFxFrames()
@@ -448,6 +497,54 @@ internal static void RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAtta
         "live damage delay should depend on target movement tail, not target attack backlog");
 }
 
+internal static void RuntimeTargetDamageDoesNotWaitForAttackerMovementBacklog()
+{
+    Type? stateType = Type.GetType("Rpg.Presentation.World.Sites.BattleRuntimeLivePresentationState, rpg");
+    AssertTrue(stateType != null, "missing live presentation state type");
+    object state = Activator.CreateInstance(
+        stateType!,
+        new object[] { new Dictionary<string, BattleEntity>(StringComparer.Ordinal) })!;
+    TaskCompletionSource attackerMovement = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    TaskCompletionSource<bool> damageTaskStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    stateType!.GetMethod("TrackActorMovement")!.Invoke(
+        state,
+        new object[]
+        {
+            "attacker",
+            new Func<double>(() => 4.8),
+            new Func<double, Task>(_ => attackerMovement.Task)
+        });
+    stateType.GetMethod("TrackTargetDamage")!.Invoke(
+        state,
+        new object?[]
+        {
+            "attacker",
+            "target",
+            new Func<Task, Task>(previousTargetDamageTail =>
+            {
+                damageTaskStarted.SetResult(previousTargetDamageTail != null);
+                return Task.CompletedTask;
+            }),
+            null
+        });
+
+    bool startedBeforeAttackerMovementFinished = Task.WhenAny(
+        damageTaskStarted.Task,
+        Task.Delay(120)).GetAwaiter().GetResult() == damageTaskStarted.Task;
+    attackerMovement.SetResult();
+    ((Task)stateType.GetMethod("WaitForAllAsync")!.Invoke(state, Array.Empty<object>())!)
+        .GetAwaiter()
+        .GetResult();
+
+    AssertTrue(
+        startedBeforeAttackerMovementFinished,
+        "target damage semantics should not wait behind the attacker's stale movement presentation backlog");
+    AssertTrue(
+        damageTaskStarted.Task.Result == false,
+        "first target damage task should not receive a previous same-target damage tail");
+}
+
 internal static void RuntimePlaybackAppliesDamageSemanticsThroughTargetQueue()
 {
     string state = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"));
@@ -530,7 +627,7 @@ internal static void BattleRuntimePresentationStartsIncrementalRuntimeBeforeSett
         runtime.Contains("CompleteResolvedBattle", StringComparison.Ordinal),
         "world-site presentation should advance runtime on a live simulation clock before settlement");
     AssertTrue(
-        !runtime.Contains("TryResolveActiveBattle", StringComparison.Ordinal),
+        !runtime.Contains("TryResolveActiveBattle(", StringComparison.Ordinal),
         "presentation-backed battle should not request an already resolved full battle stream");
 }
 

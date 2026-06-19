@@ -28,6 +28,7 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             SourceDefinitionId = skill.SkillId ?? "",
             Kind = BattleEventKind.SkillUsed,
             ReasonCode = skill.SkillId ?? "",
+            ActionDurationSeconds = ResolveSkillUsedActionDurationSeconds(skill),
             RuntimeTick = runtimeTick,
             RuntimeTimeSeconds = runtimeTimeSeconds,
             HasActorCells = true,
@@ -39,5 +40,24 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             TargetGridY = target?.GridY ?? command.TargetGridY,
             TargetGridHeight = target?.GridHeight ?? command.TargetGridHeight
         });
+    }
+
+    private static double ResolveSkillUsedActionDurationSeconds(BattleSkillSnapshot skill)
+    {
+        if (skill?.Effects == null || skill.Effects.Count == 0)
+        {
+            return 0;
+        }
+
+        double durationSeconds = 0;
+        foreach (BattleSkillEffectSnapshot effect in skill.Effects)
+        {
+            if (effect?.Kind == BattleSkillEffectKind.StartChanneledAreaDamage)
+            {
+                durationSeconds = System.Math.Max(durationSeconds, System.Math.Max(0, effect.DurationSeconds));
+            }
+        }
+
+        return durationSeconds;
     }
 }

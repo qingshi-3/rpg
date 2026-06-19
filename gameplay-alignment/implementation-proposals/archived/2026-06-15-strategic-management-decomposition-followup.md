@@ -1,6 +1,6 @@
 # Strategic Management Decomposition Follow-Up Implementation Proposal
 
-Status: Pending
+Status: Implemented - Automated Verification Passed
 
 ## Origin And Authority
 
@@ -47,3 +47,12 @@ dotnet build rpg.csproj -maxcpucount:2 -v:minimal
 - `StrategicManagementCommandService.cs` is below the general 1000-line guard or has a smaller tracked budget tied to a remaining focused follow-up.
 - `tests/StrategicManagementRegression/Program.cs` no longer owns the full Strategic Management regression body.
 - The oversized-code guard no longer needs Strategic Management-specific large-file allowances.
+
+## Acceptance Evidence
+
+- 2026-06-16: Split `StrategicManagementCommandService` into focused partial files for resources, city/corps commands, expeditions, battle results, and shared command helpers. `StrategicManagementCommandService.cs` now only preserves the public command boundary constructor and shared helper surface.
+- 2026-06-16: Split `tests/StrategicManagementRegression/Program.cs` into the registration runner plus focused `StrategicManagementRegressionCases.*.cs` files for state, city/corps, expedition bridge, battle results, dashboard/timeflow, and support helpers.
+- 2026-06-16: Removed the Strategic Management-specific oversized allowances from `TargetBattleArchitectureRegression`; the global oversized-code guard now passes without allowances for `StrategicManagementCommandService.cs` or `StrategicManagementRegression/Program.cs`.
+- 2026-06-16: `dotnet run --project tests\StrategicManagementRegression\StrategicManagementRegression.csproj -v:minimal /p:GodotProjectDir=D:\godot\rpg` passed. The existing Godot source-generator warning about `GodotProjectDir` remained.
+- 2026-06-16: `dotnet run --project tests\TargetBattleArchitectureRegression\TargetBattleArchitectureRegression.csproj -v:minimal /p:GodotProjectDir=D:\godot\rpg` passed. Existing nullable warnings and the existing Godot source-generator warning remained.
+- 2026-06-16: `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` passed with 0 warnings and 0 errors.

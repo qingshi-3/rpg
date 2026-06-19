@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Rpg.Application.Battle.Snapshots;
 
 namespace Rpg.Application.Battle;
 
@@ -14,8 +15,10 @@ public sealed class BattleForceRequest
     public string StrategicParticipantId { get; set; } = "";
     public string StrategicHeroId { get; set; } = "";
     public string StrategicHeroDefinitionId { get; set; } = "";
+    public string StrategicHeroBattleUnitId { get; set; } = "";
     public string StrategicCorpsInstanceId { get; set; } = "";
     public string StrategicCorpsDefinitionId { get; set; } = "";
+    public string StrategicCorpsBattleUnitId { get; set; } = "";
     public string StrategicSourceLocationId { get; set; } = "";
     public int StrategicPreBattleCorpsStrength { get; set; }
     public int Count { get; set; }
@@ -31,5 +34,6 @@ public sealed class BattleForceRequest
     public string FactionId { get; set; } = "";
     public string PreferredEntranceId { get; set; } = "";
     public string DefaultFormationId { get; set; } = "";
+    public BattleTacticalIntentPlanSnapshot TacticalIntentPlan { get; set; } = new();
     public List<BattleForcePlacementRequest> PreferredPlacements { get; set; } = new();
 }

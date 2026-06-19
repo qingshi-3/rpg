@@ -8,6 +8,8 @@ namespace Rpg.Presentation.Debug;
 
 public partial class PerformanceDebugOverlay : CanvasLayer
 {
+    private const string PerformanceDebugToggleAction = "performance_debug_toggle";
+
     [Export]
     public bool VisibleOnStart { get; set; } = true;
 
@@ -15,7 +17,7 @@ public partial class PerformanceDebugOverlay : CanvasLayer
     public double SampleIntervalSeconds { get; set; } = 0.5;
 
     [Export]
-    public Key ToggleKey { get; set; } = Key.F3;
+    public string ToggleAction { get; set; } = PerformanceDebugToggleAction;
 
     private readonly StringBuilder _builder = new(1024);
     private Label _label;
@@ -35,12 +37,7 @@ public partial class PerformanceDebugOverlay : CanvasLayer
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event is not InputEventKey { Pressed: true, Echo: false } keyEvent)
-        {
-            return;
-        }
-
-        if (keyEvent.Keycode != ToggleKey && keyEvent.PhysicalKeycode != ToggleKey)
+        if (string.IsNullOrWhiteSpace(ToggleAction) || !@event.IsActionPressed(ToggleAction))
         {
             return;
         }
@@ -97,7 +94,7 @@ public partial class PerformanceDebugOverlay : CanvasLayer
         _builder.AppendLine($"Working set: {FormatBytes(process.WorkingSet64)}");
         _builder.AppendLine($"Private mem: {FormatBytes(process.PrivateMemorySize64)}");
         _builder.AppendLine($"GC delta: gen0 +{gc0 - _lastGc0}  gen1 +{gc1 - _lastGc1}  gen2 +{gc2 - _lastGc2}");
-        _builder.AppendLine($"F3: {(Visible ? "hide" : "show")}");
+        _builder.AppendLine($"{ToggleAction}: {(Visible ? "hide" : "show")}");
 
         _lastGc0 = gc0;
         _lastGc1 = gc1;

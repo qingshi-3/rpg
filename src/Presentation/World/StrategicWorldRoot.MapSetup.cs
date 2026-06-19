@@ -186,11 +186,6 @@ public partial class StrategicWorldRoot
 
     private void UpdateMainWorldViewportLayout(Rect2 mapBounds)
     {
-        if (_mainWorldViewportHost != null)
-        {
-            SetFixedRect(_mainWorldViewportHost, mapBounds);
-        }
-
         Vector2 viewportSize = new(
             Mathf.Max(1.0f, mapBounds.Size.X),
             Mathf.Max(1.0f, mapBounds.Size.Y));
@@ -208,8 +203,9 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        _worldMapOverlay.Position = Vector2.Zero;
-        _worldMapOverlay.Size = viewportSize;
+        // MainWorldViewportHost keeps its scene-authored anchors. This method only
+        // syncs the SubViewport texture and overlay to that stable host rectangle.
+        SetFullRect(_worldMapOverlay);
     }
 
     private bool TryCalculateStrategicMapBounds(out Rect2 bounds)

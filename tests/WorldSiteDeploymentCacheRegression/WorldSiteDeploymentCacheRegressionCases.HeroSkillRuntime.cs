@@ -170,12 +170,13 @@ private static void AssertThunderSpiralSkillSnapshot(IReadOnlyList<BattleSkillSn
     BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillId == "first_slice_skill_thunder_spiral_break");
     AssertTrue(skill != null, "snapshot should include thunder spiral break");
     AssertEqual("雷旋破", skill.DisplayName, "thunder spiral display name");
-    AssertEqual(BattleSkillTargetingMode.None, skill.TargetingMode, "thunder spiral targeting mode");
+    AssertEqual(BattleSkillTargetingMode.TargetedCell, skill.TargetingMode, "thunder spiral targeting mode");
+    AssertEqual(3, skill.Range, "thunder spiral direction target center range");
     BattleSkillEffectSnapshot channel = skill.Effects.FirstOrDefault(item => item.Kind == BattleSkillEffectKind.StartChanneledAreaDamage);
     AssertTrue(channel != null, "thunder spiral should start a channeled damage window");
     AssertEqual(14, channel.Amount, "thunder spiral tick damage");
     AssertEqual(1, channel.Radius, "thunder spiral radius");
-    AssertTrue(channel.DurationSeconds > 0 && channel.TickIntervalSeconds > 0, "thunder spiral should carry duration and tick interval");
+    AssertTrue(channel.DurationSeconds >= 1.4 && channel.TickIntervalSeconds > 0, "thunder spiral should carry a readable channel duration and tick interval");
 }
 
 internal static void WorldSiteBattleRuntimeHeroSkillTargetClickBuildsTargetedCommand()
@@ -281,6 +282,52 @@ internal static void BattleRuntimeThunderFoldUsesTwoStageTargeting()
     AssertTrue(
         requestFactoryBody.Contains("SelectedSpatialMarkId = selectedSpatialMarkId", StringComparison.Ordinal),
         "fold command requests should carry the selected Runtime spatial mark id to Runtime validation");
+}
+
+internal static void BattleRuntimeThunderSpiralUsesDirectionPreviewAndSecondClickSubmit()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string beginBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeSkillPress(BattleRuntimeCommandGroupView selected, string skillId)");
+    string targetInputBody = ExtractMethodBody(rootSource, "private bool TryHandleBattleRuntimeHeroSkillTargetInput(InputEvent inputEvent)");
+    string refreshBody = ExtractMethodBody(rootSource, "private void RefreshBattleRuntimeHeroSkillTargetPreview()");
+
+    AssertTrue(
+        beginBody.Contains("BeginBattleRuntimeHeroSkillTargetPicking(selected, normalizedSkillId)", StringComparison.Ordinal) &&
+        !beginBody.Contains("HeroSkillCommandIds.ThunderSpiralBreakSkillId", StringComparison.Ordinal),
+        "thunder spiral should use the normal target-picking entry instead of a skill-id hardcoded immediate submit");
+    AssertTrue(
+        targetInputBody.Contains("HeroSkillCommandIds.ThunderSpiralBreakSkillId", StringComparison.Ordinal) &&
+        targetInputBody.Contains("TrySubmitBattleRuntimeThunderSpiralDirection(position, sourceActorId)", StringComparison.Ordinal) &&
+        rootSource.Contains("ResolveBattleRuntimeThunderSpiralTargetCenter", StringComparison.Ordinal) &&
+        rootSource.Contains("SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, \"\", center)", StringComparison.Ordinal),
+        "thunder spiral click handling should resolve the current mouse quadrant into a direction center and only then submit the command");
+    AssertTrue(
+        refreshBody.Contains("BuildBattleRuntimeThunderSpiralAreaCells(source, position)", StringComparison.Ordinal) &&
+        refreshBody.Contains("BattleGridHighlightKind.Target", StringComparison.Ordinal),
+        "thunder spiral preview should render the resolved forward 3x3 target area as target highlight cells");
+
+    BattleEntity source = BuildHeroSkillTargetEntity("player_force:1", BattleFaction.Player);
+    GridOccupantComponent grid = source.GetComponent<GridOccupantComponent>();
+    grid.GridX = 0;
+    grid.GridY = 0;
+    grid.FootprintWidth = 1;
+    grid.FootprintHeight = 1;
+
+    Type resolverType = typeof(BattleEntity).Assembly.GetType(
+        "Rpg.Presentation.World.Sites.BattleRuntimeHeroSkillTargetPresentation",
+        throwOnError: true)!;
+    System.Reflection.MethodInfo method = resolverType.GetMethod(
+        "BuildThunderSpiralAreaCells",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+        new[] { typeof(BattleEntity), typeof(GridPosition), typeof(BattleGridMap) })!;
+
+    var rightCells = ((IEnumerable<GridPosition>)method.Invoke(null, new object?[] { source, new GridPosition(4, 1), null })!)
+        .ToHashSet();
+
+    AssertTrue(rightCells.Contains(new GridPosition(1, -1)), "right-direction thunder spiral should include the front-left corner of the 3x3 area");
+    AssertTrue(rightCells.Contains(new GridPosition(2, 0)), "right-direction thunder spiral should include the resolved area center");
+    AssertTrue(rightCells.Contains(new GridPosition(3, 1)), "right-direction thunder spiral should include the front-right corner of the 3x3 area");
+    AssertTrue(!rightCells.Contains(new GridPosition(-1, 0)), "right-direction thunder spiral should not highlight cells behind the caster");
 }
 
 internal static void WorldSiteBattleRuntimeHeroSkillTargetClickBuildsCasterScopedCommand()

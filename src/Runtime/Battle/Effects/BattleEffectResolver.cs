@@ -69,11 +69,7 @@ internal static class BattleEffectResolver
                     runtimeTick,
                     runtimeTimeSeconds,
                     actor,
-                    channel.SourceCommandId,
-                    channel.SourceActionId,
-                    channel.SourceDefinitionId,
-                    channel.DamageAmount,
-                    channel.Radius));
+                    channel));
                 channel.NextTickAtSeconds += Math.Max(0.001, channel.TickIntervalSeconds);
             }
         }
@@ -274,7 +270,11 @@ internal static class BattleEffectResolver
             NextTickAtSeconds = context.RuntimeTimeSeconds + tickIntervalSeconds,
             TickIntervalSeconds = tickIntervalSeconds,
             DamageAmount = Math.Max(0, payload.Amount),
-            Radius = Math.Max(0, payload.Radius)
+            Radius = Math.Max(0, payload.Radius),
+            HasTargetOffset = context.HasTargetGrid,
+            TargetOffsetX = context.HasTargetGrid ? context.TargetGridX - actor.GridX : 0,
+            TargetOffsetY = context.HasTargetGrid ? context.TargetGridY - actor.GridY : 0,
+            TargetOffsetHeight = context.HasTargetGrid ? context.TargetGridHeight - actor.GridHeight : 0
         };
         state.ActiveChannels.Add(channel);
 
@@ -284,11 +284,7 @@ internal static class BattleEffectResolver
             context.RuntimeTick,
             context.RuntimeTimeSeconds,
             actor,
-            context.SourceCommandId ?? "",
-            context.SourceActionId ?? "",
-            context.SourceDefinitionId ?? "",
-            channel.DamageAmount,
-            channel.Radius);
+            channel);
     }
 
     private static IReadOnlyList<BattleEvent> ApplyChannelDamageTick(
@@ -297,19 +293,16 @@ internal static class BattleEffectResolver
         int runtimeTick,
         double runtimeTimeSeconds,
         BattleRuntimeActor actor,
-        string sourceCommandId,
-        string sourceActionId,
-        string sourceDefinitionId,
-        int damageAmount,
-        int radius)
+        BattleRuntimeActiveChannel channel)
     {
-        if (state?.Actors == null || actor == null || damageAmount <= 0)
+        if (state?.Actors == null || actor == null || channel == null || channel.DamageAmount <= 0)
         {
             return Array.Empty<BattleEvent>();
         }
 
         List<BattleEvent> events = new();
-        BattleGridCoord actorAnchor = new(actor.GridX, actor.GridY, actor.GridHeight);
+        BattleGridCoord channelCenter = ResolveChannelCenter(actor, channel);
+        int radius = Math.Max(0, channel.Radius);
         foreach (BattleRuntimeActor target in state.Actors)
         {
             if (target == null ||
@@ -320,8 +313,7 @@ internal static class BattleEffectResolver
                 continue;
             }
 
-            BattleGridCoord targetAnchor = new(target.GridX, target.GridY, target.GridHeight);
-            if (BattleActorFootprint.GetGap(actor, actorAnchor, target, targetAnchor) > Math.Max(0, radius))
+            if (!IsTargetOverlappingChannelArea(target, channelCenter, radius))
             {
                 continue;
             }
@@ -331,9 +323,9 @@ internal static class BattleEffectResolver
                 BattleId = battleId ?? "",
                 RuntimeTick = runtimeTick,
                 RuntimeTimeSeconds = runtimeTimeSeconds,
-                SourceCommandId = sourceCommandId ?? "",
-                SourceActionId = sourceActionId ?? "",
-                SourceDefinitionId = sourceDefinitionId ?? "",
+                SourceCommandId = channel.SourceCommandId ?? "",
+                SourceActionId = channel.SourceActionId ?? "",
+                SourceDefinitionId = channel.SourceDefinitionId ?? "",
                 State = state,
                 Actor = actor,
                 Target = target
@@ -343,7 +335,7 @@ internal static class BattleEffectResolver
                 new BattleEffectPayload
                 {
                     EffectKind = BattleSkillEffectKind.Damage,
-                    Amount = damageAmount
+                    Amount = channel.DamageAmount
                 }));
             if (target.HitPoints <= 0)
             {
@@ -352,6 +344,37 @@ internal static class BattleEffectResolver
         }
 
         return events;
+    }
+
+    private static BattleGridCoord ResolveChannelCenter(
+        BattleRuntimeActor actor,
+        BattleRuntimeActiveChannel channel)
+    {
+        return channel?.HasTargetOffset == true
+            ? new BattleGridCoord(
+                actor.GridX + channel.TargetOffsetX,
+                actor.GridY + channel.TargetOffsetY,
+                actor.GridHeight + channel.TargetOffsetHeight)
+            : new BattleGridCoord(actor?.GridX ?? 0, actor?.GridY ?? 0, actor?.GridHeight ?? 0);
+    }
+
+    private static bool IsTargetOverlappingChannelArea(
+        BattleRuntimeActor target,
+        BattleGridCoord center,
+        int radius)
+    {
+        foreach (BattleGridCoord cell in BattleActorFootprint.Enumerate(
+                     target,
+                     new BattleGridCoord(target.GridX, target.GridY, target.GridHeight)))
+        {
+            if (cell.Height == center.Height &&
+                Math.Max(Math.Abs(cell.X - center.X), Math.Abs(cell.Y - center.Y)) <= radius)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static IReadOnlyList<BattleEvent> ApplyTeleportToThunderMark(

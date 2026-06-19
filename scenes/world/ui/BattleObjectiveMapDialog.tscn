@@ -1,31 +1,8 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapDialog.cs" id="1_dialog"]
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_preview"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dialog"]
-bg_color = Color(0.055, 0.07, 0.065, 0.98)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.86, 0.7, 0.38, 0.95)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-bg_color = Color(0.105, 0.128, 0.118, 0.96)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.38, 0.46, 0.39, 0.9)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="3_theme"]
 
 [node name="BattleObjectiveMapDialog" type="Control"]
 visible = false
@@ -37,6 +14,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
+theme = ExtResource("3_theme")
 script = ExtResource("1_dialog")
 
 [node name="Backdrop" type="ColorRect" parent="."]
@@ -62,7 +40,7 @@ offset_bottom = 310.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_dialog")
+theme_type_variation = &"WorldContextSheet"
 
 [node name="DialogMargin" type="MarginContainer" parent="DialogPanel"]
 layout_mode = 2
@@ -91,10 +69,11 @@ text = "选择兵团进攻目标"
 vertical_alignment = 1
 
 [node name="CloseButton" type="Button" parent="DialogPanel/DialogMargin/DialogStack/Header"]
-custom_minimum_size = Vector2(86, 34)
+custom_minimum_size = Vector2(104, 54)
 layout_mode = 2
 text = "关闭"
 focus_mode = 2
+theme_type_variation = &"WorldSecondaryActionButton"
 
 [node name="MainContent" type="HBoxContainer" parent="DialogPanel/DialogMargin/DialogStack"]
 layout_mode = 2
@@ -106,7 +85,7 @@ theme_override_constants/separation = 12
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+theme_type_variation = &"WorldContextCard"
 
 [node name="CompanyMargin" type="MarginContainer" parent="DialogPanel/DialogMargin/DialogStack/MainContent/CompanyPanel"]
 layout_mode = 2
@@ -136,7 +115,7 @@ theme_override_constants/separation = 8
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+theme_type_variation = &"WorldContextCard"
 
 [node name="PreviewMargin" type="MarginContainer" parent="DialogPanel/DialogMargin/DialogStack/MainContent/PreviewPanel"]
 layout_mode = 2
@@ -146,7 +125,7 @@ theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
 [node name="MapPreview" type="Control" parent="DialogPanel/DialogMargin/DialogStack/MainContent/PreviewPanel/PreviewMargin"]
-custom_minimum_size = Vector2(620, 420)
+custom_minimum_size = Vector2(620, 340)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -161,8 +140,9 @@ text = "未选择兵团 · 未选择目标区域"
 horizontal_alignment = 1
 
 [node name="DoneButton" type="Button" parent="DialogPanel/DialogMargin/DialogStack"]
-custom_minimum_size = Vector2(180, 38)
+custom_minimum_size = Vector2(180, 54)
 layout_mode = 2
 size_flags_horizontal = 4
 text = "完成"
 focus_mode = 2
+theme_type_variation = &"WorldPrimaryActionButton"

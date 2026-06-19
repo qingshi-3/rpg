@@ -29,6 +29,14 @@ public partial class StrategicWorldRoot : Control
 	private const float SiteNavigationPointSnapDistance = 96.0f;
 	private const int SiteNavigationPointSearchCellRadius = 8;
 	private const double DefaultWorldTickIntervalSeconds = 8.0;
+	private const float SiteDetailPanelSlidePixels = 30.0f;
+	private const float SiteDetailPanelOvershootPixels = 8.0f;
+	private const double SiteDetailPanelEnterSeconds = 0.16;
+	private const double SiteDetailPanelSettleSeconds = 0.10;
+	private const double SiteDetailPanelExitSeconds = 0.14;
+	// Deferring a forced battle should only step the army off the trigger point,
+	// not send it into a retreat-like strategic move.
+	private const float DeferredBattleStandbyDistance = 32.0f;
 	// 战略行军只允许查询这一层；视觉层不能作为寻路兜底，否则会重新产生多权威路径问题。
 	private const string StrategicNavigationTileLayerName = "StrategicNavigationTileLayer";
 	private const string StrategicNavigationRootName = "StrategicNavigationRoot";
@@ -116,6 +124,7 @@ public partial class StrategicWorldRoot : Control
 	private Control _worldMapOverlay;
 	private Control _topBarHost;
 	private Control _leftPrimaryPanelHost;
+	private Control _modalHost;
 	private Node2D _worldMapRoot;
 	private MapCameraController _worldCamera;
 	private Node2D _siteAnchorRoot;
@@ -128,21 +137,20 @@ public partial class StrategicWorldRoot : Control
 	private Label _resourceLabel;
 	private Label _worldClockLabel;
 	private Label _noticeLabel;
-	private Button _worldClockToggleButton;
-	private Button _worldClockSpeedButton;
+	private TextureButton _worldClockToggleButton;
+	private TextureButton _worldClockSpeedButton;
+	private Control _siteDetailPanel;
+	private Tween _siteDetailPanelTween;
+	private bool _siteDetailPanelVisibleRequested;
+	private Vector2 _siteDetailPanelRestPosition;
+	private bool _siteDetailPanelHasRestPosition;
 	private Label _siteTitleLabel;
 	private Label _siteBodyLabel;
-	private VBoxContainer _facilityList;
-	private VBoxContainer _garrisonList;
 	private VBoxContainer _actionList;
 	private Control _siteSummaryCard;
-	private Control _facilityCard;
-	private Control _defenseCard;
 	private Control _actionCard;
 	private Control _opportunityCard;
 	private VBoxContainer _opportunityDetailContent;
-	private Label _facilityTitleLabel;
-	private Label _garrisonTitleLabel;
 	private Label _actionTitleLabel;
 	private WorldOpportunityDetailPanel _opportunityDetailPanel;
 	private WorldSiteHoverSummaryPanel _siteHoverSummaryPanel;
@@ -166,7 +174,7 @@ public partial class StrategicWorldRoot : Control
 	private BattleStartRequest _pendingBattleRequest;
 	private StrategicBattleActiveContext _pendingStrategicBattleActiveContext;
 	private PendingBattleLaunchRollback _pendingBattleRollback;
-	private AcceptDialog _preBattleDialog;
+	private StrategicBattleGateDialog _preBattleDialog;
 	private string _activeBattleGateDialog = "";
 	private Vector2 _lastWorldMapRootPosition = new(float.NaN, float.NaN);
 	private Vector2 _lastWorldMapRootScale = new(float.NaN, float.NaN);
@@ -213,6 +221,8 @@ public partial class StrategicWorldRoot : Control
 
 	public override void _ExitTree()
 	{
+		_siteDetailPanelTween?.Kill();
+		_siteDetailPanelTween = null;
 		if (Current == this)
 		{
 			Current = null;
@@ -235,6 +245,11 @@ public partial class StrategicWorldRoot : Control
 
 	public override void _GuiInput(InputEvent @event)
 	{
+		if (!IsRootScreenMapInput(@event))
+		{
+			return;
+		}
+
 		if (TryHandleWorldCameraPointerInput(@event))
 		{
 			AcceptEvent();
@@ -242,6 +257,39 @@ public partial class StrategicWorldRoot : Control
 		}
 
 		HandleWorldArmyInput(@event);
+	}
+
+	private bool IsRootScreenMapInput(InputEvent @event)
+	{
+		if (!TryGetRootScreenPointerPosition(@event, out Vector2 screenPosition))
+		{
+			return false;
+		}
+
+		if (_isArmyBoxSelecting || _worldCamera?.IsPointerNavigationActive == true)
+		{
+			return true;
+		}
+
+		// HUD controls can pass scroll or drag events to this root Control. Only the
+		// resolved map viewport may drive camera navigation or map selection.
+		return ResolveMainWorldViewportRect().HasPoint(screenPosition);
+	}
+
+	private static bool TryGetRootScreenPointerPosition(InputEvent @event, out Vector2 screenPosition)
+	{
+		switch (@event)
+		{
+			case InputEventMouseButton mouseButton:
+				screenPosition = mouseButton.Position;
+				return true;
+			case InputEventMouseMotion mouseMotion:
+				screenPosition = mouseMotion.Position;
+				return true;
+			default:
+				screenPosition = Vector2.Zero;
+				return false;
+		}
 	}
 
 	private bool TryHandleWorldCameraPointerInput(InputEvent @event)

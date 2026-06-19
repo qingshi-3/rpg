@@ -6,7 +6,7 @@ using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
 
-internal static class TargetBattleThunderMarkSkillRegressionCases
+internal static partial class TargetBattleThunderMarkSkillRegressionCases
 {
     private const string EnemyActorId = "force_enemy:1";
     private const string NearEnemyActorId = "force_enemy_near:1";
@@ -33,6 +33,8 @@ internal static class TargetBattleThunderMarkSkillRegressionCases
         run("runtime thunder fold teleports caster near live mark", RuntimeThunderFoldTeleportsCasterNearLiveMark);
         run("runtime thunder fold clears stale displacement context", RuntimeThunderFoldClearsStaleDisplacementContext);
         run("runtime thunder spiral channel blocks ordinary movement", RuntimeThunderSpiralChannelBlocksOrdinaryMovement);
+        run("runtime thunder spiral skill used carries channel duration", RuntimeThunderSpiralSkillUsedCarriesChannelDuration);
+        run("runtime thunder spiral damages selected directional 3x3 area", RuntimeThunderSpiralDamagesSelectedDirectionalArea);
         run("runtime thunder spiral channel continues after fold", RuntimeThunderSpiralChannelContinuesAfterFold);
     }
 
@@ -483,7 +485,7 @@ internal static class TargetBattleThunderMarkSkillRegressionCases
         _ = controller.AdvanceFixedTick();
         string selectedMarkId = controller.State.SpatialMarks.Last().MarkId;
 
-        BattleRuntimeCommandSubmitResult spiral = controller.SubmitCommand(new CommandRequest
+        CommandRequest spiralRequest = new()
         {
             CommandId = "cmd_thunder_spiral",
             BattleId = "battle_thunder_spiral_fold",
@@ -491,8 +493,10 @@ internal static class TargetBattleThunderMarkSkillRegressionCases
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
             SkillId = ThunderSpiralBreakSkillId
-        });
-        AssertTrue(spiral.Accepted, "thunder spiral should accept self-centered release");
+        };
+        SetCommandTargetGrid(spiralRequest, x: 2, y: 0, height: 0);
+        BattleRuntimeCommandSubmitResult spiral = controller.SubmitCommand(spiralRequest);
+        AssertTrue(spiral.Accepted, "thunder spiral should accept a selected directional center cell");
 
         BattleRuntimeAdvanceResult start = controller.AdvanceFixedTick();
         AssertDamageEvent(start, "cmd_thunder_spiral", NearEnemyActorId, expectedActorGridX: 0, expectedDamage: 9, "initial spiral tick");
@@ -515,7 +519,8 @@ internal static class TargetBattleThunderMarkSkillRegressionCases
         _ = controller.AdvanceFixedTick();
         AssertEqual(5, Hero(controller).GridX, "hero grid x after fold during spiral");
 
-        BattleRuntimeAdvanceResult continued = controller.AdvanceFixedTick();
+        _ = controller.AdvanceFixedTick(0.2);
+        BattleRuntimeAdvanceResult continued = controller.AdvanceFixedTick(0.2);
         AssertDamageEvent(
             continued,
             "cmd_thunder_spiral",
@@ -525,8 +530,11 @@ internal static class TargetBattleThunderMarkSkillRegressionCases
             $"post-fold spiral tick hero={Hero(controller).GridX},{Hero(controller).GridY} enemy={EnemyCorps(controller).GridX},{EnemyCorps(controller).GridY} events={DescribeEvents(continued)}");
         AssertEqual(79, EnemyCorps(controller).HitPoints, "marked enemy HP after post-fold spiral tick");
 
-        _ = controller.AdvanceFixedTick();
-        BattleRuntimeAdvanceResult afterDuration = controller.AdvanceFixedTick();
+        for (int i = 0; i < 9; i++)
+        {
+            _ = controller.AdvanceFixedTick(0.2);
+        }
+        BattleRuntimeAdvanceResult afterDuration = controller.AdvanceFixedTick(0.2);
         AssertTrue(
             afterDuration.Events.All(item =>
                 item.Kind != BattleEventKind.DamageApplied ||
@@ -540,7 +548,7 @@ internal static class TargetBattleThunderMarkSkillRegressionCases
         AddThunderSpiralSkill(snapshot);
         BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
 
-        BattleRuntimeCommandSubmitResult spiral = controller.SubmitCommand(new CommandRequest
+        CommandRequest spiralRequest = new()
         {
             CommandId = "cmd_thunder_spiral_lock",
             BattleId = "battle_thunder_spiral_lock",
@@ -549,7 +557,9 @@ internal static class TargetBattleThunderMarkSkillRegressionCases
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
             SkillId = ThunderSpiralBreakSkillId
-        });
+        };
+        SetCommandTargetGrid(spiralRequest, x: 2, y: 0, height: 0);
+        BattleRuntimeCommandSubmitResult spiral = controller.SubmitCommand(spiralRequest);
         AssertTrue(spiral.Accepted, "visible caster should accept thunder spiral");
 
         _ = controller.AdvanceFixedTick();
@@ -560,6 +570,37 @@ internal static class TargetBattleThunderMarkSkillRegressionCases
                 item.Kind != BattleEventKind.MovementStarted ||
                 item.ActorId != "force_player:1"),
             $"ordinary movement should not start while thunder spiral channel is active events={DescribeEvents(duringChannel)}");
+    }
+
+    internal static void RuntimeThunderSpiralSkillUsedCarriesChannelDuration()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_thunder_spiral_duration", enemyStrength: 100);
+        AddThunderSpiralSkill(snapshot);
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        CommandRequest spiralRequest = new()
+        {
+            CommandId = "cmd_thunder_spiral_duration",
+            BattleId = "battle_thunder_spiral_duration",
+            BattleGroupId = "group_player",
+            SourceActorId = "force_player:1",
+            Channel = CommandChannel.Hero,
+            Kind = CommandKind.CastSkill,
+            SkillId = ThunderSpiralBreakSkillId
+        };
+        SetCommandTargetGrid(spiralRequest, x: 2, y: 0, height: 0);
+        BattleRuntimeCommandSubmitResult spiral = controller.SubmitCommand(spiralRequest);
+        AssertTrue(spiral.Accepted, "thunder spiral should accept a selected directional center cell");
+
+        BattleRuntimeAdvanceResult start = controller.AdvanceFixedTick();
+        BattleEvent skillUsed = start.Events.FirstOrDefault(item =>
+            item.Kind == BattleEventKind.SkillUsed &&
+            item.SourceDefinitionId == ThunderSpiralBreakSkillId);
+
+        AssertTrue(skillUsed != null, $"thunder spiral should emit SkillUsed event events={DescribeEvents(start)}");
+        AssertTrue(
+            Math.Abs(1.6 - skillUsed.ActionDurationSeconds) < 0.0001,
+            $"thunder spiral SkillUsed should carry the channel duration for presentation hold timing: actual={skillUsed.ActionDurationSeconds}");
     }
 
     private static BattleStartSnapshot BuildOpposedSnapshot(
@@ -675,15 +716,15 @@ internal static class TargetBattleThunderMarkSkillRegressionCases
             Kind = (BattleSkillEffectKind)StartChanneledAreaDamageEffectKindValue,
             Amount = 9
         };
-        SetProperty(channel, "DurationSeconds", 0.15);
-        SetProperty(channel, "TickIntervalSeconds", 0.08);
+        SetProperty(channel, "DurationSeconds", 1.6);
+        SetProperty(channel, "TickIntervalSeconds", 0.2);
         SetProperty(channel, "Radius", 1);
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
             SkillId = ThunderSpiralBreakSkillId,
             DisplayName = "Thunder Spiral Break",
-            TargetingMode = BattleSkillTargetingMode.None,
-            Range = 0,
+            TargetingMode = BattleSkillTargetingMode.TargetedCell,
+            Range = 3,
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0,

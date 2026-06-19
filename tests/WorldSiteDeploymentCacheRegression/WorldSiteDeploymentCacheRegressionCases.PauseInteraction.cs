@@ -37,9 +37,10 @@ internal static partial class WorldSiteDeploymentCacheRegressionCases
         string root = ProjectRoot();
         string siteRootSource = ReadWorldSiteRootSource();
         string pauseBody = ExtractMethodBody(siteRootSource, "private void ApplyBattleRuntimeScenePause(bool paused, string reason)");
-        string highlightSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
+        string highlightSource = ReadBattleGridHighlightOverlaySource();
+        string vectorRendererSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Battle", "BattleGridVectorHighlightRenderer.cs"));
         string dynamicStyleBody = ExtractMethodBody(highlightSource, "private void ApplyDynamicRangeStyle(CanvasItem item, BattleGridHighlightKind kind)");
-        string targetLockRingBody = ExtractMethodBody(highlightSource, "private void AddTargetLockRing()");
+        string targetLockRingBody = ExtractMethodBody(vectorRendererSource, "private static void AddTargetLockRing(");
         string perceptionShaderBody = ExtractMethodBody(highlightSource, "private void ApplyPerceptionRangeShader(TileMapLayer layer)");
 
         AssertTrue(

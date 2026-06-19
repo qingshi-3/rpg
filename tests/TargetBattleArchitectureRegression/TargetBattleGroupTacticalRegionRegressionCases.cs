@@ -1,6 +1,7 @@
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle;
+using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Tactics;
 
@@ -33,8 +34,9 @@ internal static class TargetBattleGroupTacticalRegionRegressionCases
         run("battle entry fixed region uses lexicographic id when score and distance tie", BattleEntryFixedRegionUsesLexicographicIdWhenScoreAndDistanceTie);
         run("battle entry no fixed candidate seeds mode without region", BattleEntryNoFixedCandidateSeedsModeWithoutRegion);
         run("battle entry preserves preauthored player tactical seed", BattleEntryPreservesPreauthoredPlayerTacticalSeed);
+        TargetBattleTacticalIntentRegressionCases.Register(run);
         run("enemy region movement ignores moving unit outside perception", EnemyRegionMovementIgnoresMovingUnitOutsidePerception);
-        run("player objective movement still uses player plan", PlayerObjectiveMovementStillUsesPlayerPlan);
+        run("player objective movement uses tactical intent region", PlayerObjectiveMovementUsesTacticalIntentRegion);
         TargetBattlePlayerCommandRegionRegressionCases.Register(run);
         TargetBattleTemporaryRegionRegressionCases.Register(run);
     }
@@ -540,19 +542,26 @@ internal static class TargetBattleGroupTacticalRegionRegressionCases
         AssertEqual("", enemy.TargetActorId, "region movement must not store an actor target id");
     }
 
-    public static void PlayerObjectiveMovementStillUsesPlayerPlan()
+    public static void PlayerObjectiveMovementUsesTacticalIntentRegion()
     {
-        BattleRuntimeAdvanceResult tick = new BattleRuntimeSession()
-            .Begin(BuildPlayerObjectiveMovementSnapshot())
-            .AdvanceNextTick();
+        BattleRuntimeSessionController controller = new BattleRuntimeSession()
+            .Begin(BuildPlayerObjectiveMovementSnapshot());
+        BattleRuntimeAdvanceResult tick = controller.AdvanceNextTick();
 
         BattleEvent? move = tick.Events.FirstOrDefault(item =>
             item.Kind == BattleEventKind.MovementStarted &&
             item.ActorId == "player_force:1");
+        BattleGroupTacticalState playerState = controller.State.TacticalStates["player_group"];
+        BattleRuntimeActor playerActor = controller.State.Actors.Single(item => item.ActorId == "player_force:1");
 
-        AssertTrue(move != null, "player move-first plan should still emit objective movement");
-        AssertEqual("objective_gate", move!.TargetId, "player objective movement target");
-        AssertEqual("plan_objective_advance", move.ReasonCode, "player objective movement reason");
+        AssertEqual("objective_gate", playerState.SelectedRegion?.RegionId, "player plan should seed selected tactical region");
+        AssertEqual(BattleGroupTacticalCommandSource.PlayerCommand, playerState.SelectedRegionCommandSource, "player plan region source");
+        AssertTrue(move != null, "player move-first plan should still emit movement");
+        AssertEqual("objective_gate", move!.TargetId, "player tactical region movement target");
+        AssertEqual(BattleGroupTacticalReasonCode.RegionFixedAdvance, move.ReasonCode, "player movement should use tactical region reason");
+        AssertEqual(BattleRuntimeAiActionKind.AdvanceTowardRegion, playerActor.MovementIntentKind, "player movement intent kind");
+        AssertEqual("objective_gate", playerActor.MovementIntentRegionId, "player movement intent region");
+        AssertEqual("", playerActor.MovementIntentObjectiveZoneId, "player movement should not keep the old objective movement intent");
         AssertTrue(move.ToGridX > move.FromGridX, $"player should step toward the planned objective: fromX={move.FromGridX} toX={move.ToGridX}");
     }
 

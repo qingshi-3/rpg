@@ -94,9 +94,13 @@ public partial class StrategicWorldRoot
             hud,
             "LeftPrimaryPanelHost",
             nameof(StrategicWorldRoot));
+        _modalHost = GameUiSceneFactory.GetRequiredNode<Control>(
+            hud,
+            "ModalHost",
+            nameof(StrategicWorldRoot));
         Label title = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TitleResourceStack/Title",
+            "TopBarHost/TopLeftStatus/Title",
             nameof(StrategicWorldRoot));
         if (title != null)
         {
@@ -105,79 +109,59 @@ public partial class StrategicWorldRoot
 
         _resourceLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TitleResourceStack/ResourceLabel",
+            "TopBarHost/TopLeftStatus/ResourceLabel",
             nameof(StrategicWorldRoot));
         _worldClockLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/WorldClockLabel",
+            "TopBarHost/WorldClockLabel",
             nameof(StrategicWorldRoot));
         _noticeLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/NoticeLabel",
+            "TopBarHost/NoticeLabel",
             nameof(StrategicWorldRoot));
-        _worldClockToggleButton = GameUiSceneFactory.GetRequiredNode<Button>(
+        _worldClockToggleButton = GameUiSceneFactory.GetRequiredNode<TextureButton>(
             hud,
-            "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls/PauseButton",
+            "TopBarHost/TopRightControls/PauseButton",
             nameof(StrategicWorldRoot));
-        _worldClockSpeedButton = GameUiSceneFactory.GetRequiredNode<Button>(
+        _worldClockSpeedButton = GameUiSceneFactory.GetRequiredNode<TextureButton>(
             hud,
-            "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls/QuickButton",
+            "TopBarHost/TopRightControls/QuickButton",
+            nameof(StrategicWorldRoot));
+        _siteDetailPanel = GameUiSceneFactory.GetRequiredNode<Control>(
+            hud,
+            "OverlayHost/SiteDetailPanel",
             nameof(StrategicWorldRoot));
         _siteTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack/SiteTitleLabel",
+            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack/SiteTitleLabel",
             nameof(StrategicWorldRoot));
         _siteBodyLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack/SiteBodyLabel",
+            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack/SiteBodyLabel",
             nameof(StrategicWorldRoot));
         _siteSummaryCard = GameUiSceneFactory.GetRequiredNode<Control>(
             hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard",
+            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard",
             nameof(StrategicWorldRoot));
         _opportunityCard = GameUiSceneFactory.GetRequiredNode<Control>(
             hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard",
+            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard",
             nameof(StrategicWorldRoot));
         _opportunityDetailContent = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard/OpportunityMargin/OpportunitySlot",
-            nameof(StrategicWorldRoot));
-        _facilityCard = GameUiSceneFactory.GetRequiredNode<Control>(
-            hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard",
-            nameof(StrategicWorldRoot));
-        _facilityTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack/FacilityTitle",
-            nameof(StrategicWorldRoot));
-        _facilityList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/InfrastructureCard/InfrastructureMargin/InfrastructureStack/FacilityList",
-            nameof(StrategicWorldRoot));
-        _defenseCard = GameUiSceneFactory.GetRequiredNode<Control>(
-            hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard",
-            nameof(StrategicWorldRoot));
-        _garrisonTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/GarrisonTitle",
-            nameof(StrategicWorldRoot));
-        _garrisonList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
-            hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack/GarrisonList",
+            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard/OpportunityMargin/OpportunitySlot",
             nameof(StrategicWorldRoot));
         _actionCard = GameUiSceneFactory.GetRequiredNode<Control>(
             hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard",
+            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard",
             nameof(StrategicWorldRoot));
         _actionList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionList",
+            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionList",
             nameof(StrategicWorldRoot));
         _actionTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "LeftPrimaryPanelHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionTitle",
+            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionTitle",
             nameof(StrategicWorldRoot));
         _opportunityDetailPanel = GameUiSceneFactory.Instantiate<WorldOpportunityDetailPanel>(
             GameUiSceneFactory.WorldOpportunityDetailPanelScenePath,
@@ -189,19 +173,9 @@ public partial class StrategicWorldRoot
             _opportunityDetailContent.AddChild(_opportunityDetailPanel);
         }
 
-        if (_facilityTitleLabel != null)
-        {
-            _facilityTitleLabel.Text = "建筑配置";
-        }
-
-        if (_garrisonTitleLabel != null)
-        {
-            _garrisonTitleLabel.Text = "驻防兵力";
-        }
-
         if (_actionTitleLabel != null)
         {
-            _actionTitleLabel.Text = "行动面板";
+            _actionTitleLabel.Text = "可执行";
         }
 
         if (_worldClockToggleButton != null)
@@ -214,14 +188,14 @@ public partial class StrategicWorldRoot
             _worldClockSpeedButton.Pressed += CycleWorldClockSpeed;
         }
 
-        Button resetButton = GameUiSceneFactory.GetRequiredNode<Button>(
+        TextureButton resetButton = GameUiSceneFactory.GetRequiredNode<TextureButton>(
             hud,
-            "TopBarHost/TopResourceBar/TopResourceBarContent/TopResourceRow/TopRightControls/ResetButton",
+            "TopBarHost/TopRightControls/ResetButton",
             nameof(StrategicWorldRoot));
 
         if (resetButton != null)
         {
-            resetButton.Text = "重置";
+            resetButton.TooltipText = "重置大地图";
             resetButton.Pressed += ResetWorld;
         }
     }

@@ -125,7 +125,7 @@ internal sealed class BattleRuntimeLivePresentationObserver
         return ObserveRuntimeMovementEvent(
             runtimeEvent,
             entitiesByRuntimeActor,
-            returnToIdleOnComplete: false);
+            returnToIdleOnComplete: true);
     }
 
     private double ObserveRuntimeMovementEvent(
@@ -150,8 +150,10 @@ internal sealed class BattleRuntimeLivePresentationObserver
         }
 
         GridSurfacePosition nextStep = new(runtimeEvent.ToGridX, runtimeEvent.ToGridY, runtimeEvent.ToGridHeight);
-        // Runtime emits one committed grid step per live tick. Presentation keeps
-        // the move loop open while later ticks may retarget the same actor.
+        // Runtime emits one committed grid step per live tick. The movement lane
+        // still holds briefly for a continuation, then closes to idle when no
+        // committed follow-up step arrives; later attack/skill playback can
+        // override idle through its own animation lane.
         double visualMoveSeconds = unitRoot.MoveEntityTo(
             actor,
             new[] { actorGrid.SurfacePosition, nextStep },
@@ -187,7 +189,8 @@ internal sealed class BattleRuntimeLivePresentationObserver
             actor,
             target,
             runtimeEvent.ActionDurationSeconds,
-            preserveMovement: BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent));
+            preserveMovement: BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent),
+            sourceDefinitionId: runtimeEvent.SourceDefinitionId);
         double runtimeActionSeconds = runtimeEvent.ActionDurationSeconds > 0
             ? runtimeEvent.ActionDurationSeconds
             : castAnimationSeconds;

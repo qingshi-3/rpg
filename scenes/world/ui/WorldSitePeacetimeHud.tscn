@@ -1,48 +1,19 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattlePreparationObjectiveThumbnail.cs" id="1_battle_prep_thumb"]
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_battle_objective_preview"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_site_panel"]
-bg_color = Color(0.075, 0.09, 0.085, 0.96)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.78, 0.65, 0.38, 0.92)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_top_bar"]
-bg_color = Color(0.055, 0.07, 0.068, 0.98)
-border_width_bottom = 2
-border_color = Color(0.78, 0.65, 0.38, 0.92)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_section_card"]
-bg_color = Color(0.115, 0.135, 0.126, 0.95)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.34, 0.39, 0.33, 0.9)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_overview_card"]
-bg_color = Color(0.125, 0.148, 0.136, 0.98)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.78, 0.65, 0.38, 0.6)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_large.tres" id="3_panel_large"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_card.tres" id="4_panel_card"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_slot.tres" id="5_panel_slot"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_primary.tres" id="6_button"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_primary_hover.tres" id="7_button_hover"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_primary_pressed.tres" id="8_button_pressed"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_disabled.tres" id="9_button_disabled"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_compact.tres" id="10_button_compact"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_compact_hover.tres" id="11_button_compact_hover"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_compact_pressed.tres" id="12_button_compact_pressed"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_compact_disabled.tres" id="13_button_compact_disabled"]
+[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="14_theme"]
 
 [node name="SitePeacetimeHudRoot" type="Control"]
 z_index = 500
@@ -116,7 +87,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+theme = ExtResource("14_theme")
+theme_type_variation = &"WorldContextCard"
 script = ExtResource("1_battle_prep_thumb")
 
 [node name="Margin" type="MarginContainer" parent="MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail"]
@@ -167,7 +139,7 @@ offset_bottom = -24.0
 grow_horizontal = 1
 grow_vertical = 0
 mouse_filter = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+theme_override_styles/panel = ExtResource("4_panel_card")
 
 [node name="CommandMargin" type="MarginContainer" parent="BottomCommandHost/BattleRuntimeCommandBar"]
 layout_mode = 2
@@ -189,7 +161,7 @@ theme_override_constants/separation = 6
 [node name="BattleRuntimeHeroAvatar" type="PanelContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
 custom_minimum_size = Vector2(56, 56)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_overview_card")
+theme_override_styles/panel = ExtResource("5_panel_slot")
 
 [node name="BattleRuntimeHeroAvatarLabel" type="Label" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroAvatar"]
 layout_mode = 2
@@ -238,6 +210,13 @@ custom_minimum_size = Vector2(74, 54)
 layout_mode = 2
 text = "重整"
 focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
 
 [node name="OverlayHost" type="Control" parent="."]
 layout_mode = 1
@@ -264,7 +243,7 @@ offset_bottom = -24.0
 grow_horizontal = 1
 grow_vertical = 0
 mouse_filter = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+theme_override_styles/panel = ExtResource("4_panel_card")
 
 [node name="RosterMargin" type="MarginContainer" parent="OverlayHost/BattlePreparationRosterDock"]
 layout_mode = 2
@@ -293,7 +272,7 @@ offset_bottom = -18.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+theme_override_styles/panel = ExtResource("4_panel_card")
 
 [node name="PlanMargin" type="MarginContainer" parent="OverlayHost/BattlePreparationPlanBar"]
 layout_mode = 2
@@ -329,28 +308,56 @@ theme_override_constants/separation = 6
 alignment = 1
 
 [node name="MoveFirstRuleButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
-custom_minimum_size = Vector2(74, 34)
+custom_minimum_size = Vector2(74, 54)
 layout_mode = 2
 text = "推进"
 focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
 
 [node name="AttackFirstRuleButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
-custom_minimum_size = Vector2(74, 34)
+custom_minimum_size = Vector2(74, 54)
 layout_mode = 2
 text = "强攻"
 focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
 
 [node name="HoldRuleButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
-custom_minimum_size = Vector2(74, 34)
+custom_minimum_size = Vector2(74, 54)
 layout_mode = 2
 text = "坚守"
 focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
 
 [node name="BattlePreparationStartButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow"]
-custom_minimum_size = Vector2(92, 38)
+custom_minimum_size = Vector2(92, 54)
 layout_mode = 2
 text = "开战"
 focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
 
 [node name="ModalHost" type="Control" parent="."]
 layout_mode = 1
@@ -369,14 +376,14 @@ anchor_right = 1.0
 offset_bottom = 66.0
 grow_horizontal = 2
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_top_bar")
+theme_override_styles/panel = ExtResource("4_panel_card")
 
 [node name="TopMargin" type="MarginContainer" parent="TopBarHost/SiteTopBar"]
 layout_mode = 2
 theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 8
+theme_override_constants/margin_top = 4
 theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_bottom = 4
 
 [node name="TopBox" type="HBoxContainer" parent="TopBarHost/SiteTopBar/TopMargin"]
 layout_mode = 2
@@ -405,10 +412,17 @@ vertical_alignment = 1
 clip_text = true
 
 [node name="ReturnMapButton" type="Button" parent="TopBarHost/SiteTopBar/TopMargin/TopBox"]
-custom_minimum_size = Vector2(128, 38)
+custom_minimum_size = Vector2(128, 54)
 layout_mode = 2
 text = "返回大地图"
 focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
 
 [node name="SitePeacetimePanel" type="PanelContainer" parent="LeftPrimaryPanelHost"]
 visible = false
@@ -426,7 +440,7 @@ offset_bottom = -24.0
 grow_horizontal = 1
 grow_vertical = 2
 mouse_filter = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_site_panel")
+theme_override_styles/panel = ExtResource("3_panel_large")
 
 [node name="Margin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel"]
 layout_mode = 2
@@ -449,7 +463,7 @@ theme_override_constants/separation = 12
 [node name="OverviewCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_overview_card")
+theme_override_styles/panel = ExtResource("4_panel_card")
 
 [node name="OverviewMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/OverviewCard"]
 layout_mode = 2
@@ -467,7 +481,7 @@ theme_override_constants/separation = 8
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+theme_override_styles/panel = ExtResource("4_panel_card")
 
 [node name="BuildMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BuildCard"]
 layout_mode = 2
@@ -484,7 +498,7 @@ theme_override_constants/separation = 8
 [node name="FacilityCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+theme_override_styles/panel = ExtResource("4_panel_card")
 
 [node name="FacilityMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/FacilityCard"]
 layout_mode = 2
@@ -501,7 +515,7 @@ theme_override_constants/separation = 8
 [node name="DefenseCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+theme_override_styles/panel = ExtResource("4_panel_card")
 
 [node name="DefenseMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard"]
 layout_mode = 2
@@ -518,7 +532,7 @@ theme_override_constants/separation = 8
 [node name="ActionCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_section_card")
+theme_override_styles/panel = ExtResource("4_panel_card")
 
 [node name="ActionMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard"]
 layout_mode = 2

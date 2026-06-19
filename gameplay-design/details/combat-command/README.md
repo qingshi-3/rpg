@@ -77,13 +77,13 @@ The engagement rule modifies automatic state transitions:
 This flow is the default way the player expresses initial intent. Later live commands may override or supersede the plan through the accepted hero, corps, or combined command channels.
 
 
-## Region-Directed Movement And Local Combat
+## Intent-Directed Movement And Local Combat
 
 A battle group has one owner for tactical region intent: the battle group itself. Its current target region, temporary target region, local combat region, and engagement state are not global battle facts, even when Runtime caches snapshots for query or diagnostics.
 
-Out of combat, movement is region-directed. A group should advance, hold, or reposition toward a fixed or temporary region rather than chase a moving unit. In combat, the group may lock concrete actor targets, attack slots, and support slots, but only inside its current command scope and local combat region.
+Out of combat, movement is intent-directed through stable target objects. A group should advance, hold, defend, withdraw, harass, or reposition toward a target object selected by command, plan, or AI intent rather than chase a moving unit. In combat, the group may lock concrete actor targets, attack slots, and support slots, but only inside its current command scope and local combat region.
 
-Enemy-controlled groups use enemy policy to choose or replan regions. Player-controlled groups use player commands and accepted battle plans to choose or replan regions. Player groups may reuse local combat solvers, but their region intent is not changed by enemy-style automatic policy.
+Enemy-controlled groups use configurable AI intent plans to choose target objects and replan regions. Player-controlled groups use player commands and accepted battle plans to choose or replan regions. Player groups may reuse local combat solvers, but their region intent is not changed by enemy-style automatic policy.
 
 A group exits engaged state only after the whole group has no perceived enemy for the configured disengage period and no recent damage or attack event keeps the local combat active.
 
@@ -188,7 +188,7 @@ The player-facing kit is:
 |---|---|
 | Thunder Tag Throw | A projectile that deals damage while creating either a ground mark or an attached unit mark. |
 | Thunder Mark Fold | Two-stage teleport: select one live mark, then select an empty legal landing anchor within the mark's landing radius. |
-| Thunder Spiral Break | A short channeled melee damage field released by the hero; teleporting during the channel may move the continuing damage window but must not refresh its duration. |
+| Thunder Spiral Break | A channeled forward pressure field: the player chooses one of the four cardinal directions around the hero, previews a 3x3 area in that direction, then clicks again to submit. Teleporting during the channel may move the continuing damage window with the hero's selected forward offset but must not refresh its duration. |
 | Thunder Mark Transfer | Later high-tier spatial transfer that can redirect a unit or skill event through marks. This is accepted as a future flagship rule, not a first implementation requirement. |
 
 Marks are battlefield coordinates, not UI-only decorations. A mark has an owner, a source skill, a location or attached actor, a finite lifetime, and a limited set of skills that can consume or reference it. Ground marks support space planning; attached marks support pursuit, cut-in, or pressure on a moving unit.

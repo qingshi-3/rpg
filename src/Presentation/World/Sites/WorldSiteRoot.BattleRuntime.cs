@@ -888,6 +888,7 @@ public partial class WorldSiteRoot
                 : strategicNotice
         };
         ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult);
+        ApplyStrategicBattleResultWorldArmyCarrierCleanup(context.CompatibilityRequest, applyResult);
         StrategicWorldRuntime.LastNotice = applyResult.Message;
         context.CompatibilityResult = compatibilityResult;
         context.ResultConsumed = true;
@@ -961,6 +962,8 @@ public partial class WorldSiteRoot
             (string.Equals(placement.SourceId, request.SourceArmyId, System.StringComparison.Ordinal) ||
              string.Equals(placement.ArmyId, request.SourceArmyId, System.StringComparison.Ordinal)) &&
             placement.PlacementKind is WorldSiteUnitPlacementKind.VisitingArmy or WorldSiteUnitPlacementKind.Attacker);
+        int removedLegacyGarrisonUnits = new WorldSiteBattleUnitPoolService()
+            .RemoveImportedArmyForSiteBattle(site, request.SourceArmyId);
 
         if (site.SiteMode == WorldSiteMode.Wartime)
         {
@@ -973,11 +976,43 @@ public partial class WorldSiteRoot
                     request.RequestId));
         }
 
-        if (removedPlacements > 0)
+        if (removedPlacements > 0 || removedLegacyGarrisonUnits > 0)
         {
             GameLog.Info(
                 nameof(WorldSiteRoot),
-                $"StrategicBattlePresentationCleanup site={site.SiteId} army={request.SourceArmyId} removedPlacements={removedPlacements}");
+                $"StrategicBattlePresentationCleanup site={site.SiteId} army={request.SourceArmyId} removedPlacements={removedPlacements} removedLegacyGarrisonUnits={removedLegacyGarrisonUnits}");
+        }
+    }
+
+    private void ApplyStrategicBattleResultWorldArmyCarrierCleanup(BattleStartRequest request, WorldActionResult result)
+    {
+        if (request == null ||
+            string.IsNullOrWhiteSpace(request.SourceArmyId) ||
+            string.IsNullOrWhiteSpace(request.StrategicExpeditionId))
+        {
+            return;
+        }
+
+        // Strategic Management has already resolved the expedition. The matching world
+        // army is only the temporary map movement/battle-entry carrier and must not
+        // stay in Attacking state where it can reopen the same resolved battle.
+        WorldArmyCommandResult carrierResult = _armyCommandService.RemoveResolvedStrategicExpeditionCarrier(
+            StrategicWorldRuntime.State?.ArmyStates,
+            request.SourceArmyId,
+            request.StrategicExpeditionId,
+            "strategic_battle_result_cleanup");
+
+        if (!carrierResult.Success)
+        {
+            GameLog.Warn(
+                nameof(WorldSiteRoot),
+                $"StrategicBattleWorldArmyCarrierCleanupRejected army={request.SourceArmyId} expedition={request.StrategicExpeditionId} reason={carrierResult.FailureReason}");
+            return;
+        }
+
+        if (result != null && carrierResult.Events.Count > 0)
+        {
+            result.Events.AddRange(carrierResult.Events);
         }
     }
 }

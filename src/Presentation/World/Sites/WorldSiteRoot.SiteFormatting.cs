@@ -123,18 +123,14 @@ public partial class WorldSiteRoot
             : string.Join("、", slot.AllowedFacilityIds.Select(id => queries.GetFacility(id)?.DisplayName ?? id));
     }
 
-    private static string BuildActionButtonText(WorldActionViewModel action)
+    private static string BuildActionButtonLabel(WorldActionViewModel action)
     {
-        string costs = action.CostLines.Count == 0 ? "无消耗" : string.Join("，", action.CostLines);
-        string suffix = action.IsEnabled ? costs : action.DisabledReason;
-        return $"{action.DisplayName}\n{suffix}";
+        return action?.DisplayName ?? "";
     }
 
-    private static string BuildFacilityBuildButtonText(WorldActionViewModel action)
+    private static string BuildFacilityBuildButtonLabel(WorldActionViewModel action)
     {
-        string costs = action.CostLines.Count == 0 ? "无消耗" : string.Join("，", action.CostLines);
-        string suffix = action.IsEnabled ? costs : action.DisabledReason;
-        return $"{action.DisplayName}\n{suffix}";
+        return action?.DisplayName ?? "";
     }
 
     private static string BuildActionTooltip(WorldActionViewModel action)
@@ -150,6 +146,7 @@ public partial class WorldSiteRoot
             lines.Add(action.Description);
         }
 
+        lines.Add(action.CostLines.Count == 0 ? "无消耗" : $"消耗：{string.Join("，", action.CostLines)}");
         lines.AddRange(action.EffectLines);
         lines.AddRange(action.WarningLines);
         if (!action.IsEnabled && !string.IsNullOrWhiteSpace(action.DisabledReason))

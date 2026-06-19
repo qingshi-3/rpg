@@ -212,6 +212,97 @@ internal static void FirstSliceAssaultImportsSelectedHeroCompanyIntoTargetSiteUn
         "target site pool should remove defeated Bonefield defender units after victory");
 }
 
+internal static void FirstSliceStrategicAssaultRequestDoesNotImportHeroCompanyIntoTargetSiteGarrison()
+{
+    const string armyId = "army_first_slice_strategic_assault";
+    StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateConfig: false);
+    StrategicWorldState state = BuildFirstSliceAssaultState(
+        definition,
+        armyId,
+        heroUnitId: "f1_elyxstormblade",
+        corpsUnitId: "f1_radiantdragoon");
+    state.ArmyStates[armyId].StrategicExpeditionId = "expedition_strategic_assault";
+    state.ArmyStates[armyId].GarrisonUnits[0].StrategicParticipantId = "strategic_participant:expedition_strategic_assault:hero:corps";
+    state.ArmyStates[armyId].GarrisonUnits[1].StrategicParticipantId = "strategic_participant:expedition_strategic_assault:hero:corps";
+    WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
+    int garrisonCountBefore = site.Garrison.Count;
+
+    BattleStartRequest request = new WorldBattleRequestBuilder().BuildAssaultBonefieldRequest(
+        state,
+        definition,
+        "res://scenes/world/StrategicWorldRoot.tscn",
+        "res://scenes/world/sites/WorldSiteRoot.tscn",
+        armyId);
+
+    AssertEqual(2, request.PlayerForces.Count, "strategic assault request should still expose the selected hero and corps forces");
+    AssertTrue(
+        request.PlayerForces.All(force =>
+            string.Equals(force.SourceKind, "PlayerArmy", StringComparison.Ordinal) &&
+            string.Equals(force.SourceId, armyId, StringComparison.Ordinal)),
+        "strategic compatibility request should keep settlement source identity on player forces");
+    AssertEqual(garrisonCountBefore, site.Garrison.Count, "strategic assault request must not add target-site garrison rows");
+    AssertEqual(
+        0,
+        site.Garrison.Where(garrison =>
+            garrison.SourceKind == "PlayerArmy" &&
+            garrison.SourceId == armyId).Sum(garrison => garrison.Count),
+        "strategic assault request must not import the hero company into legacy target garrison");
+}
+
+internal static void StrategicBattleLegacyGarrisonCleanupRemovesStalePlayerArmyRows()
+{
+    const string armyId = "army_stale_strategic_rows";
+    WorldSiteState site = new()
+    {
+        SiteId = StrategicWorldIds.SiteBonefield,
+        OwnerFactionId = StrategicWorldIds.FactionUndead
+    };
+    site.Garrison.Add(new GarrisonState
+    {
+        UnitTypeId = "f1_elyxstormblade",
+        Count = 1,
+        FactionId = StrategicWorldIds.FactionPlayer,
+        SourceKind = "PlayerArmy",
+        SourceId = armyId,
+        StrategicParticipantId = "strategic_participant:expedition:hero:corps"
+    });
+    site.Garrison.Add(new GarrisonState
+    {
+        UnitTypeId = "f1_radiantdragoon",
+        Count = 3,
+        FactionId = StrategicWorldIds.FactionPlayer,
+        SourceKind = "PlayerArmy",
+        SourceId = armyId,
+        StrategicParticipantId = "strategic_participant:expedition:hero:corps"
+    });
+    site.Garrison.Add(new GarrisonState
+    {
+        UnitTypeId = "f6_spiritwolf",
+        Count = 2,
+        FactionId = StrategicWorldIds.FactionUndead,
+        SourceKind = "DefenderSite",
+        SourceId = StrategicWorldIds.SiteBonefield
+    });
+    System.Reflection.MethodInfo? cleanup = typeof(WorldSiteBattleUnitPoolService).GetMethod(
+        "RemoveImportedArmyForSiteBattle",
+        new[] { typeof(WorldSiteState), typeof(string) });
+
+    AssertTrue(cleanup != null, "battle unit pool service should expose imported army garrison cleanup");
+    int removed = (int)cleanup!.Invoke(new WorldSiteBattleUnitPoolService(), new object[] { site, armyId })!;
+
+    AssertEqual(4, removed, "cleanup should report the removed stale strategic unit count");
+    AssertEqual(
+        0,
+        site.Garrison.Where(garrison =>
+            garrison.SourceKind == "PlayerArmy" &&
+            garrison.SourceId == armyId).Sum(garrison => garrison.Count),
+        "cleanup should remove stale PlayerArmy garrison rows for the strategic army");
+    AssertEqual(
+        2,
+        site.Garrison.Where(garrison => garrison.UnitTypeId == "f6_spiritwolf").Sum(garrison => garrison.Count),
+        "cleanup must not remove unrelated resident defender rows");
+}
+
 internal static void FirstSliceAssaultSettlementKeepsUndeployedReserveCompanyOutOfCasualties()
 {
     const string armyId = "army_first_slice_reserve";

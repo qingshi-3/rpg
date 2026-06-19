@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Rpg.Application.Config;
 using Rpg.Application.World;
 
 namespace Rpg.Definitions.StrategicManagement;
@@ -134,28 +135,11 @@ public static class FirstStrategicManagementDefinitions
 
     private static void AddFacilities(StrategicManagementDefinitionSet definitions)
     {
-        Add(definitions.Facilities, new StrategicFacilityDefinition
+        // Facility content is first-slice data; rules and commands consume typed definitions after config validation.
+        foreach (StrategicFacilityDefinition facility in StrategicManagementFacilityDefinitionConfigLoader.LoadDefaultFacilities())
         {
-            FacilityDefinitionId = StrategicManagementIds.FacilityTrainingGround,
-            DisplayName = "训练场",
-            ProvidedTags = { StrategicManagementIds.FacilityTagCommonTraining },
-            BuildCost =
-            {
-                new StrategicResourceAmount(StrategicManagementIds.ResourceMoney, 20),
-                new StrategicResourceAmount(StrategicManagementIds.ResourceBuildingMaterials, 40)
-            }
-        });
-        Add(definitions.Facilities, new StrategicFacilityDefinition
-        {
-            FacilityDefinitionId = StrategicManagementIds.FacilityBeastPen,
-            DisplayName = "兽栏",
-            ProvidedTags = { StrategicManagementIds.FacilityTagBeastPen },
-            BuildCost =
-            {
-                new StrategicResourceAmount(StrategicManagementIds.ResourceMoney, 40),
-                new StrategicResourceAmount(StrategicManagementIds.ResourceBuildingMaterials, 60)
-            }
-        });
+            Add(definitions.Facilities, facility);
+        }
     }
 
     private static void AddCorps(StrategicManagementDefinitionSet definitions)

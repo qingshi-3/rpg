@@ -307,6 +307,11 @@ internal static class BattleTacticalObservationUpdater
             return false;
         }
 
+        if (!BattleTacticalIntentPolicy.AllowsVolatileObservationRetarget(tacticalState))
+        {
+            return false;
+        }
+
         BattleTacticalRegionSnapshot selected = tacticalState.SelectedRegion;
         if (selected == null)
         {

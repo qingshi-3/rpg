@@ -11,9 +11,6 @@ namespace Rpg.Presentation.Battle.Entities;
 public partial class UnitAnimationComponent : BattleEntityComponent
 {
     [Export]
-    public NodePath AnimationPlayerPath { get; set; } = new("AnimationPlayer");
-
-    [Export]
     public NodePath AnimatedSpritePath { get; set; } = new("VisualRoot/AnimatedSprite2D");
 
     [Export]
@@ -29,23 +26,15 @@ public partial class UnitAnimationComponent : BattleEntityComponent
     public NodePath VisualRootPath { get; set; } = new("VisualRoot");
 
     [Export]
-    public bool EnableProceduralFallback { get; set; }
-
-    [Export]
     public bool LogMissingConfiguredAnimations { get; set; } = true;
 
     private readonly HashSet<string> _loggedMissingKeys = new();
-    private AnimationPlayer _animationPlayer;
-    private AnimationPlayer _connectedAnimationPlayer;
     private AnimatedSprite2D _animatedSprite;
     private AnimatedSprite2D _connectedAnimatedSprite;
     private Node2D _visualRoot;
-    private Tween _proceduralTween;
     private Tween _defeatedFadeTween;
-    private string _proceduralCue = "";
-    private int _proceduralCueVersion;
-    private bool _animationFinishedConnected;
     private bool _spriteAnimationFinishedConnected;
+    private bool _spriteFrameChangedConnected;
     private bool _facingRight = true;
     private string _defeatedAnimationName = "";
     private double _defeatedMinimumDurationSeconds;
@@ -55,43 +44,25 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
     protected override void OnAttached()
     {
-        ResolveAnimationPlayer();
         ResolveVisualRoot();
         ResolveAnimatedSprite();
         ApplyFacing();
-        TryConnectAnimationFinished();
         TryConnectSpriteAnimationFinished();
         PlayIdle();
 
-        GameLog.Trace(
-            nameof(UnitAnimationComponent),
-            $"Attached entity={Entity?.EntityId} hasSet={AnimationSet != null} hasPlayer={_animationPlayer != null} hasSprite={_animatedSprite != null} hasVisualRoot={_visualRoot != null}");
+        GameLog.Trace(nameof(UnitAnimationComponent),
+            $"Attached entity={Entity?.EntityId} hasSet={AnimationSet != null} hasSprite={_animatedSprite != null} hasVisualRoot={_visualRoot != null}");
     }
 
     public override void _ExitTree()
     {
-        DisconnectAnimationFinished();
         DisconnectSpriteAnimationFinished();
-        KillProceduralTween();
         KillDefeatedFadeTween(resetModulate: false);
 
-        _animationPlayer = null;
         _animatedSprite = null;
         _visualRoot = null;
         _defeatedFinished = null;
-    }
-
-    private void DisconnectAnimationFinished()
-    {
-        if (_animationFinishedConnected &&
-            _connectedAnimationPlayer != null &&
-            GodotObject.IsInstanceValid(_connectedAnimationPlayer))
-        {
-            _connectedAnimationPlayer.AnimationFinished -= OnAnimationFinished;
-        }
-
-        _connectedAnimationPlayer = null;
-        _animationFinishedConnected = false;
+        CancelHeldAnimationPlayback();
     }
 
     private void DisconnectSpriteAnimationFinished()
@@ -103,8 +74,16 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             _connectedAnimatedSprite.AnimationFinished -= OnAnimatedSpriteAnimationFinished;
         }
 
+        if (_spriteFrameChangedConnected &&
+            _connectedAnimatedSprite != null &&
+            GodotObject.IsInstanceValid(_connectedAnimatedSprite))
+        {
+            _connectedAnimatedSprite.FrameChanged -= OnAnimatedSpriteFrameChanged;
+        }
+
         _connectedAnimatedSprite = null;
         _spriteAnimationFinishedConnected = false;
+        _spriteFrameChangedConnected = false;
     }
 
     public bool PlayIdle()
@@ -232,19 +211,6 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         ApplyFacing();
     }
 
-    private void ResolveAnimationPlayer()
-    {
-        if (Entity == null)
-        {
-            return;
-        }
-
-        string path = AnimationPlayerPath?.ToString() ?? "";
-        _animationPlayer = string.IsNullOrWhiteSpace(path)
-            ? null
-            : Entity.GetNodeOrNull<AnimationPlayer>(AnimationPlayerPath);
-    }
-
     private void ResolveVisualRoot()
     {
         if (Entity == null)
@@ -286,25 +252,6 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         _animatedSprite.FlipH = !_facingRight;
     }
 
-    private void TryConnectAnimationFinished()
-    {
-        if (_animationPlayer == null)
-        {
-            DisconnectAnimationFinished();
-            return;
-        }
-
-        if (_animationFinishedConnected && _connectedAnimationPlayer == _animationPlayer)
-        {
-            return;
-        }
-
-        DisconnectAnimationFinished();
-        _animationPlayer.AnimationFinished += OnAnimationFinished;
-        _connectedAnimationPlayer = _animationPlayer;
-        _animationFinishedConnected = true;
-    }
-
     private void TryConnectSpriteAnimationFinished()
     {
         if (_animatedSprite == null)
@@ -313,15 +260,19 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return;
         }
 
-        if (_spriteAnimationFinishedConnected && _connectedAnimatedSprite == _animatedSprite)
+        if (_spriteAnimationFinishedConnected &&
+            _spriteFrameChangedConnected &&
+            _connectedAnimatedSprite == _animatedSprite)
         {
             return;
         }
 
         DisconnectSpriteAnimationFinished();
         _animatedSprite.AnimationFinished += OnAnimatedSpriteAnimationFinished;
+        _animatedSprite.FrameChanged += OnAnimatedSpriteFrameChanged;
         _connectedAnimatedSprite = _animatedSprite;
         _spriteAnimationFinishedConnected = true;
+        _spriteFrameChangedConnected = true;
     }
 
     private bool TryPlay(string animationName, string cue, bool restart, double minimumTargetSeconds = 0)
@@ -332,7 +283,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return true;
         }
 
-        if (!restart && IsCueAlreadyPlaying(cue, resolvedAnimationName))
+        if (!restart && IsCueAlreadyPlaying(resolvedAnimationName))
         {
             return true;
         }
@@ -342,29 +293,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             KillDefeatedFadeTween(resetModulate: true);
         }
 
-        bool preferAnimatedSprite = AnimationSet?.PreferAnimatedSprite != false;
-        if (preferAnimatedSprite)
-        {
-            if (TryPlayAnimatedSprite(resolvedAnimationName, cue, restart, logMissing: false, minimumTargetSeconds) ||
-                TryPlayAnimationPlayer(resolvedAnimationName, cue, restart, logMissing: false))
-            {
-                return true;
-            }
-
-            TryPlayAnimatedSprite(resolvedAnimationName, cue, restart, logMissing: true, minimumTargetSeconds);
-            TryPlayAnimationPlayer(resolvedAnimationName, cue, restart, logMissing: true);
-            return PlayProceduralCue(cue, restart, minimumTargetSeconds);
-        }
-
-        if (TryPlayAnimationPlayer(resolvedAnimationName, cue, restart, logMissing: false) ||
-            TryPlayAnimatedSprite(resolvedAnimationName, cue, restart, logMissing: false, minimumTargetSeconds))
-        {
-            return true;
-        }
-
-        TryPlayAnimationPlayer(resolvedAnimationName, cue, restart, logMissing: true);
-        TryPlayAnimatedSprite(resolvedAnimationName, cue, restart, logMissing: true, minimumTargetSeconds);
-        return PlayProceduralCue(cue, restart, minimumTargetSeconds);
+        return TryPlayAnimatedSprite(resolvedAnimationName, cue, restart, logMissing: true, minimumTargetSeconds);
     }
 
     private bool TryPlaySkillCastAnimation()
@@ -377,21 +306,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
     private bool HasPlayableAnimation(string animationName, string cue)
     {
         string resolvedAnimationName = ResolveAnimationName(animationName, cue);
-        return HasPlayableAnimatedSpriteAnimation(resolvedAnimationName) ||
-               HasPlayableAnimationPlayerAnimation(resolvedAnimationName);
-    }
-
-    private bool HasPlayableAnimationPlayerAnimation(string animationName)
-    {
-        if (_animationPlayer == null)
-        {
-            ResolveAnimationPlayer();
-        }
-
-        return _animationPlayer != null &&
-               GodotObject.IsInstanceValid(_animationPlayer) &&
-               !string.IsNullOrWhiteSpace(animationName) &&
-               _animationPlayer.HasAnimation(animationName);
+        return HasPlayableAnimatedSpriteAnimation(resolvedAnimationName);
     }
 
     private bool HasPlayableAnimatedSpriteAnimation(string animationName)
@@ -411,48 +326,6 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         SpriteFrames spriteFrames = _animatedSprite.SpriteFrames;
         return spriteFrames != null &&
                spriteFrames.HasAnimation(new StringName(animationName));
-    }
-
-    private bool TryPlayAnimationPlayer(string animationName, string cue, bool restart, bool logMissing)
-    {
-        if (_animationPlayer == null)
-        {
-            if (logMissing)
-            {
-                LogMissingOnce($"player:{cue}", $"Unit animation player missing entity={Entity?.EntityId} cue={cue} path={AnimationPlayerPath}");
-            }
-
-            return false;
-        }
-
-        if (!_animationPlayer.HasAnimation(animationName))
-        {
-            if (logMissing)
-            {
-                LogMissingOnce($"animation:{cue}:{animationName}", $"Unit animation missing entity={Entity?.EntityId} cue={cue} animation={animationName}");
-            }
-
-            return false;
-        }
-
-        bool hadProceduralTween = _proceduralTween != null;
-        KillProceduralTween();
-        if (hadProceduralTween)
-        {
-            ResetVisualRoot();
-        }
-
-        StopAnimatedSprite();
-        if (!restart && _animationPlayer.IsPlaying() && _animationPlayer.CurrentAnimation == animationName)
-        {
-            return true;
-        }
-
-        _animationPlayer.SpeedScale = UnitAnimationTimingPolicy.ResolveAnimationPlayerSpeedScale(cue, AttackSpeed);
-        _animationPlayer.Play(animationName);
-        HandleCueStarted(cue, animationName, ResolveAnimationPlayerAnimationSeconds(animationName, cue));
-        GameLog.Trace(nameof(UnitAnimationComponent), $"Animation played entity={Entity?.EntityId} cue={cue} animation={animationName}");
-        return true;
     }
 
     private bool TryPlayAnimatedSprite(string animationName, string cue, bool restart, bool logMissing)
@@ -475,7 +348,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
         if (_animatedSprite == null)
         {
-            if (logMissing && AnimationSet?.PreferAnimatedSprite != false)
+            if (logMissing)
             {
                 LogMissingOnce($"sprite:{cue}", $"Unit animated sprite missing entity={Entity?.EntityId} cue={cue} path={AnimatedSpritePath}");
             }
@@ -505,14 +378,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return false;
         }
 
-        bool hadProceduralTween = _proceduralTween != null;
-        KillProceduralTween();
-        if (hadProceduralTween)
-        {
-            ResetVisualRoot();
-        }
-
-        StopAnimationPlayer();
+        CancelHeldAnimationPlayback();
         UnitAnimationTimingPolicy.ApplyAnimatedSpriteLoopMode(spriteFrames, spriteAnimationName, cue);
         var playbackTiming = ApplyAnimatedSpritePlaybackSpeed(animationName, cue, minimumTargetSeconds);
         if (!restart &&
@@ -524,8 +390,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
 
         _animatedSprite.Play(spriteAnimationName);
         HandleCueStarted(cue, animationName, ResolveAnimatedSpriteAnimationSeconds(animationName));
-        GameLog.Trace(
-            nameof(UnitAnimationComponent),
+        GameLog.Trace(nameof(UnitAnimationComponent),
             $"Animated sprite played entity={Entity?.EntityId} cue={cue} animation={animationName} frames={playbackTiming.FrameCount} authoredSeconds={playbackTiming.AuthoredSeconds:0.00} targetSeconds={playbackTiming.TargetSeconds:0.00} speedScale={playbackTiming.SpeedScale:0.00} path={_animatedSprite.GetPath()}");
         return true;
     }
@@ -627,145 +492,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return speedScale > 0 ? authoredSeconds / speedScale : authoredSeconds;
         }
 
-        if (_animationPlayer != null &&
-            GodotObject.IsInstanceValid(_animationPlayer) &&
-            !string.IsNullOrWhiteSpace(animationName) &&
-            _animationPlayer.HasAnimation(animationName))
-        {
-            Animation animation = _animationPlayer.GetAnimation(animationName);
-            if (animation != null && animation.Length > 0)
-            {
-                return UnitAnimationTimingPolicy.ScaleAnimationSecondsByAttackSpeed(animation.Length, cue, AttackSpeed);
-            }
-        }
-
         return UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds(cue, AnimationSet, AttackSpeed);
-    }
-
-    private bool PlayProceduralCue(string cue, bool restart, double minimumTargetSeconds = 0)
-    {
-        if (!EnableProceduralFallback || _visualRoot == null)
-        {
-            return false;
-        }
-
-        if (!restart && _proceduralTween != null && _proceduralCue == cue)
-        {
-            return true;
-        }
-
-        KillProceduralTween();
-        StopAnimationPlayer();
-        StopAnimatedSprite();
-        _proceduralCue = cue;
-        _proceduralCueVersion++;
-        InvalidateOneShotReturn();
-        int version = _proceduralCueVersion;
-
-        ResetVisualRoot();
-        _proceduralTween = CreateTween();
-        _proceduralTween.SetTrans(Tween.TransitionType.Sine);
-        _proceduralTween.SetEase(Tween.EaseType.InOut);
-
-        switch (cue)
-        {
-            case "idle":
-                _proceduralTween.SetLoops();
-                _proceduralTween.TweenProperty(_visualRoot, "position", new Vector2(0f, -2f), 0.55);
-                _proceduralTween.TweenProperty(_visualRoot, "position", Vector2.Zero, 0.55);
-                break;
-
-            case "move":
-                _proceduralTween.SetLoops();
-                _proceduralTween.TweenProperty(_visualRoot, "scale", new Vector2(1.06f, 0.94f), 0.16);
-                _proceduralTween.TweenProperty(_visualRoot, "scale", Vector2.One, 0.16);
-                break;
-
-            case "attack":
-                double attackWindupSeconds = BattleAttackSpeedPolicy.ScaleTargetSeconds(0.08, AttackSpeed);
-                double attackReturnSeconds = BattleAttackSpeedPolicy.ScaleTargetSeconds(0.14, AttackSpeed);
-                _proceduralTween.TweenProperty(_visualRoot, "position", new Vector2(8f, -2f), attackWindupSeconds);
-                _proceduralTween.TweenProperty(_visualRoot, "position", Vector2.Zero, attackReturnSeconds);
-                QueueProceduralReturnToIdle(version, attackWindupSeconds + attackReturnSeconds + 0.02);
-                break;
-
-            case "skill_cast":
-                double skillCastSeconds = System.Math.Max(0.28, UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds("skill_cast", AnimationSet, AttackSpeed));
-                double castRiseSeconds = System.Math.Min(0.14, skillCastSeconds * 0.24);
-                double castReleaseSeconds = System.Math.Max(0.12, skillCastSeconds - castRiseSeconds);
-                _proceduralTween.TweenProperty(_visualRoot, "scale", new Vector2(1.22f, 1.22f), castRiseSeconds);
-                _proceduralTween.Parallel().TweenProperty(_visualRoot, "modulate", new Color(1f, 0.86f, 0.32f, 1f), castRiseSeconds);
-                _proceduralTween.TweenProperty(_visualRoot, "scale", Vector2.One, castReleaseSeconds);
-                _proceduralTween.Parallel().TweenProperty(_visualRoot, "modulate", Colors.White, castReleaseSeconds);
-                QueueProceduralReturnToIdle(version, skillCastSeconds + 0.02);
-                break;
-
-            case "hit":
-                double hitSeconds = System.Math.Max(0.24, minimumTargetSeconds);
-                double hitFlashSeconds = System.Math.Min(0.1, hitSeconds * 0.25);
-                _proceduralTween.TweenProperty(_visualRoot, "modulate", new Color(1f, 0.55f, 0.55f, 1f), hitFlashSeconds);
-                _proceduralTween.TweenProperty(_visualRoot, "modulate", Colors.White, System.Math.Max(0.1, hitSeconds - hitFlashSeconds));
-                QueueProceduralReturnToIdle(version, hitSeconds + 0.02);
-                break;
-
-            case "defeated":
-                _proceduralTween.TweenProperty(_visualRoot, "rotation", 0.18f, 0.08);
-                _proceduralTween.TweenProperty(_visualRoot, "scale", new Vector2(0.86f, 0.86f), 0.08);
-                PlayDefeatedFade(ResolveDefeatedFadeSeconds(UnitAnimationTimingPolicy.ResolveTargetSpriteSeconds("defeated", minimumTargetSeconds, AnimationSet, AttackSpeed)));
-                break;
-
-            default:
-                _proceduralTween.Kill();
-                _proceduralTween = null;
-                _proceduralCue = "";
-                return false;
-        }
-
-        GameLog.Trace(nameof(UnitAnimationComponent), $"Procedural animation played entity={Entity?.EntityId} cue={cue}");
-        return true;
-    }
-
-    private async void QueueProceduralReturnToIdle(int version, double delaySeconds)
-    {
-        if (AnimationSet?.ReturnToIdleAfterOneShot == false || !IsInsideTree())
-        {
-            return;
-        }
-
-        await ToSignal(GetTree().CreateTimer(delaySeconds, processAlways: false), SceneTreeTimer.SignalName.Timeout);
-        if (version == _proceduralCueVersion && Entity != null && !BattleRuleQueries.IsDefeated(Entity))
-        {
-            PlayIdle();
-        }
-    }
-
-    private void ResetVisualRoot()
-    {
-        if (_visualRoot == null)
-        {
-            return;
-        }
-
-        _visualRoot.Position = Vector2.Zero;
-        _visualRoot.Scale = Vector2.One;
-        _visualRoot.Rotation = 0f;
-        _visualRoot.Modulate = Colors.White;
-    }
-
-    private void KillProceduralTween()
-    {
-        if (_proceduralTween != null || !string.IsNullOrEmpty(_proceduralCue))
-        {
-            _proceduralCueVersion++;
-        }
-
-        if (_proceduralTween != null && GodotObject.IsInstanceValid(_proceduralTween))
-        {
-            _proceduralTween.Kill();
-        }
-
-        _proceduralTween = null;
-        _proceduralCue = "";
     }
 
     private void PlayDefeatedFade(double totalSeconds)
@@ -834,27 +561,6 @@ public partial class UnitAnimationComponent : BattleEntityComponent
         }
     }
 
-    private void StopAnimationPlayer()
-    {
-        if (_animationPlayer != null && GodotObject.IsInstanceValid(_animationPlayer))
-        {
-            _animationPlayer.Stop();
-        }
-    }
-
-    private void StopAnimatedSprite()
-    {
-        if (_animatedSprite != null && GodotObject.IsInstanceValid(_animatedSprite))
-        {
-            _animatedSprite.Stop();
-        }
-    }
-
-    private void OnAnimationFinished(StringName animationName)
-    {
-        HandleFinishedAnimation(animationName.ToString());
-    }
-
     private void OnAnimatedSpriteAnimationFinished()
     {
         string finished = _animatedSprite?.Animation.ToString() ?? "";
@@ -900,36 +606,12 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return true;
         }
 
-        return _animationPlayer != null &&
-               GodotObject.IsInstanceValid(_animationPlayer) &&
-               string.Equals(_animationPlayer.CurrentAnimation, animationName, System.StringComparison.Ordinal);
+        return false;
     }
 
-    private bool IsCueAlreadyPlaying(string cue, string animationName)
+    private bool IsCueAlreadyPlaying(string animationName)
     {
-        if (!string.IsNullOrWhiteSpace(_proceduralCue) &&
-            _proceduralTween != null &&
-            string.Equals(_proceduralCue, cue, System.StringComparison.Ordinal))
-        {
-            return true;
-        }
-
         return IsCurrentAnimation(animationName);
-    }
-
-    private double ResolveAnimationPlayerAnimationSeconds(string animationName, string cue)
-    {
-        if (_animationPlayer == null ||
-            !GodotObject.IsInstanceValid(_animationPlayer) ||
-            string.IsNullOrWhiteSpace(animationName))
-        {
-            return 0;
-        }
-
-        double seconds = _animationPlayer.CurrentAnimationLength;
-        return seconds > 0
-            ? UnitAnimationTimingPolicy.ScaleAnimationSecondsByAttackSpeed(seconds, cue, AttackSpeed)
-            : 0;
     }
 
     private async Task CompleteDefeatedAfterFallbackDelay(int version, double seconds)
@@ -998,15 +680,7 @@ public partial class UnitAnimationComponent : BattleEntityComponent
             return System.Math.Max(spriteLength, _defeatedMinimumDurationSeconds) + 0.05;
         }
 
-        if (_animationPlayer == null || string.IsNullOrWhiteSpace(_defeatedAnimationName))
-        {
-            return System.Math.Max(configured, _defeatedMinimumDurationSeconds);
-        }
-
-        double currentLength = _animationPlayer.CurrentAnimationLength;
-        return currentLength > 0
-            ? System.Math.Max(currentLength, _defeatedMinimumDurationSeconds) + 0.05
-            : System.Math.Max(configured, _defeatedMinimumDurationSeconds);
+        return System.Math.Max(configured, _defeatedMinimumDurationSeconds);
     }
 
     private double ResolveAnimatedSpriteAnimationSeconds(string animationName)

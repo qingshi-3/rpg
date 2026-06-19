@@ -8,4 +8,5 @@ Current entries:
 
 - `battle/first_slice_hero_companies.json`: first-slice hero-company, default corps, skill, and Bonefield roster mappings.
 - `battle/unit_definition_index.json`: curated battle unit id to authored `unit.tres` resource path index.
+- `strategic_management/first_slice_facilities.json`: first-slice Strategic Management facility definitions.
 - `world/strategic_world_v1_initial_state.json`: strategic initial site roster data.

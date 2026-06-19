@@ -25,6 +25,12 @@ internal static string ReadWorldSitePresentationSource()
     return string.Join("\n", Directory.GetFiles(siteRootDir, "*.cs").OrderBy(path => path).Select(File.ReadAllText));
 }
 
+internal static string ReadBattleGridHighlightOverlaySource()
+{
+    string battlePresentationDir = Path.Combine(ProjectRoot(), "src", "Presentation", "Battle");
+    return string.Join("\n", Directory.GetFiles(battlePresentationDir, "BattleGridHighlightOverlay*.cs").OrderBy(path => path).Select(File.ReadAllText));
+}
+
 internal static string ExtractMethodBody(string source, string signature)
 {
     int signatureIndex = source.IndexOf(signature, StringComparison.Ordinal);

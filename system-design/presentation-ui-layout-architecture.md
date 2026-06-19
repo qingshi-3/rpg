@@ -89,6 +89,7 @@ Does not own:
 - long action lists;
 - deployment roster;
 - settlement report body.
+- full-width framed bars when the current scene is meant to keep the game view fullscreen. Strategic-world top UI is split into independently anchored overlay elements.
 
 ### LeftPrimaryPanelHost
 
@@ -110,6 +111,8 @@ Does not own:
 - runtime command execution;
 - settlement truth;
 - long-term data mutation.
+
+Strategic-world selection is an exception in the current fullscreen map presentation: selected strategic-location context is shown as a bottom-centered overlay sheet instead of a persistent left-side panel. Site-management and battle-preparation scenes may still use `LeftPrimaryPanelHost` when they are deliberate workspaces rather than map-overlaid context.
 
 ### RightNotificationHost
 
@@ -146,8 +149,9 @@ Owns short-lived viewport overlays:
 - hover tooltips;
 - damage numbers;
 - action cues.
+- fullscreen strategic-world context sheets, such as the selected-city bottom popup, when the UI should preserve the full map view behind it.
 
-Overlay content must be transient and must not become a permanent management panel.
+Overlay content must remain context-bound and must not become a permanent management panel. Strategic-world selected-location overlays appear only while that context is active.
 
 ### ModalHost
 
@@ -212,7 +216,11 @@ High-frequency per-frame UI rebuilds are forbidden unless explicitly justified a
 
 ### Strategic World
 
-`StrategicWorldHud.tscn` may be migrated first by moving `SiteDetailPanel` into the left primary workspace while keeping node names stable.
+`StrategicWorldHud.tscn` presents the large map as fullscreen content. `MainWorldViewportHost` fills the root screen; HUD controls overlay it and must not reserve screen space or change the map/camera layout.
+
+Top strategic-world UI is not a single full-width bar. Resource/status, notice, world-clock, and speed/reset controls are independent overlay elements under `TopBarHost`.
+
+`SiteDetailPanel` is a selected-context bottom sheet under `OverlayHost`, centered horizontally, half-screen wide, and one-quarter screen tall. It is hidden when no strategic location or opportunity context is selected. Its content lays out horizontally so it reads as a contextual sheet, not as a left-side menu.
 
 Current bindings in `StrategicWorldRoot.UiBootstrap.cs` and `StrategicWorldRoot.DetailHud.cs` may remain initially if they only display and submit Application requests.
 
@@ -288,7 +296,8 @@ Battle runtime may hide the left primary panel in V0. Future command UI belongs 
 
 The UI architecture is acceptable when:
 
-- main persistent operation panels use a left primary workspace;
+- workspace-oriented persistent operation panels use an approved workspace host, typically the left primary workspace for site-management scenes;
+- fullscreen strategic-world map presentation uses overlay context sheets instead of left-panel map reservations;
 - game/world rendering is isolated in a real `MainWorldViewport` instead of sharing the root UI canvas;
 - right side is reserved for compact notifications and minimap/navigation aid;
 - deployment UI is no longer semantically hosted in garrison/action management lists;

@@ -66,7 +66,8 @@ Use progressive disclosure. Read the smallest authority document that matches th
 | Battle map topology compilation, pathfinding, footprints, occupancy, reservations, path failure diagnostics | `battle-navigation-topology-architecture.md` |
 | Hero/corps/combined command lifecycle, validation, runtime order events | `battle-command-architecture.md` |
 | Tactical autonomy, player intent precedence, LimboAI behavior-tree boundary | `battle-ai-boundary-architecture.md` |
-| Battle-group-owned target regions, temporary regions, local combat regions, and enemy/player region policy separation | `battle-group-tactical-region-architecture.md` |
+| Battle target objects, tactical intent plans, target selectors, tactical capability boundaries, and enemy-first intent migration | `battle-tactical-intent-architecture.md` |
+| Battle-group-owned target objects/regions, temporary regions, local combat regions, enemy intent consumption, and player-command separation | `battle-group-tactical-region-architecture.md` |
 | Snapshot/result contracts, settlement, report attribution, recovery, rollback/failure semantics | `battle-result-settlement-architecture.md` |
 | Ability/effect definitions, combat content resourceization, resource and progression loops | `battle-content-progression-architecture.md` |
 | Strategic Management to battle session bridge, battle preparation draft ownership, snapshot compilation, scene handoff, and strategic result summary writeback | `strategic-battle-bridge-architecture.md` |

@@ -2,23 +2,13 @@
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattlePreparationObjectiveThumbnail.cs" id="1_thumbnail_script"]
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_preview_script"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_thumbnail"]
-bg_color = Color(0.045, 0.056, 0.052, 0.86)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.54, 0.62, 0.48, 0.86)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="3_theme"]
 
 [node name="BattlePreparationObjectiveThumbnail" type="PanelContainer"]
 custom_minimum_size = Vector2(250, 188)
 mouse_filter = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_thumbnail")
+theme = ExtResource("3_theme")
+theme_type_variation = &"WorldContextCard"
 script = ExtResource("1_thumbnail_script")
 
 [node name="Margin" type="MarginContainer" parent="."]

@@ -142,6 +142,73 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
         return gapX + gapY <= normalizedRange;
     }
 
+    internal static bool TryResolveThunderSpiralTargetCenter(
+        BattleEntity source,
+        GridPosition mouseGrid,
+        out GridPosition center)
+    {
+        center = default;
+        GridOccupantComponent grid = source?.GetComponent<GridOccupantComponent>();
+        if (grid == null || BattleRuleQueries.IsDefeated(source))
+        {
+            return false;
+        }
+
+        int width = BattleFootprintCells.NormalizeSize(grid.FootprintWidth);
+        int height = BattleFootprintCells.NormalizeSize(grid.FootprintHeight);
+        int sourceCenterX2 = grid.GridX * 2 + width - 1;
+        int sourceCenterY2 = grid.GridY * 2 + height - 1;
+        int mouseCenterX2 = mouseGrid.X * 2;
+        int mouseCenterY2 = mouseGrid.Y * 2;
+        int dx = mouseCenterX2 - sourceCenterX2;
+        int dy = mouseCenterY2 - sourceCenterY2;
+
+        if (System.Math.Abs(dx) >= System.Math.Abs(dy))
+        {
+            center = dx >= 0
+                ? new GridPosition(grid.GridX + width + 1, grid.GridY)
+                : new GridPosition(grid.GridX - 2, grid.GridY);
+        }
+        else
+        {
+            center = dy >= 0
+                ? new GridPosition(grid.GridX, grid.GridY + height + 1)
+                : new GridPosition(grid.GridX, grid.GridY - 2);
+        }
+
+        return true;
+    }
+
+    internal static IReadOnlyList<GridPosition> BuildThunderSpiralAreaCells(
+        BattleEntity source,
+        GridPosition mouseGrid,
+        BattleGridMap gridMap)
+    {
+        return TryResolveThunderSpiralTargetCenter(source, mouseGrid, out GridPosition center)
+            ? BuildThreeByThreeCells(center, gridMap)
+            : System.Array.Empty<GridPosition>();
+    }
+
+    internal static IReadOnlyList<GridPosition> BuildThreeByThreeCells(
+        GridPosition center,
+        BattleGridMap gridMap)
+    {
+        var cells = new List<GridPosition>(9);
+        for (int y = center.Y - 1; y <= center.Y + 1; y++)
+        {
+            for (int x = center.X - 1; x <= center.X + 1; x++)
+            {
+                GridPosition cell = new(x, y);
+                if (gridMap == null || gridMap.TryGetCell(cell, out _))
+                {
+                    cells.Add(cell);
+                }
+            }
+        }
+
+        return cells;
+    }
+
     private static bool TryResolveCorpsActorId(BattleEntity entity, out string actorId)
     {
         actorId = "";
