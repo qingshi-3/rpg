@@ -96,10 +96,6 @@ public partial class WorldSiteRoot
             _siteHudRoot.Visible = true;
             ApplySiteHudFullRect("battle_runtime_command_pause");
         }
-        if (_siteHudTopBar != null)
-        {
-            _siteHudTopBar.Visible = false;
-        }
         if (_sitePeacetimePanel != null)
         {
             _sitePeacetimePanel.Visible = false;

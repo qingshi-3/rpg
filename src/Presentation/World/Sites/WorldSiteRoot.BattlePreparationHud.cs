@@ -75,11 +75,6 @@ public partial class WorldSiteRoot
         StrategicWorldRuntime.EnsureInitialized();
         EnsureBattlePreparationPlanDefaults(_battlePreparationRequest);
 
-        if (_siteHudTopBar != null)
-        {
-            _siteHudTopBar.Visible = true;
-        }
-
         if (_sitePeacetimePanel != null)
         {
             _sitePeacetimePanel.Visible = false;

@@ -23,7 +23,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
         AssertTrue(expedition.Success, $"expedition creation should succeed, got {expedition.FailureReason}");
@@ -209,12 +209,12 @@ internal static partial class StrategicManagementRegressionCases
         return resource;
     }
 
-    private static StrategicFacilityOptionViewModel FindFacilityOption(StrategicManagementDashboardViewModel dashboard, string facilityDefinitionId)
+    private static StrategicBuildingOptionViewModel FindBuildingOption(StrategicManagementDashboardViewModel dashboard, string buildingDefinitionId)
     {
-        StrategicFacilityOptionViewModel? option = dashboard.SelectedCity.FacilityOptions.FirstOrDefault(item => item.FacilityDefinitionId == facilityDefinitionId);
+        StrategicBuildingOptionViewModel? option = dashboard.SelectedCity.BuildingOptions.FirstOrDefault(item => item.BuildingDefinitionId == buildingDefinitionId);
         if (option == null)
         {
-            throw new InvalidOperationException($"Missing facility option {facilityDefinitionId}");
+            throw new InvalidOperationException($"Missing building option {buildingDefinitionId}");
         }
 
         return option;

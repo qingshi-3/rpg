@@ -1,0 +1,132 @@
+[gd_scene load_steps=17 format=4]
+
+[ext_resource type="PackedScene" path="res://scenes/city/base/plains_city_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/BattleMapLayer.cs" id="2_battle_map_layer"]
+[ext_resource type="TileSet" path="res://assets/tilesets/battle/bone/ground.tres" id="3_ground"]
+[ext_resource type="Script" path="res://src/Presentation/Battle/BattleMapConnectionConfig.cs" id="4_connection_config"]
+[ext_resource type="Script" path="res://src/Definitions/Maps/BattleMapConnection.cs" id="5_connection"]
+[ext_resource type="Script" path="res://src/Definitions/Maps/BattleMapConnectionSide.cs" id="6_connection_side"]
+[ext_resource type="Script" path="res://src/Definitions/Maps/BattleMapConnectionPoint.cs" id="7_connection_point"]
+[ext_resource type="PackedScene" path="res://scenes/maps/markers/BridgeMapMarker.tscn" id="8_bridge_marker"]
+[ext_resource type="PackedScene" path="res://scenes/maps/markers/BuildingSlotMapMarker.tscn" id="9_building_marker"]
+[ext_resource type="PackedScene" path="res://scenes/maps/markers/DeploymentZoneMapMarker.tscn" id="10_deployment_marker"]
+[ext_resource type="PackedScene" path="res://scenes/maps/markers/ObjectiveZoneMapMarker.tscn" id="11_objective_marker"]
+
+[sub_resource type="Resource" id="BattleMapConnectionPoint_ramp_low_l"]
+script = ExtResource("7_connection_point")
+X = 7
+Y = 4
+
+[sub_resource type="Resource" id="BattleMapConnectionPoint_ramp_low_r"]
+script = ExtResource("7_connection_point")
+X = 7
+Y = 5
+
+[sub_resource type="Resource" id="BattleMapConnectionSide_ramp_low"]
+script = ExtResource("6_connection_side")
+Points = Array[ExtResource("7_connection_point")]([SubResource("BattleMapConnectionPoint_ramp_low_l"), SubResource("BattleMapConnectionPoint_ramp_low_r")])
+
+[sub_resource type="Resource" id="BattleMapConnectionPoint_ramp_high_l"]
+script = ExtResource("7_connection_point")
+X = 8
+Y = 4
+Height = 1
+
+[sub_resource type="Resource" id="BattleMapConnectionPoint_ramp_high_r"]
+script = ExtResource("7_connection_point")
+X = 8
+Y = 3
+Height = 1
+
+[sub_resource type="Resource" id="BattleMapConnectionSide_ramp_high"]
+script = ExtResource("6_connection_side")
+Points = Array[ExtResource("7_connection_point")]([SubResource("BattleMapConnectionPoint_ramp_high_l"), SubResource("BattleMapConnectionPoint_ramp_high_r")])
+
+[sub_resource type="Resource" id="BattleMapConnection_high_ramp"]
+script = ExtResource("5_connection")
+Id = "plains_city_v0_high_ramp"
+SideA = SubResource("BattleMapConnectionSide_ramp_low")
+SideB = SubResource("BattleMapConnectionSide_ramp_high")
+
+[node name="PlainsCityLayout" instance=ExtResource("1_base")]
+metadata/layout_id = "plains_city_v0"
+metadata/base_terrain_id = "plains_city_base"
+
+[node name="BattleMapConnectionConfig" type="Node" parent="."]
+script = ExtResource("4_connection_config")
+Connections = Array[ExtResource("5_connection")]([SubResource("BattleMapConnection_high_ramp")])
+
+[node name="BridgeVisualLayer" type="TileMapLayer" parent="."]
+z_index = 35
+tile_map_data = PackedByteArray("AAAFAAQAAAAMAAEAAAAAAAYABAAAAAwAAQAAAAAABQAFAAAADAABAAAAAAAGAAUAAAAMAAEAAAA=")
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+AffectsWalkability = true
+
+[node name="DecorationLayer" type="TileMapLayer" parent="."]
+z_index = 25
+tile_map_data = PackedByteArray("AAABAAIAAAANAAEAAAAAAAMACAAAAA4AAQAAAAAACQAHAAAACwABAAAA")
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 1
+IsVisualOnly = true
+
+[node name="ObstacleLayer" type="TileMapLayer" parent="."]
+z_index = 30
+tile_map_data = PackedByteArray("AAADAAMAAAACAAEAAAAAAAkAAgAAAAIAAQAAAA==")
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 2
+AffectsWalkability = true
+
+[node name="SemanticMarkers" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="river_bridge_west" parent="SemanticMarkers" instance=ExtResource("8_bridge_marker")]
+position = Vector2(352, 288)
+MarkerId = "plains_city_v0_river_bridge"
+Width = 2
+Height = 2
+CellHeight = 0
+BridgeKind = 0
+
+[node name="barracks_slot" parent="SemanticMarkers" instance=ExtResource("9_building_marker")]
+position = Vector2(128, 128)
+MarkerId = "plains_city_v0_barracks_slot"
+Width = 2
+Height = 2
+
+[node name="market_slot" parent="SemanticMarkers" instance=ExtResource("9_building_marker")]
+position = Vector2(192, 448)
+MarkerId = "plains_city_v0_market_slot"
+Width = 3
+Height = 2
+
+[node name="workshop_slot" parent="SemanticMarkers" instance=ExtResource("9_building_marker")]
+position = Vector2(640, 192)
+MarkerId = "plains_city_v0_workshop_slot"
+Width = 2
+Height = 2
+CellHeight = 1
+
+[node name="player_deployment_west" parent="SemanticMarkers" instance=ExtResource("10_deployment_marker")]
+position = Vector2(64, 288)
+MarkerId = "plains_city_v0_player_deployment_west"
+Width = 3
+Height = 4
+DeploymentSide = 1
+
+[node name="enemy_deployment_east" parent="SemanticMarkers" instance=ExtResource("10_deployment_marker")]
+position = Vector2(704, 288)
+MarkerId = "plains_city_v0_enemy_deployment_east"
+Width = 3
+Height = 4
+DeploymentSide = 2
+
+[node name="resource_cache" parent="SemanticMarkers" instance=ExtResource("11_objective_marker")]
+position = Vector2(576, 416)
+MarkerId = "plains_city_v0_resource_cache"
+Width = 2
+Height = 2
+ObjectiveRole = "ResourcePoint"
+Tags = Array[String](["resource", "city"])

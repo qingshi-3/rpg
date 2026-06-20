@@ -1,3 +1,4 @@
+using System.Linq;
 using Rpg.Definitions.StrategicManagement;
 
 namespace Rpg.Domain.StrategicManagement;
@@ -11,14 +12,14 @@ public static class FirstStrategicManagementStateFactory
             ElapsedWorldTimePulses = 0
         };
 
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood, 300);
         state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney, 500);
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials, 200);
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBeastMaterials, 120);
+        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood, 300);
+        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood, 240);
+        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceOre, 120);
 
         AddLocation(state, StrategicManagementIds.LocationPlainsCity, StrategicManagementIds.FactionPlayer, StrategicLocationControlState.PlayerHeld);
         AddLocation(state, StrategicManagementIds.LocationTimberSite, StrategicManagementIds.FactionPlayer, StrategicLocationControlState.PlayerHeld);
-        AddLocation(state, StrategicManagementIds.LocationBeastDen, StrategicManagementIds.FactionEnemy, StrategicLocationControlState.EnemyHeld);
+        AddLocation(state, StrategicManagementIds.LocationBonefieldOutpost, StrategicManagementIds.FactionEnemy, StrategicLocationControlState.EnemyHeld);
 
         if (definitions.Locations.TryGetValue(StrategicManagementIds.LocationPlainsCity, out StrategicLocationDefinition cityDefinition))
         {
@@ -26,7 +27,11 @@ public static class FirstStrategicManagementStateFactory
             {
                 LocationId = cityDefinition.LocationId,
                 CityIdentityId = cityDefinition.CityIdentityId,
-                FacilitySlotCount = cityDefinition.FacilitySlotCount
+                CityForceCapacity = 220,
+                ReserveForces = 80,
+                ConstructionRegionIds = cityDefinition.ConstructionRegions
+                    .Select(region => region.RegionId)
+                    .ToList()
             };
         }
 
@@ -42,16 +47,16 @@ public static class FirstStrategicManagementStateFactory
             HeroDefinitionId = StrategicManagementIds.HeroArcherCaptain,
             FactionId = StrategicManagementIds.FactionPlayer
         };
-        state.Heroes[StrategicManagementIds.HeroBeastTamer] = new StrategicHeroState
+        state.Heroes[StrategicManagementIds.HeroCavalryCaptain] = new StrategicHeroState
         {
-            HeroId = StrategicManagementIds.HeroBeastTamer,
-            HeroDefinitionId = StrategicManagementIds.HeroBeastTamer,
+            HeroId = StrategicManagementIds.HeroCavalryCaptain,
+            HeroDefinitionId = StrategicManagementIds.HeroCavalryCaptain,
             FactionId = StrategicManagementIds.FactionPlayer
         };
 
         SeedAssignedCorps(state, StrategicManagementIds.HeroOrdinaryCommander, StrategicManagementIds.CorpsShieldLine);
         SeedAssignedCorps(state, StrategicManagementIds.HeroArcherCaptain, StrategicManagementIds.CorpsArcherLine);
-        SeedAssignedCorps(state, StrategicManagementIds.HeroBeastTamer, StrategicManagementIds.CorpsCavalryLine);
+        SeedAssignedCorps(state, StrategicManagementIds.HeroCavalryCaptain, StrategicManagementIds.CorpsCavalryLine);
 
         return state;
     }

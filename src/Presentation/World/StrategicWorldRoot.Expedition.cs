@@ -57,12 +57,28 @@ public partial class StrategicWorldRoot
 
     private void CancelExpeditionDraft()
     {
+        ClearExpeditionDraftSelectionContext("cancel_button");
+        StrategicWorldRuntime.LastNotice = "已取消出征。";
+        RefreshAll();
+    }
+
+    private void ClearExpeditionDraftSelectionContext(string reason)
+    {
+        if (!_isExpeditionDrafting &&
+            !_isExpeditionTargeting &&
+            string.IsNullOrWhiteSpace(_expeditionSourceSiteId) &&
+            _expeditionHeroIds.Count == 0)
+        {
+            return;
+        }
+
+        // Ordinary map selection leaves the city action context. Expedition
+        // target clicks are consumed earlier by TryIssueExpeditionToTarget.
         _isExpeditionDrafting = false;
         _isExpeditionTargeting = false;
         _expeditionSourceSiteId = "";
         _expeditionHeroIds.Clear();
-        StrategicWorldRuntime.LastNotice = "已取消出征。";
-        RefreshAll();
+        GameLog.Info(nameof(StrategicWorldRoot), $"StrategicExpeditionDraftCleared reason={reason}");
     }
 
     private void AdjustExpeditionHeroCompanySelection(string heroId, int delta)
@@ -237,10 +253,7 @@ public partial class StrategicWorldRoot
             WorldArmyIntent.ReinforceSite => $"已从{sourceName}派出{expeditionText}进驻{targetText}。",
             _ => $"已从{sourceName}派出{expeditionText}移动到目标地点。"
         };
-        _isExpeditionDrafting = false;
-        _isExpeditionTargeting = false;
-        _expeditionSourceSiteId = "";
-        _expeditionHeroIds.Clear();
+        ClearExpeditionDraftSelectionContext("expedition_issued");
         if (expeditionNavigationDeferred)
         {
             GameLog.Info(nameof(StrategicWorldRoot), $"WorldExpeditionNavigationDeferred army={army.ArmyId} intent={intent} target={targetSiteId}");

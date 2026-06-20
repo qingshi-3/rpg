@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3 uid="uid://x3kdwb8wb6wk"]
+[gd_scene load_steps=12 format=3 uid="uid://x3kdwb8wb6wk"]
 
 [ext_resource type="Script" uid="uid://2u80f8wpormt" path="res://src/Presentation/World/Sites/WorldSiteRoot.cs" id="1_world_site_root"]
 [ext_resource type="PackedScene" uid="uid://dfxnneblk65na" path="res://scenes/world/sites/impl/demo_site.tscn" id="2_demo_site"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" uid="uid://jvyjfkvrm127" path="res://src/Presentation/Battle/Entities/BattleUnitRoot.cs" id="19_battle_unit_root"]
 [ext_resource type="Script" uid="uid://cv25ye6mjqydp" path="res://src/Presentation/Battle/Preview/BattleSelectionVignetteOverlay.cs" id="24_selection_vignette"]
 [ext_resource type="Script" uid="uid://i5atw8ijt1q6" path="res://src/Presentation/Battle/BattleDeploymentZoneOverlay.cs" id="25_deployment_zone_overlay"]
+[ext_resource type="Script" uid="uid://bfn7pj8wq4v3n" path="res://src/Presentation/World/Sites/StrategicBuildingPlacementPreview.cs" id="26_building_preview"]
 
 [node name="WorldSiteRoot" type="Control"]
 layout_mode = 3
@@ -23,16 +24,16 @@ SiteMapScene = ExtResource("2_demo_site")
 
 [node name="MainWorldViewportHost" type="SubViewportContainer" parent="."]
 layout_mode = 0
-offset_left = 572.0
-offset_top = 94.0
-offset_right = 1256.0
-offset_bottom = 696.0
+offset_left = 520.0
+offset_top = 0.0
+offset_right = 1920.0
+offset_bottom = 1080.0
 clip_contents = true
 mouse_filter = 1
 stretch = true
 
 [node name="MainWorldViewport" type="SubViewport" parent="MainWorldViewportHost"]
-size = Vector2i(684, 602)
+size = Vector2i(1400, 1080)
 disable_3d = true
 transparent_bg = true
 
@@ -49,6 +50,9 @@ script = ExtResource("25_deployment_zone_overlay")
 
 [node name="GridHighlightOverlay" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport/OverlayRoot"]
 script = ExtResource("5_grid_highlight_overlay")
+
+[node name="StrategicBuildingPlacementPreview" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport/OverlayRoot"]
+script = ExtResource("26_building_preview")
 
 [node name="DebugRoot" type="Node" parent="MainWorldViewportHost/MainWorldViewport"]
 script = ExtResource("3_debug_controller")

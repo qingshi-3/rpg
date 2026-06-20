@@ -1,39 +1,56 @@
-using System.Linq;
-using Rpg.Application.Battle;
-using Rpg.Application.StrategicBattleBridge;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
-using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Application.StrategicManagement;
+
 public sealed partial class StrategicManagementCommandService
 {
-    public StrategicCommandResult BuildFacility(
+    public StrategicCommandResult BuildCityBuilding(
         StrategicManagementState state,
         string cityId,
-        string facilityDefinitionId)
+        string buildingDefinitionId,
+        string constructionRegionId,
+        int gridX,
+        int gridY)
     {
-        string failureReason = _rules.GetFacilityBuildFailureReason(state, cityId, facilityDefinitionId);
+        string failureReason = _rules.GetBuildingPlacementFailureReason(
+            state,
+            cityId,
+            buildingDefinitionId,
+            constructionRegionId,
+            gridX,
+            gridY);
         if (!string.IsNullOrWhiteSpace(failureReason))
         {
-            return Reject("BuildFacility", cityId, failureReason);
+            return Reject("BuildCityBuilding", cityId, failureReason);
         }
 
         StrategicCityState city = state.Cities[cityId];
         StrategicLocationState location = state.Locations[city.LocationId];
-        StrategicFacilityDefinition facility = _definitions.Facilities[facilityDefinitionId];
-        state.Spend(location.OwnerFactionId, facility.BuildCost);
-        string instanceId = $"{city.LocationId}:facility:{city.Facilities.Count + 1:00}:{facility.FacilityDefinitionId}";
-        city.Facilities.Add(new StrategicFacilityInstanceState
+        StrategicBuildingDefinition building = _definitions.Buildings[buildingDefinitionId];
+        state.Spend(location.OwnerFactionId, building.BuildCost);
+        string instanceId = state.AllocateBuildingInstanceId();
+        city.Buildings.Add(new StrategicBuildingInstanceState
         {
-            FacilityInstanceId = instanceId,
-            FacilityDefinitionId = facility.FacilityDefinitionId
+            BuildingInstanceId = instanceId,
+            BuildingDefinitionId = building.BuildingDefinitionId,
+            ConstructionRegionId = constructionRegionId ?? "",
+            GridX = gridX,
+            GridY = gridY,
+            Level = 1,
+            IsConstructed = true
         });
+        city.CityForceCapacity += System.Math.Max(0, building.CityForceCapacityBonus);
 
         StrategicCommandResult result = StrategicCommandResult.Ok(city.LocationId, instanceId);
         result.CreatedEntityId = instanceId;
-        result.Events.Add(Event("StrategicFacilityBuilt", city.LocationId, ("facility", facility.FacilityDefinitionId)));
-        Accept("BuildFacility", city.LocationId, result);
+        result.Events.Add(Event(
+            "StrategicCityBuildingPlaced",
+            city.LocationId,
+            ("building", building.BuildingDefinitionId),
+            ("region", constructionRegionId ?? ""),
+            ("grid", $"{gridX},{gridY}")));
+        Accept("BuildCityBuilding", city.LocationId, result);
         return result;
     }
 
@@ -52,6 +69,8 @@ public sealed partial class StrategicManagementCommandService
         StrategicLocationState location = state.Locations[city.LocationId];
         StrategicCorpsDefinition definition = _definitions.Corps[corpsDefinitionId];
         state.Spend(location.OwnerFactionId, definition.CreationCost);
+        city.ReserveForces = System.Math.Max(0, city.ReserveForces - System.Math.Max(0, definition.SoldierCapacityCost));
+
         string corpsInstanceId = state.AllocateCorpsInstanceId();
         state.CorpsInstances[corpsInstanceId] = new StrategicCorpsInstanceState
         {
@@ -68,8 +87,55 @@ public sealed partial class StrategicManagementCommandService
 
         StrategicCommandResult result = StrategicCommandResult.Ok(city.LocationId, corpsInstanceId);
         result.CreatedEntityId = corpsInstanceId;
-        result.Events.Add(Event("StrategicCorpsCreated", corpsInstanceId, ("city", city.LocationId), ("corps", definition.CorpsDefinitionId)));
+        result.Events.Add(Event(
+            "StrategicCorpsCreated",
+            corpsInstanceId,
+            ("city", city.LocationId),
+            ("corps", definition.CorpsDefinitionId),
+            ("reserveSpent", definition.SoldierCapacityCost.ToString())));
         Accept("CreateCorps", corpsInstanceId, result);
+        return result;
+    }
+
+    public StrategicCommandResult ReplenishCorps(
+        StrategicManagementState state,
+        string cityId,
+        string corpsInstanceId,
+        int targetStrength)
+    {
+        string failureReason = _rules.GetCorpsReplenishmentFailureReason(state, cityId, corpsInstanceId, targetStrength);
+        if (!string.IsNullOrWhiteSpace(failureReason))
+        {
+            return Reject("ReplenishCorps", corpsInstanceId, failureReason);
+        }
+
+        StrategicCityState city = state.Cities[cityId];
+        StrategicLocationState location = state.Locations[city.LocationId];
+        StrategicCorpsInstanceState corps = state.CorpsInstances[corpsInstanceId];
+        int boundedTarget = System.Math.Clamp(targetStrength, 0, 100);
+        int reserveCost = _rules.GetCorpsReplenishmentReserveCost(state, corps.CorpsInstanceId, boundedTarget);
+        System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> resourceCost =
+            _rules.GetCorpsReplenishmentResourceCost(state, corps.CorpsInstanceId, boundedTarget);
+
+        state.Spend(location.OwnerFactionId, resourceCost);
+        city.ReserveForces = System.Math.Max(0, city.ReserveForces - reserveCost);
+        corps.Strength = boundedTarget;
+        if (corps.Status is StrategicCorpsInstanceStatus.Routed or StrategicCorpsInstanceStatus.Scattered or StrategicCorpsInstanceStatus.Rebuilding)
+        {
+            corps.Status = string.IsNullOrWhiteSpace(corps.AssignedHeroId)
+                ? StrategicCorpsInstanceStatus.Garrisoned
+                : StrategicCorpsInstanceStatus.AssignedToHero;
+        }
+
+        StrategicCommandResult result = StrategicCommandResult.Ok(city.LocationId, corps.CorpsInstanceId);
+        result.Events.Add(Event(
+            "StrategicCorpsReplenished",
+            corps.CorpsInstanceId,
+            ("city", city.LocationId),
+            ("targetStrength", boundedTarget.ToString()),
+            ("reserveSpent", reserveCost.ToString()),
+            ("resources", FormatResourceAmounts(resourceCost))));
+        Accept("ReplenishCorps", corps.CorpsInstanceId, result);
         return result;
     }
 

@@ -1,6 +1,6 @@
 # Acceptance
 
-Status: Pending
+Status: Accepted
 
 The user requested creation of this active design proposal on 2026-06-17 after discussing the desired site-map layout authoring direction:
 
@@ -14,4 +14,4 @@ The user requested creation of this active design proposal on 2026-06-17 after d
 - the first authored module should live under `scenes/city/`;
 - the first implementation city should be a small plains-city validation slice with one base terrain scene and one inherited layout scene.
 
-This proposal is still Draft. After the user reviews and accepts the expected documents, merge the expected copies into authority documents, archive the proposal, then create a focused implementation proposal before code, scene, resource, or data changes.
+The user accepted this proposal on 2026-06-19 by asking to begin creating the first city map. The expected copies should be merged into authority documents, this proposal archived, and implementation should proceed only through `gameplay-alignment/implementation-proposals/2026-06-19-site-map-layout-first-city.md`.

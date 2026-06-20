@@ -23,6 +23,8 @@ internal static void WorldViewportLayoutUsesResolvedControlRects()
     string strategicResolveBody = ExtractMethodBody(strategicSource, "private Rect2 ResolveMainWorldViewportRect()");
     string strategicLayoutBody = ExtractMethodBody(strategicSource, "private void UpdateMainWorldViewportLayout(Rect2 mapBounds)");
     string strategicScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "StrategicWorldRoot.tscn"));
+    string worldSiteScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "sites", "WorldSiteRoot.tscn"));
+    string worldSiteViewportHostBlock = ExtractSceneNodeBlock(worldSiteScene, "[node name=\"MainWorldViewportHost\"");
 
     AssertTrue(
         !siteRootSource.Contains("MainWorldViewportLeftWhenUiVisible", StringComparison.Ordinal) &&
@@ -31,8 +33,12 @@ internal static void WorldViewportLayoutUsesResolvedControlRects()
     AssertTrue(
         siteRootSource.Contains("ResolveMainWorldViewportRect", StringComparison.Ordinal) &&
         siteRootSource.Contains("_sitePeacetimePanel.GetGlobalRect()", StringComparison.Ordinal) &&
-        siteRootSource.Contains("_siteHudTopBar.GetGlobalRect()", StringComparison.Ordinal),
-        "world-site viewport layout should derive the world rect from the actual top bar and left primary panel rects");
+        siteRootSource.Contains("rootViewportSize.X - position.X", StringComparison.Ordinal) &&
+        !siteRootSource.Contains("_siteHudTopBar", StringComparison.Ordinal) &&
+        !siteRootSource.Contains("gapAfterPanel", StringComparison.Ordinal) &&
+        !siteRootSource.Contains("sideMargin", StringComparison.Ordinal) &&
+        !siteRootSource.Contains("bottomMargin", StringComparison.Ordinal),
+        "world-site viewport layout should derive a no-gutter right-side map rect from the left management workspace without a separate top header strip");
     AssertTrue(
         siteRootSource.Contains("ResolveWorldSiteHudViewportRect", StringComparison.Ordinal) &&
         !siteRootSource.Contains("ResolveBattleRuntimeViewportRect", StringComparison.Ordinal),
@@ -40,6 +46,12 @@ internal static void WorldViewportLayoutUsesResolvedControlRects()
     AssertTrue(
         siteRootSource.Contains("SetFixedRect(_mainWorldViewportHost", StringComparison.Ordinal),
         "world-site viewport layout should pin the SubViewportContainer with the same fixed-rect Control contract as strategic world");
+    AssertTrue(
+        worldSiteViewportHostBlock.Contains("offset_left = 520.0", StringComparison.Ordinal) &&
+        worldSiteViewportHostBlock.Contains("offset_top = 0.0", StringComparison.Ordinal) &&
+        worldSiteViewportHostBlock.Contains("offset_right = 1920.0", StringComparison.Ordinal) &&
+        worldSiteViewportHostBlock.Contains("offset_bottom = 1080.0", StringComparison.Ordinal),
+        "world-site authored viewport should default to the right-side split-screen rectangle instead of the old centered gray-gutter preview");
     AssertTrue(
         !strategicSource.Contains("float mapLeft = DetailWidth + OuterMargin * 2.0f", StringComparison.Ordinal),
         "strategic viewport bounds should not duplicate left-panel dimensions in geometry code");

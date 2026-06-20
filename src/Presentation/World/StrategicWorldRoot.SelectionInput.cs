@@ -33,6 +33,7 @@ public partial class StrategicWorldRoot
             return;
         }
 
+        ClearExpeditionDraftSelectionContext("site_selected");
         _selectedSiteId = siteId;
         _selectedOpportunityId = "";
         RefreshAll();
@@ -40,6 +41,7 @@ public partial class StrategicWorldRoot
 
     private void ClearSelectedWorldDetail(bool clearNotice = false)
     {
+        ClearExpeditionDraftSelectionContext("world_detail_cleared");
         _selectedSiteId = "";
         _selectedOpportunityId = "";
         if (clearNotice)

@@ -4,6 +4,7 @@ using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
+
 internal static partial class StrategicManagementRegressionCases
 {
     internal static void CommonCityIdentityDerivesCommonMusterTemplates()
@@ -18,118 +19,117 @@ internal static partial class StrategicManagementRegressionCases
         AssertAvailable(templates, StrategicManagementIds.CorpsShieldLine);
         AssertAvailable(templates, StrategicManagementIds.CorpsArcherLine);
         AssertAvailable(templates, StrategicManagementIds.CorpsCavalryLine);
+        AssertTrue(
+            templates.All(template => template.CorpsDefinitionId != "corps_wolf_pack" && template.CorpsDefinitionId != "corps_great_beast"),
+            "foundation muster templates should not expose beast-route corps");
     }
 
-    internal static void BeastMusterRequiresControlledBeastSourceAndBeastPen()
-    {
-        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        StrategicManagementRules rules = new(definitions);
-        StrategicManagementCommandService commands = new(definitions, rules);
-
-        StrategicMusterTemplateAvailability initial =
-            FindTemplate(rules.GetMusterTemplates(state, StrategicManagementIds.LocationPlainsCity), StrategicManagementIds.CorpsWolfPack);
-        AssertTrue(!initial.IsAvailable, "wolf pack should start unavailable");
-        AssertContains(initial.FailureReasons, StrategicFailureReasons.MissingSourcePermission, "wolf pack should require beast source permission");
-        AssertContains(initial.FailureReasons, StrategicFailureReasons.MissingFacility, "wolf pack should require beast pen");
-
-        StrategicCommandResult occupy = commands.OccupyLocation(
-            state,
-            StrategicManagementIds.LocationBeastDen,
-            StrategicManagementIds.FactionPlayer);
-        AssertTrue(occupy.Success, "occupying beast den should succeed");
-
-        StrategicCommandResult build = commands.BuildFacility(
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.FacilityBeastPen);
-        AssertTrue(build.Success, $"building beast pen should succeed, got {build.FailureReason}");
-
-        StrategicMusterTemplateAvailability afterUnlock =
-            FindTemplate(rules.GetMusterTemplates(state, StrategicManagementIds.LocationPlainsCity), StrategicManagementIds.CorpsWolfPack);
-        AssertTrue(afterUnlock.IsAvailable, $"wolf pack should become available, got {string.Join(",", afterUnlock.FailureReasons)}");
-    }
-
-    internal static void LosingBeastSourceKeepsExistingCorpsButBlocksNewBeastCreation()
-    {
-        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        StrategicManagementRules rules = new(definitions);
-        StrategicManagementCommandService commands = new(definitions, rules);
-
-        commands.OccupyLocation(state, StrategicManagementIds.LocationBeastDen, StrategicManagementIds.FactionPlayer);
-        commands.BuildFacility(state, StrategicManagementIds.LocationPlainsCity, StrategicManagementIds.FacilityBeastPen);
-        StrategicCommandResult unassign = commands.UnassignCorpsFromHero(state, StrategicManagementIds.HeroBeastTamer);
-        AssertTrue(unassign.Success, $"test setup unassignment should succeed, got {unassign.FailureReason}");
-        StrategicCommandResult create = commands.CreateCorps(
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.CorpsWolfPack);
-        AssertTrue(create.Success, $"creating wolf pack should succeed, got {create.FailureReason}");
-        string existingCorpsId = create.CreatedEntityId;
-
-        StrategicCommandResult lose = commands.LoseLocation(
-            state,
-            StrategicManagementIds.LocationBeastDen,
-            StrategicManagementIds.FactionEnemy);
-        AssertTrue(lose.Success, "losing beast source should succeed");
-
-        AssertTrue(state.CorpsInstances.ContainsKey(existingCorpsId), "existing beast corps should remain after source loss");
-        StrategicCommandResult secondCreate = commands.CreateCorps(
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.CorpsWolfPack);
-        AssertTrue(!secondCreate.Success, "new wolf pack creation should be blocked after source loss");
-        AssertEqual(StrategicFailureReasons.MissingSourcePermission, secondCreate.FailureReason, "source loss should be the rejection reason");
-    }
-
-    internal static void BuildFacilityConsumesResourcesAndFacilitySlot()
-    {
-        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        int beforeMaterials = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials);
-
-        StrategicCommandResult result = commands.BuildFacility(
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.FacilityTrainingGround);
-
-        AssertTrue(result.Success, $"training ground build should succeed, got {result.FailureReason}");
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
-        AssertEqual(1, city.Facilities.Count, "city should consume one facility slot");
-        AssertEqual(
-            beforeMaterials - 40,
-            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials),
-            "building materials should be spent");
-    }
-
-    internal static void BuildFacilityFailureLeavesResourcesAndSlotsUnchanged()
-    {
-        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials, 0);
-        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        int beforeFacilities = state.Cities[StrategicManagementIds.LocationPlainsCity].Facilities.Count;
-        int beforeMaterials = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials);
-
-        StrategicCommandResult result = commands.BuildFacility(
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.FacilityTrainingGround);
-
-        AssertTrue(!result.Success, "facility build should fail without resources");
-        AssertEqual(StrategicFailureReasons.InsufficientResources, result.FailureReason, "failure reason should be resources");
-        AssertEqual(beforeFacilities, state.Cities[StrategicManagementIds.LocationPlainsCity].Facilities.Count, "facility list should not change");
-        AssertEqual(beforeMaterials, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials), "resources should not change");
-    }
-
-    internal static void CreateCorpsConsumesResourcesAndCreatesPersistentCorpsInstance()
+    internal static void BuildCityBuildingConsumesResourcesAndRecordsPlacement()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
         int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeWood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood);
+
+        StrategicCommandResult result = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingFarm,
+            StrategicManagementIds.RegionPlainsEconomy,
+            1,
+            1);
+
+        AssertTrue(result.Success, $"farm build should succeed, got {result.FailureReason}");
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        AssertEqual(1, city.Buildings.Count, "city should store one placed building instance");
+        StrategicBuildingInstanceState building = city.Buildings[0];
+        AssertEqual(StrategicManagementIds.BuildingFarm, building.BuildingDefinitionId, "building instance should record definition id");
+        AssertEqual(StrategicManagementIds.RegionPlainsEconomy, building.ConstructionRegionId, "building instance should record construction region");
+        AssertEqual(1, building.GridX, "building instance should record grid x");
+        AssertEqual(1, building.GridY, "building instance should record grid y");
+        AssertEqual(1, building.Level, "new building should start at level 1");
+        AssertEqual("", building.BattleAnchorId, "foundation slice should keep future battle anchor optional and empty");
+        AssertTrue(state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney) < beforeMoney, "money should be spent");
+        AssertTrue(state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood) < beforeWood, "wood should be spent");
+        AssertTrue(result.Events.Any(item => item.Kind == "StrategicCityBuildingPlaced"), "building placement should emit a low-noise event");
+    }
+
+    internal static void BuildCityBuildingRejectsInvalidPlacementWithoutMutation()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementRules rules = new(definitions);
+        StrategicManagementCommandService commands = new(definitions, rules);
+
+        StrategicCommandResult valid = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingFarm,
+            StrategicManagementIds.RegionPlainsEconomy,
+            1,
+            1);
+        AssertTrue(valid.Success, $"setup farm build should succeed, got {valid.FailureReason}");
+
+        int beforeBuildings = state.Cities[StrategicManagementIds.LocationPlainsCity].Buildings.Count;
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeWood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood);
+
+        StrategicCommandResult overlap = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingMarket,
+            StrategicManagementIds.RegionPlainsEconomy,
+            2,
+            1);
+        AssertTrue(!overlap.Success, "overlapping building placement should fail");
+        AssertEqual(StrategicFailureReasons.BuildingPlacementOccupied, overlap.FailureReason, "overlap should report occupied cells");
+
+        StrategicCommandResult outside = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingMarket,
+            StrategicManagementIds.RegionPlainsEconomy,
+            99,
+            99);
+        AssertTrue(!outside.Success, "outside-region building placement should fail");
+        AssertEqual(StrategicFailureReasons.BuildingPlacementOutOfBounds, outside.FailureReason, "out-of-bounds should be explicit");
+
+        StrategicCommandResult wrongCategory = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingTrainingGround,
+            StrategicManagementIds.RegionPlainsEconomy,
+            4,
+            1);
+        AssertTrue(!wrongCategory.Success, "wrong-region-category placement should fail");
+        AssertEqual(StrategicFailureReasons.BuildingRegionCategoryMismatch, wrongCategory.FailureReason, "wrong category should be explicit");
+
+        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood, 0);
+        StrategicCommandResult noResources = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingMarket,
+            StrategicManagementIds.RegionPlainsEconomy,
+            4,
+            1);
+        AssertTrue(!noResources.Success, "building placement should fail without resources");
+        AssertEqual(StrategicFailureReasons.InsufficientResources, noResources.FailureReason, "resource shortage should be explicit");
+
+        AssertEqual(beforeBuildings, state.Cities[StrategicManagementIds.LocationPlainsCity].Buildings.Count, "failed placements must not add buildings");
+        AssertEqual(beforeMoney, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "failed placements must not spend money");
+        AssertEqual(0, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood), "test resource mutation should stay the only wood change after failed placement");
+    }
+
+    internal static void CreateCorpsConsumesResourcesReserveAndCreatesPersistentCorpsInstance()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+        int beforeReserve = city.ReserveForces;
 
         StrategicCommandResult result = commands.CreateCorps(
             state,
@@ -142,25 +142,84 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(100, corps.Strength, "new corps should start at full strength");
         AssertEqual(StrategicCorpsInstanceStatus.Garrisoned, corps.Status, "new corps should start in city garrison");
         AssertEqual(beforeMoney - 30, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "money should be spent");
+        AssertEqual(beforeFood - 20, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "food should be spent");
+        AssertEqual(beforeReserve - definitions.Corps[StrategicManagementIds.CorpsShieldLine].SoldierCapacityCost, city.ReserveForces, "reserve soldiers should be consumed");
     }
 
-    internal static void CreateCorpsFailureLeavesResourcesAndCorpsListUnchanged()
+    internal static void CreateCorpsFailureLeavesResourcesReserveAndCorpsListUnchanged()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        city.ReserveForces = 0;
         int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
         int beforeCorps = state.CorpsInstances.Count;
 
         StrategicCommandResult result = commands.CreateCorps(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.CorpsGreatBeast);
+            StrategicManagementIds.CorpsShieldLine);
 
-        AssertTrue(!result.Success, "great beast should be unavailable without beast chain");
-        AssertEqual(StrategicFailureReasons.MissingSourcePermission, result.FailureReason, "missing source should be reported first");
+        AssertTrue(!result.Success, "shield corps creation should fail without reserve soldiers");
+        AssertEqual(StrategicFailureReasons.InsufficientReserveForces, result.FailureReason, "reserve shortage should be reported first");
         AssertEqual(beforeCorps, state.CorpsInstances.Count, "corps list should not change");
-        AssertEqual(beforeMoney, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "resources should not change");
+        AssertEqual(beforeMoney, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "money should not change");
+        AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "food should not change");
+        AssertEqual(0, city.ReserveForces, "reserve should not change");
+    }
+
+    internal static void ReplenishCorpsConsumesResourcesReserveAndRestoresStrength()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementRules rules = new(definitions);
+        StrategicManagementCommandService commands = new(definitions, rules);
+        string corpsInstanceId = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].AssignedCorpsInstanceId;
+        StrategicCorpsInstanceState corps = state.CorpsInstances[corpsInstanceId];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        corps.Strength = 60;
+        int beforeReserve = city.ReserveForces;
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+        int expectedReserveCost = rules.GetCorpsReplenishmentReserveCost(state, corpsInstanceId, 100);
+
+        StrategicCommandResult result = commands.ReplenishCorps(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            corpsInstanceId,
+            100);
+
+        AssertTrue(result.Success, $"replenishment should succeed, got {result.FailureReason}");
+        AssertEqual(100, corps.Strength, "replenishment should restore corps strength to requested target");
+        AssertEqual(beforeReserve - expectedReserveCost, city.ReserveForces, "reserve soldiers should be consumed by replenishment");
+        AssertTrue(state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood) < beforeFood, "food should be consumed by replenishment");
+        AssertTrue(result.Events.Any(item => item.Kind == "StrategicCorpsReplenished"), "replenishment should emit a low-noise event");
+    }
+
+    internal static void ReplenishCorpsFailureLeavesResourcesReserveAndStrengthUnchanged()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        string corpsInstanceId = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].AssignedCorpsInstanceId;
+        StrategicCorpsInstanceState corps = state.CorpsInstances[corpsInstanceId];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        corps.Strength = 40;
+        city.ReserveForces = 0;
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+
+        StrategicCommandResult result = commands.ReplenishCorps(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            corpsInstanceId,
+            100);
+
+        AssertTrue(!result.Success, "replenishment should fail without reserve soldiers");
+        AssertEqual(StrategicFailureReasons.InsufficientReserveForces, result.FailureReason, "reserve shortage should be explicit");
+        AssertEqual(40, corps.Strength, "failed replenishment must not change strength");
+        AssertEqual(0, city.ReserveForces, "failed replenishment must not change reserve");
+        AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "failed replenishment must not spend resources");
     }
 
     internal static void AssignCorpsToHeroRecordsAptitudeWithoutRandomFailure()
@@ -168,24 +227,22 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        commands.OccupyLocation(state, StrategicManagementIds.LocationBeastDen, StrategicManagementIds.FactionPlayer);
-        commands.BuildFacility(state, StrategicManagementIds.LocationPlainsCity, StrategicManagementIds.FacilityBeastPen);
-        StrategicCommandResult unassign = commands.UnassignCorpsFromHero(state, StrategicManagementIds.HeroBeastTamer);
+        StrategicCommandResult unassign = commands.UnassignCorpsFromHero(state, StrategicManagementIds.HeroCavalryCaptain);
         AssertTrue(unassign.Success, $"test setup unassignment should succeed, got {unassign.FailureReason}");
         StrategicCommandResult create = commands.CreateCorps(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.CorpsWolfPack);
+            StrategicManagementIds.CorpsCavalryLine);
 
         StrategicCommandResult assign = commands.AssignCorpsToHero(
             state,
-            StrategicManagementIds.HeroBeastTamer,
+            StrategicManagementIds.HeroCavalryCaptain,
             create.CreatedEntityId);
 
         AssertTrue(assign.Success, $"assignment should succeed, got {assign.FailureReason}");
-        AssertEqual(create.CreatedEntityId, state.Heroes[StrategicManagementIds.HeroBeastTamer].AssignedCorpsInstanceId, "hero should reference assigned corps");
-        AssertEqual(StrategicManagementIds.HeroBeastTamer, state.CorpsInstances[create.CreatedEntityId].AssignedHeroId, "corps should reference assigned hero");
-        AssertEqual(StrategicHeroCorpsAptitudeGrade.A, assign.AptitudeGrade, "beast tamer should record beast aptitude");
+        AssertEqual(create.CreatedEntityId, state.Heroes[StrategicManagementIds.HeroCavalryCaptain].AssignedCorpsInstanceId, "hero should reference assigned corps");
+        AssertEqual(StrategicManagementIds.HeroCavalryCaptain, state.CorpsInstances[create.CreatedEntityId].AssignedHeroId, "corps should reference assigned hero");
+        AssertEqual(StrategicHeroCorpsAptitudeGrade.B, assign.AptitudeGrade, "common cavalry assignment should record baseline aptitude");
         AssertTrue(!assign.Events.Any(item => item.Kind == "RandomBeastControlFailure"), "assignment must not create random beast failure");
     }
 }

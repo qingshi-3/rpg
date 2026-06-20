@@ -117,6 +117,40 @@ public sealed partial class StrategicManagementCommandService
 
         // Elapsed world-map time is command-driven: Godot process callbacks,
         // management UI refreshes, and legacy world ticks must not mutate this state.
+        foreach (StrategicCityState city in GetControlledCities(state, factionId))
+        {
+            System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> cityProduction =
+                _rules.GetCityBuildingProduction(state, city.LocationId, factionId, elapsedPulses);
+            foreach (StrategicResourceAmount amount in cityProduction)
+            {
+                state.AddResourceAmount(factionId, amount.ResourceId, amount.Amount);
+                AddUnique(result.ChangedFactIds, $"{factionId}:{amount.ResourceId}");
+            }
+
+            if (cityProduction.Count > 0)
+            {
+                result.Events.Add(Event(
+                    "StrategicCityProductionSettled",
+                    city.LocationId,
+                    ("faction", factionId),
+                    ("elapsedPulses", elapsedPulses.ToString()),
+                    ("resources", FormatResourceAmounts(cityProduction))));
+            }
+
+            int reserveRecovery = _rules.GetRecoverableReserveForces(state, city.LocationId, elapsedPulses);
+            if (reserveRecovery > 0)
+            {
+                city.ReserveForces += reserveRecovery;
+                AddUnique(result.ChangedFactIds, $"{city.LocationId}:reserve");
+                result.Events.Add(Event(
+                    "StrategicCityReserveRecovered",
+                    city.LocationId,
+                    ("faction", factionId),
+                    ("elapsedPulses", elapsedPulses.ToString()),
+                    ("reserve", reserveRecovery.ToString())));
+            }
+        }
+
         foreach (StrategicLocationState location in GetControlledProducingLocations(state, factionId))
         {
             System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> production =
@@ -161,6 +195,24 @@ public sealed partial class StrategicManagementCommandService
                 _definitions.Locations.TryGetValue(location.LocationId, out StrategicLocationDefinition definition) &&
                 definition.ProductionPerWorldTimePulse.Any(item => item.Amount > 0 && !string.IsNullOrWhiteSpace(item.ResourceId)))
             .OrderBy(location => location.LocationId)
+            .ToList();
+    }
+
+    private System.Collections.Generic.IReadOnlyList<StrategicCityState> GetControlledCities(
+        StrategicManagementState state,
+        string factionId)
+    {
+        if (state == null || string.IsNullOrWhiteSpace(factionId))
+        {
+            return System.Array.Empty<StrategicCityState>();
+        }
+
+        return state.Cities.Values
+            .Where(city =>
+                state.Locations.TryGetValue(city.LocationId, out StrategicLocationState location) &&
+                string.Equals(location.OwnerFactionId, factionId, System.StringComparison.Ordinal) &&
+                location.ControlState == StrategicLocationControlState.PlayerHeld)
+            .OrderBy(city => city.LocationId)
             .ToList();
     }
 }

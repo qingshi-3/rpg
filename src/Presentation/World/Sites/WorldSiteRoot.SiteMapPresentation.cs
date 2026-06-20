@@ -207,6 +207,20 @@ public partial class WorldSiteRoot
             .ToArray();
     }
 
+    private SemanticMapMarkerData[] ResolveSemanticConstructionRegionMarkers()
+    {
+        if (_semanticMapMarkers?.Markers == null)
+        {
+            return System.Array.Empty<SemanticMapMarkerData>();
+        }
+
+        return _semanticMapMarkers.Markers
+            .Where(marker => marker.MarkerType == SemanticMapMarkerType.ConstructionRegion)
+            .OrderBy(marker => marker.Priority)
+            .ThenBy(marker => marker.MarkerId, System.StringComparer.Ordinal)
+            .ToArray();
+    }
+
     private bool BuildFacilitySlotEntitiesFromSemanticMarkers(
         WorldSiteState site,
         WorldSiteDefinition definition,

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattlePreparationObjectiveThumbnail.cs" id="1_battle_prep_thumb"]
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_battle_objective_preview"]
-[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_large.tres" id="3_panel_large"]
+[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_sheet.tres" id="3_panel_sheet"]
 [ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_card.tres" id="4_panel_card"]
 [ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_slot.tres" id="5_panel_slot"]
 [ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_primary.tres" id="6_button"]
@@ -368,62 +368,6 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="SiteTopBar" type="PanelContainer" parent="TopBarHost"]
-z_index = 520
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_bottom = 66.0
-grow_horizontal = 2
-mouse_filter = 2
-theme_override_styles/panel = ExtResource("4_panel_card")
-
-[node name="TopMargin" type="MarginContainer" parent="TopBarHost/SiteTopBar"]
-layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 4
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 4
-
-[node name="TopBox" type="HBoxContainer" parent="TopBarHost/SiteTopBar/TopMargin"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="SiteHudTitle" type="Label" parent="TopBarHost/SiteTopBar/TopMargin/TopBox"]
-custom_minimum_size = Vector2(260, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-vertical_alignment = 1
-clip_text = true
-
-[node name="SiteResourceLabel" type="Label" parent="TopBarHost/SiteTopBar/TopMargin/TopBox"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-vertical_alignment = 1
-clip_text = true
-
-[node name="SiteOperationHintLabel" type="Label" parent="TopBarHost/SiteTopBar/TopMargin/TopBox"]
-custom_minimum_size = Vector2(360, 0)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.88, 0.55, 1)
-text = "场域经营：点击建筑点，或在左侧建造"
-vertical_alignment = 1
-clip_text = true
-
-[node name="ReturnMapButton" type="Button" parent="TopBarHost/SiteTopBar/TopMargin/TopBox"]
-custom_minimum_size = Vector2(128, 54)
-layout_mode = 2
-text = "返回大地图"
-focus_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
-theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
-theme_override_styles/normal = ExtResource("10_button_compact")
-theme_override_styles/hover = ExtResource("11_button_compact_hover")
-theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
-theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
-
 [node name="SitePeacetimePanel" type="PanelContainer" parent="LeftPrimaryPanelHost"]
 visible = false
 z_index = 520
@@ -433,192 +377,235 @@ anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = 82.0
-offset_right = 544.0
-offset_bottom = -24.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 520.0
+offset_bottom = 0.0
 grow_horizontal = 1
 grow_vertical = 2
 mouse_filter = 0
-theme_override_styles/panel = ExtResource("3_panel_large")
+theme_override_styles/panel = ExtResource("3_panel_sheet")
 
 [node name="Margin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="Scroll" type="ScrollContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin"]
+[node name="SiteManagementStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="SiteResourceLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+text = "资源"
+vertical_alignment = 1
+autowrap_mode = 3
+
+[node name="SiteManagementHeader" type="HBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="SiteManagementTabBar" type="HBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="BuildTabButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar"]
+custom_minimum_size = Vector2(76, 48)
+layout_mode = 2
+text = "建造"
+tooltip_text = "建建筑"
+toggle_mode = true
+button_pressed = true
+focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
+
+[node name="RecruitTabButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar"]
+custom_minimum_size = Vector2(76, 48)
+layout_mode = 2
+text = "招兵"
+tooltip_text = "招兵"
+toggle_mode = true
+focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
+
+[node name="CorpsTabButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar"]
+custom_minimum_size = Vector2(76, 48)
+layout_mode = 2
+text = "编制"
+tooltip_text = "调整部队配置"
+toggle_mode = true
+focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
+
+[node name="OverviewTabButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar"]
+custom_minimum_size = Vector2(76, 48)
+layout_mode = 2
+text = "总览"
+tooltip_text = "城市概览"
+toggle_mode = true
+focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
+
+[node name="ReturnMapButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader"]
+custom_minimum_size = Vector2(112, 54)
+layout_mode = 2
+text = "返回"
+tooltip_text = "返回大地图"
+focus_mode = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+theme_override_styles/normal = ExtResource("10_button_compact")
+theme_override_styles/hover = ExtResource("11_button_compact_hover")
+theme_override_styles/pressed = ExtResource("12_button_compact_pressed")
+theme_override_styles/disabled = ExtResource("13_button_compact_disabled")
+
+[node name="SiteHudTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+clip_text = true
+
+[node name="ManagementContentScroll" type="ScrollContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Content" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll"]
+[node name="ManagementContent" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
-[node name="OverviewCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = ExtResource("4_panel_card")
-
-[node name="OverviewMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/OverviewCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="OverviewStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin"]
+[node name="SiteBuildSection" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="BuildCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = ExtResource("4_panel_card")
-
-[node name="BuildMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BuildCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="BuildStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="FacilityCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = ExtResource("4_panel_card")
-
-[node name="FacilityMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/FacilityCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="FacilityStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="DefenseCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = ExtResource("4_panel_card")
-
-[node name="DefenseMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="DefenseStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="ActionCard" type="PanelContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/panel = ExtResource("4_panel_card")
-
-[node name="ActionMargin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="ActionStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="NoticeDivider" type="HSeparator" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
-layout_mode = 2
-
-[node name="NoticeTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 16
-text = "最近反馈"
-
-[node name="SiteHudBody" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin/OverviewStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-autowrap_mode = 3
-
-[node name="SiteSelectionLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/OverviewCard/OverviewMargin/OverviewStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.88, 0.55, 1)
-autowrap_mode = 3
-
-[node name="BuildTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin/BuildStack"]
-visible = false
+[node name="BuildTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "可建建筑"
 
-[node name="SiteFacilityBuildList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/BuildCard/BuildMargin/BuildStack"]
+[node name="SiteFacilityBuildList" type="GridContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 4
+theme_override_constants/separation = 8
+
+[node name="SiteRecruitSection" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="FacilityTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin/FacilityStack"]
+[node name="RecruitTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteRecruitSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
-text = "建筑点"
+text = "招募编制"
 
-[node name="SiteFacilityList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/FacilityCard/FacilityMargin/FacilityStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="GarrisonTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 17
-text = "驻军"
-
-[node name="SiteGarrisonList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/DefenseCard/DefenseMargin/DefenseStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 6
-
-[node name="ActionTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 17
-text = "行动"
-
-[node name="SiteActionList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+[node name="SiteRecruitList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteRecruitSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="SiteNoticeLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+[node name="SiteCorpsSection" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="GarrisonTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteCorpsSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 17
+text = "部队配置"
+
+[node name="SiteGarrisonList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteCorpsSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="SiteOverviewSection" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="SiteHudBody" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+autowrap_mode = 3
+
+[node name="SiteSelectionLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.88, 0.55, 1)
+autowrap_mode = 3
+
+[node name="FacilityTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 17
+text = "建筑与区域"
+
+[node name="SiteFacilityList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="NoticeDivider" type="HSeparator" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+layout_mode = 2
+
+[node name="NoticeTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 16
+text = "最近反馈"
+
+[node name="SiteNoticeLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.82, 0.9, 1, 1)

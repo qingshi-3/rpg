@@ -552,9 +552,10 @@ internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
     AssertTrue(
         tacticalWorldHudSource.Contains("node name=\"TopLeftStatus\" type=\"VBoxContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal) &&
         tacticalWorldHudSource.Contains("node name=\"SiteDetailPanel\" type=\"PanelContainer\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
-        peacetimeHudSource.Contains("node name=\"SiteTopBar\" type=\"PanelContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal) &&
-        peacetimeHudSource.Contains("node name=\"SitePeacetimePanel\" type=\"PanelContainer\" parent=\"LeftPrimaryPanelHost\"", StringComparison.Ordinal),
-        "strategic-world uses fullscreen overlay context UI while site management keeps its dedicated workspace panel.");
+        !peacetimeHudSource.Contains("node name=\"SiteTopBar\"", StringComparison.Ordinal) &&
+        peacetimeHudSource.Contains("node name=\"SitePeacetimePanel\" type=\"PanelContainer\" parent=\"LeftPrimaryPanelHost\"", StringComparison.Ordinal) &&
+        peacetimeHudSource.Contains("node name=\"SiteResourceLabel\" type=\"Label\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack\"", StringComparison.Ordinal),
+        "strategic-world uses fullscreen overlay context UI while site management keeps one dedicated left workspace panel with resources inside it.");
 
     AssertTrue(
         managementSource.Contains("Layout hosts are Presentation-only containers", StringComparison.Ordinal),
@@ -620,7 +621,8 @@ internal static void PresentationUiScenePathsPreserveCodeBindings()
         "strategic HUD overlay panels must keep full parent paths so code-bound labels/lists remain reachable.");
     AssertTrue(
         siteHud.Contains("node name=\"Margin\" type=\"MarginContainer\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel\"", StringComparison.Ordinal) &&
-        siteHud.Contains("node name=\"TopMargin\" type=\"MarginContainer\" parent=\"TopBarHost/SiteTopBar\"", StringComparison.Ordinal),
+        siteHud.Contains("node name=\"SiteResourceLabel\" type=\"Label\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack\"", StringComparison.Ordinal) &&
+        siteHud.Contains("node name=\"ManagementContentScroll\" type=\"ScrollContainer\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack\"", StringComparison.Ordinal),
         "site HUD moved panels must keep full parent paths so management and battle-preparation data binders reach their controls.");
 }
 

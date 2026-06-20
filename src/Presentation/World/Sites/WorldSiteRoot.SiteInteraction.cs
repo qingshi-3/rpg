@@ -692,8 +692,7 @@ public partial class WorldSiteRoot
             _ => new Vector2(float.NaN, float.NaN)
         };
         return !float.IsNaN(screenPosition.X) &&
-               (IsScreenPointInsideControl(_siteHudTopBar, screenPosition) ||
-                IsScreenPointInsideControl(_sitePeacetimePanel, screenPosition) ||
+               (IsScreenPointInsideControl(_sitePeacetimePanel, screenPosition) ||
                 IsScreenPointInsideControl(_battlePreparationRosterDock, screenPosition) ||
                 IsScreenPointInsideControl(_battlePreparationPlanBar, screenPosition) ||
                 IsScreenPointInsideControl(_battlePreparationObjectiveThumbnailDock, screenPosition));

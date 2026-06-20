@@ -16,7 +16,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
 
@@ -27,7 +27,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(corpsInstanceId, expeditionState.CorpsInstanceId, "expedition should reference the assigned corps instance");
         AssertEqual(1, expeditionState.Participants.Count, "single-company expedition should retain one participant");
         AssertEqual(StrategicManagementIds.LocationPlainsCity, expeditionState.SourceLocationId, "expedition source should be the source city");
-        AssertEqual(StrategicManagementIds.LocationBeastDen, expeditionState.TargetLocationId, "expedition target should be the selected strategic location");
+        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, expeditionState.TargetLocationId, "expedition target should be the selected strategic location");
         AssertEqual(StrategicExpeditionStatus.Moving, expeditionState.Status, "new expedition should start as moving");
         AssertEqual(expedition.CreatedEntityId, state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].CurrentExpeditionId, "hero should be locked to the expedition");
         AssertEqual(expedition.CreatedEntityId, state.CorpsInstances[corpsInstanceId].CurrentExpeditionId, "corps should be locked to the expedition");
@@ -43,13 +43,13 @@ internal static partial class StrategicManagementRegressionCases
         {
             StrategicManagementIds.HeroOrdinaryCommander,
             StrategicManagementIds.HeroArcherCaptain,
-            StrategicManagementIds.HeroBeastTamer
+            StrategicManagementIds.HeroCavalryCaptain
         };
 
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
 
@@ -83,7 +83,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
 
@@ -112,7 +112,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicBattleSession session = result.Session;
         AssertEqual(expeditionId, session.ExpeditionId, "bridge session should retain expedition id");
         AssertEqual(StrategicManagementIds.LocationPlainsCity, session.SourceLocationId, "bridge session should retain source strategic location");
-        AssertEqual(StrategicManagementIds.LocationBeastDen, session.TargetLocationId, "bridge session should retain target strategic location");
+        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, session.TargetLocationId, "bridge session should retain target strategic location");
         AssertEqual("bonefield_assault_v1", session.MapDefinitionId, "bridge session should use target location battle metadata");
         AssertEqual("assault_bonefield", session.EncounterId, "bridge session should expose encounter metadata");
         AssertEqual(1, session.Participants.Count, "first bridge slice should expose the selected hero company as one participant");
@@ -130,12 +130,12 @@ internal static partial class StrategicManagementRegressionCases
         {
             StrategicManagementIds.HeroOrdinaryCommander,
             StrategicManagementIds.HeroArcherCaptain,
-            StrategicManagementIds.HeroBeastTamer
+            StrategicManagementIds.HeroCavalryCaptain
         };
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
         AssertTrue(expedition.Success, $"multi-company expedition creation should succeed, got {expedition.FailureReason}");
@@ -177,7 +177,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
         AssertTrue(expedition.Success, $"assault expedition should be created without strategic preparation, got {expedition.FailureReason}");
@@ -397,12 +397,12 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult retarget = commands.RetargetExpedition(
             state,
             expedition.CreatedEntityId,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation);
 
         AssertTrue(retarget.Success, $"retarget to Bonefield assault should succeed, got {retarget.FailureReason}");
         StrategicExpeditionState retargeted = state.Expeditions[expedition.CreatedEntityId];
-        AssertEqual(StrategicManagementIds.LocationBeastDen, retargeted.TargetLocationId, "retarget should update strategic target location");
+        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, retargeted.TargetLocationId, "retarget should update strategic target location");
         AssertEqual(StrategicExpeditionIntent.AssaultLocation, retargeted.Intent, "retarget should update strategic expedition intent");
 
         StrategicBattleSessionResult session = new StrategicBattleBridgeService(definitions).CreateSession(
@@ -412,7 +412,7 @@ internal static partial class StrategicManagementRegressionCases
             "res://scenes/world/sites/WorldSiteRoot.tscn");
 
         AssertTrue(session.Success, $"retargeted assault expedition should be accepted by bridge, got {session.FailureReason}");
-        AssertEqual(StrategicManagementIds.LocationBeastDen, session.Session.TargetLocationId, "bridge session should read the retargeted strategic target");
+        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, session.Session.TargetLocationId, "bridge session should read the retargeted strategic target");
     }
 
     internal static void RetargetMovingExpeditionToAssaultCreatesBridgeSessionWithoutPreparationGate()
@@ -432,12 +432,12 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult retarget = commands.RetargetExpedition(
             state,
             expedition.CreatedEntityId,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation);
 
         AssertTrue(retarget.Success, $"retarget to Bonefield assault should allow travel, got {retarget.FailureReason}");
         StrategicExpeditionState retargeted = state.Expeditions[expedition.CreatedEntityId];
-        AssertEqual(StrategicManagementIds.LocationBeastDen, retargeted.TargetLocationId, "retarget should keep the assault target for travel");
+        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, retargeted.TargetLocationId, "retarget should keep the assault target for travel");
         AssertEqual(StrategicExpeditionIntent.AssaultLocation, retargeted.Intent, "retarget should record the intended assault for later bridge entry");
 
         StrategicBattleSessionResult session = new StrategicBattleBridgeService(definitions).CreateSession(
@@ -456,7 +456,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
         AssertTrue(expedition.Success, $"assault expedition should be created without strategic preparation, got {expedition.FailureReason}");
@@ -505,7 +505,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
         AssertTrue(expedition.Success, $"duplicate-unit expedition should be created, got {expedition.FailureReason}");
@@ -587,7 +587,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(snapshotResult.Success, $"bridge snapshot should compile, got {snapshotResult.FailureReason}");
         BattleStartSnapshot snapshot = snapshotResult.Snapshot;
         AssertEqual(session.SessionId, snapshot.BattleId, "snapshot battle id should match the bridge session");
-        AssertEqual(StrategicManagementIds.LocationBeastDen, snapshot.TargetLocationId, "snapshot target should be the strategic target location");
+        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, snapshot.TargetLocationId, "snapshot target should be the strategic target location");
         BattleGroupSnapshot? playerGroup = snapshot.BattleGroups.FirstOrDefault(group =>
             string.Equals(group.FactionId, StrategicManagementIds.FactionPlayer, StringComparison.Ordinal));
         if (playerGroup == null)

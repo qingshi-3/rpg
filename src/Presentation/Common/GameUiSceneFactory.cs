@@ -25,6 +25,7 @@ public static class GameUiSceneFactory
     public const string WorldPrimaryActionButtonScenePath = "res://scenes/world/ui/WorldPrimaryActionButton.tscn";
     public const string WorldSecondaryActionButtonScenePath = "res://scenes/world/ui/WorldSecondaryActionButton.tscn";
     public const string WorldCompactMarkerButtonScenePath = "res://scenes/world/ui/WorldCompactMarkerButton.tscn";
+    public const string WorldBuildingOptionCardScenePath = "res://scenes/world/ui/WorldBuildingOptionCard.tscn";
     public const string WorldExpeditionCountRowScenePath = "res://scenes/world/ui/WorldExpeditionCountRow.tscn";
     public const string WorldOpportunityDetailPanelScenePath = "res://scenes/world/ui/WorldOpportunityDetailPanel.tscn";
     public const string WorldFacilitySlotEntityScenePath = "res://scenes/world/site_interactions/WorldFacilitySlotEntity.tscn";
@@ -122,6 +123,11 @@ public static class GameUiSceneFactory
     public static Button CreateWorldCompactMarkerButton(string ownerName)
     {
         return Instantiate<Button>(WorldCompactMarkerButtonScenePath, ownerName);
+    }
+
+    public static WorldBuildingOptionCard CreateWorldBuildingOptionCard(string ownerName)
+    {
+        return Instantiate<WorldBuildingOptionCard>(WorldBuildingOptionCardScenePath, ownerName);
     }
 
     public static HBoxContainer CreateWorldExpeditionCountRow(string ownerName)

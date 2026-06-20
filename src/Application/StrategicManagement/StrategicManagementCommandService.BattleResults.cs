@@ -3,9 +3,9 @@ using Rpg.Application.Battle;
 using Rpg.Application.StrategicBattleBridge;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
-using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Application.StrategicManagement;
+
 public sealed partial class StrategicManagementCommandService
 {
     public StrategicCommandResult ApplyBattleResultSummary(
@@ -159,7 +159,7 @@ public sealed partial class StrategicManagementCommandService
             ObjectiveSucceeded = summary.ObjectiveSucceeded,
             OutcomeText = victory ? "胜利" : "失败",
             WorldChangeText = BuildWorldChangeText(targetLocation, targetDefinition, reward, victory),
-            FailureReasonText = victory ? "" : "阵线被白骨原守军压散，重整编制后再进攻。",
+            FailureReasonText = victory ? "" : "阵线被守军压散，重整编制后再进攻。",
             ProgressionText = victory
                 ? reward?.VictoryProgressionText ?? "进展：目标已被控制。"
                 : reward?.DefeatProgressionText ?? "进展：本次未取得战略收益。",
@@ -256,15 +256,15 @@ public sealed partial class StrategicManagementCommandService
     {
         if (!victory)
         {
-            return $"{heroDisplayName}：阵线被拖散了。先重整编制，再压住白骨原侧翼。";
+            return $"{heroDisplayName}：阵线被拖散了。先重整编制，再压住敌军侧翼。";
         }
 
-        if (string.Equals(heroDefinitionId, StrategicManagementIds.HeroBeastTamer, System.StringComparison.Ordinal))
+        if (string.Equals(heroDefinitionId, StrategicManagementIds.HeroCavalryCaptain, System.StringComparison.Ordinal))
         {
-            return $"{heroDisplayName}：这里的兽痕还热，给我时间就能驯出第一批战兽。";
+            return $"{heroDisplayName}：侧翼已经打开，下一次出征可以更快压进。";
         }
 
-        return $"{heroDisplayName}：白骨原的突破口已经打开。";
+        return $"{heroDisplayName}：白骨岗哨的突破口已经打开。";
     }
 
     private void BuildEquipmentFeedback(

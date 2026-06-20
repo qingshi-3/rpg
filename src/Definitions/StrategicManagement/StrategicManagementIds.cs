@@ -7,12 +7,12 @@ public static class StrategicManagementIds
 
     public const string ResourceFood = "resource_food";
     public const string ResourceMoney = "resource_money";
-    public const string ResourceBuildingMaterials = "resource_building_materials";
-    public const string ResourceBeastMaterials = "resource_beast_materials";
+    public const string ResourceWood = "resource_wood";
+    public const string ResourceOre = "resource_ore";
 
     public const string LocationPlainsCity = "location_plains_city";
     public const string LocationTimberSite = "location_timber_site";
-    public const string LocationBeastDen = "location_beast_den";
+    public const string LocationBonefieldOutpost = "location_bonefield_outpost";
 
     public const string MapSitePlayerCamp = "player_camp";
     public const string MapSiteBonefield = "bonefield";
@@ -24,21 +24,31 @@ public static class StrategicManagementIds
 
     public const string CityIdentityPlainsHuman = "city_identity_plains_human";
 
-    public const string FacilityTrainingGround = "facility_training_ground";
-    public const string FacilityBeastPen = "facility_beast_pen";
+    public const string BuildingCategoryEconomy = "building_category_economy";
+    public const string BuildingCategoryMilitary = "building_category_military";
+    public const string BuildingCategoryHero = "building_category_hero";
+    public const string BuildingCategoryDefense = "building_category_defense";
+    public const string BuildingCategorySupport = "building_category_support";
+    public const string BuildingCategorySpecial = "building_category_special";
+
+    public const string BuildingFarm = "building_farm";
+    public const string BuildingMarket = "building_market";
+    public const string BuildingLumberCamp = "building_lumber_camp";
+    public const string BuildingMine = "building_mine";
+    public const string BuildingTrainingGround = "building_training_ground";
+    public const string BuildingTavern = "building_tavern";
+    public const string BuildingArrowTower = "building_arrow_tower";
+    public const string BuildingMedicalShrine = "building_medical_shrine";
+
+    public const string RegionPlainsEconomy = "region_plains_economy";
+    public const string RegionPlainsMilitary = "region_plains_military";
+    public const string RegionPlainsCivic = "region_plains_civic";
 
     public const string CorpsShieldLine = "corps_shield_line";
     public const string CorpsArcherLine = "corps_archer_line";
     public const string CorpsCavalryLine = "corps_cavalry_line";
-    public const string CorpsWolfPack = "corps_wolf_pack";
-    public const string CorpsGreatBeast = "corps_great_beast";
 
     public const string HeroOrdinaryCommander = "hero_ordinary_commander";
     public const string HeroArcherCaptain = "hero_archer_captain";
-    public const string HeroBeastTamer = "hero_beast_tamer";
-
-    public const string SourceTagBeast = "source_beast";
-    public const string FacilityTagCommonTraining = "facility_tag_common_training";
-    public const string FacilityTagBeastPen = "facility_tag_beast_pen";
-    public const string AptitudeTagBeast = "aptitude_beast";
+    public const string HeroCavalryCaptain = "hero_cavalry_captain";
 }

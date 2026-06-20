@@ -112,7 +112,7 @@ Does not own:
 - settlement truth;
 - long-term data mutation.
 
-Strategic-world selection is an exception in the current fullscreen map presentation: selected strategic-location context is shown as a bottom-centered overlay sheet instead of a persistent left-side panel. Site-management and battle-preparation scenes may still use `LeftPrimaryPanelHost` when they are deliberate workspaces rather than map-overlaid context.
+Strategic-world selection is an exception in the current fullscreen map presentation: selected strategic-location context is shown as a bottom-centered overlay sheet instead of a persistent left-side panel. Site-management uses a deliberate split-screen workspace: `LeftPrimaryPanelHost` touches the left, top, and bottom screen edges, holds the local resource summary and management controls, and `MainWorldViewport` starts immediately at the panel's right edge with no gutter or top header strip. Battle-preparation scenes may still use `LeftPrimaryPanelHost` when they are deliberate workspaces rather than map-overlaid context.
 
 ### RightNotificationHost
 
@@ -233,6 +233,12 @@ Current bindings in `StrategicWorldRoot.UiBootstrap.cs` and `StrategicWorldRoot.
 `ApplySitePeacetimePanelLayout()` must stop hardcoding right-side anchors. Rename or wrap it when practical so the method name no longer implies peacetime-only ownership.
 
 World-site map, units, battle overlays, debug world nodes, and battle camera belong in `MainWorldViewport`. Site management HUD, battle-preparation panels, selection vignette, modal dialogs, and future command UI belong outside the viewport. The current `WorldSiteRoot` scene may migrate after strategic world isolation if changing the root type would create a high-risk runtime rewrite.
+
+The site-management build tab separates building choice from map placement. The first step is an RTS-style building picker made from reusable authored card scenes. Each card displays the building icon and the bottom building name only. Hover detail may show only the footprint and resource cost. Construction region id, default coordinates, category, disabled reason, and other placement validation facts belong to the later map-placement interaction and must not be printed into the picker card.
+
+After the player chooses a building card, Presentation enters a temporary strategic-building placement mode. The selected building follows the mouse as a footprint preview in the world viewport. The preview resolves the current snapped grid anchor and compatible `ConstructionRegion` semantic marker every mouse move, then asks Strategic Management rules for the current failure reason. Valid previews use a buildable treatment; invalid previews use an error treatment and keep the pending selection active.
+
+The next valid map click submits `BuildCityBuilding` through Strategic Management commands. Presentation may show placement feedback, invalid reasons, region highlights, and footprint previews during this map-placement step, but it still does not own building legality or strategic state mutation. `ConstructionRegion` markers are the presentation bridge between the authored map and Strategic Management region ids; legacy `BuildingSlot`/`FacilitySlot` presentation must not become the new Strategic Management construction authority.
 
 ### Battle Preparation
 

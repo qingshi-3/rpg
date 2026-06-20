@@ -14,7 +14,7 @@ public static class FirstStrategicManagementDefinitions
         AddBattleRewards(definitions);
         AddEquipmentSamples(definitions);
         AddCityIdentities(definitions);
-        AddFacilities(definitions);
+        AddBuildings(definitions);
         AddCorps(definitions);
         AddHeroes(definitions);
         return definitions;
@@ -22,10 +22,10 @@ public static class FirstStrategicManagementDefinitions
 
     private static void AddResources(StrategicManagementDefinitionSet definitions)
     {
-        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceFood, DisplayName = "粮食" });
         Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceMoney, DisplayName = "资金" });
-        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceBuildingMaterials, DisplayName = "建材" });
-        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceBeastMaterials, DisplayName = "野兽素材" });
+        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceFood, DisplayName = "粮食" });
+        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceWood, DisplayName = "木材" });
+        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceOre, DisplayName = "矿石" });
     }
 
     private static void AddLocations(StrategicManagementDefinitionSet definitions)
@@ -37,7 +37,52 @@ public static class FirstStrategicManagementDefinitions
             DisplayName = "苍原城",
             Kind = StrategicLocationKind.City,
             CityIdentityId = StrategicManagementIds.CityIdentityPlainsHuman,
-            FacilitySlotCount = 3
+            ConstructionRegions =
+            {
+                new StrategicConstructionRegionDefinition
+                {
+                    RegionId = StrategicManagementIds.RegionPlainsEconomy,
+                    DisplayName = "西侧农商区",
+                    OriginX = 0,
+                    OriginY = 0,
+                    Width = 8,
+                    Height = 6,
+                    AllowedCategoryIds =
+                    {
+                        StrategicManagementIds.BuildingCategoryEconomy
+                    }
+                },
+                new StrategicConstructionRegionDefinition
+                {
+                    RegionId = StrategicManagementIds.RegionPlainsMilitary,
+                    DisplayName = "东侧军备区",
+                    OriginX = 10,
+                    OriginY = 0,
+                    Width = 7,
+                    Height = 5,
+                    AllowedCategoryIds =
+                    {
+                        StrategicManagementIds.BuildingCategoryMilitary,
+                        StrategicManagementIds.BuildingCategoryDefense,
+                        StrategicManagementIds.BuildingCategorySupport
+                    }
+                },
+                new StrategicConstructionRegionDefinition
+                {
+                    RegionId = StrategicManagementIds.RegionPlainsCivic,
+                    DisplayName = "内城事务区",
+                    OriginX = 0,
+                    OriginY = 8,
+                    Width = 6,
+                    Height = 4,
+                    AllowedCategoryIds =
+                    {
+                        StrategicManagementIds.BuildingCategoryHero,
+                        StrategicManagementIds.BuildingCategorySupport,
+                        StrategicManagementIds.BuildingCategorySpecial
+                    }
+                }
+            }
         });
         Add(definitions.Locations, new StrategicLocationDefinition
         {
@@ -46,20 +91,19 @@ public static class FirstStrategicManagementDefinitions
             Kind = StrategicLocationKind.ResourceSite,
             ProductionPerWorldTimePulse =
             {
-                new StrategicResourceAmount(StrategicManagementIds.ResourceBuildingMaterials, 12)
+                new StrategicResourceAmount(StrategicManagementIds.ResourceWood, 12)
             }
         });
         Add(definitions.Locations, new StrategicLocationDefinition
         {
-            LocationId = StrategicManagementIds.LocationBeastDen,
+            LocationId = StrategicManagementIds.LocationBonefieldOutpost,
             MapSiteId = StrategicManagementIds.MapSiteBonefield,
-            DisplayName = "白骨原",
-            Kind = StrategicLocationKind.BeastMinorSite,
+            DisplayName = "白骨岗哨",
+            Kind = StrategicLocationKind.Ruin,
             BattleEncounterId = "assault_bonefield",
             BattleMapDefinitionId = "bonefield_assault_v1",
             BattleScenePath = "res://scenes/world/sites/WorldSiteRoot.tscn",
-            BattleObjectiveId = "occupy_bonefield",
-            SourcePermissionTags = { StrategicManagementIds.SourceTagBeast }
+            BattleObjectiveId = "occupy_bonefield"
         });
     }
 
@@ -68,17 +112,17 @@ public static class FirstStrategicManagementDefinitions
         Add(definitions.BattleRewards, new StrategicBattleRewardDefinition
         {
             RewardId = StrategicManagementIds.RewardBonefieldVictory,
-            TargetLocationId = StrategicManagementIds.LocationBeastDen,
-            DisplayName = "白骨原攻占奖励",
-            VictorySummaryText = "白骨原控制权已转入我方，野兽来源与后续驯养路线开放。",
-            DefeatSummaryText = "白骨原仍由敌方控制，出征部队需要重整后再战。",
-            VictoryProgressionText = "进展：获得野兽来源，可在城市配合兽栏推进野兽军团路线。",
-            DefeatProgressionText = "进展：本次未夺取白骨原，请先重整溃散编制，再选择准备重新出征。",
-            UnlockText = "解锁：白骨原野兽来源",
+            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            DisplayName = "白骨岗哨占领奖励",
+            VictorySummaryText = "白骨岗哨已转入我方控制，周边通路和基础物资点被打开。",
+            DefeatSummaryText = "白骨岗哨仍由敌方控制，出征部队需要重整后再战。",
+            VictoryProgressionText = "进展：新区域已被占领，可作为后续资源开发和战线推进节点。",
+            DefeatProgressionText = "进展：本次未能夺取白骨岗哨，请先重整编制、补员后重新出征。",
+            UnlockText = "占领：白骨岗哨",
             VictoryResourceRewards =
             {
-                new StrategicResourceAmount(StrategicManagementIds.ResourceBeastMaterials, 25),
-                new StrategicResourceAmount(StrategicManagementIds.ResourceBuildingMaterials, 20)
+                new StrategicResourceAmount(StrategicManagementIds.ResourceOre, 25),
+                new StrategicResourceAmount(StrategicManagementIds.ResourceWood, 20)
             },
             EquipmentSampleIds =
             {
@@ -114,7 +158,7 @@ public static class FirstStrategicManagementDefinitions
             DisplayName = "白骨号角",
             SlotKind = "token",
             Grade = "rare",
-            RoleText = "号令道具：记录白骨原战利品，可作为后续野兽军团指挥物。"
+            RoleText = "号令道具：记录白骨岗哨战利品，可作为后续编队指挥物。"
         });
     }
 
@@ -133,12 +177,11 @@ public static class FirstStrategicManagementDefinitions
         });
     }
 
-    private static void AddFacilities(StrategicManagementDefinitionSet definitions)
+    private static void AddBuildings(StrategicManagementDefinitionSet definitions)
     {
-        // Facility content is first-slice data; rules and commands consume typed definitions after config validation.
-        foreach (StrategicFacilityDefinition facility in StrategicManagementFacilityDefinitionConfigLoader.LoadDefaultFacilities())
+        foreach (StrategicBuildingDefinition building in StrategicManagementBuildingDefinitionConfigLoader.LoadDefaultBuildings())
         {
-            Add(definitions.Facilities, facility);
+            Add(definitions.Buildings, building);
         }
     }
 
@@ -148,56 +191,34 @@ public static class FirstStrategicManagementDefinitions
             StrategicManagementIds.CorpsShieldLine,
             "天蓝石狮卫",
             30,
+            20,
+            30,
             FirstSliceHeroCompanyIds.ShieldCorpsUnit,
             FirstSliceHeroCompanyIds.ShieldCorpsCount));
         Add(definitions.Corps, CommonCorps(
             StrategicManagementIds.CorpsArcherLine,
             "穿阳弓手",
             35,
+            20,
+            30,
             FirstSliceHeroCompanyIds.ArcherCorpsUnit,
             FirstSliceHeroCompanyIds.ArcherCorpsCount));
         Add(definitions.Corps, CommonCorps(
             StrategicManagementIds.CorpsCavalryLine,
             "辉光龙骑",
             45,
+            30,
+            40,
             FirstSliceHeroCompanyIds.AssaultCorpsUnit,
             FirstSliceHeroCompanyIds.AssaultCorpsCount));
-        Add(definitions.Corps, new StrategicCorpsDefinition
-        {
-            CorpsDefinitionId = StrategicManagementIds.CorpsWolfPack,
-            DisplayName = "霜魂狼群",
-            BattleUnitId = FirstSliceHeroCompanyIds.AssaultCorpsUnit,
-            BattleUnitCount = FirstSliceHeroCompanyIds.AssaultCorpsCount,
-            RequiredFacilityTags = { StrategicManagementIds.FacilityTagBeastPen },
-            RequiredSourcePermissionTags = { StrategicManagementIds.SourceTagBeast },
-            CreationCost =
-            {
-                new StrategicResourceAmount(StrategicManagementIds.ResourceMoney, 70),
-                new StrategicResourceAmount(StrategicManagementIds.ResourceBeastMaterials, 30)
-            },
-            AptitudeTag = StrategicManagementIds.AptitudeTagBeast
-        });
-        Add(definitions.Corps, new StrategicCorpsDefinition
-        {
-            CorpsDefinitionId = StrategicManagementIds.CorpsGreatBeast,
-            DisplayName = "巨兽冲锋队",
-            BattleUnitId = FirstSliceHeroCompanyIds.AssaultCorpsUnit,
-            BattleUnitCount = FirstSliceHeroCompanyIds.AssaultCorpsCount,
-            RequiredFacilityTags = { StrategicManagementIds.FacilityTagBeastPen },
-            RequiredSourcePermissionTags = { StrategicManagementIds.SourceTagBeast },
-            CreationCost =
-            {
-                new StrategicResourceAmount(StrategicManagementIds.ResourceMoney, 120),
-                new StrategicResourceAmount(StrategicManagementIds.ResourceBeastMaterials, 80)
-            },
-            AptitudeTag = StrategicManagementIds.AptitudeTagBeast
-        });
     }
 
     private static StrategicCorpsDefinition CommonCorps(
         string id,
         string displayName,
         int moneyCost,
+        int foodCost,
+        int soldiers,
         string battleUnitId,
         int battleUnitCount)
     {
@@ -207,8 +228,18 @@ public static class FirstStrategicManagementDefinitions
             DisplayName = displayName,
             BattleUnitId = battleUnitId ?? "",
             BattleUnitCount = System.Math.Max(1, battleUnitCount),
+            SoldierCapacityCost = soldiers,
             RequiredCityIdentityIds = { StrategicManagementIds.CityIdentityPlainsHuman },
-            CreationCost = { new StrategicResourceAmount(StrategicManagementIds.ResourceMoney, moneyCost) }
+            CreationCost =
+            {
+                new StrategicResourceAmount(StrategicManagementIds.ResourceMoney, moneyCost),
+                new StrategicResourceAmount(StrategicManagementIds.ResourceFood, foodCost)
+            },
+            ReplenishFullCost =
+            {
+                new StrategicResourceAmount(StrategicManagementIds.ResourceMoney, moneyCost),
+                new StrategicResourceAmount(StrategicManagementIds.ResourceFood, foodCost)
+            }
         };
     }
 
@@ -228,10 +259,9 @@ public static class FirstStrategicManagementDefinitions
         });
         Add(definitions.Heroes, new StrategicHeroDefinition
         {
-            HeroDefinitionId = StrategicManagementIds.HeroBeastTamer,
+            HeroDefinitionId = StrategicManagementIds.HeroCavalryCaptain,
             DisplayName = "裂光剑卫",
-            BattleUnitId = FirstSliceHeroCompanyIds.AssaultHeroUnit,
-            AptitudeTags = { StrategicManagementIds.AptitudeTagBeast }
+            BattleUnitId = FirstSliceHeroCompanyIds.AssaultHeroUnit
         });
     }
 
@@ -260,9 +290,9 @@ public static class FirstStrategicManagementDefinitions
         target[definition.CityIdentityId] = definition;
     }
 
-    private static void Add(Dictionary<string, StrategicFacilityDefinition> target, StrategicFacilityDefinition definition)
+    private static void Add(Dictionary<string, StrategicBuildingDefinition> target, StrategicBuildingDefinition definition)
     {
-        target[definition.FacilityDefinitionId] = definition;
+        target[definition.BuildingDefinitionId] = definition;
     }
 
     private static void Add(Dictionary<string, StrategicCorpsDefinition> target, StrategicCorpsDefinition definition)

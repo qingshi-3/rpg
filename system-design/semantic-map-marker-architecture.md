@@ -10,7 +10,7 @@ This document supports the accepted strategic-location and spatial battle direct
 
 The semantic marker system defines reusable map regions for authored gameplay meaning:
 
-- building slots in city or strategic-location interiors;
+- strategic construction regions and building slots in city or strategic-location interiors;
 - deployment zones and entrances for battle handoff;
 - objective zones and route hints for battle-group planning;
 - event spawns and direct strategic-location interaction markers;
@@ -38,9 +38,11 @@ Business semantics belong to subclasses:
 
 | Scene / Script | Fixed Marker Type | Extra Fields |
 |---|---|---|
+| `ConstructionRegionMapMarker.tscn` / `ConstructionRegionMapMarker` | `ConstructionRegion` | `AllowedCategoryIds`, `Priority` |
 | `BuildingSlotMapMarker.tscn` / `BuildingSlotMapMarker` | `BuildingSlot` | none in the first slice |
 | `DeploymentZoneMapMarker.tscn` / `DeploymentZoneMapMarker` | `DeploymentZone` | `DeploymentSide`, optional `FactionId`, `Priority` |
 | `ObjectiveZoneMapMarker.tscn` / `ObjectiveZoneMapMarker` | `ObjectiveZone` | `ObjectiveRole`, `DeploymentSide`, optional `FactionId`, `Priority` |
+| `BridgeMapMarker.tscn` / `BridgeMapMarker` | `Bridge` | `BridgeKind`, `ConnectionIds`, `Priority` |
 
 The marker anchor is the top-left tile cell. Width and height extend right and down by `m*n` cells. The node draws the covered tile cells, outline, anchor, and label in the editor so authors can see the region while building the map. Authors should not need to edit raw cell coordinates for ordinary region placement.
 
@@ -68,6 +70,8 @@ FactionId
 Priority
 Tags
 SourcePath
+BridgeKind
+ConnectionIds
 ```
 
 The pure data record is the only shape consumed by Application, Runtime, reports, and diagnostics. Godot marker nodes and editor preview drawing are not gameplay authority.
@@ -79,9 +83,11 @@ Initial marker types are:
 | Type | First Consumer |
 |---|---|
 | `BuildingSlot` | Site facility presentation and build actions. |
+| `ConstructionRegion` | Strategic Management city-building placement preview and placement-region resolution. |
 | `DeploymentZone` | Battle deployment preparation. |
 | `ObjectiveZone` | Battle-group target-area selection and plan handoff. |
 | `Entrance` | Battle handoff and known entrance selection. |
+| `Bridge` | Site Map Layout extraction, bridge validation, destructible bridge state hooks, and optional tactical route hints. |
 | `ChokePoint` | Tactical AI and battle reports. |
 | `Lane` | Tactical AI movement and pressure templates. |
 | `ReservePoint` | Reserve and reinforcement mechanics. |
@@ -91,6 +97,8 @@ Initial marker types are:
 | `EventSpawn` | Site and battle event placement. |
 
 Consumers must filter by type and tags. A marker being present does not imply every system may use it.
+
+Bridge markers describe bridge gameplay facts. Bridge art may overlap water, banks, roads, or high-ground edges, but bridge height, bridge footprint, and cross-height entry points must come from bridge markers and explicit map connections rather than visual tile overlap.
 
 ## Ownership By Layer
 
@@ -120,6 +128,24 @@ SemanticMapMarker(type=BuildingSlot)
 ```
 
 If both a legacy slot entity and a semantic marker describe the same slot, the semantic marker wins and a diagnostic should identify the mismatch.
+
+## Strategic Construction Region Consumption
+
+Strategic city construction consumes `ConstructionRegion` markers as the map-authored presentation shape for Strategic Management construction regions.
+
+The marker id must match a `StrategicConstructionRegionDefinition.RegionId`. The marker footprint supplies the visible map region used for hover highlights, mouse-follow building footprint preview, and click-to-place region resolution. Strategic Management definitions and rules remain the authority for allowed building categories, bounds, overlap, resource costs, and durable building state. If marker `AllowedCategoryIds` are authored, they are an editor/readability hint and must not override Strategic Management rules.
+
+The current first playable city may use `demo_site.tscn` as the test map and should expose three construction-region markers for the foundation loop: economy, military, and civic/support. These markers are separate from legacy `BuildingSlot` markers. `BuildingSlot` remains a migration path for old site facility presentation; new Strategic Management building placement must not route through `FacilitySlotDefinition` or `WorldActionResolver`.
+
+The target placement flow is:
+
+```text
+SemanticMapMarker(type=ConstructionRegion, MarkerId=StrategicConstructionRegionDefinition.RegionId)
+-> extracted marker data
+-> Presentation placement region highlight and footprint preview
+-> StrategicManagementRules.GetBuildingPlacementFailureReason
+-> BuildCityBuilding command on confirmed click
+```
 
 ## Deployment Zone Consumption
 
@@ -162,6 +188,8 @@ If a battle kind requires player-selected objectives and no valid objective-zone
 - The anchor must resolve to the coordinate tile grid.
 - Covered cells are computed from the top-left anchor by extending right and down.
 - Consumers that require grid-backed cells must reject markers whose footprint leaves the known grid.
+- Consumers that require standable cells must verify that marker footprints resolve to the marker's `CellHeight` top surface.
+- `Bridge` markers must declare a bridge kind and covered gameplay cells; height-changing bridges must reference or be paired with explicit height connections.
 - Markers may overlap unless a consumer explicitly forbids overlap for its type.
 - A missing `SemanticMarkers` root is valid for maps that have no semantic marker requirements.
 
@@ -174,6 +202,7 @@ Consumer failures should be explicit:
 - site facility layout reports missing or invalid `BuildingSlot` markers;
 - deployment preparation reports missing deployment or entrance markers when a map requires them;
 - battle preparation reports missing objective-zone markers when the battle kind requires player-selected objectives;
+- site map layout validation reports ambiguous bridge height, missing bridge cells, or missing height connections for height-changing bridges;
 - tactical AI treats missing optional tactical markers as unavailable tactical hints, not as hard failure.
 
 ## Acceptance
@@ -184,6 +213,7 @@ This architecture is acceptable when:
 - editor preview and runtime extraction agree on anchor, width, height, and covered cells;
 - Application receives pure marker data without depending on editor drawing or scene node state during gameplay;
 - building-slot behavior remains stable after consuming semantic marker data;
+- bridge behavior can be authored through explicit markers without inferring gameplay height from visual bridge art;
 - battle-preparation deployment highlighting and validation can consume authored side-based `DeploymentZone` markers without restricting unrelated full-map placement consumers;
 - battle-preparation objective selection can consume authored `ObjectiveZone` markers and carry objective ids into battle-group plans;
 - deployment, entrance, event, and tactical marker consumers can be added without inventing separate coordinate systems.

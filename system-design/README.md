@@ -61,6 +61,7 @@ Initial architecture documents should be created through proposals for:
 - `emotion-system-architecture.md`: character emotional traits, relationships, memories, social gates, and decision support.
 - `presentation-ui-layout-architecture.md`: Presentation/UI layout hosts, UI mode boundaries, and authority rules.
 - `semantic-map-marker-architecture.md`: reusable editor-authored semantic map regions for building slots, deployment, entrances, events, and future tactical battle markers.
+- `site-map-layout-architecture.md`: reusable base terrain scenes, inherited site layout variants, bridge marker rules, layout extraction, validation, and per-location state isolation.
 - `scene-transition-router-architecture.md`: root scene transition ownership, handoff boundaries, loading overlay, and conservative root-scene preload cache rules.
 - `strategic-management-system-architecture.md`: clean Strategic Management authority for strategic content, state, rules, commands, presentation view models, and strategic-side battle boundary.
 - `strategic-battle-bridge-architecture.md`: accepted bridge contract between Strategic Management and battle Runtime, including battle sessions, preparation drafts, snapshot compilation, result summaries, and strategic command writeback.

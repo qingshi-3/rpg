@@ -162,11 +162,6 @@ public partial class WorldSiteRoot
             ApplySiteHudFullRect("battle_runtime_hud");
         }
 
-        if (_siteHudTopBar != null)
-        {
-            _siteHudTopBar.Visible = false;
-        }
-
         if (_sitePeacetimePanel != null)
         {
             _sitePeacetimePanel.Visible = false;

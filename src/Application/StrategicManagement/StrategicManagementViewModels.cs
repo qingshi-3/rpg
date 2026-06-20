@@ -105,30 +105,59 @@ public sealed class StrategicCityManagementViewModel
     public string DisplayName { get; set; } = "";
     public string CityIdentityId { get; set; } = "";
     public string CityIdentityDisplayName { get; set; } = "";
-    public int FacilitySlotsUsed { get; set; }
-    public int FacilitySlotsTotal { get; set; }
-    public List<StrategicBuiltFacilityViewModel> BuiltFacilities { get; set; } = new();
-    public List<StrategicFacilityOptionViewModel> FacilityOptions { get; set; } = new();
+    public int CityForceCapacity { get; set; }
+    public int ReserveForces { get; set; }
+    public int ActiveForces { get; set; }
+    public int RemainingForceCapacity { get; set; }
+    public List<StrategicConstructionRegionViewModel> ConstructionRegions { get; set; } = new();
+    public List<StrategicBuildingInstanceViewModel> Buildings { get; set; } = new();
+    public List<StrategicBuildingOptionViewModel> BuildingOptions { get; set; } = new();
     public List<StrategicMusterTemplateViewModel> MusterTemplates { get; set; } = new();
     public List<StrategicCorpsInstanceViewModel> CorpsInstances { get; set; } = new();
     public List<StrategicHeroCompanyViewModel> HeroCompanies { get; set; } = new();
 }
 
-public sealed class StrategicBuiltFacilityViewModel
+public sealed class StrategicConstructionRegionViewModel
 {
-    public string FacilityInstanceId { get; set; } = "";
-    public string FacilityDefinitionId { get; set; } = "";
+    public string RegionId { get; set; } = "";
     public string DisplayName { get; set; } = "";
-    public int SlotCost { get; set; }
+    public int OriginX { get; set; }
+    public int OriginY { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public List<string> AllowedCategoryIds { get; set; } = new();
 }
 
-public sealed class StrategicFacilityOptionViewModel
+public sealed class StrategicBuildingInstanceViewModel
 {
-    public string FacilityDefinitionId { get; set; } = "";
+    public string BuildingInstanceId { get; set; } = "";
+    public string BuildingDefinitionId { get; set; } = "";
+    public string ConstructionRegionId { get; set; } = "";
+    public string RegionDisplayName { get; set; } = "";
     public string DisplayName { get; set; } = "";
-    public int SlotCost { get; set; }
+    public string CategoryId { get; set; } = "";
+    public int GridX { get; set; }
+    public int GridY { get; set; }
+    public int FootprintWidth { get; set; }
+    public int FootprintHeight { get; set; }
+    public int Level { get; set; }
+    public bool IsConstructed { get; set; }
+    public string BattleAnchorId { get; set; } = "";
+}
+
+public sealed class StrategicBuildingOptionViewModel
+{
+    public string BuildingDefinitionId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string IconPath { get; set; } = "";
+    public string CategoryId { get; set; } = "";
+    public int FootprintWidth { get; set; }
+    public int FootprintHeight { get; set; }
     public bool CanBuild { get; set; }
     public string DisabledReason { get; set; } = "";
+    public string DefaultRegionId { get; set; } = "";
+    public int DefaultGridX { get; set; }
+    public int DefaultGridY { get; set; }
     public List<StrategicResourceCostViewModel> BuildCost { get; set; } = new();
 }
 
@@ -153,6 +182,10 @@ public sealed class StrategicCorpsInstanceViewModel
     public int Experience { get; set; }
     public StrategicCorpsInstanceStatus Status { get; set; }
     public string AssignedHeroId { get; set; } = "";
+    public bool CanReplenish { get; set; }
+    public string ReplenishDisabledReason { get; set; } = "";
+    public int ReplenishReserveCost { get; set; }
+    public List<StrategicResourceCostViewModel> ReplenishCost { get; set; } = new();
 }
 
 public sealed class StrategicHeroAssignmentViewModel

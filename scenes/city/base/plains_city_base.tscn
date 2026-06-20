@@ -1,0 +1,90 @@
+[gd_scene load_steps=4 format=4 uid="uid://dcuusm241nmpd"]
+
+[ext_resource type="Script" uid="uid://dfevlaghvwjr5" path="res://src/Presentation/Battle/BattleMapView.cs" id="1_battle_map_view"]
+[ext_resource type="Script" uid="uid://c4x18hxm1w8qv" path="res://src/Presentation/Battle/BattleMapLayer.cs" id="2_battle_map_layer"]
+[ext_resource type="TileSet" uid="uid://b7cybsj52b1m6" path="res://assets/tilesets/battle/bone/ground.tres" id="3_ground"]
+
+[node name="PlainsCityBase" type="Node2D"]
+script = ExtResource("1_battle_map_view")
+Size = Vector2i(12, 10)
+metadata/base_terrain_id = "plains_city_base"
+
+[node name="WaterFoundationLayer" type="TileMapLayer" parent="."]
+z_index = -120
+tile_map_data = PackedByteArray("AAAAABYAAAAAAAAABgA=")
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+AffectsWalkability = true
+
+[node name="WaterDetailLayer" type="TileMapLayer" parent="."]
+z_index = -110
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 1
+IsVisualOnly = true
+
+[node name="WaterObjectLayer" type="TileMapLayer" parent="."]
+z_index = -100
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 2
+AffectsWalkability = true
+
+[node name="LowFoundationLayer" type="TileMapLayer" parent="."]
+tile_map_data = PackedByteArray("AAAAAAAACgAJAAAAAgAAAAEACQAAAAIAAQABAAAAAAALAAkAAAACAAEAAAAAAAQACQAAAAIAAQAAAAAABwAIAAAAAgABAAAAAAAAAAkACQAAAAIAAQAAAAMABwAAAAIAAQAKAAEAAAACAAEAAAAAAAsABwAAAAIAAQACAAAAAgABAAAAAAAEAAIAAAACAAEAAAAAAAcACAAAAAIAAQADAAAAAgABAAAAAAAIAAMAAAACAAEAAAAEAAAAAgABAAAAAAACAAQAAAACAAEAAAAKAAQAAAACAAEAAAAFAAAAAgABAAAAAAAEAAUAAAACAAEAAAAAAAYAAAACAAEAAAAGAAAAAgABAAAAAAAIAAYAAAACAAEAAAAHAAAAAgABAAAAAAACAAcAAAACAAEAAAAKAAcAAAACAAEAAAAEAAgAAAACAAEAAAAJAAAAAgABAAAAAAAIAAkAAAACAAEAAAA=")
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+AffectsWalkability = true
+
+[node name="LowDetailLayer" type="TileMapLayer" parent="."]
+z_index = 10
+tile_map_data = PackedByteArray("AAAAAAUAAAAIAAEAAAAAAAEABQAAAAgAAQAAAAAACgAFAAAACAABAAAAAAALAAUAAAAIAAEAAAAAAAQABQAAAAgAAQAAAAAABwAFAAAACAABAAAAAAAIAAUAAAAIAAEAAAAAAAkABQAAAAgAAQA=")
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 1
+IsVisualOnly = true
+
+[node name="LowObjectLayer" type="TileMapLayer" parent="."]
+z_index = 20
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 2
+AffectsWalkability = true
+
+[node name="HighFoundationLayer" type="TileMapLayer" parent="."]
+z_index = 100
+tile_map_data = PackedByteArray("AAAIAAEAAAAFAAEAAAAAAAkABAAAAAUAAQAAAAAACgAEAAAABQABAAAAAAALAAQAAAAFAAEAAAAAAAoAAwAAAAUAAQAAAAAACwACAAAABQABAAAAAAAKAAIAAAAFAAEAAAAAAAsAAgAAAAUAAQADAAAABQABAAAAAAAIAAQAAAAFAAEAAAA=")
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Height = 1
+AffectsWalkability = true
+
+[node name="HighDetailLayer" type="TileMapLayer" parent="."]
+z_index = 110
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 1
+Height = 1
+IsVisualOnly = true
+
+[node name="HighObjectLayer" type="TileMapLayer" parent="."]
+z_index = 120
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 2
+Height = 1
+AffectsWalkability = true
+
+[node name="StairLayer" type="TileMapLayer" parent="."]
+z_index = 40
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 3
+IsHeightTransitionLayer = true
+
+[node name="OverlayLayer" type="TileMapLayer" parent="."]
+z_index = 300
+tile_set = ExtResource("3_ground")
+script = ExtResource("2_battle_map_layer")
+Role = 4
+IsVisualOnly = true

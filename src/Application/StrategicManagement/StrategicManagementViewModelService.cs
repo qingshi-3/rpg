@@ -149,7 +149,7 @@ public sealed class StrategicManagementViewModelService
             KindDisplayName = FormatLocationKind(StrategicLocationKind.Unknown),
             ControlState = StrategicLocationControlState.Unknown,
             ControlStateDisplayName = FormatLocationControlState(StrategicLocationControlState.Unknown),
-            SourcePermissionDisplayText = "无"
+            SourcePermissionDisplayText = ""
         };
 
         if (_definitions.Locations.TryGetValue(scopedLocationId, out StrategicLocationDefinition definition))
@@ -164,7 +164,7 @@ public sealed class StrategicManagementViewModelService
             locationView.IsCity = definition.Kind == StrategicLocationKind.City;
             locationView.SourcePermissionTags = new List<string>(definition.SourcePermissionTags);
             locationView.SourcePermissionDisplayText = locationView.SourcePermissionTags.Count == 0
-                ? "无"
+                ? ""
                 : string.Join(" / ", locationView.SourcePermissionTags.Select(FormatSourcePermissionTag));
             locationView.ProductionPerWorldTimePulse = BuildProduction(definition.ProductionPerWorldTimePulse);
             locationView.ProductionDisplayText = BuildProductionDisplayText(locationView.ProductionPerWorldTimePulse);
@@ -205,54 +205,167 @@ public sealed class StrategicManagementViewModelService
         cityView.DisplayName = location?.DisplayName ?? city.LocationId;
         cityView.CityIdentityId = city.CityIdentityId;
         cityView.CityIdentityDisplayName = identity?.DisplayName ?? city.CityIdentityId;
-        cityView.FacilitySlotsTotal = city.FacilitySlotCount;
-        cityView.BuiltFacilities = BuildBuiltFacilities(city);
-        cityView.FacilitySlotsUsed = cityView.BuiltFacilities.Sum(item => System.Math.Max(1, item.SlotCost));
-        cityView.FacilityOptions = BuildFacilityOptions(state, city.LocationId);
+        cityView.CityForceCapacity = city.CityForceCapacity;
+        cityView.ReserveForces = city.ReserveForces;
+        cityView.ActiveForces = _rules.GetActiveForces(state, city.LocationId);
+        cityView.RemainingForceCapacity = _rules.GetRemainingCityForceCapacity(state, city.LocationId);
+        cityView.ConstructionRegions = BuildConstructionRegions(city, location);
+        cityView.Buildings = BuildBuildings(city, location);
+        cityView.BuildingOptions = BuildBuildingOptions(state, city, location);
         cityView.MusterTemplates = BuildMusterTemplates(state, city.LocationId);
         cityView.CorpsInstances = BuildCorpsInstances(state, factionId, city.LocationId);
         cityView.HeroCompanies = BuildHeroCompanies(state, factionId, city.LocationId);
         return cityView;
     }
 
-    private List<StrategicBuiltFacilityViewModel> BuildBuiltFacilities(StrategicCityState city)
+    private static List<StrategicConstructionRegionViewModel> BuildConstructionRegions(
+        StrategicCityState city,
+        StrategicLocationDefinition location)
     {
-        return city.Facilities
-            .OrderBy(item => item.FacilityInstanceId)
+        if (city == null || location == null)
+        {
+            return new List<StrategicConstructionRegionViewModel>();
+        }
+
+        return location.ConstructionRegions
+            .Where(region => city.ConstructionRegionIds.Contains(region.RegionId))
+            .OrderBy(region => region.RegionId)
+            .Select(region => new StrategicConstructionRegionViewModel
+            {
+                RegionId = region.RegionId,
+                DisplayName = region.DisplayName,
+                OriginX = region.OriginX,
+                OriginY = region.OriginY,
+                Width = region.Width,
+                Height = region.Height,
+                AllowedCategoryIds = new List<string>(region.AllowedCategoryIds)
+            })
+            .ToList();
+    }
+
+    private List<StrategicBuildingInstanceViewModel> BuildBuildings(
+        StrategicCityState city,
+        StrategicLocationDefinition location)
+    {
+        if (city == null)
+        {
+            return new List<StrategicBuildingInstanceViewModel>();
+        }
+
+        return city.Buildings
+            .OrderBy(item => item.BuildingInstanceId)
             .Select(instance =>
             {
-                _definitions.Facilities.TryGetValue(instance.FacilityDefinitionId, out StrategicFacilityDefinition facility);
-                return new StrategicBuiltFacilityViewModel
+                _definitions.Buildings.TryGetValue(instance.BuildingDefinitionId, out StrategicBuildingDefinition building);
+                StrategicConstructionRegionDefinition region = location?.ConstructionRegions.FirstOrDefault(item =>
+                    string.Equals(item.RegionId, instance.ConstructionRegionId, System.StringComparison.Ordinal));
+                return new StrategicBuildingInstanceViewModel
                 {
-                    FacilityInstanceId = instance.FacilityInstanceId,
-                    FacilityDefinitionId = instance.FacilityDefinitionId,
-                    DisplayName = facility?.DisplayName ?? instance.FacilityDefinitionId,
-                    SlotCost = System.Math.Max(1, facility?.SlotCost ?? 1)
+                    BuildingInstanceId = instance.BuildingInstanceId,
+                    BuildingDefinitionId = instance.BuildingDefinitionId,
+                    ConstructionRegionId = instance.ConstructionRegionId,
+                    RegionDisplayName = region?.DisplayName ?? instance.ConstructionRegionId,
+                    DisplayName = building?.DisplayName ?? instance.BuildingDefinitionId,
+                    CategoryId = building?.CategoryId ?? "",
+                    GridX = instance.GridX,
+                    GridY = instance.GridY,
+                    FootprintWidth = System.Math.Max(1, building?.FootprintWidth ?? 1),
+                    FootprintHeight = System.Math.Max(1, building?.FootprintHeight ?? 1),
+                    Level = instance.Level,
+                    IsConstructed = instance.IsConstructed,
+                    BattleAnchorId = instance.BattleAnchorId
                 };
             })
             .ToList();
     }
 
-    private List<StrategicFacilityOptionViewModel> BuildFacilityOptions(
+    private List<StrategicBuildingOptionViewModel> BuildBuildingOptions(
         StrategicManagementState state,
-        string cityId)
+        StrategicCityState city,
+        StrategicLocationDefinition location)
     {
-        return _definitions.Facilities.Values
-            .OrderBy(item => item.FacilityDefinitionId)
-            .Select(facility =>
+        return _definitions.Buildings.Values
+            .OrderBy(item => item.BuildingDefinitionId)
+            .Select(building =>
             {
-                string failureReason = _rules.GetFacilityBuildFailureReason(state, cityId, facility.FacilityDefinitionId);
-                return new StrategicFacilityOptionViewModel
+                (string regionId, int gridX, int gridY, string failureReason) =
+                    ResolveDefaultBuildingPlacement(state, city, location, building);
+                return new StrategicBuildingOptionViewModel
                 {
-                    FacilityDefinitionId = facility.FacilityDefinitionId,
-                    DisplayName = facility.DisplayName,
-                    SlotCost = System.Math.Max(1, facility.SlotCost),
+                    BuildingDefinitionId = building.BuildingDefinitionId,
+                    DisplayName = building.DisplayName,
+                    IconPath = building.IconPath,
+                    CategoryId = building.CategoryId,
+                    FootprintWidth = System.Math.Max(1, building.FootprintWidth),
+                    FootprintHeight = System.Math.Max(1, building.FootprintHeight),
                     CanBuild = string.IsNullOrWhiteSpace(failureReason),
                     DisabledReason = failureReason,
-                    BuildCost = BuildCosts(facility.BuildCost)
+                    DefaultRegionId = regionId,
+                    DefaultGridX = gridX,
+                    DefaultGridY = gridY,
+                    BuildCost = BuildCosts(building.BuildCost)
                 };
             })
             .ToList();
+    }
+
+    private (string RegionId, int GridX, int GridY, string FailureReason) ResolveDefaultBuildingPlacement(
+        StrategicManagementState state,
+        StrategicCityState city,
+        StrategicLocationDefinition location,
+        StrategicBuildingDefinition building)
+    {
+        if (city == null || location == null || building == null)
+        {
+            return ("", 0, 0, StrategicFailureReasons.MissingCity);
+        }
+
+        string firstFailure = "";
+        string fallbackRegionId = "";
+        int fallbackX = 0;
+        int fallbackY = 0;
+        foreach (StrategicConstructionRegionDefinition region in location.ConstructionRegions
+            .Where(region => city.ConstructionRegionIds.Contains(region.RegionId))
+            .OrderBy(region => region.RegionId))
+        {
+            if (string.IsNullOrWhiteSpace(fallbackRegionId))
+            {
+                fallbackRegionId = region.RegionId;
+                fallbackX = region.OriginX;
+                fallbackY = region.OriginY;
+            }
+
+            for (int y = region.OriginY; y < region.OriginY + region.Height; y++)
+            {
+                for (int x = region.OriginX; x < region.OriginX + region.Width; x++)
+                {
+                    string failure = _rules.GetBuildingPlacementFailureReason(
+                        state,
+                        city.LocationId,
+                        building.BuildingDefinitionId,
+                        region.RegionId,
+                        x,
+                        y);
+                    if (string.IsNullOrWhiteSpace(failure))
+                    {
+                        return (region.RegionId, x, y, "");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(firstFailure))
+                    {
+                        firstFailure = failure;
+                    }
+                }
+            }
+        }
+
+        return (
+            fallbackRegionId,
+            fallbackX,
+            fallbackY,
+            string.IsNullOrWhiteSpace(firstFailure)
+                ? StrategicFailureReasons.MissingConstructionRegion
+                : firstFailure);
     }
 
     private List<StrategicMusterTemplateViewModel> BuildMusterTemplates(
@@ -307,7 +420,11 @@ public sealed class StrategicManagementViewModelService
                     EquipmentLevel = corps.EquipmentLevel,
                     Experience = corps.Experience,
                     Status = corps.Status,
-                    AssignedHeroId = corps.AssignedHeroId
+                    AssignedHeroId = corps.AssignedHeroId,
+                    CanReplenish = string.IsNullOrWhiteSpace(_rules.GetCorpsReplenishmentFailureReason(state, cityId, corps.CorpsInstanceId, 100)),
+                    ReplenishDisabledReason = _rules.GetCorpsReplenishmentFailureReason(state, cityId, corps.CorpsInstanceId, 100),
+                    ReplenishReserveCost = _rules.GetCorpsReplenishmentReserveCost(state, corps.CorpsInstanceId, 100),
+                    ReplenishCost = BuildCosts(_rules.GetCorpsReplenishmentResourceCost(state, corps.CorpsInstanceId, 100))
                 };
             })
             .ToList();
@@ -464,7 +581,9 @@ public sealed class StrategicManagementViewModelService
         {
             StrategicLocationKind.City => "城市",
             StrategicLocationKind.ResourceSite => "资源点",
-            StrategicLocationKind.BeastMinorSite => "野兽据点",
+            StrategicLocationKind.Ruin => "遗迹",
+            StrategicLocationKind.Dungeon => "地牢",
+            StrategicLocationKind.Gate => "关隘",
             _ => "未知地点"
         };
     }
@@ -482,10 +601,6 @@ public sealed class StrategicManagementViewModelService
 
     private static string FormatSourcePermissionTag(string sourcePermissionTag)
     {
-        return sourcePermissionTag switch
-        {
-            StrategicManagementIds.SourceTagBeast => "野兽来源",
-            _ => sourcePermissionTag ?? ""
-        };
+        return sourcePermissionTag ?? "";
     }
 }

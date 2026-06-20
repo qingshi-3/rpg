@@ -19,7 +19,7 @@ public sealed class StrategicManagementDefinitionSet
     public Dictionary<string, StrategicCityIdentityDefinition> CityIdentities { get; set; } =
         new(System.StringComparer.Ordinal);
 
-    public Dictionary<string, StrategicFacilityDefinition> Facilities { get; set; } =
+    public Dictionary<string, StrategicBuildingDefinition> Buildings { get; set; } =
         new(System.StringComparer.Ordinal);
 
     public Dictionary<string, StrategicCorpsDefinition> Corps { get; set; } =
@@ -46,9 +46,20 @@ public sealed class StrategicLocationDefinition
     public string BattleScenePath { get; set; } = "";
     public string BattleObjectiveId { get; set; } = "";
     public string CityIdentityId { get; set; } = "";
-    public int FacilitySlotCount { get; set; }
+    public List<StrategicConstructionRegionDefinition> ConstructionRegions { get; set; } = new();
     public List<string> SourcePermissionTags { get; set; } = new();
     public List<StrategicResourceAmount> ProductionPerWorldTimePulse { get; set; } = new();
+}
+
+public sealed class StrategicConstructionRegionDefinition
+{
+    public string RegionId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public int OriginX { get; set; }
+    public int OriginY { get; set; }
+    public int Width { get; set; } = 1;
+    public int Height { get; set; } = 1;
+    public List<string> AllowedCategoryIds { get; set; } = new();
 }
 
 public sealed class StrategicBattleRewardDefinition
@@ -82,13 +93,18 @@ public sealed class StrategicCityIdentityDefinition
     public List<string> NaturalCorpsDefinitionIds { get; set; } = new();
 }
 
-public sealed class StrategicFacilityDefinition
+public sealed class StrategicBuildingDefinition
 {
-    public string FacilityDefinitionId { get; set; } = "";
+    public string BuildingDefinitionId { get; set; } = "";
     public string DisplayName { get; set; } = "";
-    public int SlotCost { get; set; } = 1;
-    public List<string> ProvidedTags { get; set; } = new();
+    public string IconPath { get; set; } = "";
+    public string CategoryId { get; set; } = "";
+    public int FootprintWidth { get; set; } = 1;
+    public int FootprintHeight { get; set; } = 1;
     public List<StrategicResourceAmount> BuildCost { get; set; } = new();
+    public List<StrategicResourceAmount> ProductionPerWorldTimePulse { get; set; } = new();
+    public int CityForceCapacityBonus { get; set; }
+    public int ReserveRecoveryPerWorldTimePulse { get; set; }
 }
 
 public sealed class StrategicCorpsDefinition
@@ -97,10 +113,11 @@ public sealed class StrategicCorpsDefinition
     public string DisplayName { get; set; } = "";
     public string BattleUnitId { get; set; } = "";
     public int BattleUnitCount { get; set; } = 1;
+    public int SoldierCapacityCost { get; set; } = 30;
     public List<string> RequiredCityIdentityIds { get; set; } = new();
-    public List<string> RequiredFacilityTags { get; set; } = new();
-    public List<string> RequiredSourcePermissionTags { get; set; } = new();
+    public List<string> RequiredBuildingCategoryIds { get; set; } = new();
     public List<StrategicResourceAmount> CreationCost { get; set; } = new();
+    public List<StrategicResourceAmount> ReplenishFullCost { get; set; } = new();
     public string AptitudeTag { get; set; } = "";
 }
 

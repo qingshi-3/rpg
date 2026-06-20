@@ -24,6 +24,14 @@ using Rpg.Presentation.World;
 namespace Rpg.Presentation.World.Sites;
 public partial class WorldSiteRoot
 {
+    private enum SiteManagementSection
+    {
+        Build,
+        Recruit,
+        Corps,
+        Overview
+    }
+
     private void BuildSiteHud()
     {
         if (_siteHudRoot != null)
@@ -49,7 +57,6 @@ public partial class WorldSiteRoot
         // Layout hosts are Presentation-only containers. Site data, battle requests,
         // and settlement authority stay in Application/Runtime paths.
         WorldSitePeacetimeHudNodeRefs hudRefs = WorldSitePeacetimeHudNodeRefs.Resolve(_siteHudRoot, nameof(WorldSiteRoot));
-        _siteHudTopBar = hudRefs.SiteTopBar;
         _sitePeacetimePanel = hudRefs.SitePeacetimePanel;
         _siteBottomCommandHost = hudRefs.BottomCommandHost;
         _siteMinimapHost = hudRefs.MinimapHost;
@@ -77,13 +84,16 @@ public partial class WorldSiteRoot
         _siteHudTitle = hudRefs.SiteHudTitle;
         _siteResourceLabel = hudRefs.SiteResourceLabel;
         _returnMapButton = hudRefs.ReturnMapButton;
+        _siteBuildTabButton = hudRefs.BuildTabButton;
+        _siteRecruitTabButton = hudRefs.RecruitTabButton;
+        _siteCorpsTabButton = hudRefs.CorpsTabButton;
+        _siteOverviewTabButton = hudRefs.OverviewTabButton;
+        _siteBuildSection = hudRefs.SiteBuildSection;
+        _siteRecruitSection = hudRefs.SiteRecruitSection;
+        _siteCorpsSection = hudRefs.SiteCorpsSection;
+        _siteOverviewSection = hudRefs.SiteOverviewSection;
         _siteHudBody = hudRefs.SiteHudBody;
         _siteSelectionLabel = hudRefs.SiteSelectionLabel;
-        _siteOverviewCard = hudRefs.SiteOverviewCard;
-        _siteFacilityBuildCard = hudRefs.SiteFacilityBuildCard;
-        _siteFacilityCard = hudRefs.SiteFacilityCard;
-        _siteDefenseCard = hudRefs.SiteDefenseCard;
-        _siteActionCard = hudRefs.SiteActionCard;
         _battlePreparationRosterDock = hudRefs.BattlePreparationRosterDock;
         _battlePreparationRosterList = hudRefs.BattlePreparationRosterList;
         _battlePreparationPlanBar = hudRefs.BattlePreparationPlanBar;
@@ -98,38 +108,26 @@ public partial class WorldSiteRoot
         _battlePreparationObjectiveThumbnail = hudRefs.BattlePreparationObjectiveThumbnail;
         _siteFacilityBuildTitle = hudRefs.SiteFacilityBuildTitle;
         _siteFacilityBuildList = hudRefs.SiteFacilityBuildList;
+        _siteRecruitList = hudRefs.SiteRecruitList;
         _siteFacilityList = hudRefs.SiteFacilityList;
         _siteGarrisonList = hudRefs.SiteGarrisonList;
-        _siteActionList = hudRefs.SiteActionList;
         _strategicManagementDashboardPanelBinder = new StrategicManagementDashboardPanelBinder(
             _siteResourceLabel,
             _siteHudBody,
             _siteSelectionLabel,
             _siteFacilityList,
-            _siteFacilityBuildCard,
             _siteFacilityBuildTitle,
             _siteFacilityBuildList,
+            _siteRecruitList,
             _siteGarrisonList,
-            _siteActionList,
-            OnStrategicBuildFacilityPressed,
+            OnStrategicBuildBuildingSelected,
             OnStrategicCreateCorpsPressed,
+            OnStrategicReplenishCorpsPressed,
             OnStrategicHeroAssignmentPressed);
         _siteNoticeLabel = hudRefs.SiteNoticeLabel;
-        Label operationHintLabel = hudRefs.SiteOperationHintLabel;
         Label facilityTitleLabel = hudRefs.FacilityTitleLabel;
         Label garrisonTitleLabel = hudRefs.GarrisonTitleLabel;
-        Label actionTitleLabel = hudRefs.ActionTitleLabel;
         Label noticeTitleLabel = hudRefs.NoticeTitleLabel;
-
-        if (operationHintLabel != null)
-        {
-            operationHintLabel.Text = "场域经营：点击建筑点管理；点击地图格设置移动意图。";
-        }
-
-        if (_returnMapButton != null)
-        {
-            _returnMapButton.Text = "返回大地图";
-        }
 
         if (facilityTitleLabel != null)
         {
@@ -138,12 +136,7 @@ public partial class WorldSiteRoot
 
         if (garrisonTitleLabel != null)
         {
-            garrisonTitleLabel.Text = "驻防兵力";
-        }
-
-        if (actionTitleLabel != null)
-        {
-            actionTitleLabel.Text = "可执行行动";
+            garrisonTitleLabel.Text = "部队配置";
         }
 
         if (noticeTitleLabel != null)
@@ -153,8 +146,32 @@ public partial class WorldSiteRoot
 
         if (_returnMapButton != null)
         {
+            _returnMapButton.Text = "返回";
+            _returnMapButton.TooltipText = "返回大地图";
             _returnMapButton.Pressed += () => ReturnToReturnScene(_siteHudReturnScenePath);
         }
+
+        if (_siteBuildTabButton != null)
+        {
+            _siteBuildTabButton.Pressed += () => SelectSiteManagementSection(SiteManagementSection.Build);
+        }
+
+        if (_siteRecruitTabButton != null)
+        {
+            _siteRecruitTabButton.Pressed += () => SelectSiteManagementSection(SiteManagementSection.Recruit);
+        }
+
+        if (_siteCorpsTabButton != null)
+        {
+            _siteCorpsTabButton.Pressed += () => SelectSiteManagementSection(SiteManagementSection.Corps);
+        }
+
+        if (_siteOverviewTabButton != null)
+        {
+            _siteOverviewTabButton.Pressed += () => SelectSiteManagementSection(SiteManagementSection.Overview);
+        }
+
+        ApplySiteManagementSectionVisibility();
 
         if (_battlePreparationMoveFirstButton != null)
         {
@@ -255,10 +272,12 @@ public partial class WorldSiteRoot
             : returnScenePath;
         _selectedPlacementId = "";
         _selectedFacilitySlotId = "";
+        _selectedStrategicBuildingDefinitionId = "";
+        ClearStrategicBuildingPlacementPreview();
         if (_returnMapButton != null)
         {
             _returnMapButton.Disabled = string.IsNullOrWhiteSpace(_siteHudReturnScenePath);
-            _returnMapButton.TooltipText = _returnMapButton.Disabled ? "没有可返回的大地图场景。" : "";
+            _returnMapButton.TooltipText = _returnMapButton.Disabled ? "没有可返回的大地图场景。" : "返回大地图";
         }
 
         if (_siteHudRoot != null)
@@ -278,7 +297,7 @@ public partial class WorldSiteRoot
 
         GameLog.Info(
             nameof(WorldSiteRoot),
-            $"SwitchedToSiteManagementUi site={siteId} hudVisible={_siteHudRoot?.Visible == true} topBarVisible={_siteHudTopBar?.Visible == true} panelVisible={_sitePeacetimePanel?.Visible == true} hudRect={DescribeControlRect(_siteHudRoot)} panelRect={DescribeControlRect(_sitePeacetimePanel)} viewport={GetViewportRect().Size} returnScene={_siteHudReturnScenePath}");
+            $"SwitchedToSiteManagementUi site={siteId} hudVisible={_siteHudRoot?.Visible == true} panelVisible={_sitePeacetimePanel?.Visible == true} hudRect={DescribeControlRect(_siteHudRoot)} panelRect={DescribeControlRect(_sitePeacetimePanel)} viewport={GetViewportRect().Size} returnScene={_siteHudReturnScenePath}");
     }
 
     private void OnViewportSizeChanged()
@@ -323,17 +342,59 @@ public partial class WorldSiteRoot
             return;
         }
 
-        // During the UI layout migration this panel is the left primary workspace.
-        // Mode-specific content is bound inside it; the panel itself is not data authority.
+        // Site management is a hard split-screen workspace: the left panel touches
+        // the window edge and the world viewport fills every pixel to its right.
         _sitePeacetimePanel.AnchorLeft = 0.0f;
         _sitePeacetimePanel.AnchorTop = 0.0f;
         _sitePeacetimePanel.AnchorRight = 0.0f;
         _sitePeacetimePanel.AnchorBottom = 1.0f;
-        _sitePeacetimePanel.OffsetLeft = 24.0f;
-        _sitePeacetimePanel.OffsetTop = 82.0f;
-        _sitePeacetimePanel.OffsetRight = 544.0f;
-        _sitePeacetimePanel.OffsetBottom = -24.0f;
+        _sitePeacetimePanel.OffsetLeft = 0.0f;
+        _sitePeacetimePanel.OffsetTop = 0.0f;
+        _sitePeacetimePanel.OffsetRight = 520.0f;
+        _sitePeacetimePanel.OffsetBottom = 0.0f;
         _sitePeacetimePanel.CustomMinimumSize = new Vector2(520.0f, 0.0f);
+    }
+
+    private void SelectSiteManagementSection(SiteManagementSection section)
+    {
+        _selectedSiteManagementSection = section;
+        ApplySiteManagementSectionVisibility();
+    }
+
+    private void ApplySiteManagementSectionVisibility()
+    {
+        // Section switching is Presentation-only state. Strategic facts still come
+        // from the dashboard view model and mutate only through command callbacks.
+        ApplySiteManagementSectionVisibility(
+            _siteBuildSection,
+            _siteBuildTabButton,
+            SiteManagementSection.Build);
+        ApplySiteManagementSectionVisibility(
+            _siteRecruitSection,
+            _siteRecruitTabButton,
+            SiteManagementSection.Recruit);
+        ApplySiteManagementSectionVisibility(
+            _siteCorpsSection,
+            _siteCorpsTabButton,
+            SiteManagementSection.Corps);
+        ApplySiteManagementSectionVisibility(
+            _siteOverviewSection,
+            _siteOverviewTabButton,
+            SiteManagementSection.Overview);
+    }
+
+    private void ApplySiteManagementSectionVisibility(
+        Control section,
+        Button tabButton,
+        SiteManagementSection sectionKind)
+    {
+        bool selected = _selectedSiteManagementSection == sectionKind;
+        if (section != null)
+        {
+            section.Visible = selected;
+        }
+
+        tabButton?.SetPressedNoSignal(selected);
     }
 
     private void UpdateSitePeacetimePanelVisibility(string reason)
@@ -356,9 +417,7 @@ public partial class WorldSiteRoot
             return;
         }
 
-        bool shouldShow = _siteHudRoot?.Visible == true &&
-                          (_battleRuntimeCommandPauseActive ||
-                           !string.IsNullOrWhiteSpace(_selectedFacilitySlotId));
+        bool shouldShow = ShouldShowSitePeacetimePanel();
         if (shouldShow)
         {
             ApplySitePeacetimePanelLayout();
@@ -373,6 +432,21 @@ public partial class WorldSiteRoot
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"SitePeacetimePanelVisibilityChanged visible={shouldShow} reason={reason} selectedSlot={_selectedFacilitySlotId} panelRect={DescribeControlRect(_sitePeacetimePanel)}");
+    }
+
+    private bool ShouldShowSitePeacetimePanel()
+    {
+        bool siteHudVisible = _siteHudRoot?.Visible == true;
+        if (!siteHudVisible)
+        {
+            return false;
+        }
+
+        // Strategic Management mapped-site entry opens the dashboard directly;
+        // legacy facility-slot selection remains only a compatibility trigger.
+        return _battleRuntimeCommandPauseActive ||
+               TryResolveStrategicManagementLocationId(_siteHudSiteId, out _) ||
+               !string.IsNullOrWhiteSpace(_selectedFacilitySlotId);
     }
 
     private static string DescribeControlRect(Control control)
@@ -399,11 +473,6 @@ public partial class WorldSiteRoot
         if (enabled && _siteHudRoot != null)
         {
             _siteHudRoot.Visible = true;
-            if (_siteHudTopBar != null)
-            {
-                _siteHudTopBar.Visible = false;
-            }
-
             if (_sitePeacetimePanel != null)
             {
                 _sitePeacetimePanel.Visible = false;
@@ -534,7 +603,7 @@ public partial class WorldSiteRoot
         BindSiteManagementPanel(notice, outcome);
     }
 
-    private void OnStrategicBuildFacilityPressed(string facilityDefinitionId)
+    private void OnStrategicBuildBuildingSelected(string buildingDefinitionId)
     {
         if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
         {
@@ -543,11 +612,19 @@ public partial class WorldSiteRoot
         }
 
         StrategicManagementRuntime.EnsureInitialized();
-        StrategicCommandResult result = StrategicManagementRuntime.Commands.BuildFacility(
-            StrategicManagementRuntime.State,
-            cityId,
-            facilityDefinitionId);
-        HandleStrategicManagementCommandResult("建设设施", result);
+        if (!StrategicManagementRuntime.Definitions.Buildings.TryGetValue(
+                buildingDefinitionId ?? "",
+                out StrategicBuildingDefinition building))
+        {
+            RefreshSiteManagementUi($"建筑放置失败：{StrategicManagementDashboardPanelBinder.FormatFailureReason(StrategicFailureReasons.MissingBuilding)}");
+            return;
+        }
+
+        _selectedStrategicBuildingDefinitionId = building.BuildingDefinitionId;
+        _selectedPlacementId = "";
+        _selectedFacilitySlotId = "";
+        UpdateStrategicBuildingPlacementPreview();
+        RefreshSiteManagementUi($"{building.DisplayName}已选择，请在地图建设区域点击放置。");
     }
 
     private void OnStrategicCreateCorpsPressed(string corpsDefinitionId)
@@ -564,6 +641,23 @@ public partial class WorldSiteRoot
             cityId,
             corpsDefinitionId);
         HandleStrategicManagementCommandResult("创建编制", result);
+    }
+
+    private void OnStrategicReplenishCorpsPressed(string corpsInstanceId)
+    {
+        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
+        {
+            RefreshSiteManagementUi(BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId));
+            return;
+        }
+
+        StrategicManagementRuntime.EnsureInitialized();
+        StrategicCommandResult result = StrategicManagementRuntime.Commands.ReplenishCorps(
+            StrategicManagementRuntime.State,
+            cityId,
+            corpsInstanceId,
+            100);
+        HandleStrategicManagementCommandResult("补员编制", result);
     }
 
     private void OnStrategicHeroAssignmentPressed(string heroId)
@@ -626,11 +720,6 @@ public partial class WorldSiteRoot
     private void BindSiteManagementPanel(string notice = "", BattleOutcome outcome = BattleOutcome.None)
     {
         StrategicWorldRuntime.EnsureInitialized();
-        if (_siteHudTopBar != null)
-        {
-            _siteHudTopBar.Visible = true;
-        }
-
         if (_siteBottomCommandHost != null)
         {
             _siteBottomCommandHost.Visible = false;
@@ -740,14 +829,12 @@ public partial class WorldSiteRoot
         _battlePreparationHudRetreatTween = null;
         Control[] controls =
         {
-            _siteHudTopBar,
             _battlePreparationRosterDock,
             _battlePreparationPlanBar,
             _battlePreparationObjectiveThumbnailDock
         };
         Vector2[] offsets =
         {
-            new(0.0f, -88.0f),
             new(-240.0f, 0.0f),
             new(0.0f, 140.0f),
             new(340.0f, 0.0f)

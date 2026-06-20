@@ -1,0 +1,16 @@
+[gd_resource type="Theme" load_steps=5 format=3]
+
+[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/build_inventory_preview_card_normal.tres" id="1_normal"]
+[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/build_inventory_preview_card_hover.tres" id="2_hover"]
+[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/build_inventory_preview_card_pressed.tres" id="3_pressed"]
+[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/build_inventory_preview_card_disabled.tres" id="4_disabled"]
+
+[resource]
+WorldBuildingOptionCard/base_type = &"Button"
+WorldBuildingOptionCard/colors/font_color = Color(0.33, 0.17, 0.08, 1)
+WorldBuildingOptionCard/colors/font_hover_color = Color(0.22, 0.1, 0.04, 1)
+WorldBuildingOptionCard/colors/font_pressed_color = Color(0.42, 0.24, 0.12, 1)
+WorldBuildingOptionCard/styles/disabled = ExtResource("4_disabled")
+WorldBuildingOptionCard/styles/hover = ExtResource("2_hover")
+WorldBuildingOptionCard/styles/normal = ExtResource("1_normal")
+WorldBuildingOptionCard/styles/pressed = ExtResource("3_pressed")

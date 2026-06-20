@@ -154,12 +154,14 @@ public partial class StrategicWorldRoot
 
     private static string BuildCityCompactOperationSummary(StrategicCityManagementViewModel city)
     {
-        int builtFacilities = city?.BuiltFacilities?.Count ?? 0;
-        int facilitySlotsUsed = city?.FacilitySlotsUsed ?? 0;
-        int facilitySlotsTotal = city?.FacilitySlotsTotal ?? 0;
+        int builtBuildings = city?.Buildings?.Count ?? 0;
+        int constructionRegions = city?.ConstructionRegions?.Count ?? 0;
+        int reserveForces = city?.ReserveForces ?? 0;
+        int activeForces = city?.ActiveForces ?? 0;
+        int cityForceCapacity = city?.CityForceCapacity ?? 0;
         int availableCompanies = city?.HeroCompanies?.Count(company => company.CanCreateExpedition) ?? 0;
         int totalCompanies = city?.HeroCompanies?.Count ?? 0;
-        return $"建设 {builtFacilities} 项  ·  槽位 {facilitySlotsUsed}/{facilitySlotsTotal}\n出征队伍 {availableCompanies}/{totalCompanies}";
+        return $"建筑 {builtBuildings} 项  ·  区域 {constructionRegions} 个\n兵力 {activeForces + reserveForces}/{cityForceCapacity}  ·  出征队伍 {availableCompanies}/{totalCompanies}";
     }
 
     private static string FormatStrategicText(string text, string fallback)

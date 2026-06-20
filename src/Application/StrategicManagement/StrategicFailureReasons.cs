@@ -5,7 +5,8 @@ public static class StrategicFailureReasons
     public const string MissingDefinitions = "missing_definitions";
     public const string MissingCity = "missing_city";
     public const string MissingLocation = "missing_location";
-    public const string MissingFacility = "missing_facility";
+    public const string MissingBuilding = "missing_building";
+    public const string MissingConstructionRegion = "missing_construction_region";
     public const string MissingCorpsDefinition = "missing_corps_definition";
     public const string MissingHero = "missing_hero";
     public const string MissingCorpsInstance = "missing_corps_instance";
@@ -16,7 +17,13 @@ public static class StrategicFailureReasons
     public const string NoProduction = "no_production";
     public const string InvalidElapsedWorldTimePulses = "invalid_elapsed_world_time_pulses";
     public const string WorldTimePaused = "world_time_paused";
-    public const string FacilitySlotsFull = "facility_slots_full";
+    public const string BuildingPlacementOutOfBounds = "building_placement_out_of_bounds";
+    public const string BuildingPlacementOccupied = "building_placement_occupied";
+    public const string BuildingRegionCategoryMismatch = "building_region_category_mismatch";
+    public const string InsufficientReserveForces = "insufficient_reserve_forces";
+    public const string CityForceCapacityFull = "city_force_capacity_full";
+    public const string InvalidReplenishmentTarget = "invalid_replenishment_target";
+    public const string CorpsAlreadyFullStrength = "corps_already_full_strength";
     public const string FactionMismatch = "faction_mismatch";
     public const string CorpsAlreadyAssigned = "corps_already_assigned";
     public const string HeroAlreadyAssigned = "hero_already_assigned";

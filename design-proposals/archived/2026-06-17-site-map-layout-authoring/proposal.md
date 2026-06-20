@@ -1,6 +1,6 @@
 # Site Map Layout Authoring Proposal
 
-Status: Draft
+Status: Accepted
 
 ## Relationship Metadata
 
@@ -16,7 +16,7 @@ Status: Draft
   - `system-design/strategic-management-system-architecture.md`
   - `system-design/semantic-map-marker-architecture.md`
 - Related Implementation Proposals:
-  - Pending
+  - `gameplay-alignment/implementation-proposals/2026-06-19-site-map-layout-first-city.md`
 
 ## Current Architecture
 

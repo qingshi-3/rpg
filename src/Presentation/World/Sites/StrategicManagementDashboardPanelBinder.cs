@@ -14,41 +14,41 @@ internal sealed class StrategicManagementDashboardPanelBinder
     private readonly Label _resourceLabel;
     private readonly Label _overviewLabel;
     private readonly Label _selectionLabel;
-    private readonly VBoxContainer _facilityList;
-    private readonly Control _facilityBuildCard;
-    private readonly Label _facilityBuildTitle;
-    private readonly VBoxContainer _facilityBuildList;
+    private readonly VBoxContainer _buildingList;
+    private readonly Label _buildingBuildTitle;
+    private readonly GridContainer _buildingBuildList;
+    private readonly VBoxContainer _recruitList;
     private readonly VBoxContainer _corpsList;
-    private readonly VBoxContainer _actionList;
-    private readonly Action<string> _buildFacility;
+    private readonly Action<string> _selectBuildingForPlacement;
     private readonly Action<string> _createCorps;
+    private readonly Action<string> _replenishCorps;
     private readonly Action<string> _toggleHeroAssignment;
 
     public StrategicManagementDashboardPanelBinder(
         Label resourceLabel,
         Label overviewLabel,
         Label selectionLabel,
-        VBoxContainer facilityList,
-        Control facilityBuildCard,
-        Label facilityBuildTitle,
-        VBoxContainer facilityBuildList,
+        VBoxContainer buildingList,
+        Label buildingBuildTitle,
+        GridContainer buildingBuildList,
+        VBoxContainer recruitList,
         VBoxContainer corpsList,
-        VBoxContainer actionList,
-        Action<string> buildFacility,
+        Action<string> selectBuildingForPlacement,
         Action<string> createCorps,
+        Action<string> replenishCorps,
         Action<string> toggleHeroAssignment)
     {
         _resourceLabel = resourceLabel;
         _overviewLabel = overviewLabel;
         _selectionLabel = selectionLabel;
-        _facilityList = facilityList;
-        _facilityBuildCard = facilityBuildCard;
-        _facilityBuildTitle = facilityBuildTitle;
-        _facilityBuildList = facilityBuildList;
+        _buildingList = buildingList;
+        _buildingBuildTitle = buildingBuildTitle;
+        _buildingBuildList = buildingBuildList;
+        _recruitList = recruitList;
         _corpsList = corpsList;
-        _actionList = actionList;
-        _buildFacility = buildFacility;
+        _selectBuildingForPlacement = selectBuildingForPlacement;
         _createCorps = createCorps;
+        _replenishCorps = replenishCorps;
         _toggleHeroAssignment = toggleHeroAssignment;
     }
 
@@ -69,13 +69,13 @@ internal sealed class StrategicManagementDashboardPanelBinder
 
         if (_selectionLabel != null)
         {
-            _selectionLabel.Text = $"{city.CityIdentityDisplayName}    设施槽 {city.FacilitySlotsUsed}/{city.FacilitySlotsTotal}";
+            _selectionLabel.Text = $"{city.CityIdentityDisplayName}    预备兵 {city.ReserveForces}    兵力 {city.ActiveForces + city.ReserveForces}/{city.CityForceCapacity}";
         }
 
-        BindBuiltFacilities(city);
-        BindFacilityOptions(city);
-        BindCorpsInstances(city);
-        BindTemplatesAndHeroes(safeDashboard, city);
+        BindBuildings(city);
+        BindBuildingOptions(city);
+        BindRecruitmentOptions(city);
+        BindCorpsAndHeroes(safeDashboard, city);
     }
 
     public void BindLocation(StrategicManagementDashboardViewModel dashboard)
@@ -101,85 +101,129 @@ internal sealed class StrategicManagementDashboardPanelBinder
         BindLocationReadOnlyLists(location);
     }
 
-    private void BindBuiltFacilities(StrategicCityManagementViewModel city)
+    private void BindBuildings(StrategicCityManagementViewModel city)
     {
-        ClearChildren(_facilityList);
-        if (city.BuiltFacilities.Count == 0)
+        ClearChildren(_buildingList);
+        if (city.Buildings.Count == 0)
         {
-            AddMutedLine(_facilityList, "当前城市还没有已建设施。");
+            AddMutedLine(_buildingList, "当前城市还没有已建建筑。");
+        }
+        else
+        {
+            foreach (StrategicBuildingInstanceViewModel building in city.Buildings)
+            {
+                string state = building.IsConstructed ? "已建成" : "建设中";
+                AddMutedLine(
+                    _buildingList,
+                    $"{building.DisplayName}\n区域 {building.RegionDisplayName}    坐标 {building.GridX},{building.GridY}    占地 {building.FootprintWidth}x{building.FootprintHeight}    {state}");
+            }
+        }
+
+        if (city.ConstructionRegions.Count == 0)
+        {
+            AddMutedLine(_buildingList, "当前城市没有开放建设区域。");
             return;
         }
 
-        foreach (StrategicBuiltFacilityViewModel facility in city.BuiltFacilities)
+        AddMutedLine(_buildingList, "建设区域");
+        foreach (StrategicConstructionRegionViewModel region in city.ConstructionRegions)
         {
             AddMutedLine(
-                _facilityList,
-                $"{facility.DisplayName}\n槽位 {facility.SlotCost}    id {facility.FacilityDefinitionId}");
+                _buildingList,
+                $"{region.DisplayName}\n范围 {region.OriginX},{region.OriginY} / {region.Width}x{region.Height}    类型 {FormatCategories(region.AllowedCategoryIds)}");
         }
     }
 
-    private void BindFacilityOptions(StrategicCityManagementViewModel city)
+    private void BindBuildingOptions(StrategicCityManagementViewModel city)
     {
-        SetFacilityBuildPanelVisible(true);
-        ClearChildren(_facilityBuildList);
-        if (_facilityBuildTitle != null)
+        ClearChildren(_buildingBuildList);
+        if (_buildingBuildTitle != null)
         {
-            _facilityBuildTitle.Text = "可建设施";
+            _buildingBuildTitle.Text = "可建设建筑";
         }
 
-        if (city.FacilityOptions.Count == 0)
+        if (city.BuildingOptions.Count == 0)
         {
-            AddMutedLine(_facilityBuildList, "暂无可建设施定义。");
+            AddMutedLine(_buildingBuildList, "暂无可建设建筑定义。");
             return;
         }
 
-        foreach (StrategicFacilityOptionViewModel option in city.FacilityOptions)
+        foreach (StrategicBuildingOptionViewModel option in city.BuildingOptions)
         {
-            string state = option.CanBuild ? "可建设" : $"不可建设：{FormatReasons(option.DisabledReason)}";
-            string facilityDefinitionId = option.FacilityDefinitionId;
-            AddActionButton(
-                _facilityBuildList,
-                $"{option.DisplayName}\n{state}    槽位 {option.SlotCost}    成本 {FormatCosts(option.BuildCost)}",
-                !option.CanBuild,
-                () => _buildFacility?.Invoke(facilityDefinitionId));
+            string buildingDefinitionId = option.BuildingDefinitionId;
+            WorldBuildingOptionCard card = GameUiSceneFactory.CreateWorldBuildingOptionCard(nameof(StrategicManagementDashboardPanelBinder));
+            if (card == null)
+            {
+                continue;
+            }
+
+            card.Bind(
+                buildingDefinitionId,
+                option.DisplayName,
+                option.IconPath,
+                option.FootprintWidth,
+                option.FootprintHeight,
+                FormatCosts(option.BuildCost),
+                option.CanBuild);
+            if (option.CanBuild)
+            {
+                card.Selected += selectedBuildingDefinitionId =>
+                    _selectBuildingForPlacement?.Invoke(buildingDefinitionId);
+            }
+
+            _buildingBuildList.AddChild(card);
         }
     }
 
-    private void BindCorpsInstances(StrategicCityManagementViewModel city)
+    private void BindRecruitmentOptions(StrategicCityManagementViewModel city)
     {
-        ClearChildren(_corpsList);
-        if (city.CorpsInstances.Count == 0)
+        ClearChildren(_recruitList);
+        AddMutedLine(_recruitList, "可创建编制");
+        if (city.MusterTemplates.Count == 0)
         {
-            AddMutedLine(_corpsList, "当前城市还没有已创建的编制实例。");
+            AddMutedLine(_recruitList, "当前城市没有开放可创建编制。");
             return;
         }
 
-        foreach (StrategicCorpsInstanceViewModel corps in city.CorpsInstances)
-        {
-            AddMutedLine(
-                _corpsList,
-                $"{corps.DisplayName}\n强度 {corps.Strength}/100    等级 {corps.Level}    装备 {corps.EquipmentLevel}    状态 {FormatCorpsStatus(corps.Status)}");
-        }
-    }
-
-    private void BindTemplatesAndHeroes(
-        StrategicManagementDashboardViewModel dashboard,
-        StrategicCityManagementViewModel city)
-    {
-        ClearChildren(_actionList);
-        AddMutedLine(_actionList, "可创建编制");
         foreach (StrategicMusterTemplateViewModel template in city.MusterTemplates)
         {
             string state = template.CanCreate ? "可创建" : $"不可创建：{FormatReasons(template.DisabledReasons)}";
             string corpsDefinitionId = template.CorpsDefinitionId;
             AddActionButton(
-                _actionList,
+                _recruitList,
                 $"{template.DisplayName}\n{state}    成本 {FormatCosts(template.CreationCost)}",
                 !template.CanCreate,
                 () => _createCorps?.Invoke(corpsDefinitionId));
         }
+    }
 
-        AddMutedLine(_actionList, "英雄编制");
+    private void BindCorpsAndHeroes(
+        StrategicManagementDashboardViewModel dashboard,
+        StrategicCityManagementViewModel city)
+    {
+        ClearChildren(_corpsList);
+        AddMutedLine(_corpsList, "现有编制");
+        if (city.CorpsInstances.Count == 0)
+        {
+            AddMutedLine(_corpsList, "当前城市还没有已创建的编制实例。");
+        }
+
+        foreach (StrategicCorpsInstanceViewModel corps in city.CorpsInstances)
+        {
+            string replenishLine = corps.Strength >= 100
+                ? "无需补员"
+                : corps.CanReplenish
+                    ? $"可补员    预备兵 {corps.ReplenishReserveCost}    成本 {FormatCosts(corps.ReplenishCost)}"
+                    : $"不可补员：{FormatReasons(corps.ReplenishDisabledReason)}";
+            string corpsInstanceId = corps.CorpsInstanceId;
+            AddActionButton(
+                _corpsList,
+                $"{corps.DisplayName}\n强度 {corps.Strength}/100    等级 {corps.Level}    装备 {corps.EquipmentLevel}    状态 {FormatCorpsStatus(corps.Status)}\n{replenishLine}",
+                corps.Strength >= 100 || !corps.CanReplenish,
+                () => _replenishCorps?.Invoke(corpsInstanceId));
+        }
+
+        AddMutedLine(_corpsList, "英雄编制");
         bool hasAvailableCorps = city.CorpsInstances.Any(corps =>
             corps.Status == StrategicCorpsInstanceStatus.Garrisoned &&
             string.IsNullOrWhiteSpace(corps.AssignedHeroId));
@@ -193,7 +237,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
                     ? "分配当前城市可用编制"
                     : "当前城市没有可用驻扎编制";
             AddActionButton(
-                _actionList,
+                _corpsList,
                 $"{hero.DisplayName}\n{assignmentLine}",
                 disabled,
                 () => _toggleHeroAssignment?.Invoke(heroId));
@@ -202,35 +246,34 @@ internal sealed class StrategicManagementDashboardPanelBinder
 
     private void BindLocationReadOnlyLists(StrategicLocationDashboardViewModel location)
     {
-        ClearChildren(_facilityList);
-        AddMutedLine(_facilityList, "非城市地点没有城市设施。");
+        ClearChildren(_buildingList);
+        AddMutedLine(_buildingList, "非城市地点没有城市建设区域。");
         if (location.ProductionPerWorldTimePulse.Count > 0)
         {
-            AddMutedLine(_facilityList, $"大地图时间产出：{location.ProductionDisplayText}");
+            AddMutedLine(_buildingList, $"大地图时间产出：{location.ProductionDisplayText}");
         }
 
-        SetFacilityBuildPanelVisible(true);
-        ClearChildren(_facilityBuildList);
-        if (_facilityBuildTitle != null)
+        ClearChildren(_buildingBuildList);
+        if (_buildingBuildTitle != null)
         {
-            _facilityBuildTitle.Text = "地点管理";
+            _buildingBuildTitle.Text = "地点管理";
         }
 
-        AddMutedLine(_facilityBuildList, "该地点不是城市，不开放设施建设。");
+        AddMutedLine(_buildingBuildList, "该地点不是城市，不开放建筑建设。");
+
+        ClearChildren(_recruitList);
+        AddMutedLine(_recruitList, "该地点不开放城市招募。");
 
         ClearChildren(_corpsList);
-        AddMutedLine(_corpsList, "该地点不管理城市驻防编制。");
-
-        ClearChildren(_actionList);
-        AddMutedLine(_actionList, "城市建设、编制创建和英雄编制分配只在城市开放。");
+        AddMutedLine(_corpsList, "该地点不管理城市预备兵和编制。");
         if (location.ProductionPerWorldTimePulse.Count > 0)
         {
-            AddMutedLine(_actionList, $"被动产出：{location.ProductionDisplayText}");
+            AddMutedLine(_corpsList, $"被动产出：{location.ProductionDisplayText}");
         }
 
         if (location.SourcePermissionTags.Count > 0)
         {
-            AddMutedLine(_actionList, $"来源权限：{location.SourcePermissionDisplayText}");
+            AddMutedLine(_corpsList, $"来源权限：{location.SourcePermissionDisplayText}");
         }
     }
 
@@ -245,7 +288,8 @@ internal sealed class StrategicManagementDashboardPanelBinder
             "\n",
             city.DisplayName,
             $"城市底色：{city.CityIdentityDisplayName}",
-            $"设施槽：{city.FacilitySlotsUsed}/{city.FacilitySlotsTotal}",
+            $"兵力：现役 {city.ActiveForces} / 预备 {city.ReserveForces} / 容量 {city.CityForceCapacity} / 剩余 {city.RemainingForceCapacity}",
+            $"建筑：{city.Buildings.Count} 项    建设区域：{city.ConstructionRegions.Count}",
             $"可创建编制：{city.MusterTemplates.Count(item => item.CanCreate)}/{city.MusterTemplates.Count}    已有编制：{city.CorpsInstances.Count}");
     }
 
@@ -306,7 +350,8 @@ internal sealed class StrategicManagementDashboardPanelBinder
             StrategicFailureReasons.MissingDefinitions => "定义缺失",
             StrategicFailureReasons.MissingCity => "城市缺失",
             StrategicFailureReasons.MissingLocation => "地点缺失",
-            StrategicFailureReasons.MissingFacility => "缺少设施",
+            StrategicFailureReasons.MissingBuilding => "建筑缺失",
+            StrategicFailureReasons.MissingConstructionRegion => "建设区域缺失",
             StrategicFailureReasons.MissingCorpsDefinition => "编制定义缺失",
             StrategicFailureReasons.MissingHero => "英雄缺失",
             StrategicFailureReasons.MissingCorpsInstance => "编制实例缺失",
@@ -315,11 +360,53 @@ internal sealed class StrategicManagementDashboardPanelBinder
             StrategicFailureReasons.InsufficientResources => "资源不足",
             StrategicFailureReasons.NoProduction => "无可结算产出",
             StrategicFailureReasons.InvalidElapsedWorldTimePulses => "经过时间无效",
-            StrategicFailureReasons.FacilitySlotsFull => "设施槽已满",
+            StrategicFailureReasons.WorldTimePaused => "大地图时间已暂停",
+            StrategicFailureReasons.BuildingPlacementOutOfBounds => "建筑超出建设区域",
+            StrategicFailureReasons.BuildingPlacementOccupied => "建筑占地被占用",
+            StrategicFailureReasons.BuildingRegionCategoryMismatch => "建筑类型不适合该区域",
+            StrategicFailureReasons.InsufficientReserveForces => "预备兵不足",
+            StrategicFailureReasons.CityForceCapacityFull => "城市兵力容量已满",
+            StrategicFailureReasons.InvalidReplenishmentTarget => "补员目标无效",
+            StrategicFailureReasons.CorpsAlreadyFullStrength => "编制已满员",
             StrategicFailureReasons.FactionMismatch => "势力不匹配",
             StrategicFailureReasons.CorpsAlreadyAssigned => "编制已分配",
             StrategicFailureReasons.HeroAlreadyAssigned => "英雄已分配",
+            StrategicFailureReasons.HeroHasNoAssignedCorps => "英雄没有已分配编制",
+            StrategicFailureReasons.CorpsNotAssignedToHero => "编制未分配给该英雄",
+            StrategicFailureReasons.HeroAlreadyOnExpedition => "英雄已在出征中",
+            StrategicFailureReasons.CorpsAlreadyOnExpedition => "编制已在出征中",
+            StrategicFailureReasons.SourceLocationNotOwned => "出发地点未控制",
+            StrategicFailureReasons.SameLocationTarget => "目标不能是当前地点",
+            StrategicFailureReasons.TargetLocationNotOwned => "目标地点未控制",
+            StrategicFailureReasons.TargetLocationNotAttackable => "目标地点不可攻击",
+            StrategicFailureReasons.ExpeditionCapacityFull => "出征队伍已满",
+            StrategicFailureReasons.ExpeditionNotCommandable => "出征队伍不可指挥",
+            StrategicFailureReasons.UnsupportedExpeditionIntent => "不支持的出征意图",
+            StrategicFailureReasons.InvalidExpeditionParticipants => "出征成员无效",
             _ => reason
+        };
+    }
+
+    private static string FormatCategories(IReadOnlyList<string> categoryIds)
+    {
+        return categoryIds == null || categoryIds.Count == 0
+            ? "无"
+            : string.Join(" / ", categoryIds.Select(FormatCategory));
+    }
+
+    private static string FormatCategory(string categoryId)
+    {
+        return categoryId switch
+        {
+            StrategicManagementIds.BuildingCategoryEconomy => "经济",
+            StrategicManagementIds.BuildingCategoryMilitary => "军事",
+            StrategicManagementIds.BuildingCategoryHero => "英雄",
+            StrategicManagementIds.BuildingCategoryDefense => "防御",
+            StrategicManagementIds.BuildingCategorySupport => "支援",
+            StrategicManagementIds.BuildingCategorySpecial => "特殊",
+            "" => "未分类",
+            null => "未分类",
+            _ => categoryId
         };
     }
 
@@ -348,24 +435,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
             null => "未知",
             _ => factionId
         };
-    }
-
-    private void SetFacilityBuildPanelVisible(bool visible)
-    {
-        if (_facilityBuildCard != null)
-        {
-            _facilityBuildCard.Visible = visible;
-        }
-
-        if (_facilityBuildTitle != null)
-        {
-            _facilityBuildTitle.Visible = visible;
-        }
-
-        if (_facilityBuildList != null)
-        {
-            _facilityBuildList.Visible = visible;
-        }
     }
 
     private static void AddMutedLine(Container parent, string text)

@@ -395,12 +395,13 @@ internal static void WorldSiteRootDelegatesSiteManagementHudLists()
         binderSource.Contains("BindLocation(", StringComparison.Ordinal) &&
         binderSource.Contains("ProductionDisplayText", StringComparison.Ordinal) &&
         binderSource.Contains("ProductionPerWorldTimePulse", StringComparison.Ordinal) &&
-        binderSource.Contains("StrategicFacilityOptionViewModel", StringComparison.Ordinal) &&
+        binderSource.Contains("StrategicBuildingOptionViewModel", StringComparison.Ordinal) &&
         binderSource.Contains("StrategicMusterTemplateViewModel", StringComparison.Ordinal) &&
         binderSource.Contains("GameUiSceneFactory.CreateWorldMutedLine", StringComparison.Ordinal) &&
         binderSource.Contains("GameUiSceneFactory.CreateWorldPrimaryActionButton", StringComparison.Ordinal) &&
-        binderSource.Contains("_buildFacility", StringComparison.Ordinal) &&
+        binderSource.Contains("_selectBuildingForPlacement", StringComparison.Ordinal) &&
         binderSource.Contains("_createCorps", StringComparison.Ordinal) &&
+        binderSource.Contains("_replenishCorps", StringComparison.Ordinal) &&
         binderSource.Contains("_toggleHeroAssignment", StringComparison.Ordinal) &&
         binderSource.Contains("Pressed +=", StringComparison.Ordinal),
         "strategic management dashboard binder should render strategic dashboard rows and command buttons through authored resources and callbacks");
@@ -437,13 +438,15 @@ internal static void WorldSiteRootDelegatesSiteManagementHudLists()
 internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
 {
     string siteRootDir = Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites");
-    string rootSource = File.ReadAllText(Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs"));
+    string rootSource = ReadWorldSiteRootSource();
+    string siteHudSource = File.ReadAllText(Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs"));
 
-    string buildHudBody = ExtractMethodBody(rootSource, "private void BuildSiteHud()");
+    string buildHudBody = ExtractMethodBody(siteHudSource, "private void BuildSiteHud()");
     foreach (string requiredCallback in new[]
     {
-        "OnStrategicBuildFacilityPressed",
+        "OnStrategicBuildBuildingSelected",
         "OnStrategicCreateCorpsPressed",
+        "OnStrategicReplenishCorpsPressed",
         "OnStrategicHeroAssignmentPressed"
     })
     {
@@ -454,8 +457,9 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
 
     foreach (string requiredCommand in new[]
     {
-        "StrategicManagementRuntime.Commands.BuildFacility(",
+        "StrategicManagementRuntime.Commands.BuildCityBuilding(",
         "StrategicManagementRuntime.Commands.CreateCorps(",
+        "StrategicManagementRuntime.Commands.ReplenishCorps(",
         "StrategicManagementRuntime.Commands.AssignCorpsToHero(",
         "StrategicManagementRuntime.Commands.UnassignCorpsFromHero("
     })
@@ -475,10 +479,11 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
         rootSource.Contains("RefreshSiteManagementUi(", StringComparison.Ordinal),
         "WorldSiteRoot should refresh the strategic dashboard with a command-result notice after command submission");
 
-    string buildFacilityBody = ExtractMethodBody(rootSource, "private void OnStrategicBuildFacilityPressed(");
+    string buildBuildingBody = ExtractMethodBody(rootSource, "private void TrySubmitStrategicBuildingPlacement(");
     string createCorpsBody = ExtractMethodBody(rootSource, "private void OnStrategicCreateCorpsPressed(");
+    string replenishCorpsBody = ExtractMethodBody(rootSource, "private void OnStrategicReplenishCorpsPressed(");
     string heroAssignmentBody = ExtractMethodBody(rootSource, "private void OnStrategicHeroAssignmentPressed(");
-    string commandBodies = buildFacilityBody + createCorpsBody + heroAssignmentBody;
+    string commandBodies = buildBuildingBody + createCorpsBody + replenishCorpsBody + heroAssignmentBody;
 
     AssertTrue(
         rootSource.Contains("StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(", StringComparison.Ordinal) &&
@@ -493,9 +498,10 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
         ExtractMethodBody(rootSource, "private void BindSiteManagementPanel(").Contains("StrategicManagementRuntime.BuildLocationDashboard(", StringComparison.Ordinal),
         "WorldSiteRoot should route mapped non-city sites into a Strategic Management location dashboard");
     AssertTrue(
-        buildFacilityBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
-        createCorpsBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal),
-        "facility and corps commands should guard command submission behind selected strategic city resolution");
+        buildBuildingBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
+        createCorpsBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
+        replenishCorpsBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal),
+        "building placement, corps creation, and replenishment commands should guard command submission behind selected strategic city resolution");
     AssertTrue(
         heroAssignmentBody.Contains("dashboard.SelectedCity.CorpsInstances", StringComparison.Ordinal) &&
         heroAssignmentBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
@@ -505,6 +511,287 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
         !commandBodies.Contains("WorldActionResolver", StringComparison.Ordinal) &&
         !commandBodies.Contains("_worldActionResolver", StringComparison.Ordinal),
         "strategic dashboard command callbacks must not route through legacy world action authority");
+}
+
+internal static void WorldSiteRootShowsStrategicManagementPanelWhenEnteringMappedSite()
+{
+    string siteRootDir = Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites");
+    string rootSource = File.ReadAllText(Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs"));
+    string visibilityBody = ExtractMethodBody(rootSource, "private void UpdateSitePeacetimePanelVisibility(");
+
+    AssertTrue(
+        rootSource.Contains("private bool ShouldShowSitePeacetimePanel(", StringComparison.Ordinal) &&
+        visibilityBody.Contains("ShouldShowSitePeacetimePanel()", StringComparison.Ordinal),
+        "site peacetime panel visibility should be delegated to a named helper that can include Strategic Management mapped-site entry");
+
+    string helperBody = ExtractMethodBody(rootSource, "private bool ShouldShowSitePeacetimePanel(");
+    foreach (string required in new[]
+    {
+        "_siteHudRoot?.Visible == true",
+        "TryResolveStrategicManagementLocationId(_siteHudSiteId, out _)",
+        "_battleRuntimeCommandPauseActive",
+        "_selectedFacilitySlotId"
+    })
+    {
+        AssertTrue(
+            helperBody.Contains(required, StringComparison.Ordinal),
+            $"site peacetime panel should show for mapped strategic locations while preserving pause and legacy slot compatibility fragment={required}");
+    }
+
+    AssertTrue(
+        !visibilityBody.Contains("_battleRuntimeCommandPauseActive ||", StringComparison.Ordinal) ||
+        visibilityBody.Contains("TryResolveStrategicManagementLocationId(_siteHudSiteId, out _)", StringComparison.Ordinal),
+        "site peacetime panel visibility must not depend only on battle pause or selected legacy facility slot");
+}
+
+internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
+{
+    string root = ProjectRoot();
+    string scenePath = Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn");
+    string refsPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSitePeacetimeHudNodeRefs.cs");
+    string binderPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "StrategicManagementDashboardPanelBinder.cs");
+    string siteHudPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteManagementHud.cs");
+    string sheetStylePath = Path.Combine(root, "assets", "themes", "game-ui-skin", "basic_ui_1_panel_sheet.tres");
+
+    AssertTrue(File.Exists(scenePath), $"site management HUD scene should exist path={scenePath}");
+    AssertTrue(File.Exists(sheetStylePath), $"site management HUD should reuse the compact s_table.png StyleBox resource path={sheetStylePath}");
+
+    string scene = File.ReadAllText(scenePath);
+    string refsSource = File.ReadAllText(refsPath);
+    string binderSource = File.ReadAllText(binderPath);
+    string siteHudSource = File.ReadAllText(siteHudPath);
+    string sheetStyle = File.ReadAllText(sheetStylePath);
+
+    AssertTrue(
+        sheetStyle.Contains("assets/textures/ui/basic-ui/1/s_table.png", StringComparison.Ordinal),
+        "site management sheet StyleBox should use the compact s_table.png texture");
+    AssertTrue(
+        scene.Contains("basic_ui_1_panel_sheet.tres", StringComparison.Ordinal) &&
+        ExtractSceneNodeBlock(scene, "[node name=\"SitePeacetimePanel\"").Contains("theme_override_styles/panel = ExtResource(\"3_panel_sheet\")", StringComparison.Ordinal),
+        "site management outer frame should use the compact s_table.png StyleBox resource");
+    string peacetimePanelBlock = ExtractSceneNodeBlock(scene, "[node name=\"SitePeacetimePanel\"");
+    AssertTrue(
+        peacetimePanelBlock.Contains("offset_left = 0.0", StringComparison.Ordinal) &&
+        peacetimePanelBlock.Contains("offset_top = 0.0", StringComparison.Ordinal) &&
+        peacetimePanelBlock.Contains("offset_right = 520.0", StringComparison.Ordinal) &&
+        peacetimePanelBlock.Contains("offset_bottom = 0.0", StringComparison.Ordinal) &&
+        siteHudSource.Contains("_sitePeacetimePanel.OffsetLeft = 0.0f", StringComparison.Ordinal) &&
+        siteHudSource.Contains("_sitePeacetimePanel.OffsetTop = 0.0f", StringComparison.Ordinal) &&
+        siteHudSource.Contains("_sitePeacetimePanel.OffsetRight = 520.0f", StringComparison.Ordinal) &&
+        siteHudSource.Contains("_sitePeacetimePanel.OffsetBottom = 0.0f", StringComparison.Ordinal),
+        "site management panel should fill the full left screen edge without outer gray gutters");
+
+    AssertTrue(
+        !scene.Contains("[node name=\"SiteTopBar\"", StringComparison.Ordinal) &&
+        !scene.Contains("SiteOperationHintLabel", StringComparison.Ordinal),
+        "site management should not keep a top header strip or a right-side resource panel over the map");
+    AssertTrue(
+        scene.Contains("[node name=\"SiteResourceLabel\" type=\"Label\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack\"]", StringComparison.Ordinal) &&
+        refsSource.Contains("LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteResourceLabel", StringComparison.Ordinal),
+        "resources should be presented at the top of the left site-management workspace");
+
+    foreach (string[] tab in new[]
+    {
+        new[] { "BuildTabButton", "建造" },
+        new[] { "RecruitTabButton", "招兵" },
+        new[] { "CorpsTabButton", "编制" },
+        new[] { "OverviewTabButton", "总览" }
+    })
+    {
+        string tabName = tab[0];
+        string tabText = tab[1];
+        string tabBlock = ExtractSceneNodeBlock(scene, $"[node name=\"{tabName}\"");
+        AssertTrue(
+            !string.IsNullOrWhiteSpace(tabBlock) &&
+            tabBlock.Contains("custom_minimum_size = Vector2(76, 48)", StringComparison.Ordinal) &&
+            tabBlock.Contains($"text = \"{tabText}\"", StringComparison.Ordinal) &&
+            tabBlock.Contains("toggle_mode = true", StringComparison.Ordinal),
+            $"site management tab should be a clear two-character toggle button tab={tabName}");
+    }
+
+    foreach (string required in new[]
+    {
+        "SiteManagementTabBar",
+        "ManagementContentScroll",
+        "SiteBuildSection",
+        "SiteRecruitSection",
+        "SiteCorpsSection",
+        "SiteOverviewSection"
+    })
+    {
+        AssertTrue(scene.Contains(required, StringComparison.Ordinal), $"tabbed site management scene should contain {required}");
+        AssertTrue(refsSource.Contains(required, StringComparison.Ordinal), $"node refs should bind tabbed site management node {required}");
+    }
+
+    AssertTrue(
+        siteHudSource.Contains("SelectSiteManagementSection(") &&
+        siteHudSource.Contains("ApplySiteManagementSectionVisibility("),
+        "WorldSiteRoot should switch visible site-management sections from tab buttons");
+    AssertTrue(
+        binderSource.Contains("_recruitList", StringComparison.Ordinal) &&
+        binderSource.Contains("_corpsList", StringComparison.Ordinal) &&
+        binderSource.IndexOf("ClearChildren(_recruitList)", StringComparison.Ordinal) <
+        binderSource.IndexOf("foreach (StrategicMusterTemplateViewModel template", StringComparison.Ordinal) &&
+        binderSource.Contains("AddMutedLine(_corpsList, \"英雄编制\")", StringComparison.Ordinal),
+        "strategic management binder should separate recruitment from corps/hero configuration instead of stacking everything into one action list");
+}
+
+internal static void WorldSiteBuildPickerUsesIconCardsAndMapPlacement()
+{
+    string root = ProjectRoot();
+    string siteRootDir = Path.Combine(root, "src", "Presentation", "World", "Sites");
+    string scenePath = Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn");
+    string cardScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldBuildingOptionCard.tscn");
+    string cardSourcePath = Path.Combine(siteRootDir, "WorldBuildingOptionCard.cs");
+    string binderPath = Path.Combine(siteRootDir, "StrategicManagementDashboardPanelBinder.cs");
+    string nodeRefsPath = Path.Combine(siteRootDir, "WorldSitePeacetimeHudNodeRefs.cs");
+    string factoryPath = Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs");
+    string siteHudPath = Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs");
+
+    AssertTrue(File.Exists(scenePath), $"world-site peacetime HUD scene should exist path={scenePath}");
+    AssertTrue(File.Exists(cardScenePath), $"build picker card should be an authored reusable scene path={cardScenePath}");
+    AssertTrue(File.Exists(cardSourcePath), $"build picker card should own its binding script path={cardSourcePath}");
+
+    string scene = File.ReadAllText(scenePath);
+    string cardScene = File.ReadAllText(cardScenePath);
+    string cardSource = File.ReadAllText(cardSourcePath);
+    string binderSource = File.ReadAllText(binderPath);
+    string nodeRefsSource = File.ReadAllText(nodeRefsPath);
+    string factorySource = File.ReadAllText(factoryPath);
+    string siteHudSource = File.ReadAllText(siteHudPath);
+    string rootSource = ReadWorldSiteRootSource();
+    string buildListBlock = ExtractSceneNodeBlock(scene, "[node name=\"SiteFacilityBuildList\"");
+
+    AssertTrue(
+        buildListBlock.Contains("type=\"GridContainer\"", StringComparison.Ordinal) &&
+        buildListBlock.Contains("columns = 4", StringComparison.Ordinal),
+        "site-management build picker should be a compact inventory-style GridContainer, not a long text-button VBox list");
+    AssertTrue(
+        nodeRefsSource.Contains("internal GridContainer SiteFacilityBuildList", StringComparison.Ordinal) &&
+        nodeRefsSource.Contains("Get<GridContainer>(root, \"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/SiteFacilityBuildList\"", StringComparison.Ordinal),
+        "world-site HUD node refs should bind the build picker as GridContainer");
+
+    AssertTrue(
+        cardScene.Contains("[node name=\"WorldBuildingOptionCard\" type=\"Button\"", StringComparison.Ordinal) &&
+        cardScene.Contains("res://src/Presentation/World/Sites/WorldBuildingOptionCard.cs", StringComparison.Ordinal) &&
+        cardScene.Contains("[node name=\"Icon\" type=\"TextureRect\"", StringComparison.Ordinal) &&
+        cardScene.Contains("[node name=\"NameLabel\" type=\"Label\"", StringComparison.Ordinal),
+        "building option card should be a focused authored Button scene with icon and bottom name label");
+    AssertTrue(
+        cardSource.Contains("public void Bind(") &&
+        cardSource.Contains("TextureRect") &&
+        cardSource.Contains("TooltipText") &&
+        cardSource.Contains("占地") &&
+        cardSource.Contains("成本") &&
+        !cardSource.Contains("DefaultRegion", StringComparison.Ordinal) &&
+        !cardSource.Contains("DisabledReason", StringComparison.Ordinal) &&
+        !cardSource.Contains("CategoryId", StringComparison.Ordinal),
+        "building option card binding should expose only icon/name plus footprint and cost tooltip");
+
+    AssertTrue(
+        factorySource.Contains("WorldBuildingOptionCardScenePath = \"res://scenes/world/ui/WorldBuildingOptionCard.tscn\"", StringComparison.Ordinal) &&
+        factorySource.Contains("CreateWorldBuildingOptionCard", StringComparison.Ordinal) &&
+        factorySource.Contains("Instantiate<WorldBuildingOptionCard>(WorldBuildingOptionCardScenePath", StringComparison.Ordinal),
+        "build option cards should be instantiated through GameUiSceneFactory");
+
+    string bindOptionsBody = ExtractMethodBody(binderSource, "private void BindBuildingOptions(");
+    AssertTrue(
+        bindOptionsBody.Contains("GameUiSceneFactory.CreateWorldBuildingOptionCard", StringComparison.Ordinal) &&
+        bindOptionsBody.Contains("_selectBuildingForPlacement?.Invoke(buildingDefinitionId)", StringComparison.Ordinal),
+        "strategic dashboard binder should create building option cards and submit building selection, not direct placement");
+    foreach (string forbidden in new[]
+    {
+        "CreateWorldPrimaryActionButton",
+        "DefaultRegionId",
+        "DefaultGridX",
+        "DefaultGridY",
+        "DisabledReason",
+        "FormatCategory("
+    })
+    {
+        AssertTrue(
+            !bindOptionsBody.Contains(forbidden, StringComparison.Ordinal),
+            $"building picker binding must keep placement/debug detail out of the card body fragment={forbidden}");
+    }
+
+    string inputBody = ExtractMethodBody(rootSource, "public override void _Input(InputEvent @event)");
+    AssertTrue(
+        inputBody.Contains("TryHandleStrategicBuildingPlacementInput(@event)", StringComparison.Ordinal) &&
+        inputBody.IndexOf("TryHandleStrategicBuildingPlacementInput(@event)", StringComparison.Ordinal) <
+        inputBody.IndexOf("TryHandleFacilitySlotInput(@event)", StringComparison.Ordinal),
+        "selected strategic building placement should consume map clicks before legacy facility-slot compatibility input");
+
+    string selectBody = ExtractMethodBody(siteHudSource, "private void OnStrategicBuildBuildingSelected(");
+    AssertTrue(
+        !selectBody.Contains("BuildCityBuilding", StringComparison.Ordinal) &&
+        selectBody.Contains("_selectedStrategicBuildingDefinitionId", StringComparison.Ordinal),
+        "pressing a building card should enter placement mode instead of building at a default coordinate");
+    string placementBody = ExtractMethodBody(rootSource, "private bool TryHandleStrategicBuildingPlacementInput(");
+    AssertTrue(
+        placementBody.Contains("TrySubmitStrategicBuildingPlacement(", StringComparison.Ordinal) &&
+        placementBody.Contains("GetViewport().SetInputAsHandled()", StringComparison.Ordinal),
+        "strategic building placement input should consume the map click and route submission through the focused placement command method");
+    AssertTrue(
+        rootSource.Contains("BuildCityBuilding", StringComparison.Ordinal) &&
+        rootSource.Contains("TryResolveStrategicBuildingPlacement", StringComparison.Ordinal),
+        "strategic building placement should resolve a map click to command-validated placement");
+    AssertTrue(
+        rootSource.Contains("StrategicBuildingPlacementResolver", StringComparison.Ordinal),
+        "map-click construction placement resolution should live in a focused Presentation collaborator, not the legacy facility-slot path");
+}
+
+internal static void WorldSiteStrategicBuildingPlacementUsesMarkerBackedPreview()
+{
+    string root = ProjectRoot();
+    string siteRootDir = Path.Combine(root, "src", "Presentation", "World", "Sites");
+    string rootSource = ReadWorldSiteRootSource();
+    string placementSourcePath = Path.Combine(siteRootDir, "WorldSiteRoot.StrategicBuildingPlacement.cs");
+    string mapPresentationPath = Path.Combine(siteRootDir, "WorldSiteRoot.SiteMapPresentation.cs");
+    string resolverPath = Path.Combine(siteRootDir, "StrategicBuildingPlacementResolver.cs");
+    string previewPath = Path.Combine(siteRootDir, "StrategicBuildingPlacementPreview.cs");
+    string scenePath = Path.Combine(root, "scenes", "world", "sites", "WorldSiteRoot.tscn");
+
+    AssertTrue(File.Exists(previewPath), "strategic building placement preview should live in a focused Presentation Node2D collaborator");
+
+    string placementSource = File.ReadAllText(placementSourcePath);
+    string mapPresentationSource = File.ReadAllText(mapPresentationPath);
+    string resolverSource = File.ReadAllText(resolverPath);
+    string previewSource = File.Exists(previewPath) ? File.ReadAllText(previewPath) : "";
+    string scene = File.ReadAllText(scenePath);
+
+    AssertTrue(
+        mapPresentationSource.Contains("ResolveSemanticConstructionRegionMarkers", StringComparison.Ordinal) &&
+        mapPresentationSource.Contains("SemanticMapMarkerType.ConstructionRegion", StringComparison.Ordinal),
+        "world-site map presentation should filter marker-backed construction regions separately from legacy building slots");
+    AssertTrue(
+        resolverSource.Contains("IReadOnlyList<SemanticMapMarkerData> constructionRegionMarkers", StringComparison.Ordinal) &&
+        resolverSource.Contains("marker.MarkerType == SemanticMapMarkerType.ConstructionRegion", StringComparison.Ordinal) &&
+        resolverSource.Contains("marker.MarkerId", StringComparison.Ordinal),
+        "strategic building placement resolver should use marker-backed construction region ids before command validation");
+    AssertTrue(
+        placementSource.Contains("@event is InputEventMouseMotion", StringComparison.Ordinal) &&
+        placementSource.Contains("UpdateStrategicBuildingPlacementPreview()", StringComparison.Ordinal),
+        "strategic building placement should refresh realtime legality preview on mouse motion");
+    AssertTrue(
+        placementSource.Contains("SetStrategicBuildingPlacementPreview", StringComparison.Ordinal) &&
+        placementSource.Contains("ClearStrategicBuildingPlacementPreview", StringComparison.Ordinal),
+        "strategic building placement should have explicit preview set and clear lifecycle");
+    AssertTrue(
+        previewSource.Contains("StrategicBuildingPlacementPreview : Node2D", StringComparison.Ordinal) &&
+        previewSource.Contains("SetPreview(") &&
+        previewSource.Contains("BuildableFill", StringComparison.Ordinal) &&
+        previewSource.Contains("BlockedFill", StringComparison.Ordinal),
+        "placement preview should be a viewport Node2D that renders buildable and blocked treatments");
+    AssertTrue(
+        rootSource.Contains("_strategicBuildingPlacementPreview", StringComparison.Ordinal) &&
+        scene.Contains("StrategicBuildingPlacementPreview.cs", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"StrategicBuildingPlacementPreview\" type=\"Node2D\" parent=\"MainWorldViewportHost/MainWorldViewport/OverlayRoot\"]", StringComparison.Ordinal),
+        "WorldSiteRoot should author and bind the strategic building placement preview under the world viewport overlay");
+    AssertTrue(
+        !placementSource.Contains("BuildFacility", StringComparison.Ordinal) &&
+        !resolverSource.Contains("FacilitySlotDefinition", StringComparison.Ordinal) &&
+        !resolverSource.Contains("WorldActionResolver", StringComparison.Ordinal),
+        "strategic building placement preview and resolution must not route through legacy facility-slot authority");
 }
 
 internal static void WorldSiteRootDelegatesBattlePreparationMapDrag()
@@ -613,7 +900,7 @@ internal static void WorldSiteRootCentralizesWorldSiteHudNodeRefs()
         "internal sealed class WorldSitePeacetimeHudNodeRefs",
         "Resolve(Control root, string ownerName)",
         "GameUiSceneFactory.GetRequiredNode",
-        "TopBarHost/SiteTopBar",
+        "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteResourceLabel",
         "LeftPrimaryPanelHost/SitePeacetimePanel",
         "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroNameLabel",
         "OverlayHost/BattlePreparationRosterDock",

@@ -1,0 +1,118 @@
+{
+  "buildings": [
+    {
+      "buildingDefinitionId": "building_farm",
+      "iconPath": "res://assets/textures/world/Buildings/Wood/Huts.png",
+      "displayName": "农田",
+      "categoryId": "building_category_economy",
+      "footprintWidth": 2,
+      "footprintHeight": 2,
+      "buildCost": [
+        { "resourceId": "resource_money", "amount": 30 },
+        { "resourceId": "resource_wood", "amount": 20 }
+      ],
+      "productionPerWorldTimePulse": [
+        { "resourceId": "resource_food", "amount": 18 }
+      ]
+    },
+    {
+      "buildingDefinitionId": "building_market",
+      "iconPath": "res://assets/textures/world/Buildings/Wood/Market.png",
+      "displayName": "集市",
+      "categoryId": "building_category_economy",
+      "footprintWidth": 2,
+      "footprintHeight": 2,
+      "buildCost": [
+        { "resourceId": "resource_money", "amount": 20 },
+        { "resourceId": "resource_wood", "amount": 25 }
+      ],
+      "productionPerWorldTimePulse": [
+        { "resourceId": "resource_money", "amount": 16 }
+      ]
+    },
+    {
+      "buildingDefinitionId": "building_lumber_camp",
+      "iconPath": "res://assets/textures/world/Buildings/Wood/Resources.png",
+      "displayName": "伐木场",
+      "categoryId": "building_category_economy",
+      "footprintWidth": 2,
+      "footprintHeight": 2,
+      "buildCost": [
+        { "resourceId": "resource_money", "amount": 20 },
+        { "resourceId": "resource_wood", "amount": 10 }
+      ],
+      "productionPerWorldTimePulse": [
+        { "resourceId": "resource_wood", "amount": 14 }
+      ]
+    },
+    {
+      "buildingDefinitionId": "building_mine",
+      "iconPath": "res://assets/textures/world/Buildings/Wood/CaveV2.png",
+      "displayName": "矿场",
+      "categoryId": "building_category_economy",
+      "footprintWidth": 2,
+      "footprintHeight": 2,
+      "buildCost": [
+        { "resourceId": "resource_money", "amount": 25 },
+        { "resourceId": "resource_wood", "amount": 15 }
+      ],
+      "productionPerWorldTimePulse": [
+        { "resourceId": "resource_ore", "amount": 12 }
+      ]
+    },
+    {
+      "buildingDefinitionId": "building_training_ground",
+      "iconPath": "res://assets/textures/world/Buildings/Wood/Barracks.png",
+      "displayName": "训练场",
+      "categoryId": "building_category_military",
+      "footprintWidth": 3,
+      "footprintHeight": 2,
+      "buildCost": [
+        { "resourceId": "resource_money", "amount": 40 },
+        { "resourceId": "resource_wood", "amount": 30 },
+        { "resourceId": "resource_ore", "amount": 10 }
+      ],
+      "cityForceCapacityBonus": 60,
+      "reserveRecoveryPerWorldTimePulse": 12
+    },
+    {
+      "buildingDefinitionId": "building_tavern",
+      "iconPath": "res://assets/textures/world/Buildings/Wood/Taverns.png",
+      "displayName": "酒馆",
+      "categoryId": "building_category_hero",
+      "footprintWidth": 2,
+      "footprintHeight": 2,
+      "buildCost": [
+        { "resourceId": "resource_money", "amount": 50 },
+        { "resourceId": "resource_wood", "amount": 25 }
+      ]
+    },
+    {
+      "buildingDefinitionId": "building_arrow_tower",
+      "iconPath": "res://assets/textures/world/Buildings/Wood/Tower.png",
+      "displayName": "箭塔",
+      "categoryId": "building_category_defense",
+      "footprintWidth": 1,
+      "footprintHeight": 1,
+      "buildCost": [
+        { "resourceId": "resource_money", "amount": 30 },
+        { "resourceId": "resource_wood", "amount": 20 },
+        { "resourceId": "resource_ore", "amount": 20 }
+      ]
+    },
+    {
+      "buildingDefinitionId": "building_medical_shrine",
+      "iconPath": "res://assets/textures/world/Buildings/Wood/Chapels.png",
+      "displayName": "医祠",
+      "categoryId": "building_category_support",
+      "footprintWidth": 2,
+      "footprintHeight": 2,
+      "buildCost": [
+        { "resourceId": "resource_money", "amount": 35 },
+        { "resourceId": "resource_wood", "amount": 20 },
+        { "resourceId": "resource_ore", "amount": 10 }
+      ],
+      "reserveRecoveryPerWorldTimePulse": 4
+    }
+  ]
+}

@@ -52,20 +52,22 @@ public sealed class StrategicManagementRules
             AddUnique(result.FailureReasons, StrategicFailureReasons.MissingCityIdentity);
         }
 
-        foreach (string requiredFacilityTag in corps.RequiredFacilityTags)
+        foreach (string requiredCategoryId in corps.RequiredBuildingCategoryIds)
         {
-            if (!CityHasFacilityTag(city, requiredFacilityTag))
+            if (!CityHasBuildingCategory(city, requiredCategoryId))
             {
-                AddUnique(result.FailureReasons, StrategicFailureReasons.MissingFacility);
+                AddUnique(result.FailureReasons, StrategicFailureReasons.MissingBuilding);
             }
         }
 
-        foreach (string sourceTag in corps.RequiredSourcePermissionTags)
+        if (city.ReserveForces < System.Math.Max(0, corps.SoldierCapacityCost))
         {
-            if (!FactionControlsSourceTag(state, cityLocation.OwnerFactionId, sourceTag))
-            {
-                AddUnique(result.FailureReasons, StrategicFailureReasons.MissingSourcePermission);
-            }
+            AddUnique(result.FailureReasons, StrategicFailureReasons.InsufficientReserveForces);
+        }
+
+        if (GetRemainingCityForceCapacity(state, city.LocationId) < 0)
+        {
+            AddUnique(result.FailureReasons, StrategicFailureReasons.CityForceCapacityFull);
         }
 
         if (!state.CanSpend(cityLocation.OwnerFactionId, corps.CreationCost))
@@ -85,30 +87,249 @@ public sealed class StrategicManagementRules
         return availability.IsAvailable ? "" : SelectPrimaryFailure(availability.FailureReasons);
     }
 
-    public string GetFacilityBuildFailureReason(
+    public string GetBuildingPlacementFailureReason(
         StrategicManagementState state,
         string cityId,
-        string facilityDefinitionId)
+        string buildingDefinitionId,
+        string constructionRegionId,
+        int gridX,
+        int gridY)
     {
         if (state == null ||
-            !_definitions.Facilities.TryGetValue(facilityDefinitionId ?? "", out StrategicFacilityDefinition facility))
+            !_definitions.Buildings.TryGetValue(buildingDefinitionId ?? "", out StrategicBuildingDefinition building))
         {
-            return StrategicFailureReasons.MissingFacility;
+            return StrategicFailureReasons.MissingBuilding;
         }
 
-        if (!TryGetCityContext(state, cityId, out StrategicCityState city, out StrategicLocationState cityLocation))
+        if (!TryGetCityContext(state, cityId, out StrategicCityState city, out StrategicLocationState cityLocation) ||
+            !_definitions.Locations.TryGetValue(city.LocationId, out StrategicLocationDefinition locationDefinition))
         {
             return StrategicFailureReasons.MissingCity;
         }
 
-        if (city.Facilities.Count + System.Math.Max(1, facility.SlotCost) > city.FacilitySlotCount)
+        StrategicConstructionRegionDefinition region = locationDefinition.ConstructionRegions.FirstOrDefault(item =>
+            string.Equals(item.RegionId, constructionRegionId ?? "", System.StringComparison.Ordinal));
+        if (region == null || !city.ConstructionRegionIds.Contains(region.RegionId))
         {
-            return StrategicFailureReasons.FacilitySlotsFull;
+            return StrategicFailureReasons.MissingConstructionRegion;
         }
 
-        return state.CanSpend(cityLocation.OwnerFactionId, facility.BuildCost)
+        if (!region.AllowedCategoryIds.Contains(building.CategoryId))
+        {
+            return StrategicFailureReasons.BuildingRegionCategoryMismatch;
+        }
+
+        IReadOnlyList<(int X, int Y)> candidateCells = BuildFootprintCells(gridX, gridY, building.FootprintWidth, building.FootprintHeight);
+        if (candidateCells.Count == 0 || !candidateCells.All(cell => IsCellInsideRegion(cell.X, cell.Y, region)))
+        {
+            return StrategicFailureReasons.BuildingPlacementOutOfBounds;
+        }
+
+        if (city.Buildings.Any(existing => FootprintsOverlap(existing, candidateCells)))
+        {
+            return StrategicFailureReasons.BuildingPlacementOccupied;
+        }
+
+        return state.CanSpend(cityLocation.OwnerFactionId, building.BuildCost)
             ? ""
             : StrategicFailureReasons.InsufficientResources;
+    }
+
+    public int GetActiveForces(StrategicManagementState state, string cityId)
+    {
+        if (state == null || string.IsNullOrWhiteSpace(cityId))
+        {
+            return 0;
+        }
+
+        int activeForces = 0;
+        foreach (StrategicCorpsInstanceState corps in state.CorpsInstances.Values)
+        {
+            if (!string.Equals(corps.HomeCityId, cityId, System.StringComparison.Ordinal) ||
+                !_definitions.Corps.TryGetValue(corps.CorpsDefinitionId, out StrategicCorpsDefinition definition))
+            {
+                continue;
+            }
+
+            int strength = System.Math.Clamp(corps.Strength, 0, 100);
+            if (strength <= 0)
+            {
+                continue;
+            }
+
+            activeForces += (int)System.Math.Ceiling(definition.SoldierCapacityCost * (strength / 100.0));
+        }
+
+        return activeForces;
+    }
+
+    public int GetRemainingCityForceCapacity(StrategicManagementState state, string cityId)
+    {
+        if (state == null || !state.Cities.TryGetValue(cityId ?? "", out StrategicCityState city))
+        {
+            return 0;
+        }
+
+        return System.Math.Max(0, city.CityForceCapacity - GetActiveForces(state, cityId) - city.ReserveForces);
+    }
+
+    public int GetReserveRecoveryPerWorldTimePulse(StrategicManagementState state, string cityId)
+    {
+        if (state == null || !state.Cities.TryGetValue(cityId ?? "", out StrategicCityState city))
+        {
+            return 0;
+        }
+
+        return city.Buildings.Sum(building =>
+            _definitions.Buildings.TryGetValue(building.BuildingDefinitionId, out StrategicBuildingDefinition definition)
+                ? System.Math.Max(0, definition.ReserveRecoveryPerWorldTimePulse)
+                : 0);
+    }
+
+    public int GetRecoverableReserveForces(StrategicManagementState state, string cityId, int elapsedPulses)
+    {
+        if (elapsedPulses <= 0 ||
+            state == null ||
+            !state.Cities.TryGetValue(cityId ?? "", out StrategicCityState city))
+        {
+            return 0;
+        }
+
+        int recovery = GetReserveRecoveryPerWorldTimePulse(state, cityId) * elapsedPulses;
+        int maxReserve = System.Math.Max(0, city.CityForceCapacity - GetActiveForces(state, cityId));
+        return System.Math.Min(System.Math.Max(0, recovery), System.Math.Max(0, maxReserve - city.ReserveForces));
+    }
+
+    public IReadOnlyList<StrategicResourceAmount> GetCityBuildingProduction(
+        StrategicManagementState state,
+        string cityId,
+        string factionId,
+        int elapsedPulses)
+    {
+        if (elapsedPulses <= 0 ||
+            state == null ||
+            !TryGetCityContext(state, cityId, out StrategicCityState city, out StrategicLocationState cityLocation) ||
+            !string.Equals(cityLocation.OwnerFactionId, factionId ?? "", System.StringComparison.Ordinal) ||
+            cityLocation.ControlState != StrategicLocationControlState.PlayerHeld)
+        {
+            return System.Array.Empty<StrategicResourceAmount>();
+        }
+
+        Dictionary<string, int> totals = new(System.StringComparer.Ordinal);
+        foreach (StrategicBuildingInstanceState instance in city.Buildings)
+        {
+            if (!_definitions.Buildings.TryGetValue(instance.BuildingDefinitionId, out StrategicBuildingDefinition building))
+            {
+                continue;
+            }
+
+            foreach (StrategicResourceAmount amount in building.ProductionPerWorldTimePulse)
+            {
+                if (amount.Amount <= 0 || string.IsNullOrWhiteSpace(amount.ResourceId))
+                {
+                    continue;
+                }
+
+                totals.TryGetValue(amount.ResourceId, out int current);
+                totals[amount.ResourceId] = current + amount.Amount * elapsedPulses;
+            }
+        }
+
+        return totals
+            .OrderBy(item => item.Key)
+            .Select(item => new StrategicResourceAmount(item.Key, item.Value))
+            .ToList();
+    }
+
+    public int GetCorpsReplenishmentReserveCost(
+        StrategicManagementState state,
+        string corpsInstanceId,
+        int targetStrength)
+    {
+        if (state == null ||
+            !state.CorpsInstances.TryGetValue(corpsInstanceId ?? "", out StrategicCorpsInstanceState corps) ||
+            !_definitions.Corps.TryGetValue(corps.CorpsDefinitionId, out StrategicCorpsDefinition definition))
+        {
+            return 0;
+        }
+
+        int boundedTarget = System.Math.Clamp(targetStrength, 0, 100);
+        int missingStrength = System.Math.Max(0, boundedTarget - System.Math.Clamp(corps.Strength, 0, 100));
+        return (int)System.Math.Ceiling(definition.SoldierCapacityCost * (missingStrength / 100.0));
+    }
+
+    public IReadOnlyList<StrategicResourceAmount> GetCorpsReplenishmentResourceCost(
+        StrategicManagementState state,
+        string corpsInstanceId,
+        int targetStrength)
+    {
+        if (state == null ||
+            !state.CorpsInstances.TryGetValue(corpsInstanceId ?? "", out StrategicCorpsInstanceState corps) ||
+            !_definitions.Corps.TryGetValue(corps.CorpsDefinitionId, out StrategicCorpsDefinition definition))
+        {
+            return System.Array.Empty<StrategicResourceAmount>();
+        }
+
+        int boundedTarget = System.Math.Clamp(targetStrength, 0, 100);
+        int missingStrength = System.Math.Max(0, boundedTarget - System.Math.Clamp(corps.Strength, 0, 100));
+        if (missingStrength <= 0)
+        {
+            return System.Array.Empty<StrategicResourceAmount>();
+        }
+
+        return definition.ReplenishFullCost
+            .Where(cost => cost.Amount > 0 && !string.IsNullOrWhiteSpace(cost.ResourceId))
+            .Select(cost => new StrategicResourceAmount(
+                cost.ResourceId,
+                (int)System.Math.Ceiling(cost.Amount * (missingStrength / 100.0))))
+            .Where(cost => cost.Amount > 0)
+            .OrderBy(cost => cost.ResourceId)
+            .ToList();
+    }
+
+    public string GetCorpsReplenishmentFailureReason(
+        StrategicManagementState state,
+        string cityId,
+        string corpsInstanceId,
+        int targetStrength)
+    {
+        if (state == null || !state.Cities.TryGetValue(cityId ?? "", out StrategicCityState city))
+        {
+            return StrategicFailureReasons.MissingCity;
+        }
+
+        if (!state.CorpsInstances.TryGetValue(corpsInstanceId ?? "", out StrategicCorpsInstanceState corps) ||
+            !_definitions.Corps.ContainsKey(corps.CorpsDefinitionId))
+        {
+            return StrategicFailureReasons.MissingCorpsInstance;
+        }
+
+        if (!string.Equals(corps.HomeCityId, city.LocationId, System.StringComparison.Ordinal))
+        {
+            return StrategicFailureReasons.MissingCity;
+        }
+
+        int boundedTarget = System.Math.Clamp(targetStrength, 0, 100);
+        if (boundedTarget <= System.Math.Clamp(corps.Strength, 0, 100))
+        {
+            return corps.Strength >= 100
+                ? StrategicFailureReasons.CorpsAlreadyFullStrength
+                : StrategicFailureReasons.InvalidReplenishmentTarget;
+        }
+
+        int reserveCost = GetCorpsReplenishmentReserveCost(state, corps.CorpsInstanceId, boundedTarget);
+        if (city.ReserveForces < reserveCost)
+        {
+            return StrategicFailureReasons.InsufficientReserveForces;
+        }
+
+        if (!state.Locations.TryGetValue(city.LocationId, out StrategicLocationState cityLocation) ||
+            !state.CanSpend(cityLocation.OwnerFactionId, GetCorpsReplenishmentResourceCost(state, corps.CorpsInstanceId, boundedTarget)))
+        {
+            return StrategicFailureReasons.InsufficientResources;
+        }
+
+        return "";
     }
 
     public string GetExpeditionCreationFailureReason(
@@ -131,7 +352,7 @@ public sealed class StrategicManagementRules
         string sourceLocationId,
         string targetLocationId,
         StrategicExpeditionIntent intent,
-        System.Collections.Generic.IReadOnlyCollection<string> heroIds)
+        IReadOnlyCollection<string> heroIds)
     {
         if (state == null)
         {
@@ -394,7 +615,7 @@ public sealed class StrategicManagementRules
             : StrategicFailureReasons.CorpsAlreadyOnExpedition;
     }
 
-    private static string[] NormalizeHeroIds(System.Collections.Generic.IReadOnlyCollection<string> heroIds)
+    private static string[] NormalizeHeroIds(IReadOnlyCollection<string> heroIds)
     {
         return (heroIds ?? System.Array.Empty<string>())
             .Where(heroId => !string.IsNullOrWhiteSpace(heroId))
@@ -402,7 +623,7 @@ public sealed class StrategicManagementRules
             .ToArray();
     }
 
-    private static int CountProvidedHeroIds(System.Collections.Generic.IReadOnlyCollection<string> heroIds)
+    private static int CountProvidedHeroIds(IReadOnlyCollection<string> heroIds)
     {
         return (heroIds ?? System.Array.Empty<string>())
             .Count(heroId => !string.IsNullOrWhiteSpace(heroId));
@@ -466,45 +687,61 @@ public sealed class StrategicManagementRules
             return true;
         }
 
-        return corps.RequiredFacilityTags.Count > 0 || corps.RequiredSourcePermissionTags.Count > 0;
+        return corps.RequiredBuildingCategoryIds.Count > 0;
     }
 
-    private bool CityHasFacilityTag(StrategicCityState city, string requiredFacilityTag)
+    private bool CityHasBuildingCategory(StrategicCityState city, string requiredCategoryId)
     {
-        if (city == null || string.IsNullOrWhiteSpace(requiredFacilityTag))
+        if (city == null || string.IsNullOrWhiteSpace(requiredCategoryId))
         {
             return true;
         }
 
-        return city.Facilities.Any(instance =>
-            _definitions.Facilities.TryGetValue(instance.FacilityDefinitionId, out StrategicFacilityDefinition facility) &&
-            facility.ProvidedTags.Contains(requiredFacilityTag));
+        return city.Buildings.Any(instance =>
+            _definitions.Buildings.TryGetValue(instance.BuildingDefinitionId, out StrategicBuildingDefinition building) &&
+            string.Equals(building.CategoryId, requiredCategoryId, System.StringComparison.Ordinal));
     }
 
-    private bool FactionControlsSourceTag(StrategicManagementState state, string factionId, string sourceTag)
+    private bool FootprintsOverlap(
+        StrategicBuildingInstanceState existing,
+        IReadOnlyCollection<(int X, int Y)> candidateCells)
     {
-        if (state == null || string.IsNullOrWhiteSpace(sourceTag))
+        if (existing == null ||
+            !_definitions.Buildings.TryGetValue(existing.BuildingDefinitionId, out StrategicBuildingDefinition definition))
         {
-            return true;
+            return false;
         }
 
-        foreach (StrategicLocationState location in state.Locations.Values)
-        {
-            if (!string.Equals(location.OwnerFactionId, factionId, System.StringComparison.Ordinal) ||
-                location.ControlState != StrategicLocationControlState.PlayerHeld &&
-                !string.Equals(factionId, StrategicManagementIds.FactionEnemy, System.StringComparison.Ordinal))
-            {
-                continue;
-            }
+        HashSet<(int X, int Y)> existingCells = new(BuildFootprintCells(existing.GridX, existing.GridY, definition.FootprintWidth, definition.FootprintHeight));
+        return candidateCells.Any(existingCells.Contains);
+    }
 
-            if (_definitions.Locations.TryGetValue(location.LocationId, out StrategicLocationDefinition definition) &&
-                definition.SourcePermissionTags.Contains(sourceTag))
+    private static IReadOnlyList<(int X, int Y)> BuildFootprintCells(int gridX, int gridY, int width, int height)
+    {
+        List<(int X, int Y)> cells = new();
+        if (width <= 0 || height <= 0)
+        {
+            return cells;
+        }
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
             {
-                return true;
+                cells.Add((gridX + x, gridY + y));
             }
         }
 
-        return false;
+        return cells;
+    }
+
+    private static bool IsCellInsideRegion(int x, int y, StrategicConstructionRegionDefinition region)
+    {
+        return region != null &&
+               x >= region.OriginX &&
+               y >= region.OriginY &&
+               x < region.OriginX + region.Width &&
+               y < region.OriginY + region.Height;
     }
 
     private static string SelectPrimaryFailure(IReadOnlyList<string> reasons)
@@ -518,9 +755,10 @@ public sealed class StrategicManagementRules
             StrategicFailureReasons.CorpsNotAssignedToHero,
             StrategicFailureReasons.HeroAlreadyOnExpedition,
             StrategicFailureReasons.CorpsAlreadyOnExpedition,
-            StrategicFailureReasons.MissingSourcePermission,
-            StrategicFailureReasons.MissingFacility,
+            StrategicFailureReasons.MissingBuilding,
             StrategicFailureReasons.MissingCityIdentity,
+            StrategicFailureReasons.InsufficientReserveForces,
+            StrategicFailureReasons.CityForceCapacityFull,
             StrategicFailureReasons.InsufficientResources
         };
 

@@ -4,9 +4,10 @@ using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
+
 internal static partial class StrategicManagementRegressionCases
 {
-    internal static void StrategicManagementDashboardSummarizesCityResourcesFacilitiesCorpsAndHeroes()
+    internal static void StrategicManagementDashboardSummarizesCityResourcesBuildingsReserveCorpsAndHeroes()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
@@ -21,15 +22,20 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(StrategicManagementIds.LocationPlainsCity, dashboard.SelectedCity.LocationId, "dashboard should preserve selected city");
         AssertEqual("苍原城", dashboard.SelectedCity.DisplayName, "city display name should come from definitions");
         AssertEqual("平原人类城池", dashboard.SelectedCity.CityIdentityDisplayName, "city identity display name should come from definitions");
-        AssertEqual(0, dashboard.SelectedCity.FacilitySlotsUsed, "new city should have no built facilities");
-        AssertEqual(3, dashboard.SelectedCity.FacilitySlotsTotal, "city should expose total facility slots");
+        AssertEqual(0, dashboard.SelectedCity.Buildings.Count, "new city should have no placed buildings");
+        AssertTrue(dashboard.SelectedCity.ConstructionRegions.Count >= 3, "dashboard should expose construction regions");
+        AssertEqual(220, dashboard.SelectedCity.CityForceCapacity, "dashboard should expose city force capacity");
+        AssertEqual(80, dashboard.SelectedCity.ReserveForces, "dashboard should expose reserve soldiers");
+        AssertEqual(100, dashboard.SelectedCity.ActiveForces, "dashboard should expose derived active forces");
+        AssertEqual(40, dashboard.SelectedCity.RemainingForceCapacity, "dashboard should expose remaining capacity");
         AssertEqual(500, FindResource(dashboard, StrategicManagementIds.ResourceMoney).Amount, "money should be summarized");
-        AssertTrue(FindFacilityOption(dashboard, StrategicManagementIds.FacilityTrainingGround).CanBuild, "training ground should be buildable initially");
+        AssertEqual(240, FindResource(dashboard, StrategicManagementIds.ResourceWood).Amount, "wood should be summarized");
+        AssertTrue(FindBuildingOption(dashboard, StrategicManagementIds.BuildingTrainingGround).CanBuild, "training ground should be buildable initially");
         AssertTrue(FindMusterTemplate(dashboard, StrategicManagementIds.CorpsShieldLine).CanCreate, "shield line should be creatable initially");
         AssertEqual(3, dashboard.Heroes.Count, "dashboard should expose the first playable strategic heroes");
         AssertTrue(
-            !string.IsNullOrWhiteSpace(FindHero(dashboard, StrategicManagementIds.HeroBeastTamer).AssignedCorpsInstanceId),
-            "beast tamer should start with an assigned cavalry-style corps company");
+            !string.IsNullOrWhiteSpace(FindHero(dashboard, StrategicManagementIds.HeroCavalryCaptain).AssignedCorpsInstanceId),
+            "cavalry captain should start with an assigned cavalry corps company");
     }
 
     internal static void StrategicManagementDashboardExposesDispatchableHeroCompanies()
@@ -50,11 +56,12 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(corpsInstanceId, company.CorpsInstanceId, "hero company should expose the assigned corps instance");
         AssertEqual(StrategicManagementIds.CorpsShieldLine, company.CorpsDefinitionId, "hero company should expose the corps definition");
         AssertEqual(3, beforeDispatch.SelectedCity.HeroCompanies.Count, "first city should start with three in-city expedition candidates");
+        AssertEqual(100, beforeDispatch.SelectedCity.ActiveForces, "derived active forces should include in-city assigned corps before dispatch");
 
         commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
         StrategicManagementDashboardViewModel afterDispatch = viewModels.BuildDashboard(
@@ -69,25 +76,10 @@ internal static partial class StrategicManagementRegressionCases
             StrategicCorpsInstanceStatus.Expedition,
             FindCorps(afterDispatch, corpsInstanceId).Status,
             "dispatched corps should remain durable strategic state with expedition status");
+        AssertEqual(100, afterDispatch.SelectedCity.ActiveForces, "active forces should still include expedition corps from the home city");
     }
 
-    internal static void StrategicManagementDashboardExplainsUnavailableBeastMusterReasons()
-    {
-        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        StrategicManagementViewModelService viewModels = new(definitions, new StrategicManagementRules(definitions));
-
-        StrategicMusterTemplateViewModel wolfPack = FindMusterTemplate(
-            viewModels.BuildDashboard(state, StrategicManagementIds.FactionPlayer, StrategicManagementIds.LocationPlainsCity),
-            StrategicManagementIds.CorpsWolfPack);
-
-        AssertTrue(!wolfPack.CanCreate, "wolf pack should start unavailable");
-        AssertContains(wolfPack.DisabledReasons, StrategicFailureReasons.MissingSourcePermission, "wolf pack should explain missing beast source");
-        AssertContains(wolfPack.DisabledReasons, StrategicFailureReasons.MissingFacility, "wolf pack should explain missing beast pen");
-        AssertEqual("霜魂狼群", wolfPack.DisplayName, "muster template display name should come from corps definition");
-    }
-
-    internal static void StrategicManagementDashboardReflectsCommandMutations()
+    internal static void StrategicManagementDashboardReflectsFoundationCommandMutations()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
@@ -95,31 +87,38 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementCommandService commands = new(definitions, rules);
         StrategicManagementViewModelService viewModels = new(definitions, rules);
 
-        commands.OccupyLocation(state, StrategicManagementIds.LocationBeastDen, StrategicManagementIds.FactionPlayer);
-        commands.BuildFacility(state, StrategicManagementIds.LocationPlainsCity, StrategicManagementIds.FacilityBeastPen);
-        StrategicCommandResult unassign = commands.UnassignCorpsFromHero(state, StrategicManagementIds.HeroBeastTamer);
+        StrategicCommandResult build = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingTrainingGround,
+            StrategicManagementIds.RegionPlainsMilitary,
+            10,
+            0);
+        AssertTrue(build.Success, $"building training ground should succeed, got {build.FailureReason}");
+        StrategicCommandResult unassign = commands.UnassignCorpsFromHero(state, StrategicManagementIds.HeroCavalryCaptain);
         AssertTrue(unassign.Success, $"test setup unassignment should succeed, got {unassign.FailureReason}");
         StrategicCommandResult create = commands.CreateCorps(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.CorpsWolfPack);
-        commands.AssignCorpsToHero(state, StrategicManagementIds.HeroBeastTamer, create.CreatedEntityId);
+            StrategicManagementIds.CorpsCavalryLine);
+        AssertTrue(create.Success, $"creating cavalry corps should succeed, got {create.FailureReason}");
+        commands.AssignCorpsToHero(state, StrategicManagementIds.HeroCavalryCaptain, create.CreatedEntityId);
 
         StrategicManagementDashboardViewModel dashboard = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
             StrategicManagementIds.LocationPlainsCity);
 
-        AssertEqual(1, dashboard.SelectedCity.FacilitySlotsUsed, "built beast pen should consume one city slot");
-        AssertEqual(StrategicManagementIds.FacilityBeastPen, dashboard.SelectedCity.BuiltFacilities[0].FacilityDefinitionId, "built facility should be listed");
-        AssertTrue(FindMusterTemplate(dashboard, StrategicManagementIds.CorpsWolfPack).CanCreate, "wolf pack should be available after source and facility unlock");
+        AssertEqual(1, dashboard.SelectedCity.Buildings.Count, "built training ground should be listed");
+        AssertEqual(StrategicManagementIds.BuildingTrainingGround, dashboard.SelectedCity.Buildings[0].BuildingDefinitionId, "built building should expose definition id");
+        AssertEqual(280, dashboard.SelectedCity.CityForceCapacity, "training ground should increase city force capacity");
         StrategicCorpsInstanceViewModel corps = FindCorps(dashboard, create.CreatedEntityId);
-        AssertEqual("霜魂狼群", corps.DisplayName, "created corps should use definition display name");
+        AssertEqual("辉光龙骑", corps.DisplayName, "created corps should use definition display name");
         AssertEqual(StrategicCorpsInstanceStatus.AssignedToHero, corps.Status, "assigned corps status should be reflected");
-        StrategicHeroAssignmentViewModel hero = FindHero(dashboard, StrategicManagementIds.HeroBeastTamer);
+        StrategicHeroAssignmentViewModel hero = FindHero(dashboard, StrategicManagementIds.HeroCavalryCaptain);
         AssertEqual(create.CreatedEntityId, hero.AssignedCorpsInstanceId, "hero row should show assigned corps");
-        AssertEqual("霜魂狼群", hero.AssignedCorpsDisplayName, "hero row should show assigned corps display name");
-        AssertEqual(StrategicHeroCorpsAptitudeGrade.A, hero.AptitudeGrade, "hero row should show derived aptitude");
+        AssertEqual("辉光龙骑", hero.AssignedCorpsDisplayName, "hero row should show assigned corps display name");
+        AssertEqual(StrategicHeroCorpsAptitudeGrade.B, hero.AptitudeGrade, "hero row should show derived aptitude");
     }
 
     internal static void StrategicManagementDashboardSummarizesNonCityLocation()
@@ -149,36 +148,32 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual("", timberDashboard.SelectedCity.LocationId, "non-city location dashboard should not pretend to select a managed city");
         AssertEqual(500, FindResource(timberDashboard, StrategicManagementIds.ResourceMoney).Amount, "location dashboard should still show shared faction resources");
 
-        StrategicManagementDashboardViewModel beastDashboard = InvokeLocationDashboard(
+        StrategicManagementDashboardViewModel targetDashboard = InvokeLocationDashboard(
             viewModels,
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationBeastDen);
-        object beastLocation = GetRequiredProperty<object>(beastDashboard, "SelectedLocation");
-        AssertEqual(StrategicManagementIds.MapSiteBonefield, GetRequiredProperty<string>(beastLocation, "MapSiteId"), "beast den should expose the Bonefield map-site id");
-        AssertEqual(StrategicLocationKind.BeastMinorSite, GetRequiredProperty<StrategicLocationKind>(beastLocation, "Kind"), "beast den should stay a beast minor site");
-        AssertContains(
-            GetRequiredProperty<IReadOnlyCollection<string>>(beastLocation, "SourcePermissionTags"),
-            StrategicManagementIds.SourceTagBeast,
-            "beast den should expose beast source permission");
-        AssertEqual("野兽来源", GetRequiredProperty<string>(beastLocation, "SourcePermissionDisplayText"), "source permission text should expose player-readable source tags");
-        AssertEqual(StrategicManagementIds.FactionEnemy, GetRequiredProperty<string>(beastLocation, "OwnerFactionId"), "beast den should start enemy-held");
-        AssertEqual(StrategicLocationControlState.EnemyHeld, GetRequiredProperty<StrategicLocationControlState>(beastLocation, "ControlState"), "beast den should start enemy-held");
+            StrategicManagementIds.LocationBonefieldOutpost);
+        object targetLocation = GetRequiredProperty<object>(targetDashboard, "SelectedLocation");
+        AssertEqual(StrategicManagementIds.MapSiteBonefield, GetRequiredProperty<string>(targetLocation, "MapSiteId"), "foundation target should expose the Bonefield map-site id");
+        AssertEqual(StrategicLocationKind.Ruin, GetRequiredProperty<StrategicLocationKind>(targetLocation, "Kind"), "foundation target should be a generic ruin/outpost target, not a beast route");
+        AssertEqual("", GetRequiredProperty<string>(targetLocation, "SourcePermissionDisplayText"), "foundation target should not expose beast source permission text");
+        AssertEqual(StrategicManagementIds.FactionEnemy, GetRequiredProperty<string>(targetLocation, "OwnerFactionId"), "foundation target should start enemy-held");
+        AssertEqual(StrategicLocationControlState.EnemyHeld, GetRequiredProperty<StrategicLocationControlState>(targetLocation, "ControlState"), "foundation target should start enemy-held");
 
         StrategicCommandResult occupy = commands.OccupyLocation(
             state,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicManagementIds.FactionPlayer);
-        AssertTrue(occupy.Success, "occupying beast den should succeed before dashboard refresh");
+        AssertTrue(occupy.Success, "occupying foundation target should succeed before dashboard refresh");
 
-        StrategicManagementDashboardViewModel occupiedBeastDashboard = InvokeLocationDashboard(
+        StrategicManagementDashboardViewModel occupiedTargetDashboard = InvokeLocationDashboard(
             viewModels,
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationBeastDen);
-        object occupiedBeastLocation = GetRequiredProperty<object>(occupiedBeastDashboard, "SelectedLocation");
-        AssertEqual(StrategicManagementIds.FactionPlayer, GetRequiredProperty<string>(occupiedBeastLocation, "OwnerFactionId"), "location dashboard should reflect command-mutated owner");
-        AssertEqual(StrategicLocationControlState.PlayerHeld, GetRequiredProperty<StrategicLocationControlState>(occupiedBeastLocation, "ControlState"), "location dashboard should reflect command-mutated control");
+            StrategicManagementIds.LocationBonefieldOutpost);
+        object occupiedTargetLocation = GetRequiredProperty<object>(occupiedTargetDashboard, "SelectedLocation");
+        AssertEqual(StrategicManagementIds.FactionPlayer, GetRequiredProperty<string>(occupiedTargetLocation, "OwnerFactionId"), "location dashboard should reflect command-mutated owner");
+        AssertEqual(StrategicLocationControlState.PlayerHeld, GetRequiredProperty<StrategicLocationControlState>(occupiedTargetLocation, "ControlState"), "location dashboard should reflect command-mutated control");
 
         StrategicManagementRuntime.Reset();
         StrategicManagementDashboardViewModel runtimeDashboard = InvokeRuntimeLocationDashboard(
@@ -201,8 +196,8 @@ internal static partial class StrategicManagementRegressionCases
             GetRequiredProperty<IReadOnlyCollection<StrategicResourceAmount>>(timberDefinition, "ProductionPerWorldTimePulse");
         AssertEqual(
             12,
-            FindStrategicAmount(productionPerWorldTimePulse, StrategicManagementIds.ResourceBuildingMaterials),
-            "timber site should define first-slice building-materials production");
+            FindStrategicAmount(productionPerWorldTimePulse, StrategicManagementIds.ResourceWood),
+            "timber site should define foundation wood production");
 
         IReadOnlyList<StrategicResourceAmount> projected = InvokeLocationProduction(
             rules,
@@ -212,7 +207,7 @@ internal static partial class StrategicManagementRegressionCases
             2);
         AssertEqual(
             24,
-            FindStrategicAmount(projected, StrategicManagementIds.ResourceBuildingMaterials),
+            FindStrategicAmount(projected, StrategicManagementIds.ResourceWood),
             "rules should project timber production by requested elapsed world-map pulses");
 
         StrategicManagementDashboardViewModel dashboard = viewModels.BuildLocationDashboard(
@@ -221,18 +216,18 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationTimberSite);
         object location = GetRequiredProperty<object>(dashboard, "SelectedLocation");
         AssertEqual(
-            "建材 +12 / 大地图时间",
+            "木材 +12 / 大地图时间",
             GetRequiredProperty<string>(location, "ProductionDisplayText"),
             "location dashboard should expose production summary");
         IEnumerable<object> productionView = GetRequiredProperty<IEnumerable<object>>(location, "ProductionPerWorldTimePulse");
         AssertEqual(
             12,
-            FindReflectedAmount(productionView, StrategicManagementIds.ResourceBuildingMaterials),
+            FindReflectedAmount(productionView, StrategicManagementIds.ResourceWood),
             "location dashboard should expose production amounts as view models");
 
-        int beforeMaterials = state.GetResourceAmount(
+        int beforeWood = state.GetResourceAmount(
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.ResourceBuildingMaterials);
+            StrategicManagementIds.ResourceWood);
         StrategicCommandResult settle = InvokeSettleLocationProduction(
             commands,
             state,
@@ -241,8 +236,8 @@ internal static partial class StrategicManagementRegressionCases
             2);
         AssertTrue(settle.Success, $"settling player-held timber production should succeed, got {settle.FailureReason}");
         AssertEqual(
-            beforeMaterials + 24,
-            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials),
+            beforeWood + 24,
+            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
             "settlement should add production into faction-shared resources");
         AssertTrue(
             settle.Events.Any(item => item.Kind == "StrategicLocationProductionSettled"),
@@ -254,9 +249,9 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.FactionEnemy);
         AssertTrue(lose.Success, "losing timber site should succeed before rejection check");
 
-        int beforeRejectedMaterials = state.GetResourceAmount(
+        int beforeRejectedWood = state.GetResourceAmount(
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.ResourceBuildingMaterials);
+            StrategicManagementIds.ResourceWood);
         StrategicCommandResult rejected = InvokeSettleLocationProduction(
             commands,
             state,
@@ -266,8 +261,8 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(!rejected.Success, "player production settlement should fail after the resource site is enemy-held");
         AssertEqual(StrategicFailureReasons.FactionMismatch, rejected.FailureReason, "enemy-held production rejection should report faction mismatch");
         AssertEqual(
-            beforeRejectedMaterials,
-            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials),
+            beforeRejectedWood,
+            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
             "rejected settlement must not mutate resources");
     }
 
@@ -312,14 +307,35 @@ internal static partial class StrategicManagementRegressionCases
             "runtime should not keep AdvanceStrategicStep as a public compatibility wrapper");
     }
 
-    internal static void StrategicManagementSettlesElapsedWorldTimeAndControlledProduction()
+    internal static void StrategicManagementSettlesElapsedWorldTimeCityBuildingsAndReserveRecovery()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        int beforeMaterials = state.GetResourceAmount(
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCommandResult buildFarm = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingFarm,
+            StrategicManagementIds.RegionPlainsEconomy,
+            1,
+            1);
+        AssertTrue(buildFarm.Success, $"farm setup should succeed, got {buildFarm.FailureReason}");
+        StrategicCommandResult buildTraining = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingTrainingGround,
+            StrategicManagementIds.RegionPlainsMilitary,
+            10,
+            0);
+        AssertTrue(buildTraining.Success, $"training setup should succeed, got {buildTraining.FailureReason}");
+        city.ReserveForces = 10;
+        int beforeFood = state.GetResourceAmount(
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.ResourceBuildingMaterials);
+            StrategicManagementIds.ResourceFood);
+        int beforeWood = state.GetResourceAmount(
+            StrategicManagementIds.FactionPlayer,
+            StrategicManagementIds.ResourceWood);
 
         AssertEqual(0, GetElapsedWorldTimePulses(state), "player start should begin before elapsed world-map time has been settled");
 
@@ -332,15 +348,23 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(result.Success, $"settling elapsed world time should succeed, got {result.FailureReason}");
         AssertEqual(2, GetElapsedWorldTimePulses(state), "settlement should add requested pulses to durable world-map time");
         AssertEqual(
-            beforeMaterials + 24,
-            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials),
-            "controlled resource-site production should be settled for every elapsed pulse");
+            beforeFood + 36,
+            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood),
+            "farm income should be settled for every elapsed pulse");
+        AssertEqual(
+            beforeWood + 24,
+            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
+            "controlled resource-site production should still be settled for every elapsed pulse");
+        AssertEqual(34, city.ReserveForces, "training ground should recover reserve soldiers over elapsed world-map time");
         AssertTrue(
             result.Events.Any(item => item.Kind == "StrategicWorldTimeSettled"),
             "elapsed-time settlement should emit a command-level time event");
         AssertTrue(
-            result.Events.Any(item => item.Kind == "StrategicLocationProductionSettled"),
-            "global advancement should include production-settlement events for producing locations");
+            result.Events.Any(item => item.Kind == "StrategicCityProductionSettled"),
+            "global advancement should include city building production events");
+        AssertTrue(
+            result.Events.Any(item => item.Kind == "StrategicCityReserveRecovered"),
+            "global advancement should include reserve recovery events");
     }
 
     internal static void StrategicManagementElapsedWorldTimeSkipsEnemyHeldProduction()
@@ -354,9 +378,9 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationTimberSite,
             StrategicManagementIds.FactionEnemy);
         AssertTrue(lose.Success, "losing timber site should succeed before advancement");
-        int beforeMaterials = state.GetResourceAmount(
+        int beforeWood = state.GetResourceAmount(
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.ResourceBuildingMaterials);
+            StrategicManagementIds.ResourceWood);
 
         StrategicCommandResult result = InvokeSettleElapsedWorldTime(
             commands,
@@ -367,8 +391,8 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(result.Success, $"settling time without controlled production should still succeed, got {result.FailureReason}");
         AssertEqual(1, GetElapsedWorldTimePulses(state), "world-map time should advance even when no controlled production is available");
         AssertEqual(
-            beforeMaterials,
-            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials),
+            beforeWood,
+            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
             "enemy-held resource sites must not produce for the player");
         AssertTrue(
             !result.Events.Any(item => item.Kind == "StrategicLocationProductionSettled"),
@@ -381,9 +405,9 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
         int beforePulses = GetElapsedWorldTimePulses(state);
-        int beforeMaterials = state.GetResourceAmount(
+        int beforeWood = state.GetResourceAmount(
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.ResourceBuildingMaterials);
+            StrategicManagementIds.ResourceWood);
 
         StrategicCommandResult result = InvokeSettleElapsedWorldTime(
             commands,
@@ -395,8 +419,8 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual("invalid_elapsed_world_time_pulses", result.FailureReason, "invalid elapsed pulse count should be explicit");
         AssertEqual(beforePulses, GetElapsedWorldTimePulses(state), "failed settlement must not mutate strategic time");
         AssertEqual(
-            beforeMaterials,
-            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials),
+            beforeWood,
+            state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
             "failed settlement must not mutate resources");
     }
 
@@ -405,9 +429,9 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementRuntime.Reset();
         InvokeRuntimePauseWorldTimeForCityManagement();
         int beforePulses = GetElapsedWorldTimePulses(StrategicManagementRuntime.State);
-        int beforeMaterials = StrategicManagementRuntime.State.GetResourceAmount(
+        int beforeWood = StrategicManagementRuntime.State.GetResourceAmount(
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.ResourceBuildingMaterials);
+            StrategicManagementIds.ResourceWood);
 
         StrategicCommandResult result = InvokeRuntimeSettleElapsedWorldTime(1);
 
@@ -415,8 +439,8 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual("world_time_paused", result.FailureReason, "paused settlement should report the pause boundary");
         AssertEqual(beforePulses, GetElapsedWorldTimePulses(StrategicManagementRuntime.State), "paused settlement must not mutate retained strategic time");
         AssertEqual(
-            beforeMaterials,
-            StrategicManagementRuntime.State.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials),
+            beforeWood,
+            StrategicManagementRuntime.State.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
             "paused settlement must not mutate retained resource production");
     }
 
@@ -426,17 +450,17 @@ internal static partial class StrategicManagementRegressionCases
         InvokeRuntimePauseWorldTimeForCityManagement();
         InvokeRuntimeResumeWorldMapTime();
         int beforePulses = GetElapsedWorldTimePulses(StrategicManagementRuntime.State);
-        int beforeMaterials = StrategicManagementRuntime.State.GetResourceAmount(
+        int beforeWood = StrategicManagementRuntime.State.GetResourceAmount(
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.ResourceBuildingMaterials);
+            StrategicManagementIds.ResourceWood);
 
         StrategicCommandResult result = InvokeRuntimeSettleElapsedWorldTime(1);
 
         AssertTrue(result.Success, $"runtime elapsed-time settlement should succeed after world map resumes, got {result.FailureReason}");
         AssertEqual(beforePulses + 1, GetElapsedWorldTimePulses(StrategicManagementRuntime.State), "runtime helper should mutate retained world-map time");
         AssertEqual(
-            beforeMaterials + 12,
-            StrategicManagementRuntime.State.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceBuildingMaterials),
+            beforeWood + 12,
+            StrategicManagementRuntime.State.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
             "runtime helper should settle retained resource-site production while world time runs");
     }
 
@@ -444,18 +468,21 @@ internal static partial class StrategicManagementRegressionCases
     {
         StrategicManagementRuntime.Reset();
 
-        StrategicCommandResult build = StrategicManagementRuntime.Commands.BuildFacility(
+        StrategicCommandResult build = StrategicManagementRuntime.Commands.BuildCityBuilding(
             StrategicManagementRuntime.State,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.FacilityTrainingGround);
+            StrategicManagementIds.BuildingTrainingGround,
+            StrategicManagementIds.RegionPlainsMilitary,
+            10,
+            0);
         AssertTrue(build.Success, $"runtime command should build training ground, got {build.FailureReason}");
 
         StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
             StrategicManagementIds.FactionPlayer,
             StrategicManagementIds.LocationPlainsCity);
 
-        AssertEqual(1, dashboard.SelectedCity.FacilitySlotsUsed, "runtime dashboard should reflect command-mutated state");
-        AssertEqual(StrategicManagementIds.FacilityTrainingGround, dashboard.SelectedCity.BuiltFacilities[0].FacilityDefinitionId, "runtime dashboard should show built training ground");
+        AssertEqual(1, dashboard.SelectedCity.Buildings.Count, "runtime dashboard should reflect command-mutated state");
+        AssertEqual(StrategicManagementIds.BuildingTrainingGround, dashboard.SelectedCity.Buildings[0].BuildingDefinitionId, "runtime dashboard should show built training ground");
     }
 
     internal static void StrategicManagementApplicationHasNoLegacyWorldStateDependency()

@@ -12,5 +12,7 @@ public enum SemanticMapMarkerType
     RangedPoint = 7,
     DefendPoint = 8,
     EventSpawn = 9,
-    ObjectiveZone = 10
+    ObjectiveZone = 10,
+    Bridge = 11,
+    ConstructionRegion = 12
 }

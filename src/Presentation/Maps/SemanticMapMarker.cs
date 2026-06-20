@@ -45,6 +45,12 @@ public abstract partial class SemanticMapMarker : Node2D, ISemanticMapMarkerSour
 
     protected virtual string ResolvedObjectiveRole => "";
 
+    protected virtual SemanticBridgeKind ResolvedBridgeKind => SemanticBridgeKind.RiverBridge;
+
+    protected virtual string[] ResolvedConnectionIds => System.Array.Empty<string>();
+
+    protected virtual string[] ResolvedAllowedCategoryIds => System.Array.Empty<string>();
+
     protected virtual string ResolvedFactionId => "";
 
     protected virtual int ResolvedPriority => 0;
@@ -114,6 +120,7 @@ public abstract partial class SemanticMapMarker : Node2D, ISemanticMapMarkerSour
             MarkerType = ResolvedMarkerType,
             DeploymentSide = ResolvedDeploymentSide,
             ObjectiveRole = ResolvedObjectiveRole ?? "",
+            BridgeKind = ResolvedBridgeKind,
             AnchorCell = anchorCell,
             CellHeight = CellHeight,
             Width = ResolveSafeSize(Width),
@@ -125,6 +132,12 @@ public abstract partial class SemanticMapMarker : Node2D, ISemanticMapMarkerSour
         data.Tags.AddRange((Tags ?? System.Array.Empty<string>())
             .Where(tag => !string.IsNullOrWhiteSpace(tag))
             .Select(tag => tag.Trim()));
+        data.ConnectionIds.AddRange((ResolvedConnectionIds ?? System.Array.Empty<string>())
+            .Where(connectionId => !string.IsNullOrWhiteSpace(connectionId))
+            .Select(connectionId => connectionId.Trim()));
+        data.AllowedCategoryIds.AddRange((ResolvedAllowedCategoryIds ?? System.Array.Empty<string>())
+            .Where(categoryId => !string.IsNullOrWhiteSpace(categoryId))
+            .Select(categoryId => categoryId.Trim()));
         return true;
     }
 

@@ -74,6 +74,42 @@ internal static void FirstSliceExpeditionDraftKeepsHeroCompanySelectionsIndepend
         "large-map expedition formation must not use legacy garrison expedition creation or default-corps injection");
 }
 
+internal static void StrategicWorldSelectionContextClearsExpeditionDraft()
+{
+    string rootSource = ReadStrategicWorldRootSource();
+    string selectSiteBody = ExtractMethodBody(rootSource, "private void SelectSite(string siteId)");
+    string clearDetailBody = ExtractMethodBody(rootSource, "private void ClearSelectedWorldDetail(");
+    string cancelDraftBody = ExtractMethodBody(rootSource, "private void CancelExpeditionDraft()");
+
+    AssertTrue(
+        rootSource.Contains("private void ClearExpeditionDraftSelectionContext(", StringComparison.Ordinal),
+        "strategic world should centralize transient expedition draft cleanup for ordinary map selection changes");
+
+    string cleanupBody = ExtractMethodBody(rootSource, "private void ClearExpeditionDraftSelectionContext(");
+    foreach (string required in new[]
+    {
+        "_isExpeditionDrafting = false",
+        "_isExpeditionTargeting = false",
+        "_expeditionSourceSiteId = \"\"",
+        "_expeditionHeroIds.Clear()"
+    })
+    {
+        AssertTrue(
+            cleanupBody.Contains(required, StringComparison.Ordinal),
+            $"expedition draft cleanup should clear transient UI state fragment={required}");
+    }
+
+    AssertTrue(
+        selectSiteBody.Contains("ClearExpeditionDraftSelectionContext(", StringComparison.Ordinal),
+        "clicking a site during a draft should return to ordinary site selection instead of keeping the draft UI active");
+    AssertTrue(
+        clearDetailBody.Contains("ClearExpeditionDraftSelectionContext(", StringComparison.Ordinal),
+        "clicking empty map space or selecting an army should clear the draft before hiding the detail panel");
+    AssertTrue(
+        cancelDraftBody.Contains("ClearExpeditionDraftSelectionContext(", StringComparison.Ordinal),
+        "the explicit cancel button should use the same expedition draft cleanup path");
+}
+
 private static bool CreateExpedition(
     WorldExpeditionService service,
     StrategicWorldState state,

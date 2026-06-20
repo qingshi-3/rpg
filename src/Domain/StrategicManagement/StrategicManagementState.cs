@@ -37,6 +37,7 @@ public sealed class StrategicManagementState
     public int NextCorpsSerial { get; set; } = 1;
     public int NextExpeditionSerial { get; set; } = 1;
     public int NextBattleFeedbackSerial { get; set; } = 1;
+    public int NextBuildingSerial { get; set; } = 1;
 
     public int GetResourceAmount(string factionId, string resourceId)
     {
@@ -101,6 +102,13 @@ public sealed class StrategicManagementState
     {
         string id = $"battle_feedback_{NextBattleFeedbackSerial:0000}";
         NextBattleFeedbackSerial++;
+        return id;
+    }
+
+    public string AllocateBuildingInstanceId()
+    {
+        string id = $"building_{NextBuildingSerial:0000}";
+        NextBuildingSerial++;
         return id;
     }
 

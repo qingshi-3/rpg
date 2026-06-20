@@ -4,44 +4,76 @@ using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
+
 internal static partial class StrategicManagementRegressionCases
 {
-    internal static void StrategicManagementFacilityDefinitionsLoadFromConfig()
+    internal static void StrategicManagementFoundationBuildingDefinitionsLoadFromConfig()
     {
         string root = ProjectRoot();
-        string configPath = Path.Combine(root, "config", "strategic_management", "first_slice_facilities.json");
+        string configPath = Path.Combine(root, "config", "strategic_management", "first_slice_buildings.json");
         string definitionsPath = Path.Combine(root, "src", "Definitions", "StrategicManagement", "FirstStrategicManagementDefinitions.cs");
-        string loaderPath = Path.Combine(root, "src", "Application", "Config", "StrategicManagementFacilityDefinitionConfigLoader.cs");
+        string loaderPath = Path.Combine(root, "src", "Application", "Config", "StrategicManagementBuildingDefinitionConfigLoader.cs");
 
-        AssertTrue(File.Exists(configPath), "first-slice strategic facility definitions should live under config/strategic_management");
+        AssertTrue(File.Exists(configPath), "first-slice strategic building definitions should live under config/strategic_management");
         string configText = File.ReadAllText(configPath);
         string definitionsSource = File.ReadAllText(definitionsPath);
         string loaderSource = File.ReadAllText(loaderPath);
 
         AssertTrue(
-            configText.Contains("\"facilityDefinitionId\": \"facility_training_ground\"", StringComparison.Ordinal) &&
-            configText.Contains("\"facilityDefinitionId\": \"facility_beast_pen\"", StringComparison.Ordinal) &&
-            configText.Contains("\"providedTags\"", StringComparison.Ordinal) &&
+            configText.Contains("\"buildingDefinitionId\": \"building_training_ground\"", StringComparison.Ordinal) &&
+            configText.Contains("\"buildingDefinitionId\": \"building_farm\"", StringComparison.Ordinal) &&
+            configText.Contains("\"categoryId\"", StringComparison.Ordinal) &&
+            configText.Contains("\"iconPath\"", StringComparison.Ordinal) &&
+            configText.Contains("\"footprintWidth\"", StringComparison.Ordinal) &&
             configText.Contains("\"buildCost\"", StringComparison.Ordinal),
-            "facility config should carry ids, provided tags, and build costs");
+            "building config should carry ids, icons, categories, footprints, and build costs");
         AssertTrue(
-            definitionsSource.Contains("StrategicManagementFacilityDefinitionConfigLoader.LoadDefaultFacilities", StringComparison.Ordinal) &&
+            definitionsSource.Contains("StrategicManagementBuildingDefinitionConfigLoader.LoadDefaultBuildings", StringComparison.Ordinal) &&
             !definitionsSource.Contains("new StrategicFacilityDefinition", StringComparison.Ordinal),
-            "first-slice strategic definitions should use the facility config loader instead of inline facility content literals");
+            "first-slice strategic definitions should use the building config loader instead of inline facility content literals");
         AssertTrue(
             loaderSource.Contains("ProjectConfigFileReader.ReadAllText", StringComparison.Ordinal) &&
             loaderSource.Contains("ProjectJson.Options", StringComparison.Ordinal) &&
-            loaderSource.Contains("Duplicate strategic management facility id", StringComparison.Ordinal),
-            "facility config loader should use the project config reader and fail explicitly on invalid content");
+            loaderSource.Contains("Duplicate strategic management building id", StringComparison.Ordinal),
+            "building config loader should use the project config reader and fail explicitly on invalid content");
+        AssertTrue(
+            typeof(StrategicBuildingDefinition).GetProperty("IconPath") != null &&
+            typeof(StrategicBuildingOptionViewModel).GetProperty("IconPath") != null,
+            "building definitions and dashboard options should carry a Presentation icon path for the RTS-style build picker");
 
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicFacilityDefinition trainingGround = definitions.Facilities[StrategicManagementIds.FacilityTrainingGround];
-        StrategicFacilityDefinition beastPen = definitions.Facilities[StrategicManagementIds.FacilityBeastPen];
+        StrategicBuildingDefinition trainingGround = definitions.Buildings[StrategicManagementIds.BuildingTrainingGround];
+        StrategicBuildingDefinition farm = definitions.Buildings[StrategicManagementIds.BuildingFarm];
+        string trainingIconPath = (string)(typeof(StrategicBuildingDefinition).GetProperty("IconPath")?.GetValue(trainingGround) ?? "");
+        string farmIconPath = (string)(typeof(StrategicBuildingDefinition).GetProperty("IconPath")?.GetValue(farm) ?? "");
         AssertEqual("训练场", trainingGround.DisplayName, "training ground display name should come from config");
-        AssertContains(trainingGround.ProvidedTags, StrategicManagementIds.FacilityTagCommonTraining, "training ground should provide common training");
-        AssertEqual(40, trainingGround.BuildCost.First(cost => cost.ResourceId == StrategicManagementIds.ResourceBuildingMaterials).Amount, "training ground material cost should come from config");
-        AssertEqual("兽栏", beastPen.DisplayName, "beast pen display name should come from config");
-        AssertContains(beastPen.ProvidedTags, StrategicManagementIds.FacilityTagBeastPen, "beast pen should provide beast pen tag");
+        AssertEqual(StrategicManagementIds.BuildingCategoryMilitary, trainingGround.CategoryId, "training ground should be military");
+        AssertEqual(60, trainingGround.CityForceCapacityBonus, "training ground should increase city force capacity");
+        AssertEqual(12, trainingGround.ReserveRecoveryPerWorldTimePulse, "training ground should recover reserve soldiers over world-map time");
+        AssertTrue(
+            trainingIconPath == "res://assets/textures/world/Buildings/Wood/Barracks.png" &&
+            farmIconPath.StartsWith("res://assets/textures/world/Buildings/Wood/", StringComparison.Ordinal),
+            "first-slice building icons should use existing authored building textures");
+        AssertEqual(StrategicManagementIds.BuildingCategoryEconomy, farm.CategoryId, "farm should be an economy building");
+        AssertEqual(18, farm.ProductionPerWorldTimePulse.First(cost => cost.ResourceId == StrategicManagementIds.ResourceFood).Amount, "farm food income should come from config");
+    }
+
+    internal static void StrategicManagementFoundationResourcesReplaceObsoleteFirstLoopResources()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+
+        AssertTrue(definitions.Resources.ContainsKey(StrategicManagementIds.ResourceMoney), "foundation resources should include money");
+        AssertTrue(definitions.Resources.ContainsKey(StrategicManagementIds.ResourceFood), "foundation resources should include food");
+        AssertTrue(definitions.Resources.ContainsKey(StrategicManagementIds.ResourceWood), "foundation resources should include wood");
+        AssertTrue(definitions.Resources.ContainsKey(StrategicManagementIds.ResourceOre), "foundation resources should include ore");
+        AssertTrue(!definitions.Resources.ContainsKey("resource_building_materials"), "foundation resources should not expose old building materials");
+        AssertTrue(!definitions.Resources.ContainsKey("resource_beast_materials"), "foundation resources should not expose beast materials");
+        AssertTrue(
+            typeof(StrategicManagementDefinitionSet).GetProperty("Facilities") == null,
+            "Strategic Management definitions should not keep facilities as city-development authority");
+        AssertTrue(
+            typeof(StrategicLocationDefinition).GetProperty("FacilitySlotCount") == null,
+            "location definitions should not keep facility slots as city-development authority");
     }
 
     internal static void StrategicManagementStateInitializesWithoutLegacyWorldState()
@@ -51,8 +83,30 @@ internal static partial class StrategicManagementRegressionCases
 
         AssertTrue(state.FactionResources.ContainsKey(StrategicManagementIds.FactionPlayer), "player faction resources should be initialized");
         AssertTrue(state.Cities.ContainsKey(StrategicManagementIds.LocationPlainsCity), "first core city should be initialized");
-        AssertTrue(state.Heroes.ContainsKey(StrategicManagementIds.HeroBeastTamer), "first strategic hero should be initialized");
+        AssertTrue(state.Heroes.ContainsKey(StrategicManagementIds.HeroCavalryCaptain), "first strategic heroes should be initialized");
+        AssertTrue(
+            typeof(StrategicCityState).GetProperty("Facilities") == null &&
+            typeof(StrategicCityState).GetProperty("FacilitySlotCount") == null,
+            "city state should not keep old facility-slot authority");
         AssertNoLegacyWorldReferences(typeof(StrategicManagementState));
+    }
+
+    internal static void FirstCityInitializesConstructionRegionsReserveAndForceCapacity()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+
+        AssertTrue(city.ConstructionRegionIds.Count >= 3, "first city should expose authored construction regions");
+        AssertContains(city.ConstructionRegionIds, StrategicManagementIds.RegionPlainsEconomy, "first city should include an economy construction region");
+        AssertContains(city.ConstructionRegionIds, StrategicManagementIds.RegionPlainsMilitary, "first city should include a military construction region");
+        AssertEqual(220, city.CityForceCapacity, "first city should start with the accepted foundation force capacity");
+        AssertEqual(80, city.ReserveForces, "first city should start with prepared reserve soldiers");
+        AssertEqual(0, city.Buildings.Count, "first city should start with no placed city buildings");
+
+        StrategicManagementRules rules = new(definitions);
+        AssertEqual(100, rules.GetActiveForces(state, city.LocationId), "starting active forces should be derived from the three starting corps");
+        AssertEqual(40, rules.GetRemainingCityForceCapacity(state, city.LocationId), "remaining capacity should be capacity minus active plus reserve");
     }
 
     internal static void FirstPlayableStartsWithThreeDispatchableHeroCompanies()
@@ -81,9 +135,9 @@ internal static partial class StrategicManagementRegressionCases
             "archer captain should start with the archer corps company");
         AssertTrue(
             dashboard.SelectedCity.HeroCompanies.Any(company =>
-                company.HeroId == StrategicManagementIds.HeroBeastTamer &&
+                company.HeroId == StrategicManagementIds.HeroCavalryCaptain &&
                 company.CorpsDefinitionId == StrategicManagementIds.CorpsCavalryLine),
-            "beast tamer should start with the cavalry-style assault company");
+            "cavalry captain should start with the cavalry company");
     }
 
     internal static void StrategicManagementResolvesMapSiteIdsWithoutSilentCityFallback()
@@ -110,12 +164,12 @@ internal static partial class StrategicManagementRegressionCases
             resolver.TryResolveLocationId(StrategicManagementIds.MapSiteBonefield, out string bonefieldLocationId),
             "bonefield map site should resolve to a strategic location");
         AssertEqual(
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             bonefieldLocationId,
-            "bonefield should map to the first enemy beast-source target");
+            "bonefield should map to the first hostile foundation target");
         AssertTrue(
             !resolver.TryResolveCityId(StrategicManagementIds.MapSiteBonefield, out string bonefieldCityId),
-            "non-city beast-source sites must not resolve as managed cities");
+            "non-city hostile targets must not resolve as managed cities");
         AssertEqual("", bonefieldCityId, "non-city city mapping output should stay empty");
 
         AssertTrue(
@@ -166,7 +220,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = commands.CreateExpedition(
             state,
             StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBeastDen,
+            StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
 

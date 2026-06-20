@@ -1,4 +1,4 @@
-[gd_scene load_steps=122 format=4 uid="uid://dfxnneblk65na"]
+[gd_scene load_steps=123 format=4 uid="uid://dfxnneblk65na"]
 
 [ext_resource type="Script" uid="uid://dfevlaghvwjr5" path="res://src/Presentation/Battle/BattleMapView.cs" id="1_battle_map_view"]
 [ext_resource type="Script" uid="uid://criypp47bmrsr" path="res://src/Presentation/Battle/BattleMapConnectionConfig.cs" id="1_sdcl8"]
@@ -14,6 +14,7 @@
 [ext_resource type="Texture2D" uid="uid://fl5cdm4q4th8" path="res://assets/textures/tiles/亡灵_undead-tileset/Objects_animated2.png" id="11_qfl8r"]
 [ext_resource type="PackedScene" uid="uid://d0gbsg4pyx4rq" path="res://scenes/maps/markers/BuildingSlotMapMarker.tscn" id="12_3h8sc"]
 [ext_resource type="PackedScene" uid="uid://bmx3joktj2w6h" path="res://scenes/maps/markers/DeploymentZoneMapMarker.tscn" id="13_b4y6s"]
+[ext_resource type="PackedScene" uid="uid://bsikla7rk0r6s" path="res://scenes/maps/markers/ConstructionRegionMapMarker.tscn" id="14_construction_marker"]
 
 [sub_resource type="Resource" id="BattleMapConnectionPoint_north_low_l"]
 script = ExtResource("3_pkr1b")
@@ -2922,6 +2923,26 @@ y_sort_enabled = true
 
 [node name="SemanticMarkers" type="Node2D" parent="."]
 y_sort_enabled = true
+
+[node name="strategic_region_plains_economy" parent="SemanticMarkers" instance=ExtResource("14_construction_marker")]
+MarkerId = "region_plains_economy"
+Width = 8
+Height = 6
+AllowedCategoryIds = Array[String](["building_category_economy"])
+
+[node name="strategic_region_plains_military" parent="SemanticMarkers" instance=ExtResource("14_construction_marker")]
+position = Vector2(320, 0)
+MarkerId = "region_plains_military"
+Width = 7
+Height = 5
+AllowedCategoryIds = Array[String](["building_category_military", "building_category_defense", "building_category_support"])
+
+[node name="strategic_region_plains_civic" parent="SemanticMarkers" instance=ExtResource("14_construction_marker")]
+position = Vector2(0, 256)
+MarkerId = "region_plains_civic"
+Width = 6
+Height = 4
+AllowedCategoryIds = Array[String](["building_category_hero", "building_category_support", "building_category_special"])
 
 [node name="mine_slot_01" parent="SemanticMarkers" instance=ExtResource("12_3h8sc")]
 position = Vector2(80, 288)
