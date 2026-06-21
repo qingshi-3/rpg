@@ -15,10 +15,6 @@ public static class StrategicWorldIds
     public const string ResourceEconomy = "economy";
     public const string ResourceStone = "stone";
 
-    public const string FacilityBarracks = "barracks";
-    public const string FacilityMine = "mine";
-    public const string FacilityDefenseTower = "defense_tower";
-
     public const string SitePlayerCamp = "player_camp";
     public const string SiteBonefield = "bonefield";
     public const string SiteGraveyard = "graveyard";
@@ -49,8 +45,6 @@ public static class StrategicWorldIds
     public const string OpportunityLostCaravan = "lost_caravan";
     public const string OpportunityLooseStoneVein = "loose_stone_vein";
 
-    public const string ActionBuildMine = "build_mine";
-    public const string ActionBuildDefenseTower = "build_defense_tower";
     public const string ActionTrainMilitia = "train_militia";
     public const string ActionWaitTick = "wait_tick";
 }

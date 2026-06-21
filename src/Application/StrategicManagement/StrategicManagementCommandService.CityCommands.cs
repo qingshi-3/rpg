@@ -40,7 +40,6 @@ public sealed partial class StrategicManagementCommandService
             Level = 1,
             IsConstructed = true
         });
-        city.CityForceCapacity += System.Math.Max(0, building.CityForceCapacityBonus);
 
         StrategicCommandResult result = StrategicCommandResult.Ok(city.LocationId, instanceId);
         result.CreatedEntityId = instanceId;

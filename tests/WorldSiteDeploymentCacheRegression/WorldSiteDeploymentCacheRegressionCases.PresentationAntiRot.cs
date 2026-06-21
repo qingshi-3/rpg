@@ -513,7 +513,7 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
         "strategic dashboard command callbacks must not route through legacy world action authority");
 }
 
-internal static void WorldSiteRootShowsStrategicManagementPanelWhenEnteringMappedSite()
+internal static void WorldSiteRootShowsStrategicManagementPanelOnlyForPlayerCityManagement()
 {
     string siteRootDir = Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites");
     string rootSource = File.ReadAllText(Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs"));
@@ -522,26 +522,27 @@ internal static void WorldSiteRootShowsStrategicManagementPanelWhenEnteringMappe
     AssertTrue(
         rootSource.Contains("private bool ShouldShowSitePeacetimePanel(", StringComparison.Ordinal) &&
         visibilityBody.Contains("ShouldShowSitePeacetimePanel()", StringComparison.Ordinal),
-        "site peacetime panel visibility should be delegated to a named helper that can include Strategic Management mapped-site entry");
+        "site peacetime panel visibility should be delegated to a named helper that owns the player-city management gate");
 
     string helperBody = ExtractMethodBody(rootSource, "private bool ShouldShowSitePeacetimePanel(");
     foreach (string required in new[]
     {
         "_siteHudRoot?.Visible == true",
-        "TryResolveStrategicManagementLocationId(_siteHudSiteId, out _)",
-        "_battleRuntimeCommandPauseActive",
-        "_selectedFacilitySlotId"
+        "_isBattlePreparationActive",
+        "_battleRuntimeEnabled",
+        "CanOpenSiteDetail(ResolveSiteState(_siteHudSiteId))",
+        "TryResolveStrategicManagementCityId(_siteHudSiteId, out _)"
     })
     {
         AssertTrue(
             helperBody.Contains(required, StringComparison.Ordinal),
-            $"site peacetime panel should show for mapped strategic locations while preserving pause and legacy slot compatibility fragment={required}");
+            $"site peacetime panel should show only for player-owned city management fragment={required}");
     }
-
     AssertTrue(
-        !visibilityBody.Contains("_battleRuntimeCommandPauseActive ||", StringComparison.Ordinal) ||
-        visibilityBody.Contains("TryResolveStrategicManagementLocationId(_siteHudSiteId, out _)", StringComparison.Ordinal),
-        "site peacetime panel visibility must not depend only on battle pause or selected legacy facility slot");
+        !helperBody.Contains("_selectedFacilitySlotId", StringComparison.Ordinal) &&
+        !helperBody.Contains("_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
+        !helperBody.Contains("TryResolveStrategicManagementLocationId(_siteHudSiteId, out _)", StringComparison.Ordinal),
+        "site peacetime panel visibility must not depend on retired slots, battle pause, or generic strategic-location mapping");
 }
 
 internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
@@ -660,15 +661,15 @@ internal static void WorldSiteBuildPickerUsesIconCardsAndMapPlacement()
     string factorySource = File.ReadAllText(factoryPath);
     string siteHudSource = File.ReadAllText(siteHudPath);
     string rootSource = ReadWorldSiteRootSource();
-    string buildListBlock = ExtractSceneNodeBlock(scene, "[node name=\"SiteFacilityBuildList\"");
+    string buildListBlock = ExtractSceneNodeBlock(scene, "[node name=\"SiteBuildingOptionGrid\"");
 
     AssertTrue(
         buildListBlock.Contains("type=\"GridContainer\"", StringComparison.Ordinal) &&
         buildListBlock.Contains("columns = 4", StringComparison.Ordinal),
         "site-management build picker should be a compact inventory-style GridContainer, not a long text-button VBox list");
     AssertTrue(
-        nodeRefsSource.Contains("internal GridContainer SiteFacilityBuildList", StringComparison.Ordinal) &&
-        nodeRefsSource.Contains("Get<GridContainer>(root, \"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/SiteFacilityBuildList\"", StringComparison.Ordinal),
+        nodeRefsSource.Contains("internal GridContainer SiteBuildingOptionGrid", StringComparison.Ordinal) &&
+        nodeRefsSource.Contains("Get<GridContainer>(root, \"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/SiteBuildingOptionGrid\"", StringComparison.Ordinal),
         "world-site HUD node refs should bind the build picker as GridContainer");
 
     AssertTrue(
@@ -717,9 +718,8 @@ internal static void WorldSiteBuildPickerUsesIconCardsAndMapPlacement()
     string inputBody = ExtractMethodBody(rootSource, "public override void _Input(InputEvent @event)");
     AssertTrue(
         inputBody.Contains("TryHandleStrategicBuildingPlacementInput(@event)", StringComparison.Ordinal) &&
-        inputBody.IndexOf("TryHandleStrategicBuildingPlacementInput(@event)", StringComparison.Ordinal) <
-        inputBody.IndexOf("TryHandleFacilitySlotInput(@event)", StringComparison.Ordinal),
-        "selected strategic building placement should consume map clicks before legacy facility-slot compatibility input");
+        !inputBody.Contains("TryHandleFacilitySlotInput(@event)", StringComparison.Ordinal),
+        "selected strategic building placement should consume map clicks without legacy facility-slot compatibility input");
 
     string selectBody = ExtractMethodBody(siteHudSource, "private void OnStrategicBuildBuildingSelected(");
     AssertTrue(
@@ -779,9 +779,19 @@ internal static void WorldSiteStrategicBuildingPlacementUsesMarkerBackedPreview(
     AssertTrue(
         previewSource.Contains("StrategicBuildingPlacementPreview : Node2D", StringComparison.Ordinal) &&
         previewSource.Contains("SetPreview(") &&
-        previewSource.Contains("BuildableFill", StringComparison.Ordinal) &&
-        previewSource.Contains("BlockedFill", StringComparison.Ordinal),
-        "placement preview should be a viewport Node2D that renders buildable and blocked treatments");
+        previewSource.Contains("Texture2D", StringComparison.Ordinal) &&
+        previewSource.Contains("DrawTextureRect", StringComparison.Ordinal),
+        "placement preview should be a viewport Node2D that renders the selected building texture");
+    AssertTrue(
+        !previewSource.Contains("DrawColoredPolygon", StringComparison.Ordinal) &&
+        !previewSource.Contains("DrawPolyline", StringComparison.Ordinal) &&
+        !previewSource.Contains("BuildableFill", StringComparison.Ordinal) &&
+        !previewSource.Contains("BlockedFill", StringComparison.Ordinal),
+        "placement preview should not draw the old n*m footprint grid over the selected building texture");
+    AssertTrue(
+        placementSource.Contains("GD.Load<Texture2D>(building.IconPath)", StringComparison.Ordinal) &&
+        placementSource.Contains("SetStrategicBuildingPlacementPreview(footprintCells, buildable, previewTexture)", StringComparison.Ordinal),
+        "strategic building placement should pass the selected building texture into the mouse-follow preview");
     AssertTrue(
         rootSource.Contains("_strategicBuildingPlacementPreview", StringComparison.Ordinal) &&
         scene.Contains("StrategicBuildingPlacementPreview.cs", StringComparison.Ordinal) &&

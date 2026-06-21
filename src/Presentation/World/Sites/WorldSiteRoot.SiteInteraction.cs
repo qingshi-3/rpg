@@ -21,66 +21,9 @@ namespace Rpg.Presentation.World.Sites;
 
 public partial class WorldSiteRoot
 {
-    private void OnFacilitySlotEntityPressed(string slotId)
-    {
-        WorldSiteState site = ResolveSiteState(_siteHudSiteId);
-        WorldSiteDefinition definition = ResolveSiteDefinition(_siteHudSiteId);
-        FacilitySlotDefinition slot = definition?.FacilitySlots.FirstOrDefault(item => item.SlotId == slotId);
-        if (site == null || slot == null)
-        {
-            StrategicWorldRuntime.LastNotice = "建筑点状态已失效。";
-            RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
-            return;
-        }
-
-        _selectedPlacementId = "";
-        _selectedFacilitySlotId = slot.SlotId;
-
-        if (_siteFacilitySlotEntities.TryGetValue(slot.SlotId, out WorldFacilitySlotEntity slotEntity) &&
-            slotEntity.HasConfigurationError)
-        {
-            string notice = $"{slot.DisplayName}配置错误：{slotEntity.ConfigurationError}";
-            RefreshSiteManagementUi(notice);
-            GameLog.Warn(nameof(WorldSiteRoot), $"Facility slot selection blocked by configuration site={site.SiteId} slot={slot.SlotId} reason={slotEntity.ConfigurationError}");
-            GetViewport().SetInputAsHandled();
-            return;
-        }
-
-        FacilityInstance existingFacility = ResolveFacilityInSlot(site, slot.SlotId);
-        if (existingFacility != null)
-        {
-            StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-            string facilityName = queries.GetFacility(existingFacility.FacilityId)?.DisplayName ?? existingFacility.FacilityId;
-            string notice = $"{slot.DisplayName}已有{facilityName}，状态：{GetFacilityStateLabel(existingFacility.State)}。";
-            RefreshSiteManagementUi(notice);
-            GameLog.Info(nameof(WorldSiteRoot), $"Facility slot selected site={site.SiteId} slot={slot.SlotId} facility={existingFacility.FacilityId} state={existingFacility.State}");
-            GetViewport().SetInputAsHandled();
-            return;
-        }
-
-        IReadOnlyList<WorldActionViewModel> buildActions = ResolveBuildActionsForSlot(site, slot);
-        if (buildActions.Count == 0)
-        {
-            string notice = $"{slot.DisplayName}暂时没有可建建筑。";
-            RefreshSiteManagementUi(notice);
-            GameLog.Info(nameof(WorldSiteRoot), $"Facility slot selected without action site={site.SiteId} slot={slot.SlotId}");
-            GetViewport().SetInputAsHandled();
-            return;
-        }
-
-        bool hasEnabledBuildAction = buildActions.Any(action => action.IsEnabled);
-        string selectedNotice = hasEnabledBuildAction
-            ? $"{slot.DisplayName}已选中。请在右侧选择要建造的建筑。"
-            : $"{slot.DisplayName}已选中，但当前资源或条件不足。可在右侧查看不可建原因。";
-        RefreshSiteManagementUi(selectedNotice);
-        GameLog.Info(nameof(WorldSiteRoot), $"Facility slot selected for build site={site.SiteId} slot={slot.SlotId} actions={buildActions.Count} enabled={hasEnabledBuildAction}");
-        GetViewport().SetInputAsHandled();
-    }
-
     private void SelectPlacement(string placementId)
     {
         _selectedPlacementId = placementId ?? "";
-        _selectedFacilitySlotId = "";
         RefreshSitePlacementUi("");
         GameLog.Info(nameof(WorldSiteRoot), $"Site placement selected site={_siteHudSiteId} placement={_selectedPlacementId}");
     }
@@ -88,7 +31,6 @@ public partial class WorldSiteRoot
     private void OnPlacementEntityPressed(string placementId)
     {
         _selectedPlacementId = placementId ?? "";
-        _selectedFacilitySlotId = "";
         UpdateSitePeacetimePanelVisibility("placement_selected");
         _draggedPlacementId = _selectedPlacementId;
         if (_sitePlacementEntities.TryGetValue(_draggedPlacementId, out Node2D entity))
@@ -103,32 +45,12 @@ public partial class WorldSiteRoot
         GetViewport().SetInputAsHandled();
     }
 
-    private bool TryHandleFacilitySlotInput(InputEvent @event)
-    {
-        if (_battleRuntimeEnabled ||
-            _isBattlePreparationActive ||
-            !string.IsNullOrWhiteSpace(_draggedPlacementId) ||
-            @event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } ||
-            IsPointerOverSiteHud(@event))
-        {
-            return false;
-        }
-
-        if (!TryResolveFacilitySlotUnderPointer(out string slotId))
-        {
-            return false;
-        }
-
-        OnFacilitySlotEntityPressed(slotId);
-        return true;
-    }
-
     private bool TryHandleSiteContextClearInput(InputEvent @event)
     {
         if (_battleRuntimeEnabled ||
             _isBattlePreparationActive ||
             !string.IsNullOrWhiteSpace(_draggedPlacementId) ||
-            string.IsNullOrWhiteSpace(_selectedFacilitySlotId) ||
+            string.IsNullOrWhiteSpace(_selectedPlacementId) ||
             @event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } ||
             IsPointerOverSiteHud(@event) ||
             TryResolvePlacementUnderPointer(out _))
@@ -136,11 +58,10 @@ public partial class WorldSiteRoot
             return false;
         }
 
-        string previousSlotId = _selectedFacilitySlotId;
+        string previousPlacementId = _selectedPlacementId;
         _selectedPlacementId = "";
-        _selectedFacilitySlotId = "";
         RefreshSiteManagementUi();
-        GameLog.Info(nameof(WorldSiteRoot), $"Site facility slot selection cleared site={_siteHudSiteId} previousSlot={previousSlotId}");
+        GameLog.Info(nameof(WorldSiteRoot), $"Site placement selection cleared site={_siteHudSiteId} previousPlacement={previousPlacementId}");
         GetViewport().SetInputAsHandled();
         return true;
     }
@@ -456,66 +377,6 @@ public partial class WorldSiteRoot
         RestoreDeploymentEntityRenderSort(entity);
     }
 
-    private void ExecuteSiteAction(WorldActionViewModel action, string targetSlotId = "")
-    {
-        if (action == null)
-        {
-            return;
-        }
-
-        WorldActionRequest request = new()
-        {
-            ActionId = action.ActionId,
-            ActorFactionId = StrategicWorldRuntime.State.PlayerFactionId,
-            SourceSiteId = _siteHudSiteId,
-            TargetSiteId = action.TargetSiteId,
-            TargetSlotId = targetSlotId ?? ""
-        };
-
-        string returnScenePath = string.IsNullOrWhiteSpace(_siteHudReturnScenePath)
-            ? "res://scenes/world/StrategicWorldRoot.tscn"
-            : _siteHudReturnScenePath;
-        WorldSiteBattleLaunchRollback rollback = _battleLauncher.CaptureRollback(ResolveSiteState(_siteHudSiteId));
-        WorldActionResult result = _worldActionResolver.Apply(
-            StrategicWorldRuntime.State,
-            StrategicWorldRuntime.Definition,
-            request,
-            returnScenePath,
-            string.IsNullOrWhiteSpace(SceneFilePath) ? "res://scenes/world/sites/WorldSiteRoot.tscn" : SceneFilePath);
-
-        StrategicWorldRuntime.LastNotice = result.Message;
-        _battleLauncher.ApplyModeTransitionRollbackEvent(rollback, result.Events);
-        if (!result.Success)
-        {
-            RefreshSiteManagementUi(result.Message);
-            return;
-        }
-
-        if (result.BattleStartRequest != null)
-        {
-            WorldSiteBattleLaunchResult launch = _battleLauncher.BeginAndActivate(
-                StrategicWorldRuntime.State,
-                result.BattleStartRequest,
-                rollback,
-                ApplyBattleStartRequest,
-                ActivateBattleRuntime,
-                () => _battleStartBlockedReason,
-                ClearBattleEntities,
-                null,
-                enabled => SetBattleRuntimeEnabled(enabled));
-            if (!launch.Success)
-            {
-                StrategicWorldRuntime.LastNotice = "无法进入自动战斗。";
-                RefreshSiteManagementUi(StrategicWorldRuntime.LastNotice);
-                GameLog.Warn(nameof(WorldSiteRoot), $"Cannot enter site battle request={result.BattleStartRequest.RequestId} target={result.BattleStartRequest.TargetSiteId} reason={launch.FailureReason}");
-            }
-
-            return;
-        }
-
-        RefreshSiteManagementUi(result.Message);
-    }
-
     private void RefreshSelectedSlotLabel(WorldSiteState site)
     {
         if (!string.IsNullOrWhiteSpace(_selectedPlacementId))
@@ -527,75 +388,7 @@ public partial class WorldSiteRoot
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(_selectedFacilitySlotId))
-        {
-            WorldSiteDefinition definition = ResolveSiteDefinition(site?.SiteId ?? _siteHudSiteId);
-            FacilitySlotDefinition slot = definition?.FacilitySlots.FirstOrDefault(item => item.SlotId == _selectedFacilitySlotId);
-            if (slot == null)
-            {
-                _siteSelectionLabel.Text = "";
-                return;
-            }
-
-            if (_siteFacilitySlotEntities.TryGetValue(slot.SlotId, out WorldFacilitySlotEntity slotEntity) &&
-                slotEntity.HasConfigurationError)
-            {
-                _siteSelectionLabel.Text = $"已选择建筑点：{slot.DisplayName}\n配置错误：{slotEntity.ConfigurationError}";
-                return;
-            }
-
-            StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-            FacilityInstance facility = ResolveFacilityInSlot(site, slot.SlotId);
-            if (facility != null)
-            {
-                string facilityName = queries.GetFacility(facility.FacilityId)?.DisplayName ?? facility.FacilityId;
-                _siteSelectionLabel.Text = $"已选择建筑点：{slot.DisplayName}\n{facilityName} · {GetFacilityStateLabel(facility.State)}";
-                return;
-            }
-
-            IReadOnlyList<WorldActionViewModel> buildActions = ResolveBuildActionsForSlot(site, slot);
-            if (buildActions.Count == 0)
-            {
-                _siteSelectionLabel.Text = $"已选择建筑点：{slot.DisplayName}\n暂无可建建筑。";
-                return;
-            }
-
-            int enabledCount = buildActions.Count(action => action.IsEnabled);
-            string state = enabledCount > 0
-                ? $"可建 {enabledCount}/{buildActions.Count} 项。请在“可建建筑”中选择。"
-                : $"当前 {buildActions.Count} 项建筑都不可建，请查看按钮原因。";
-            _siteSelectionLabel.Text = $"已选择建筑点：{slot.DisplayName}\n{state}";
-            return;
-        }
-
         _siteSelectionLabel.Text = "";
-    }
-
-    private bool TryResolveFacilitySlotUnderPointer(out string slotId)
-    {
-        slotId = "";
-        if (_siteFacilitySlotEntities.Count == 0 ||
-            _activeSiteMap?.GetNodeOrNull<CanvasItem>(FacilitySlotsRootName)?.Visible == false)
-        {
-            return false;
-        }
-
-        if (TryGetMouseGridPosition(out GridPosition gridPosition))
-        {
-            KeyValuePair<string, WorldFacilitySlotRuntimeLayout>? layoutHit = _siteFacilitySlotLayouts
-                .Where(item => item.Value.FootprintCells.Contains(gridPosition) &&
-                               _siteFacilitySlotEntities.ContainsKey(item.Key))
-                .OrderByDescending(item => item.Value.ZIndex)
-                .Select(item => (KeyValuePair<string, WorldFacilitySlotRuntimeLayout>?)item)
-                .FirstOrDefault();
-            if (layoutHit.HasValue)
-            {
-                slotId = layoutHit.Value.Key;
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private bool TryResolvePlacementUnderPointer(out string placementId)

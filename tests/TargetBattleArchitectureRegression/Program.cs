@@ -31,15 +31,15 @@ Run("runtime does not burst stored attack charge after approach", TargetBattleAt
 Run("runtime attack recovery prevents consecutive tick damage", TargetBattleAttackCadenceRegressionCases.RuntimeAttackRecoveryPreventsConsecutiveTickDamage);
 Run("runtime attack cadence uses actor action seconds", TargetBattleAttackCadenceRegressionCases.RuntimeAttackCadenceUsesActorActionSeconds);
 Run("runtime movement cadence uses move step seconds", TargetBattleAttackCadenceRegressionCases.RuntimeMovementCadenceUsesMoveStepSeconds);
-Run("runtime movement phase allows next-tick movement continuation", TargetBattleAttackCadenceRegressionCases.RuntimeMovementPhaseAllowsNextTickMovementContinuation); Run("runtime fixed-clock hands off next movement same tick after boundary", TargetBattleAttackCadenceRegressionCases.RuntimeFixedClockHandsOffNextMovementSameTickAfterBoundary); Run("runtime fixed-clock defers attack after movement boundary", TargetBattleAttackCadenceRegressionCases.RuntimeFixedClockDefersAttackAfterMovementBoundary); TargetBattleContinuousStepHandoffRegressionCases.Register(Run);
+Run("runtime movement phase allows next-tick movement continuation", TargetBattleAttackCadenceRegressionCases.RuntimeMovementPhaseAllowsNextTickMovementContinuation); Run("runtime fixed-clock hands off next movement same tick after boundary", TargetBattleAttackCadenceRegressionCases.RuntimeFixedClockHandsOffNextMovementSameTickAfterBoundary); Run("runtime fixed-clock defers attack after movement boundary", TargetBattleAttackCadenceRegressionCases.RuntimeFixedClockDefersAttackAfterMovementBoundary); TargetBattleContinuousStepHandoffRegressionCases.Register(Run); TargetBattleCommitBufferRegressionCases.Register(Run); TargetBattleEffectCommitBufferRegressionCases.Register(Run); TargetBattleActionPhaseCoordinatorRegressionCases.Register(Run); TargetBattleDecisionPhaseCoordinatorRegressionCases.Register(Run); TargetBattleResolutionPhaseCoordinatorRegressionCases.Register(Run);
 Run("runtime session begin defers combat resolution until advance", TargetBattleAttackCadenceRegressionCases.RuntimeSessionBeginDefersCombatResolutionUntilAdvance);
-Run("runtime action diagnostics are logged", TargetBattleAttackCadenceRegressionCases.RuntimeActionDiagnosticsAreLogged);
+TargetBattleActionDiagnosticsRegressionCases.Register(Run); Run("runtime action diagnostics are logged", TargetBattleAttackCadenceRegressionCases.RuntimeActionDiagnosticsAreLogged);
 Run("runtime uses snapshot combat hit points and attack damage", TargetBattleAttackCadenceRegressionCases.RuntimeUsesSnapshotCombatHitPointsAndAttackDamage); Run("runtime event stream order golden locks attack movement plan and defeat", TargetBattleEventOrderGoldenRegressionCases.RuntimeEventStreamOrderGoldenLocksAttackMovementPlanAndDefeat); Run("runtime multi-defeat dictionary order golden locks current order", TargetBattleEventOrderGoldenRegressionCases.RuntimeMultiDefeatDictionaryOrderGoldenLocksCurrentOrder); Run("runtime attack stream slice golden locks engagement before movement", TargetBattleEventOrderGoldenRegressionCases.RuntimeAttackStreamSliceGoldenLocksEngagementBeforeMovement); Run("runtime retarget order golden locks dead target retarget without stream writes", TargetBattleEventOrderGoldenRegressionCases.RuntimeRetargetOrderGoldenLocksDeadTargetRetargetWithoutStreamWrites); Run("runtime reservation battle group id tiebreak golden locks move order", TargetBattleEventOrderGoldenRegressionCases.RuntimeReservationBattleGroupIdTiebreakGoldenLocksMoveOrder); Run("runtime failed attack contexts golden locks failure results without combat events", TargetBattleEventOrderGoldenRegressionCases.RuntimeFailedAttackContextsGoldenLocksFailureResultsWithoutCombatEvents); TargetBattleEventOrderGoldenRegressionCases.RegisterTd002SliceCGoldens(Run);
 TargetBattleRuntimeCorrectnessRegressionCases.Register(Run); Run("runtime movement events carry authoritative cells", RuntimeMovementEventsCarryAuthoritativeCells);
 Run("runtime hold-line command keeps player corps from advancing", TargetBattleCommandRegressionCases.RuntimeHoldLineCommandKeepsPlayerCorpsFromAdvancing);
 Run("runtime focus-fire command targets lowest-health enemy corps", TargetBattleCommandRegressionCases.RuntimeFocusFireCommandTargetsLowestHealthEnemyCorps);
 TargetBattleHeroSkillRegressionCases.Register(Run);
-TargetBattleThunderMarkSkillRegressionCases.Register(Run);
+TargetBattleDisplacementCommitBoundaryRegressionCases.Register(Run); TargetBattleThunderMarkSkillRegressionCases.Register(Run);
 Run("runtime AI executor boundary uses typed requests", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorBoundaryUsesTypedRequests);
 Run("runtime AI executor consumes facts without mutable runtime authority", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorConsumesFactsWithoutMutableRuntimeAuthority);
 Run("runtime AI executor delegates to behavior tree boundary", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorDelegatesToBehaviorTreeBoundary);
@@ -222,10 +222,8 @@ static void RuntimeAutoBattleResolvesOpposingFactionsFromActorState()
             item.FactionId == "enemy" &&
             !item.Survived),
         "enemy corps should be defeated in a player victory");
-
     BattleStartSnapshot defeatSnapshot = BuildOpposedSnapshot("battle_defeat", playerStrength: 20, enemyStrength: 80);
     BattleRuntimeSessionResult defeat = new BattleRuntimeSession().RunMinimal(defeatSnapshot);
-
     AssertEqual(BattleTerminationReason.NormalDefeat, defeat.Outcome.TerminationReason, "stronger enemy side should defeat player");
     AssertTrue(
         defeat.Outcome.ActorOutcomes.Any(item =>
@@ -802,6 +800,7 @@ static BattleStartSnapshot BuildOpposedSnapshot(
                 CorpsId = "corps_player",
                 CorpsDefinitionId = "player_corps",
                 CorpsStrength = playerStrength,
+                AttackImpactDelaySeconds = 0,
                 SourceLocationId = "city_player",
                 CellX = 0,
                 CellY = 0
@@ -816,6 +815,7 @@ static BattleStartSnapshot BuildOpposedSnapshot(
                 CorpsId = "corps_enemy",
                 CorpsDefinitionId = "enemy_corps",
                 CorpsStrength = enemyStrength,
+                AttackImpactDelaySeconds = 0,
                 SourceLocationId = "site_1",
                 CellX = enemyCellX,
                 CellY = enemyCellY

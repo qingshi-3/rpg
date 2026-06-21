@@ -20,9 +20,6 @@ public sealed class BattleRuntimeSession
     internal const int MaxAutonomousCombatTicks = 2048;
     private const int LegacyCorpsAttackDamage = 20;
     private const int EngagementRange = 1;
-    private const string CommandAssault = "Assault";
-    private const string CommandFocusFire = "FocusFire";
-    private const string CommandHoldLine = "HoldLine";
     private readonly BattleRuntimeTickResolver _tickResolver;
     private readonly BattlePerformanceCounters _performanceCounters;
 
@@ -190,7 +187,7 @@ public sealed class BattleRuntimeSession
                 MoveStepSeconds = moveStepSeconds,
                 AttackActionSeconds = attackActionSeconds,
                 AttackImpactDelaySeconds = attackImpactDelaySeconds,
-                CommandId = NormalizeCorpsCommandId(group.InitialCorpsCommandId),
+                CommandId = BattleRuntimeIdentityRules.NormalizeCorpsCommandId(group.InitialCorpsCommandId),
                 EngagementRule = NormalizeEngagementRule(plan.EngagementRule, group.InitialCorpsCommandId),
                 HasObjectiveAnchor = plan.HasObjectiveAnchor,
                 ObjectiveZoneId = plan.ObjectiveZoneId ?? "",
@@ -220,7 +217,7 @@ public sealed class BattleRuntimeSession
         }
 
         var navigationFailureDiagnostics = new HashSet<string>(System.StringComparer.Ordinal);
-        double currentTimeSeconds = 0;
+        BattleRuntimeClock runtimeClock = new();
         for (int tick = 0; tick < MaxAutonomousCombatTicks; tick++)
         {
             BattleTerminationReason resolved = ResolveTermination(state);
@@ -231,12 +228,12 @@ public sealed class BattleRuntimeSession
 
             double? nextReady = state.Actors
                 .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
-                .Select(item => (double?)System.Math.Max(currentTimeSeconds, item.ActionReadyAtSeconds))
-                .DefaultIfEmpty(currentTimeSeconds)
+                .Select(item => (double?)System.Math.Max(runtimeClock.CurrentTimeSeconds, item.ActionReadyAtSeconds))
+                .DefaultIfEmpty(runtimeClock.CurrentTimeSeconds)
                 .Min();
-            if (nextReady.HasValue && nextReady.Value > currentTimeSeconds)
+            if (nextReady.HasValue)
             {
-                currentTimeSeconds = nextReady.Value;
+                runtimeClock.AdvanceTo(nextReady.Value);
             }
 
             long resolveStartedAt = Stopwatch.GetTimestamp();
@@ -245,7 +242,7 @@ public sealed class BattleRuntimeSession
                 stream,
                 battleId,
                 tick,
-                currentTimeSeconds,
+                runtimeClock.CurrentTimeSeconds,
                 navigationGraph,
                 navigationFailureDiagnostics,
                 _performanceCounters);
@@ -254,7 +251,7 @@ public sealed class BattleRuntimeSession
             BattleRuntimeSpikeDiagnostics.LogIfNeeded(
                 battleId,
                 tick,
-                currentTimeSeconds,
+                runtimeClock.CurrentTimeSeconds,
                 resolveElapsedTicks,
                 isNewMaximum,
                 _performanceCounters);
@@ -309,8 +306,8 @@ public sealed class BattleRuntimeSession
             return BattleTerminationReason.RuntimeException;
         }
 
-        bool hasPlayer = corps.Any(item => item.HitPoints > 0 && IsPlayerFaction(item.FactionId));
-        bool hasEnemy = corps.Any(item => item.HitPoints > 0 && !IsPlayerFaction(item.FactionId));
+        bool hasPlayer = corps.Any(item => item.HitPoints > 0 && BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId));
+        bool hasEnemy = corps.Any(item => item.HitPoints > 0 && !BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId));
         if (hasPlayer && !hasEnemy)
         {
             return BattleTerminationReason.NormalVictory;
@@ -425,7 +422,7 @@ public sealed class BattleRuntimeSession
 
     private static double ResolveAttackImpactDelaySeconds(BattleGroupSnapshot group, double attackActionSeconds)
     {
-        return group?.AttackImpactDelaySeconds > 0
+        return group != null && group.AttackImpactDelaySeconds >= 0
             ? BattleActionTimingPolicy.NormalizeAttackImpactDelaySeconds(group.AttackImpactDelaySeconds, attackActionSeconds)
             : BattleActionTimingPolicy.ResolveAttackImpactDelaySeconds(
                 attackActionSeconds,
@@ -558,7 +555,7 @@ public sealed class BattleRuntimeSession
     {
         // Legacy snapshots do not yet carry authored objective plans. Keep their
         // attack-first behavior stable while the new battle-preparation UI is phased in.
-        if (IsHoldLineCommand(initialCorpsCommandId))
+        if (BattleRuntimeIdentityRules.IsHoldLineCommand(initialCorpsCommandId))
         {
             return BattleEngagementRule.Hold;
         }
@@ -575,7 +572,7 @@ public sealed class BattleRuntimeSession
     {
         foreach (BattleRuntimeActor actor in state?.Actors?.Where(item =>
                      item.Kind == BattleRuntimeActorKind.Corps &&
-                     IsPlayerFaction(item.FactionId) &&
+                     BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId) &&
                      !string.IsNullOrWhiteSpace(item.CommandId)) ?? Enumerable.Empty<BattleRuntimeActor>())
         {
             stream.Add(new BattleEvent
@@ -597,7 +594,7 @@ public sealed class BattleRuntimeSession
     {
         foreach (BattleRuntimeActor actor in state?.Actors?.Where(item =>
                      item.Kind == BattleRuntimeActorKind.Corps &&
-                     IsPlayerFaction(item.FactionId)) ?? Enumerable.Empty<BattleRuntimeActor>())
+                     BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId)) ?? Enumerable.Empty<BattleRuntimeActor>())
         {
             stream.Add(new BattleEvent
             {
@@ -612,42 +609,4 @@ public sealed class BattleRuntimeSession
         }
     }
 
-    private static string NormalizeCorpsCommandId(string commandId)
-    {
-        string value = commandId?.Trim() ?? "";
-        if (string.Equals(value, CommandFocusFire, System.StringComparison.OrdinalIgnoreCase))
-        {
-            return CommandFocusFire;
-        }
-
-        if (string.Equals(value, CommandHoldLine, System.StringComparison.OrdinalIgnoreCase))
-        {
-            return CommandHoldLine;
-        }
-
-        return CommandAssault;
-    }
-
-    private static bool IsHoldLineCommand(string commandId)
-    {
-        return string.Equals(NormalizeCorpsCommandId(commandId), CommandHoldLine, System.StringComparison.Ordinal);
-    }
-
-    private static bool SameFaction(BattleRuntimeActor first, BattleRuntimeActor second)
-    {
-        return string.Equals(
-            NormalizeFaction(first?.FactionId),
-            NormalizeFaction(second?.FactionId),
-            System.StringComparison.Ordinal);
-    }
-
-    private static bool IsPlayerFaction(string factionId)
-    {
-        return string.Equals(NormalizeFaction(factionId), "player", System.StringComparison.Ordinal);
-    }
-
-    private static string NormalizeFaction(string factionId)
-    {
-        return string.IsNullOrWhiteSpace(factionId) ? "player" : factionId.Trim();
-    }
 }

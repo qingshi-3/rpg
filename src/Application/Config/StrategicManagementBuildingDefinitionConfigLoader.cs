@@ -55,7 +55,6 @@ public static class StrategicManagementBuildingDefinitionConfigLoader
             }
 
             ValidateAmounts(building.BuildCost, "buildCost", building.BuildingDefinitionId, path);
-            ValidateAmounts(building.ProductionPerWorldTimePulse, "productionPerWorldTimePulse", building.BuildingDefinitionId, path, allowEmpty: true);
         }
     }
 

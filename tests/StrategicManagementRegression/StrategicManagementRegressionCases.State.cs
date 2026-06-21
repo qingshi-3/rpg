@@ -27,6 +27,17 @@ internal static partial class StrategicManagementRegressionCases
             configText.Contains("\"footprintWidth\"", StringComparison.Ordinal) &&
             configText.Contains("\"buildCost\"", StringComparison.Ordinal),
             "building config should carry ids, icons, categories, footprints, and build costs");
+        foreach (string retiredField in new[]
+        {
+            "productionPerWorldTimePulse",
+            "cityForceCapacityBonus",
+            "reserveRecoveryPerWorldTimePulse"
+        })
+        {
+            AssertTrue(
+                !configText.Contains(retiredField, StringComparison.Ordinal),
+                $"building config should not keep retired direct building effect field={retiredField}");
+        }
         AssertTrue(
             definitionsSource.Contains("StrategicManagementBuildingDefinitionConfigLoader.LoadDefaultBuildings", StringComparison.Ordinal) &&
             !definitionsSource.Contains("new StrategicFacilityDefinition", StringComparison.Ordinal),
@@ -40,6 +51,17 @@ internal static partial class StrategicManagementRegressionCases
             typeof(StrategicBuildingDefinition).GetProperty("IconPath") != null &&
             typeof(StrategicBuildingOptionViewModel).GetProperty("IconPath") != null,
             "building definitions and dashboard options should carry a Presentation icon path for the RTS-style build picker");
+        foreach (string retiredProperty in new[]
+        {
+            "ProductionPerWorldTimePulse",
+            "CityForceCapacityBonus",
+            "ReserveRecoveryPerWorldTimePulse"
+        })
+        {
+            AssertTrue(
+                typeof(StrategicBuildingDefinition).GetProperty(retiredProperty) == null,
+                $"building definitions should not expose retired direct scalar effect property={retiredProperty}");
+        }
 
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicBuildingDefinition trainingGround = definitions.Buildings[StrategicManagementIds.BuildingTrainingGround];
@@ -48,14 +70,31 @@ internal static partial class StrategicManagementRegressionCases
         string farmIconPath = (string)(typeof(StrategicBuildingDefinition).GetProperty("IconPath")?.GetValue(farm) ?? "");
         AssertEqual("训练场", trainingGround.DisplayName, "training ground display name should come from config");
         AssertEqual(StrategicManagementIds.BuildingCategoryMilitary, trainingGround.CategoryId, "training ground should be military");
-        AssertEqual(60, trainingGround.CityForceCapacityBonus, "training ground should increase city force capacity");
-        AssertEqual(12, trainingGround.ReserveRecoveryPerWorldTimePulse, "training ground should recover reserve soldiers over world-map time");
         AssertTrue(
-            trainingIconPath == "res://assets/textures/world/Buildings/Wood/Barracks.png" &&
-            farmIconPath.StartsWith("res://assets/textures/world/Buildings/Wood/", StringComparison.Ordinal),
-            "first-slice building icons should use existing authored building textures");
+            trainingIconPath == "res://assets/textures/world/Buildings/Foundation/training_ground_icon.tres" &&
+            farmIconPath == "res://assets/textures/world/Buildings/Foundation/farm_icon.tres",
+            "first-slice building icons should use focused AtlasTexture resources instead of whole building sprite sheets");
+        foreach (StrategicBuildingDefinition building in definitions.Buildings.Values)
+        {
+            AssertTrue(
+                building.IconPath.StartsWith("res://assets/textures/world/Buildings/Foundation/", StringComparison.Ordinal) &&
+                building.IconPath.EndsWith("_icon.tres", StringComparison.Ordinal),
+                $"building icon should point at a single authored atlas texture resource id={building.BuildingDefinitionId} path={building.IconPath}");
+            string localIconPath = Path.Combine(root, building.IconPath["res://".Length..].Replace('/', Path.DirectorySeparatorChar));
+            AssertTrue(File.Exists(localIconPath), $"building icon atlas resource should exist id={building.BuildingDefinitionId} path={localIconPath}");
+            string iconSource = File.ReadAllText(localIconPath);
+            AssertTrue(
+                iconSource.Contains("[gd_resource type=\"AtlasTexture\"", StringComparison.Ordinal) &&
+                iconSource.Contains("atlas = ExtResource(", StringComparison.Ordinal) &&
+                iconSource.Contains("region = Rect2(", StringComparison.Ordinal),
+                $"building icon should be an AtlasTexture with an explicit single-building region id={building.BuildingDefinitionId}");
+            AssertTrue(
+                !iconSource.Contains("region = Rect2(0, 0, 80, 16)", StringComparison.Ordinal) &&
+                !iconSource.Contains("region = Rect2(0, 0, 48, 64)", StringComparison.Ordinal) &&
+                !iconSource.Contains("region = Rect2(0, 0, 48, 80)", StringComparison.Ordinal),
+                $"building icon atlas region must not reuse a whole multi-building sheet id={building.BuildingDefinitionId}");
+        }
         AssertEqual(StrategicManagementIds.BuildingCategoryEconomy, farm.CategoryId, "farm should be an economy building");
-        AssertEqual(18, farm.ProductionPerWorldTimePulse.First(cost => cost.ResourceId == StrategicManagementIds.ResourceFood).Amount, "farm food income should come from config");
     }
 
     internal static void StrategicManagementFoundationResourcesReplaceObsoleteFirstLoopResources()
@@ -100,6 +139,14 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(city.ConstructionRegionIds.Count >= 3, "first city should expose authored construction regions");
         AssertContains(city.ConstructionRegionIds, StrategicManagementIds.RegionPlainsEconomy, "first city should include an economy construction region");
         AssertContains(city.ConstructionRegionIds, StrategicManagementIds.RegionPlainsMilitary, "first city should include a military construction region");
+        AssertTrue(typeof(StrategicConstructionRegionDefinition).GetProperty("AllowedCategoryIds") == null, "construction region definitions should not restrict building categories");
+        AssertTrue(typeof(StrategicConstructionRegionViewModel).GetProperty("AllowedCategoryIds") == null, "construction region view models should not expose category restrictions");
+        AssertEqual(10, FindRegion(definitions, StrategicManagementIds.RegionPlainsEconomy).OriginX, "economy region x should align with demo_site marker");
+        AssertEqual(6, FindRegion(definitions, StrategicManagementIds.RegionPlainsEconomy).OriginY, "economy region y should align with demo_site marker");
+        AssertEqual(21, FindRegion(definitions, StrategicManagementIds.RegionPlainsMilitary).OriginX, "military region x should align with demo_site marker");
+        AssertEqual(18, FindRegion(definitions, StrategicManagementIds.RegionPlainsMilitary).OriginY, "military region y should align with demo_site marker");
+        AssertEqual(12, FindRegion(definitions, StrategicManagementIds.RegionPlainsCivic).OriginX, "civic region x should align with demo_site marker");
+        AssertEqual(28, FindRegion(definitions, StrategicManagementIds.RegionPlainsCivic).OriginY, "civic region y should align with demo_site marker");
         AssertEqual(220, city.CityForceCapacity, "first city should start with the accepted foundation force capacity");
         AssertEqual(80, city.ReserveForces, "first city should start with prepared reserve soldiers");
         AssertEqual(0, city.Buildings.Count, "first city should start with no placed city buildings");

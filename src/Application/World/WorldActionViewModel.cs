@@ -13,5 +13,4 @@ public sealed class WorldActionViewModel
     public List<string> EffectLines { get; set; } = new();
     public List<string> WarningLines { get; set; } = new();
     public string TargetSiteId { get; set; } = "";
-    public string TargetSlotId { get; set; } = "";
 }

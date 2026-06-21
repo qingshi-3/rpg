@@ -231,7 +231,7 @@ The battle report should explain meaningful outcomes through terrain, timing, re
 
 Spatial combat requires authored map semantics. Battle maps and strategic-location interiors should be able to define visible rectangular grid markers from an editor-placed anchor, extending right and down by `m*n` cells.
 
-Marker types may include deployment zone, chokepoint, lane, reserve point, flank route, ranged point, defend point, entrance, event spawn, and building slot. The marker data model and Godot authoring workflow belong to a separate semantic marker proposal and implementation.
+Marker types may include deployment zone, chokepoint, lane, reserve point, flank route, ranged point, defend point, entrance, event spawn, and strategic construction region. The marker data model and Godot authoring workflow belong to a separate semantic marker proposal and implementation.
 
 ## Non-Goals
 

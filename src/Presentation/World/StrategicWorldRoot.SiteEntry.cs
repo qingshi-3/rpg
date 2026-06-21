@@ -110,8 +110,7 @@ public partial class StrategicWorldRoot
             ActionId = viewModel.ActionId,
             ActorFactionId = State.PlayerFactionId,
             SourceSiteId = _selectedSiteId,
-            TargetSiteId = viewModel.TargetSiteId,
-            TargetSlotId = viewModel.TargetSlotId
+            TargetSiteId = viewModel.TargetSiteId
         };
 
         string returnScenePath = string.IsNullOrWhiteSpace(SceneFilePath)

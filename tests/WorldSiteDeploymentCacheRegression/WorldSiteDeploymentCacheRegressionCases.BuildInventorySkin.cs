@@ -88,9 +88,9 @@ internal static void WorldBuildingOptionCardUsesReversibleInventoryPreviewSkin()
     }
 
     string hudScene = File.ReadAllText(hudScenePath);
-    string buildListBlock = ExtractSceneNodeBlock(hudScene, "[node name=\"SiteFacilityBuildList\"");
+    string buildListBlock = ExtractSceneNodeBlock(hudScene, "[node name=\"SiteBuildingOptionGrid\"");
     AssertTrue(
-        buildListBlock.Contains("[node name=\"SiteFacilityBuildList\" type=\"GridContainer\"", StringComparison.Ordinal) &&
+        buildListBlock.Contains("[node name=\"SiteBuildingOptionGrid\" type=\"GridContainer\"", StringComparison.Ordinal) &&
         buildListBlock.Contains("columns = 4", StringComparison.Ordinal),
         "building picker should present building options as a compact inventory-style grid");
 

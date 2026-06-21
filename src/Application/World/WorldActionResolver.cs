@@ -25,8 +25,7 @@ public sealed class WorldActionResolver
     public IReadOnlyList<WorldActionViewModel> GetAvailableActions(
         StrategicWorldState state,
         StrategicWorldDefinition definition,
-        string selectedSiteId,
-        string selectedSlotId = "")
+        string selectedSiteId)
     {
         StrategicWorldDefinitionQueries queries = new(definition);
         var viewModels = new List<WorldActionViewModel>();
@@ -38,7 +37,7 @@ public sealed class WorldActionResolver
                 continue;
             }
 
-            WorldActionRequest request = BuildRequestForViewModel(action, selectedSiteId, selectedSlotId);
+            WorldActionRequest request = BuildRequestForViewModel(action, selectedSiteId);
             bool enabled = CanApply(state, definition, action, request, out string failureReason);
             viewModels.Add(new WorldActionViewModel
             {
@@ -50,8 +49,7 @@ public sealed class WorldActionResolver
                 CostLines = action.Costs.Select(cost => $"{StrategicWorldDisplayNames.GetResourceLabel(queries, cost.ResourceId)} {cost.Amount}").ToList(),
                 EffectLines = BuildEffectLines(action, queries),
                 WarningLines = new List<string>(),
-                TargetSiteId = request.TargetSiteId,
-                TargetSlotId = request.TargetSlotId
+                TargetSiteId = request.TargetSiteId
             });
         }
 
@@ -101,10 +99,9 @@ public sealed class WorldActionResolver
             });
         }
 
-        string lastFacilityInstanceId = "";
         foreach (WorldEffectDefinition effect in action.Effects)
         {
-            ApplyEffect(state, definition, queries, request, effect, result, ref lastFacilityInstanceId, returnScenePath, siteScenePath);
+            ApplyEffect(state, definition, queries, request, effect, result, returnScenePath, siteScenePath);
         }
 
         if (result.BattleStartRequest != null)
@@ -153,12 +150,7 @@ public sealed class WorldActionResolver
             }
         }
 
-        if (!_conditionEvaluator.AreConditionsMet(state, queries, request, action.Conditions, out failureReason))
-        {
-            return false;
-        }
-
-        return CanApplyRequestedFacilitySlot(state, queries, action, request, out failureReason);
+        return _conditionEvaluator.AreConditionsMet(state, queries, request, action.Conditions, out failureReason);
     }
 
     private static bool ShouldShowAction(StrategicWorldState state, WorldActionDefinition action, string selectedSiteId)
@@ -175,8 +167,6 @@ public sealed class WorldActionResolver
 
         return action.Id switch
         {
-            StrategicWorldIds.ActionBuildMine => selectedSiteId == StrategicWorldIds.SiteBonefield,
-            StrategicWorldIds.ActionBuildDefenseTower => selectedSiteId == StrategicWorldIds.SiteBonefield,
             StrategicWorldIds.ActionTrainMilitia => selectedSiteId == StrategicWorldIds.SitePlayerCamp,
             _ => true
         };
@@ -184,14 +174,11 @@ public sealed class WorldActionResolver
 
     private static WorldActionRequest BuildRequestForViewModel(
         WorldActionDefinition action,
-        string selectedSiteId,
-        string selectedSlotId)
+        string selectedSiteId)
     {
         string targetSiteId = action.Id switch
         {
             StrategicWorldIds.ActionTrainMilitia => StrategicWorldIds.SitePlayerCamp,
-            StrategicWorldIds.ActionBuildMine => StrategicWorldIds.SiteBonefield,
-            StrategicWorldIds.ActionBuildDefenseTower => StrategicWorldIds.SiteBonefield,
             _ => selectedSiteId
         };
 
@@ -200,53 +187,8 @@ public sealed class WorldActionResolver
             ActionId = action.Id,
             ActorFactionId = StrategicWorldIds.FactionPlayer,
             SourceSiteId = selectedSiteId,
-            TargetSiteId = targetSiteId,
-            TargetSlotId = ActionAddsFacility(action) ? selectedSlotId ?? "" : ""
+            TargetSiteId = targetSiteId
         };
-    }
-
-    private static bool ActionAddsFacility(WorldActionDefinition action)
-    {
-        return action?.Effects.Any(effect =>
-            effect.Kind == WorldEffectKind.AddFacility &&
-            !string.IsNullOrWhiteSpace(effect.FacilityId)) == true;
-    }
-
-    private static bool CanApplyRequestedFacilitySlot(
-        StrategicWorldState state,
-        StrategicWorldDefinitionQueries queries,
-        WorldActionDefinition action,
-        WorldActionRequest request,
-        out string failureReason)
-    {
-        failureReason = "";
-        if (string.IsNullOrWhiteSpace(request.TargetSlotId))
-        {
-            return true;
-        }
-
-        WorldEffectDefinition addFacilityEffect = action.Effects.FirstOrDefault(effect => effect.Kind == WorldEffectKind.AddFacility);
-        if (addFacilityEffect == null)
-        {
-            return true;
-        }
-
-        string siteId = WorldConditionEvaluator.ResolveSiteId(addFacilityEffect.SiteId, request);
-        WorldSiteState site = !string.IsNullOrWhiteSpace(siteId) && state.SiteStates.TryGetValue(siteId, out WorldSiteState value)
-            ? value
-            : null;
-        WorldSiteDefinition siteDefinition = queries.GetSite(siteId);
-        FacilitySlotDefinition slot = siteDefinition?.FacilitySlots.FirstOrDefault(item => item.SlotId == request.TargetSlotId);
-        if (site == null ||
-            slot == null ||
-            !slot.AllowedFacilityIds.Contains(addFacilityEffect.FacilityId) ||
-            site.Facilities.Any(facility => facility.SlotId == slot.SlotId && facility.State != FacilityState.Destroyed))
-        {
-            failureReason = "no_valid_facility_slot";
-            return false;
-        }
-
-        return true;
     }
 
     private void ApplyEffect(
@@ -256,7 +198,6 @@ public sealed class WorldActionResolver
         WorldActionRequest request,
         WorldEffectDefinition effect,
         WorldActionResult result,
-        ref string lastFacilityInstanceId,
         string returnScenePath,
         string siteScenePath)
     {
@@ -271,20 +212,6 @@ public sealed class WorldActionResolver
                 state.PlayerResources.Add(effect.ResourceId, effect.Amount);
                 AddEvent(result, state, "ResourceChanged", effect.ResourceId, ("amount", effect.Amount.ToString()));
                 break;
-            case WorldEffectKind.ReserveResource:
-                string sourceId = effect.TargetId == "last_facility" ? lastFacilityInstanceId : effect.TargetId;
-                if (state.PlayerResources.Reserve(effect.ResourceId, effect.Amount, sourceId, "Facility") &&
-                    site != null &&
-                    !string.IsNullOrWhiteSpace(lastFacilityInstanceId))
-                {
-                    FacilityInstance facility = site.Facilities.FirstOrDefault(item => item.InstanceId == sourceId);
-                    if (facility != null && effect.ResourceId == StrategicWorldIds.ResourcePopulation)
-                    {
-                        facility.AssignedPopulation += effect.Amount;
-                    }
-                }
-                AddEvent(result, state, "ResourceReserved", effect.ResourceId, ("amount", effect.Amount.ToString()), ("source", sourceId));
-                break;
             case WorldEffectKind.SetSiteControlState:
                 if (site != null)
                 {
@@ -297,28 +224,6 @@ public sealed class WorldActionResolver
                 {
                     site.OwnerFactionId = effect.FactionId;
                     AddEvent(result, state, "SiteOwnerChanged", site.SiteId, ("owner", effect.FactionId));
-                }
-                break;
-            case WorldEffectKind.AddFacility:
-                if (site != null)
-                {
-                    FacilityInstance facility = AddFacility(site, queries.GetSite(site.SiteId), effect.FacilityId, request.TargetSlotId);
-                    lastFacilityInstanceId = facility?.InstanceId ?? "";
-                    if (facility != null)
-                    {
-                        AddEvent(result, state, "FacilityBuilt", facility.InstanceId, ("facility", facility.FacilityId), ("site", facility.SiteId));
-                    }
-                }
-                break;
-            case WorldEffectKind.SetFacilityState:
-                if (site != null)
-                {
-                    FacilityInstance facility = ResolveFacility(site, effect);
-                    if (facility != null)
-                    {
-                        facility.State = effect.FacilityState;
-                        AddEvent(result, state, "FacilityStateChanged", facility.InstanceId, ("state", effect.FacilityState.ToString()));
-                    }
                 }
                 break;
             case WorldEffectKind.AddGarrison:
@@ -398,41 +303,6 @@ public sealed class WorldActionResolver
         }
 
         return null;
-    }
-
-    private static FacilityInstance AddFacility(WorldSiteState siteState, WorldSiteDefinition siteDefinition, string facilityId, string requestedSlotId)
-    {
-        FacilitySlotDefinition slot = siteDefinition.FacilitySlots.FirstOrDefault(item =>
-            (string.IsNullOrWhiteSpace(requestedSlotId) || item.SlotId == requestedSlotId) &&
-            item.AllowedFacilityIds.Contains(facilityId) &&
-            siteState.Facilities.All(facility => facility.SlotId != item.SlotId || facility.State == FacilityState.Destroyed));
-
-        if (slot == null)
-        {
-            return null;
-        }
-
-        FacilityInstance facility = new()
-        {
-            InstanceId = StrategicWorldService.BuildFacilityInstanceId(siteState.SiteId, slot.SlotId, facilityId),
-            FacilityId = facilityId,
-            SiteId = siteState.SiteId,
-            SlotId = slot.SlotId,
-            Level = 1,
-            State = FacilityState.Active
-        };
-        siteState.Facilities.Add(facility);
-        return facility;
-    }
-
-    private static FacilityInstance ResolveFacility(WorldSiteState site, WorldEffectDefinition effect)
-    {
-        if (!string.IsNullOrWhiteSpace(effect.FacilityInstanceId))
-        {
-            return site.Facilities.FirstOrDefault(item => item.InstanceId == effect.FacilityInstanceId);
-        }
-
-        return site.Facilities.FirstOrDefault(item => item.FacilityId == effect.FacilityId);
     }
 
     private static WorldArmyState CreateWorldArmy(
@@ -533,23 +403,13 @@ public sealed class WorldActionResolver
 
     private List<string> BuildEffectLines(WorldActionDefinition action, StrategicWorldDefinitionQueries queries)
     {
-        string bonefield = StrategicWorldDisplayNames.GetSiteLabel(queries, StrategicWorldIds.SiteBonefield, "埋骨地");
         string playerCamp = StrategicWorldDisplayNames.GetSiteLabel(queries, StrategicWorldIds.SitePlayerCamp, "玩家营地");
-        string mine = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityMine, "矿场");
-        string defenseTower = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityDefenseTower, "防御塔");
         string militia = ResolveUnitLabel(StrategicWorldIds.UnitMilitia);
 
         return action.Id switch
         {
-            StrategicWorldIds.ActionBuildMine => new List<string>
-            {
-                $"{bonefield}获得{mine}",
-                $"占用{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} 1",
-                $"每世界步{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} +2"
-            },
-            StrategicWorldIds.ActionBuildDefenseTower => new List<string> { $"{bonefield}防守 +3", $"防守战获得{defenseTower}支援 1 次" },
             StrategicWorldIds.ActionTrainMilitia => new List<string> { $"{playerCamp}{militia} +1" },
-            StrategicWorldIds.ActionWaitTick => new List<string> { "推进世界步", "结算生产和机会" },
+            StrategicWorldIds.ActionWaitTick => new List<string> { "推进世界步", "结算机会和驻军动向" },
             _ => action.Effects.Select(effect => effect.Kind.ToString()).ToList()
         };
     }
@@ -590,8 +450,6 @@ public sealed class WorldActionResolver
             "not_enough_resource" => "资源不足",
             "not_enough_population" => $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation, "人口")}不足",
             "site_not_owned" => "场域不属于玩家",
-            "missing_facility" => "缺少可用建筑",
-            "no_valid_facility_slot" => "没有合法建筑槽位",
             "not_enough_garrison" => "驻军不足",
             "no_expedition_units" => "没有可出征英雄或小兵",
             "no_expedition_hero" => "没有可出征英雄",

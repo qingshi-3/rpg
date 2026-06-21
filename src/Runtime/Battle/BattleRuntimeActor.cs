@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle.AI;
@@ -79,10 +80,36 @@ public sealed class BattleRuntimeActor
     public double MoveStepSeconds { get; set; } = 0.16;
     public double AttackActionSeconds { get; set; } = 1.2;
     public double AttackImpactDelaySeconds { get; set; } = 0.66;
+    // Basic attacks lock their target and cells at action start. Runtime impact
+    // later reads this payload instead of re-resolving presentation or AI facts.
+    public string CurrentBasicAttackTargetActorId { get; set; } = "";
+    public int CurrentBasicAttackDamage { get; set; }
+    public bool CurrentBasicAttackImpactApplied { get; set; }
+    public double CurrentBasicAttackStartedAtSeconds { get; set; }
+    public double CurrentBasicAttackImpactAtSeconds { get; set; }
+    public double CurrentBasicAttackEndsAtSeconds { get; set; }
+    public int CurrentBasicAttackActorGridX { get; set; }
+    public int CurrentBasicAttackActorGridY { get; set; }
+    public int CurrentBasicAttackActorGridHeight { get; set; }
+    public int CurrentBasicAttackTargetGridX { get; set; }
+    public int CurrentBasicAttackTargetGridY { get; set; }
+    public int CurrentBasicAttackTargetGridHeight { get; set; }
     public string CurrentSkillActionId { get; set; } = "";
     public string CurrentSkillId { get; set; } = "";
     public string CurrentSkillSourceCommandId { get; set; } = "";
     public string CurrentSkillTargetActorId { get; set; } = "";
+    // Accepted skill orders wait with the caster, not in a center resolver queue.
+    internal List<BattleRuntimePendingHeroSkillCommand> PendingAbilityOrders { get; } = new();
+    // Active channels stay with the caster ability runtime. A tick-wide shared
+    // commit buffer still applies their damage so opposing channels resolve together.
+    internal List<BattleRuntimeActiveChannel> ActiveChannels { get; } = new();
+    // Active skill targeting is locked at command acceptance so delayed impacts,
+    // pause/resume, and recovery do not need to read back a removed pending command.
+    public bool CurrentSkillHasTargetGrid { get; set; }
+    public int CurrentSkillTargetGridX { get; set; }
+    public int CurrentSkillTargetGridY { get; set; }
+    public int CurrentSkillTargetGridHeight { get; set; }
+    public string CurrentSkillSelectedSpatialMarkId { get; set; } = "";
     public double CurrentSkillImpactAtSeconds { get; set; }
     public bool CurrentSkillImpactApplied { get; set; }
     // Central runtime time, in seconds, when this actor may submit its next action intent.

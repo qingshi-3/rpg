@@ -180,19 +180,36 @@ internal static class TargetBattleNavigationRegressionCases
     {
         string root = ProjectRoot();
         string tickResolver = File.ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeTickResolver.cs"));
+        string decisionContextBuilder = File.ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeDecisionContextBuilder.cs"));
+        string combatZoneJoinRetargeting = File.ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "BattleCombatZoneJoinRetargeting.cs"));
+        string movementContinuation = string.Join("\n", Directory.GetFiles(
+                Path.Combine(root, "src", "Runtime", "Battle"),
+                "BattleMovementController*.cs",
+                SearchOption.TopDirectoryOnly)
+            .OrderBy(item => item, StringComparer.Ordinal)
+            .Select(File.ReadAllText));
         string navigationSource = string.Join("\n", Directory.GetFiles(
                 Path.Combine(root, "src", "Runtime", "Battle", "Navigation"),
                 "*.cs",
                 SearchOption.TopDirectoryOnly)
             .OrderBy(item => item, StringComparer.Ordinal)
             .Select(File.ReadAllText));
+        string mainMovementLoopSource = string.Join("\n", tickResolver, decisionContextBuilder, combatZoneJoinRetargeting, movementContinuation);
 
         AssertTrue(
-            !tickResolver.Contains("BattlePathfinder.TryFindNextStepTowardAttackRange", StringComparison.Ordinal),
+            !mainMovementLoopSource.Contains("BattlePathfinder.TryFindNextStepTowardAttackRange", StringComparison.Ordinal),
             "runtime main movement loop must not use per-actor A* as the primary battle navigation path");
         AssertTrue(
-            tickResolver.Contains("BattleCrowdMovementPlanner", StringComparison.Ordinal),
-            "runtime main movement loop should route advance decisions through the crowd movement planner");
+            decisionContextBuilder.Contains("BuildTargetMovementProposalContext", StringComparison.Ordinal) &&
+            movementContinuation.Contains("BuildTargetMovementProposalContext", StringComparison.Ordinal),
+            "runtime main movement loop should route target/local-combat proposal construction through the actor movement controller");
+        AssertTrue(
+            !tickResolver.Contains("BattleCrowdMovementPlanner", StringComparison.Ordinal) &&
+            !decisionContextBuilder.Contains("BattleCrowdMovementPlanner", StringComparison.Ordinal) &&
+            !combatZoneJoinRetargeting.Contains("BattleCrowdMovementPlanner", StringComparison.Ordinal) &&
+            movementContinuation.Contains("BattleCrowdMovementPlanner.FindNextStepCandidatesTowardTarget", StringComparison.Ordinal) &&
+            movementContinuation.Contains("BattleCrowdMovementPlanner.FindNextStepCandidatesTowardCombatSlot", StringComparison.Ordinal),
+            "low-level crowd planner usage should live behind BattleMovementController after H2");
         AssertTrue(
             navigationSource.Contains("FindGreedyNextStepCandidatesTowardTarget", StringComparison.Ordinal) &&
             navigationSource.Contains("BattleCombatSlotAllocator", StringComparison.Ordinal),

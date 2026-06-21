@@ -220,7 +220,7 @@ High-frequency per-frame UI rebuilds are forbidden unless explicitly justified a
 
 Top strategic-world UI is not a single full-width bar. Resource/status, notice, world-clock, and speed/reset controls are independent overlay elements under `TopBarHost`.
 
-`SiteDetailPanel` is a selected-context bottom sheet under `OverlayHost`, centered horizontally, half-screen wide, and one-quarter screen tall. It is hidden when no strategic location or opportunity context is selected. Its content lays out horizontally so it reads as a contextual sheet, not as a left-side menu.
+`SiteDetailPanel` is a selected-context bottom sheet under `OverlayHost`, centered horizontally near the lower screen edge. It sizes to its current content within viewport-safe width and height limits; when content exceeds that safe height, the body/details area and the action card clip their variable content through internal scroll containers while the sheet frame and action region remain visible. It is hidden when no strategic location or opportunity context is selected. Its content lays out horizontally so it reads as a contextual sheet, not as a left-side menu.
 
 Current bindings in `StrategicWorldRoot.UiBootstrap.cs` and `StrategicWorldRoot.DetailHud.cs` may remain initially if they only display and submit Application requests.
 
@@ -236,7 +236,7 @@ World-site map, units, battle overlays, debug world nodes, and battle camera bel
 
 The site-management build tab separates building choice from map placement. The first step is an RTS-style building picker made from reusable authored card scenes. Each card displays the building icon and the bottom building name only. Hover detail may show only the footprint and resource cost. Construction region id, default coordinates, category, disabled reason, and other placement validation facts belong to the later map-placement interaction and must not be printed into the picker card.
 
-After the player chooses a building card, Presentation enters a temporary strategic-building placement mode. The selected building follows the mouse as a footprint preview in the world viewport. The preview resolves the current snapped grid anchor and compatible `ConstructionRegion` semantic marker every mouse move, then asks Strategic Management rules for the current failure reason. Valid previews use a buildable treatment; invalid previews use an error treatment and keep the pending selection active.
+After the player chooses a building card, Presentation enters a temporary strategic-building placement mode. The selected building follows the mouse as a footprint preview in the world viewport. The preview resolves the current snapped grid anchor and marker-backed `ConstructionRegion` every mouse move, then asks Strategic Management rules for the current failure reason. Valid previews use a buildable treatment; invalid previews use an error treatment and keep the pending selection active. Presentation must not reject a placement because a building category differs from a region label.
 
 The next valid map click submits `BuildCityBuilding` through Strategic Management commands. Presentation may show placement feedback, invalid reasons, region highlights, and footprint previews during this map-placement step, but it still does not own building legality or strategic state mutation. `ConstructionRegion` markers are the presentation bridge between the authored map and Strategic Management region ids; legacy `BuildingSlot`/`FacilitySlot` presentation must not become the new Strategic Management construction authority.
 

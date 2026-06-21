@@ -2,7 +2,6 @@ namespace Rpg.Definitions.Maps;
 
 public enum SemanticMapMarkerType
 {
-    BuildingSlot = 0,
     DeploymentZone = 1,
     Entrance = 2,
     ChokePoint = 3,

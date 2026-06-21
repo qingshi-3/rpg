@@ -502,8 +502,8 @@ internal static void StrategicWorldHudUsesFullscreenOverlayContextLayout()
     string scenePath = Path.Combine(root, "scenes", "world", "ui", "StrategicWorldHud.tscn");
     string scene = File.ReadAllText(scenePath);
     string panelBlock = ExtractSceneNodeBlock(scene, "[node name=\"SiteDetailPanel\"");
-    string scrollBlock = ExtractSceneNodeBlock(scene, "[node name=\"Scroll\"");
-    string contentBlock = ExtractSceneNodeBlock(scene, "[node name=\"Content\"");
+    string bodyScrollBlock = ExtractSceneNodeBlock(scene, "[node name=\"BodyScroll\"");
+    string bodyContentBlock = ExtractSceneNodeBlock(scene, "[node name=\"BodyContent\"");
     string bootstrapSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.UiBootstrap.cs"));
     string detailSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.DetailHud.cs"));
 
@@ -517,19 +517,19 @@ internal static void StrategicWorldHudUsesFullscreenOverlayContextLayout()
     AssertTrue(
         panelBlock.Contains("parent=\"OverlayHost\"", StringComparison.Ordinal) &&
         panelBlock.Contains("visible = false", StringComparison.Ordinal) &&
-        panelBlock.Contains("anchor_left = 0.25", StringComparison.Ordinal) &&
-        panelBlock.Contains("anchor_top = 0.75", StringComparison.Ordinal) &&
-        panelBlock.Contains("anchor_right = 0.75", StringComparison.Ordinal) &&
+        panelBlock.Contains("anchor_left = 0.5", StringComparison.Ordinal) &&
+        panelBlock.Contains("anchor_top = 1.0", StringComparison.Ordinal) &&
+        panelBlock.Contains("anchor_right = 0.5", StringComparison.Ordinal) &&
         panelBlock.Contains("anchor_bottom = 1.0", StringComparison.Ordinal),
-        "selected city detail should be a bottom-centered popup occupying half width and one quarter height");
+        "selected city detail should be a bottom-centered popup sized by responsive layout code");
     AssertTrue(
-        contentBlock.Contains("type=\"HBoxContainer\"", StringComparison.Ordinal) &&
-        contentBlock.Contains("parent=\"OverlayHost/SiteDetailPanel/Margin/Scroll\"", StringComparison.Ordinal),
+        bodyContentBlock.Contains("type=\"HBoxContainer\"", StringComparison.Ordinal) &&
+        bodyContentBlock.Contains("parent=\"OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll\"", StringComparison.Ordinal),
         "selected city popup content should lay out horizontally, not as a left-side vertical menu panel");
     AssertTrue(
-        scrollBlock.Contains("horizontal_scroll_mode = 0", StringComparison.Ordinal) &&
-        !scrollBlock.Contains("horizontal_scroll_mode = 1", StringComparison.Ordinal),
-        "selected city popup must not horizontally scroll or drift when the player uses the mouse wheel");
+        bodyScrollBlock.Contains("horizontal_scroll_mode = 0", StringComparison.Ordinal) &&
+        bodyScrollBlock.Contains("vertical_scroll_mode = 1", StringComparison.Ordinal),
+        "selected city popup body must not horizontally scroll and should vertically scroll only when details overflow");
     AssertTrue(
         !scene.Contains("[node name=\"InfrastructureCard\"", StringComparison.Ordinal) &&
         !scene.Contains("[node name=\"DefenseCard\"", StringComparison.Ordinal) &&
@@ -562,6 +562,128 @@ internal static void StrategicWorldHudUsesFullscreenOverlayContextLayout()
         !detailSource.Contains("AddStrategicCorpsLines", StringComparison.Ordinal) &&
         !detailSource.Contains("BuildStrategicLocationBody", StringComparison.Ordinal),
         "selected city popup should bind only compact context and current actions instead of dumping facility and garrison lists");
+}
+
+internal static void StrategicWorldDetailSheetKeepsActionsVisibleWhenContentOverflows()
+{
+    string root = ProjectRoot();
+    string scenePath = Path.Combine(root, "scenes", "world", "ui", "StrategicWorldHud.tscn");
+    string scene = File.ReadAllText(scenePath);
+    string panelBlock = ExtractSceneNodeBlock(scene, "[node name=\"SiteDetailPanel\"");
+    string sheetContentBlock = ExtractSceneNodeBlock(scene, "[node name=\"SheetContent\"");
+    string bodyScrollBlock = ExtractSceneNodeBlock(scene, "[node name=\"BodyScroll\"");
+    string bodyContentBlock = ExtractSceneNodeBlock(scene, "[node name=\"BodyContent\"");
+    string actionCardBlock = ExtractSceneNodeBlock(scene, "[node name=\"ActionCard\"");
+    string actionScrollBlock = ExtractSceneNodeBlock(scene, "[node name=\"ActionScroll\"");
+    string bootstrapSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.UiBootstrap.cs"));
+    string detailSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.DetailHud.cs"));
+
+    AssertTrue(
+        panelBlock.Contains("anchor_left = 0.5", StringComparison.Ordinal) &&
+        panelBlock.Contains("anchor_top = 1.0", StringComparison.Ordinal) &&
+        panelBlock.Contains("anchor_right = 0.5", StringComparison.Ordinal) &&
+        panelBlock.Contains("anchor_bottom = 1.0", StringComparison.Ordinal) &&
+        panelBlock.Contains("custom_minimum_size = Vector2(720, 168)", StringComparison.Ordinal) &&
+        panelBlock.Contains("offset_left = -480.0", StringComparison.Ordinal) &&
+        panelBlock.Contains("offset_top = -420.0", StringComparison.Ordinal) &&
+        panelBlock.Contains("offset_right = 480.0", StringComparison.Ordinal) &&
+        panelBlock.Contains("offset_bottom = -28.0", StringComparison.Ordinal) &&
+        !panelBlock.Contains("anchor_left = 0.25", StringComparison.Ordinal) &&
+        !panelBlock.Contains("anchor_top = 0.75", StringComparison.Ordinal) &&
+        !panelBlock.Contains("anchor_right = 0.75", StringComparison.Ordinal),
+        "selected city detail sheet should define its bottom-center responsive layout values on the authored Godot node");
+    AssertTrue(
+        sheetContentBlock.Contains("type=\"HBoxContainer\"", StringComparison.Ordinal) &&
+        sheetContentBlock.Contains("parent=\"OverlayHost/SiteDetailPanel/Margin\"", StringComparison.Ordinal),
+        "selected city detail sheet should use a horizontal content row so the fixed action area stays beside the scrollable body");
+    AssertTrue(
+        bodyScrollBlock.Contains("parent=\"OverlayHost/SiteDetailPanel/Margin/SheetContent\"", StringComparison.Ordinal) &&
+        bodyScrollBlock.Contains("horizontal_scroll_mode = 0", StringComparison.Ordinal) &&
+        bodyScrollBlock.Contains("vertical_scroll_mode = 1", StringComparison.Ordinal),
+        "selected city detail body should disable horizontal scroll and enable vertical auto-scroll when content exceeds the safe height");
+    AssertTrue(
+        bodyContentBlock.Contains("type=\"HBoxContainer\"", StringComparison.Ordinal) &&
+        bodyContentBlock.Contains("parent=\"OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll\"", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"SummaryCard\" type=\"PanelContainer\" parent=\"OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"OpportunityCard\" type=\"PanelContainer\" parent=\"OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent\"]", StringComparison.Ordinal),
+        "selected city detail summary and opportunity content should be the only scrollable sheet body content");
+    AssertTrue(
+        actionCardBlock.Contains("parent=\"OverlayHost/SiteDetailPanel/Margin/SheetContent\"", StringComparison.Ordinal) &&
+        !actionCardBlock.Contains("parent=\"OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll", StringComparison.Ordinal),
+        "selected city actions should stay outside the scrollable body so primary actions remain visible");
+    AssertTrue(
+        actionScrollBlock.Contains("parent=\"OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard/ActionMargin/ActionStack\"", StringComparison.Ordinal) &&
+        actionScrollBlock.Contains("horizontal_scroll_mode = 0", StringComparison.Ordinal) &&
+        actionScrollBlock.Contains("vertical_scroll_mode = 1", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"ActionList\" type=\"VBoxContainer\" parent=\"OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard/ActionMargin/ActionStack/ActionScroll\"]", StringComparison.Ordinal),
+        "selected city action card should clip its variable action list internally instead of letting expedition rows leak below the sheet");
+    AssertTrue(
+        bootstrapSource.Contains("OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/SummaryCard", StringComparison.Ordinal) &&
+        bootstrapSource.Contains("OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard", StringComparison.Ordinal) &&
+        bootstrapSource.Contains("OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard/ActionMargin/ActionStack/ActionScroll/ActionList", StringComparison.Ordinal),
+        "strategic world code bindings should follow the split scroll-body and fixed-action sheet structure");
+    AssertTrue(
+        detailSource.Contains("ApplyWorldDetailPanelResponsiveLayout", StringComparison.Ordinal) &&
+        detailSource.Contains("CaptureWorldDetailPanelAuthoredLayout", StringComparison.Ordinal) &&
+        detailSource.Contains("_siteDetailPanelAuthoredMinimumSize", StringComparison.Ordinal) &&
+        detailSource.Contains("_siteDetailPanelAuthoredOffsetBottom", StringComparison.Ordinal) &&
+        detailSource.Contains("CustomMinimumSize", StringComparison.Ordinal) &&
+        detailSource.Contains("OffsetLeft", StringComparison.Ordinal) &&
+        detailSource.Contains("GetCombinedMinimumSize()", StringComparison.Ordinal) &&
+        detailSource.Contains("preferredWidth", StringComparison.Ordinal) &&
+        detailSource.Contains("preferredHeight", StringComparison.Ordinal) &&
+        detailSource.Contains("NotificationResized", StringComparison.Ordinal) &&
+        !detailSource.Contains("SiteDetailPanelHorizontalMargin", StringComparison.Ordinal) &&
+        !detailSource.Contains("SiteDetailPanelTopSafeMargin", StringComparison.Ordinal) &&
+        !detailSource.Contains("SiteDetailPanelBottomMargin", StringComparison.Ordinal) &&
+        !detailSource.Contains("SiteDetailPanelMinWidth", StringComparison.Ordinal) &&
+        !detailSource.Contains("SiteDetailPanelMaxWidth", StringComparison.Ordinal) &&
+        !detailSource.Contains("SiteDetailPanelMinHeight", StringComparison.Ordinal) &&
+        !detailSource.Contains("SiteDetailPanelMaxHeightRatio", StringComparison.Ordinal) &&
+        !detailSource.Contains("_siteDetailPanelRestPosition", StringComparison.Ordinal),
+        "selected city detail sheet should read authored node layout values instead of keeping UI tunables or cached positions in StrategicWorldRoot");
+}
+
+internal static void StrategicWorldWheelInputPartitionsHudAndMap()
+{
+    string root = ProjectRoot();
+    string strategicRoot = ReadStrategicWorldRootSource();
+    string uiBootstrapSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.UiBootstrap.cs"));
+    string strategicHudScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "StrategicWorldHud.tscn"));
+    string strategicHudRootBlock = ExtractSceneNodeBlock(strategicHudScene, "[node name=\"StrategicWorldHud\"");
+    string mapInputGateBody = ExtractMethodBody(strategicRoot, "private bool IsRootScreenMapInput(InputEvent @event)");
+    string nonMapUiBody = ExtractMethodBody(strategicRoot, "private bool IsPointerOverNonMapUi()");
+
+    AssertTrue(
+        strategicRoot.Contains("private Control _strategicHudRoot;", StringComparison.Ordinal) &&
+        uiBootstrapSource.Contains("_strategicHudRoot = hud;", StringComparison.Ordinal),
+        "strategic world should keep the authored HUD root as the UI input boundary instead of treating the full-screen map rect as the only pointer gate");
+    AssertTrue(
+        strategicHudRootBlock.Contains("mouse_force_pass_scroll_events = false", StringComparison.Ordinal) &&
+        !uiBootstrapSource.Contains("MouseForcePassScrollEvents = false", StringComparison.Ordinal),
+        "strategic world HUD root should author scroll-pass behavior on the Godot scene node instead of setting UI node configuration in root code");
+    AssertTrue(
+        mapInputGateBody.Contains("IsPointerOverNonMapUi()", StringComparison.Ordinal) &&
+        mapInputGateBody.IndexOf("IsPointerOverNonMapUi()", StringComparison.Ordinal) <
+        mapInputGateBody.IndexOf("ResolveMainWorldViewportRect().HasPoint(screenPosition)", StringComparison.Ordinal),
+        "strategic world root should reject pointer input over non-map HUD controls before checking the full-screen map viewport rect");
+    AssertTrue(
+        mapInputGateBody.Contains("_isArmyBoxSelecting", StringComparison.Ordinal) &&
+        mapInputGateBody.Contains("_worldCamera?.IsPointerNavigationActive == true", StringComparison.Ordinal) &&
+        mapInputGateBody.IndexOf("_worldCamera?.IsPointerNavigationActive == true", StringComparison.Ordinal) <
+        mapInputGateBody.IndexOf("IsPointerOverNonMapUi()", StringComparison.Ordinal),
+        "map-origin selection and camera drag gestures should keep receiving release/motion events even if the pointer crosses UI");
+    AssertTrue(
+        strategicRoot.Contains("GuiGetHoveredControl()", StringComparison.Ordinal) &&
+        nonMapUiBody.Contains("_strategicHudRoot", StringComparison.Ordinal) &&
+        nonMapUiBody.Contains("_mainWorldViewportHost", StringComparison.Ordinal) &&
+        nonMapUiBody.Contains("_worldMapOverlay", StringComparison.Ordinal) &&
+        strategicRoot.Contains("IsAncestorOf", StringComparison.Ordinal),
+        "strategic world input partition should use Godot's hovered Control tree to distinguish HUD controls from map viewport controls");
+    AssertTrue(
+        nonMapUiBody.Contains("hoveredControl == _strategicHudRoot", StringComparison.Ordinal) &&
+        nonMapUiBody.Contains("return false;", StringComparison.Ordinal),
+        "the full-screen HUD root itself is pass-through and must not block empty-map wheel zoom");
 }
 
 static void AssertSceneTextureButtonUsesStateTextures(

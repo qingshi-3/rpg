@@ -1,6 +1,7 @@
 using Rpg.Runtime.Battle.Events;
 using Rpg.Presentation.Battle.Entities;
 using Rpg.Presentation.Battle.Flow;
+using Godot;
 
 internal static partial class BattleHitFeedbackRegressionCases
 {
@@ -55,7 +56,7 @@ internal static void BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary()
         !liveObservation.Contains("returnToIdleOnComplete: false", StringComparison.Ordinal),
         "live movement observation should let movement lanes close the move loop once no committed continuation arrives");
     AssertTrue(
-        unitRoot.Contains("lane.BeginContinuationHold(ResolveVisualMoveBufferSeconds());", StringComparison.Ordinal) &&
+        unitRoot.Contains("lane.BeginContinuationHold(ResolveMovementContinuationHoldSeconds(lane.LastCompletedSegmentDurationSeconds));", StringComparison.Ordinal) &&
         unitRoot.Contains("if (lane.ReturnToIdleOnComplete)", StringComparison.Ordinal) &&
         unitRoot.Contains("_pendingMovementIdleSeconds[entity] = ResolveMovementIdleGraceSeconds();", StringComparison.Ordinal),
         "movement lanes should still hold briefly for a continuation before returning a stopped unit to idle");
@@ -112,11 +113,14 @@ internal static void BattleRuntimeLiveMovementBuffersCommittedSegmentsWithoutRes
         unitRoot.Contains("new MovementLane(entity.GlobalPosition, ResolveSurfaceAt(surfacePath, 0), ResolveVisualMoveBufferSeconds())", StringComparison.Ordinal),
         "live movement lanes should start with a short committed-event buffer instead of requiring prediction");
     AssertTrue(
-        unitRoot.Contains("StartMoveAnimationForLane(entity, restartMoveAnimation);", StringComparison.Ordinal) &&
+        unitRoot.Contains("StartMoveAnimationForLane(entity, createdLane && restartMoveAnimation);", StringComparison.Ordinal) &&
         !unitRoot.Contains("animation?.PlayMove(restartMoveAnimation);", StringComparison.Ordinal),
-        "move animation should start only when entering a visual movement lane, not for every committed grid step");
+        "movement should refresh the move cue on every committed segment without restarting an already-moving sprite");
     AssertTrue(
-        unitRoot.Contains("lane.BeginContinuationHold(ResolveVisualMoveBufferSeconds());", StringComparison.Ordinal) &&
+        unitRoot.Contains("A live lane can survive while an attack/idle cue takes over the sprite", StringComparison.Ordinal),
+        "movement lane playback should document why appended segments must reassert move animation after attacks");
+    AssertTrue(
+        unitRoot.Contains("lane.BeginContinuationHold(ResolveMovementContinuationHoldSeconds(lane.LastCompletedSegmentDurationSeconds));", StringComparison.Ordinal) &&
         unitRoot.Contains("lane.CancelContinuationHold();", StringComparison.Ordinal),
         "movement lanes should stay alive briefly between confirmed segments so visual movement does not stop at every cell");
     AssertTrue(
@@ -125,12 +129,28 @@ internal static void BattleRuntimeLiveMovementBuffersCommittedSegmentsWithoutRes
         "same-actor movement completion should serialize through the previous movement tail without delaying the immediate enqueue");
 }
 
+internal static void BattleRuntimeLiveMovementContinuationHoldCoversSingleStepGap()
+{
+    string unitRoot = ReadBattleUnitRootSource();
+
+    AssertTrue(
+        unitRoot.Contains("ResolveMovementContinuationHoldSeconds", StringComparison.Ordinal) &&
+        unitRoot.Contains("lane.LastCompletedSegmentDurationSeconds", StringComparison.Ordinal) &&
+        unitRoot.Contains("lane.BeginContinuationHold(ResolveMovementContinuationHoldSeconds(lane.LastCompletedSegmentDurationSeconds));", StringComparison.Ordinal),
+        "movement lanes should keep the continuation window tied to the last committed step duration so route rebuild jitter does not restart every cell");
+    AssertTrue(
+        unitRoot.Contains("System.Math.Clamp(segmentSeconds", StringComparison.Ordinal) &&
+        unitRoot.Contains("ResolveVisualMoveBufferSeconds()", StringComparison.Ordinal) &&
+        unitRoot.Contains("0.32", StringComparison.Ordinal),
+        "movement continuation hold should cover about one fixed-clock step while staying bounded for real stop-to-idle cases");
+}
+
 internal static void BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation()
 {
     string state = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"));
     string liveObservation = ReadBattleRuntimeLiveObservationSource();
     string teleportObserver = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeTeleportPresentationObserver.cs"));
-    string effectResolver = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "Effects", "BattleEffectResolver.cs"));
+    string displacementBoundary = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleDisplacementCommitBoundary.cs"));
 
     AssertTrue(
         state.Contains("_actorMovementGenerations", StringComparison.Ordinal) &&
@@ -162,9 +182,9 @@ internal static void BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation
         teleportObserver.Contains("activeMovementTweens", StringComparison.Ordinal),
         "teleport presentation should log the visual snap boundary and active movement lanes for manual QA");
     AssertTrue(
-        effectResolver.Contains("BattleRuntimeThunderFoldDisplacementCommitted", StringComparison.Ordinal) &&
-        effectResolver.Contains("DescribeActorDisplacementState", StringComparison.Ordinal),
-        "runtime thunder fold should log displacement state before and after CommitDisplacement so movement-command conflicts are diagnosable");
+        displacementBoundary.Contains("BattleRuntimeThunderFoldDisplacementCommitted", StringComparison.Ordinal) &&
+        displacementBoundary.Contains("DescribeActorDisplacementState", StringComparison.Ordinal),
+        "runtime thunder fold boundary should log displacement state before and after CommitDisplacement so movement-command conflicts are diagnosable");
 }
 
 internal static void BattleRuntimeMovementQueuesPerceptionOverlayRefresh()
@@ -311,6 +331,76 @@ internal static void ThunderTagProjectileReusesChainLightningFxFrames()
         "chain lightning presentation should author an AnimatedSprite2D and rotate/scale it along the cast direction");
 }
 
+internal static void ThunderSpiralPresentationUsesAuthoredAreaFx()
+{
+    string scenePath = Path.Combine("scenes", "battle", "entities", "fx", "BattleThunderSpiralFx.tscn");
+    string scriptPath = Path.Combine("src", "Presentation", "Battle", "Entities", "BattleThunderSpiralFx.cs");
+    string observerPath = Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeThunderSpiralPresentationObserver.cs");
+    string liveObservation = ReadBattleRuntimeLiveObservationSource();
+    string unitRoot = ReadBattleUnitRootSource();
+    string worldSiteRoot = ReadWorldSiteRootSource();
+
+    AssertTrue(File.Exists(scenePath), "thunder spiral should have an authored area FX scene");
+    AssertTrue(File.Exists(scriptPath), "thunder spiral area FX should have a focused scene script");
+    AssertTrue(File.Exists(observerPath), "thunder spiral runtime presentation routing should live in a focused observer helper");
+
+    string scene = File.ReadAllText(scenePath);
+    string script = File.ReadAllText(scriptPath);
+    string observer = File.ReadAllText(observerPath);
+
+    AssertTrue(
+        scene.Contains("AnimatedSprite2D", StringComparison.Ordinal) &&
+        scene.Contains("fx_vortexswirl/frames.tres", StringComparison.Ordinal) &&
+        scene.Contains("BattleThunderSpiralFx.cs", StringComparison.Ordinal),
+        "thunder spiral should reuse an authored swirl SpriteFrames asset instead of drawing a new exact hand-held effect in code");
+    AssertTrue(
+        script.Contains("AnimatedSprite2D", StringComparison.Ordinal) &&
+        script.Contains("QueueFreeAfterLifetime", StringComparison.Ordinal) &&
+        script.Contains("OnSpiralAnimationFinished", StringComparison.Ordinal) &&
+        !script.Contains("SetAnimationLoop", StringComparison.Ordinal),
+        "thunder spiral FX should loop the authored one-shot SpriteFrames for the Runtime channel duration without mutating the shared resource");
+    AssertTrue(
+        !scene.Contains("position = Vector2(0, -14)", StringComparison.Ordinal),
+        "thunder spiral authored sprite should stay centered on the Runtime 3x3 area center");
+    AssertTrue(
+        scene.Contains("scale = Vector2(0.5625, 0.5625)", StringComparison.Ordinal),
+        "thunder spiral authored scene should default to the 1.5x tuned area scale");
+    Vector2 resolvedAreaScale = BattleThunderSpiralFx.ResolveAreaScale(new Vector2(72f, 72f), 128f);
+    AssertFloatEqual(0.5625f, resolvedAreaScale.X, 0.0001f, "thunder spiral core should cover the 1.5x tuned 3x3 tile width");
+    AssertFloatEqual(0.5625f, resolvedAreaScale.Y, 0.0001f, "thunder spiral core should cover the 1.5x tuned 3x3 tile height");
+    Vector2 fixedAreaSize = BattleThunderSpiralFx.ResolveDefaultAreaPixelSize();
+    AssertFloatEqual(72f, fixedAreaSize.X, 0.0001f, "thunder spiral fixed visual width should be three 16 px tiles tuned 1.5x larger");
+    AssertFloatEqual(72f, fixedAreaSize.Y, 0.0001f, "thunder spiral fixed visual height should be three 16 px tiles tuned 1.5x larger");
+    AssertTrue(
+        observer.Contains("HeroSkillCommandIds.ThunderSpiralBreakSkillId", StringComparison.Ordinal) &&
+        observer.Contains("runtimeEvent.HasTargetCells", StringComparison.Ordinal) &&
+        observer.Contains("runtimeEvent.TargetGridX", StringComparison.Ordinal) &&
+        observer.Contains("runtimeEvent.TargetGridY", StringComparison.Ordinal) &&
+        observer.Contains("unitRoot.PlayThunderSpiralBreakPresentation", StringComparison.Ordinal),
+        "thunder spiral presentation should consume the Runtime SkillUsed target-cell center instead of the caster cell or HUD preview");
+    AssertTrue(
+        liveObservation.Contains("BattleRuntimeThunderSpiralPresentationObserver.IsThunderSpiralSkillUsedEvent", StringComparison.Ordinal) &&
+        liveObservation.Contains("BattleRuntimeThunderSpiralPresentationObserver.ObserveRuntimeThunderSpiralSkillUsedEvent", StringComparison.Ordinal) &&
+        liveObservation.Contains("_focusBattleActionEntity?.Invoke(actor, true)", StringComparison.Ordinal),
+        "live SkillUsed observation should route thunder spiral to area FX and a coarse action focus");
+    AssertTrue(
+        unitRoot.Contains("DefaultThunderSpiralFxScenePath", StringComparison.Ordinal) &&
+        unitRoot.Contains("ThunderSpiralAreaOffset = Vector2.Zero", StringComparison.Ordinal) &&
+        unitRoot.Contains("public double PlayThunderSpiralBreakPresentation(", StringComparison.Ordinal) &&
+        unitRoot.Contains("_tryResolveCellGlobalPosition?.Invoke(targetSurface.Position", StringComparison.Ordinal) &&
+        unitRoot.Contains("ResolveThunderSpiralAreaPixelSize", StringComparison.Ordinal) &&
+        unitRoot.Contains("ConfigureAreaCoreSize", StringComparison.Ordinal) &&
+        unitRoot.Contains("SuppressActorAttachedSkillCastFx(sourceDefinitionId)", StringComparison.Ordinal) &&
+        !unitRoot.Contains("new GridPosition(targetCenter.X + 1, targetCenter.Y)", StringComparison.Ordinal) &&
+        !unitRoot.Contains("new GridPosition(targetCenter.X, targetCenter.Y + 1)", StringComparison.Ordinal) &&
+        !unitRoot.Contains("HandPath", StringComparison.Ordinal) &&
+        !unitRoot.Contains("PalmPath", StringComparison.Ordinal),
+        "BattleUnitRoot should spawn thunder spiral at the Runtime 3x3 target center, keep the tuned fixed visual size, and avoid a second caster-foot skill FX");
+    AssertTrue(
+        worldSiteRoot.Contains("_battleCamera?.FollowActionEntityIfNeeded(entity, force)", StringComparison.Ordinal),
+        "world-site battle runtime should wire the existing coarse action camera follow as the skill focus path");
+}
+
 internal static void RuntimeSkillDamageDoesNotReplayCasterCast()
 {
     string playback = ReadBattleRuntimePlaybackSource();
@@ -319,6 +409,73 @@ internal static void RuntimeSkillDamageDoesNotReplayCasterCast()
         playback.Contains("PlayRuntimeDamageFeedback(", StringComparison.Ordinal) &&
         !playback.Contains("BattleActionResult.AbilitySucceeded", StringComparison.Ordinal),
         "runtime skill damage should keep target impact and damage feedback without replaying the caster skill-cast animation");
+}
+
+internal static void RuntimeSkillDamageFeedbackDoesNotExtendCasterActionTail()
+{
+    Type? stateType = Type.GetType("Rpg.Presentation.World.Sites.BattleRuntimeLivePresentationState, rpg");
+    AssertTrue(stateType != null, "missing live presentation state type");
+    System.Reflection.MethodInfo? trackSkillDamageFeedback = stateType!.GetMethod("TrackSkillDamageFeedback");
+    AssertTrue(trackSkillDamageFeedback != null, "skill damage feedback should have a caster-action-tail-free scheduling entry");
+
+    object state = Activator.CreateInstance(
+        stateType,
+        new object[] { new Dictionary<string, BattleEntity>(StringComparer.Ordinal) })!;
+    TaskCompletionSource skillCastTail = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    TaskCompletionSource<bool> skillDamageFeedbackStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    TaskCompletionSource<bool> basicAttackFeedbackStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    stateType.GetMethod("TrackActorAction")!.Invoke(
+        state,
+        new object[]
+        {
+            "caster",
+            new Func<Task>(() => skillCastTail.Task),
+            true
+        });
+    trackSkillDamageFeedback!.Invoke(
+        state,
+        new object[]
+        {
+            "caster",
+            "target",
+            new Func<Task>(() =>
+            {
+                skillDamageFeedbackStarted.SetResult(true);
+                return Task.CompletedTask;
+            })
+        });
+    stateType.GetMethod("TrackActorDamage")!.Invoke(
+        state,
+        new object[]
+        {
+            "caster",
+            "target",
+            new Func<Task>(() =>
+            {
+                basicAttackFeedbackStarted.SetResult(true);
+                return Task.CompletedTask;
+            })
+        });
+
+    bool skillFeedbackStartedBeforeCastTail = Task.WhenAny(
+        skillDamageFeedbackStarted.Task,
+        Task.Delay(120)).GetAwaiter().GetResult() == skillDamageFeedbackStarted.Task;
+    bool basicAttackWaitedForCastTail = Task.WhenAny(
+        basicAttackFeedbackStarted.Task,
+        Task.Delay(120)).GetAwaiter().GetResult() != basicAttackFeedbackStarted.Task;
+
+    skillCastTail.SetResult();
+    ((Task)stateType.GetMethod("WaitForAllAsync")!.Invoke(state, Array.Empty<object>())!)
+        .GetAwaiter()
+        .GetResult();
+
+    AssertTrue(
+        skillFeedbackStartedBeforeCastTail,
+        "skill damage impact feedback should not wait for or extend the caster's channeled SkillUsed presentation tail");
+    AssertTrue(
+        basicAttackWaitedForCastTail && basicAttackFeedbackStarted.Task.IsCompleted,
+        "ordinary attack feedback should still serialize through the caster action tail");
 }
 
 internal static void BattleRuntimeVisualMovementKeepsRuntimeActionDuration()
@@ -584,6 +741,13 @@ internal static void RuntimePlaybackTargetDamageQueueDoesNotSerializeImpactDelay
         impactWaitIndex >= 0 &&
         previousTailIndex > impactWaitIndex,
         "runtime damage application should let impact delay elapse before waiting for prior target damage application order");
+    AssertTrue(
+        !playback.Contains("actionDurationSeconds,\r\n            runtimeEvent.ActionImpactDelaySeconds", StringComparison.Ordinal) &&
+        !playback.Contains("actionDurationSeconds,\n            runtimeEvent.ActionImpactDelaySeconds", StringComparison.Ordinal) &&
+        (playback.Contains("actionDurationSeconds,\r\n            0,", StringComparison.Ordinal) ||
+         playback.Contains("actionDurationSeconds,\n            0,", StringComparison.Ordinal)) &&
+        playback.Contains("fallbackToActorAttackImpactDelay: false", StringComparison.Ordinal),
+        "DamageApplied is already the Runtime impact boundary; target-side HP and hit feedback must not wait ActionImpactDelaySeconds again");
 }
 
 internal static void RuntimePlaybackMovementPathUsesFootprintCenterResolver()

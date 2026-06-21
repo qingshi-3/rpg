@@ -224,11 +224,9 @@ public partial class BattleUnitRoot
         lane.Enqueue(globalPath, surfacePath, resolvedStepDurationSeconds, returnToIdleOnComplete);
         if (lane.HasSegments)
         {
-            if (createdLane)
-            {
-                StartMoveAnimationForLane(entity, restartMoveAnimation);
-            }
-
+            // A live lane can survive while an attack/idle cue takes over the sprite.
+            // Reassert move on appended segments; restart only when a new lane asks for it.
+            StartMoveAnimationForLane(entity, createdLane && restartMoveAnimation);
             SetProcess(true);
         }
 
@@ -288,7 +286,7 @@ public partial class BattleUnitRoot
 
         if (!lane.HasContinuationHold)
         {
-            lane.BeginContinuationHold(ResolveVisualMoveBufferSeconds());
+            lane.BeginContinuationHold(ResolveMovementContinuationHoldSeconds(lane.LastCompletedSegmentDurationSeconds));
         }
 
         if (lane.HasContinuationHold)
@@ -340,6 +338,15 @@ public partial class BattleUnitRoot
     private double ResolveMovementIdleGraceSeconds()
     {
         return System.Math.Max(0.04, ResolveVisualMoveBufferSeconds());
+    }
+
+    private double ResolveMovementContinuationHoldSeconds(double stepDurationSeconds)
+    {
+        double segmentSeconds = ResolveVisualMoveStepDurationSeconds(stepDurationSeconds);
+        // Runtime emits only committed one-cell steps. Combat-zone route rebuilds
+        // can delay the next fact by roughly one fixed-clock step; this hold keeps
+        // the local visual lane alive at the completed cell without inventing path.
+        return System.Math.Clamp(segmentSeconds, ResolveVisualMoveBufferSeconds(), 0.32);
     }
 
     private double ResolveVisualMoveBufferSeconds()
@@ -410,6 +417,7 @@ public partial class BattleUnitRoot
         public double ElapsedSeconds { get; set; }
         public bool IsNewSegment { get; private set; }
         public bool ReturnToIdleOnComplete { get; private set; }
+        public double LastCompletedSegmentDurationSeconds { get; private set; }
         public bool HasSegments => _hasCurrent || _segments.Count > 0;
         public bool HasStartupDelay => _startupDelaySeconds > 0 && HasSegments;
         public bool HasContinuationHold => _continuationHoldSeconds > 0;
@@ -510,6 +518,9 @@ public partial class BattleUnitRoot
 
         public void CompleteCurrentSegment()
         {
+            LastCompletedSegmentDurationSeconds = _hasCurrent
+                ? _current.DurationSeconds
+                : LastCompletedSegmentDurationSeconds;
             _hasCurrent = false;
             IsNewSegment = false;
             ElapsedSeconds = 0;

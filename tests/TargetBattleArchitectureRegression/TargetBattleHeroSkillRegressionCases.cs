@@ -8,7 +8,7 @@ using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
 
-internal static class TargetBattleHeroSkillRegressionCases
+internal static partial class TargetBattleHeroSkillRegressionCases
 {
     private const string FirstSliceSkillId = "first_slice_hero_breakthrough";
     private const string ShieldBarrierSkillId = "first_slice_skill_shield_barrier";
@@ -30,10 +30,16 @@ internal static class TargetBattleHeroSkillRegressionCases
         run("runtime skill interrupts pre impact attack windup", RuntimeSkillInterruptsPreImpactAttackWindup);
         run("runtime skill command waits behind active skill by default", RuntimeSkillCommandWaitsBehindActiveSkillByDefault);
         run("runtime idle caster keeps only latest pending skill intent", RuntimeIdleCasterKeepsOnlyLatestPendingSkillIntent);
+        run("runtime idle caster can retarget same pending skill intent", RuntimeIdleCasterCanRetargetSamePendingSkillIntent);
         run("runtime skill waits one tick after movement boundary", RuntimeSkillWaitsOneTickAfterMovementBoundary);
         run("runtime skill release consumes actor decision slice", RuntimeSkillReleaseConsumesActorDecisionSlice);
         run("runtime effect events carry skill source attribution", RuntimeEffectEventsCarrySkillSourceAttribution);
         run("runtime queues hero skill command and resolves it on next tick", RuntimeQueuesHeroSkillCommandAndResolvesItOnNextTick);
+        run("runtime pause blocks fixed tick time and combat effects", RuntimePauseBlocksFixedTickTimeAndCombatEffects);
+        run("runtime pause accepts hero skill intent without advancing battlefield facts", RuntimePauseAcceptsHeroSkillIntentWithoutAdvancingBattlefieldFacts);
+        run("runtime pause blocks advance next tick termination", RuntimePauseBlocksAdvanceNextTickTermination);
+        run("runtime paused advance to completion returns incomplete result", RuntimePausedAdvanceToCompletionReturnsIncompleteResult);
+        TargetBattleAbilityControllerRegressionCases.Register(run);
         run("battle report records hero skill use", BattleReportRecordsHeroSkillUse);
         run("battle report records hero skill effect attribution", BattleReportRecordsHeroSkillEffectAttribution);
         run("battle report records hero skill failure reason", BattleReportRecordsHeroSkillFailureReason);
@@ -356,6 +362,8 @@ internal static class TargetBattleHeroSkillRegressionCases
         BattleRuntimeActor hero = Hero(controller);
         hero.Phase = BattleRuntimeActorPhase.AttackWindup;
         hero.ActionReadyAtSeconds = 1.0;
+        hero.CurrentBasicAttackImpactAtSeconds = 1.0;
+        hero.CurrentBasicAttackImpactApplied = false;
 
         BattleRuntimeCommandSubmitResult submit = SubmitTargetedSkill(
             controller,

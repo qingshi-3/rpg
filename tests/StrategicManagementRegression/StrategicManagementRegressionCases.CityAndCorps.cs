@@ -29,6 +29,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicConstructionRegionDefinition economy = FindRegion(definitions, StrategicManagementIds.RegionPlainsEconomy);
         int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
         int beforeWood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood);
 
@@ -37,8 +38,8 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingFarm,
             StrategicManagementIds.RegionPlainsEconomy,
-            1,
-            1);
+            economy.OriginX,
+            economy.OriginY);
 
         AssertTrue(result.Success, $"farm build should succeed, got {result.FailureReason}");
         StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
@@ -46,8 +47,8 @@ internal static partial class StrategicManagementRegressionCases
         StrategicBuildingInstanceState building = city.Buildings[0];
         AssertEqual(StrategicManagementIds.BuildingFarm, building.BuildingDefinitionId, "building instance should record definition id");
         AssertEqual(StrategicManagementIds.RegionPlainsEconomy, building.ConstructionRegionId, "building instance should record construction region");
-        AssertEqual(1, building.GridX, "building instance should record grid x");
-        AssertEqual(1, building.GridY, "building instance should record grid y");
+        AssertEqual(economy.OriginX, building.GridX, "building instance should record grid x");
+        AssertEqual(economy.OriginY, building.GridY, "building instance should record grid y");
         AssertEqual(1, building.Level, "new building should start at level 1");
         AssertEqual("", building.BattleAnchorId, "foundation slice should keep future battle anchor optional and empty");
         AssertTrue(state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney) < beforeMoney, "money should be spent");
@@ -61,27 +62,24 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementRules rules = new(definitions);
         StrategicManagementCommandService commands = new(definitions, rules);
+        StrategicConstructionRegionDefinition economy = FindRegion(definitions, StrategicManagementIds.RegionPlainsEconomy);
 
         StrategicCommandResult valid = commands.BuildCityBuilding(
             state,
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingFarm,
             StrategicManagementIds.RegionPlainsEconomy,
-            1,
-            1);
+            economy.OriginX,
+            economy.OriginY);
         AssertTrue(valid.Success, $"setup farm build should succeed, got {valid.FailureReason}");
-
-        int beforeBuildings = state.Cities[StrategicManagementIds.LocationPlainsCity].Buildings.Count;
-        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
-        int beforeWood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood);
 
         StrategicCommandResult overlap = commands.BuildCityBuilding(
             state,
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingMarket,
             StrategicManagementIds.RegionPlainsEconomy,
-            2,
-            1);
+            economy.OriginX,
+            economy.OriginY);
         AssertTrue(!overlap.Success, "overlapping building placement should fail");
         AssertEqual(StrategicFailureReasons.BuildingPlacementOccupied, overlap.FailureReason, "overlap should report occupied cells");
 
@@ -90,20 +88,22 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingMarket,
             StrategicManagementIds.RegionPlainsEconomy,
-            99,
-            99);
+            economy.OriginX + economy.Width,
+            economy.OriginY + economy.Height);
         AssertTrue(!outside.Success, "outside-region building placement should fail");
         AssertEqual(StrategicFailureReasons.BuildingPlacementOutOfBounds, outside.FailureReason, "out-of-bounds should be explicit");
 
-        StrategicCommandResult wrongCategory = commands.BuildCityBuilding(
+        StrategicCommandResult crossCategory = commands.BuildCityBuilding(
             state,
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingTrainingGround,
             StrategicManagementIds.RegionPlainsEconomy,
-            4,
-            1);
-        AssertTrue(!wrongCategory.Success, "wrong-region-category placement should fail");
-        AssertEqual(StrategicFailureReasons.BuildingRegionCategoryMismatch, wrongCategory.FailureReason, "wrong category should be explicit");
+            economy.OriginX + 2,
+            economy.OriginY);
+        AssertTrue(crossCategory.Success, $"cross-category placement inside a buildable region should succeed, got {crossCategory.FailureReason}");
+
+        int beforeBuildings = state.Cities[StrategicManagementIds.LocationPlainsCity].Buildings.Count;
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
 
         state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood, 0);
         StrategicCommandResult noResources = commands.BuildCityBuilding(
@@ -111,8 +111,8 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingMarket,
             StrategicManagementIds.RegionPlainsEconomy,
-            4,
-            1);
+            economy.OriginX + 5,
+            economy.OriginY);
         AssertTrue(!noResources.Success, "building placement should fail without resources");
         AssertEqual(StrategicFailureReasons.InsufficientResources, noResources.FailureReason, "resource shortage should be explicit");
 

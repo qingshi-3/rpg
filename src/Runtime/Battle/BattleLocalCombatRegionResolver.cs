@@ -37,7 +37,7 @@ internal static class BattleLocalCombatRegionResolver
         foreach (BattleRuntimeTickStartActorFact fact in facts?.Values ?? System.Array.Empty<BattleRuntimeTickStartActorFact>())
         {
             if (string.Equals(fact.Actor.ActorId ?? "", actorFact.Actor.ActorId ?? "", System.StringComparison.Ordinal) ||
-                BattleRuntimeTickResolver.SameFaction(fact.Actor, actorFact.Actor) ||
+                BattleRuntimeIdentityRules.SameFaction(fact.Actor, actorFact.Actor) ||
                 IsInsideLocalCombatRegion(fact, localCombatRegion))
             {
                 filtered[fact.Actor.ActorId ?? ""] = fact;

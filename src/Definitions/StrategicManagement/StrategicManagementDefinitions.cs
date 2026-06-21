@@ -59,7 +59,6 @@ public sealed class StrategicConstructionRegionDefinition
     public int OriginY { get; set; }
     public int Width { get; set; } = 1;
     public int Height { get; set; } = 1;
-    public List<string> AllowedCategoryIds { get; set; } = new();
 }
 
 public sealed class StrategicBattleRewardDefinition
@@ -102,9 +101,6 @@ public sealed class StrategicBuildingDefinition
     public int FootprintWidth { get; set; } = 1;
     public int FootprintHeight { get; set; } = 1;
     public List<StrategicResourceAmount> BuildCost { get; set; } = new();
-    public List<StrategicResourceAmount> ProductionPerWorldTimePulse { get; set; } = new();
-    public int CityForceCapacityBonus { get; set; }
-    public int ReserveRecoveryPerWorldTimePulse { get; set; }
 }
 
 public sealed class StrategicCorpsDefinition

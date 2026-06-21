@@ -22,41 +22,18 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
         out string reasonCode)
     {
         reasonCode = "";
-        if (!BattleRuntimeThunderMarkQueries.TryResolveLiveMarkAnchorById(
-                state,
-                selectedSpatialMarkId,
-                caster?.BattleGroupId ?? "",
-                runtimeTimeSeconds,
-                out _,
-                out BattleGridCoord markAnchor))
-        {
-            reasonCode = "thunder_mark_missing";
-            return false;
-        }
-
         BattleGridCoord destination = new(targetGridX, targetGridY, targetGridHeight);
-        int radius = ResolveThunderMarkTeleportRadius(skill);
-        if (destination.Height != markAnchor.Height ||
-            System.Math.Max(System.Math.Abs(destination.X - markAnchor.X), System.Math.Abs(destination.Y - markAnchor.Y)) > radius)
-        {
-            reasonCode = "thunder_mark_destination_not_near_mark";
-            return false;
-        }
-
-        if (navigationGraph?.CanPlaceFootprint(caster, destination) != true)
-        {
-            reasonCode = "thunder_mark_destination_invalid";
-            return false;
-        }
-
-        BattleDynamicOccupancy occupancy = BattleDynamicOccupancy.FromActors(state?.Actors);
-        if (!occupancy.CanPlaceFootprint(caster, destination))
-        {
-            reasonCode = "thunder_mark_destination_occupied";
-            return false;
-        }
-
-        return true;
+        return BattleDisplacementCommitBoundary.ValidateThunderMarkTeleportDestination(
+            state,
+            caster,
+            selectedSpatialMarkId,
+            destination,
+            ResolveThunderMarkTeleportRadius(skill),
+            runtimeTimeSeconds,
+            navigationGraph,
+            out _,
+            out _,
+            out reasonCode);
     }
 
     private static int ResolveThunderMarkTeleportRadius(BattleSkillSnapshot skill)

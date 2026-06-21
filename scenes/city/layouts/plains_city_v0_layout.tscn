@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=4]
+[gd_scene load_steps=16 format=4]
 
 [ext_resource type="PackedScene" path="res://scenes/city/base/plains_city_base.tscn" id="1_base"]
 [ext_resource type="Script" path="res://src/Presentation/Battle/BattleMapLayer.cs" id="2_battle_map_layer"]
@@ -8,7 +8,6 @@
 [ext_resource type="Script" path="res://src/Definitions/Maps/BattleMapConnectionSide.cs" id="6_connection_side"]
 [ext_resource type="Script" path="res://src/Definitions/Maps/BattleMapConnectionPoint.cs" id="7_connection_point"]
 [ext_resource type="PackedScene" path="res://scenes/maps/markers/BridgeMapMarker.tscn" id="8_bridge_marker"]
-[ext_resource type="PackedScene" path="res://scenes/maps/markers/BuildingSlotMapMarker.tscn" id="9_building_marker"]
 [ext_resource type="PackedScene" path="res://scenes/maps/markers/DeploymentZoneMapMarker.tscn" id="10_deployment_marker"]
 [ext_resource type="PackedScene" path="res://scenes/maps/markers/ObjectiveZoneMapMarker.tscn" id="11_objective_marker"]
 
@@ -82,7 +81,13 @@ AffectsWalkability = true
 [node name="SemanticMarkers" type="Node2D" parent="."]
 y_sort_enabled = true
 
-[node name="river_bridge_west" parent="SemanticMarkers" instance=ExtResource("8_bridge_marker")]
+[node name="BridgeMarkers" type="Node2D" parent="SemanticMarkers"]
+
+[node name="DeploymentZones" type="Node2D" parent="SemanticMarkers"]
+
+[node name="ObjectiveZones" type="Node2D" parent="SemanticMarkers"]
+
+[node name="river_bridge_west" parent="SemanticMarkers/BridgeMarkers" instance=ExtResource("8_bridge_marker")]
 position = Vector2(352, 288)
 MarkerId = "plains_city_v0_river_bridge"
 Width = 2
@@ -90,40 +95,21 @@ Height = 2
 CellHeight = 0
 BridgeKind = 0
 
-[node name="barracks_slot" parent="SemanticMarkers" instance=ExtResource("9_building_marker")]
-position = Vector2(128, 128)
-MarkerId = "plains_city_v0_barracks_slot"
-Width = 2
-Height = 2
-
-[node name="market_slot" parent="SemanticMarkers" instance=ExtResource("9_building_marker")]
-position = Vector2(192, 448)
-MarkerId = "plains_city_v0_market_slot"
-Width = 3
-Height = 2
-
-[node name="workshop_slot" parent="SemanticMarkers" instance=ExtResource("9_building_marker")]
-position = Vector2(640, 192)
-MarkerId = "plains_city_v0_workshop_slot"
-Width = 2
-Height = 2
-CellHeight = 1
-
-[node name="player_deployment_west" parent="SemanticMarkers" instance=ExtResource("10_deployment_marker")]
+[node name="player_deployment_west" parent="SemanticMarkers/DeploymentZones" instance=ExtResource("10_deployment_marker")]
 position = Vector2(64, 288)
 MarkerId = "plains_city_v0_player_deployment_west"
 Width = 3
 Height = 4
 DeploymentSide = 1
 
-[node name="enemy_deployment_east" parent="SemanticMarkers" instance=ExtResource("10_deployment_marker")]
+[node name="enemy_deployment_east" parent="SemanticMarkers/DeploymentZones" instance=ExtResource("10_deployment_marker")]
 position = Vector2(704, 288)
 MarkerId = "plains_city_v0_enemy_deployment_east"
 Width = 3
 Height = 4
 DeploymentSide = 2
 
-[node name="resource_cache" parent="SemanticMarkers" instance=ExtResource("11_objective_marker")]
+[node name="resource_cache" parent="SemanticMarkers/ObjectiveZones" instance=ExtResource("11_objective_marker")]
 position = Vector2(576, 416)
 MarkerId = "plains_city_v0_resource_cache"
 Width = 2

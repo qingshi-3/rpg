@@ -87,12 +87,12 @@ internal static class BattleTargetSelectionService
 
     private static string ResolveCommandTargetSelectionPolicy(BattleRuntimeTickStartActorFact actorFact)
     {
-        if (BattleRuntimeTickResolver.IsFocusFireCommand(actorFact.CommandId))
+        if (BattleRuntimeIdentityRules.IsFocusFireCommand(actorFact.CommandId))
         {
             return BattleRuntimeAiTargetSelectionPolicy.FocusFire;
         }
 
-        if (BattleRuntimeTickResolver.IsHoldLineCommand(actorFact.CommandId))
+        if (BattleRuntimeIdentityRules.IsHoldLineCommand(actorFact.CommandId))
         {
             return BattleRuntimeAiTargetSelectionPolicy.HoldLine;
         }
@@ -135,12 +135,12 @@ internal static class BattleTargetSelectionService
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
-                BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor))
+                BattleRuntimeIdentityRules.SameFaction(candidate.Actor, actorFact.Actor))
             {
                 continue;
             }
 
-            int orthogonalGap = BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
+            int orthogonalGap = BattleCombatGeometry.GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
             int gridGap = GetSquareGridDistance(actorFact, candidate);
             bool immediate = orthogonalGap <= attackRange;
             bool retained = string.Equals(actorFact.TargetActorId, candidate.Actor.ActorId, System.StringComparison.Ordinal);
@@ -209,12 +209,12 @@ internal static class BattleTargetSelectionService
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
-                BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor))
+                BattleRuntimeIdentityRules.SameFaction(candidate.Actor, actorFact.Actor))
             {
                 continue;
             }
 
-            int orthogonalGap = BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
+            int orthogonalGap = BattleCombatGeometry.GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
             bool immediate = orthogonalGap <= attackRange;
             bool retained = string.Equals(actorFact.TargetActorId, candidate.Actor.ActorId, System.StringComparison.Ordinal);
             if (immediate || retained && !demoteRetainedTarget)
@@ -379,12 +379,12 @@ internal static class BattleTargetSelectionService
         BattleDynamicOccupancy occupancy,
         BattlePerformanceCounters performanceCounters)
     {
-        if (BattleRuntimeTickResolver.IsFocusFireCommand(actorFact.CommandId))
+        if (BattleRuntimeIdentityRules.IsFocusFireCommand(actorFact.CommandId))
         {
             return FindLowestHealthEnemyCorps(facts, actorFact);
         }
 
-        if (BattleRuntimeTickResolver.IsHoldLineCommand(actorFact.CommandId))
+        if (BattleRuntimeIdentityRules.IsHoldLineCommand(actorFact.CommandId))
         {
             return FindImmediateAttackOpportunityEnemyCorps(facts, actorFact);
         }
@@ -487,7 +487,7 @@ internal static class BattleTargetSelectionService
         }
 
         return GetCurrentHitPoints(retained) > 0 &&
-               !BattleRuntimeTickResolver.SameFaction(actorFact.Actor, retained.Actor) &&
+               !BattleRuntimeIdentityRules.SameFaction(actorFact.Actor, retained.Actor) &&
                GetSquareGridDistance(actorFact, retained) <= maxGap
             ? retained
             : null;
@@ -506,12 +506,12 @@ internal static class BattleTargetSelectionService
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
-                BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor))
+                BattleRuntimeIdentityRules.SameFaction(candidate.Actor, actorFact.Actor))
             {
                 continue;
             }
 
-            int gap = BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
+            int gap = BattleCombatGeometry.GetOrthogonalAttackGap(actorFact.Actor, actorFact.Anchor, candidate.Actor, candidate.Anchor);
             if (gap > attackRange)
             {
                 continue;
@@ -544,7 +544,7 @@ internal static class BattleTargetSelectionService
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
-                BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor))
+                BattleRuntimeIdentityRules.SameFaction(candidate.Actor, actorFact.Actor))
             {
                 continue;
             }
@@ -583,7 +583,7 @@ internal static class BattleTargetSelectionService
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
-                BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor) ||
+                BattleRuntimeIdentityRules.SameFaction(candidate.Actor, actorFact.Actor) ||
                 !BlocksObjectiveRoute(actorFact.Actor, candidate.Actor))
             {
                 continue;
@@ -642,7 +642,7 @@ internal static class BattleTargetSelectionService
             {
                 if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                     GetCurrentHitPoints(candidate) <= 0 ||
-                    BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor))
+                    BattleRuntimeIdentityRules.SameFaction(candidate.Actor, actorFact.Actor))
                 {
                     continue;
                 }
@@ -783,7 +783,7 @@ internal static class BattleTargetSelectionService
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
-                BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor))
+                BattleRuntimeIdentityRules.SameFaction(candidate.Actor, actorFact.Actor))
             {
                 continue;
             }
@@ -827,12 +827,12 @@ internal static class BattleTargetSelectionService
         {
             if (candidate.Actor.ActorId == actorFact.Actor.ActorId ||
                 GetCurrentHitPoints(candidate) <= 0 ||
-                !BattleRuntimeTickResolver.SameFaction(candidate.Actor, actorFact.Actor))
+                !BattleRuntimeIdentityRules.SameFaction(candidate.Actor, actorFact.Actor))
             {
                 continue;
             }
 
-            if (BattleRuntimeTickResolver.GetOrthogonalAttackGap(
+            if (BattleCombatGeometry.GetOrthogonalAttackGap(
                     candidate.Actor,
                     candidate.Anchor,
                     targetFact.Actor,

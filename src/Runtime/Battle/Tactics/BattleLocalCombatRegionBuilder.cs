@@ -34,11 +34,11 @@ public static class BattleLocalCombatRegionBuilder
         }
 
         string[] ownerFactions = members
-            .Select(item => NormalizeFaction(item.FactionId))
+            .Select(item => BattleRuntimeIdentityRules.NormalizeFaction(item.FactionId))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
         BattleRuntimeActor[] perceivedHostiles = alive
-            .Where(actor => !ownerFactions.Contains(NormalizeFaction(actor.FactionId)) &&
+            .Where(actor => !ownerFactions.Contains(BattleRuntimeIdentityRules.NormalizeFaction(actor.FactionId)) &&
                             members.Any(member => IsPerceived(member, actor)))
             .OrderBy(actor => actor.ActorId, StringComparer.Ordinal)
             .ToArray();
@@ -170,8 +170,4 @@ public static class BattleLocalCombatRegionBuilder
         return x >= minX && x < minX + width && y >= minY && y < minY + height;
     }
 
-    private static string NormalizeFaction(string factionId)
-    {
-        return string.IsNullOrWhiteSpace(factionId) ? "player" : factionId.Trim();
-    }
 }

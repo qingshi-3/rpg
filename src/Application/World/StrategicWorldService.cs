@@ -42,24 +42,6 @@ public sealed class StrategicWorldService
                 ActiveTags = siteDefinition.Tags.ToList()
             };
 
-            foreach (FacilitySlotDefinition slot in siteDefinition.FacilitySlots)
-            {
-                if (string.IsNullOrWhiteSpace(slot.InitialFacilityId))
-                {
-                    continue;
-                }
-
-                siteState.Facilities.Add(new FacilityInstance
-                {
-                    InstanceId = BuildFacilityInstanceId(siteDefinition.Id, slot.SlotId, slot.InitialFacilityId),
-                    FacilityId = slot.InitialFacilityId,
-                    SiteId = siteDefinition.Id,
-                    SlotId = slot.SlotId,
-                    State = FacilityState.Active,
-                    Level = 1
-                });
-            }
-
             foreach (GarrisonDefinition garrison in siteDefinition.InitialGarrison)
             {
                 siteState.Garrison.Add(new GarrisonState
@@ -79,10 +61,5 @@ public sealed class StrategicWorldService
 
         GameLog.Info(nameof(StrategicWorldService), $"StrategicWorldInitialized definition={definition.Id} run={state.RunId}");
         return state;
-    }
-
-    public static string BuildFacilityInstanceId(string siteId, string slotId, string facilityId)
-    {
-        return $"{siteId}:{slotId}:{facilityId}";
     }
 }

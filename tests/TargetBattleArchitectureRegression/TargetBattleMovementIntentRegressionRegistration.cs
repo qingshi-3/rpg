@@ -20,6 +20,14 @@ internal static class TargetBattleMovementIntentRegressionRegistration
         run("runtime move-first plan seeks enemy after objective reached", TargetBattleMovementIntentRegressionCases.RuntimeMoveFirstPlanSeeksEnemyAfterObjectiveReached);
         run("runtime retained local target uses greedy step without target flow field", TargetBattleMovementIntentRegressionCases.RuntimeRetainedLocalTargetUsesGreedyStepWithoutTargetFlowField);
         TargetBattleRouteHintRegressionCases.Register(run);
+        TargetBattleMovementControllerRegressionCases.Register(run);
+        TargetBattleRuntimeIdentityRulesRegressionCases.Register(run);
+        TargetBattleDecisionOutcomeApplierRegressionCases.Register(run);
+        TargetBattleDecisionContextBuilderRegressionCases.Register(run);
+        TargetBattleAttackEngagementCoordinatorRegressionCases.Register(run);
+        TargetBattleAdvanceFailureStateBoundaryRegressionCases.Register(run);
+        TargetBattleStaleAdvanceRetargetingRegressionCases.Register(run);
+        TargetBattleMovementCommitBoundaryRegressionCases.Register(run);
         run("local combat region uses perception overlap and cap", TargetBattleLocalCombatSituationRegressionCases.LocalCombatRegionUsesPerceptionOverlapAndCap);
         run("runtime stores local combat region for engaged group", TargetBattleLocalCombatSituationRegressionCases.RuntimeStoresLocalCombatRegionForEngagedGroup);
         run("local combat decision facts expose stored region facts", TargetBattleLocalCombatSituationRegressionCases.LocalCombatDecisionFactsExposeStoredRegionFacts);

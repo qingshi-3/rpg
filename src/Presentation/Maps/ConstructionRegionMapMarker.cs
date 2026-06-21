@@ -12,14 +12,9 @@ public partial class ConstructionRegionMapMarker : SemanticMapMarker
     [ExportGroup("Construction Region")]
 
     [Export]
-    public string[] AllowedCategoryIds { get; set; } = System.Array.Empty<string>();
-
-    [Export]
     public int Priority { get; set; }
 
     protected override SemanticMapMarkerType ResolvedMarkerType => SemanticMapMarkerType.ConstructionRegion;
-
-    protected override string[] ResolvedAllowedCategoryIds => AllowedCategoryIds ?? System.Array.Empty<string>();
 
     protected override int ResolvedPriority => Priority;
 

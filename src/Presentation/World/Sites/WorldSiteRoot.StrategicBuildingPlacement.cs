@@ -162,22 +162,29 @@ public partial class WorldSiteRoot
             gridPosition.Y,
             out _,
             out _);
-        SetStrategicBuildingPlacementPreview(footprintCells, buildable);
+        Texture2D previewTexture = string.IsNullOrWhiteSpace(building.IconPath)
+            ? null
+            : GD.Load<Texture2D>(building.IconPath);
+        SetStrategicBuildingPlacementPreview(footprintCells, buildable, previewTexture);
     }
 
     private void SetStrategicBuildingPlacementPreview(
         IReadOnlyList<GridPosition> footprintCells,
-        bool buildable)
+        bool buildable,
+        Texture2D previewTexture)
     {
         if (_strategicBuildingPlacementPreview == null)
         {
             return;
         }
 
+        // Reuse the picker icon's AtlasTexture so single-building atlas regions
+        // and mouse-follow previews cannot drift apart.
         _strategicBuildingPlacementPreview.SetPreview(
             (footprintCells ?? System.Array.Empty<GridPosition>())
                 .Select(BuildCellPolygonGlobal),
-            buildable);
+            buildable,
+            previewTexture);
     }
 
     private void ClearStrategicBuildingPlacementPreview()

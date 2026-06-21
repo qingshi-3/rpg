@@ -18,7 +18,8 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
             .Select(ToStableProjection)
             .ToArray();
 
-        // This golden freezes insertion order before the TD-003 attack/movement resolver extraction.
+        // This golden freezes the visible event order after actor-local attack
+        // recovery and commit-buffer impact batching.
         string[] expectedEventIds =
         {
             "battle_event_order_golden:started",
@@ -38,22 +39,22 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
             "battle_event_order_golden:tick_0:force_enemy_rear:1:plan:TargetLocked",
             "battle_event_order_golden:tick_0:force_player_a:1:plan:TargetLocked",
             "battle_event_order_golden:tick_0:force_player_b:1:plan:TargetLocked",
-            "battle_event_order_golden:tick_0:force_enemy_front:1:attack:force_player_a:1",
-            "battle_event_order_golden:tick_0:force_player_a:1:attack:force_enemy_front:1",
-            "battle_event_order_golden:tick_0:force_player_b:1:attack:force_enemy_front:1",
             "battle_event_order_golden:tick_0:force_enemy_front:1:plan:Attacking",
             "battle_event_order_golden:tick_0:force_player_a:1:plan:Attacking",
             "battle_event_order_golden:tick_0:force_player_b:1:plan:Attacking",
+            "battle_event_order_golden:tick_0:force_enemy_front:1:attack:force_player_a:1",
+            "battle_event_order_golden:tick_0:force_player_a:1:attack:force_enemy_front:1",
+            "battle_event_order_golden:tick_0:force_player_b:1:attack:force_enemy_front:1",
             "battle_event_order_golden:tick_0:force_enemy_front:1:plan:Defeated",
             "battle_event_order_golden:tick_0:force_enemy_rear:1:plan:MovingToAttackSlot",
             "battle_event_order_golden:tick_0:force_enemy_rear:1:move_start",
             "battle_event_order_golden:tick_1:force_enemy_rear:1:move_complete",
-            "battle_event_order_golden:tick_2:force_enemy_rear:1:attack:force_player_b:1",
             "battle_event_order_golden:tick_2:force_enemy_rear:1:plan:Attacking",
+            "battle_event_order_golden:tick_2:force_enemy_rear:1:attack:force_player_b:1",
             "battle_event_order_golden:tick_3:force_player_a:1:plan:TargetLocked",
             "battle_event_order_golden:tick_3:force_player_b:1:plan:TargetLocked",
-            "battle_event_order_golden:tick_3:force_player_b:1:attack:force_enemy_rear:1",
             "battle_event_order_golden:tick_3:force_player_b:1:plan:Attacking",
+            "battle_event_order_golden:tick_3:force_player_b:1:attack:force_enemy_rear:1",
             "battle_event_order_golden:tick_3:force_enemy_rear:1:plan:Defeated",
             "battle_event_order_golden:ended"
         };
@@ -76,22 +77,22 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
             "0:BattleGroupPlanStateChanged:force_enemy_rear:1->:target_locked",
             "0:BattleGroupPlanStateChanged:force_player_a:1->:target_locked",
             "0:BattleGroupPlanStateChanged:force_player_b:1->:target_locked",
-            "0:DamageApplied:force_enemy_front:1->force_player_a:1:auto_attack",
-            "0:DamageApplied:force_player_a:1->force_enemy_front:1:auto_attack",
-            "0:DamageApplied:force_player_b:1->force_enemy_front:1:auto_attack_target_defeated",
             "0:BattleGroupPlanStateChanged:force_enemy_front:1->:attacking",
             "0:BattleGroupPlanStateChanged:force_player_a:1->:attacking",
             "0:BattleGroupPlanStateChanged:force_player_b:1->:attacking",
+            "0:DamageApplied:force_enemy_front:1->force_player_a:1:auto_attack",
+            "0:DamageApplied:force_player_a:1->force_enemy_front:1:auto_attack",
+            "0:DamageApplied:force_player_b:1->force_enemy_front:1:auto_attack_target_defeated",
             "0:BattleGroupPlanStateChanged:force_enemy_front:1->:defeated",
             "0:BattleGroupPlanStateChanged:force_enemy_rear:1->:moving_to_attack_slot",
             "0:MovementStarted:force_enemy_rear:1->force_player_b:1:join_recent_damage",
             "1:MovementCompleted:force_enemy_rear:1->force_player_b:1:movement_committed",
-            "2:DamageApplied:force_enemy_rear:1->force_player_b:1:auto_attack",
             "2:BattleGroupPlanStateChanged:force_enemy_rear:1->:attacking",
+            "2:DamageApplied:force_enemy_rear:1->force_player_b:1:auto_attack",
             "3:BattleGroupPlanStateChanged:force_player_a:1->:target_locked",
             "3:BattleGroupPlanStateChanged:force_player_b:1->:target_locked",
-            "3:DamageApplied:force_player_b:1->force_enemy_rear:1:auto_attack_target_defeated",
             "3:BattleGroupPlanStateChanged:force_player_b:1->:attacking",
+            "3:DamageApplied:force_player_b:1->force_enemy_rear:1:auto_attack_target_defeated",
             "3:BattleGroupPlanStateChanged:force_enemy_rear:1->:defeated",
             "4:BattleEnded:->:NormalVictory"
         };
@@ -152,7 +153,8 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
             AttackRange = 1,
             AttackSpeed = 1.0,
             MoveStepSeconds = 0.16,
-            AttackActionSeconds = 1.2
+            AttackActionSeconds = 1.2,
+            AttackImpactDelaySeconds = 0
         };
     }
 

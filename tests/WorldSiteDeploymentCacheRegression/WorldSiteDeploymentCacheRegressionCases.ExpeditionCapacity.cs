@@ -48,12 +48,14 @@ internal static void FirstSliceExpeditionDraftKeepsHeroCompanySelectionsIndepend
 {
     string rootSource = ReadStrategicWorldRootSource();
     string beginBody = ExtractMethodBody(rootSource, "private void BeginExpeditionDraft()");
+    string controlsBody = ExtractMethodBody(rootSource, "private bool RefreshExpeditionControls()");
     string createBody = ExtractMethodBody(rootSource, "private bool TryCreateExpedition(string targetSiteId, Vector2 destination, WorldArmyIntent intent)");
     string availableBody = ExtractMethodBody(rootSource, "private IReadOnlyList<StrategicHeroCompanyViewModel> GetAvailableExpeditionHeroCompanies(");
 
     AssertTrue(
-        beginBody.Contains("GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)", StringComparison.Ordinal),
-        "expedition draft should read dispatchable hero companies through the Strategic Management helper");
+        beginBody.Contains("_expeditionHeroIds.Clear();", StringComparison.Ordinal) &&
+        controlsBody.Contains("GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)", StringComparison.Ordinal),
+        "expedition draft should start from an empty selection and read dispatchable hero companies through the Strategic Management helper when binding the draft UI");
     AssertTrue(
         availableBody.Contains("StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(", StringComparison.Ordinal) &&
         availableBody.Contains("StrategicManagementRuntime.BuildDashboard(", StringComparison.Ordinal) &&
@@ -72,6 +74,28 @@ internal static void FirstSliceExpeditionDraftKeepsHeroCompanySelectionsIndepend
         !rootSource.Contains("_expeditionService.TryCreateExpedition(", StringComparison.Ordinal) &&
         !rootSource.Contains("AttachDefaultCorpsToHeroExpedition", StringComparison.Ordinal),
         "large-map expedition formation must not use legacy garrison expedition creation or default-corps injection");
+}
+
+internal static void StrategicWorldExpeditionDraftStartsEmptyAndAllowsDeselect()
+{
+    string rootSource = ReadStrategicWorldRootSource();
+    string expeditionHudSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "StrategicWorldRoot.ExpeditionHud.cs"));
+    string beginBody = ExtractMethodBody(rootSource, "private void BeginExpeditionDraft()");
+    string adjustBody = ExtractMethodBody(rootSource, "private void AdjustExpeditionHeroCompanySelection(string heroId, int delta)");
+    string controlsBody = ExtractMethodBody(expeditionHudSource, "private bool RefreshExpeditionControls()");
+
+    AssertTrue(
+        beginBody.Contains("_expeditionHeroIds.Clear();", StringComparison.Ordinal) &&
+        !beginBody.Contains("_expeditionHeroIds.Add(", StringComparison.Ordinal) &&
+        !beginBody.Contains("FirstOrDefault(company => company.CanCreateExpedition)", StringComparison.Ordinal),
+        "starting an expedition draft should leave the hero-company selection empty until the player explicitly chooses a company");
+    AssertTrue(
+        adjustBody.Contains("else if (delta < 0)", StringComparison.Ordinal) &&
+        adjustBody.Contains("_expeditionHeroIds.Remove(heroId);", StringComparison.Ordinal),
+        "clicking the minus button on a selected expedition company should be able to remove that company from the draft");
+    AssertTrue(
+        controlsBody.Contains("AddExpeditionTargetButton(HasSelectedExpeditionUnits())", StringComparison.Ordinal),
+        "the choose-target button should stay disabled while the expedition draft has no selected hero company");
 }
 
 internal static void StrategicWorldSelectionContextClearsExpeditionDraft()

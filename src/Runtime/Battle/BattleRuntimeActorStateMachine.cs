@@ -55,6 +55,12 @@ internal static class BattleRuntimeActorStateMachine
             return false;
         }
 
+        if (actor.Phase == BattleRuntimeActorPhase.AttackWindup ||
+            actor.Phase == BattleRuntimeActorPhase.AttackRecovery)
+        {
+            return false;
+        }
+
         if (actor.ActionReadyAtSeconds > currentTimeSeconds + TimeEpsilon)
         {
             return false;
@@ -66,6 +72,42 @@ internal static class BattleRuntimeActorStateMachine
         actor.ActionLockTicksRemaining = 0;
         actor.ActionLockReason = "";
         return false;
+    }
+
+    internal static void MarkAttackWindup(
+        BattleRuntimeActor actor,
+        string targetActorId,
+        BattleGridCoord actorAnchor,
+        BattleGridCoord targetAnchor,
+        int declaredDamage,
+        double currentTimeSeconds)
+    {
+        if (actor == null)
+        {
+            return;
+        }
+
+        double actionSeconds = ResolveAttackActionSeconds(actor);
+        double impactDelaySeconds = ResolveAttackImpactDelaySeconds(actor, actionSeconds);
+        actor.MotionState = BattleRuntimeActorMotionState.Attacking;
+        actor.Phase = BattleRuntimeActorPhase.AttackWindup;
+        actor.ActionLockTicksRemaining = 0;
+        actor.ActionLockReason = "attack_windup";
+        actor.ActionReadyAtSeconds = currentTimeSeconds + impactDelaySeconds;
+        actor.AttackCharge = System.Math.Max(0, actor.AttackCharge - 1.0);
+        actor.CurrentBasicAttackTargetActorId = targetActorId ?? "";
+        actor.CurrentBasicAttackDamage = System.Math.Max(1, declaredDamage);
+        actor.CurrentBasicAttackImpactApplied = false;
+        actor.CurrentBasicAttackStartedAtSeconds = currentTimeSeconds;
+        actor.CurrentBasicAttackImpactAtSeconds = currentTimeSeconds + impactDelaySeconds;
+        actor.CurrentBasicAttackEndsAtSeconds = currentTimeSeconds + actionSeconds;
+        actor.CurrentBasicAttackActorGridX = actorAnchor.X;
+        actor.CurrentBasicAttackActorGridY = actorAnchor.Y;
+        actor.CurrentBasicAttackActorGridHeight = actorAnchor.Height;
+        actor.CurrentBasicAttackTargetGridX = targetAnchor.X;
+        actor.CurrentBasicAttackTargetGridY = targetAnchor.Y;
+        actor.CurrentBasicAttackTargetGridHeight = targetAnchor.Height;
+        ClearMovementIntentSnapshot(actor);
     }
 
     internal static void MarkMovementCommitted(
@@ -135,18 +177,22 @@ internal static class BattleRuntimeActorStateMachine
         actor.MovementIntentSegmentDurationSeconds = moveSeconds;
     }
 
-    internal static void MarkAttackRecovery(BattleRuntimeActor actor, double currentTimeSeconds)
+    internal static void MarkAttackRecovery(BattleRuntimeActor actor, double currentTimeSeconds, double actionEndsAtSeconds = double.NaN)
     {
         if (actor == null)
         {
             return;
         }
 
+        double recoveryReadyAtSeconds = double.IsNaN(actionEndsAtSeconds) || double.IsInfinity(actionEndsAtSeconds)
+            ? currentTimeSeconds + ResolveAttackActionSeconds(actor)
+            : System.Math.Max(currentTimeSeconds, actionEndsAtSeconds);
         actor.MotionState = BattleRuntimeActorMotionState.Attacking;
         actor.Phase = BattleRuntimeActorPhase.AttackRecovery;
         actor.ActionLockTicksRemaining = AttackRecoveryLockTicks;
         actor.ActionLockReason = "attack_recovery";
-        actor.ActionReadyAtSeconds = currentTimeSeconds + ResolveAttackActionSeconds(actor);
+        actor.ActionReadyAtSeconds = recoveryReadyAtSeconds;
+        ClearBasicAttackAction(actor);
         ClearMovementIntentSnapshot(actor);
     }
 
@@ -156,6 +202,11 @@ internal static class BattleRuntimeActorStateMachine
         string skillId,
         string sourceCommandId,
         string targetActorId,
+        bool hasTargetGrid,
+        int targetGridX,
+        int targetGridY,
+        int targetGridHeight,
+        string selectedSpatialMarkId,
         double currentTimeSeconds,
         double impactDelaySeconds,
         double recoverySeconds)
@@ -173,8 +224,14 @@ internal static class BattleRuntimeActorStateMachine
         actor.CurrentSkillId = skillId ?? "";
         actor.CurrentSkillSourceCommandId = sourceCommandId ?? "";
         actor.CurrentSkillTargetActorId = targetActorId ?? "";
+        actor.CurrentSkillHasTargetGrid = hasTargetGrid;
+        actor.CurrentSkillTargetGridX = targetGridX;
+        actor.CurrentSkillTargetGridY = targetGridY;
+        actor.CurrentSkillTargetGridHeight = targetGridHeight;
+        actor.CurrentSkillSelectedSpatialMarkId = selectedSpatialMarkId ?? "";
         actor.CurrentSkillImpactAtSeconds = currentTimeSeconds + System.Math.Max(0, impactDelaySeconds);
         actor.CurrentSkillImpactApplied = false;
+        ClearBasicAttackAction(actor);
         ClearMovementIntentSnapshot(actor);
     }
 
@@ -189,6 +246,7 @@ internal static class BattleRuntimeActorStateMachine
         actor.Phase = BattleRuntimeActorPhase.SkillRecovery;
         actor.ActionLockReason = "skill_recovery";
         actor.ActionReadyAtSeconds = currentTimeSeconds + System.Math.Max(0, recoverySeconds);
+        ClearBasicAttackAction(actor);
         ClearMovementIntentSnapshot(actor);
     }
 
@@ -201,14 +259,21 @@ internal static class BattleRuntimeActorStateMachine
 
         actor.MotionState = BattleRuntimeActorMotionState.Anchored;
         actor.Phase = BattleRuntimeActorPhase.AnchoredDecision;
+        actor.AttackCharge = 1.0;
         actor.ActionLockTicksRemaining = 0;
         actor.ActionLockReason = "";
         actor.CurrentSkillActionId = "";
         actor.CurrentSkillId = "";
         actor.CurrentSkillSourceCommandId = "";
         actor.CurrentSkillTargetActorId = "";
+        actor.CurrentSkillHasTargetGrid = false;
+        actor.CurrentSkillTargetGridX = 0;
+        actor.CurrentSkillTargetGridY = 0;
+        actor.CurrentSkillTargetGridHeight = 0;
+        actor.CurrentSkillSelectedSpatialMarkId = "";
         actor.CurrentSkillImpactAtSeconds = 0;
         actor.CurrentSkillImpactApplied = false;
+        ClearBasicAttackAction(actor);
     }
 
     internal static void CommitDisplacement(
@@ -261,6 +326,7 @@ internal static class BattleRuntimeActorStateMachine
             actor.ActionReadyAtSeconds = currentTimeSeconds;
             actor.ActionLockTicksRemaining = 0;
             actor.ActionLockReason = "";
+            ClearBasicAttackAction(actor);
         }
     }
 
@@ -317,8 +383,14 @@ internal static class BattleRuntimeActorStateMachine
         actor.CurrentSkillId = "";
         actor.CurrentSkillSourceCommandId = "";
         actor.CurrentSkillTargetActorId = "";
+        actor.CurrentSkillHasTargetGrid = false;
+        actor.CurrentSkillTargetGridX = 0;
+        actor.CurrentSkillTargetGridY = 0;
+        actor.CurrentSkillTargetGridHeight = 0;
+        actor.CurrentSkillSelectedSpatialMarkId = "";
         actor.CurrentSkillImpactAtSeconds = 0;
         actor.CurrentSkillImpactApplied = false;
+        ClearBasicAttackAction(actor);
         ClearMovementIntentSnapshot(actor);
     }
 
@@ -382,6 +454,15 @@ internal static class BattleRuntimeActorStateMachine
             BattleActionTimingPolicy.DefaultAttackActionSeconds);
     }
 
+    private static double ResolveAttackImpactDelaySeconds(BattleRuntimeActor actor, double actionSeconds)
+    {
+        return BattleActionTimingPolicy.NormalizeAttackImpactDelaySeconds(
+            actor?.AttackImpactDelaySeconds ?? BattleActionTimingPolicy.ResolveAttackImpactDelaySeconds(
+                actionSeconds,
+                BattleActionTimingPolicy.DefaultAttackImpactNormalizedTime),
+            actionSeconds);
+    }
+
     private static double ResolveDecisionRetrySeconds(BattleRuntimeActor actor)
     {
         return ResolveMoveStepSeconds(actor);
@@ -412,6 +493,27 @@ internal static class BattleRuntimeActorStateMachine
         {
             ClearMovementSteering(actor);
         }
+    }
+
+    internal static void ClearBasicAttackAction(BattleRuntimeActor actor)
+    {
+        if (actor == null)
+        {
+            return;
+        }
+
+        actor.CurrentBasicAttackTargetActorId = "";
+        actor.CurrentBasicAttackDamage = 0;
+        actor.CurrentBasicAttackImpactApplied = false;
+        actor.CurrentBasicAttackStartedAtSeconds = 0;
+        actor.CurrentBasicAttackImpactAtSeconds = 0;
+        actor.CurrentBasicAttackEndsAtSeconds = 0;
+        actor.CurrentBasicAttackActorGridX = 0;
+        actor.CurrentBasicAttackActorGridY = 0;
+        actor.CurrentBasicAttackActorGridHeight = 0;
+        actor.CurrentBasicAttackTargetGridX = 0;
+        actor.CurrentBasicAttackTargetGridY = 0;
+        actor.CurrentBasicAttackTargetGridHeight = 0;
     }
 
     internal static void CopyMovementSteering(BattleRuntimeActor target, BattleRuntimeActor source)

@@ -16,4 +16,5 @@ internal sealed class BattleRuntimePendingHeroSkillCommand
     public int LockedTargetGridY { get; init; }
     public int LockedTargetGridHeight { get; init; }
     public double AcceptedAtSeconds { get; init; }
+    public long AcceptedOrderSequence { get; init; }
 }

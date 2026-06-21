@@ -110,7 +110,7 @@ internal static class BattleCombatJoinRegionPlanner
         // keep closing on the fight without rebuilding global paths.
         BattleRuntimeActorStateMachine.CopyMovementSteering(actorFact.Actor, projectedActor);
         BattleRuntimeAiActionRequest request = BattleRuntimeAiActionRequest.AdvanceTowardRegion(actorFact.Actor.ActorId, goal);
-        context = BattleRuntimeTickResolver.CreateContext(
+        context = BattleRuntimeTickContextFactory.Create(
             request,
             actorFact,
             null,

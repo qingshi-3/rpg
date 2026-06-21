@@ -386,6 +386,7 @@ internal static partial class TargetBattleContinuousStepHandoffRegressionCases
             AttackSpeed = 1.0,
             MoveStepSeconds = MoveStepSeconds,
             AttackActionSeconds = 1.2,
+            AttackImpactDelaySeconds = 0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
             CellY = cellY,

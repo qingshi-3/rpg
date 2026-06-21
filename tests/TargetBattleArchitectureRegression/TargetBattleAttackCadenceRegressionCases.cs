@@ -246,6 +246,11 @@ internal static class TargetBattleAttackCadenceRegressionCases
             AssertTrue(
                 damageTimes[1] >= damageTimes[0] + 1.2 - 0.0001,
                 $"repeated attack should wait for attack action seconds, not one integer tick: actor={actorId} times=[{string.Join(",", damageTimes.Select(item => item.ToString("0.00")))}]");
+            AssertFloatEqual(
+                1.2,
+                damageTimes[1],
+                0.0001,
+                $"attack recovery should reopen an attack-ready decision boundary without an extra charge retry: actor={actorId}");
         }
     }
 
@@ -544,6 +549,9 @@ internal static class TargetBattleAttackCadenceRegressionCases
             CorpsId = corpsId,
             CorpsDefinitionId = $"{corpsId}_definition",
             CorpsStrength = 100,
+            // Cadence/navigation fixtures keep zero impact delay so they stay
+            // focused on cadence; non-zero windup is covered by Slice F tests.
+            AttackImpactDelaySeconds = 0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
             CellY = cellY

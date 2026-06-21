@@ -36,7 +36,6 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         AddGroup(snapshot, "player_mid", "player", "player_mid", 0, 0, 35);
         AddGroup(snapshot, "player_bottom", "player", "player_bottom", 0, 1, 35);
         AddGroup(snapshot, "enemy_anchor", "enemy", "enemy_anchor", 6, 0, 45, initialCommandId: "HoldLine");
-
         BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
 
         AssertCompletedWithoutRuntimeException(result, "many allies vs single holdline enemy should resolve instead of stalling");
@@ -54,7 +53,6 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
         AddGroup(snapshot, "enemy_top", "enemy", "enemy_top", 6, -1, 35);
         AddGroup(snapshot, "enemy_mid", "enemy", "enemy_mid", 6, 0, 35);
         AddGroup(snapshot, "enemy_bottom", "enemy", "enemy_bottom", 6, 1, 35);
-
         BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
 
         AssertCompletedWithoutRuntimeException(result, "many enemies vs single holdline defender should resolve instead of stalling");
@@ -812,6 +810,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             AttackDamage = 5,
             AttackRange = attackRange,
             AttackSpeed = 1.0,
+            AttackImpactDelaySeconds = 0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
             CellY = cellY,
@@ -852,6 +851,7 @@ internal static class TargetBattleMultiUnitNavigationRegressionCases
             AttackDamage = 5,
             AttackRange = 1,
             AttackSpeed = 1.0,
+            AttackImpactDelaySeconds = 0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
             CellY = cellY,

@@ -59,14 +59,14 @@ public partial class StrategicWorldRoot
 
     private void BindStrategicSelectionPanel(StrategicWorldDefinitionQueries queries)
     {
-        RefreshDetail(queries);
         RefreshActions();
+        RefreshDetail(queries);
     }
 
     private void BindExpeditionDraftPanel(StrategicWorldDefinitionQueries queries)
     {
-        RefreshDetail(queries);
         RefreshActions();
+        RefreshDetail(queries);
     }
 
     private void RefreshDetail(StrategicWorldDefinitionQueries queries)
@@ -83,7 +83,6 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        SetWorldDetailPanelVisible(true);
         SetSiteDetailSectionsVisible(true);
         WorldSiteDefinition definition = queries.GetSite(_selectedSiteId);
 
@@ -93,6 +92,7 @@ public partial class StrategicWorldRoot
         if (!StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(_selectedSiteId, out string locationId))
         {
             BindUnmappedStrategicLocationDetail(definition);
+            ShowWorldDetailPanelForCurrentContent();
             return;
         }
 
@@ -111,7 +111,7 @@ public partial class StrategicWorldRoot
 
         _siteTitleLabel.Text = $"{title}  ·  {kind}";
         _siteBodyLabel.Text = BuildStrategicLocationContextSummary(definition, location, city);
-
+        ShowWorldDetailPanelForCurrentContent();
     }
 
     private void BindUnmappedStrategicLocationDetail(WorldSiteDefinition definition)
@@ -213,7 +213,6 @@ public partial class StrategicWorldRoot
         WorldOpportunityDefinition definition = queries.GetOpportunity(opportunity.DefinitionId);
         OpportunitySpawnPointDefinition spawnPoint = queries.GetOpportunitySpawnPoint(opportunity.SpawnPointId);
         int remainingTicks = System.Math.Max(0, opportunity.ExpiresTick - State.WorldTick);
-        SetWorldDetailPanelVisible(true);
         SetSiteDetailSectionsVisible(false);
         _opportunityDetailPanel.Visible = true;
         _opportunityDetailPanel.Bind(new WorldOpportunityDetailPanelData
@@ -225,6 +224,7 @@ public partial class StrategicWorldRoot
             RemainingText = $"{remainingTicks} 次大地图结算",
             RewardText = BuildOpportunityRewardText(queries, definition)
         });
+        ShowWorldDetailPanelForCurrentContent();
         return true;
     }
 
@@ -268,6 +268,34 @@ public partial class StrategicWorldRoot
         AnimateWorldDetailPanelOut();
     }
 
+    public override void _Notification(int what)
+    {
+        if (what != NotificationResized || !_siteDetailPanelVisibleRequested)
+        {
+            return;
+        }
+
+        ApplyWorldDetailPanelResponsiveLayout();
+        ConfigureWorldDetailPanelPivot();
+    }
+
+    private void ShowWorldDetailPanelForCurrentContent()
+    {
+        if (_siteDetailPanel == null)
+        {
+            return;
+        }
+
+        if (_siteDetailPanelVisibleRequested)
+        {
+            ApplyWorldDetailPanelResponsiveLayout();
+            ConfigureWorldDetailPanelPivot();
+            return;
+        }
+
+        SetWorldDetailPanelVisible(true);
+    }
+
     private void AnimateWorldDetailPanelIn()
     {
         if (_siteDetailPanel == null)
@@ -275,10 +303,10 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        Vector2 restPosition = ResolveWorldDetailPanelRestPosition();
         KillWorldDetailPanelTween();
-        ConfigureWorldDetailPanelPivot();
         _siteDetailPanel.Visible = true;
+        Vector2 restPosition = ResolveWorldDetailPanelRestPosition();
+        ConfigureWorldDetailPanelPivot();
         _siteDetailPanel.Position = restPosition + new Vector2(0.0f, SiteDetailPanelSlidePixels);
         _siteDetailPanel.Scale = new Vector2(0.98f, 0.94f);
         _siteDetailPanel.Modulate = new Color(1.0f, 1.0f, 1.0f, 0.0f);
@@ -329,14 +357,108 @@ public partial class StrategicWorldRoot
 
     private Vector2 ResolveWorldDetailPanelRestPosition()
     {
-        if (_siteDetailPanelTween != null && _siteDetailPanelHasRestPosition)
+        ApplyWorldDetailPanelResponsiveLayout();
+        return _siteDetailPanel?.Position ?? Vector2.Zero;
+    }
+
+    private void ApplyWorldDetailPanelResponsiveLayout()
+    {
+        if (_siteDetailPanel == null)
         {
-            return _siteDetailPanelRestPosition;
+            return;
         }
 
-        _siteDetailPanelRestPosition = _siteDetailPanel?.Position ?? Vector2.Zero;
-        _siteDetailPanelHasRestPosition = true;
-        return _siteDetailPanelRestPosition;
+        CaptureWorldDetailPanelAuthoredLayout();
+        Vector2 viewportSize = ResolveWorldDetailPanelViewportSize();
+        if (viewportSize.X <= 0.0f || viewportSize.Y <= 0.0f)
+        {
+            return;
+        }
+
+        float authoredWidth = System.Math.Max(
+            0.0f,
+            _siteDetailPanelAuthoredOffsetRight - _siteDetailPanelAuthoredOffsetLeft);
+        float authoredHeight = System.Math.Max(
+            0.0f,
+            _siteDetailPanelAuthoredOffsetBottom - _siteDetailPanelAuthoredOffsetTop);
+        float bottomMargin = System.Math.Max(0.0f, -_siteDetailPanelAuthoredOffsetBottom);
+        float safeViewportWidth = System.Math.Max(0.0f, viewportSize.X - (bottomMargin * 2.0f));
+        float safeViewportHeight = System.Math.Max(0.0f, viewportSize.Y - bottomMargin);
+        float maxWidth = authoredWidth > 0.0f
+            ? System.Math.Min(authoredWidth, safeViewportWidth)
+            : safeViewportWidth;
+        float maxHeight = authoredHeight > 0.0f
+            ? System.Math.Min(authoredHeight, safeViewportHeight)
+            : safeViewportHeight;
+        float authoredMinWidth = _siteDetailPanelAuthoredMinimumSize.X > 0.0f
+            ? _siteDetailPanelAuthoredMinimumSize.X
+            : maxWidth;
+        float authoredMinHeight = _siteDetailPanelAuthoredMinimumSize.Y;
+        float minWidth = maxWidth > 0.0f
+            ? System.Math.Min(authoredMinWidth, maxWidth)
+            : authoredMinWidth;
+        float minHeight = maxHeight > 0.0f
+            ? System.Math.Min(authoredMinHeight, maxHeight)
+            : authoredMinHeight;
+
+        _siteDetailPanel.CustomMinimumSize = new Vector2(minWidth, minHeight);
+        Vector2 naturalSize = _siteDetailPanel.GetCombinedMinimumSize();
+        float preferredWidth = authoredWidth > 0.0f ? authoredWidth : naturalSize.X;
+        float preferredHeight = authoredHeight > 0.0f ? authoredHeight : naturalSize.Y;
+        float desiredWidth = System.Math.Clamp(
+            System.Math.Max(System.Math.Max(naturalSize.X, preferredWidth), minWidth),
+            minWidth,
+            System.Math.Max(minWidth, maxWidth));
+        float desiredHeight = System.Math.Clamp(
+            System.Math.Max(System.Math.Max(naturalSize.Y, preferredHeight), minHeight),
+            minHeight,
+            System.Math.Max(minHeight, maxHeight));
+
+        // Scroll containers report a deliberately small minimum height. The
+        // authored offset rectangle is the sheet's readable desktop footprint;
+        // runtime only clamps it against the current viewport.
+        _siteDetailPanel.OffsetLeft = -desiredWidth * 0.5f;
+        _siteDetailPanel.OffsetRight = desiredWidth * 0.5f;
+        _siteDetailPanel.OffsetBottom = _siteDetailPanelAuthoredOffsetBottom;
+        _siteDetailPanel.OffsetTop = _siteDetailPanelAuthoredOffsetBottom - desiredHeight;
+        if (_siteDetailBodyScroll != null)
+        {
+            _siteDetailBodyScroll.CustomMinimumSize = new Vector2(0.0f, 0.0f);
+        }
+    }
+
+    private void CaptureWorldDetailPanelAuthoredLayout()
+    {
+        if (_siteDetailPanel == null || _siteDetailPanelAuthoredLayoutCaptured)
+        {
+            return;
+        }
+
+        _siteDetailPanelAuthoredMinimumSize = _siteDetailPanel.CustomMinimumSize;
+        _siteDetailPanelAuthoredOffsetLeft = _siteDetailPanel.OffsetLeft;
+        _siteDetailPanelAuthoredOffsetTop = _siteDetailPanel.OffsetTop;
+        _siteDetailPanelAuthoredOffsetRight = _siteDetailPanel.OffsetRight;
+        _siteDetailPanelAuthoredOffsetBottom = _siteDetailPanel.OffsetBottom;
+        _siteDetailPanelAuthoredLayoutCaptured = true;
+    }
+
+    private Vector2 ResolveWorldDetailPanelViewportSize()
+    {
+        Vector2 viewportSize = GetViewportRect().Size;
+        if (viewportSize.X > 0.0f && viewportSize.Y > 0.0f)
+        {
+            return viewportSize;
+        }
+
+        if (Size.X > 0.0f && Size.Y > 0.0f)
+        {
+            return Size;
+        }
+
+        CaptureWorldDetailPanelAuthoredLayout();
+        return new Vector2(
+            System.Math.Max(0.0f, _siteDetailPanelAuthoredOffsetRight - _siteDetailPanelAuthoredOffsetLeft),
+            System.Math.Max(0.0f, _siteDetailPanelAuthoredOffsetBottom - _siteDetailPanelAuthoredOffsetTop));
     }
 
     private void ConfigureWorldDetailPanelPivot()
@@ -461,7 +583,7 @@ public partial class StrategicWorldRoot
 
         WorldActionDefinition definition = new StrategicWorldDefinitionQueries(Definition).GetAction(action.ActionId);
         return definition == null ||
-               definition.Scope is not WorldActionScope.Site and not WorldActionScope.Facility;
+               definition.Scope is not WorldActionScope.Site;
     }
 
     private void CompleteSelectedOpportunity()

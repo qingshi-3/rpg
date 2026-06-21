@@ -21,6 +21,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
+mouse_force_pass_scroll_events = false
 theme = ExtResource("1_theme")
 
 [node name="TopBarHost" type="Control" parent="."]
@@ -210,12 +211,16 @@ texture_hover = ExtResource("18_reset_hover_icon")
 [node name="SiteDetailPanel" type="PanelContainer" parent="OverlayHost"]
 visible = false
 z_index = 90
-custom_minimum_size = Vector2(0, 0)
+custom_minimum_size = Vector2(720, 168)
 layout_mode = 1
-anchor_left = 0.25
-anchor_top = 0.75
-anchor_right = 0.75
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
 anchor_bottom = 1.0
+offset_left = -480.0
+offset_top = -420.0
+offset_right = 480.0
+offset_bottom = -28.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_type_variation = &"WorldContextSheet"
@@ -227,95 +232,110 @@ theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="Scroll" type="ScrollContainer" parent="OverlayHost/SiteDetailPanel/Margin"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-horizontal_scroll_mode = 0
-vertical_scroll_mode = 0
-
-[node name="Content" type="HBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll"]
+[node name="SheetContent" type="HBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 12
 
-[node name="SummaryCard" type="PanelContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content"]
+[node name="BodyScroll" type="ScrollContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
+
+[node name="BodyContent" type="HBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="SummaryCard" type="PanelContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent"]
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
-size_flags_horizontal = 1
+size_flags_horizontal = 3
 theme_type_variation = &"WorldContextCard"
 
-[node name="SummaryMargin" type="MarginContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard"]
+[node name="SummaryMargin" type="MarginContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/SummaryCard"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="SummaryStack" type="VBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin"]
+[node name="SummaryStack" type="VBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/SummaryCard/SummaryMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="SiteTitleLabel" type="Label" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
+[node name="SiteTitleLabel" type="Label" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/SummaryCard/SummaryMargin/SummaryStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 19
 autowrap_mode = 3
 
-[node name="SiteBodyLabel" type="Label" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack"]
+[node name="SiteBodyLabel" type="Label" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/SummaryCard/SummaryMargin/SummaryStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
 autowrap_mode = 3
 
-[node name="OpportunityCard" type="PanelContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content"]
+[node name="OpportunityCard" type="PanelContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent"]
 visible = false
 custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_type_variation = &"WorldContextCard"
 
-[node name="OpportunityMargin" type="MarginContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard"]
+[node name="OpportunityMargin" type="MarginContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/OpportunityCard"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="OpportunitySlot" type="VBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard/OpportunityMargin"]
+[node name="OpportunitySlot" type="VBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/OpportunityCard/OpportunityMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="ActionCard" type="PanelContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content"]
+[node name="ActionCard" type="PanelContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent"]
 custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 1
+size_flags_vertical = 3
 theme_type_variation = &"WorldContextCard"
 
-[node name="ActionMargin" type="MarginContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard"]
+[node name="ActionMargin" type="MarginContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 12
 
-[node name="ActionStack" type="VBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin"]
+[node name="ActionStack" type="VBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard/ActionMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 8
 
-[node name="ActionTitle" type="Label" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+[node name="ActionTitle" type="Label" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard/ActionMargin/ActionStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "可执行"
 
-[node name="ActionList" type="VBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack"]
+[node name="ActionScroll" type="ScrollContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard/ActionMargin/ActionStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 1
+
+[node name="ActionList" type="VBoxContainer" parent="OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard/ActionMargin/ActionStack/ActionScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8

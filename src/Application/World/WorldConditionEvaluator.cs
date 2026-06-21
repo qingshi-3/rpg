@@ -61,10 +61,6 @@ public sealed class WorldConditionEvaluator
             WorldConditionKind.SiteOwnerIs => site != null && site.OwnerFactionId == ResolveFactionId(condition.FactionId, request),
             WorldConditionKind.HasResourceAtLeast => state.PlayerResources.GetAvailable(condition.ResourceId) >= condition.Amount,
             WorldConditionKind.HasAvailablePopulation => state.PlayerResources.GetAvailable(StrategicWorldIds.ResourcePopulation) >= condition.Amount,
-            WorldConditionKind.HasFacility => site != null && site.Facilities.Any(facility =>
-                facility.FacilityId == condition.TargetId &&
-                facility.State == condition.FacilityState),
-            WorldConditionKind.HasEmptyFacilitySlot => HasEmptyFacilitySlot(site, definitions.GetSite(siteId), condition.TargetId, condition.SlotTag),
             WorldConditionKind.HasGarrisonAtLeast => site != null && site.Garrison.Any(garrison =>
                 garrison.UnitTypeId == condition.UnitTypeId &&
                 garrison.Count >= condition.Amount),
@@ -117,20 +113,4 @@ public sealed class WorldConditionEvaluator
             : actual == condition.ControlState;
     }
 
-    private static bool HasEmptyFacilitySlot(
-        WorldSiteState siteState,
-        WorldSiteDefinition siteDefinition,
-        string facilityId,
-        string slotTag)
-    {
-        if (siteState == null || siteDefinition == null)
-        {
-            return false;
-        }
-
-        return siteDefinition.FacilitySlots.Any(slot =>
-            (string.IsNullOrWhiteSpace(facilityId) || slot.AllowedFacilityIds.Contains(facilityId)) &&
-            (string.IsNullOrWhiteSpace(slotTag) || slot.Tags.Contains(slotTag)) &&
-            siteState.Facilities.All(facility => facility.SlotId != slot.SlotId || facility.State == FacilityState.Destroyed));
-    }
 }

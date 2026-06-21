@@ -125,7 +125,6 @@ public sealed class StrategicConstructionRegionViewModel
     public int OriginY { get; set; }
     public int Width { get; set; }
     public int Height { get; set; }
-    public List<string> AllowedCategoryIds { get; set; } = new();
 }
 
 public sealed class StrategicBuildingInstanceViewModel

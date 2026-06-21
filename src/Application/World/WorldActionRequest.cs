@@ -8,7 +8,5 @@ public sealed class WorldActionRequest
     public string ActorFactionId { get; set; } = StrategicWorldIds.FactionPlayer;
     public string SourceSiteId { get; set; } = "";
     public string TargetSiteId { get; set; } = "";
-    public string TargetFacilityInstanceId { get; set; } = "";
-    public string TargetSlotId { get; set; } = "";
     public Dictionary<string, string> Payload { get; set; } = new();
 }

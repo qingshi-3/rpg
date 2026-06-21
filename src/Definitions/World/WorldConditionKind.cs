@@ -7,8 +7,6 @@ public enum WorldConditionKind
     SiteOwnerIs = 2,
     HasResourceAtLeast = 3,
     HasAvailablePopulation = 4,
-    HasFacility = 5,
-    HasEmptyFacilitySlot = 6,
     HasGarrisonAtLeast = 7,
     HasGarrisonCapacity = 8
 }

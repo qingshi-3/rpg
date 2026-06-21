@@ -78,7 +78,7 @@ internal static class BattleGroupActionZoneResolver
         foreach (BattleRuntimeTickStartActorFact fact in facts?.Values ?? Array.Empty<BattleRuntimeTickStartActorFact>())
         {
             if (string.Equals(fact.Actor.ActorId ?? "", actorFact.Actor.ActorId ?? "", StringComparison.Ordinal) ||
-                BattleRuntimeTickResolver.SameFaction(fact.Actor, actorFact.Actor) ||
+                BattleRuntimeIdentityRules.SameFaction(fact.Actor, actorFact.Actor) ||
                 IsInsideActionZone(fact.Actor, fact.Anchor, actionZone))
             {
                 filtered[fact.Actor.ActorId ?? ""] = fact;

@@ -1,4 +1,4 @@
 [gd_scene format=3 uid="uid://c3lr27iop8h3x"]
 
 [node name="SemanticMapMarker" type="Node2D"]
-editor_description = "Abstract semantic marker scene. Do not instance directly; use a business child scene such as BuildingSlotMapMarker or DeploymentZoneMapMarker."
+editor_description = "Abstract semantic marker scene. Do not instance directly; use a business child scene such as ConstructionRegionMapMarker or DeploymentZoneMapMarker."

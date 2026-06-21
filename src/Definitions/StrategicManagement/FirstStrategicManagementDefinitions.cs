@@ -43,44 +43,28 @@ public static class FirstStrategicManagementDefinitions
                 {
                     RegionId = StrategicManagementIds.RegionPlainsEconomy,
                     DisplayName = "西侧农商区",
-                    OriginX = 0,
-                    OriginY = 0,
+                    OriginX = 10,
+                    OriginY = 6,
                     Width = 8,
-                    Height = 6,
-                    AllowedCategoryIds =
-                    {
-                        StrategicManagementIds.BuildingCategoryEconomy
-                    }
+                    Height = 6
                 },
                 new StrategicConstructionRegionDefinition
                 {
                     RegionId = StrategicManagementIds.RegionPlainsMilitary,
                     DisplayName = "东侧军备区",
-                    OriginX = 10,
-                    OriginY = 0,
+                    OriginX = 21,
+                    OriginY = 18,
                     Width = 7,
-                    Height = 5,
-                    AllowedCategoryIds =
-                    {
-                        StrategicManagementIds.BuildingCategoryMilitary,
-                        StrategicManagementIds.BuildingCategoryDefense,
-                        StrategicManagementIds.BuildingCategorySupport
-                    }
+                    Height = 5
                 },
                 new StrategicConstructionRegionDefinition
                 {
                     RegionId = StrategicManagementIds.RegionPlainsCivic,
                     DisplayName = "内城事务区",
-                    OriginX = 0,
-                    OriginY = 8,
+                    OriginX = 12,
+                    OriginY = 28,
                     Width = 6,
-                    Height = 4,
-                    AllowedCategoryIds =
-                    {
-                        StrategicManagementIds.BuildingCategoryHero,
-                        StrategicManagementIds.BuildingCategorySupport,
-                        StrategicManagementIds.BuildingCategorySpecial
-                    }
+                    Height = 4
                 }
             }
         });

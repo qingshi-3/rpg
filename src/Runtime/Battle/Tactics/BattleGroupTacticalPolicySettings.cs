@@ -4,7 +4,9 @@ namespace Rpg.Runtime.Battle.Tactics;
 
 public sealed class BattleGroupTacticalPolicySettings
 {
-    public const int DefaultTemporaryRegionRefreshTicks = 5;
+    // Temporary regions follow moving enemy clusters only at low frequency so
+    // non-engaged region movement stays readable instead of re-aiming every few cells.
+    public const int DefaultTemporaryRegionRefreshTicks = 50;
     public const int DefaultLocalPerceptionRange = BattlePerceptionPolicy.DefaultLocalPerceptionRange;
     public const int DefaultLocalCombatMaxCells = 64;
     public const int DefaultDisengageGraceTicks = 1;

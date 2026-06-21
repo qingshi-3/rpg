@@ -106,18 +106,18 @@ public partial class WorldSiteRoot
         _battlePreparationStartButton = hudRefs.BattlePreparationStartButton;
         _battlePreparationObjectiveThumbnailDock = hudRefs.BattlePreparationObjectiveThumbnailDock;
         _battlePreparationObjectiveThumbnail = hudRefs.BattlePreparationObjectiveThumbnail;
-        _siteFacilityBuildTitle = hudRefs.SiteFacilityBuildTitle;
-        _siteFacilityBuildList = hudRefs.SiteFacilityBuildList;
+        _siteBuildingBuildTitle = hudRefs.SiteBuildingBuildTitle;
+        _siteBuildingOptionGrid = hudRefs.SiteBuildingOptionGrid;
         _siteRecruitList = hudRefs.SiteRecruitList;
-        _siteFacilityList = hudRefs.SiteFacilityList;
+        _siteBuildingList = hudRefs.SiteBuildingList;
         _siteGarrisonList = hudRefs.SiteGarrisonList;
         _strategicManagementDashboardPanelBinder = new StrategicManagementDashboardPanelBinder(
             _siteResourceLabel,
             _siteHudBody,
             _siteSelectionLabel,
-            _siteFacilityList,
-            _siteFacilityBuildTitle,
-            _siteFacilityBuildList,
+            _siteBuildingList,
+            _siteBuildingBuildTitle,
+            _siteBuildingOptionGrid,
             _siteRecruitList,
             _siteGarrisonList,
             OnStrategicBuildBuildingSelected,
@@ -125,13 +125,13 @@ public partial class WorldSiteRoot
             OnStrategicReplenishCorpsPressed,
             OnStrategicHeroAssignmentPressed);
         _siteNoticeLabel = hudRefs.SiteNoticeLabel;
-        Label facilityTitleLabel = hudRefs.FacilityTitleLabel;
+        Label buildingTitleLabel = hudRefs.BuildingTitleLabel;
         Label garrisonTitleLabel = hudRefs.GarrisonTitleLabel;
         Label noticeTitleLabel = hudRefs.NoticeTitleLabel;
 
-        if (facilityTitleLabel != null)
+        if (buildingTitleLabel != null)
         {
-            facilityTitleLabel.Text = "建筑总览";
+            buildingTitleLabel.Text = "建筑总览";
         }
 
         if (garrisonTitleLabel != null)
@@ -271,7 +271,6 @@ public partial class WorldSiteRoot
             ? "res://scenes/world/StrategicWorldRoot.tscn"
             : returnScenePath;
         _selectedPlacementId = "";
-        _selectedFacilitySlotId = "";
         _selectedStrategicBuildingDefinitionId = "";
         ClearStrategicBuildingPlacementPreview();
         if (_returnMapButton != null)
@@ -431,22 +430,23 @@ public partial class WorldSiteRoot
         _sitePeacetimePanel.Visible = shouldShow;
         GameLog.Info(
             nameof(WorldSiteRoot),
-            $"SitePeacetimePanelVisibilityChanged visible={shouldShow} reason={reason} selectedSlot={_selectedFacilitySlotId} panelRect={DescribeControlRect(_sitePeacetimePanel)}");
+            $"SitePeacetimePanelVisibilityChanged visible={shouldShow} reason={reason} panelRect={DescribeControlRect(_sitePeacetimePanel)}");
     }
 
     private bool ShouldShowSitePeacetimePanel()
     {
         bool siteHudVisible = _siteHudRoot?.Visible == true;
-        if (!siteHudVisible)
+        if (!siteHudVisible ||
+            _isBattlePreparationActive ||
+            _battleRuntimeEnabled)
         {
             return false;
         }
 
-        // Strategic Management mapped-site entry opens the dashboard directly;
-        // legacy facility-slot selection remains only a compatibility trigger.
-        return _battleRuntimeCommandPauseActive ||
-               TryResolveStrategicManagementLocationId(_siteHudSiteId, out _) ||
-               !string.IsNullOrWhiteSpace(_selectedFacilitySlotId);
+        // The build/recruit/corps/overview panel is city-management UI, not a
+        // generic strategic-location or battle-preparation overlay.
+        return CanOpenSiteDetail(ResolveSiteState(_siteHudSiteId)) &&
+               TryResolveStrategicManagementCityId(_siteHudSiteId, out _);
     }
 
     private static string DescribeControlRect(Control control)
@@ -519,16 +519,6 @@ public partial class WorldSiteRoot
         if (_sitePlacementEntityRoot != null)
         {
             _sitePlacementEntityRoot.Visible = !enabled || keepBattlePresentation;
-        }
-
-        SetFacilitySlotsVisible(true);
-    }
-
-    private void SetFacilitySlotsVisible(bool visible)
-    {
-        if (_activeSiteMap?.GetNodeOrNull<CanvasItem>(FacilitySlotsRootName) is { } slotsRoot)
-        {
-            slotsRoot.Visible = visible;
         }
     }
 
@@ -622,7 +612,6 @@ public partial class WorldSiteRoot
 
         _selectedStrategicBuildingDefinitionId = building.BuildingDefinitionId;
         _selectedPlacementId = "";
-        _selectedFacilitySlotId = "";
         UpdateStrategicBuildingPlacementPreview();
         RefreshSiteManagementUi($"{building.DisplayName}已选择，请在地图建设区域点击放置。");
     }

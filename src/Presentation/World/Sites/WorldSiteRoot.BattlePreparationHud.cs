@@ -36,7 +36,6 @@ public partial class WorldSiteRoot
             ? "res://scenes/world/StrategicWorldRoot.tscn"
             : request.ReturnScenePath;
         _selectedPlacementId = "";
-        _selectedFacilitySlotId = "";
         _selectedBattlePreparationPlanGroupKey = "";
         _explicitBattlePreparationRuleGroups.Clear();
         ClearPlayerBattlePreparationPlacements(request, refreshMapEntities: false);
@@ -365,7 +364,29 @@ public partial class WorldSiteRoot
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattlePreparationCommitted request={request?.RequestId ?? ""} site={_siteHudSiteId} groups={request?.PlayerBattleGroupPlans?.Count ?? 0} selectedGroup={_selectedBattlePreparationPlanGroupKey} objective={request?.PlayerBattleGroupPlan?.ObjectiveZoneId ?? ""} rule={request?.PlayerBattleGroupPlan?.EngagementRule.ToString() ?? ""}");
-        ActivateBattleRuntime();
+        string siteId = ResolveRequestSiteId(request);
+        WorldSiteState site = ResolveSiteState(siteId);
+        WorldSiteBattleLaunchRollback rollback = _battleLauncher.CaptureRollback(site);
+        WorldSiteBattleLaunchResult result = _battleLauncher.BeginAndActivate(
+            StrategicWorldRuntime.State,
+            request,
+            rollback,
+            // The preparation UI has already consumed and rendered the request; reapplying it here would clear confirmed placement entities.
+            () => { },
+            ActivateBattleRuntime,
+            () => _battleStartBlockedReason,
+            ClearBattleEntities,
+            () => { },
+            enabled => SetBattleRuntimeEnabled(enabled));
+        if (!result.Success)
+        {
+            _isBattlePreparationActive = true;
+            _battlePreparationRequest = request;
+            SetAllDeploymentDragEnabled(true);
+            RefreshBattlePreparationUi(string.IsNullOrWhiteSpace(result.FailureReason)
+                ? "battle_activation_failed"
+                : result.FailureReason);
+        }
     }
 
     private void ClearPlayerBattlePreparationPlacements(BattleStartRequest request, bool refreshMapEntities = true)

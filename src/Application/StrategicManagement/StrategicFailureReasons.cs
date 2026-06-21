@@ -19,7 +19,6 @@ public static class StrategicFailureReasons
     public const string WorldTimePaused = "world_time_paused";
     public const string BuildingPlacementOutOfBounds = "building_placement_out_of_bounds";
     public const string BuildingPlacementOccupied = "building_placement_occupied";
-    public const string BuildingRegionCategoryMismatch = "building_region_category_mismatch";
     public const string InsufficientReserveForces = "insufficient_reserve_forces";
     public const string CityForceCapacityFull = "city_force_capacity_full";
     public const string InvalidReplenishmentTarget = "invalid_replenishment_target";

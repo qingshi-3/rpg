@@ -33,64 +33,6 @@ public partial class WorldSiteRoot
             : BattleFaction.Enemy;
     }
 
-    private FacilityInstance ResolveFacilityInSlot(WorldSiteState site, string slotId)
-    {
-        return string.IsNullOrWhiteSpace(slotId)
-            ? null
-            : site?.Facilities.FirstOrDefault(item => item.SlotId == slotId && item.State != FacilityState.Destroyed);
-    }
-
-    private IReadOnlyList<WorldActionViewModel> ResolveBuildActionsForSlot(WorldSiteState site, FacilitySlotDefinition slot)
-    {
-        if (site == null ||
-            slot == null)
-        {
-            return System.Array.Empty<WorldActionViewModel>();
-        }
-
-        HashSet<string> actionIds = ResolveBuildActionIdsForSlot(slot).ToHashSet();
-        if (actionIds.Count == 0)
-        {
-            return System.Array.Empty<WorldActionViewModel>();
-        }
-
-        IReadOnlyList<WorldActionViewModel> actions = _worldActionResolver.GetAvailableActions(
-            StrategicWorldRuntime.State,
-            StrategicWorldRuntime.Definition,
-            _siteHudSiteId,
-            slot.SlotId);
-        return actions
-            .Where(action => actionIds.Contains(action.ActionId))
-            .ToArray();
-    }
-
-    private IReadOnlyList<string> ResolveBuildActionIdsForSlot(FacilitySlotDefinition slot)
-    {
-        if (slot == null)
-        {
-            return System.Array.Empty<string>();
-        }
-
-        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-        return queries.Actions.Values
-            .Where(action =>
-            {
-                string facilityId = ResolveAddedFacilityId(action);
-                return !string.IsNullOrWhiteSpace(facilityId) &&
-                       slot.AllowedFacilityIds.Contains(facilityId);
-            })
-            .Select(action => action.Id)
-            .ToArray();
-    }
-
-    private static string ResolveAddedFacilityId(WorldActionDefinition action)
-    {
-        return action?.Effects
-            .FirstOrDefault(effect => effect.Kind == WorldEffectKind.AddFacility &&
-                                      !string.IsNullOrWhiteSpace(effect.FacilityId))
-            ?.FacilityId ?? "";
-    }
-
     private string BuildPlacementDisplayName(string placementId)
     {
         WorldSiteState site = ResolveSiteState(_siteHudSiteId);
@@ -116,19 +58,7 @@ public partial class WorldSiteRoot
         };
     }
 
-    private static string BuildAllowedFacilityNames(FacilitySlotDefinition slot, StrategicWorldDefinitionQueries queries)
-    {
-        return slot.AllowedFacilityIds.Count == 0
-            ? "未配置"
-            : string.Join("、", slot.AllowedFacilityIds.Select(id => queries.GetFacility(id)?.DisplayName ?? id));
-    }
-
     private static string BuildActionButtonLabel(WorldActionViewModel action)
-    {
-        return action?.DisplayName ?? "";
-    }
-
-    private static string BuildFacilityBuildButtonLabel(WorldActionViewModel action)
     {
         return action?.DisplayName ?? "";
     }
@@ -155,12 +85,6 @@ public partial class WorldSiteRoot
         }
 
         return string.Join("\n", lines.Where(line => !string.IsNullOrWhiteSpace(line)));
-    }
-
-    private bool IsFacilityBuildAction(string actionId)
-    {
-        StrategicWorldDefinitionQueries queries = new(StrategicWorldRuntime.Definition);
-        return !string.IsNullOrWhiteSpace(ResolveAddedFacilityId(queries.GetAction(actionId)));
     }
 
     private static void AddMutedLine(Container parent, string text)
@@ -224,20 +148,6 @@ public partial class WorldSiteRoot
             WorldSiteMode.Peacetime => "非战时",
             WorldSiteMode.Wartime => "战时",
             WorldSiteMode.Aftermath => "战后",
-            _ => "未知"
-        };
-    }
-
-    private static string GetFacilityStateLabel(FacilityState state)
-    {
-        return state switch
-        {
-            FacilityState.Planned => "规划",
-            FacilityState.Building => "建造中",
-            FacilityState.Active => "运行",
-            FacilityState.Damaged => "受损",
-            FacilityState.Disabled => "停用",
-            FacilityState.Destroyed => "摧毁",
             _ => "未知"
         };
     }

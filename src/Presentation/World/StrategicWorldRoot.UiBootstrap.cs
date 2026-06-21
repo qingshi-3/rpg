@@ -25,6 +25,7 @@ public partial class StrategicWorldRoot
             return;
         }
 
+        _strategicHudRoot = hud;
         AddChild(hud);
         BindStrategicHud(hud);
         UpdateMainWorldViewportLayout(GetMapBounds());
@@ -131,37 +132,41 @@ public partial class StrategicWorldRoot
             hud,
             "OverlayHost/SiteDetailPanel",
             nameof(StrategicWorldRoot));
+        _siteDetailBodyScroll = GameUiSceneFactory.GetRequiredNode<ScrollContainer>(
+            hud,
+            "OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll",
+            nameof(StrategicWorldRoot));
         _siteTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack/SiteTitleLabel",
+            "OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/SummaryCard/SummaryMargin/SummaryStack/SiteTitleLabel",
             nameof(StrategicWorldRoot));
         _siteBodyLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard/SummaryMargin/SummaryStack/SiteBodyLabel",
+            "OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/SummaryCard/SummaryMargin/SummaryStack/SiteBodyLabel",
             nameof(StrategicWorldRoot));
         _siteSummaryCard = GameUiSceneFactory.GetRequiredNode<Control>(
             hud,
-            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/SummaryCard",
+            "OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/SummaryCard",
             nameof(StrategicWorldRoot));
         _opportunityCard = GameUiSceneFactory.GetRequiredNode<Control>(
             hud,
-            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard",
+            "OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/OpportunityCard",
             nameof(StrategicWorldRoot));
         _opportunityDetailContent = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             hud,
-            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/OpportunityCard/OpportunityMargin/OpportunitySlot",
+            "OverlayHost/SiteDetailPanel/Margin/SheetContent/BodyScroll/BodyContent/OpportunityCard/OpportunityMargin/OpportunitySlot",
             nameof(StrategicWorldRoot));
         _actionCard = GameUiSceneFactory.GetRequiredNode<Control>(
             hud,
-            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard",
+            "OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard",
             nameof(StrategicWorldRoot));
         _actionList = GameUiSceneFactory.GetRequiredNode<VBoxContainer>(
             hud,
-            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionList",
+            "OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard/ActionMargin/ActionStack/ActionScroll/ActionList",
             nameof(StrategicWorldRoot));
         _actionTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
-            "OverlayHost/SiteDetailPanel/Margin/Scroll/Content/ActionCard/ActionMargin/ActionStack/ActionTitle",
+            "OverlayHost/SiteDetailPanel/Margin/SheetContent/ActionCard/ActionMargin/ActionStack/ActionTitle",
             nameof(StrategicWorldRoot));
         _opportunityDetailPanel = GameUiSceneFactory.Instantiate<WorldOpportunityDetailPanel>(
             GameUiSceneFactory.WorldOpportunityDetailPanelScenePath,

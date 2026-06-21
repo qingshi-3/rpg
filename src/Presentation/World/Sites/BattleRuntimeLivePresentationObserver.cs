@@ -14,17 +14,20 @@ internal sealed class BattleRuntimeLivePresentationObserver
 {
     private readonly System.Func<BattleUnitRoot> _resolveUnitRoot;
     private readonly System.Func<double, Task> _waitPresentationSeconds;
+    private readonly System.Action<BattleEntity, bool> _focusBattleActionEntity;
     private readonly System.Action _queueBattlePerceptionOverlayRefresh;
     private readonly System.Action<long> _recordPresentationObserveElapsedTicks;
 
     public BattleRuntimeLivePresentationObserver(
         System.Func<BattleUnitRoot> resolveUnitRoot,
         System.Func<double, Task> waitPresentationSeconds,
+        System.Action<BattleEntity, bool> focusBattleActionEntity,
         System.Action queueBattlePerceptionOverlayRefresh,
         System.Action<long> recordPresentationObserveElapsedTicks)
     {
         _resolveUnitRoot = resolveUnitRoot;
         _waitPresentationSeconds = waitPresentationSeconds;
+        _focusBattleActionEntity = focusBattleActionEntity;
         _queueBattlePerceptionOverlayRefresh = queueBattlePerceptionOverlayRefresh;
         _recordPresentationObserveElapsedTicks = recordPresentationObserveElapsedTicks;
     }
@@ -78,15 +81,30 @@ internal sealed class BattleRuntimeLivePresentationObserver
 
         foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.DamageApplied))
         {
+            bool isSkillDamage = IsRuntimeSkillDamageEvent(runtimeEvent);
             BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic =
                 BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic.TryCreate(runtimeEvent);
-            presentationState.TrackActorDamage(
-                runtimeEvent.ActorId,
-                runtimeEvent.TargetId,
-                () => PlayRuntimeDamageFeedbackEventAsync(
-                    runtimeEvent,
-                    presentationState.EntitiesByRuntimeActor,
-                    diagnostic));
+            if (isSkillDamage)
+            {
+                presentationState.TrackSkillDamageFeedback(
+                    runtimeEvent.ActorId,
+                    runtimeEvent.TargetId,
+                    () => PlayRuntimeDamageFeedbackEventAsync(
+                        runtimeEvent,
+                        presentationState.EntitiesByRuntimeActor,
+                        diagnostic));
+            }
+            else
+            {
+                presentationState.TrackActorDamage(
+                    runtimeEvent.ActorId,
+                    runtimeEvent.TargetId,
+                    () => PlayRuntimeDamageFeedbackEventAsync(
+                        runtimeEvent,
+                        presentationState.EntitiesByRuntimeActor,
+                        diagnostic));
+            }
+
             presentationState.TrackTargetDamage(
                 runtimeEvent.ActorId,
                 runtimeEvent.TargetId,
@@ -185,12 +203,25 @@ internal sealed class BattleRuntimeLivePresentationObserver
         }
 
         entitiesByRuntimeActor.TryGetValue(runtimeEvent.TargetId ?? "", out BattleEntity target);
+        if (BattleRuntimeThunderSpiralPresentationObserver.IsThunderSpiralSkillUsedEvent(runtimeEvent))
+        {
+            _focusBattleActionEntity?.Invoke(actor, true);
+        }
+
         double castAnimationSeconds = unitRoot.PlaySkillCastPresentation(
             actor,
             target,
             runtimeEvent.ActionDurationSeconds,
             preserveMovement: BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent),
             sourceDefinitionId: runtimeEvent.SourceDefinitionId);
+        if (BattleRuntimeThunderSpiralPresentationObserver.IsThunderSpiralSkillUsedEvent(runtimeEvent))
+        {
+            BattleRuntimeThunderSpiralPresentationObserver.ObserveRuntimeThunderSpiralSkillUsedEvent(
+                runtimeEvent,
+                actor,
+                unitRoot);
+        }
+
         double runtimeActionSeconds = runtimeEvent.ActionDurationSeconds > 0
             ? runtimeEvent.ActionDurationSeconds
             : castAnimationSeconds;
@@ -239,9 +270,9 @@ internal sealed class BattleRuntimeLivePresentationObserver
             attackAnimationSeconds,
             isSkillDamage);
 
-        // Runtime events are semantic combat facts. Live presentation waits for
-        // this actor's own attack task in the background, without blocking the
-        // shared simulation clock or unrelated units.
+        // Runtime events are semantic combat facts. Basic attacks use the actor
+        // action tail; skill-effect damage uses a separate target-aligned queue
+        // because its caster action is already represented by SkillUsed.
         double runtimeActionSeconds = runtimeEvent.ActionDurationSeconds > 0
             ? runtimeEvent.ActionDurationSeconds
             : attackAnimationSeconds;
@@ -279,10 +310,10 @@ internal sealed class BattleRuntimeLivePresentationObserver
             health,
             damage,
             actionDurationSeconds,
-            runtimeEvent.ActionImpactDelaySeconds,
+            0,
             diagnostic,
             previousTargetDamageTail,
-            fallbackToActorAttackImpactDelay: !isSkillDamage);
+            fallbackToActorAttackImpactDelay: false);
     }
 
     private bool TryResolveRuntimeDamageContext(

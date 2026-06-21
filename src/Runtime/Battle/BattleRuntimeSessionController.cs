@@ -4,6 +4,8 @@ using System.Linq;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Commands;
 using Rpg.Infrastructure.Diagnostics;
+using Rpg.Infrastructure.Logging;
+using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Results;
@@ -22,6 +24,7 @@ public sealed class BattleRuntimeAdvanceResult
 public sealed class BattleRuntimeSessionController
 {
     private readonly BattleRuntimeTickResolver _tickResolver;
+    private readonly BattleRuntimeClock _clock;
     private readonly BattleNavigationGraph _navigationGraph;
     private readonly HashSet<string> _navigationFailureDiagnostics = new(System.StringComparer.Ordinal);
     private readonly BattlePerformanceCounters _performanceCounters;
@@ -40,6 +43,7 @@ public sealed class BattleRuntimeSessionController
         BattlePerformanceCounters performanceCounters = null)
     {
         _tickResolver = tickResolver;
+        _clock = new BattleRuntimeClock();
         State = state ?? new BattleRuntimeState();
         EventStream = eventStream ?? new BattleEventStream();
         BattleId = battleId ?? "";
@@ -62,7 +66,16 @@ public sealed class BattleRuntimeSessionController
     public BattleEventStream EventStream { get; }
     public bool IsComplete { get; private set; }
     public BattleOutcomeResult Outcome { get; private set; }
-    public double CurrentTimeSeconds { get; private set; }
+    public double CurrentTimeSeconds => _clock.CurrentTimeSeconds;
+    public bool IsPaused => _clock.IsPaused;
+
+    public void SetPaused(bool paused, string reason)
+    {
+        _clock.SetPaused(paused, reason);
+        GameLog.Info(
+            nameof(BattleRuntimeSessionController),
+            $"BattleRuntimeClockPause battle={BattleId} paused={paused} time={CurrentTimeSeconds:0.###} reason={reason ?? ""}");
+    }
 
     public BattleRuntimeCommandSubmitResult SubmitCommand(CommandRequest request)
     {
@@ -122,11 +135,7 @@ public sealed class BattleRuntimeSessionController
 
     public BattleRuntimeAdvanceResult AdvanceFixedTick(double fixedDeltaSeconds = BattleActionTimingPolicy.DefaultSimulationTickSeconds)
     {
-        double deltaSeconds = double.IsNaN(fixedDeltaSeconds) ||
-                              double.IsInfinity(fixedDeltaSeconds) ||
-                              fixedDeltaSeconds <= 0
-            ? BattleActionTimingPolicy.DefaultSimulationTickSeconds
-            : System.Math.Clamp(fixedDeltaSeconds, 0.001, BattleActionTimingPolicy.MaxActionSeconds);
+        double deltaSeconds = _clock.NormalizeFixedDelta(fixedDeltaSeconds);
         return AdvanceNextTickCore(deltaSeconds, advanceToNextReadyActorTime: false);
     }
 
@@ -144,6 +153,13 @@ public sealed class BattleRuntimeSessionController
         }
 
         if (IsComplete)
+        {
+            return BuildAdvanceResult(startIndex);
+        }
+
+        // Tactical pause freezes battle truth even when a terminal condition is already visible.
+        // Completion and outcome construction settle only after runtime resumes.
+        if (_clock.IsPaused)
         {
             return BuildAdvanceResult(startIndex);
         }
@@ -205,7 +221,7 @@ public sealed class BattleRuntimeSessionController
         {
             // Live RTS presentation resolves the current fixed slice, then advances
             // runtime time for the next slice so tick-zero actions still occur at 0.00.
-            CurrentTimeSeconds += fixedDeltaSeconds;
+            _clock.AdvanceFixed(fixedDeltaSeconds);
         }
 
         return BuildAdvanceResult(startIndex);
@@ -218,7 +234,7 @@ public sealed class BattleRuntimeSessionController
             return BuildResult();
         }
 
-        while (!IsComplete)
+        while (!IsComplete && !IsPaused)
         {
             AdvanceNextTick();
         }
@@ -244,7 +260,7 @@ public sealed class BattleRuntimeSessionController
         BattleTerminationReason terminationReason)
     {
         BattleRuntimeSessionController controller = new(
-            new BattleRuntimeTickResolver(null),
+            new BattleRuntimeTickResolver(new DefaultBattleRuntimeAiExecutor()),
             state ?? new BattleRuntimeState(),
             eventStream ?? new BattleEventStream(),
             battleId,
@@ -298,9 +314,9 @@ public sealed class BattleRuntimeSessionController
     private void AdvanceToNextReadyActorTime()
     {
         double? nextReady = ResolveNextReadyActorTime();
-        if (nextReady.HasValue && nextReady.Value > CurrentTimeSeconds)
+        if (nextReady.HasValue)
         {
-            CurrentTimeSeconds = nextReady.Value;
+            _clock.AdvanceTo(nextReady.Value);
         }
     }
 

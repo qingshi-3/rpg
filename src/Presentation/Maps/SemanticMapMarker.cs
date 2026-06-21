@@ -49,8 +49,6 @@ public abstract partial class SemanticMapMarker : Node2D, ISemanticMapMarkerSour
 
     protected virtual string[] ResolvedConnectionIds => System.Array.Empty<string>();
 
-    protected virtual string[] ResolvedAllowedCategoryIds => System.Array.Empty<string>();
-
     protected virtual string ResolvedFactionId => "";
 
     protected virtual int ResolvedPriority => 0;
@@ -135,9 +133,6 @@ public abstract partial class SemanticMapMarker : Node2D, ISemanticMapMarkerSour
         data.ConnectionIds.AddRange((ResolvedConnectionIds ?? System.Array.Empty<string>())
             .Where(connectionId => !string.IsNullOrWhiteSpace(connectionId))
             .Select(connectionId => connectionId.Trim()));
-        data.AllowedCategoryIds.AddRange((ResolvedAllowedCategoryIds ?? System.Array.Empty<string>())
-            .Where(categoryId => !string.IsNullOrWhiteSpace(categoryId))
-            .Select(categoryId => categoryId.Trim()));
         return true;
     }
 

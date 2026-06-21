@@ -86,14 +86,15 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementRules rules = new(definitions);
         StrategicManagementCommandService commands = new(definitions, rules);
         StrategicManagementViewModelService viewModels = new(definitions, rules);
+        StrategicConstructionRegionDefinition military = FindRegion(definitions, StrategicManagementIds.RegionPlainsMilitary);
 
         StrategicCommandResult build = commands.BuildCityBuilding(
             state,
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingTrainingGround,
             StrategicManagementIds.RegionPlainsMilitary,
-            10,
-            0);
+            military.OriginX,
+            military.OriginY);
         AssertTrue(build.Success, $"building training ground should succeed, got {build.FailureReason}");
         StrategicCommandResult unassign = commands.UnassignCorpsFromHero(state, StrategicManagementIds.HeroCavalryCaptain);
         AssertTrue(unassign.Success, $"test setup unassignment should succeed, got {unassign.FailureReason}");
@@ -111,7 +112,7 @@ internal static partial class StrategicManagementRegressionCases
 
         AssertEqual(1, dashboard.SelectedCity.Buildings.Count, "built training ground should be listed");
         AssertEqual(StrategicManagementIds.BuildingTrainingGround, dashboard.SelectedCity.Buildings[0].BuildingDefinitionId, "built building should expose definition id");
-        AssertEqual(280, dashboard.SelectedCity.CityForceCapacity, "training ground should increase city force capacity");
+        AssertEqual(220, dashboard.SelectedCity.CityForceCapacity, "building placement should not apply retired direct force-capacity scalar effects");
         StrategicCorpsInstanceViewModel corps = FindCorps(dashboard, create.CreatedEntityId);
         AssertEqual("辉光龙骑", corps.DisplayName, "created corps should use definition display name");
         AssertEqual(StrategicCorpsInstanceStatus.AssignedToHero, corps.Status, "assigned corps status should be reflected");
@@ -307,27 +308,29 @@ internal static partial class StrategicManagementRegressionCases
             "runtime should not keep AdvanceStrategicStep as a public compatibility wrapper");
     }
 
-    internal static void StrategicManagementSettlesElapsedWorldTimeCityBuildingsAndReserveRecovery()
+    internal static void StrategicManagementSettlesElapsedWorldTimeWithoutCityBuildingEffects()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
         StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicConstructionRegionDefinition economy = FindRegion(definitions, StrategicManagementIds.RegionPlainsEconomy);
+        StrategicConstructionRegionDefinition military = FindRegion(definitions, StrategicManagementIds.RegionPlainsMilitary);
         StrategicCommandResult buildFarm = commands.BuildCityBuilding(
             state,
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingFarm,
             StrategicManagementIds.RegionPlainsEconomy,
-            1,
-            1);
+            economy.OriginX,
+            economy.OriginY);
         AssertTrue(buildFarm.Success, $"farm setup should succeed, got {buildFarm.FailureReason}");
         StrategicCommandResult buildTraining = commands.BuildCityBuilding(
             state,
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingTrainingGround,
             StrategicManagementIds.RegionPlainsMilitary,
-            10,
-            0);
+            military.OriginX,
+            military.OriginY);
         AssertTrue(buildTraining.Success, $"training setup should succeed, got {buildTraining.FailureReason}");
         city.ReserveForces = 10;
         int beforeFood = state.GetResourceAmount(
@@ -348,23 +351,23 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(result.Success, $"settling elapsed world time should succeed, got {result.FailureReason}");
         AssertEqual(2, GetElapsedWorldTimePulses(state), "settlement should add requested pulses to durable world-map time");
         AssertEqual(
-            beforeFood + 36,
+            beforeFood,
             state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood),
-            "farm income should be settled for every elapsed pulse");
+            "built farm should not produce direct per-pulse food until the economy/capability model is rebuilt");
         AssertEqual(
             beforeWood + 24,
             state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
             "controlled resource-site production should still be settled for every elapsed pulse");
-        AssertEqual(34, city.ReserveForces, "training ground should recover reserve soldiers over elapsed world-map time");
+        AssertEqual(10, city.ReserveForces, "built training ground should not recover reserves through retired per-building scalar effects");
         AssertTrue(
             result.Events.Any(item => item.Kind == "StrategicWorldTimeSettled"),
             "elapsed-time settlement should emit a command-level time event");
         AssertTrue(
-            result.Events.Any(item => item.Kind == "StrategicCityProductionSettled"),
-            "global advancement should include city building production events");
+            !result.Events.Any(item => item.Kind == "StrategicCityProductionSettled"),
+            "global advancement should not emit retired city building production events");
         AssertTrue(
-            result.Events.Any(item => item.Kind == "StrategicCityReserveRecovered"),
-            "global advancement should include reserve recovery events");
+            !result.Events.Any(item => item.Kind == "StrategicCityReserveRecovered"),
+            "global advancement should not emit retired city reserve recovery events");
     }
 
     internal static void StrategicManagementElapsedWorldTimeSkipsEnemyHeldProduction()
@@ -467,14 +470,17 @@ internal static partial class StrategicManagementRegressionCases
     internal static void StrategicManagementRuntimeBuildsDashboardFromRetainedCommandState()
     {
         StrategicManagementRuntime.Reset();
+        StrategicConstructionRegionDefinition military = FindRegion(
+            StrategicManagementRuntime.Definitions,
+            StrategicManagementIds.RegionPlainsMilitary);
 
         StrategicCommandResult build = StrategicManagementRuntime.Commands.BuildCityBuilding(
             StrategicManagementRuntime.State,
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingTrainingGround,
             StrategicManagementIds.RegionPlainsMilitary,
-            10,
-            0);
+            military.OriginX,
+            military.OriginY);
         AssertTrue(build.Success, $"runtime command should build training ground, got {build.FailureReason}");
 
         StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(

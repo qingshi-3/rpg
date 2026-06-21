@@ -72,7 +72,7 @@ public static class BattleGroupPerceptionSummaryBuilder
         string[] hostileIds = (aliveActors ?? Enumerable.Empty<BattleRuntimeActor>())
             .Where(actor => actor != null &&
                             !string.Equals(actor.ActorId ?? "", member.ActorId ?? "", StringComparison.Ordinal) &&
-                            !SameFaction(actor.FactionId, member.FactionId) &&
+                            !BattleRuntimeIdentityRules.SameFaction(actor.FactionId, member.FactionId) &&
                             IsPerceived(member, actor, perceptionRange))
             .Select(actor => actor.ActorId ?? "")
             .Where(actorId => !string.IsNullOrWhiteSpace(actorId))
@@ -101,13 +101,4 @@ public static class BattleGroupPerceptionSummaryBuilder
         return gridGap + heightGap <= normalizedRange;
     }
 
-    private static bool SameFaction(string first, string second)
-    {
-        return string.Equals(NormalizeFaction(first), NormalizeFaction(second), StringComparison.Ordinal);
-    }
-
-    private static string NormalizeFaction(string factionId)
-    {
-        return string.IsNullOrWhiteSpace(factionId) ? "player" : factionId.Trim();
-    }
 }

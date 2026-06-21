@@ -14,9 +14,11 @@ public partial class BattleUnitRoot
 {
     private const string DefaultThunderLinkFxScenePath = "res://scenes/battle/entities/fx/BattleThunderLinkFx.tscn";
     private const string DefaultThunderMarkFxScenePath = "res://scenes/battle/entities/fx/BattleThunderMarkFx.tscn";
+    private const string DefaultThunderSpiralFxScenePath = "res://scenes/battle/entities/fx/BattleThunderSpiralFx.tscn";
     private static readonly Vector2 ThunderLinkSourceOffset = new(0f, -18f);
     private static readonly Vector2 ThunderMarkAttachedOffset = new(0f, -24f);
     private static readonly Vector2 ThunderMarkGroundOffset = new(0f, -10f);
+    private static readonly Vector2 ThunderSpiralAreaOffset = Vector2.Zero;
     private readonly Dictionary<string, Node2D> _thunderMarksByBattleGroup = new(System.StringComparer.Ordinal);
 
     public double PlaySkillCastPresentation(
@@ -55,13 +57,28 @@ public partial class BattleUnitRoot
             }
         }
 
-        actor.GetComponent<BattleSkillCastFxComponent>()?.PlaySkillCastFx(actionDurationSeconds);
+        if (!SuppressActorAttachedSkillCastFx(sourceDefinitionId))
+        {
+            actor.GetComponent<BattleSkillCastFxComponent>()?.PlaySkillCastFx(actionDurationSeconds);
+        }
+
         actor.GetComponent<BattleUnitAudioComponent>()?.PlayCue(BattleUnitAudioCue.Attack);
         return actionDurationSeconds;
     }
 
     private static bool IsChanneledSkillCastPresentation(string sourceDefinitionId)
     {
+        return string.Equals(
+            sourceDefinitionId ?? "",
+            HeroSkillCommandIds.ThunderSpiralBreakSkillId,
+            System.StringComparison.Ordinal);
+    }
+
+    private static bool SuppressActorAttachedSkillCastFx(string sourceDefinitionId)
+    {
+        // Thunder Spiral Break owns a separate authored area FX at the submitted
+        // 3x3 center; keeping the generic actor-attached cast ring makes the
+        // release read as centered on the caster.
         return string.Equals(
             sourceDefinitionId ?? "",
             HeroSkillCommandIds.ThunderSpiralBreakSkillId,
@@ -190,6 +207,53 @@ public partial class BattleUnitRoot
     private static Node2D ResolveEntityVisualParent(BattleEntity target)
     {
         return target?.GetNodeOrNull<Node2D>("VisualRoot") ?? target;
+    }
+
+    public double PlayThunderSpiralBreakPresentation(
+        BattleEntity actor,
+        GridSurfacePosition targetSurface,
+        double durationSeconds)
+    {
+        if (actor == null ||
+            !GodotObject.IsInstanceValid(actor) ||
+            !TryResolveThunderSpiralAreaGlobalPosition(targetSurface, out Vector2 areaGlobal))
+        {
+            return 0;
+        }
+
+        PackedScene scene = GD.Load<PackedScene>(DefaultThunderSpiralFxScenePath);
+        if (scene?.Instantiate() is not Node2D fx)
+        {
+            return 0;
+        }
+
+        BattleThunderSpiralFx spiralFx = fx as BattleThunderSpiralFx;
+        spiralFx?.ConfigureAreaCoreSize(ResolveThunderSpiralAreaPixelSize(targetSurface.Position));
+
+        AddChild(fx);
+        fx.GlobalPosition = areaGlobal + ThunderSpiralAreaOffset;
+        spiralFx?.Play(durationSeconds);
+
+        return System.Math.Max(0, durationSeconds);
+    }
+
+    private bool TryResolveThunderSpiralAreaGlobalPosition(
+        GridSurfacePosition targetSurface,
+        out Vector2 areaGlobal)
+    {
+        areaGlobal = default;
+        // Runtime stores Thunder Spiral Break's submitted 3x3 area as a target
+        // center cell. Presentation resolves that coarse center only; it does
+        // not derive a hand socket, preview cell, or secondary damage area.
+        return _tryResolveCellGlobalPosition?.Invoke(targetSurface.Position, out areaGlobal) == true;
+    }
+
+    private Vector2 ResolveThunderSpiralAreaPixelSize(GridPosition targetCenter)
+    {
+        // Thunder Spiral Break is a fixed 3x3 Runtime area. The release point
+        // only chooses the center; the authored vortex is tuned larger for
+        // readability but remains anchored to this center cell.
+        return BattleThunderSpiralFx.ResolveDefaultAreaPixelSize();
     }
 
     private void ClearThunderMarkPresentation(string key)

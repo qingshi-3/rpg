@@ -8,7 +8,6 @@ public sealed class StrategicWorldDefinitionQueries
 {
     private readonly Dictionary<string, ResourceDefinition> _resources;
     private readonly Dictionary<string, FactionDefinition> _factions;
-    private readonly Dictionary<string, FacilityDefinition> _facilities;
     private readonly Dictionary<string, WorldSiteDefinition> _sites;
     private readonly Dictionary<string, WorldOpportunityDefinition> _opportunities;
     private readonly Dictionary<string, OpportunitySpawnPointDefinition> _opportunitySpawnPoints;
@@ -20,7 +19,6 @@ public sealed class StrategicWorldDefinitionQueries
         Definition = definition;
         _factions = definition.FactionDefinitions.Where(item => item != null).ToDictionary(item => item.Id, item => item);
         _resources = definition.ResourceDefinitions.Where(item => item != null).ToDictionary(item => item.Id, item => item);
-        _facilities = definition.FacilityDefinitions.Where(item => item != null).ToDictionary(item => item.Id, item => item);
         _sites = definition.SiteDefinitions.Where(item => item != null).ToDictionary(item => item.Id, item => item);
         _opportunities = definition.OpportunityDefinitions.Where(item => item != null).ToDictionary(item => item.Id, item => item);
         _opportunitySpawnPoints = definition.OpportunitySpawnPoints.Where(item => item != null).ToDictionary(item => item.Id, item => item);
@@ -31,7 +29,6 @@ public sealed class StrategicWorldDefinitionQueries
     public StrategicWorldDefinition Definition { get; }
     public IReadOnlyDictionary<string, FactionDefinition> Factions => _factions;
     public IReadOnlyDictionary<string, ResourceDefinition> Resources => _resources;
-    public IReadOnlyDictionary<string, FacilityDefinition> Facilities => _facilities;
     public IReadOnlyDictionary<string, WorldSiteDefinition> Sites => _sites;
     public IReadOnlyDictionary<string, WorldOpportunityDefinition> Opportunities => _opportunities;
     public IReadOnlyDictionary<string, OpportunitySpawnPointDefinition> OpportunitySpawnPoints => _opportunitySpawnPoints;
@@ -46,11 +43,6 @@ public sealed class StrategicWorldDefinitionQueries
     public FactionDefinition GetFaction(string id)
     {
         return !string.IsNullOrWhiteSpace(id) && _factions.TryGetValue(id, out FactionDefinition value) ? value : null;
-    }
-
-    public FacilityDefinition GetFacility(string id)
-    {
-        return !string.IsNullOrWhiteSpace(id) && _facilities.TryGetValue(id, out FacilityDefinition value) ? value : null;
     }
 
     public WorldSiteDefinition GetSite(string id)

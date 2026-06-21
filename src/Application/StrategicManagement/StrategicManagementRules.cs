@@ -114,11 +114,6 @@ public sealed class StrategicManagementRules
             return StrategicFailureReasons.MissingConstructionRegion;
         }
 
-        if (!region.AllowedCategoryIds.Contains(building.CategoryId))
-        {
-            return StrategicFailureReasons.BuildingRegionCategoryMismatch;
-        }
-
         IReadOnlyList<(int X, int Y)> candidateCells = BuildFootprintCells(gridX, gridY, building.FootprintWidth, building.FootprintHeight);
         if (candidateCells.Count == 0 || !candidateCells.All(cell => IsCellInsideRegion(cell.X, cell.Y, region)))
         {
@@ -171,74 +166,6 @@ public sealed class StrategicManagementRules
         }
 
         return System.Math.Max(0, city.CityForceCapacity - GetActiveForces(state, cityId) - city.ReserveForces);
-    }
-
-    public int GetReserveRecoveryPerWorldTimePulse(StrategicManagementState state, string cityId)
-    {
-        if (state == null || !state.Cities.TryGetValue(cityId ?? "", out StrategicCityState city))
-        {
-            return 0;
-        }
-
-        return city.Buildings.Sum(building =>
-            _definitions.Buildings.TryGetValue(building.BuildingDefinitionId, out StrategicBuildingDefinition definition)
-                ? System.Math.Max(0, definition.ReserveRecoveryPerWorldTimePulse)
-                : 0);
-    }
-
-    public int GetRecoverableReserveForces(StrategicManagementState state, string cityId, int elapsedPulses)
-    {
-        if (elapsedPulses <= 0 ||
-            state == null ||
-            !state.Cities.TryGetValue(cityId ?? "", out StrategicCityState city))
-        {
-            return 0;
-        }
-
-        int recovery = GetReserveRecoveryPerWorldTimePulse(state, cityId) * elapsedPulses;
-        int maxReserve = System.Math.Max(0, city.CityForceCapacity - GetActiveForces(state, cityId));
-        return System.Math.Min(System.Math.Max(0, recovery), System.Math.Max(0, maxReserve - city.ReserveForces));
-    }
-
-    public IReadOnlyList<StrategicResourceAmount> GetCityBuildingProduction(
-        StrategicManagementState state,
-        string cityId,
-        string factionId,
-        int elapsedPulses)
-    {
-        if (elapsedPulses <= 0 ||
-            state == null ||
-            !TryGetCityContext(state, cityId, out StrategicCityState city, out StrategicLocationState cityLocation) ||
-            !string.Equals(cityLocation.OwnerFactionId, factionId ?? "", System.StringComparison.Ordinal) ||
-            cityLocation.ControlState != StrategicLocationControlState.PlayerHeld)
-        {
-            return System.Array.Empty<StrategicResourceAmount>();
-        }
-
-        Dictionary<string, int> totals = new(System.StringComparer.Ordinal);
-        foreach (StrategicBuildingInstanceState instance in city.Buildings)
-        {
-            if (!_definitions.Buildings.TryGetValue(instance.BuildingDefinitionId, out StrategicBuildingDefinition building))
-            {
-                continue;
-            }
-
-            foreach (StrategicResourceAmount amount in building.ProductionPerWorldTimePulse)
-            {
-                if (amount.Amount <= 0 || string.IsNullOrWhiteSpace(amount.ResourceId))
-                {
-                    continue;
-                }
-
-                totals.TryGetValue(amount.ResourceId, out int current);
-                totals[amount.ResourceId] = current + amount.Amount * elapsedPulses;
-            }
-        }
-
-        return totals
-            .OrderBy(item => item.Key)
-            .Select(item => new StrategicResourceAmount(item.Key, item.Value))
-            .ToList();
     }
 
     public int GetCorpsReplenishmentReserveCost(

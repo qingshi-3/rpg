@@ -161,6 +161,11 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
     {
         BattleRuntimeSessionController controller = new BattleRuntimeSession()
             .Begin(BuildDuplicateActorIdSnapshot());
+        BattleRuntimeActor[] corps = controller.State.Actors
+            .Where(item => item.Kind == BattleRuntimeActorKind.Corps)
+            .Take(2)
+            .ToArray();
+        corps[1].ActorId = corps[0].ActorId;
 
         InvalidOperationException exception = AssertThrows<InvalidOperationException>(
             () => controller.AdvanceNextTick(),
@@ -406,6 +411,7 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
             AttackDamage = 1,
             AttackRange = 1,
             AttackSpeed = 1.0,
+            AttackImpactDelaySeconds = 0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = x,
             CellY = y,

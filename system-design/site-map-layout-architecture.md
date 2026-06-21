@@ -6,7 +6,7 @@ Status: Accepted Architecture
 
 This document supports `gameplay-design/content-systems-long-term-design.md`, `gameplay-design/details/cities-and-locations/README.md`, `system-design/strategic-management-system-architecture.md`, `system-design/semantic-map-marker-architecture.md`, and `system-design/battle-navigation-topology-architecture.md`.
 
-The accepted direction is city-led strategic management with authored strategic-location spaces. City and site maps should be reusable enough for production, but varied enough that bridges, high ground, deployment areas, building slots, resources, and decoration can change how a location reads and plays.
+The accepted direction is city-led strategic management with authored strategic-location spaces. City and site maps should be reusable enough for production, but varied enough that bridges, high ground, deployment areas, construction regions, resources, and decoration can change how a location reads and plays.
 
 ## Responsibility
 
@@ -68,7 +68,7 @@ Base terrain may include:
 Base terrain must not include:
 
 - actual bridges;
-- building slots;
+- construction-region markers;
 - deployment zones;
 - objective zones;
 - resource points;
@@ -83,7 +83,7 @@ The first base terrain scene should contain enough terrain variety to validate t
 - low ground;
 - one high-ground platform or wall-like area;
 - stable TileMapLayer groups for gameplay heights;
-- no actual bridge, no building slots, no deployment zones, and no resources.
+- no actual bridge, no construction-region markers, no deployment zones, and no resources.
 
 ### Layout Variant Scene
 
@@ -182,7 +182,7 @@ Reusable layout templates may expose stable ids:
 - resource point ids;
 - entrance ids;
 - objective ids;
-- building slot ids.
+- construction-region marker ids.
 
 Durable location facts must be keyed by strategic location id plus stable layout/marker ids. For example:
 
@@ -233,7 +233,7 @@ Outputs are:
 
 - Base terrain scenes define terrain possibility; layout variant scenes define actual site content.
 - Layout variants must be Godot inherited scenes or an equivalent authored scene composition that preserves the base terrain contract.
-- Bridges, decorations, resources, obstacles, building slots, deployment zones, objective zones, and event markers belong to layout variants unless a later accepted proposal changes this rule.
+- Bridges, decorations, resources, obstacles, construction-region markers, deployment zones, objective zones, and event markers belong to layout variants unless a later accepted proposal changes this rule.
 - Every grid cell has at most one final standable gameplay surface.
 - Same-height movement may use ordinary topology adjacency; cross-height movement requires explicit connections.
 - Bridge gameplay facts come from bridge markers and explicit connections, not visual tile overlap.
@@ -259,7 +259,7 @@ Outputs are:
 This architecture is acceptable when:
 
 - future authors can create multiple layout variants from one base terrain scene without modifying the base;
-- bridge placement, building slots, deployment zones, resources, decorations, and obstacles can vary by layout;
+- bridge placement, construction regions, deployment zones, resources, decorations, and obstacles can vary by layout;
 - bridge gameplay uses explicit marker and connection data;
 - cross-river bridges can act as ordinary same-height ground;
 - height bridges preserve high-ground entrance strategy by requiring explicit entry connections;

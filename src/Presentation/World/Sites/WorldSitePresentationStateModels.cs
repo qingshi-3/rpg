@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Godot;
 using Rpg.Application.Battle;
-using Rpg.Domain.Battle.Grid;
 using Rpg.Domain.World;
 using Rpg.Presentation.Battle.Entities;
 
@@ -16,18 +15,6 @@ internal sealed class WorldSiteLivePlacementSnapshot
     public int CellX { get; set; }
     public int CellY { get; set; }
     public int CellHeight { get; set; }
-}
-
-internal sealed class WorldFacilitySlotRuntimeLayout
-{
-    public string SlotId { get; set; } = "";
-    public GridPosition SortCell { get; set; }
-    public GridSurfacePosition SortSurface { get; set; }
-    public int FootprintWidth { get; set; } = 1;
-    public int FootprintHeight { get; set; } = 1;
-    public int ZIndex { get; set; }
-    public string SourcePath { get; set; } = "";
-    public List<GridPosition> FootprintCells { get; } = new();
 }
 
 internal sealed class BattlePreparationPlacementDragContext

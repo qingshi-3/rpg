@@ -156,18 +156,6 @@ public sealed class WorldBattleRequestBuilder
             ActiveTags = site.ActiveTags.ToList()
         };
 
-        foreach (FacilityInstance facility in site.Facilities)
-        {
-            if (facility.State == FacilityState.Active)
-            {
-                snapshot.ActiveFacilityIds.Add(facility.FacilityId);
-            }
-            else if (facility.State == FacilityState.Damaged)
-            {
-                snapshot.DamagedFacilityIds.Add(facility.FacilityId);
-            }
-        }
-
         foreach (GarrisonState garrison in site.Garrison)
         {
             snapshot.GarrisonSummary[garrison.UnitTypeId] = garrison.Count;

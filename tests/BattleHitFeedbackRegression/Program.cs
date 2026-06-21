@@ -49,9 +49,9 @@ BattleHitFeedbackRegressionCases.Run("battle unit display names use resource lab
 BattleHitFeedbackRegressionCases.Run("starter unit display names use source visual translations", BattleHitFeedbackRegressionCases.StarterUnitDisplayNamesUseSourceVisualTranslations);
 BattleHitFeedbackRegressionCases.Run("world unit labels resolve through battle unit definitions", BattleHitFeedbackRegressionCases.WorldUnitLabelsResolveThroughBattleDefinitions);
 BattleHitFeedbackRegressionCases.Run("world resource and faction labels resolve through strategic definitions", BattleHitFeedbackRegressionCases.WorldResourceAndFactionLabelsResolveThroughDefinitions);
-BattleHitFeedbackRegressionCases.Run("world site and facility labels resolve through strategic definitions", BattleHitFeedbackRegressionCases.WorldSiteAndFacilityLabelsResolveThroughDefinitions);
+BattleHitFeedbackRegressionCases.Run("world site labels resolve through strategic definitions", BattleHitFeedbackRegressionCases.WorldSiteLabelsResolveThroughDefinitions);
 BattleHitFeedbackRegressionCases.Run("world action resource text uses custom resource display names", BattleHitFeedbackRegressionCases.WorldActionResourceTextUsesCustomDisplayNames);
-BattleHitFeedbackRegressionCases.Run("world action site and facility preview text uses custom display names", BattleHitFeedbackRegressionCases.WorldActionSiteAndFacilityPreviewTextUsesCustomDisplayNames);
+BattleHitFeedbackRegressionCases.Run("world action site and unit preview text uses custom display names", BattleHitFeedbackRegressionCases.WorldActionSiteAndUnitPreviewTextUsesCustomDisplayNames);
 BattleHitFeedbackRegressionCases.Run("world site hover summary uses local resources and force counts", BattleHitFeedbackRegressionCases.WorldSiteHoverSummaryUsesLocalResourcesAndForceCounts);
 BattleHitFeedbackRegressionCases.Run("world site hover summary stays inside viewport", BattleHitFeedbackRegressionCases.WorldSiteHoverSummaryStaysInsideViewport);
 BattleHitFeedbackRegressionCases.Run("game ui skin installs project cursor assets", BattleHitFeedbackRegressionCases.GameUiSkinInstallsProjectCursorAssets);
@@ -66,11 +66,13 @@ BattleHitFeedbackRegressionCases.Run("battle runtime playback keeps move loop ac
 BattleHitFeedbackRegressionCases.Run("battle runtime end idle clears movement lanes", BattleHitFeedbackRegressionCases.BattleRuntimeEndIdleClearsMovementLanes);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback waits for attack animation duration", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackWaitsForAttackAnimationDuration);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation uses tick clock", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationUsesTickClock);
+BattleHitFeedbackRegressionCases.Run("battle runtime skill hud maps queued rejection", BattleHitFeedbackRegressionCases.BattleRuntimeSkillHudMapsQueuedRejection);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback does not globally gate movement on attack animation", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackDoesNotGloballyGateMovementOnAttackAnimation);
 BattleHitFeedbackRegressionCases.Run("battle runtime playback plans move idle only at sequence boundary", BattleHitFeedbackRegressionCases.BattleRuntimePlaybackPlansMoveIdleOnlyAtSequenceBoundary);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement uses actor motion lane", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementUsesActorMotionLane);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement queues before actor visual tail waits", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement buffers committed segments without restarting move", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementBuffersCommittedSegmentsWithoutRestartingMove);
+BattleHitFeedbackRegressionCases.Run("battle runtime live movement continuation hold covers single step gap", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementContinuationHoldCoversSingleStepGap);
 BattleHitFeedbackRegressionCases.Run("battle runtime teleport cancels stale queued movement presentation", BattleHitFeedbackRegressionCases.BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation);
 BattleHitFeedbackRegressionCases.Run("battle runtime movement queues perception overlay refresh", BattleHitFeedbackRegressionCases.BattleRuntimeMovementQueuesPerceptionOverlayRefresh);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation consumes SkillUsed as cast cue", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue);
@@ -78,7 +80,9 @@ BattleHitFeedbackRegressionCases.Run("thunder tag offhand presentation does not 
 BattleHitFeedbackRegressionCases.Run("thunder tag presentation shows lightning and mark", BattleHitFeedbackRegressionCases.ThunderTagPresentationShowsLightningAndMark);
 BattleHitFeedbackRegressionCases.Run("thunder mark lifetime timer is generation guarded", BattleHitFeedbackRegressionCases.ThunderMarkLifetimeTimerIsGenerationGuarded);
 BattleHitFeedbackRegressionCases.Run("thunder tag projectile reuses chain lightning fx frames", BattleHitFeedbackRegressionCases.ThunderTagProjectileReusesChainLightningFxFrames);
+BattleHitFeedbackRegressionCases.Run("thunder spiral presentation uses authored area fx", BattleHitFeedbackRegressionCases.ThunderSpiralPresentationUsesAuthoredAreaFx);
 BattleHitFeedbackRegressionCases.Run("runtime skill damage does not replay caster cast", BattleHitFeedbackRegressionCases.RuntimeSkillDamageDoesNotReplayCasterCast);
+BattleHitFeedbackRegressionCases.Run("runtime skill damage feedback does not extend caster action tail", BattleHitFeedbackRegressionCases.RuntimeSkillDamageFeedbackDoesNotExtendCasterActionTail);
 BattleHitFeedbackRegressionCases.Run("battle runtime visual movement keeps runtime action duration", BattleHitFeedbackRegressionCases.BattleRuntimeVisualMovementKeepsRuntimeActionDuration);
 BattleHitFeedbackRegressionCases.Run("battle runtime movement playback does not use lookahead correction path", BattleHitFeedbackRegressionCases.BattleRuntimeMovementPlaybackDoesNotUseLookaheadCorrectionPath);
 BattleHitFeedbackRegressionCases.Run("battle presentation timeline separates movement completion from action backlog", BattleHitFeedbackRegressionCases.BattlePresentationTimelineSeparatesMovementCompletionFromActionBacklog);

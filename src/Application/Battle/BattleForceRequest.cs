@@ -30,7 +30,9 @@ public sealed class BattleForceRequest
     public double AttackSpeed { get; set; } = BattleAttackSpeedPolicy.DefaultAttackSpeed;
     public double MoveStepSeconds { get; set; } = BattleActionTimingPolicy.DefaultMoveStepSeconds;
     public double AttackActionSeconds { get; set; }
-    public double AttackImpactDelaySeconds { get; set; }
+    // NaN keeps this bridge unset so Runtime can derive the default impact point;
+    // authored zero is reserved for explicit instant-impact behavior.
+    public double AttackImpactDelaySeconds { get; set; } = double.NaN;
     public string FactionId { get; set; } = "";
     public string PreferredEntranceId { get; set; } = "";
     public string DefaultFormationId { get; set; } = "";

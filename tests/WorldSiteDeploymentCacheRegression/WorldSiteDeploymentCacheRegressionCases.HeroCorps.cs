@@ -190,8 +190,9 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("_deploymentZoneOverlay?.SetZones", StringComparison.Ordinal),
         "battle preparation should show player deployment through the dedicated deployment-zone overlay");
     AssertTrue(
-        rootSource.Contains("ActivateBattleRuntime();", StringComparison.Ordinal),
-        "start battle should still commit into the existing runtime after preparation");
+        rootSource.Contains("_battleLauncher.BeginAndActivate", StringComparison.Ordinal) &&
+        rootSource.Contains("ActivateBattleRuntime", StringComparison.Ordinal),
+        "start battle should still commit into the existing runtime through the battle launch handoff.");
     AssertTrue(
         rootSource.Contains("SyncBattlePreparationPlanToRequest(request)", StringComparison.Ordinal) &&
         rootSource.Contains("BattlePreparationPlanSynced", StringComparison.Ordinal) &&
@@ -563,11 +564,11 @@ internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
 
     AssertTrue(
         tacticalWorldHudSource.Contains("node name=\"SiteDetailPanel\"", StringComparison.Ordinal) &&
-        tacticalWorldHudSource.Contains("anchor_left = 0.25", StringComparison.Ordinal) &&
-        tacticalWorldHudSource.Contains("anchor_top = 0.75", StringComparison.Ordinal) &&
-        tacticalWorldHudSource.Contains("anchor_right = 0.75", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("anchor_left = 0.5", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("anchor_top = 1.0", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("anchor_right = 0.5", StringComparison.Ordinal) &&
         tacticalWorldHudSource.Contains("anchor_bottom = 1.0", StringComparison.Ordinal),
-        "strategic site detail panel should be a bottom-centered overlay sheet.");
+        "strategic site detail panel should be a bottom-centered responsive overlay sheet.");
 
     AssertTrue(
         !peacetimeHudSource.Contains("node name=\"BattlePreparationContent\"", StringComparison.Ordinal) &&
@@ -1268,8 +1269,9 @@ internal static void BattlePreparationLaunchExcludesReserveGroupsBeforeRuntime()
     AssertTrue(
         launchBody.Contains("ExcludeUndeployedBattlePreparationReserveGroups(request)", StringComparison.Ordinal) &&
         launchBody.IndexOf("ExcludeUndeployedBattlePreparationReserveGroups(request)", StringComparison.Ordinal) <
-        launchBody.IndexOf("ActivateBattleRuntime();", StringComparison.Ordinal),
-        "battle preparation should prune reserve groups from the active request before Runtime activation.");
+        launchBody.IndexOf("_battleLauncher.BeginAndActivate", StringComparison.Ordinal) &&
+        launchBody.Contains("ActivateBattleRuntime", StringComparison.Ordinal),
+        "battle preparation should prune reserve groups from the active request before delegating Runtime activation.");
     AssertTrue(
         reserveBody.Contains("request.PlayerForces = request.PlayerForces", StringComparison.Ordinal) &&
         reserveBody.Contains("request.PlayerBattleGroupPlans.Remove", StringComparison.Ordinal) &&

@@ -351,6 +351,7 @@ internal static class TargetBattleGroupEngagementRegressionCases
             MaxHitPoints = 80,
             AttackDamage = attackDamage,
             AttackRange = attackRange,
+            AttackImpactDelaySeconds = 0,
             SourceLocationId = "site_1",
             CellX = x,
             CellY = y,

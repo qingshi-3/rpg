@@ -1,32 +1,30 @@
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle.Snapshots;
-using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
-internal sealed partial class BattleRuntimeTickResolver
+internal static class BattleCombatZoneJoinRetargeting
 {
-    private static bool IsBlockedLocalCombatHold(string failureReason)
+    internal static bool IsBlockedLocalCombatHold(string failureReason)
     {
         return string.Equals(failureReason ?? "", BattleGroupTacticalReasonCode.LocalRegionDegradeNoReachableSlot, System.StringComparison.Ordinal) ||
                string.Equals(failureReason ?? "", LocalCombatDecisionReason.RejectNoReachableSlot, System.StringComparison.Ordinal) ||
                string.Equals(failureReason ?? "", LocalCombatDecisionReason.HoldSupportAttackSlotsFull, System.StringComparison.Ordinal);
     }
 
-    private static bool TryBuildAlternateCombatZoneJoinContext(
+    internal static bool TryBuildAlternateCombatZoneJoinContext(
         BattleRuntimeTickStartActorFact actorFact,
         BattleRuntimeTickStartActorFact failedTarget,
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> targetFacts,
         IReadOnlyList<BattleRuntimeAiTargetCandidateFacts> targetCandidates,
         BattleTacticalRegionSnapshot storedLocalCombatRegion,
         BattleTacticalRegionSnapshot combatJoinRegion,
-        BattleNavigationGraph navigationGraph,
-        BattleDynamicOccupancy occupancy,
-        BattlePerformanceCounters performanceCounters,
+        BattleMovementController movementController,
+        BattleMovementProposalWorldInputs movementWorldInputs,
         double currentTimeSeconds,
         out BattleRuntimeTickContext context)
     {
@@ -51,113 +49,26 @@ internal sealed partial class BattleRuntimeTickResolver
         {
             if (!targetFacts.TryGetValue(candidate.ActorId, out BattleRuntimeTickStartActorFact alternateTarget) ||
                 alternateTarget.HitPoints <= 0 ||
-                SameFaction(actorFact.Actor, alternateTarget.Actor))
+                BattleRuntimeIdentityRules.SameFaction(actorFact.Actor, alternateTarget.Actor))
             {
                 continue;
             }
 
-            BattleTacticalRegionSnapshot scopedLocalCombatRegion = BattleCombatJoinRegionPlanner.SelectLocalCombatScope(
-                actorFact,
-                alternateTarget,
-                storedLocalCombatRegion,
-                combatJoinRegion);
-            LocalCombatSituation alternateSituation = LocalCombatSituationBuilder.Build(
-                actorFact.Actor,
-                alternateTarget.Actor,
-                targetFacts.Values.Select(item => item.Actor).ToArray(),
-                navigationGraph,
-                occupancy,
-                currentTimeSeconds,
-                scopedLocalCombatRegion);
-
-            BattleRuntimeActor tickStartActor = BattleTickStartProjectionBuilder.Build(actorFact);
-            BattleRuntimeActor tickStartTarget = BattleTickStartProjectionBuilder.Build(alternateTarget);
-            int attackRange = System.Math.Max(1, actorFact.Actor.AttackRange);
-            int movementGap = BattleActorFootprint.GetGap(actorFact.Actor, actorFact.Anchor, alternateTarget.Actor, alternateTarget.Anchor);
-            bool preferSupport = BattleTargetSelectionService.IsTargetEngagedBySameFactionActor(targetFacts, actorFact, alternateTarget);
-            bool preferSupportSlots = preferSupport &&
-                                      movementGap > attackRange + 1 &&
-                                      !BattleTargetSelectionService.HasReachableAttackSlot(
-                                          tickStartActor,
-                                          tickStartTarget,
-                                          actorFact.Anchor,
-                                          navigationGraph,
-                                          occupancy,
-                                          performanceCounters,
-                                          scopedLocalCombatRegion);
-            BattleRuntimeAiActionRequest request = null;
-            BattleCombatSlotIntent? selectedIntent = null;
-            IReadOnlyList<BattleGridCoord> moveOptions = System.Array.Empty<BattleGridCoord>();
-            if (alternateSituation != null &&
-                BattleCombatSlotIntentResolver.TrySelectExecutableIntent(
-                    tickStartActor,
-                    tickStartTarget,
-                    actorFact.Anchor,
-                    navigationGraph,
-                    occupancy,
+            if (!movementController.TryBuildAlternateCombatZoneJoinProposalContext(
+                    actorFact,
+                    alternateTarget,
+                    targetFacts,
+                    BattleTargetSelectionService.IsTargetEngagedBySameFactionActor(targetFacts, actorFact, alternateTarget),
+                    storedLocalCombatRegion,
+                    combatJoinRegion,
                     new BattleMovementReservationMap(),
-                    preferSupportSlots,
-                    performanceCounters,
-                    scopedLocalCombatRegion,
-                    out BattleCombatSlotIntent selectedSlotIntent,
-                    out IReadOnlyList<BattleGridCoord> slotMoveOptions) &&
-                slotMoveOptions.Count > 0)
-            {
-                selectedIntent = selectedSlotIntent;
-                moveOptions = slotMoveOptions;
-                string joinReason = alternateSituation.BlocksObjectiveRoute
-                    ? LocalCombatDecisionReason.JoinBlocksObjectiveRoute
-                    : LocalCombatDecisionReason.JoinRecentDamage;
-                request = selectedSlotIntent.Kind == BattleCombatSlotKind.Support
-                    ? BattleRuntimeAiActionRequest.HoldSupport(
-                        actorFact.Actor.ActorId,
-                        alternateTarget.Actor.ActorId,
-                        LocalCombatDecisionReason.HoldSupportAttackSlotsFull,
-                        alternateSituation.SituationId)
-                    : BattleRuntimeAiActionRequest.JoinLocalCombat(
-                        actorFact.Actor.ActorId,
-                        alternateTarget.Actor.ActorId,
-                        joinReason,
-                        alternateSituation.SituationId);
-            }
-
-            if (moveOptions.Count == 0)
-            {
-                moveOptions = BattleCrowdMovementPlanner.FindNextStepCandidatesTowardTarget(
-                    tickStartActor,
-                    tickStartTarget,
-                    navigationGraph,
-                    occupancy,
-                    new BattleMovementReservationMap(),
-                    preferSupportSlots,
-                    avoidOpeningNewAxisGapNearEngagedTarget: false,
-                    performanceCounters,
-                    scopedLocalCombatRegion);
-                request = moveOptions.Count == 0
-                    ? null
-                    : BattleRuntimeAiActionRequest.AdvanceTowardTarget(
-                        actorFact.Actor.ActorId,
-                        alternateTarget.Actor.ActorId);
-            }
-
-            if (request == null || moveOptions.Count == 0)
+                    movementWorldInputs,
+                    currentTimeSeconds,
+                    out context))
             {
                 continue;
             }
 
-            // This is still zone-scoped: a retained target that cannot accept
-            // ingress yields to another executable candidate in the same action zone.
-            context = CreateContext(
-                request,
-                actorFact,
-                alternateTarget,
-                hasMoveTo: true,
-                moveTo: moveOptions[0],
-                failureReason: "",
-                moveOptions: moveOptions,
-                localCombatSituation: alternateSituation,
-                movementReasonCode: request.ReasonCode,
-                combatSlotIntent: selectedIntent);
             return true;
         }
 

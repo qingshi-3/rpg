@@ -770,7 +770,7 @@ public sealed class BattleGroupSessionProbeService
 		public double AttackSpeed { get; init; } = BattleAttackSpeedPolicy.DefaultAttackSpeed;
 		public double MoveStepSeconds { get; init; } = BattleActionTimingPolicy.DefaultMoveStepSeconds;
 		public double AttackActionSeconds { get; init; }
-		public double AttackImpactDelaySeconds { get; init; }
+		public double AttackImpactDelaySeconds { get; init; } = double.NaN;
 		public string InitialCorpsCommandId { get; init; } = "";
 		public BattleGroupPlanSnapshot Plan { get; init; } = new();
 		public BattleTacticalIntentPlanSnapshot TacticalIntentPlan { get; init; } = new();

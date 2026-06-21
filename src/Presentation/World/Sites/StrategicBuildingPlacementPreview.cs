@@ -6,13 +6,11 @@ namespace Rpg.Presentation.World.Sites;
 
 public partial class StrategicBuildingPlacementPreview : Node2D
 {
-    private static readonly Color BuildableFill = new(0.12f, 0.92f, 0.52f, 0.26f);
-    private static readonly Color BuildableBorder = new(0.42f, 1.0f, 0.72f, 0.92f);
-    private static readonly Color BlockedFill = new(1.0f, 0.12f, 0.08f, 0.30f);
-    private static readonly Color BlockedBorder = new(1.0f, 0.38f, 0.24f, 0.96f);
-
     private readonly List<Vector2[]> _polygons = new();
     private bool _buildable;
+    private Texture2D _texture;
+    private Rect2 _textureRect;
+    private bool _hasTextureRect;
 
     public override void _Ready()
     {
@@ -20,7 +18,7 @@ public partial class StrategicBuildingPlacementPreview : Node2D
         Visible = false;
     }
 
-    public void SetPreview(IEnumerable<Vector2[]> globalPolygons, bool buildable)
+    public void SetPreview(IEnumerable<Vector2[]> globalPolygons, bool buildable, Texture2D texture)
     {
         _polygons.Clear();
         foreach (Vector2[] polygon in globalPolygons ?? Enumerable.Empty<Vector2[]>())
@@ -34,6 +32,8 @@ public partial class StrategicBuildingPlacementPreview : Node2D
         }
 
         _buildable = buildable;
+        _texture = texture;
+        _hasTextureRect = TryBuildTextureRect(_polygons, out _textureRect);
         Visible = _polygons.Count > 0;
         QueueRedraw();
     }
@@ -41,6 +41,8 @@ public partial class StrategicBuildingPlacementPreview : Node2D
     public void ClearPreview()
     {
         _polygons.Clear();
+        _texture = null;
+        _hasTextureRect = false;
         Visible = false;
         QueueRedraw();
     }
@@ -52,25 +54,31 @@ public partial class StrategicBuildingPlacementPreview : Node2D
             return;
         }
 
-        Color fill = _buildable ? BuildableFill : BlockedFill;
-        Color border = _buildable ? BuildableBorder : BlockedBorder;
-        foreach (Vector2[] polygon in _polygons)
+        if (_texture != null && _hasTextureRect)
         {
-            DrawColoredPolygon(polygon, fill);
-            DrawPolyline(ClosePolygon(polygon), border, 2.2f, true);
+            Color textureTint = _buildable
+                ? new Color(1.0f, 1.0f, 1.0f, 0.88f)
+                : new Color(1.0f, 0.58f, 0.50f, 0.72f);
+            DrawTextureRect(_texture, _textureRect, false, textureTint);
         }
     }
 
-    private static Vector2[] ClosePolygon(Vector2[] polygon)
+    private static bool TryBuildTextureRect(IReadOnlyList<Vector2[]> polygons, out Rect2 rect)
     {
-        if (polygon == null || polygon.Length == 0)
+        rect = default;
+        Vector2[] points = (polygons ?? System.Array.Empty<Vector2[]>())
+            .SelectMany(polygon => polygon ?? System.Array.Empty<Vector2>())
+            .ToArray();
+        if (points.Length == 0)
         {
-            return System.Array.Empty<Vector2>();
+            return false;
         }
 
-        Vector2[] closed = new Vector2[polygon.Length + 1];
-        polygon.CopyTo(closed, 0);
-        closed[^1] = polygon[0];
-        return closed;
+        float minX = points.Min(point => point.X);
+        float minY = points.Min(point => point.Y);
+        float maxX = points.Max(point => point.X);
+        float maxY = points.Max(point => point.Y);
+        rect = new Rect2(minX, minY, maxX - minX, maxY - minY);
+        return rect.Size.X > 0.001f && rect.Size.Y > 0.001f;
     }
 }

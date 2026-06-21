@@ -693,15 +693,12 @@ public partial class StrategicWorldRoot
         string garrison = site.Garrison.Count == 0
             ? "无"
             : string.Join("，", site.Garrison.Where(item => item.Count > 0).Select(item => $"{GetUnitLabel(item.UnitTypeId)} x{item.Count}"));
-        int activeFacilities = site.Facilities.Count(item => item.State == FacilityState.Active);
-        int damagedFacilities = site.Facilities.Count(item => item.State == FacilityState.Damaged);
 
         return
             $"场域：{definition?.DisplayName ?? site.SiteId}\n" +
             $"状态：{GetControlStateLabel(site.ControlState)}\n" +
             $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}\n" +
             $"受损：{site.DamageLevel}\n" +
-            $"建筑：运行 {activeFacilities}，受损 {damagedFacilities}\n" +
             $"驻军：{garrison}";
     }
 

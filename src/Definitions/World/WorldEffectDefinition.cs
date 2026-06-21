@@ -9,15 +9,11 @@ public sealed class WorldEffectDefinition
     public string TargetId { get; set; } = "";
     public string FactionId { get; set; } = "";
     public string ResourceId { get; set; } = "";
-    public string FacilityId { get; set; } = "";
-    public string FacilityInstanceId { get; set; } = "";
-    public string SlotId { get; set; } = "";
     public string UnitTypeId { get; set; } = "";
     public string RuleId { get; set; } = "";
     public string Tag { get; set; } = "";
     public string BattleKind { get; set; } = "";
     public int Amount { get; set; }
     public SiteControlState ControlState { get; set; } = SiteControlState.PlayerHeld;
-    public FacilityState FacilityState { get; set; } = FacilityState.Active;
     public WorldArmyIntent ArmyIntent { get; set; } = WorldArmyIntent.None;
 }

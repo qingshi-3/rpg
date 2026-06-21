@@ -950,6 +950,7 @@ internal static class TargetBattleMovementIntentRegressionCases
             CorpsStrength = hitPoints,
             MaxHitPoints = hitPoints,
             AttackDamage = 1,
+            AttackImpactDelaySeconds = 0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
             CellY = cellY,

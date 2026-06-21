@@ -4,12 +4,8 @@ public enum WorldEffectKind
 {
     AddResource = 0,
     SpendResource = 1,
-    ReserveResource = 2,
-    ReleaseResourceReservation = 3,
     SetSiteControlState = 4,
     SetSiteOwner = 5,
-    AddFacility = 6,
-    SetFacilityState = 7,
     AddGarrison = 8,
     RemoveGarrison = 9,
     StartBattle = 10,

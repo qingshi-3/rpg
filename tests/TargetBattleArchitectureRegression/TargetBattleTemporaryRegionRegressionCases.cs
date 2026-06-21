@@ -12,7 +12,7 @@ internal static class TargetBattleTemporaryRegionRegressionCases
     {
         run("default enemy intent keeps stable fixed region when cluster moves", DefaultEnemyIntentKeepsStableFixedRegionWhenClusterMoves);
         run("explicit enemy cluster pursuit intent may use temporary region", ExplicitEnemyClusterPursuitIntentMayUseTemporaryRegion);
-        run("temporary region refresh interval defaults to five ticks", TemporaryRegionRefreshIntervalDefaultsToFiveTicks);
+        run("temporary region refresh interval defaults to about two seconds", TemporaryRegionRefreshIntervalDefaultsToAboutTwoSeconds);
         run("player active command blocks autonomous temporary region", PlayerActiveCommandBlocksAutonomousTemporaryRegion);
         run("player completed command creates autonomous temporary region", PlayerCompletedCommandCreatesAutonomousTemporaryRegion);
         run("player autonomous temporary region clears on engagement", PlayerAutonomousTemporaryRegionClearsOnEngagement);
@@ -61,27 +61,32 @@ internal static class TargetBattleTemporaryRegionRegressionCases
         AssertEqual(BattleGroupTacticalReasonCode.RegionTemporaryAdvance, regionMove!.ReasonCode, "temporary region movement reason");
     }
 
-    private static void TemporaryRegionRefreshIntervalDefaultsToFiveTicks()
+    private static void TemporaryRegionRefreshIntervalDefaultsToAboutTwoSeconds()
     {
-        BattleStartSnapshot snapshot = BuildTemporaryRegionSnapshot();
+        BattleStartSnapshot snapshot = BuildTemporaryRegionSnapshot(playerCellX: 100, maxSurfaceX: 102);
         AllowVolatileClusterPursuit(snapshot);
+
         BattleRuntimeSessionController controller = new BattleRuntimeSession()
             .Begin(snapshot);
 
         controller.AdvanceNextTick();
-        AssertEqual(10, controller.State.TacticalStates["enemy_group"].SelectedRegion?.CenterCellX, "initial temporary center");
+        AssertEqual(100, controller.State.TacticalStates["enemy_group"].SelectedRegion?.CenterCellX, "initial temporary center");
 
         BattleRuntimeActor player = controller.State.Actors.Single(item => item.ActorId == "player_force:1");
-        player.GridX = 12;
+        player.GridX = 102;
+        player.Position = 102;
 
-        for (int i = 1; i <= 4; i++)
+        const int ExpectedRefreshTicks = 50;
+        AssertEqual(ExpectedRefreshTicks, BattleGroupTacticalPolicySettings.DefaultTemporaryRegionRefreshTicks, "temporary region refresh tuning");
+
+        for (int i = 1; i < ExpectedRefreshTicks; i++)
         {
             controller.AdvanceNextTick();
-            AssertEqual(10, controller.State.TacticalStates["enemy_group"].SelectedRegion?.CenterCellX, $"temporary region should be reused on tick {i}");
+            AssertEqual(100, controller.State.TacticalStates["enemy_group"].SelectedRegion?.CenterCellX, $"temporary region should be reused on tick {i}");
         }
 
         controller.AdvanceNextTick();
-        AssertEqual(12, controller.State.TacticalStates["enemy_group"].SelectedRegion?.CenterCellX, "temporary region may refresh on fifth tick");
+        AssertEqual(102, controller.State.TacticalStates["enemy_group"].SelectedRegion?.CenterCellX, "temporary region may refresh after about two seconds");
     }
 
     private static void PlayerActiveCommandBlocksAutonomousTemporaryRegion()
@@ -138,7 +143,10 @@ internal static class TargetBattleTemporaryRegionRegressionCases
         AssertTrue(state.SelectedRegion == null, "self-calculated target should clear when combat starts");
     }
 
-    private static BattleStartSnapshot BuildTemporaryRegionSnapshot()
+    private static BattleStartSnapshot BuildTemporaryRegionSnapshot(
+        int playerCellX = 10,
+        int fixedRegionX = 5,
+        int maxSurfaceX = 12)
     {
         BattleStartSnapshot snapshot = new()
         {
@@ -165,7 +173,7 @@ internal static class TargetBattleTemporaryRegionRegressionCases
                     TacticalMode = BattleGroupTacticalMode.EnemyOffense,
                     InitialTacticalRegions =
                     {
-                        BuildRegion("empty_fixed_region", "enemy_group", BattleTacticalRegionKind.FixedTarget, 5, 0)
+                        BuildRegion("empty_fixed_region", "enemy_group", BattleTacticalRegionKind.FixedTarget, fixedRegionX, 0)
                     }
                 },
                 new BattleGroupSnapshot
@@ -181,7 +189,7 @@ internal static class TargetBattleTemporaryRegionRegressionCases
                     MaxHitPoints = 80,
                     AttackDamage = 1,
                     SourceLocationId = "site_1",
-                    CellX = 10,
+                    CellX = playerCellX,
                     CellY = 0,
                     InitialCorpsCommandId = "HoldLine",
                     TacticalMode = BattleGroupTacticalMode.PlayerCommanded
@@ -189,7 +197,7 @@ internal static class TargetBattleTemporaryRegionRegressionCases
             }
         };
 
-        for (int x = 0; x <= 12; x++)
+        for (int x = 0; x <= maxSurfaceX; x++)
         {
             AddSurface(snapshot, x, 0);
         }

@@ -155,7 +155,6 @@ public partial class WorldSiteRoot
         // Battle runtime owns a fullscreen battlefield. Persistent commands stay in
         // the authored bottom HUD frame and must not re-open the management panel.
         SetBattlePreparationHudVisible(false);
-        _selectedFacilitySlotId = "";
         if (_siteHudRoot != null)
         {
             _siteHudRoot.Visible = true;
@@ -276,23 +275,11 @@ public partial class WorldSiteRoot
 
     private async Task WaitSiteBattlePresentationSeconds(double seconds)
     {
-        if (!IsInsideTree() || seconds <= 0)
-        {
-            return;
-        }
-
-        double remainingSeconds = seconds;
-        while (IsInsideTree() && remainingSeconds > 0)
-        {
-            await WaitForBattleRuntimeAdvanceGateAsync();
-
-            double stepSeconds = System.Math.Min(0.05, remainingSeconds);
-            await ToSignal(GetTree().CreateTimer(stepSeconds, processAlways: true), SceneTreeTimer.SignalName.Timeout);
-            if (!_battleRuntimeCommandPauseActive)
-            {
-                remainingSeconds -= stepSeconds;
-            }
-        }
+        await BattlePresentationClockWaiter.WaitSecondsAsync(
+            this,
+            seconds,
+            () => _battleRuntimeCommandPauseActive,
+            "BattleRuntimePresentationWaitPaused");
     }
 
     private async Task WaitForBattleRuntimeAdvanceGateAsync()

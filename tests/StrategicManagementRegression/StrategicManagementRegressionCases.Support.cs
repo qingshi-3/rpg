@@ -8,6 +8,17 @@ using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Results;
 internal static partial class StrategicManagementRegressionCases
 {
+    private static StrategicConstructionRegionDefinition FindRegion(
+        StrategicManagementDefinitionSet definitions,
+        string regionId)
+    {
+        StrategicLocationDefinition city = definitions.Locations[StrategicManagementIds.LocationPlainsCity];
+        StrategicConstructionRegionDefinition? region = city.ConstructionRegions
+            .FirstOrDefault(item => item.RegionId == regionId);
+        AssertTrue(region != null, $"expected construction region id={regionId}");
+        return region ?? throw new InvalidOperationException($"expected construction region id={regionId}");
+    }
+
     private static (
         StrategicManagementDefinitionSet Definitions,
         StrategicManagementState State,

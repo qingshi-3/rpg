@@ -351,7 +351,7 @@ internal static void BattleRuntimePlaybackKeepsMoveLoopAcrossConsecutiveMoveStep
         source.Contains("returnToIdleOnComplete: true", StringComparison.Ordinal),
         "runtime movement presentation should keep lower-level movement configurable while live movement closes to idle after the continuation window");
     AssertTrue(
-        unitRoot.Contains("lane.BeginContinuationHold(ResolveVisualMoveBufferSeconds());", StringComparison.Ordinal) &&
+        unitRoot.Contains("lane.BeginContinuationHold(ResolveMovementContinuationHoldSeconds(lane.LastCompletedSegmentDurationSeconds));", StringComparison.Ordinal) &&
         unitRoot.Contains("if (lane.ReturnToIdleOnComplete)", StringComparison.Ordinal) &&
         unitRoot.Contains("_movementLanes.ContainsKey(entity)", StringComparison.Ordinal),
         "consecutive runtime steps should keep the move loop through the movement lane continuation hold instead of pinning live movement open forever");
@@ -406,16 +406,21 @@ internal static void BattleRuntimePlaybackWaitsForAttackAnimationDuration()
 internal static void BattleRuntimeTacticalPauseFreezesSceneTreeAndKeepsCommandUi()
 {
     string runtime = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntime.cs"));
+    string presentationClockWaiter = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattlePresentationClockWaiter.cs"));
     string commandUi = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
     string incremental = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeIncremental.cs"));
     string root = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.cs"));
     string siteHud = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteManagementHud.cs"));
 
     AssertTrue(
-        runtime.Contains("while (_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
-        runtime.Contains("BattleRuntimePresentationWaitPaused", StringComparison.Ordinal) &&
-        runtime.Contains("CreateTimer(0.05, processAlways: true)", StringComparison.Ordinal),
-        "runtime event playback waits should stop advancing while the command pause overlay is active.");
+        runtime.Contains("BattlePresentationClockWaiter.WaitSecondsAsync", StringComparison.Ordinal) &&
+        presentationClockWaiter.Contains("isPaused", StringComparison.Ordinal) &&
+        presentationClockWaiter.Contains("bool pausedAfterStep = isPaused?.Invoke() == true;", StringComparison.Ordinal) &&
+        presentationClockWaiter.Contains("if (!paused && !pausedAfterStep)", StringComparison.Ordinal) &&
+        presentationClockWaiter.Contains("remainingSeconds -= stepSeconds", StringComparison.Ordinal) &&
+        presentationClockWaiter.Contains("processAlways: true", StringComparison.Ordinal) &&
+        presentationClockWaiter.Contains("BattleRuntimePresentationWaitPaused", StringComparison.Ordinal),
+        "battle presentation wait must re-sample pause after timer step before decrementing remaining battle time.");
     AssertTrue(
         commandUi.Contains("SetBattleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
         root.Contains("ApplyBattleRuntimeScenePause", StringComparison.Ordinal) &&
@@ -495,6 +500,8 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
     string hitFeedbackPresenter = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitHitFeedbackPresenter.cs"));
     string presentation = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitPresentationComponent.cs"));
+    string shaderPath = Path.Combine("assets", "battle", "shaders", "unit_body_outline.gdshader");
+    string shader = File.Exists(shaderPath) ? File.ReadAllText(shaderPath) : "";
     string normalizedPresentation = NormalizeWhitespace(presentation);
 
     AssertTrue(
@@ -504,9 +511,26 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
         unitRoot.Contains("SetSelected(false)", StringComparison.Ordinal),
         "battle command selection should be a public unit-root presentation API that toggles selected outlines on matching entities.");
     AssertTrue(
-        presentation.Contains("unit_selection_outline.gdshader", StringComparison.Ordinal) &&
+        presentation.Contains("unit_body_outline.gdshader", StringComparison.Ordinal) &&
         presentation.Contains("SetSelected(bool selected)", StringComparison.Ordinal),
-        "command selection should reuse the authored unit selection shader instead of adding a separate hardcoded shader path.");
+        "command selection should reuse the authored unit body outline shader instead of adding a separate hardcoded shader path.");
+    AssertTrue(
+        File.Exists(shaderPath) &&
+        shader.Contains("uniform vec4 base_outline_color", StringComparison.Ordinal) &&
+        shader.Contains("uniform float base_outline_width", StringComparison.Ordinal) &&
+        shader.Contains("uniform bool active_outline_enabled", StringComparison.Ordinal) &&
+        shader.Contains("vec4 base_color = COLOR;", StringComparison.Ordinal) &&
+        !shader.Contains("texture_color * COLOR", StringComparison.Ordinal) &&
+        shader.Contains("vec2 texel = TEXTURE_PIXEL_SIZE * outline_width;", StringComparison.Ordinal) &&
+        shader.Contains("texture(TEXTURE, UV + vec2(texel.x, 0.0))", StringComparison.Ordinal) &&
+        !shader.Contains("sample_outline_alpha(", StringComparison.Ordinal),
+        "unit body outline shader should keep texture built-ins inside fragment scope so the GLES3 compiler accepts it.");
+    AssertTrue(
+        presentation.Contains("BaseOutlineColor { get; set; } = new(0.03f, 0.03f, 0.03f, 0.78f);", StringComparison.Ordinal) &&
+        presentation.Contains("BaseOutlineWidth { get; set; } = 1.0f;", StringComparison.Ordinal) &&
+        presentation.Contains("BaseOutlineColorParameter", StringComparison.Ordinal) &&
+        presentation.Contains("BaseOutlineWidthParameter", StringComparison.Ordinal),
+        "battle units should default to a softened one-pixel dark normal outline before selection or hit feedback.");
     AssertTrue(
         hitFeedbackPresenter.Contains("PlayHitOutlinePulse()", StringComparison.Ordinal) &&
         !unitRoot.Contains("SetHitOutlines(hitTargets, visible: true)", StringComparison.Ordinal),

@@ -152,8 +152,8 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
         {
             "battle_td002_hold_defense_attacked_golden:tick_0:td002_enemy_hold_attack:1:plan:TargetLocked",
             "battle_td002_hold_defense_attacked_golden:tick_0:td002_player_mover:1:plan:TargetLocked",
-            "battle_td002_hold_defense_attacked_golden:tick_0:td002_enemy_hold_attack:1:attack:td002_player_attack_target:1",
             "battle_td002_hold_defense_attacked_golden:tick_0:td002_enemy_hold_attack:1:plan:Attacking",
+            "battle_td002_hold_defense_attacked_golden:tick_0:td002_enemy_hold_attack:1:attack:td002_player_attack_target:1",
             "battle_td002_hold_defense_attacked_golden:tick_0:group_td002_enemy_hold_attack:engagement:engagement_enter_member_attacked",
             "battle_td002_hold_defense_attacked_golden:tick_0:td002_player_mover:1:plan:MovingToAttackSlot",
             "battle_td002_hold_defense_attacked_golden:tick_0:td002_player_mover:1:move_start"
@@ -162,8 +162,8 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
         {
             "0:BattleGroupPlanStateChanged:td002_enemy_hold_attack:1->:target_locked",
             "0:BattleGroupPlanStateChanged:td002_player_mover:1->:target_locked",
-            "0:DamageApplied:td002_enemy_hold_attack:1->td002_player_attack_target:1:auto_attack",
             "0:BattleGroupPlanStateChanged:td002_enemy_hold_attack:1->:attacking",
+            "0:DamageApplied:td002_enemy_hold_attack:1->td002_player_attack_target:1:auto_attack",
             "0:BattleGroupEngagementStateChanged:td002_enemy_hold_attack:1->td002_player_attack_target:1:engagement_enter_member_attacked",
             "0:BattleGroupPlanStateChanged:td002_player_mover:1->:moving_to_attack_slot",
             "0:MovementStarted:td002_player_mover:1->td002_enemy_live:1:auto_advance"

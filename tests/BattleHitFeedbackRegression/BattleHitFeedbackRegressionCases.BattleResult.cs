@@ -29,9 +29,7 @@ internal static void BattleResultApplierMessagesUseConfiguredDisplayNames()
         assaultVictoryRequest,
         BuildVictoryResult(assaultVictoryRequest, "occupy_bonefield"));
     AssertTrue(assaultVictory.Message.Contains("Test Quarry", StringComparison.Ordinal), "assault victory message should use configured site name");
-    AssertTrue(assaultVictory.Message.Contains("Deep Quarry", StringComparison.Ordinal), "assault victory message should use configured mine name");
-    AssertTrue(assaultVictory.Message.Contains("Signal Spire", StringComparison.Ordinal), "assault victory message should use configured tower name");
-    AssertTrue(!assaultVictory.Message.Contains("埋骨地", StringComparison.Ordinal) && !assaultVictory.Message.Contains("矿场", StringComparison.Ordinal) && !assaultVictory.Message.Contains("防御塔", StringComparison.Ordinal), "assault victory message should not hardcode default entity names");
+    AssertTrue(!assaultVictory.Message.Contains("槽位", StringComparison.Ordinal), "assault victory message should not mention retired facility slots");
 
     BattleStartRequest assaultFailureRequest = BuildBattleResultMessageRequest(BattleKind.AssaultSite, BattleOutcome.Defeat);
     WorldActionResult assaultFailure = applier.Apply(
@@ -149,11 +147,6 @@ internal static StrategicWorldDefinition BuildBattleResultApplierTestDefinition(
             new FactionDefinition { Id = StrategicWorldIds.FactionPlayer, DisplayName = "Guild" },
             new FactionDefinition { Id = StrategicWorldIds.FactionUndead, DisplayName = "Ash Court" }
         },
-        FacilityDefinitions =
-        {
-            new FacilityDefinition { Id = StrategicWorldIds.FacilityMine, DisplayName = "Deep Quarry" },
-            new FacilityDefinition { Id = StrategicWorldIds.FacilityDefenseTower, DisplayName = "Signal Spire" }
-        },
         SiteDefinitions =
         {
             BuildBattleResultApplierTestSite(StrategicWorldIds.SitePlayerCamp, StrategicWorldIds.FactionPlayer, SiteControlState.PlayerHeld),
@@ -193,11 +186,6 @@ internal static StrategicWorldDefinition BuildResourceDisplayNameTestDefinition(
             new ResourceDefinition { Id = StrategicWorldIds.ResourceStone, DisplayName = "Granite" },
             new ResourceDefinition { Id = StrategicWorldIds.ResourceEconomy, DisplayName = "Coin" }
         },
-        FacilityDefinitions =
-        {
-            new FacilityDefinition { Id = StrategicWorldIds.FacilityMine, DisplayName = "Deep Quarry" },
-            new FacilityDefinition { Id = StrategicWorldIds.FacilityDefenseTower, DisplayName = "Signal Spire" }
-        },
         SiteDefinitions =
         {
             new WorldSiteDefinition
@@ -224,19 +212,6 @@ internal static StrategicWorldDefinition BuildResourceDisplayNameTestDefinition(
         },
         ActionDefinitions =
         {
-            new WorldActionDefinition
-            {
-                Id = StrategicWorldIds.ActionBuildMine,
-                DisplayName = "Build Test Mine",
-                Scope = WorldActionScope.Site,
-                Costs = { new ResourceAmountDefinition(StrategicWorldIds.ResourcePopulation, 1) }
-            },
-            new WorldActionDefinition
-            {
-                Id = StrategicWorldIds.ActionBuildDefenseTower,
-                DisplayName = "Build Test Tower",
-                Scope = WorldActionScope.Site
-            },
             new WorldActionDefinition
             {
                 Id = StrategicWorldIds.ActionTrainMilitia,

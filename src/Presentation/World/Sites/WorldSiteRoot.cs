@@ -29,7 +29,6 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 {
 	private const float SitePlacementPickRadiusPixels = 42.0f;
 	private const int DeploymentDragZIndex = 4096;
-	private const string FacilitySlotsRootName = "FacilitySlots";
 
 	[Signal]
 	public delegate void SiteMapLoadedEventHandler(Node activeSiteMap);
@@ -107,8 +106,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Control _siteRecruitSection;
 	private Control _siteCorpsSection;
 	private Control _siteOverviewSection;
-	private Label _siteFacilityBuildTitle;
-	private GridContainer _siteFacilityBuildList;
+	private Label _siteBuildingBuildTitle;
+	private GridContainer _siteBuildingOptionGrid;
 	private VBoxContainer _siteRecruitList;
 	private Control _siteMinimapHost;
 	private Control _battlePreparationRosterDock;
@@ -125,14 +124,12 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattlePreparationObjectiveThumbnail _battlePreparationObjectiveThumbnail;
 	private Button _returnMapButton;
 	private BattleObjectiveMapDialog _battleObjectiveMapDialog;
-	private VBoxContainer _siteFacilityList;
+	private VBoxContainer _siteBuildingList;
 	private VBoxContainer _siteGarrisonList;
 	private StrategicManagementDashboardPanelBinder _strategicManagementDashboardPanelBinder;
 	private readonly BattleObjectivePlanningHudBinder _battleObjectivePlanningHudBinder = new();
 	private readonly BattlePreparationHudBinder _battlePreparationHudBinder = new();
 	private readonly Dictionary<string, Node2D> _sitePlacementEntities = new();
-	private readonly Dictionary<string, WorldFacilitySlotEntity> _siteFacilitySlotEntities = new();
-	private readonly Dictionary<string, WorldFacilitySlotRuntimeLayout> _siteFacilitySlotLayouts = new();
 	private SemanticMapMarkerExtractionResult _semanticMapMarkers = new();
 	private WorldSiteRuntimeDeploymentCache _deploymentCache;
 	private bool _battleRuntimeEnabled = true;
@@ -148,7 +145,6 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private string _siteHudReturnScenePath = "";
 	private string _siteHudSiteId = "";
 	private string _selectedPlacementId = "";
-	private string _selectedFacilitySlotId = "";
 	private string _selectedStrategicBuildingDefinitionId = "";
 	private BattleCorpsCommand _selectedBattleCorpsCommand = BattleCorpsCommand.Assault;
 	private string _selectedBattleRuntimeGroupKey = "";
@@ -177,7 +173,6 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private readonly BattleUnitFactory _battleUnitFactory = new();
 	private readonly WorldBattleResultApplier _worldBattleResultApplier = new();
 	private readonly WorldArmyCommandService _armyCommandService = new();
-	private readonly WorldActionResolver _worldActionResolver;
 	private readonly WorldSiteDeploymentService _deploymentService = new();
 	private readonly WorldSiteRuntimeDeploymentCacheBuilder _deploymentCacheBuilder = new();
 	private readonly WorldSiteDeploymentTargetEvaluator _deploymentTargetEvaluator = new();
@@ -209,9 +204,9 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		_battleRuntimeLivePresentationObserver = new(
 			() => _unitRoot,
 			WaitSiteBattlePresentationSeconds,
+			(entity, force) => _battleCamera?.FollowActionEntityIfNeeded(entity, force),
 			QueueBattlePerceptionOverlayRefresh,
 			_battlePerformanceCounters.RecordPresentationObserveElapsedTicks);
-		_worldActionResolver = new WorldActionResolver(_battleUnitFactory.ResolveUnitDisplayName);
 		_sceneTransitionRouter = new SceneTransitionRouter(new GodotSceneTransitionGateway(() => GetTree()));
 		_battlePreparationDeploymentDragController = new BattlePreparationDeploymentDragController(
 			() => _isBattlePreparationActive,
@@ -378,11 +373,6 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		}
 
 		if (TryHandleStrategicBuildingPlacementInput(@event))
-		{
-			return;
-		}
-
-		if (TryHandleFacilitySlotInput(@event))
 		{
 			return;
 		}
@@ -734,7 +724,6 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 		ExtractSemanticMapMarkers(ResolveActiveWorldSiteId());
 		RebuildSiteDeploymentRuntimeCache(ResolveActiveWorldSiteId());
-		SetFacilitySlotsVisible(true);
 		EmitSignal(SignalName.SiteMapLoaded, _activeSiteMap);
 		BattleMapLoaded?.Invoke(_activeSiteMap);
 

@@ -10,12 +10,8 @@ Use this directory only after the relevant accepted authority is current. If imp
 
 | Proposal | Status | Reason Kept Active |
 |---|---|---|
-| `2026-06-20-strategic-operation-foundation-loop.md` | Proposed - Not Started | Implements STRAT-OPS-001 foundation strategic loop after authority merge: bounded city construction, foundation resources, reserve soldiers, recruitment/replenishment, hero company expedition, and target occupation/development; full local battle support remains a later slice. |
+| `2026-06-20-strategic-operation-foundation-loop.md` | Reopened Cleanup - Automated Verification Passed, Manual QA Pending | Old `BuildingSlot`/Facility-slot scaffolding, direct per-building production/recovery/capacity effects, and construction-region category bans have been retired. Construction-region placement remains the accepted direction; desktop manual QA is still pending. |
 | `2026-06-19-site-map-layout-first-city.md` | Paused - Scaffold Verified, Detailed Authoring Deferred | Keeps the SMLA-001 city-map scaffold and bridge marker contract, but defers detailed TileMapLayer/map-content authoring until the operational loop is validated on `DemoSite`. |
-| `2026-06-19-strategic-city-dispatchable-company-roster.md` | Implemented - Automated Verification Passed | Fixes selected-city expedition roster so dispatched hero companies leave the source city's available company list; editor manual QA remains pending. |
-| `2026-06-19-strategic-battle-result-army-carrier-cleanup.md` | Implemented - Automated Verification Passed | Fixes Strategic Management battle return so resolved expedition world-map carriers cannot keep retriggering the same assault; editor manual QA remains pending. |
-| `2026-06-19-strategic-battle-launch-snapshot-sync.md` | Implemented - Automated Verification Passed | Fixes Strategic Management battle launch so Runtime consumes the final deployment snapshot instead of the early active-context snapshot. |
-| `2026-06-11-thunder-mark-demo-skill-family.md` | In Progress | Implements the accepted thunder-mark demo skill family first slice: mark throw, legal teleport, and channeled melee damage. |
 
 ## Archived Implementation Proposals
 

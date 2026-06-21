@@ -27,12 +27,6 @@ public partial class StrategicWorldRoot
         _isExpeditionTargeting = false;
         _expeditionSourceSiteId = _selectedSiteId;
         _expeditionHeroIds.Clear();
-        StrategicHeroCompanyViewModel defaultCompany = GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)
-            .FirstOrDefault(company => company.CanCreateExpedition);
-        if (defaultCompany != null)
-        {
-            _expeditionHeroIds.Add(defaultCompany.HeroId);
-        }
 
         ClampExpeditionDraftCounts();
         StrategicWorldRuntime.LastNotice = "选择出征英雄公司。英雄会带领已分配编制出征。";

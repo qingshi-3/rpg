@@ -42,12 +42,12 @@ public static class BattleOpposingClusterBuilder
         }
 
         HashSet<string> ownerFactions = ownerMembers
-            .Select(item => NormalizeFaction(item.FactionId))
+            .Select(item => BattleRuntimeIdentityRules.NormalizeFaction(item.FactionId))
             .ToHashSet(StringComparer.Ordinal);
         List<List<BattleRuntimeActor>> clusters = new();
         foreach (BattleRuntimeActor actor in aliveCorps.Where(item =>
                      !string.Equals(item.BattleGroupId ?? "", ownerBattleGroupId ?? "", StringComparison.Ordinal) &&
-                     !ownerFactions.Contains(NormalizeFaction(item.FactionId))))
+                     !ownerFactions.Contains(BattleRuntimeIdentityRules.NormalizeFaction(item.FactionId))))
         {
             AddToClusters(clusters, actor, Math.Max(1, mergeRange));
         }
@@ -121,11 +121,6 @@ public static class BattleOpposingClusterBuilder
     private static int GetSquareDistance(BattleRuntimeActor first, BattleRuntimeActor second)
     {
         return Math.Max(Math.Abs((first?.GridX ?? 0) - (second?.GridX ?? 0)), Math.Abs((first?.GridY ?? 0) - (second?.GridY ?? 0)));
-    }
-
-    private static string NormalizeFaction(string factionId)
-    {
-        return string.IsNullOrWhiteSpace(factionId) ? "player" : factionId.Trim();
     }
 
     private static string Sanitize(string value)

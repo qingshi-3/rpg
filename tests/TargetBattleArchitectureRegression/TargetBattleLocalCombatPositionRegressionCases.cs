@@ -454,6 +454,7 @@ internal static class TargetBattleLocalCombatPositionRegressionCases
             AttackDamage = 5,
             AttackRange = 1,
             AttackSpeed = 1.0,
+            AttackImpactDelaySeconds = 0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
             CellY = cellY,

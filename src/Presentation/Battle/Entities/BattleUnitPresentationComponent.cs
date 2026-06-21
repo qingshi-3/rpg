@@ -5,10 +5,12 @@ namespace Rpg.Presentation.Battle.Entities;
 
 public partial class BattleUnitPresentationComponent : BattleEntityComponent
 {
-    private const string OutlineEnabledParameter = "outline_enabled";
-    private const string OutlineColorParameter = "outline_color";
-    private const string OutlineWidthParameter = "outline_width";
-    private const string SelectionOutlineShaderPath = "res://assets/battle/shaders/unit_selection_outline.gdshader";
+    private const string BaseOutlineColorParameter = "base_outline_color";
+    private const string BaseOutlineWidthParameter = "base_outline_width";
+    private const string ActiveOutlineEnabledParameter = "active_outline_enabled";
+    private const string ActiveOutlineColorParameter = "active_outline_color";
+    private const string ActiveOutlineWidthParameter = "active_outline_width";
+    private const string UnitBodyOutlineShaderPath = "res://assets/battle/shaders/unit_body_outline.gdshader";
 
     [Export]
     public NodePath AnimatedSpritePath { get; set; } = "VisualRoot/AnimatedSprite2D";
@@ -18,6 +20,13 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
 
     [Export]
     public NodePath SelectionSpotlightPath { get; set; } = "SelectionSpotlight";
+
+    [Export]
+    // The normal outline is softened so it separates sprites without overpowering authored internal ink.
+    public Color BaseOutlineColor { get; set; } = new(0.03f, 0.03f, 0.03f, 0.78f);
+
+    [Export(PropertyHint.Range, "0,3,0.25")]
+    public float BaseOutlineWidth { get; set; } = 1.0f;
 
     [Export]
     public Color SelectionOutlineColor { get; set; } = new(1f, 0.92f, 0.34f, 1f);
@@ -59,7 +68,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
     private BattleUnitAffiliationMarker _affiliationMarker;
     private BattleUnitSelectionSpotlight _selectionSpotlight;
     private BattleUnitHealthBarComponent _healthBar;
-    private ShaderMaterial _selectionMaterial;
+    private ShaderMaterial _unitBodyOutlineMaterial;
     private BattleFaction _faction = BattleFaction.Neutral;
     private bool _selected;
     private bool _hitOutlined;
@@ -87,7 +96,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
 
         _selected = selected;
         _selectionSpotlight?.SetSelected(selected);
-        ApplySelectionOutline();
+        ApplyUnitBodyOutline();
         ApplyPresentationZIndex();
         ApplyHealthBarAttention();
     }
@@ -108,13 +117,13 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
 
         _hitOutlined = visible;
         _hitOutlinePulseIntensity = 1f;
-        ApplySelectionOutline();
+        ApplyUnitBodyOutline();
         ApplyPresentationZIndex();
     }
 
     public void PlayHitOutlinePulse()
     {
-        if (_selectionMaterial == null)
+        if (_unitBodyOutlineMaterial == null)
         {
             return;
         }
@@ -149,7 +158,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
         }
 
         _targetPreviewed = previewed;
-        ApplySelectionOutline();
+        ApplyUnitBodyOutline();
         ApplyPresentationZIndex();
         ApplyHealthBarAttention();
     }
@@ -185,8 +194,8 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
             Entity.GetNodeOrNull<BattleUnitHealthBarComponent>("BattleUnitHealthBarComponent");
         _affiliationMarker?.SetFaction(_faction);
         _selectionSpotlight?.SetSelected(_selected);
-        EnsureSelectionMaterial();
-        ApplySelectionOutline();
+        EnsureUnitBodyOutlineMaterial();
+        ApplyUnitBodyOutline();
         ApplyPresentationZIndex();
         ApplyHealthBarAttention();
     }
@@ -197,7 +206,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
         RestoreOriginalZIndex();
     }
 
-    private void EnsureSelectionMaterial()
+    private void EnsureUnitBodyOutlineMaterial()
     {
         if (_animatedSprite == null)
         {
@@ -205,32 +214,35 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
             return;
         }
 
-        Shader shader = GD.Load<Shader>(SelectionOutlineShaderPath);
+        Shader shader = GD.Load<Shader>(UnitBodyOutlineShaderPath);
         if (shader == null)
         {
-            GameLog.Warn(nameof(BattleUnitPresentationComponent), $"Selection outline shader missing path={SelectionOutlineShaderPath}");
+            GameLog.Warn(nameof(BattleUnitPresentationComponent), $"Unit body outline shader missing path={UnitBodyOutlineShaderPath}");
             return;
         }
 
-        _selectionMaterial = new ShaderMaterial
+        _unitBodyOutlineMaterial = new ShaderMaterial
         {
             Shader = shader,
             ResourceLocalToScene = true
         };
-        _animatedSprite.Material = _selectionMaterial;
+        _animatedSprite.Material = _unitBodyOutlineMaterial;
     }
 
-    private void ApplySelectionOutline()
+    private void ApplyUnitBodyOutline()
     {
-        if (_selectionMaterial == null)
+        if (_unitBodyOutlineMaterial == null)
         {
             return;
         }
 
-        bool outlineEnabled = _hitOutlined || _targetPreviewed || _selected;
-        _selectionMaterial.SetShaderParameter(OutlineEnabledParameter, outlineEnabled);
-        _selectionMaterial.SetShaderParameter(OutlineColorParameter, _hitOutlined ? ResolveHitOutlineColor() : _targetPreviewed ? HitOutlineColor : SelectionOutlineColor);
-        _selectionMaterial.SetShaderParameter(OutlineWidthParameter, _hitOutlined ? ResolveHitOutlineWidth() : _targetPreviewed ? HitOutlineWidth : SelectionOutlineWidth);
+        // The unit sprite owns one outline material: normal black body outline, plus active selection/hit override.
+        bool activeOutlineEnabled = _hitOutlined || _targetPreviewed || _selected;
+        _unitBodyOutlineMaterial.SetShaderParameter(BaseOutlineColorParameter, BaseOutlineColor);
+        _unitBodyOutlineMaterial.SetShaderParameter(BaseOutlineWidthParameter, BaseOutlineWidth);
+        _unitBodyOutlineMaterial.SetShaderParameter(ActiveOutlineEnabledParameter, activeOutlineEnabled);
+        _unitBodyOutlineMaterial.SetShaderParameter(ActiveOutlineColorParameter, _hitOutlined ? ResolveHitOutlineColor() : _targetPreviewed ? HitOutlineColor : SelectionOutlineColor);
+        _unitBodyOutlineMaterial.SetShaderParameter(ActiveOutlineWidthParameter, _hitOutlined ? ResolveHitOutlineWidth() : _targetPreviewed ? HitOutlineWidth : SelectionOutlineWidth);
     }
 
     private void ApplyHealthBarAttention()
@@ -253,7 +265,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
     private void ApplyHitOutlinePulseIntensity(float intensity)
     {
         _hitOutlinePulseIntensity = Mathf.Clamp(intensity, 0f, 1f);
-        ApplySelectionOutline();
+        ApplyUnitBodyOutline();
     }
 
     private void CompleteHitOutlinePulse()
@@ -261,7 +273,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
         _hitOutlinePulseTween = null;
         _hitOutlinePulseIntensity = 0f;
         _hitOutlined = false;
-        ApplySelectionOutline();
+        ApplyUnitBodyOutline();
         ApplyPresentationZIndex();
     }
 
@@ -275,7 +287,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
         _hitOutlinePulseTween = null;
         _hitOutlinePulseIntensity = 0f;
         _hitOutlined = false;
-        ApplySelectionOutline();
+        ApplyUnitBodyOutline();
     }
 
     private void ApplyPresentationZIndex()

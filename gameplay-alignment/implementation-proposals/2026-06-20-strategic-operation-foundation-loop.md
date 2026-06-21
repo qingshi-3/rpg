@@ -1,6 +1,6 @@
 # Strategic Operation Foundation Loop
 
-Status: Implemented - Automated Verification Passed; Manual QA Pending
+Status: Reopened - Temporary Building/Economy Logic Retirement In Progress
 
 ## Origin
 
@@ -23,19 +23,26 @@ city construction -> world-map resource and reserve recovery -> corps recruitmen
 -> hero company formation -> expedition -> occupy or develop a new strategic location
 ```
 
-This proposal implements the foundation loop only. Full local building battle support, in-battle support activation, beast-route content, and final city-map art authoring are later slices.
+This proposal implements the foundation loop only. Full local building battle support, in-battle support activation, beast-route content, final city-map art authoring, and the rebuilt building-effects/economy model are later slices.
+
+## Reopen Note
+
+After the first implementation, the accepted direction changed for building authoring and economy effects:
+
+- Old `BuildingSlot` markers, `FacilitySlotDefinition`, `FacilityDefinition`, and `WorldActionResolver` build actions are no longer accepted scaffolding.
+- Strategic city building placement remains `ConstructionRegion` marker -> placement preview -> `BuildCityBuilding`.
+- Direct per-building scalar effects such as per-pulse resource production, reserve recovery, and force-capacity bonus are retired temporary logic. Future resource acquisition and building effects require a focused economy/capability architecture.
+- Accepted amendment `design-proposals/archived/2026-06-20-building-placement-region-freedom/` removes construction-region building-category legality. Construction regions now define where buildings may be placed; terrain/tile/resource context may later affect production or support efficiency through a focused economy/capability model.
 
 ## Current State
 
-Strategic Management already exists as the long-term strategic authority, but the current playable operation is still close to the old shell:
+Strategic Management is the long-term strategic authority for the foundation loop. The reopened cleanup has retired the old temporary building scaffolding:
 
-- city development still uses facility-slot language and `BuildFacility`;
-- first content still emphasizes `BuildingMaterials`, beast source, and beast pen validation;
-- city construction has no bounded construction-region placement model;
-- city manpower has no reserve-soldier model;
-- corps creation consumes resources but not reserve soldiers or city capacity;
-- the dashboard summarizes existing city facts, but does not support the new construction/recruitment/resource loop;
-- expedition and battle bridge behavior exists and should be reused without changing battle Runtime logic.
+- legacy `BuildingSlot` markers, `FacilitySlotDefinition`, `FacilityDefinition`, `WorldFacilitySlot` presentation, and `WorldActionResolver` build actions have been removed from runtime code and authored scenes;
+- city construction routes through `ConstructionRegion` markers, placement preview, Strategic Management rules, and `BuildCityBuilding`;
+- city buildings no longer own direct per-pulse resource production, reserve recovery, or force-capacity scalar fields;
+- controlled non-city resource sites still own passive `ProductionPerWorldTimePulse`;
+- expedition and battle bridge behavior remains reused without adding local building battle support in this slice.
 
 ## Architecture Direction
 
@@ -53,7 +60,7 @@ Replace first-foundation content with the accepted foundation resources and buil
 
 - resources: `Money`, `Food`, `Wood`, `Ore`;
 - city buildings: `Farm`, `Market`, `Lumber Camp`, `Mine`, `Training Ground`, `Tavern`, `Arrow Tower`, `Medical Shrine`;
-- construction regions for the first managed city, with category compatibility and grid bounds;
+- construction regions for the first managed city, with map-aligned grid bounds but without building-category restrictions;
 - foundation common corps creation and replenishment costs that consume resources and reserve soldiers;
 - first hostile/developable target using existing world-map and battle routing where practical, but with generic foundation rewards instead of beast-route unlock language.
 
@@ -75,9 +82,9 @@ Old Strategic Management facility-slot state must not remain the new authority. 
 
 Add or replace Strategic Management rules and commands for:
 
-- validating building placement by region type, footprint, bounds, overlap, construction state, and resources;
+- validating building placement by buildable region membership, footprint, bounds, overlap, construction state, resources, and explicit building eligibility;
 - building the foundation city buildings through commands;
-- settling elapsed world-map time into foundation resource income and reserve recovery;
+- settling accepted elapsed world-map effects after the economy/capability model is rebuilt;
 - deriving active forces and remaining reserve capacity;
 - creating corps from resources plus reserve soldiers;
 - replenishing damaged corps from resources plus reserve soldiers;
@@ -96,7 +103,7 @@ Update the Strategic Management presentation so the player can exercise the loop
 - choose a building from a Chinese-labeled construction panel;
 - preview a building footprint on the region grid and reject illegal placements with a clear disabled reason;
 - place a valid building through Strategic Management commands;
-- see elapsed world-map time produce resources and reserve recovery after leaving city management;
+- avoid treating built city buildings as automatic resource or reserve producers until the economy/capability model is rebuilt;
 - recruit or replenish corps from the city;
 - form/select hero companies and dispatch an expedition using the existing expedition path;
 - see the occupied/developed target reflected in Strategic Management state and dashboard after battle result application.
@@ -164,7 +171,8 @@ Use these implementation skills before code/resource work:
 ### Phase 3: Foundation Content And Economy
 
 - Define first city construction regions and the first building batch.
-- Define building income and capacity effects.
+- Remove the temporary direct building income, reserve recovery, and capacity scalar effects.
+- Rebuild building effects later through a focused economy/capability architecture.
 - Seed the first city with enough resources and reserve capacity for a short playable loop.
 - Convert the current first hostile/developable target away from beast-route reward language for this slice.
 
@@ -179,7 +187,7 @@ Use these implementation skills before code/resource work:
 
 - Validate city entry pauses world-map time.
 - Validate returning to the world map resumes elapsed-time settlement.
-- Validate build -> income/reserve -> recruit/replenish -> form company -> expedition -> battle/occupy/develop target.
+- Validate construction-region placement, recruitment/replenishment from existing state, company formation, expedition, battle/occupy/develop target.
 - Keep local building battle support out of completion criteria.
 
 ## Tests
@@ -189,9 +197,10 @@ Add or update Strategic Management regression coverage for:
 - foundation resource definitions contain `Money`, `Food`, `Wood`, and `Ore`, and first-loop tests do not depend on `BuildingMaterials` or beast materials;
 - first city exposes authored construction regions and legal building categories;
 - valid building placement consumes resources and creates a building instance with region/grid position;
-- invalid placement outside region, overlapping another building, wrong category, or insufficient resources fails without mutation;
-- elapsed world-map settlement grants resource income from controlled city buildings;
-- elapsed world-map settlement recovers reserve soldiers up to `CityForceCapacity - ActiveForces`;
+- invalid placement outside a buildable region, overlapping another building, or lacking resources fails without mutation;
+- cross-category placement inside any buildable construction region succeeds when footprint, overlap, resources, and explicit eligibility pass;
+- old direct city-building resource production is absent;
+- old direct city-building reserve recovery and force-capacity bonus fields are absent;
 - corps creation consumes resources and reserve soldiers;
 - corps replenishment consumes resources and reserve soldiers and restores damaged corps strength;
 - dispatching a hero company changes active/available force derivation without corrupting reserve soldiers;
@@ -212,7 +221,7 @@ git diff --check
 Add low-noise logs for important state transitions:
 
 - city building placement accepted/rejected;
-- elapsed settlement resource and reserve recovery summary;
+- elapsed settlement summaries only for accepted non-building effects;
 - corps creation/replenishment cost and result;
 - expedition dispatch source city and participant summary;
 - target occupation/development result after battle writeback.
@@ -227,7 +236,7 @@ Desktop Mono QA should confirm:
 2. The city management screen shows resources, reserve soldiers, force capacity, construction regions, and building options in Chinese.
 3. Placing an illegal building preview is rejected with clear feedback.
 4. Placing a legal foundation building consumes resources and appears in the city state/dashboard.
-5. Returning to the world map resumes time; resources and reserve soldiers increase through elapsed settlement.
+5. Returning to the world map resumes time without applying retired direct building production/recovery.
 6. Recruiting or replenishing a corps consumes resources and reserve soldiers.
 7. A hero company can be selected and dispatched from the city.
 8. The expedition can reach the target and trigger the existing battle path.
@@ -239,30 +248,60 @@ Desktop Mono QA should confirm:
 This implementation proposal is accepted when:
 
 - Strategic Management no longer treats facility slots as the foundation city-development authority.
-- The first foundation loop can be completed through the desktop Mono playable path.
+- The first foundation loop can be completed through the desktop Mono playable path after the economy/capability rebuild.
 - The first loop uses `Money`, `Food`, `Wood`, and `Ore`.
 - City buildings are placed inside bounded construction regions through command-validated rules.
-- Reserve soldiers and city force capacity constrain recruitment and replenishment.
+- Reserve soldiers and city force capacity constrain recruitment and replenishment through accepted Strategic Management state, not through retired per-building scalar effects.
 - Existing battle entry/result boundaries still work for the expedition target.
 - Automated verification commands pass.
 - Manual QA evidence is recorded here after execution.
 
 ## Verification Evidence
 
-Automated verification:
+Previous automated verification, invalidated by the reopen:
 
 - RED evidence: `dotnet run --project tests\StrategicManagementRegression\StrategicManagementRegression.csproj -v:minimal` initially failed because Strategic Management view models still referenced deleted facility-slot APIs, including `StrategicCityState.FacilitySlotCount`, `StrategicManagementDefinitionSet.Facilities`, and `StrategicManagementCommandService.BuildFacility`.
 - GREEN evidence: `dotnet run --project tests\StrategicManagementRegression\StrategicManagementRegression.csproj -v:minimal` passed after the building, construction-region, reserve, replenishment, expedition, and battle-result feedback implementation.
 - Presentation anti-rot evidence: `dotnet run --project tests\WorldSiteDeploymentCacheRegression\WorldSiteDeploymentCacheRegression.csproj -v:minimal` passed after updating the strategic dashboard binder and command routing to `BuildCityBuilding`, building placement defaults, and `ReplenishCorps`.
 - Build evidence: `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` completed with 0 warnings and 0 errors.
 - Diff hygiene evidence: `git diff --check` completed with no whitespace errors.
-- Legacy Strategic Management reference scan: old facility-slot, beast-route, and obsolete first-loop resource references are absent from Strategic Management definitions, state, rules, commands, config, and the strategic dashboard presentation path except for explicit negative regression assertions. Legacy WorldSite facility-slot presentation compatibility remains outside Strategic Management authority.
+- Legacy Strategic Management reference scan: this evidence is superseded. The reopened scope removes the remaining old `BuildingSlot`/Facility-slot compatibility and direct building production/recovery/capacity effects.
+
+Reopened cleanup automated evidence:
+
+- `dotnet run --project tests\StrategicManagementRegression\StrategicManagementRegression.csproj -v:minimal` passed after removing direct city-building production/recovery/capacity effects and adding absence guards.
+- `dotnet run --project tests\WorldSiteDeploymentCacheRegression\WorldSiteDeploymentCacheRegression.csproj -v:minimal` passed after removing `BuildingSlot`/Facility-slot markers, scenes, presentation entry points, and stale UI node names.
+- `dotnet run --project tests\BattleHitFeedbackRegression\BattleHitFeedbackRegression.csproj -v:minimal` passed after removing legacy facility result/writeback references from world text and result-feedback tests.
+- `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` completed with 0 warnings and 0 errors.
+- `git diff --check` completed with no whitespace errors; it reported only existing CRLF-to-LF notices for two `BattleHitFeedbackRegression` test files.
+- Legacy runtime scan found no old `BuildingSlot`, `BuildingSlotMapMarker`, `FacilitySlot`, `FacilityDefinition`, `WorldFacilitySlot`, old facility build action, old facility state, or old direct building scalar-effect references in `src`, `scenes`, or `config`.
+
+Building-region freedom amendment evidence:
+
+- `dotnet run --project tests\StrategicManagementRegression\StrategicManagementRegression.csproj -v:minimal` passed after aligning first-city construction-region definitions with the `demo_site.tscn` marker coordinates and removing category restrictions from region definitions, view models, and placement rules.
+- `dotnet run --project tests\WorldSiteDeploymentCacheRegression\WorldSiteDeploymentCacheRegression.csproj -v:minimal` passed after removing construction-region `AllowedCategoryIds` marker data and asserting that `demo_site.tscn` uses marker-backed regions without category bans.
+- `dotnet run --project tests\BattleHitFeedbackRegression\BattleHitFeedbackRegression.csproj -v:minimal` passed after the construction-region cleanup, confirming the broader battle feedback path still compiles and runs.
+- `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` completed with 0 warnings and 0 errors.
+- `git diff --check` completed with no whitespace errors; it reported only existing CRLF-to-LF notices for two `BattleHitFeedbackRegression` test files.
+- Legacy term scan found no old building-slot, facility-slot, or construction-region category-restriction references in `src`, `scenes`, or `config`; remaining matches are historical notes, authority guardrails, implementation evidence, and anti-rot tests.
+
+Building icon and placement-preview correction evidence:
+
+- `dotnet run --project tests\StrategicManagementRegression\StrategicManagementRegression.csproj -v:minimal` passed after replacing whole-sheet building icon paths with focused single-building `AtlasTexture` resources.
+- `dotnet run --project tests\WorldSiteDeploymentCacheRegression\WorldSiteDeploymentCacheRegression.csproj -v:minimal` passed after the mouse-follow placement preview drew only the selected building texture scaled to the current footprint bounds and after the remaining retired `BuildingSlotMapMarker.tscn` shell was removed.
+- `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` completed with 0 warnings and 0 errors.
+- `git diff --check` completed with no whitespace errors; it reported only existing CRLF-to-LF notices for two `BattleHitFeedbackRegression` test files.
 
 Follow-up presentation slice:
 
 - `demo_site.tscn` is the first test map for Strategic Management construction-region authoring.
 - Three `ConstructionRegionMapMarker` markers represent the first city economy, military, and civic regions.
 - Building placement preview follows the mouse, resolves the active marker-backed construction region, and displays real-time legality from Strategic Management rules before the click submits `BuildCityBuilding`.
+- Building picker icons and mouse-follow previews use focused single-building `AtlasTexture` resources. They must not point directly at whole multi-building sprite sheets; those sheets are only source atlases.
+- Building preview textures use 16x16 source-cell scale as the base and are drawn to the selected footprint's grid-space bounds. The preview must not draw the old n*m footprint grid; invalid placement feedback uses the preview tint and command failure notice instead.
+- The site peacetime management panel is a player-city workspace only. Battle preparation/runtime, non-city strategic locations, and non-player-held sites must not render the build/recruit/corps/overview tabs.
+- Construction-region marker coordinates and Strategic Management region definitions must stay aligned so marker-backed preview cells and command validation evaluate the same region bounds.
+- Region labels such as economy, military, and civic are layout/readability labels only. They must not reject building categories.
 
 Manual QA:
 

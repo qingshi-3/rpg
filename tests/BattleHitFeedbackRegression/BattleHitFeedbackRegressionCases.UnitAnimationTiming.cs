@@ -9,7 +9,8 @@ internal static void UnitAttackSpeedContract()
     string probe = File.ReadAllText(Path.Combine("src", "Application", "Battle", "BattleGroupSessionProbeService.cs"));
     string runtimeActor = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeActor.cs"));
     string runtimeSession = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeSession.cs"));
-    string runtimeTickResolver = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeTickResolver.cs"));
+    string commitBuffer = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleCommitBuffer.cs"));
+    string eventFactory = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "BattleRuntimeEventFactory.cs"));
     string unitFactory = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"));
     string attackComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "AttackComponent.cs"));
     string animationComponent = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
@@ -38,7 +39,9 @@ internal static void UnitAttackSpeedContract()
         "runtime actors should consume snapshot attack speed and actor-local action timing");
     AssertTrue(
         runtimeSession.Contains("ResolveAttackActionSeconds", StringComparison.Ordinal) &&
-        runtimeTickResolver.Contains("RuntimeTimeSeconds = currentTimeSeconds", StringComparison.Ordinal),
+        commitBuffer.Contains("CreateDamageApplied", StringComparison.Ordinal) &&
+        commitBuffer.Contains("currentTimeSeconds", StringComparison.Ordinal) &&
+        eventFactory.Contains("RuntimeTimeSeconds = currentTimeSeconds", StringComparison.Ordinal),
         "runtime attack cadence should be gated by action seconds on the central timeline rather than attacking every integer tick");
     AssertTrue(
         unitFactory.Contains("attack.AttackSpeed = definition.AttackSpeed;", StringComparison.Ordinal) &&

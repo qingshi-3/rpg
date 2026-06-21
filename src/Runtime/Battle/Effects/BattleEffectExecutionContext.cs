@@ -10,6 +10,10 @@ internal sealed class BattleEffectExecutionContext
     public string SourceActionId { get; set; } = "";
     public string SourceCommandId { get; set; } = "";
     public string SourceDefinitionId { get; set; } = "";
+    internal BattleCommitBuffer CommitBuffer { get; set; }
+    internal bool DeferEffectDamageCommit { get; set; }
+    internal BattleGridCoord? ActorAnchorOverride { get; set; }
+    internal BattleGridCoord? TargetAnchorOverride { get; set; }
     public BattleRuntimeState State { get; set; } = new();
     public BattleNavigationGraph NavigationGraph { get; set; }
     public BattleRuntimeActor Actor { get; set; } = new();

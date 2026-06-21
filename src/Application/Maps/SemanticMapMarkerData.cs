@@ -9,7 +9,7 @@ public sealed class SemanticMapMarkerData
 {
     public string MapId { get; set; } = "";
     public string MarkerId { get; set; } = "";
-    public SemanticMapMarkerType MarkerType { get; set; } = SemanticMapMarkerType.BuildingSlot;
+    public SemanticMapMarkerType MarkerType { get; set; } = SemanticMapMarkerType.EventSpawn;
     public SemanticDeploymentSide DeploymentSide { get; set; } = SemanticDeploymentSide.Any;
     public string ObjectiveRole { get; set; } = "";
     public SemanticBridgeKind BridgeKind { get; set; } = SemanticBridgeKind.RiverBridge;
@@ -21,7 +21,6 @@ public sealed class SemanticMapMarkerData
     public int Priority { get; set; }
     public List<string> Tags { get; } = new();
     public List<string> ConnectionIds { get; } = new();
-    public List<string> AllowedCategoryIds { get; } = new();
     public string SourcePath { get; set; } = "";
 
     public IReadOnlyList<Vector2I> CoveredCells => BuildCoveredCells();

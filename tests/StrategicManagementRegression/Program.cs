@@ -53,7 +53,7 @@ Run("strategic management dashboard reflects foundation command mutations", Stra
 Run("strategic management dashboard summarizes non-city location", StrategicManagementRegressionCases.StrategicManagementDashboardSummarizesNonCityLocation);
 Run("strategic management settles controlled resource site production", StrategicManagementRegressionCases.StrategicManagementSettlesControlledResourceSiteProduction);
 Run("strategic management uses elapsed world time naming instead of step naming", StrategicManagementRegressionCases.StrategicManagementUsesElapsedWorldTimeNamingInsteadOfStepNaming);
-Run("strategic management settles elapsed world time city buildings and reserve recovery", StrategicManagementRegressionCases.StrategicManagementSettlesElapsedWorldTimeCityBuildingsAndReserveRecovery);
+Run("strategic management settles elapsed world time without city building effects", StrategicManagementRegressionCases.StrategicManagementSettlesElapsedWorldTimeWithoutCityBuildingEffects);
 Run("strategic management elapsed world time skips enemy held production", StrategicManagementRegressionCases.StrategicManagementElapsedWorldTimeSkipsEnemyHeldProduction);
 Run("strategic management elapsed world time rejects invalid pulse count without mutation", StrategicManagementRegressionCases.StrategicManagementElapsedWorldTimeRejectsInvalidPulseCountWithoutMutation);
 Run("strategic management runtime blocks elapsed time while city management paused", StrategicManagementRegressionCases.StrategicManagementRuntimeBlocksElapsedTimeWhileCityManagementPaused);

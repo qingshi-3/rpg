@@ -14,10 +14,8 @@ public sealed class WorldSiteDefinition
     public Vector2 MapPosition { get; set; }
     public string InitialOwnerFactionId { get; set; } = "";
     public SiteControlState InitialControlState { get; set; } = SiteControlState.Unknown;
-    public List<FacilitySlotDefinition> FacilitySlots { get; set; } = new();
     public string DefaultGarrisonZoneId { get; set; } = "";
     public List<SiteDeploymentZoneDefinition> DeploymentZones { get; set; } = new();
-    public List<string> InitialFacilities { get; set; } = new();
     public List<GarrisonDefinition> InitialGarrison { get; set; } = new();
     public List<SiteAutoGarrisonProductionDefinition> AutoGarrisonProductions { get; set; } = new();
     public List<string> BattleAnchors { get; set; } = new();

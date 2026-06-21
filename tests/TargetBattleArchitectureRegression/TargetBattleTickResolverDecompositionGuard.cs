@@ -64,8 +64,14 @@ internal static class TargetBattleTickResolverDecompositionGuard
             File.Exists(Path.Combine(battleRuntimePath, "BattleAttackResolver.cs")),
             "TD-003 attack resolver service file should exist: src/Runtime/Battle/BattleAttackResolver.cs");
         AssertTrue(
+            File.Exists(Path.Combine(battleRuntimePath, "BattleAttackEngagementCoordinator.cs")),
+            "H10 attack engagement coordinator service file should exist: src/Runtime/Battle/BattleAttackEngagementCoordinator.cs");
+        AssertTrue(
             File.Exists(Path.Combine(battleRuntimePath, "BattleMovementCommitResolver.cs")),
             "TD-003 movement resolver service file should exist: src/Runtime/Battle/BattleMovementCommitResolver.cs");
+        AssertTrue(
+            File.Exists(Path.Combine(battleRuntimePath, "BattleRuntimeResolutionPhaseCoordinator.cs")),
+            "H22 resolution phase coordinator service file should exist: src/Runtime/Battle/BattleRuntimeResolutionPhaseCoordinator.cs");
 
         string combinedResolverSource = "";
         foreach (string resolverFile in resolverFiles)
@@ -74,19 +80,25 @@ internal static class TargetBattleTickResolverDecompositionGuard
             string relativePath = ToRepoPath(root, resolverFile);
             combinedResolverSource += source;
 
-            // Keep the legal ResolveAttackProposalsAndEngagementTriggers wrapper out of scope.
             AssertDoesNotContain(source, "void ResolveAttackProposals(", relativePath);
+            AssertDoesNotContain(source, "ResolveAttackProposalsAndEngagementTriggers", relativePath);
             AssertDoesNotContain(source, "int ResolveMovementProposals(", relativePath);
             AssertDoesNotContain(source, "MarkMovementCommitted", relativePath);
             AssertDoesNotContain(source, "MarkAttackRecovery", relativePath);
         }
 
         AssertTrue(
-            combinedResolverSource.Contains("BattleAttackResolver.Resolve(", StringComparison.Ordinal),
-            "BattleRuntimeTickResolver*.cs should delegate attack resolution to BattleAttackResolver.Resolve(");
+            combinedResolverSource.Contains("BattleRuntimeResolutionPhaseCoordinator.AdvanceResolutionPhase", StringComparison.Ordinal),
+            "BattleRuntimeTickResolver*.cs should enter attack and movement resolution through BattleRuntimeResolutionPhaseCoordinator.AdvanceResolutionPhase");
+
+        string resolutionPhaseCoordinatorPath = Path.Combine(battleRuntimePath, "BattleRuntimeResolutionPhaseCoordinator.cs");
+        string resolutionPhaseCoordinatorSource = File.ReadAllText(resolutionPhaseCoordinatorPath);
         AssertTrue(
-            combinedResolverSource.Contains("BattleMovementCommitResolver.Resolve(", StringComparison.Ordinal),
-            "BattleRuntimeTickResolver*.cs should delegate movement resolution to BattleMovementCommitResolver.Resolve(");
+            resolutionPhaseCoordinatorSource.Contains("BattleAttackEngagementCoordinator.Resolve(", StringComparison.Ordinal),
+            "BattleRuntimeResolutionPhaseCoordinator should delegate attack engagement coordination to BattleAttackEngagementCoordinator.Resolve(");
+        AssertTrue(
+            resolutionPhaseCoordinatorSource.Contains("BattleMovementCommitResolver.Resolve(", StringComparison.Ordinal),
+            "BattleRuntimeResolutionPhaseCoordinator should delegate movement resolution to BattleMovementCommitResolver.Resolve(");
 
         AssertRuntimeTickResolverDelegatesTacticalObservationToUpdater(root, battleRuntimePath, resolverFiles);
     }
@@ -101,6 +113,7 @@ internal static class TargetBattleTickResolverDecompositionGuard
         AssertServiceFileExists(battleRuntimePath, "BattleAiActionRequestBuilder.cs");
         AssertServiceFileExists(battleRuntimePath, "BattleTacticalObservationUpdater.cs");
         AssertServiceFileExists(battleRuntimePath, "BattleTargetLockLifecycle.cs");
+        AssertServiceFileExists(battleRuntimePath, "BattleRuntimeDecisionPhaseCoordinator.cs");
 
         string combinedResolverSource = "";
         foreach (string resolverFile in resolverFiles)
@@ -137,11 +150,20 @@ internal static class TargetBattleTickResolverDecompositionGuard
         }
 
         AssertTrue(
-            combinedResolverSource.Contains("BattleTacticalObservationUpdater.RefreshAtTickStart", StringComparison.Ordinal),
-            "BattleRuntimeTickResolver*.cs should delegate tick-start tactical observation to BattleTacticalObservationUpdater.RefreshAtTickStart");
+            combinedResolverSource.Contains("BattleRuntimeDecisionPhaseCoordinator.AdvanceDecisionPhase", StringComparison.Ordinal),
+            "BattleRuntimeTickResolver*.cs should enter tick-start tactical observation through BattleRuntimeDecisionPhaseCoordinator.AdvanceDecisionPhase");
+
+        string decisionPhaseCoordinatorPath = Path.Combine(battleRuntimePath, "BattleRuntimeDecisionPhaseCoordinator.cs");
+        string decisionPhaseCoordinatorSource = File.ReadAllText(decisionPhaseCoordinatorPath);
         AssertTrue(
-            combinedResolverSource.Contains("BattleTacticalObservationUpdater.ApplyPostAttackEngagementTriggers", StringComparison.Ordinal),
-            "BattleRuntimeTickResolver*.cs should delegate post-attack engagement triggers to BattleTacticalObservationUpdater.ApplyPostAttackEngagementTriggers");
+            decisionPhaseCoordinatorSource.Contains("BattleTacticalObservationUpdater.RefreshAtTickStart", StringComparison.Ordinal),
+            "BattleRuntimeDecisionPhaseCoordinator should delegate tick-start tactical observation to BattleTacticalObservationUpdater.RefreshAtTickStart");
+
+        string attackEngagementCoordinatorPath = Path.Combine(battleRuntimePath, "BattleAttackEngagementCoordinator.cs");
+        string attackEngagementCoordinatorSource = File.ReadAllText(attackEngagementCoordinatorPath);
+        AssertTrue(
+            attackEngagementCoordinatorSource.Contains("BattleTacticalObservationUpdater.ApplyPostAttackEngagementTriggers", StringComparison.Ordinal),
+            "BattleAttackEngagementCoordinator should delegate post-attack engagement triggers to BattleTacticalObservationUpdater.ApplyPostAttackEngagementTriggers");
 
         string engagementStateMachinePath = Path.Combine(battleRuntimePath, "Tactics", "BattleGroupEngagementStateMachine.cs");
         string engagementStateMachineSource = File.ReadAllText(engagementStateMachinePath);

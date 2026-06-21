@@ -92,6 +92,26 @@ internal sealed class BattleRuntimeLivePresentationState
         Track(task);
     }
 
+    public void TrackSkillDamageFeedback(
+        string actorId,
+        string targetId,
+        System.Func<Task> createTask)
+    {
+        if (createTask == null)
+        {
+            return;
+        }
+
+        PruneCompleted();
+        targetId ??= "";
+        _actorMovementTails.TryGetValue(targetId, out Task targetMovementTail);
+        // Skill effect impact is already owned by the SkillUsed/channel action.
+        // Its hit feedback must align to the target, without extending the
+        // caster action tail and delaying later attack or movement presentation.
+        Task task = RunAfterDependenciesAsync(new[] { targetMovementTail }, createTask);
+        Track(task);
+    }
+
     public void TrackTargetDamage(
         string actorId,
         string targetId,

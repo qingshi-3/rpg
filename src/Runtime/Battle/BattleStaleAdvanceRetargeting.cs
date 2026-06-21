@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Runtime.Battle.AI;
@@ -6,9 +7,40 @@ using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
-internal sealed partial class BattleRuntimeTickResolver
+internal static class BattleStaleAdvanceRetargeting
 {
-    private bool TryRetargetStaleAdvanceContext(
+    internal static TryRetargetStaleAdvanceContextCallback CreateCallback(IBattleRuntimeAiExecutor aiExecutor)
+    {
+        ArgumentNullException.ThrowIfNull(aiExecutor);
+
+        return (context,
+            tickStartFacts,
+            occupancy,
+            navigationGraph,
+            battleId,
+            tick,
+            currentTimeSeconds,
+            navigationFailureDiagnostics,
+            performanceCounters,
+            tacticalStateStore,
+            groupActionZones,
+            combatZones) => TryRetarget(
+                context,
+                tickStartFacts,
+                occupancy,
+                navigationGraph,
+                battleId,
+                tick,
+                currentTimeSeconds,
+                navigationFailureDiagnostics,
+                performanceCounters,
+                tacticalStateStore,
+                groupActionZones,
+                combatZones,
+                aiExecutor);
+    }
+
+    internal static bool TryRetarget(
         BattleRuntimeTickContext context,
         IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts,
         BattleDynamicOccupancy occupancy,
@@ -20,7 +52,8 @@ internal sealed partial class BattleRuntimeTickResolver
         BattlePerformanceCounters performanceCounters,
         BattleGroupTacticalStateStore tacticalStateStore,
         IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
-        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
+        IBattleRuntimeAiExecutor aiExecutor)
     {
         if (context == null ||
             !IsRetargetableStaleAdvance(context.Request.Kind) ||
@@ -29,7 +62,7 @@ internal sealed partial class BattleRuntimeTickResolver
             return false;
         }
 
-        BattleRuntimeTickContext refreshed = BuildTickContext(
+        BattleRuntimeTickContext refreshed = BattleRuntimeDecisionContextBuilder.Build(
             context.ActorFact.Actor,
             tickStartFacts,
             navigationGraph,
@@ -41,7 +74,8 @@ internal sealed partial class BattleRuntimeTickResolver
             navigationFailureDiagnostics,
             tacticalStateStore,
             groupActionZones,
-            combatZones);
+            combatZones,
+            aiExecutor);
         if (refreshed.TargetFact == null ||
             refreshed.TargetFact.Value.Actor.HitPoints <= 0 ||
             !IsRetargetableStaleAdvance(refreshed.Request.Kind) ||
@@ -58,7 +92,7 @@ internal sealed partial class BattleRuntimeTickResolver
         context.TargetFact = refreshed.TargetFact;
         context.Proposal = refreshed.Proposal;
         context.ActorFact.Actor.TargetActorId = refreshed.TargetFact.Value.Actor.ActorId;
-        ResetAdvanceFailureState(context.ActorFact.Actor);
+        BattleAdvanceFailureStateBoundary.ResetAdvanceFailureState(context.ActorFact.Actor);
         return true;
     }
 

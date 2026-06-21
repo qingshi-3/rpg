@@ -19,7 +19,7 @@ internal static class BattleObjectiveAdvancePlanner
     {
         if (!actorFact.Actor.HasObjectiveAnchor)
         {
-            return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "objective_missing");
+            return BattleRuntimeTickContextFactory.Create(request, actorFact, null, false, default, "objective_missing");
         }
 
         BattleRuntimeActor tickStartActor = BattleTickStartProjectionBuilder.Build(actorFact);
@@ -39,11 +39,11 @@ internal static class BattleObjectiveAdvancePlanner
                 actorFact,
                 navigationGraph,
                 "objective_path_not_found");
-            return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "objective_path_not_found");
+            return BattleRuntimeTickContextFactory.Create(request, actorFact, null, false, default, "objective_path_not_found");
         }
 
         BattleRuntimeActorStateMachine.CopyMovementSteering(actorFact.Actor, tickStartActor);
-        return BattleRuntimeTickResolver.CreateContext(
+        return BattleRuntimeTickContextFactory.Create(
             request,
             actorFact,
             null,
@@ -65,7 +65,7 @@ internal static class BattleObjectiveAdvancePlanner
         BattleRegionMovementGoal goal = request?.RegionMovementGoal;
         if (goal == null || string.IsNullOrWhiteSpace(goal.RegionId))
         {
-            return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "region_missing");
+            return BattleRuntimeTickContextFactory.Create(request, actorFact, null, false, default, "region_missing");
         }
 
         BattleRuntimeActor projectedActor = BattleTickStartProjectionBuilder.Build(actorFact);
@@ -98,11 +98,11 @@ internal static class BattleObjectiveAdvancePlanner
                 goal,
                 navigationGraph,
                 "region_path_not_found");
-            return BattleRuntimeTickResolver.CreateContext(request, actorFact, null, false, default, "region_path_not_found", regionMovementGoal: goal);
+            return BattleRuntimeTickContextFactory.Create(request, actorFact, null, false, default, "region_path_not_found", regionMovementGoal: goal);
         }
 
         BattleRuntimeActorStateMachine.CopyMovementSteering(actorFact.Actor, projectedActor);
-        return BattleRuntimeTickResolver.CreateContext(
+        return BattleRuntimeTickContextFactory.Create(
             request,
             actorFact,
             null,

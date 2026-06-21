@@ -130,7 +130,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
         {
             AddMutedLine(
                 _buildingList,
-                $"{region.DisplayName}\n范围 {region.OriginX},{region.OriginY} / {region.Width}x{region.Height}    类型 {FormatCategories(region.AllowedCategoryIds)}");
+                $"{region.DisplayName}\n范围 {region.OriginX},{region.OriginY} / {region.Width}x{region.Height}");
         }
     }
 
@@ -363,7 +363,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
             StrategicFailureReasons.WorldTimePaused => "大地图时间已暂停",
             StrategicFailureReasons.BuildingPlacementOutOfBounds => "建筑超出建设区域",
             StrategicFailureReasons.BuildingPlacementOccupied => "建筑占地被占用",
-            StrategicFailureReasons.BuildingRegionCategoryMismatch => "建筑类型不适合该区域",
             StrategicFailureReasons.InsufficientReserveForces => "预备兵不足",
             StrategicFailureReasons.CityForceCapacityFull => "城市兵力容量已满",
             StrategicFailureReasons.InvalidReplenishmentTarget => "补员目标无效",
@@ -384,29 +383,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
             StrategicFailureReasons.UnsupportedExpeditionIntent => "不支持的出征意图",
             StrategicFailureReasons.InvalidExpeditionParticipants => "出征成员无效",
             _ => reason
-        };
-    }
-
-    private static string FormatCategories(IReadOnlyList<string> categoryIds)
-    {
-        return categoryIds == null || categoryIds.Count == 0
-            ? "无"
-            : string.Join(" / ", categoryIds.Select(FormatCategory));
-    }
-
-    private static string FormatCategory(string categoryId)
-    {
-        return categoryId switch
-        {
-            StrategicManagementIds.BuildingCategoryEconomy => "经济",
-            StrategicManagementIds.BuildingCategoryMilitary => "军事",
-            StrategicManagementIds.BuildingCategoryHero => "英雄",
-            StrategicManagementIds.BuildingCategoryDefense => "防御",
-            StrategicManagementIds.BuildingCategorySupport => "支援",
-            StrategicManagementIds.BuildingCategorySpecial => "特殊",
-            "" => "未分类",
-            null => "未分类",
-            _ => categoryId
         };
     }
 

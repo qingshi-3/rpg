@@ -82,16 +82,16 @@ internal static class TargetBattlePerformanceRegressionCases
                 .Select(File.ReadAllText));
             string animation = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Battle", "Entities", "UnitAnimationComponent.cs"));
             string audio = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Battle", "Entities", "BattleUnitAudioComponent.cs"));
-            string movementCommit = File
-                .ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "BattleMovementCommitResolver.cs"))
+            string movementCommitBoundary = File
+                .ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "BattleMovementCommitBoundary.cs"))
                 .Replace("\r\n", "\n", StringComparison.Ordinal);
 
             AssertTrue(
                 unitRoot.Contains("GameLog.Trace(nameof(BattleUnitRoot)", StringComparison.Ordinal) &&
                 animation.Contains("GameLog.Trace(nameof(UnitAnimationComponent)", StringComparison.Ordinal) &&
                 audio.Contains("GameLog.Trace(nameof(BattleUnitAudioComponent)", StringComparison.Ordinal) &&
-                movementCommit.Contains("GameLog.Trace(\n            nameof(BattleMovementCommitResolver)", StringComparison.Ordinal) &&
-                !movementCommit.Contains("GameLog.Info(\n            nameof(BattleMovementCommitResolver)", StringComparison.Ordinal),
+                movementCommitBoundary.Contains("GameLog.Trace(\n            nameof(BattleMovementCommitBoundary)", StringComparison.Ordinal) &&
+                !movementCommitBoundary.Contains("GameLog.Info(\n            nameof(BattleMovementCommitBoundary)", StringComparison.Ordinal),
                 "high-frequency movement, animation, audio, and combat slot diagnostics should use the trace channel");
         }
         finally

@@ -95,8 +95,6 @@ public sealed class WorldBattleResultApplier
         WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
         StrategicWorldDefinitionQueries queries = new(definition);
         string targetSite = StrategicWorldDisplayNames.GetSiteLabel(queries, site.SiteId, "埋骨地");
-        string mine = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityMine, "矿场");
-        string defenseTower = StrategicWorldDisplayNames.GetFacilityLabel(queries, StrategicWorldIds.FacilityDefenseTower, "防御塔");
         if (result.Outcome == BattleOutcome.Victory && ObjectiveSucceeded(result, "occupy_bonefield"))
         {
             RemoveBattleForcesFromSite(site, request.EnemyForces, result);
@@ -107,7 +105,7 @@ public sealed class WorldBattleResultApplier
             {
                 Success = true,
                 ActionId = "battle_result",
-                Message = $"{targetSite}已被占领，{mine}和{defenseTower}槽位已解锁。",
+                Message = $"{targetSite}已被占领。",
                 Events =
                 {
                     new GameEvent

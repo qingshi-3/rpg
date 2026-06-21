@@ -31,6 +31,7 @@ internal static class BattleRuntimeSkillHudText
         return reasonCode switch
         {
             "hero_skill_already_pending" => "技能指令正在等待结算",
+            "hero_skill_already_queued" => "技能指令正在等待结算",
             "hero_skill_already_used" => "本场战斗已经使用过",
             "hero_actor_unavailable" => "当前英雄无法行动",
             "skill_caster_not_allowed" => "当前英雄不能使用该技能",

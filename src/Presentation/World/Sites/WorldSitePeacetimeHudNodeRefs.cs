@@ -44,13 +44,13 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
     internal Button BattlePreparationStartButton { get; private init; }
     internal Control BattlePreparationObjectiveThumbnailDock { get; private init; }
     internal BattlePreparationObjectiveThumbnail BattlePreparationObjectiveThumbnail { get; private init; }
-    internal Label SiteFacilityBuildTitle { get; private init; }
-    internal GridContainer SiteFacilityBuildList { get; private init; }
+    internal Label SiteBuildingBuildTitle { get; private init; }
+    internal GridContainer SiteBuildingOptionGrid { get; private init; }
     internal VBoxContainer SiteRecruitList { get; private init; }
-    internal VBoxContainer SiteFacilityList { get; private init; }
+    internal VBoxContainer SiteBuildingList { get; private init; }
     internal VBoxContainer SiteGarrisonList { get; private init; }
     internal Label SiteNoticeLabel { get; private init; }
-    internal Label FacilityTitleLabel { get; private init; }
+    internal Label BuildingTitleLabel { get; private init; }
     internal Label GarrisonTitleLabel { get; private init; }
     internal Label NoticeTitleLabel { get; private init; }
 
@@ -97,13 +97,13 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
             BattlePreparationStartButton = Get<Button>(root, "OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationStartButton", ownerName),
             BattlePreparationObjectiveThumbnailDock = Get<Control>(root, "MinimapHost/BattlePreparationObjectiveThumbnailDock", ownerName),
             BattlePreparationObjectiveThumbnail = Get<BattlePreparationObjectiveThumbnail>(root, "MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail", ownerName),
-            SiteFacilityBuildTitle = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/BuildTitle", ownerName),
-            SiteFacilityBuildList = Get<GridContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/SiteFacilityBuildList", ownerName),
+            SiteBuildingBuildTitle = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/BuildTitle", ownerName),
+            SiteBuildingOptionGrid = Get<GridContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/SiteBuildingOptionGrid", ownerName),
             SiteRecruitList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteRecruitSection/SiteRecruitList", ownerName),
-            SiteFacilityList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteFacilityList", ownerName),
+            SiteBuildingList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteBuildingList", ownerName),
             SiteGarrisonList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteCorpsSection/SiteGarrisonList", ownerName),
             SiteNoticeLabel = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteNoticeLabel", ownerName),
-            FacilityTitleLabel = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/FacilityTitle", ownerName),
+            BuildingTitleLabel = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/BuildingTitle", ownerName),
             GarrisonTitleLabel = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteCorpsSection/GarrisonTitle", ownerName),
             NoticeTitleLabel = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/NoticeTitle", ownerName)
         };

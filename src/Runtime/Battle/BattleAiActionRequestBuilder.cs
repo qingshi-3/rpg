@@ -5,10 +5,6 @@ using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
-// The tick resolver owns advance-failure state; request construction only
-// invokes this explicit boundary to preserve the existing outside-leash write.
-internal delegate void RecordAdvanceFailureCallback(BattleRuntimeActor actor, string reasonCode);
-
 internal static class BattleAiActionRequestBuilder
 {
     internal static BattleRuntimeAiActionRequest BuildCommandScopedRequest(
@@ -17,7 +13,6 @@ internal static class BattleAiActionRequestBuilder
         LocalCombatSituation localCombatSituation,
         BattleRegionMovementGoal regionMovementGoal,
         IBattleRuntimeAiExecutor aiExecutor,
-        RecordAdvanceFailureCallback recordAdvanceFailure,
         IReadOnlyList<BattleRuntimeAiTargetCandidateFacts> targetCandidates = null,
         string targetSelectionPolicy = "")
     {
@@ -48,7 +43,7 @@ internal static class BattleAiActionRequestBuilder
         bool shouldAdvanceInsideCommandScope =
             targetFact == null ||
             actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst &&
-            BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange);
+            BattleCombatGeometry.GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange);
         if (shouldAdvanceInsideCommandScope &&
             regionMovementGoal != null)
         {
@@ -70,8 +65,8 @@ internal static class BattleAiActionRequestBuilder
             return BattleRuntimeAiActionRequest.AdvanceTowardObjective(actorFact.Actor.ActorId);
         }
 
-        if (BattleRuntimeTickResolver.IsHoldLineCommand(actorFact.CommandId) &&
-            (targetFact == null || BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
+        if (BattleRuntimeIdentityRules.IsHoldLineCommand(actorFact.CommandId) &&
+            (targetFact == null || BattleCombatGeometry.GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange)))
         {
             return BattleRuntimeAiActionRequest.Hold(actorFact.Actor.ActorId, "hold_line_out_of_range");
         }
@@ -98,7 +93,7 @@ internal static class BattleAiActionRequestBuilder
             TargetSelectionPolicy = string.IsNullOrWhiteSpace(targetSelectionPolicy)
                 ? BattleRuntimeAiTargetSelectionPolicy.Default
                 : targetSelectionPolicy,
-            DistanceToTarget = targetFact == null ? int.MaxValue : BattleRuntimeTickResolver.GetOrthogonalAttackGap(actorFact, targetFact.Value),
+            DistanceToTarget = targetFact == null ? int.MaxValue : BattleCombatGeometry.GetOrthogonalAttackGap(actorFact, targetFact.Value),
             AttackRange = System.Math.Max(1, actorFact.Actor.AttackRange),
             CanAttackNow = actorFact.AttackCharge >= 1.0,
             HasLocalCombatSituation = localCombatSituation != null,

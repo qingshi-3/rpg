@@ -40,7 +40,7 @@ internal static class BattleCombatZoneBuilder
                 }
 
                 bool sameGroup = string.Equals(first.BattleGroupId ?? "", second.BattleGroupId ?? "", StringComparison.Ordinal);
-                bool sameFaction = BattleRuntimeTickResolver.SameFaction(first, second);
+                bool sameFaction = BattleRuntimeIdentityRules.SameFaction(first, second);
                 bool targetLinked = IsTargetLinked(first, second);
                 int gap = BattleActorFootprint.GetGap(first, second);
                 bool closeEnough = gap <= BattleGroupTacticalPolicySettings.DefaultLocalPerceptionRange;
@@ -67,7 +67,7 @@ internal static class BattleCombatZoneBuilder
 
         List<BattleCombatZoneSnapshot> zones = components.Groups()
             .Select(group => group.Select(index => actors[index]).ToArray())
-            .Where(group => group.Select(item => NormalizeFaction(item.FactionId)).Distinct(StringComparer.Ordinal).Count() > 1)
+            .Where(group => group.Select(item => BattleRuntimeIdentityRules.NormalizeFaction(item.FactionId)).Distinct(StringComparer.Ordinal).Count() > 1)
             .Where(group => HasHostileLink(group, actors, hostileLinks))
             .Select((group, index) => BuildZone(
                 group,
@@ -126,7 +126,7 @@ internal static class BattleCombatZoneBuilder
                 .OrderBy(item => item, StringComparer.Ordinal)
                 .ToArray(),
             FactionIds = actors
-                .Select(item => NormalizeFaction(item.FactionId))
+                .Select(item => BattleRuntimeIdentityRules.NormalizeFaction(item.FactionId))
                 .Distinct(StringComparer.Ordinal)
                 .OrderBy(item => item, StringComparer.Ordinal)
                 .ToArray()
@@ -162,11 +162,6 @@ internal static class BattleCombatZoneBuilder
     {
         return string.Equals(first?.TargetActorId ?? "", second?.ActorId ?? "", StringComparison.Ordinal) ||
                string.Equals(second?.TargetActorId ?? "", first?.ActorId ?? "", StringComparison.Ordinal);
-    }
-
-    private static string NormalizeFaction(string factionId)
-    {
-        return string.IsNullOrWhiteSpace(factionId) ? "player" : factionId.Trim();
     }
 
     private sealed class DisjointSet

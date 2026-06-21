@@ -147,20 +147,6 @@ public partial class StrategicWorldRoot
         };
     }
 
-    private static string GetFacilityStateLabel(FacilityState state)
-    {
-        return state switch
-        {
-            FacilityState.Planned => "规划",
-            FacilityState.Building => "建造中",
-            FacilityState.Active => "运行",
-            FacilityState.Damaged => "受损",
-            FacilityState.Disabled => "停用",
-            FacilityState.Destroyed => "摧毁",
-            _ => "未知"
-        };
-    }
-
     private string GetUnitLabel(string unitTypeId)
     {
         return _battleUnitFactory.ResolveUnitDisplayName(unitTypeId);

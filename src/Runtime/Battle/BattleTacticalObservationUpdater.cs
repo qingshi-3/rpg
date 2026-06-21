@@ -389,7 +389,7 @@ internal static class BattleTacticalObservationUpdater
     {
         string[] ownerFactions = (livingCorps ?? System.Array.Empty<BattleRuntimeActor>())
             .Where(item => string.Equals(item.BattleGroupId ?? "", ownerBattleGroupId ?? "", System.StringComparison.Ordinal))
-            .Select(item => BattleRuntimeTickResolver.NormalizeFaction(item.FactionId))
+            .Select(item => BattleRuntimeIdentityRules.NormalizeFaction(item.FactionId))
             .Distinct(System.StringComparer.Ordinal)
             .ToArray();
         if (ownerFactions.Length == 0)
@@ -406,7 +406,7 @@ internal static class BattleTacticalObservationUpdater
         return (livingCorps ?? System.Array.Empty<BattleRuntimeActor>())
             .Any(actor => actor != null &&
                           actor.HitPoints > 0 &&
-                          !ownerFactions.Contains(BattleRuntimeTickResolver.NormalizeFaction(actor.FactionId)) &&
+                          !ownerFactions.Contains(BattleRuntimeIdentityRules.NormalizeFaction(actor.FactionId)) &&
                           actor.GridHeight == (region?.CenterCellHeight ?? 0) &&
                           actor.GridX >= minX &&
                           actor.GridX < maxXExclusive &&

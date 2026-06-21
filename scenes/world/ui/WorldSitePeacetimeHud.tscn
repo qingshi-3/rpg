@@ -523,7 +523,7 @@ theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "可建建筑"
 
-[node name="SiteFacilityBuildList" type="GridContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection"]
+[node name="SiteBuildingOptionGrid" type="GridContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 columns = 4
@@ -583,14 +583,14 @@ size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.88, 0.55, 1)
 autowrap_mode = 3
 
-[node name="FacilityTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+[node name="BuildingTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "建筑与区域"
 
-[node name="SiteFacilityList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+[node name="SiteBuildingList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6

@@ -4,19 +4,26 @@ using Rpg.Definitions.StrategicManagement;
 
 internal static partial class WorldSiteDeploymentCacheRegressionCases
 {
-internal static void SemanticMapMarkerContractExposesBuildingSlotRegions()
+internal static void SemanticMapMarkerContractRetiresBuildingSlotRegions()
 {
-    AssertEqual(SemanticMapMarkerType.BuildingSlot, Enum.Parse<SemanticMapMarkerType>("BuildingSlot"), "building slot marker type");
+    string root = ProjectRoot();
+    string typeSource = File.ReadAllText(Path.Combine(root, "src", "Definitions", "Maps", "SemanticMapMarkerType.cs"));
+    string markerDataSource = File.ReadAllText(Path.Combine(root, "src", "Application", "Maps", "SemanticMapMarkerData.cs"));
+
+    AssertTrue(!Enum.GetNames(typeof(SemanticMapMarkerType)).Contains("BuildingSlot"), "semantic marker type enum should not expose retired BuildingSlot");
+    AssertTrue(!typeSource.Contains("BuildingSlot", StringComparison.Ordinal), "semantic marker type source should not retain retired BuildingSlot");
+    AssertTrue(!markerDataSource.Contains("BuildingSlot", StringComparison.Ordinal), "pure marker data should not preserve building-slot compatibility fields");
+
     SemanticMapMarkerData marker = new()
     {
         MapId = "bonefield",
-        MarkerId = "mine_slot_01",
-        MarkerType = SemanticMapMarkerType.BuildingSlot,
+        MarkerId = StrategicManagementIds.RegionPlainsEconomy,
+        MarkerType = SemanticMapMarkerType.ConstructionRegion,
         AnchorCell = new Godot.Vector2I(18, 12),
         CellHeight = 0,
         Width = 3,
         Height = 2,
-        SourcePath = "SemanticMarkers/mine_slot_01"
+        SourcePath = "SemanticMarkers/ConstructionRegions/strategic_region_plains_economy"
     };
 
     AssertEqual(new Godot.Vector2I(18, 12), marker.AnchorCell, "marker anchor");
@@ -41,24 +48,16 @@ internal static void SemanticMapMarkerContractExposesConstructionRegions()
     {
         MapId = "player_camp",
         MarkerId = StrategicManagementIds.RegionPlainsEconomy,
-        MarkerType = hasConstructionRegionType ? constructionRegionType : SemanticMapMarkerType.BuildingSlot,
+        MarkerType = constructionRegionType,
         AnchorCell = new Godot.Vector2I(0, 0),
         Width = 8,
         Height = 6,
-        SourcePath = "SemanticMarkers/strategic_region_plains_economy"
+        SourcePath = "SemanticMarkers/ConstructionRegions/strategic_region_plains_economy"
     };
-    System.Reflection.PropertyInfo allowedCategoryIdsProperty = typeof(SemanticMapMarkerData).GetProperty("AllowedCategoryIds");
-    AssertTrue(allowedCategoryIdsProperty != null, "construction marker data should expose AllowedCategoryIds");
-    if (allowedCategoryIdsProperty?.GetValue(marker) is ICollection<string> allowedCategoryIds)
-    {
-        allowedCategoryIds.Add(StrategicManagementIds.BuildingCategoryEconomy);
-    }
-
     AssertEqual(StrategicManagementIds.RegionPlainsEconomy, marker.MarkerId, "construction marker id should match strategic region id");
     AssertTrue(
-        allowedCategoryIdsProperty?.GetValue(marker) is IEnumerable<string> categories &&
-        categories.Contains(StrategicManagementIds.BuildingCategoryEconomy),
-        "construction marker data should preserve authored category hints");
+        typeof(SemanticMapMarkerData).GetProperty("AllowedCategoryIds") == null,
+        "construction marker data should not carry building-category restrictions");
     AssertTrue(marker.CoveredCells.Contains(new Godot.Vector2I(7, 5)), "construction marker should expose its covered region cells");
 }
 
@@ -89,11 +88,13 @@ internal static void SemanticMapMarkerContractExposesDeploymentSide()
 internal static void SemanticMarkerAuthoringUsesBusinessSubclasses()
 {
     string baseSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "Maps", "SemanticMapMarker.cs"));
-    string buildingSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "Maps", "BuildingSlotMapMarker.cs"));
+    string constructionSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "Maps", "ConstructionRegionMapMarker.cs"));
     string deploymentSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "Maps", "DeploymentZoneMapMarker.cs"));
     string baseScene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "maps", "markers", "SemanticMapMarker.tscn"));
-    string buildingScene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "maps", "markers", "BuildingSlotMapMarker.tscn"));
+    string constructionScene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "maps", "markers", "ConstructionRegionMapMarker.tscn"));
     string deploymentScene = File.ReadAllText(Path.Combine(ProjectRoot(), "scenes", "maps", "markers", "DeploymentZoneMapMarker.tscn"));
+    string buildingSourcePath = Path.Combine(ProjectRoot(), "src", "Presentation", "Maps", "BuildingSlotMapMarker.cs");
+    string buildingScenePath = Path.Combine(ProjectRoot(), "scenes", "maps", "markers", "BuildingSlotMapMarker.tscn");
 
     AssertTrue(
         baseSource.Contains("abstract partial class SemanticMapMarker", StringComparison.Ordinal),
@@ -103,14 +104,19 @@ internal static void SemanticMarkerAuthoringUsesBusinessSubclasses()
         !baseSource.Contains("public SemanticDeploymentSide DeploymentSide { get; set; }", StringComparison.Ordinal),
         "generic marker base should not expose business-specific marker type or deployment side fields");
     AssertTrue(
-        buildingSource.Contains("protected override SemanticMapMarkerType ResolvedMarkerType => SemanticMapMarkerType.BuildingSlot;", StringComparison.Ordinal),
-        "building slot marker subclass should own the building slot type");
+        !File.Exists(buildingSourcePath) &&
+        !File.Exists(buildingScenePath) &&
+        !baseScene.Contains("BuildingSlotMapMarker", StringComparison.Ordinal),
+        "retired building-slot marker authoring script and scene should be deleted");
+    AssertTrue(
+        constructionSource.Contains("protected override SemanticMapMarkerType ResolvedMarkerType => SemanticMapMarkerType.ConstructionRegion;", StringComparison.Ordinal),
+        "construction region marker subclass should own the construction region type");
     AssertTrue(
         deploymentSource.Contains("protected override SemanticMapMarkerType ResolvedMarkerType => SemanticMapMarkerType.DeploymentZone;", StringComparison.Ordinal),
         "deployment marker subclass should own the deployment zone type");
     AssertTrue(
         baseScene.Contains("Abstract semantic marker scene", StringComparison.Ordinal) &&
-        buildingScene.Contains("instance=ExtResource(\"1_base_marker\")", StringComparison.Ordinal) &&
+        constructionScene.Contains("instance=ExtResource(\"1_base_marker\")", StringComparison.Ordinal) &&
         deploymentScene.Contains("instance=ExtResource(\"1_base_marker\")", StringComparison.Ordinal),
         "business marker scenes should inherit from the abstract marker scene template");
 }
@@ -158,30 +164,37 @@ internal static void WorldSiteRootUsesDemoSiteAsBattleMap()
         "demo site should be a BattleMapView-backed map so combat can build grid runtime data.");
 }
 
-internal static void DemoSiteBuildingSlotsAreAuthoredAsSemanticMarkers()
+internal static void ReferenceMapsDoNotAuthorBuildingSlots()
 {
+    string root = ProjectRoot();
     string scene = ReadDemoSiteScene();
-    string markerSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "Maps", "BuildingSlotMapMarker.cs"));
-    string mineSlotNode = ExtractSceneNodeBlock(scene, "[node name=\"mine_slot_01\" parent=\"SemanticMarkers\"");
-    string towerSlotNode = ExtractSceneNodeBlock(scene, "[node name=\"tower_slot_01\" parent=\"SemanticMarkers\"");
-    bool markerSourceUsesBuildingSlotDefault =
-        markerSource.Contains("ResolvedMarkerType => SemanticMapMarkerType.BuildingSlot;", StringComparison.Ordinal);
+    string bonefield = File.ReadAllText(Path.Combine(root, "scenes", "world", "sites", "impl", "BonefieldSite.tscn"));
+    string plainsCity = File.ReadAllText(Path.Combine(root, "scenes", "city", "layouts", "plains_city_v0_layout.tscn"));
 
     AssertTrue(scene.Contains("[node name=\"SemanticMarkers\" type=\"Node2D\" parent=\".\"]", StringComparison.Ordinal), "demo site should have SemanticMarkers root");
-    AssertTrue(scene.Contains("parent=\"SemanticMarkers\" instance=ExtResource", StringComparison.Ordinal), "demo site should place marker child scene instances under SemanticMarkers");
-    AssertTrue(scene.Contains("BuildingSlotMapMarker.tscn", StringComparison.Ordinal), "demo site building slots should instance the building slot marker child scene");
-    AssertTrue(
-        mineSlotNode.Contains("MarkerType = 0", StringComparison.Ordinal) ||
-        (!mineSlotNode.Contains("MarkerType =", StringComparison.Ordinal) && markerSourceUsesBuildingSlotDefault),
-        "mine building slot marker enum value should be explicit or come from the SemanticMapMarker default");
-    AssertTrue(
-        towerSlotNode.Contains("MarkerType = 0", StringComparison.Ordinal) ||
-        (!towerSlotNode.Contains("MarkerType =", StringComparison.Ordinal) && markerSourceUsesBuildingSlotDefault),
-        "building slot marker enum value should be explicit or come from the SemanticMapMarker default");
-    AssertTrue(scene.Contains("MarkerId = \"mine_slot_01\"", StringComparison.Ordinal), "mine slot marker should be authored");
-    AssertTrue(scene.Contains("MarkerId = \"tower_slot_01\"", StringComparison.Ordinal), "tower slot marker should be authored");
-    AssertTrue(scene.Contains("Width = 3", StringComparison.Ordinal) && scene.Contains("Height = 2", StringComparison.Ordinal), "mine slot footprint should be visible as 3x2");
-    AssertTrue(scene.Contains("Width = 2", StringComparison.Ordinal) && scene.Contains("Height = 2", StringComparison.Ordinal), "tower slot footprint should be visible as 2x2");
+    AssertTrue(scene.Contains("ConstructionRegionMapMarker.tscn", StringComparison.Ordinal), "demo site should keep construction-region markers for Strategic Management placement");
+
+    foreach ((string Name, string Text) candidate in new[]
+    {
+        ("demo_site", scene),
+        ("BonefieldSite", bonefield),
+        ("plains_city_v0_layout", plainsCity)
+    })
+    {
+        foreach (string forbidden in new[]
+        {
+            "BuildingSlots",
+            "BuildingSlotMapMarker.tscn",
+            "parent=\"SemanticMarkers/BuildingSlots\"",
+            "SemanticMapMarkerType.BuildingSlot",
+            "MarkerId = \"mine_slot_01\"",
+            "MarkerId = \"tower_slot_01\"",
+            "[node name=\"FacilitySlots\""
+        })
+        {
+            AssertTrue(!candidate.Text.Contains(forbidden, StringComparison.Ordinal), $"{candidate.Name} should not retain retired building/facility-slot marker fragment={forbidden}");
+        }
+    }
 }
 
 internal static void DemoSiteConstructionRegionsAreAuthoredAsSemanticMarkers()
@@ -194,7 +207,7 @@ internal static void DemoSiteConstructionRegionsAreAuthoredAsSemanticMarkers()
     string markerScenePath = Path.Combine(root, "scenes", "maps", "markers", "ConstructionRegionMapMarker.tscn");
 
     AssertTrue(typeSource.Contains("ConstructionRegion", StringComparison.Ordinal), "semantic marker type enum should expose construction regions");
-    AssertTrue(dataSource.Contains("AllowedCategoryIds", StringComparison.Ordinal), "pure marker data should carry construction-region category hints");
+    AssertTrue(!dataSource.Contains("AllowedCategoryIds", StringComparison.Ordinal), "pure marker data should not carry construction-region category restrictions");
     AssertTrue(File.Exists(markerSourcePath), "construction region authoring should have a business marker subclass");
     AssertTrue(File.Exists(markerScenePath), "construction region authoring should have a reusable PackedScene");
 
@@ -203,34 +216,35 @@ internal static void DemoSiteConstructionRegionsAreAuthoredAsSemanticMarkers()
     AssertTrue(
         markerSource.Contains("ConstructionRegionMapMarker : SemanticMapMarker", StringComparison.Ordinal) &&
         markerSource.Contains("ResolvedMarkerType => SemanticMapMarkerType.ConstructionRegion", StringComparison.Ordinal) &&
-        markerSource.Contains("AllowedCategoryIds", StringComparison.Ordinal),
-        "construction region marker subclass should own construction-region type and category hints");
+        !markerSource.Contains("AllowedCategoryIds", StringComparison.Ordinal),
+        "construction region marker subclass should own only construction-region type and priority");
     AssertTrue(
         markerScene.Contains("ConstructionRegionMapMarker.cs", StringComparison.Ordinal) &&
         markerScene.Contains("instance=ExtResource(\"1_base_marker\")", StringComparison.Ordinal),
         "construction region marker scene should inherit from the semantic marker base scene");
 
     AssertTrue(scene.Contains("ConstructionRegionMapMarker.tscn", StringComparison.Ordinal), "demo site should instance construction-region marker child scenes");
-    foreach ((string NodeName, string RegionId, string CategoryId, int Width, int Height) required in new[]
+    foreach ((string NodeName, string RegionId, string Position, int Width, int Height) required in new[]
     {
-        ("strategic_region_plains_economy", StrategicManagementIds.RegionPlainsEconomy, StrategicManagementIds.BuildingCategoryEconomy, 8, 6),
-        ("strategic_region_plains_military", StrategicManagementIds.RegionPlainsMilitary, StrategicManagementIds.BuildingCategoryMilitary, 7, 5),
-        ("strategic_region_plains_civic", StrategicManagementIds.RegionPlainsCivic, StrategicManagementIds.BuildingCategoryHero, 6, 4)
+        ("strategic_region_plains_economy", StrategicManagementIds.RegionPlainsEconomy, "position = Vector2(160, 96)", 8, 6),
+        ("strategic_region_plains_military", StrategicManagementIds.RegionPlainsMilitary, "position = Vector2(336, 288)", 7, 5),
+        ("strategic_region_plains_civic", StrategicManagementIds.RegionPlainsCivic, "position = Vector2(192, 448)", 6, 4)
     })
     {
-        string node = ExtractSceneNodeBlock(scene, $"[node name=\"{required.NodeName}\" parent=\"SemanticMarkers\"");
+        string node = ExtractSceneNodeBlock(scene, $"[node name=\"{required.NodeName}\" parent=\"SemanticMarkers/ConstructionRegions\"");
         AssertTrue(node.Contains($"MarkerId = \"{required.RegionId}\"", StringComparison.Ordinal), $"construction region marker should bind strategic region id={required.RegionId}");
+        AssertTrue(node.Contains(required.Position, StringComparison.Ordinal), $"construction region marker should align with strategic region bounds for id={required.RegionId}");
         AssertTrue(node.Contains($"Width = {required.Width}", StringComparison.Ordinal), $"construction region marker should expose width={required.Width}");
         AssertTrue(node.Contains($"Height = {required.Height}", StringComparison.Ordinal), $"construction region marker should expose height={required.Height}");
-        AssertTrue(node.Contains(required.CategoryId, StringComparison.Ordinal), $"construction region marker should carry category hint={required.CategoryId}");
+        AssertTrue(!node.Contains("AllowedCategoryIds", StringComparison.Ordinal), $"construction region marker should not carry category restrictions id={required.RegionId}");
     }
 }
 
 internal static void DemoSiteDeploymentZonesAreAuthoredAsSemanticMarkers()
 {
     string scene = ReadDemoSiteScene();
-    string playerNode = ExtractSceneNodeBlock(scene, "[node name=\"player_deployment_zone_west\" parent=\"SemanticMarkers\"");
-    string enemyNode = ExtractSceneNodeBlock(scene, "[node name=\"undead_deployment_zone_east\" parent=\"SemanticMarkers\"");
+    string playerNode = ExtractSceneNodeBlock(scene, "[node name=\"player_deployment_zone_west\" parent=\"SemanticMarkers/DeploymentZones\"");
+    string enemyNode = ExtractSceneNodeBlock(scene, "[node name=\"undead_deployment_zone_east\" parent=\"SemanticMarkers/DeploymentZones\"");
 
     AssertTrue(scene.Contains("MarkerId = \"player_deployment_zone_west\"", StringComparison.Ordinal), "player deployment zone marker should be authored");
     AssertTrue(scene.Contains("MarkerId = \"undead_deployment_zone_east\"", StringComparison.Ordinal), "enemy deployment zone marker should be authored");
@@ -516,18 +530,18 @@ internal static void PlainsCityLayoutInheritsBaseAndOwnsContentMarkers()
     AssertTrue(
         scene.Contains("[node name=\"SemanticMarkers\" type=\"Node2D\" parent=\".\"]", StringComparison.Ordinal) &&
         scene.Contains("BridgeMapMarker.tscn", StringComparison.Ordinal) &&
-        scene.Contains("BuildingSlotMapMarker.tscn", StringComparison.Ordinal) &&
         scene.Contains("DeploymentZoneMapMarker.tscn", StringComparison.Ordinal) &&
         scene.Contains("ObjectiveZoneMapMarker.tscn", StringComparison.Ordinal),
-        "layout variant should author content markers through business marker scenes");
+        "layout variant should author tactical content markers through business marker scenes");
+    AssertTrue(
+        !scene.Contains("BuildingSlotMapMarker.tscn", StringComparison.Ordinal) &&
+        !scene.Contains("SemanticMarkers/BuildingSlots", StringComparison.Ordinal),
+        "layout variant should not retain retired building-slot marker authoring");
 
     foreach (string stableId in new[]
     {
         "plains_city_v0_river_bridge",
         "plains_city_v0_high_ramp",
-        "plains_city_v0_barracks_slot",
-        "plains_city_v0_market_slot",
-        "plains_city_v0_workshop_slot",
         "plains_city_v0_player_deployment_west",
         "plains_city_v0_enemy_deployment_east",
         "plains_city_v0_resource_cache"
@@ -536,14 +550,14 @@ internal static void PlainsCityLayoutInheritsBaseAndOwnsContentMarkers()
         AssertTrue(scene.Contains(stableId, StringComparison.Ordinal), $"layout should include stable id={stableId}");
     }
 
-    string bridgeNode = ExtractSceneNodeBlock(scene, "[node name=\"river_bridge_west\" parent=\"SemanticMarkers\"");
+    string bridgeNode = ExtractSceneNodeBlock(scene, "[node name=\"river_bridge_west\" parent=\"SemanticMarkers/BridgeMarkers\"");
     AssertTrue(
         bridgeNode.Contains("MarkerId = \"plains_city_v0_river_bridge\"", StringComparison.Ordinal) &&
         bridgeNode.Contains("BridgeKind = 0", StringComparison.Ordinal) &&
         bridgeNode.Contains("CellHeight = 0", StringComparison.Ordinal),
         "river bridge marker should be same-height h=0 ordinary walkable ground");
-    string playerDeployment = ExtractSceneNodeBlock(scene, "[node name=\"player_deployment_west\" parent=\"SemanticMarkers\"");
-    string enemyDeployment = ExtractSceneNodeBlock(scene, "[node name=\"enemy_deployment_east\" parent=\"SemanticMarkers\"");
+    string playerDeployment = ExtractSceneNodeBlock(scene, "[node name=\"player_deployment_west\" parent=\"SemanticMarkers/DeploymentZones\"");
+    string enemyDeployment = ExtractSceneNodeBlock(scene, "[node name=\"enemy_deployment_east\" parent=\"SemanticMarkers/DeploymentZones\"");
     AssertTrue(
         playerDeployment.Contains("DeploymentSide = 1", StringComparison.Ordinal) &&
         enemyDeployment.Contains("DeploymentSide = 2", StringComparison.Ordinal),
@@ -566,13 +580,26 @@ internal static void ReferenceSiteMapsStayOutOfCityLayoutSlice()
         "first city layout slice should not retrofit bridge markers into existing reference maps");
 }
 
-internal static void WorldSiteRootPrefersSemanticBuildingSlotMarkers()
+internal static void WorldSiteRootDoesNotUseSemanticBuildingSlotOrFacilitySlots()
 {
     string source = ReadWorldSiteRootSource();
     AssertTrue(source.Contains("SemanticMapMarkerExtractor", StringComparison.Ordinal), "world site root should extract semantic markers");
-    AssertTrue(source.Contains("SemanticMapMarkerType.BuildingSlot", StringComparison.Ordinal), "world site root should filter building slot markers");
-    AssertTrue(source.Contains("BuildFacilitySlotEntitiesFromSemanticMarkers", StringComparison.Ordinal), "semantic building slot path should be explicit");
-    AssertTrue(source.Contains("RefreshLegacyFacilitySlotEntities", StringComparison.Ordinal), "legacy slot path should remain a named fallback");
+    foreach (string forbidden in new[]
+    {
+        "SemanticMapMarkerType.BuildingSlot",
+        "BuildFacilitySlotEntitiesFromSemanticMarkers",
+        "RefreshLegacyFacilitySlotEntities",
+        "FacilitySlotsRootName",
+        "_siteFacilitySlotEntities",
+        "_siteFacilitySlotLayouts",
+        "_selectedFacilitySlotId",
+        "TryHandleFacilitySlotInput",
+        "WorldFacilitySlot",
+        "WorldActionResolver"
+    })
+    {
+        AssertTrue(!source.Contains(forbidden, StringComparison.Ordinal), $"world site root should not retain retired facility-slot path fragment={forbidden}");
+    }
 }
 
 internal static void WorldSiteRootBuildsDeploymentCacheFromSemanticMarkers()

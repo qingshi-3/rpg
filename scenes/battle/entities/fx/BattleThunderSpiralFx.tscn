@@ -1,0 +1,16 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleThunderSpiralFx.cs" id="1_spiral"]
+[ext_resource type="SpriteFrames" path="res://assets/battle/abilities/fx/duelyst/utility_misc/fx_vortexswirl/frames.tres" id="2_vortex"]
+
+[node name="BattleThunderSpiralFx" type="Node2D"]
+z_index = 158
+script = ExtResource("1_spiral")
+
+[node name="SpiralSprite" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, 0)
+scale = Vector2(0.5625, 0.5625)
+modulate = Color(0.48, 0.88, 1.35, 0.86)
+sprite_frames = ExtResource("2_vortex")
+animation = &"default"
+autoplay = "default"

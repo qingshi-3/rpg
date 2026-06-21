@@ -22,7 +22,6 @@ public sealed class WorldTickService
         GameLog.Info(nameof(WorldTickService), $"WorldTickStarted tick={state.WorldTick}");
 
         _siteModeTransitions.ClearAftermathSites(state, result);
-        ApplyProduction(state, queries, result);
         ApplyAutoGarrisonProduction(state, queries, result);
         _opportunityService.AdvanceOpportunities(state, definition, result);
 
@@ -36,41 +35,6 @@ public sealed class WorldTickService
             nameof(WorldTickService),
             $"WorldTickEnded tick={state.WorldTick} population={state.PlayerResources.GetAvailable(StrategicWorldIds.ResourcePopulation)}/{state.PlayerResources.GetAmount(StrategicWorldIds.ResourcePopulation)} economy={state.PlayerResources.GetAmount(StrategicWorldIds.ResourceEconomy)} stone={state.PlayerResources.GetAmount(StrategicWorldIds.ResourceStone)}");
         return result;
-    }
-
-    private static void ApplyProduction(StrategicWorldState state, StrategicWorldDefinitionQueries queries, WorldTickResult result)
-    {
-        foreach (WorldSiteState site in state.SiteStates.Values)
-        {
-            if (site.OwnerFactionId != state.PlayerFactionId ||
-                site.ControlState is not (SiteControlState.PlayerHeld or SiteControlState.Damaged))
-            {
-                continue;
-            }
-
-            foreach (FacilityInstance facility in site.Facilities)
-            {
-                if (facility.FacilityId != StrategicWorldIds.FacilityMine ||
-                    facility.State != FacilityState.Active ||
-                    facility.AssignedPopulation < 1)
-                {
-                    continue;
-                }
-
-                state.PlayerResources.Add(StrategicWorldIds.ResourceStone, 2);
-                result.Messages.Add(
-                    $"{StrategicWorldDisplayNames.GetSiteLabel(queries, site.SiteId)} " +
-                    $"{StrategicWorldDisplayNames.GetFacilityLabel(queries, facility.FacilityId)}产出{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} +2。");
-                result.Events.Add(new GameEvent
-                {
-                    Kind = "ResourceChanged",
-                    Tick = state.WorldTick,
-                    TargetIds = { StrategicWorldIds.ResourceStone },
-                    Payload = { ["amount"] = "2", ["reason"] = "mine_production", ["site"] = site.SiteId }
-                });
-                GameLog.Info(nameof(WorldTickService), $"Production site={site.SiteId} facility={facility.InstanceId} stone=2");
-            }
-        }
     }
 
     private void ApplyAutoGarrisonProduction(

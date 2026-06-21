@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Rpg.Infrastructure.Diagnostics;
-using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
@@ -8,8 +7,8 @@ using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
-// The tick resolver owns stale-target context rebuilds; movement owns detecting
-// the stale target and invoking this narrow retarget boundary.
+// Stale-target rebuilds stay behind a narrow service callback; movement commit
+// owns only stale-target detection and the point where a retarget may be spent.
 internal delegate bool TryRetargetStaleAdvanceContextCallback(
     BattleRuntimeTickContext context,
     IReadOnlyDictionary<string, BattleRuntimeTickStartActorFact> tickStartFacts,
@@ -127,7 +126,7 @@ internal static class BattleMovementCommitResolver
             if (!context.Proposal.HasMoveTo)
             {
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "advance_failed");
-                BattleRuntimeTickResolver.RecordAdvanceFailure(context.ActorFact.Actor, context.Proposal.FailureReason);
+                BattleAdvanceFailureStateBoundary.RecordAdvanceFailure(context.ActorFact.Actor, context.Proposal.FailureReason);
                 BattleRuntimeActorStateMachine.MarkHolding(context.ActorFact.Actor, currentTimeSeconds);
                 continue;
             }
@@ -195,7 +194,7 @@ internal static class BattleMovementCommitResolver
             if (!reserved)
             {
                 candidate.Context.Result = BattleRuntimeAiActionResult.Failed(candidate.Context.Request, "reservation_rejected");
-                BattleRuntimeTickResolver.RecordAdvanceFailure(candidate.Context.ActorFact.Actor, "reservation_rejected");
+                BattleAdvanceFailureStateBoundary.RecordAdvanceFailure(candidate.Context.ActorFact.Actor, "reservation_rejected");
                 performanceCounters?.RecordHoldDueReservation();
                 BattleRuntimeActorStateMachine.MarkHolding(candidate.Context.ActorFact.Actor, currentTimeSeconds);
                 BattleRuntimeAdvanceDiagnostics.LogAdvanceFailureDiagnostic(
@@ -210,96 +209,18 @@ internal static class BattleMovementCommitResolver
                 continue;
             }
 
-            candidate.Context.ActorFact.Actor.HasReservedGridCell = true;
-            candidate.Context.ActorFact.Actor.ReservedGridX = selectedMove.X;
-            candidate.Context.ActorFact.Actor.ReservedGridY = selectedMove.Y;
-            candidate.Context.ActorFact.Actor.ReservedGridHeight = selectedMove.Height;
-            BattleGroupPlanRuntimeState planState =
-                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
-                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
-                candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                    ? BattleGroupPlanRuntimeState.AdvancingToObjective
-                    : BattleGroupPlanRuntimeState.MovingToAttackSlot;
-            string transitionReason = candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
-                ? "objective_advance"
-                : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
-                    ? candidate.Context.Request.ReasonCode
-                : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                    ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
-                : "moving_to_attack_slot";
-            BattlePlanStateEmitter.SetPlanState(
+            BattleMovementCommitBoundary.ApplyAcceptedMove(
+                candidate.Context,
+                candidate.From,
+                selectedMove,
                 stream,
                 battleId,
                 tick,
                 currentTimeSeconds,
-                candidate.Context.ActorFact.Actor,
-                planState,
-                transitionReason,
-                logWhenUnchanged: true,
-                actionCode: "movement_started",
-                from: candidate.From,
-                to: selectedMove);
-            LogCombatSlotIntentIfChanged(battleId, tick, currentTimeSeconds, candidate.Context, selectedMove);
-            BattleRuntimeActorStateMachine.MarkMovementCommitted(
-                candidate.Context.ActorFact.Actor,
-                selectedMove,
-                currentTimeSeconds,
-                BattleMovementIntentCommit.FromContext(candidate.Context));
-            BattleRuntimeTickResolver.ResetAdvanceFailureState(candidate.Context.ActorFact.Actor);
-            candidate.Context.Result = BattleRuntimeAiActionResult.Succeeded(candidate.Context.Request, "advanced");
-            stream.Add(BattleRuntimeEventFactory.CreateMovementEvent(
-                BattleEventKind.MovementStarted,
-                battleId,
-                tick,
-                currentTimeSeconds,
-                candidate.Context.ActorFact.Actor,
-                BattleObjectiveAdvancePlanner.ResolveMovementEventTargetId(candidate.Context),
-                candidate.From,
-                selectedMove,
-                !string.IsNullOrWhiteSpace(candidate.Context.Proposal.MovementReasonCode)
-                    ? candidate.Context.Proposal.MovementReasonCode
-                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
-                    ? "plan_objective_advance"
-                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
-                        ? candidate.Context.Request.ReasonCode
-                    : candidate.Context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                        ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
-                    : "auto_advance"));
+                performanceCounters);
             movementEvents++;
-            performanceCounters?.RecordMovementEvent(currentTimeSeconds);
         }
 
         return movementEvents;
-    }
-
-    private static void LogCombatSlotIntentIfChanged(
-        string battleId,
-        int tick,
-        double currentTimeSeconds,
-        BattleRuntimeTickContext context,
-        BattleGridCoord selectedMove)
-    {
-        if (context?.Proposal?.HasCombatSlotIntent != true)
-        {
-            return;
-        }
-
-        BattleRuntimeActor actor = context.ActorFact.Actor;
-        BattleGridCoord slot = context.Proposal.CombatSlotAnchor;
-        bool unchanged = actor.HasMovementIntentCombatSlot &&
-                         actor.MovementIntentCombatSlotX == slot.X &&
-                         actor.MovementIntentCombatSlotY == slot.Y &&
-                         actor.MovementIntentCombatSlotHeight == slot.Height &&
-                         actor.MovementIntentCombatSlotKind == context.Proposal.CombatSlotKind;
-        if (unchanged)
-        {
-            return;
-        }
-
-        // Slot assignment can update often in crowded fights, so it stays trace-only
-        // while Runtime transition events remain the low-noise default diagnostics.
-        GameLog.Trace(
-            nameof(BattleMovementCommitResolver),
-            $"BattleRuntimeCombatSlotIntent battle={battleId ?? ""} tick={tick} time={currentTimeSeconds:0.00} actor={actor.ActorId ?? ""} target={context.TargetFact?.Actor.ActorId ?? ""} situation={context.Proposal.LocalCombatSituationId ?? ""} kind={context.Proposal.CombatSlotKind} slot={slot.X},{slot.Y},{slot.Height} next={selectedMove.X},{selectedMove.Y},{selectedMove.Height} reason={context.Proposal.MovementReasonCode ?? ""}");
     }
 }

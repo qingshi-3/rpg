@@ -122,6 +122,7 @@ public partial class StrategicWorldRoot : Control
 	private Control _mainWorldViewportHost;
 	private SubViewport _mainWorldViewport;
 	private Control _worldMapOverlay;
+	private Control _strategicHudRoot;
 	private Control _topBarHost;
 	private Control _leftPrimaryPanelHost;
 	private Control _modalHost;
@@ -140,10 +141,15 @@ public partial class StrategicWorldRoot : Control
 	private TextureButton _worldClockToggleButton;
 	private TextureButton _worldClockSpeedButton;
 	private Control _siteDetailPanel;
+	private ScrollContainer _siteDetailBodyScroll;
 	private Tween _siteDetailPanelTween;
 	private bool _siteDetailPanelVisibleRequested;
-	private Vector2 _siteDetailPanelRestPosition;
-	private bool _siteDetailPanelHasRestPosition;
+	private bool _siteDetailPanelAuthoredLayoutCaptured;
+	private Vector2 _siteDetailPanelAuthoredMinimumSize;
+	private float _siteDetailPanelAuthoredOffsetLeft;
+	private float _siteDetailPanelAuthoredOffsetTop;
+	private float _siteDetailPanelAuthoredOffsetRight;
+	private float _siteDetailPanelAuthoredOffsetBottom;
 	private Label _siteTitleLabel;
 	private Label _siteBodyLabel;
 	private VBoxContainer _actionList;
@@ -273,7 +279,45 @@ public partial class StrategicWorldRoot : Control
 
 		// HUD controls can pass scroll or drag events to this root Control. Only the
 		// resolved map viewport may drive camera navigation or map selection.
+		if (IsPointerOverNonMapUi())
+		{
+			return false;
+		}
+
 		return ResolveMainWorldViewportRect().HasPoint(screenPosition);
+	}
+
+	private bool IsPointerOverNonMapUi()
+	{
+		Control hoveredControl = GetViewport()?.GuiGetHoveredControl();
+		if (hoveredControl == null || _strategicHudRoot == null)
+		{
+			return false;
+		}
+
+		if (hoveredControl == _strategicHudRoot)
+		{
+			return false;
+		}
+
+		if (!IsControlInTree(_strategicHudRoot, hoveredControl))
+		{
+			return false;
+		}
+
+		if (IsControlInTree(_mainWorldViewportHost, hoveredControl) || IsControlInTree(_worldMapOverlay, hoveredControl))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	private static bool IsControlInTree(Control root, Control candidate)
+	{
+		return root != null &&
+			candidate != null &&
+			(root == candidate || root.IsAncestorOf(candidate));
 	}
 
 	private static bool TryGetRootScreenPointerPosition(InputEvent @event, out Vector2 screenPosition)

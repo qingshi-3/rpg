@@ -32,7 +32,9 @@ public sealed class BattleGroupSnapshot
     public double AttackSpeed { get; set; } = BattleAttackSpeedPolicy.DefaultAttackSpeed;
     public double MoveStepSeconds { get; set; } = BattleActionTimingPolicy.DefaultMoveStepSeconds;
     public double AttackActionSeconds { get; set; }
-    public double AttackImpactDelaySeconds { get; set; }
+    // NaN means "use the runtime/default impact timing"; zero is a valid
+    // authored value for instant-impact compatibility fixtures.
+    public double AttackImpactDelaySeconds { get; set; } = double.NaN;
     public string InitialCorpsCommandId { get; set; } = "";
     public BattleGroupPlanSnapshot Plan { get; set; } = new();
     public BattleTacticalIntentPlanSnapshot TacticalIntentPlan { get; set; } = new();

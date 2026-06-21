@@ -237,8 +237,7 @@ public sealed class StrategicManagementViewModelService
                 OriginX = region.OriginX,
                 OriginY = region.OriginY,
                 Width = region.Width,
-                Height = region.Height,
-                AllowedCategoryIds = new List<string>(region.AllowedCategoryIds)
+                Height = region.Height
             })
             .ToList();
     }

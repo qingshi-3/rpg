@@ -43,16 +43,4 @@ public static class StrategicWorldDisplayNames
             : displayName;
     }
 
-    public static string GetFacilityLabel(StrategicWorldDefinitionQueries queries, string facilityId, string fallback = "")
-    {
-        if (string.IsNullOrWhiteSpace(facilityId))
-        {
-            return string.IsNullOrWhiteSpace(fallback) ? "无" : fallback;
-        }
-
-        string displayName = queries?.GetFacility(facilityId)?.DisplayName;
-        return string.IsNullOrWhiteSpace(displayName)
-            ? string.IsNullOrWhiteSpace(fallback) ? facilityId : fallback
-            : displayName;
-    }
 }

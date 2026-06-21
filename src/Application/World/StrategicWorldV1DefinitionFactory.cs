@@ -25,7 +25,6 @@ public static class StrategicWorldV1DefinitionFactory
             EnemyFactionIds = new List<string> { StrategicWorldIds.FactionUndead },
             FactionDefinitions = CreateFactions(),
             ResourceDefinitions = CreateResources(),
-            FacilityDefinitions = CreateFacilities(),
             SiteDefinitions = CreateSites(loadInitialStateConfig),
             OpportunityDefinitions = CreateOpportunities(),
             OpportunitySpawnPoints = CreateOpportunitySpawnPoints(),
@@ -125,55 +124,6 @@ public static class StrategicWorldV1DefinitionFactory
         };
     }
 
-    private static List<FacilityDefinition> CreateFacilities()
-    {
-        return new List<FacilityDefinition>
-        {
-            new()
-            {
-                Id = StrategicWorldIds.FacilityBarracks,
-                DisplayName = "兵营",
-                Description = "训练和驻军能力。",
-                FacilityType = FacilityType.Military,
-                Actions = new List<string> { StrategicWorldIds.ActionTrainMilitia }
-            },
-            new()
-            {
-                Id = StrategicWorldIds.FacilityMine,
-                DisplayName = "矿场",
-                Description = "占用人口，每个世界步产出石材。",
-                FacilityType = FacilityType.Production,
-                BuildCosts = new List<ResourceAmountDefinition> { new(StrategicWorldIds.ResourceEconomy, 2) },
-                RequiredSlotTags = new List<string> { "mine" },
-                PassiveEffects = new List<string> { "produce_stone_2" }
-            },
-            new()
-            {
-                Id = StrategicWorldIds.FacilityDefenseTower,
-                DisplayName = "防御塔",
-                Description = "提高防守值，防守战提供塔支援。",
-                FacilityType = FacilityType.Defense,
-                BuildCosts = new List<ResourceAmountDefinition>
-                {
-                    new(StrategicWorldIds.ResourceStone, 4),
-                    new(StrategicWorldIds.ResourceEconomy, 2)
-                },
-                RequiredSlotTags = new List<string> { "tower" },
-                BattleModifiers = new List<BattleModifierDefinition>
-                {
-                    new()
-                    {
-                        Id = "tower_support",
-                        Type = "tower_support",
-                        BattleAnchorId = "bonefield_north_tower",
-                        Uses = 1,
-                        Values = new Dictionary<string, int> { ["defense_score"] = 3 }
-                    }
-                }
-            }
-        };
-    }
-
     private static List<WorldSiteDefinition> CreateSites(bool loadInitialStateConfig)
     {
         List<WorldSiteDefinition> sites = new()
@@ -187,17 +137,6 @@ public static class StrategicWorldV1DefinitionFactory
                 MapPosition = new Vector2(236, 413),
                 InitialOwnerFactionId = StrategicWorldIds.FactionPlayer,
                 InitialControlState = SiteControlState.PlayerHeld,
-                FacilitySlots = new List<FacilitySlotDefinition>
-                {
-                    new()
-                    {
-                        SlotId = "camp_barracks_01",
-                        DisplayName = "营地兵营",
-                        Tags = new List<string> { "barracks", "military" },
-                        AllowedFacilityIds = new List<string> { StrategicWorldIds.FacilityBarracks },
-                        InitialFacilityId = StrategicWorldIds.FacilityBarracks
-                    }
-                },
                 DefaultGarrisonZoneId = WorldSiteDeploymentService.DefaultGarrisonZoneId,
                 DeploymentZones = new List<SiteDeploymentZoneDefinition>
                 {
@@ -228,29 +167,10 @@ public static class StrategicWorldV1DefinitionFactory
                 Id = StrategicWorldIds.SiteBonefield,
                 DisplayName = "埋骨地",
                 SiteKind = WorldSiteKind.ResourceSite,
-                Description = "第一座可争夺资源地点，能启用矿场、建造防御塔并承接普通攻占战。",
+                Description = "第一座可争夺资源地点，承接普通攻占战和后续战略经营开发。",
                 MapPosition = new Vector2(796, 413),
                 InitialOwnerFactionId = StrategicWorldIds.FactionUndead,
                 InitialControlState = SiteControlState.Hostile,
-                FacilitySlots = new List<FacilitySlotDefinition>
-                {
-                    new()
-                    {
-                        SlotId = "mine_slot_01",
-                        DisplayName = "埋骨地采石点",
-                        Tags = new List<string> { "mine", "production" },
-                        AllowedFacilityIds = new List<string> { StrategicWorldIds.FacilityMine },
-                        BattleAnchorId = "bonefield_core"
-                    },
-                    new()
-                    {
-                        SlotId = "tower_slot_01",
-                        DisplayName = "北侧塔基",
-                        Tags = new List<string> { "tower", "defense" },
-                        AllowedFacilityIds = new List<string> { StrategicWorldIds.FacilityDefenseTower },
-                        BattleAnchorId = "bonefield_north_tower"
-                    }
-                },
                 DefaultGarrisonZoneId = WorldSiteDeploymentService.DefaultGarrisonZoneId,
                 DeploymentZones = new List<SiteDeploymentZoneDefinition>
                 {
@@ -397,49 +317,6 @@ public static class StrategicWorldV1DefinitionFactory
         {
             new()
             {
-                Id = StrategicWorldIds.ActionBuildMine,
-                DisplayName = "启用矿场",
-                Description = "消耗经济并占用人口，让埋骨地每个世界步产出石材。",
-                Scope = WorldActionScope.Site,
-                AdvancesWorldTick = true,
-                Costs = new List<ResourceAmountDefinition> { new(StrategicWorldIds.ResourceEconomy, 2) },
-                Conditions = new List<WorldConditionDefinition>
-                {
-                    new() { Kind = WorldConditionKind.SiteOwnerIs, SiteId = StrategicWorldIds.SiteBonefield, FactionId = StrategicWorldIds.FactionPlayer, FailureReasonKey = "site_not_owned" },
-                    new() { Kind = WorldConditionKind.SiteControlStateIs, SiteId = StrategicWorldIds.SiteBonefield, ControlStates = new List<SiteControlState> { SiteControlState.PlayerHeld, SiteControlState.Damaged }, FailureReasonKey = "site_not_owned" },
-                    new() { Kind = WorldConditionKind.HasEmptyFacilitySlot, SiteId = StrategicWorldIds.SiteBonefield, TargetId = StrategicWorldIds.FacilityMine, SlotTag = "mine", FailureReasonKey = "no_valid_facility_slot" },
-                    new() { Kind = WorldConditionKind.HasAvailablePopulation, Amount = 1, FailureReasonKey = "not_enough_population" }
-                },
-                Effects = new List<WorldEffectDefinition>
-                {
-                    new() { Kind = WorldEffectKind.AddFacility, SiteId = StrategicWorldIds.SiteBonefield, FacilityId = StrategicWorldIds.FacilityMine },
-                    new() { Kind = WorldEffectKind.ReserveResource, ResourceId = StrategicWorldIds.ResourcePopulation, Amount = 1, TargetId = "last_facility" }
-                }
-            },
-            new()
-            {
-                Id = StrategicWorldIds.ActionBuildDefenseTower,
-                DisplayName = "建造防御塔",
-                Description = "提高埋骨地防守值，并在防守战提供一次塔支援。",
-                Scope = WorldActionScope.Site,
-                AdvancesWorldTick = true,
-                Costs = new List<ResourceAmountDefinition>
-                {
-                    new(StrategicWorldIds.ResourceStone, 4),
-                    new(StrategicWorldIds.ResourceEconomy, 2)
-                },
-                Conditions = new List<WorldConditionDefinition>
-                {
-                    new() { Kind = WorldConditionKind.SiteOwnerIs, SiteId = StrategicWorldIds.SiteBonefield, FactionId = StrategicWorldIds.FactionPlayer, FailureReasonKey = "site_not_owned" },
-                    new() { Kind = WorldConditionKind.HasEmptyFacilitySlot, SiteId = StrategicWorldIds.SiteBonefield, TargetId = StrategicWorldIds.FacilityDefenseTower, SlotTag = "tower", FailureReasonKey = "no_valid_facility_slot" }
-                },
-                Effects = new List<WorldEffectDefinition>
-                {
-                    new() { Kind = WorldEffectKind.AddFacility, SiteId = StrategicWorldIds.SiteBonefield, FacilityId = StrategicWorldIds.FacilityDefenseTower }
-                }
-            },
-            new()
-            {
                 Id = StrategicWorldIds.ActionTrainMilitia,
                 DisplayName = "训练民兵",
                 Description = "消耗人口和经济，在玩家营地增加一队民兵。",
@@ -452,8 +329,7 @@ public static class StrategicWorldV1DefinitionFactory
                 },
                 Conditions = new List<WorldConditionDefinition>
                 {
-                    new() { Kind = WorldConditionKind.SiteOwnerIs, SiteId = StrategicWorldIds.SitePlayerCamp, FactionId = StrategicWorldIds.FactionPlayer, FailureReasonKey = "site_not_owned" },
-                    new() { Kind = WorldConditionKind.HasFacility, SiteId = StrategicWorldIds.SitePlayerCamp, TargetId = StrategicWorldIds.FacilityBarracks, FacilityState = FacilityState.Active, FailureReasonKey = "missing_facility" }
+                    new() { Kind = WorldConditionKind.SiteOwnerIs, SiteId = StrategicWorldIds.SitePlayerCamp, FactionId = StrategicWorldIds.FactionPlayer, FailureReasonKey = "site_not_owned" }
                 },
                 Effects = new List<WorldEffectDefinition>
                 {
@@ -576,4 +452,3 @@ public static class StrategicWorldV1DefinitionFactory
     }
 
 }
-
