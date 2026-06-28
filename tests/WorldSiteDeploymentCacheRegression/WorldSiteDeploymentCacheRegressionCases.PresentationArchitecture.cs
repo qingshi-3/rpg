@@ -62,12 +62,12 @@ internal static void WorldViewportLayoutUsesResolvedControlRects()
         !strategicResolveBody.Contains("_leftPrimaryPanelHost", StringComparison.Ordinal) &&
         !strategicResolveBody.Contains("_topBarHost", StringComparison.Ordinal) &&
         !strategicLayoutBody.Contains("SetFixedRect(_mainWorldViewportHost", StringComparison.Ordinal) &&
-        !strategicLayoutBody.Contains("_worldMapOverlay.Size =", StringComparison.Ordinal) &&
-        strategicLayoutBody.Contains("SetFullRect(_worldMapOverlay)", StringComparison.Ordinal) &&
+        strategicLayoutBody.Contains("_worldMapOverlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft)", StringComparison.Ordinal) &&
+        strategicLayoutBody.Contains("_worldMapOverlay.Size = viewportSize", StringComparison.Ordinal) &&
         strategicScene.Contains("node name=\"MainWorldViewportHost\" type=\"SubViewportContainer\" parent=\".\"", StringComparison.Ordinal) &&
         strategicScene.Contains("anchor_right = 1.0", StringComparison.Ordinal) &&
         strategicScene.Contains("anchor_bottom = 1.0", StringComparison.Ordinal),
-        "strategic viewport bounds should derive from the authored MainWorldViewportHost rect, not mutable HUD child geometry or code-overwritten host anchors");
+        "strategic viewport bounds should derive from the authored MainWorldViewportHost rect, with the overlay sized once from the resolved viewport rect.");
 }
 
 internal static void BattleCameraUsesMapBoundsSourceContract()

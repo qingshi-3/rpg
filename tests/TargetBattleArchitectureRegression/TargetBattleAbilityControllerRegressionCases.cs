@@ -229,9 +229,11 @@ internal static class TargetBattleAbilityControllerRegressionCases
             DisplayName = "Delayed Cell Mark",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0.3,
             RecoverySeconds = 0,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             Effects =
             {
@@ -412,7 +414,7 @@ internal static class TargetBattleAbilityControllerRegressionCases
 
     private static BattleStartSnapshot BuildOpposedSnapshot(string battleId)
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = $"snapshot_{battleId}",
             BattleId = battleId,
@@ -449,6 +451,8 @@ internal static class TargetBattleAbilityControllerRegressionCases
                 }
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static void AddDamageSkill(
@@ -464,9 +468,11 @@ internal static class TargetBattleAbilityControllerRegressionCases
             DisplayName = skillId,
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = castSeconds,
             ImpactDelaySeconds = 0,
             RecoverySeconds = recoverySeconds,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             Effects =
             {

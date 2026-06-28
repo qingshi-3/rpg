@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Rpg.Application.Battle.Snapshots;
 
 namespace Rpg.Application.Battle;
 
@@ -8,6 +9,33 @@ public static class BattleRuntimeActorIdentity
     public static IReadOnlyDictionary<string, string> BuildPresentationEntityToRuntimeActorMap(BattleStartRequest request)
     {
         return BuildPresentationEntityToRuntimeActorMap(request?.PlayerForces, request?.EnemyForces);
+    }
+
+    public static IReadOnlyDictionary<string, string> BuildPresentationEntityToRuntimeActorMap(
+        BattleStartRequest request,
+        BattleStartSnapshot launchedSnapshot)
+    {
+        var result = new Dictionary<string, string>(System.StringComparer.Ordinal);
+        if (request == null || launchedSnapshot?.BattleGroups == null)
+        {
+            return result;
+        }
+
+        string[] presentationEntityIds = EnumeratePresentationEntityIds(request).ToArray();
+        string[] runtimeActorIds = EnumerateSnapshotRuntimeCorpsActorIds(launchedSnapshot).ToArray();
+        int count = System.Math.Min(presentationEntityIds.Length, runtimeActorIds.Length);
+        for (int index = 0; index < count; index++)
+        {
+            string presentationEntityId = presentationEntityIds[index];
+            string runtimeActorId = runtimeActorIds[index];
+            if (!string.IsNullOrWhiteSpace(presentationEntityId) &&
+                !string.IsNullOrWhiteSpace(runtimeActorId))
+            {
+                result[presentationEntityId] = runtimeActorId;
+            }
+        }
+
+        return result;
     }
 
     public static IReadOnlyDictionary<string, string> BuildPresentationEntityToRuntimeActorMap(
@@ -27,6 +55,43 @@ public static class BattleRuntimeActorIdentity
             .Values
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .ToHashSet(System.StringComparer.Ordinal);
+    }
+
+    private static IEnumerable<string> EnumeratePresentationEntityIds(BattleStartRequest request)
+    {
+        foreach (BattleForceRequest force in (request?.PlayerForces ?? Enumerable.Empty<BattleForceRequest>())
+                     .Concat(request?.EnemyForces ?? Enumerable.Empty<BattleForceRequest>()))
+        {
+            int count = System.Math.Max(0, force?.Count ?? 0);
+            for (int index = 0; index < count; index++)
+            {
+                string presentationEntityId = BuildPresentationEntityId(force, index);
+                if (!string.IsNullOrWhiteSpace(presentationEntityId))
+                {
+                    yield return presentationEntityId;
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateSnapshotRuntimeCorpsActorIds(BattleStartSnapshot snapshot)
+    {
+        var sourceForceIndexes = new Dictionary<string, int>(System.StringComparer.Ordinal);
+        foreach (BattleGroupSnapshot group in snapshot?.BattleGroups ?? Enumerable.Empty<BattleGroupSnapshot>())
+        {
+            string sourceForceId = string.IsNullOrWhiteSpace(group?.SourceForceId)
+                ? group?.BattleGroupId
+                : group.SourceForceId;
+            if (string.IsNullOrWhiteSpace(sourceForceId))
+            {
+                continue;
+            }
+
+            sourceForceIndexes.TryGetValue(sourceForceId, out int previousCount);
+            int oneBasedRuntimeIndex = previousCount + 1;
+            sourceForceIndexes[sourceForceId] = oneBasedRuntimeIndex;
+            yield return $"{sourceForceId}:{oneBasedRuntimeIndex}";
+        }
     }
 
     private static void AddMappings(

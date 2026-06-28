@@ -206,7 +206,7 @@ public partial class WorldSiteRoot
     private void OnBattleRuntimeHeroSkillPressed()
     {
         BattleRuntimeCommandGroupView selected = ResolveSelectedBattleRuntimeGroup();
-        string skillId = BuildBattleRuntimeSkillSnapshots(selected).FirstOrDefault()?.SkillId ?? HeroSkillCommandIds.FirstSliceHeroSkillId;
+        string skillId = BuildBattleRuntimeSkillSnapshots(selected).FirstOrDefault()?.SkillId;
         BeginBattleRuntimeSkillPress(selected, skillId);
     }
     private void OnBattleRuntimeSkillSlotPressed(string skillId) =>
@@ -218,9 +218,14 @@ public partial class WorldSiteRoot
             SetSiteNoticeText("请选择参战英雄。");
             return;
         }
-        string normalizedSkillId = string.IsNullOrWhiteSpace(skillId)
-            ? HeroSkillCommandIds.FirstSliceHeroSkillId
-            : skillId.Trim();
+        string normalizedSkillId = (skillId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(normalizedSkillId))
+        {
+            SetSiteNoticeText($"技能暂不可用：{BattleRuntimeSkillHudText.BuildUnavailableText("hero_skill_missing")}");
+            RefreshBattleRuntimeHeroFrame();
+            return;
+        }
+
         IReadOnlyList<BattleSkillSnapshot> availableSkills = BuildBattleRuntimeSkillSnapshots(selected);
         BattleSkillSnapshot pressedSkill = availableSkills.FirstOrDefault(skill => string.Equals(skill.SkillId, normalizedSkillId, System.StringComparison.Ordinal));
         if (pressedSkill == null)
@@ -281,9 +286,15 @@ public partial class WorldSiteRoot
         }
         _battleRuntimeHeroSkillTargetPickingActive = true;
         _battleRuntimeHeroSkillTargetPickingGroup = selected;
-        _battleRuntimeHeroSkillTargetPickingSkillId = string.IsNullOrWhiteSpace(skillId)
-            ? HeroSkillCommandIds.FirstSliceHeroSkillId
-            : skillId.Trim();
+        string normalizedSkillId = (skillId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(normalizedSkillId))
+        {
+            SetSiteNoticeText($"技能暂不可用：{BattleRuntimeSkillHudText.BuildUnavailableText("hero_skill_missing")}");
+            RefreshBattleRuntimeHeroFrame();
+            return;
+        }
+
+        _battleRuntimeHeroSkillTargetPickingSkillId = normalizedSkillId;
         _battleRuntimeHeroSkillPreviewTargetActorId = "";
         _battleRuntimeThunderFoldTargetingStage = string.Equals(_battleRuntimeHeroSkillTargetPickingSkillId, HeroSkillCommandIds.ThunderMarkFoldSkillId, System.StringComparison.Ordinal)
             ? ThunderFoldTargetingStage.MarkSelection
@@ -450,9 +461,7 @@ public partial class WorldSiteRoot
     {
         string groupKey = selected?.GroupKey ?? _selectedBattleRuntimeGroupKey ?? "";
         string battleId = _activeBattleGroupRuntimeResolution?.RuntimeController?.BattleId ?? _battleRuntimeRequest?.ContextId ?? "";
-        string skillId = string.IsNullOrWhiteSpace(_battleRuntimeHeroSkillTargetPickingSkillId)
-            ? HeroSkillCommandIds.FirstSliceHeroSkillId
-            : _battleRuntimeHeroSkillTargetPickingSkillId;
+        string skillId = (_battleRuntimeHeroSkillTargetPickingSkillId ?? "").Trim();
         return BattleRuntimeHeroSkillCommandRequestFactory.BuildHeroSkillCommandRequest(groupKey, battleId, skillId, sourceActorId, targetActorId, targetGrid, selectedSpatialMarkId);
     }
     private void RefreshBattleRuntimeHeroSkillTargetPreview()
@@ -572,7 +581,12 @@ public partial class WorldSiteRoot
     private IReadOnlyList<GridPosition> BuildBattleRuntimeHeroSkillRangeCells(BattleEntity source) => BattleRuntimeHeroSkillTargetPresentation.BuildRangeCells(source, _activeGridMap, ResolveBattleRuntimeHeroSkillRange());
     private int ResolveBattleRuntimeHeroSkillRange()
     {
-        string skillId = string.IsNullOrWhiteSpace(_battleRuntimeHeroSkillTargetPickingSkillId) ? HeroSkillCommandIds.FirstSliceHeroSkillId : _battleRuntimeHeroSkillTargetPickingSkillId;
+        string skillId = (_battleRuntimeHeroSkillTargetPickingSkillId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(skillId))
+        {
+            return 0;
+        }
+
         return (BuildBattleRuntimeSkillSnapshots(_battleRuntimeHeroSkillTargetPickingGroup).FirstOrDefault(item => string.Equals(item?.SkillId, skillId, System.StringComparison.Ordinal))
             ?? _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SkillDefinitions?.FirstOrDefault(item => string.Equals(item?.SkillId, skillId, System.StringComparison.Ordinal)))?.Range ?? 0;
     }

@@ -188,10 +188,10 @@ internal sealed class BattleNavigationGraph
             return CreateFromTopology(context.NavigationTopology);
         }
 
-        return CreateFromActors(actors);
+        throw new System.InvalidOperationException("battle_navigation_topology_missing");
     }
 
-    public static BattleNavigationGraph CreateFromActors(IEnumerable<BattleRuntimeActor> actors)
+    public static BattleNavigationGraph CreateDiagnosticFromActors(IEnumerable<BattleRuntimeActor> actors)
     {
         BattleRuntimeActor[] corps = (actors ?? Enumerable.Empty<BattleRuntimeActor>())
             .Where(actor => actor?.Kind == BattleRuntimeActorKind.Corps)
@@ -228,7 +228,7 @@ internal sealed class BattleNavigationGraph
 
         if (nodes.Count == 0)
         {
-            return CreateFromActors(System.Array.Empty<BattleRuntimeActor>());
+            throw new System.InvalidOperationException("battle_navigation_topology_empty");
         }
 
         var edges = new Dictionary<BattleGridCoord, List<GraphEdge>>();

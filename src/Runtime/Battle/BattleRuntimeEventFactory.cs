@@ -16,6 +16,8 @@ internal static class BattleRuntimeEventFactory
         BattleGridCoord actorAnchor,
         BattleGridCoord targetAnchor,
         int appliedDamage,
+        int targetHpBefore,
+        int targetHpAfter,
         bool isFinishingHit)
     {
         return new BattleEvent
@@ -34,6 +36,9 @@ internal static class BattleRuntimeEventFactory
             ActionDurationSeconds = actor.AttackActionSeconds,
             ActionImpactDelaySeconds = actor.AttackImpactDelaySeconds,
             CorpsStrengthDelta = -appliedDamage,
+            HasTargetHitPoints = true,
+            TargetHpBefore = targetHpBefore,
+            TargetHpAfter = targetHpAfter,
             HasActorCells = true,
             ActorGridX = actorAnchor.X,
             ActorGridY = actorAnchor.Y,
@@ -55,6 +60,8 @@ internal static class BattleRuntimeEventFactory
         BattleGridCoord targetAnchor,
         string sourceCommandId,
         int appliedDamage,
+        int targetHpBefore,
+        int targetHpAfter,
         bool isFinishingHit)
     {
         return new BattleEvent
@@ -72,6 +79,9 @@ internal static class BattleRuntimeEventFactory
             RuntimeTick = tick,
             RuntimeTimeSeconds = currentTimeSeconds,
             CorpsStrengthDelta = -appliedDamage,
+            HasTargetHitPoints = true,
+            TargetHpBefore = targetHpBefore,
+            TargetHpAfter = targetHpAfter,
             HasActorCells = true,
             ActorGridX = actorAnchor.X,
             ActorGridY = actorAnchor.Y,

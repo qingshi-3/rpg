@@ -39,7 +39,7 @@ public sealed partial class StrategicManagementCommandService
             summary,
             victory,
             preBattleStrengthByCorps);
-        ApplyBattleFeedbackRewards(state, expedition.FactionId, feedback, victory);
+        ApplyBattleFeedbackRewards(state, expedition.FactionId, summary, feedback, victory);
         state.BattleFeedbackRecords[feedback.FeedbackId] = feedback;
         state.BattleFeedbackRecordIdsByExpedition[expedition.ExpeditionId] = feedback.FeedbackId;
 
@@ -168,8 +168,32 @@ public sealed partial class StrategicManagementCommandService
 
         BuildParticipantFeedback(state, expedition, summary, preBattleStrengthByCorps, feedback);
         BuildHeroFeedback(state, expedition, feedback, victory);
-        BuildEquipmentFeedback(reward, feedback, victory && !rewardAlreadyClaimed);
-        BuildRewardLines(reward, feedback, victory, rewardAlreadyClaimed);
+        if (summary.HasConsequenceFacts)
+        {
+            if (!string.IsNullOrWhiteSpace(summary.TargetDisplayName))
+            {
+                feedback.TargetDisplayName = summary.TargetDisplayName;
+            }
+
+            if (!string.IsNullOrWhiteSpace(summary.WorldChangeText))
+            {
+                feedback.WorldChangeText = summary.WorldChangeText;
+            }
+
+            feedback.FailureReasonText = summary.FailureReasonText ?? "";
+            if (!string.IsNullOrWhiteSpace(summary.ProgressionText))
+            {
+                feedback.ProgressionText = summary.ProgressionText;
+            }
+
+            BuildEquipmentFeedback(summary, feedback, victory);
+            BuildRewardLines(summary, feedback);
+        }
+        else
+        {
+            BuildEquipmentFeedback(reward, feedback, victory && !rewardAlreadyClaimed);
+            BuildRewardLines(reward, feedback, victory, rewardAlreadyClaimed);
+        }
         return feedback;
     }
 
@@ -292,6 +316,30 @@ public sealed partial class StrategicManagementCommandService
         }
     }
 
+    private void BuildEquipmentFeedback(
+        StrategicBattleResultSummary summary,
+        StrategicBattleFeedbackRecord feedback,
+        bool victory)
+    {
+        foreach (string equipmentSampleId in summary?.RewardEquipmentSampleIds ?? Enumerable.Empty<string>())
+        {
+            if (!_definitions.EquipmentSamples.TryGetValue(equipmentSampleId ?? "", out StrategicEquipmentSampleDefinition equipment))
+            {
+                continue;
+            }
+
+            feedback.EquipmentSamples.Add(new StrategicEquipmentSampleFeedbackRecord
+            {
+                EquipmentSampleId = equipment.EquipmentSampleId,
+                DisplayName = equipment.DisplayName,
+                SlotKind = equipment.SlotKind,
+                Grade = equipment.Grade,
+                RoleText = equipment.RoleText,
+                IsReward = victory
+            });
+        }
+    }
+
     private void BuildRewardLines(
         StrategicBattleRewardDefinition reward,
         StrategicBattleFeedbackRecord feedback,
@@ -339,14 +387,53 @@ public sealed partial class StrategicManagementCommandService
         }
     }
 
+    private static void BuildRewardLines(
+        StrategicBattleResultSummary summary,
+        StrategicBattleFeedbackRecord feedback)
+    {
+        foreach (string line in summary?.RewardLines ?? Enumerable.Empty<string>())
+        {
+            if (!string.IsNullOrWhiteSpace(line))
+            {
+                feedback.RewardLines.Add(line);
+            }
+        }
+    }
+
     private void ApplyBattleFeedbackRewards(
         StrategicManagementState state,
         string factionId,
+        StrategicBattleResultSummary summary,
         StrategicBattleFeedbackRecord feedback,
         bool victory)
     {
         if (!victory)
         {
+            return;
+        }
+
+        if (summary?.HasConsequenceFacts == true)
+        {
+            if (!string.IsNullOrWhiteSpace(summary.RewardClaimId) &&
+                state.ClaimedBattleRewardIds.Contains(summary.RewardClaimId))
+            {
+                return;
+            }
+
+            foreach (StrategicResourceAmount amount in summary.ResourceRewards ?? Enumerable.Empty<StrategicResourceAmount>())
+            {
+                if (amount?.Amount > 0 && !string.IsNullOrWhiteSpace(amount.ResourceId))
+                {
+                    state.AddResourceAmount(factionId, amount.ResourceId, amount.Amount);
+                }
+            }
+
+            AddUnique(state.ClaimedBattleRewardIds, summary.RewardClaimId);
+            foreach (string equipmentSampleId in summary.RewardEquipmentSampleIds ?? Enumerable.Empty<string>())
+            {
+                AddUnique(state.UnlockedEquipmentSampleIds, equipmentSampleId);
+            }
+
             return;
         }
 

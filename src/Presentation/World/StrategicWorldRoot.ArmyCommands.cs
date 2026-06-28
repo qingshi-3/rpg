@@ -540,35 +540,6 @@ public partial class StrategicWorldRoot
 
         GameLog.Info(
             nameof(StrategicWorldRoot),
-            $"SiteNavigationPointResolved site={siteId} center={siteCenter} point={navigationPoint} source=StrategicNavigationTileLayer");
-    }
-
-    private void OnSiteButtonGuiInput(string siteId, InputEvent @event)
-    {
-        if (TryHandleWorldCameraPointerInput(@event))
-        {
-            _worldMapOverlay?.AcceptEvent();
-            return;
-        }
-
-        if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Right, Pressed: true })
-        {
-            return;
-        }
-
-        if (_isExpeditionTargeting)
-        {
-            TryIssueExpeditionToSite(siteId);
-            GetViewport().SetInputAsHandled();
-            return;
-        }
-
-        if (_selectedArmyIds.Count == 0)
-        {
-            return;
-        }
-
-        TryCommandSelectedArmiesToSite(siteId);
-        GetViewport().SetInputAsHandled();
+            $"SiteNavigationPointResolved site={siteId} center={siteCenter} point={navigationPoint} source={StrategicNavigationLayerName}");
     }
 }

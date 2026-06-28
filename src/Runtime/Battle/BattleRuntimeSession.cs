@@ -18,7 +18,10 @@ public sealed class BattleRuntimeSession
     // This cap is a runaway guard, not a combat-length budget. Multi-unit live battles can
     // legitimately need hundreds of actor-local decision slices before one side is defeated.
     internal const int MaxAutonomousCombatTicks = 2048;
-    private const int LegacyCorpsAttackDamage = 20;
+    private const string NavigationTopologyMissingReason = "navigation_topology_missing";
+    private const string GroupSnapshotInvalidReason = "battle_group_snapshot_invalid";
+    private const string StartFootprintInvalidReason = "battle_start_footprint_invalid";
+    private const string SkillSnapshotInvalidReason = "battle_skill_snapshot_invalid";
     private const int EngagementRange = 1;
     private readonly BattleRuntimeTickResolver _tickResolver;
     private readonly BattlePerformanceCounters _performanceCounters;
@@ -67,6 +70,112 @@ public sealed class BattleRuntimeSession
                 BattleTerminationReason.RuntimeException);
         }
 
+        BattleGroupSnapshotValidationFailure groupValidationFailure = ValidateGroupSnapshots(snapshot.BattleGroups);
+        if (groupValidationFailure.HasFailure)
+        {
+            GameLog.Warn(
+                nameof(BattleRuntimeSession),
+                $"BattleRuntimeLaunchRejected battle={battleId} snapshot={snapshotId} group={groupValidationFailure.BattleGroupId} reason={groupValidationFailure.ReasonCode}");
+            stream.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:{groupValidationFailure.BattleGroupId}:{GroupSnapshotInvalidReason}",
+                BattleId = battleId,
+                BattleGroupId = groupValidationFailure.BattleGroupId,
+                Kind = BattleEventKind.CommandRejected,
+                ReasonCode = groupValidationFailure.ReasonCode
+            });
+
+            return BattleRuntimeSessionController.CompletedInvalid(
+                snapshotId,
+                battleId,
+                stream,
+                new BattleRuntimeState
+                {
+                    SnapshotId = snapshotId,
+                    BattleId = battleId
+                },
+                BattleTerminationReason.RuntimeException);
+        }
+
+        BattleSkillSnapshotValidationFailure skillValidationFailure = ValidateSkillSnapshots(snapshot.SkillDefinitions);
+        if (skillValidationFailure.HasFailure)
+        {
+            GameLog.Warn(
+                nameof(BattleRuntimeSession),
+                $"BattleRuntimeLaunchRejected battle={battleId} snapshot={snapshotId} skill={skillValidationFailure.SkillId} reason={skillValidationFailure.ReasonCode}");
+            stream.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:{skillValidationFailure.SkillId}:skill_snapshot_invalid",
+                BattleId = battleId,
+                Kind = BattleEventKind.CommandRejected,
+                ReasonCode = skillValidationFailure.ReasonCode,
+                SourceDefinitionId = skillValidationFailure.SkillId
+            });
+
+            return BattleRuntimeSessionController.CompletedInvalid(
+                snapshotId,
+                battleId,
+                stream,
+                new BattleRuntimeState
+                {
+                    SnapshotId = snapshotId,
+                    BattleId = battleId
+                },
+                BattleTerminationReason.RuntimeException);
+        }
+
+        if (snapshot.LocationContext?.NavigationTopology?.HasNodes != true)
+        {
+            GameLog.Warn(
+                nameof(BattleRuntimeSession),
+                $"BattleRuntimeLaunchRejected battle={battleId} snapshot={snapshotId} reason={NavigationTopologyMissingReason}");
+            stream.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:navigation_topology_missing",
+                BattleId = battleId,
+                Kind = BattleEventKind.CommandRejected,
+                ReasonCode = NavigationTopologyMissingReason
+            });
+
+            return BattleRuntimeSessionController.CompletedInvalid(
+                snapshotId,
+                battleId,
+                stream,
+                new BattleRuntimeState
+                {
+                    SnapshotId = snapshotId,
+                    BattleId = battleId
+                },
+                BattleTerminationReason.RuntimeException);
+        }
+
+        BattleRuntimeState state = BuildRuntimeState(snapshot);
+        BattleNavigationGraph navigationGraph = BattleNavigationGraph.Create(snapshot.LocationContext, state.Actors);
+        BattleRuntimeActor invalidStartActor = FindInvalidStartFootprintActor(state, navigationGraph);
+        if (invalidStartActor != null)
+        {
+            BattleGridCoord anchor = new(invalidStartActor.GridX, invalidStartActor.GridY, invalidStartActor.GridHeight);
+            GameLog.Warn(
+                nameof(BattleRuntimeSession),
+                $"BattleRuntimeLaunchRejected battle={battleId} snapshot={snapshotId} actor={invalidStartActor.ActorId} anchor={anchor} reason={StartFootprintInvalidReason}");
+            stream.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:{invalidStartActor.ActorId}:start_footprint_invalid",
+                BattleId = battleId,
+                BattleGroupId = invalidStartActor.BattleGroupId,
+                ActorId = invalidStartActor.ActorId,
+                Kind = BattleEventKind.CommandRejected,
+                ReasonCode = StartFootprintInvalidReason
+            });
+
+            return BattleRuntimeSessionController.CompletedInvalid(
+                snapshotId,
+                battleId,
+                stream,
+                state,
+                BattleTerminationReason.RuntimeException);
+        }
+
         stream.Add(new BattleEvent
         {
             EventId = $"{battleId}:started",
@@ -74,7 +183,6 @@ public sealed class BattleRuntimeSession
             Kind = BattleEventKind.BattleStarted
         });
 
-        BattleRuntimeState state = BuildRuntimeState(snapshot);
         foreach (BattleRuntimeActor actor in state.Actors)
         {
             stream.Add(new BattleEvent
@@ -88,7 +196,6 @@ public sealed class BattleRuntimeSession
             });
         }
 
-        BattleNavigationGraph navigationGraph = BattleNavigationGraph.Create(snapshot.LocationContext, state.Actors);
         LogNavigationGraphSummary(battleId, navigationGraph);
         LogNavigationRouteTopologySummary(battleId, navigationGraph);
         LogNavigationActorStarts(battleId, navigationGraph, state.Actors);
@@ -157,7 +264,7 @@ public sealed class BattleRuntimeSession
                 MotionState = BattleRuntimeActorMotionState.Anchored,
                 Phase = BattleRuntimeActorPhase.AnchoredDecision,
                 AttackRange = EngagementRange,
-                AttackDamage = ResolveAttackDamage(group.AttackDamage),
+                AttackDamage = group.AttackDamage,
                 AttackSpeed = BattleAttackSpeedPolicy.DefaultAttackSpeed,
                 MoveStepSeconds = moveStepSeconds,
                 AttackActionSeconds = attackActionSeconds,
@@ -182,7 +289,7 @@ public sealed class BattleRuntimeSession
                 MotionState = BattleRuntimeActorMotionState.Anchored,
                 Phase = BattleRuntimeActorPhase.AnchoredDecision,
                 AttackRange = ResolveAttackRange(group.AttackRange),
-                AttackDamage = ResolveAttackDamage(group.AttackDamage),
+                AttackDamage = group.AttackDamage,
                 AttackSpeed = BattleAttackSpeedPolicy.Normalize(group.AttackSpeed),
                 MoveStepSeconds = moveStepSeconds,
                 AttackActionSeconds = attackActionSeconds,
@@ -296,6 +403,20 @@ public sealed class BattleRuntimeSession
             $"BattleRuntimeNavigationActorStarts battle={battleId ?? ""} {starts}");
     }
 
+    private static BattleRuntimeActor FindInvalidStartFootprintActor(
+        BattleRuntimeState state,
+        BattleNavigationGraph navigationGraph)
+    {
+        return (state?.Actors ?? Enumerable.Empty<BattleRuntimeActor>())
+            .Where(actor => actor?.Kind == BattleRuntimeActorKind.Corps)
+            .OrderBy(actor => actor.ActorId, System.StringComparer.Ordinal)
+            .FirstOrDefault(actor =>
+            {
+                BattleGridCoord anchor = new(actor.GridX, actor.GridY, actor.GridHeight);
+                return navigationGraph?.CanPlaceFootprint(actor, anchor) != true;
+            });
+    }
+
     internal static BattleTerminationReason ResolveTermination(BattleRuntimeState state)
     {
         BattleRuntimeActor[] corps = state.Actors
@@ -389,11 +510,6 @@ public sealed class BattleRuntimeSession
         return group?.CorpsDefinitionId ?? "";
     }
 
-    private static int ResolveAttackDamage(int attackDamage)
-    {
-        return attackDamage > 0 ? attackDamage : LegacyCorpsAttackDamage;
-    }
-
     private static int ResolveAttackRange(int attackRange)
     {
         return System.Math.Max(1, attackRange);
@@ -438,6 +554,75 @@ public sealed class BattleRuntimeSession
             !string.IsNullOrWhiteSpace(group.HeroDefinitionId) &&
             !string.IsNullOrWhiteSpace(group.CorpsDefinitionId) &&
             !string.IsNullOrWhiteSpace(group.SourceLocationId);
+    }
+
+    private static BattleGroupSnapshotValidationFailure ValidateGroupSnapshots(
+        IReadOnlyList<BattleGroupSnapshot> battleGroups)
+    {
+        foreach (BattleGroupSnapshot group in battleGroups ?? System.Array.Empty<BattleGroupSnapshot>())
+        {
+            string groupId = group?.BattleGroupId ?? "";
+            if (group == null)
+            {
+                return BattleGroupSnapshotValidationFailure.Create("", "battle_group_missing");
+            }
+
+            // Runtime launch must consume authored bridge facts. These guards stop
+            // legacy normalization from converting malformed production content into combat truth.
+            if (string.IsNullOrWhiteSpace(group.FactionId))
+            {
+                return BattleGroupSnapshotValidationFailure.Create(groupId, "battle_group_faction_missing");
+            }
+
+            if (group.MaxHitPoints <= 0)
+            {
+                return BattleGroupSnapshotValidationFailure.Create(groupId, "battle_group_hit_points_invalid");
+            }
+
+            if (group.AttackDamage <= 0)
+            {
+                return BattleGroupSnapshotValidationFailure.Create(groupId, "battle_group_attack_damage_invalid");
+            }
+
+            if (group.AttackRange <= 0)
+            {
+                return BattleGroupSnapshotValidationFailure.Create(groupId, "battle_group_attack_range_invalid");
+            }
+
+            if (!IsPositiveFinite(group.AttackSpeed))
+            {
+                return BattleGroupSnapshotValidationFailure.Create(groupId, "battle_group_attack_speed_invalid");
+            }
+
+            if (!IsPositiveFinite(group.MoveStepSeconds))
+            {
+                return BattleGroupSnapshotValidationFailure.Create(groupId, "battle_group_move_timing_invalid");
+            }
+
+            if (!IsNonNegativeFinite(group.AttackActionSeconds))
+            {
+                return BattleGroupSnapshotValidationFailure.Create(groupId, "battle_group_attack_timing_invalid");
+            }
+
+            if (!double.IsNaN(group.AttackImpactDelaySeconds) &&
+                !IsNonNegativeFinite(group.AttackImpactDelaySeconds))
+            {
+                return BattleGroupSnapshotValidationFailure.Create(groupId, "battle_group_attack_impact_timing_invalid");
+            }
+
+            if (!IsValidFootprintSize(group.FootprintWidth) ||
+                !IsValidFootprintSize(group.FootprintHeight))
+            {
+                return BattleGroupSnapshotValidationFailure.Create(groupId, "battle_group_footprint_invalid");
+            }
+        }
+
+        return BattleGroupSnapshotValidationFailure.None;
+    }
+
+    private static bool IsValidFootprintSize(int value)
+    {
+        return value >= 1 && value <= BattleActorFootprint.MaxSupportedFootprintSize;
     }
 
     private static BattleGroupPlanSnapshot ResolveBattleGroupPlan(
@@ -510,43 +695,175 @@ public sealed class BattleRuntimeSession
     private static List<BattleSkillSnapshot> CloneSkillDefinitions(
         IEnumerable<BattleSkillSnapshot> skillDefinitions)
     {
+        // Skill snapshots have already passed the production launch gate. Cloning must
+        // preserve authored facts instead of converting malformed content into defaults.
         return (skillDefinitions ?? Enumerable.Empty<BattleSkillSnapshot>())
             .Select(skill =>
             {
                 BattleSkillSnapshot clone = new()
                 {
-                    SkillId = skill?.SkillId ?? "",
-                    DisplayName = skill?.DisplayName ?? "",
-                    TargetingMode = skill?.TargetingMode ?? BattleSkillTargetingMode.TargetedActor,
-                    Range = System.Math.Max(0, skill?.Range ?? 0),
-                    CasterUnitIds = (skill?.CasterUnitIds ?? new List<string>())
+                    SkillId = skill.SkillId ?? "",
+                    DisplayName = skill.DisplayName ?? "",
+                    TargetingMode = skill.TargetingMode,
+                    Range = skill.Range,
+                    CasterUnitIds = (skill.CasterUnitIds ?? new List<string>())
                         .Where(unitId => !string.IsNullOrWhiteSpace(unitId))
                         .Select(unitId => unitId.Trim())
                         .Distinct(System.StringComparer.Ordinal)
                         .ToList(),
-                    CastSeconds = System.Math.Max(0, skill?.CastSeconds ?? 0),
-                    ImpactDelaySeconds = System.Math.Max(0, skill?.ImpactDelaySeconds ?? 0),
-                    RecoverySeconds = System.Math.Max(0, skill?.RecoverySeconds ?? 0),
-                    CanInterruptBasicAttackWindup = skill?.CanInterruptBasicAttackWindup ?? true,
-                    CanCancelBasicAttackRecovery = skill?.CanCancelBasicAttackRecovery ?? false,
-                    ReleasesWithoutOccupyingCaster = skill?.ReleasesWithoutOccupyingCaster ?? false
+                    CastSeconds = skill.CastSeconds,
+                    ImpactDelaySeconds = skill.ImpactDelaySeconds,
+                    RecoverySeconds = skill.RecoverySeconds,
+                    HasInterruptPolicy = skill.HasInterruptPolicy,
+                    CanInterruptBasicAttackWindup = skill.CanInterruptBasicAttackWindup,
+                    CanCancelBasicAttackRecovery = skill.CanCancelBasicAttackRecovery,
+                    ReleasesWithoutOccupyingCaster = skill.ReleasesWithoutOccupyingCaster
                 };
-                foreach (BattleSkillEffectSnapshot effect in skill?.Effects ?? Enumerable.Empty<BattleSkillEffectSnapshot>())
+                foreach (BattleSkillEffectSnapshot effect in skill.Effects ?? Enumerable.Empty<BattleSkillEffectSnapshot>())
                 {
                     clone.Effects.Add(new BattleSkillEffectSnapshot
                     {
-                        Kind = effect?.Kind ?? BattleSkillEffectKind.Damage,
-                        Amount = effect?.Amount ?? 0,
-                        DurationSeconds = System.Math.Max(0, effect?.DurationSeconds ?? 0),
-                        TickIntervalSeconds = System.Math.Max(0, effect?.TickIntervalSeconds ?? 0),
-                        Radius = System.Math.Max(0, effect?.Radius ?? 0)
+                        Kind = effect.Kind,
+                        Amount = effect.Amount,
+                        DurationSeconds = effect.DurationSeconds,
+                        TickIntervalSeconds = effect.TickIntervalSeconds,
+                        Radius = effect.Radius
                     });
                 }
 
                 return clone;
             })
-            .Where(skill => !string.IsNullOrWhiteSpace(skill.SkillId))
             .ToList();
+    }
+
+    private static BattleSkillSnapshotValidationFailure ValidateSkillSnapshots(
+        IReadOnlyList<BattleSkillSnapshot> skillDefinitions)
+    {
+        var skillIds = new HashSet<string>(System.StringComparer.Ordinal);
+        foreach (BattleSkillSnapshot skill in skillDefinitions ?? System.Array.Empty<BattleSkillSnapshot>())
+        {
+            if (skill == null)
+            {
+                return BattleSkillSnapshotValidationFailure.Create("", "battle_skill_definition_missing");
+            }
+
+            string skillId = skill.SkillId ?? "";
+            if (string.IsNullOrWhiteSpace(skillId))
+            {
+                return BattleSkillSnapshotValidationFailure.Create("", "battle_skill_id_missing");
+            }
+
+            if (!skillIds.Add(skillId))
+            {
+                return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_id_duplicate");
+            }
+
+            if (!System.Enum.IsDefined(typeof(BattleSkillTargetingMode), skill.TargetingMode) ||
+                skill.TargetingMode == BattleSkillTargetingMode.None)
+            {
+                return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_targeting_invalid");
+            }
+
+            if (skill.Range <= 0)
+            {
+                return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_range_invalid");
+            }
+
+            if ((skill.CasterUnitIds ?? new List<string>())
+                .All(unitId => string.IsNullOrWhiteSpace(unitId)))
+            {
+                return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_caster_bindings_missing");
+            }
+
+            if (!IsNonNegativeFinite(skill.CastSeconds) ||
+                !IsNonNegativeFinite(skill.ImpactDelaySeconds) ||
+                !IsNonNegativeFinite(skill.RecoverySeconds))
+            {
+                return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_timing_invalid");
+            }
+
+            if (!skill.HasInterruptPolicy)
+            {
+                return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_interrupt_policy_missing");
+            }
+
+            if (skill.Effects == null || skill.Effects.Count == 0)
+            {
+                return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_effects_missing");
+            }
+
+            foreach (BattleSkillEffectSnapshot effect in skill.Effects)
+            {
+                BattleSkillSnapshotValidationFailure failure = ValidateSkillEffectSnapshot(skillId, effect);
+                if (failure.HasFailure)
+                {
+                    return failure;
+                }
+            }
+        }
+
+        return BattleSkillSnapshotValidationFailure.None;
+    }
+
+    private static BattleSkillSnapshotValidationFailure ValidateSkillEffectSnapshot(
+        string skillId,
+        BattleSkillEffectSnapshot effect)
+    {
+        if (effect == null)
+        {
+            return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_effect_payload_missing");
+        }
+
+        if (!System.Enum.IsDefined(typeof(BattleSkillEffectKind), effect.Kind))
+        {
+            return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_effect_kind_invalid");
+        }
+
+        if (!IsNonNegativeFinite(effect.DurationSeconds) ||
+            !IsNonNegativeFinite(effect.TickIntervalSeconds) ||
+            effect.Radius < 0)
+        {
+            return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_effect_payload_invalid");
+        }
+
+        if (effect.Kind == BattleSkillEffectKind.TeleportToThunderMark && effect.Amount <= 0)
+        {
+            return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_effect_teleport_radius_invalid");
+        }
+
+        if (effect.Kind == BattleSkillEffectKind.Damage && effect.Amount <= 0)
+        {
+            return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_effect_damage_amount_invalid");
+        }
+
+        if (effect.Kind == BattleSkillEffectKind.StartChanneledAreaDamage)
+        {
+            if (effect.Amount <= 0)
+            {
+                return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_effect_channel_amount_invalid");
+            }
+
+            if (effect.DurationSeconds <= 0 || effect.TickIntervalSeconds <= 0)
+            {
+                return BattleSkillSnapshotValidationFailure.Create(skillId, "battle_skill_effect_channel_timing_invalid");
+            }
+        }
+
+        return BattleSkillSnapshotValidationFailure.None;
+    }
+
+    private static bool IsNonNegativeFinite(double value)
+    {
+        return !System.Double.IsNaN(value) &&
+            !System.Double.IsInfinity(value) &&
+            value >= 0;
+    }
+
+    private static bool IsPositiveFinite(double value)
+    {
+        return !System.Double.IsNaN(value) &&
+            !System.Double.IsInfinity(value) &&
+            value > 0;
     }
 
     private static BattleEngagementRule NormalizeEngagementRule(
@@ -607,6 +924,22 @@ public sealed class BattleRuntimeSession
                 ReasonCode = actor.EngagementRule.ToString()
             });
         }
+    }
+
+    private readonly record struct BattleSkillSnapshotValidationFailure(string SkillId, string ReasonCode)
+    {
+        internal static BattleSkillSnapshotValidationFailure None { get; } = new("", "");
+        internal bool HasFailure => !string.IsNullOrWhiteSpace(ReasonCode);
+        internal static BattleSkillSnapshotValidationFailure Create(string skillId, string reasonCode) =>
+            new(skillId ?? "", string.IsNullOrWhiteSpace(reasonCode) ? SkillSnapshotInvalidReason : reasonCode);
+    }
+
+    private readonly record struct BattleGroupSnapshotValidationFailure(string BattleGroupId, string ReasonCode)
+    {
+        internal static BattleGroupSnapshotValidationFailure None { get; } = new("", "");
+        internal bool HasFailure => !string.IsNullOrWhiteSpace(ReasonCode);
+        internal static BattleGroupSnapshotValidationFailure Create(string battleGroupId, string reasonCode) =>
+            new(battleGroupId ?? "", string.IsNullOrWhiteSpace(reasonCode) ? GroupSnapshotInvalidReason : reasonCode);
     }
 
 }

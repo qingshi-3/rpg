@@ -66,8 +66,8 @@ internal static class BattleDisplacementCommitBoundary
         BattleEffectPayload payload)
     {
         BattleRuntimeState state = context?.State;
-        BattleRuntimeActor actor = context?.Actor ?? new BattleRuntimeActor();
-        if (state == null || string.IsNullOrWhiteSpace(actor.ActorId))
+        BattleRuntimeActor actor = context?.Actor;
+        if (state == null || string.IsNullOrWhiteSpace(actor?.ActorId))
         {
             return Array.Empty<BattleEvent>();
         }

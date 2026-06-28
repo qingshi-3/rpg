@@ -276,6 +276,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
         string bridgeSnapshotId = context.Snapshot.SnapshotId;
         string bridgeBattleId = context.Snapshot.BattleId;
+        AttachStrategicLaunchFlatTopology(request);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
@@ -347,6 +348,13 @@ internal static partial class StrategicManagementRegressionCases
             UnitDefinitionId = "enemy_runtime_unit",
             Count = 2,
             FactionId = "enemy",
+            MaxHitPoints = 20,
+            AttackDamage = 4,
+            AttackRange = 1,
+            AttackSpeed = 1.0,
+            MoveStepSeconds = 0.16,
+            AttackActionSeconds = 1.0,
+            AttackImpactDelaySeconds = 0.45,
             PreferredPlacements =
             {
                 new BattleForcePlacementRequest { CellX = 28, CellY = 20, CellHeight = 0 },
@@ -358,6 +366,7 @@ internal static partial class StrategicManagementRegressionCases
             ObjectiveZoneId = "enemy_deployment_zone_under_test",
             EngagementRule = BattleEngagementRule.AttackFirst
         };
+        AttachStrategicLaunchFlatTopology(request);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
@@ -378,6 +387,114 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(
             context.Snapshot.BattleGroups.Count == expectedGroupCount,
             "active context snapshot should be synchronized to the final launch snapshot");
+    }
+
+    internal static void StrategicBattleActiveContextLaunchRejectsUnmappedCompatibilityPlayerForce()
+    {
+        var setup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService bridge = new(setup.Definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            setup.State,
+            setup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        BattleStartRequest request = BuildStrategicBattleRequestForHero(
+            setup.Definitions,
+            setup.State,
+            bridge,
+            session,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            "request_active_context_unmapped_force");
+        StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
+        request.PlayerForces.Add(new BattleForceRequest
+        {
+            ForceId = "rogue_compatibility_force",
+            UnitDefinitionId = "rogue_unit_should_not_be_probed",
+            Count = 1,
+            FactionId = StrategicManagementIds.FactionPlayer,
+            MaxHitPoints = 20,
+            AttackDamage = 4,
+            AttackRange = 1,
+            AttackSpeed = 1.0,
+            MoveStepSeconds = 0.16,
+            AttackActionSeconds = 1.0,
+            AttackImpactDelaySeconds = 0.45,
+            PreferredPlacements =
+            {
+                new BattleForcePlacementRequest { CellX = 12, CellY = 20, CellHeight = 0 }
+            }
+        });
+        AttachStrategicLaunchFlatTopology(request);
+
+        bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
+            context,
+            out WorldSiteBattleGroupRuntimeResolveResult result);
+
+        AssertTrue(!started, "unmapped compatibility player force must not launch through generated probe identities");
+        AssertEqual(
+            "strategic_battle_launch_participant_mapping_missing",
+            result.FailureReason,
+            "launch failure should expose the missing strategic participant mapping");
+    }
+
+    internal static void StrategicBattleActiveContextLaunchRejectsMissingNavigationTopology()
+    {
+        var setup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService bridge = new(setup.Definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            setup.State,
+            setup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        BattleStartRequest request = BuildStrategicBattleRequestForHero(
+            setup.Definitions,
+            setup.State,
+            bridge,
+            session,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            "request_active_context_missing_topology");
+        StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
+
+        bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
+            context,
+            out WorldSiteBattleGroupRuntimeResolveResult result);
+
+        AssertTrue(!started, "active context launch without compiled topology should not report Runtime start success");
+        AssertEqual(
+            "battle_group_runtime_start_failed",
+            result.FailureReason,
+            "missing topology should be exposed as a runtime start failure at the launch adapter boundary");
+    }
+
+    internal static void StrategicBattleActiveContextLaunchRejectsMissingCombatStats()
+    {
+        var setup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService bridge = new(setup.Definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            setup.State,
+            setup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        BattleStartRequest request = BuildStrategicBattleRequestForHero(
+            setup.Definitions,
+            setup.State,
+            bridge,
+            session,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            "request_active_context_missing_combat_stats");
+        request.PlayerForces[0].AttackDamage = 0;
+        AttachStrategicLaunchFlatTopology(request);
+        StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
+
+        bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
+            context,
+            out WorldSiteBattleGroupRuntimeResolveResult result);
+
+        AssertTrue(!started, "active context launch should reject missing production combat stats before Runtime defaults apply");
+        AssertEqual(
+            "strategic_battle_launch_combat_stats_missing",
+            result.FailureReason,
+            "combat stat validation should expose a named launch failure");
     }
 
     internal static void RetargetMovingExpeditionToAssaultUpdatesStrategicBattleSessionAuthority()

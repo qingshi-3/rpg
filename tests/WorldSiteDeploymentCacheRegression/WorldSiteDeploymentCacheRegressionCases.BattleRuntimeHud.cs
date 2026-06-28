@@ -1,4 +1,5 @@
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Snapshots;
 
 internal static partial class WorldSiteDeploymentCacheRegressionCases
 {
@@ -45,6 +46,93 @@ internal static void BattleRuntimePresentationMapsStrategicParticipantActorIds()
         "bonefield:f6_spiritwolf:1",
         map["bonefield:f6_spiritwolf:1"],
         "legacy non-strategic forces should keep their existing runtime actor id");
+}
+
+internal static void BattleRuntimePresentationMapsStrategicSnapshotEnemyActorIds()
+{
+    BattleStartRequest request = new();
+    request.PlayerForces.Add(new BattleForceRequest
+    {
+        ForceId = "strategic:expedition_0001:f1_windbladecommander",
+        UnitDefinitionId = "f1_windbladecommander",
+        StrategicParticipantId = "strategic_participant:expedition_0001:hero_archer_captain:corps_0002",
+        Count = 1
+    });
+    request.PlayerForces.Add(new BattleForceRequest
+    {
+        ForceId = "strategic:expedition_0001:f1_backlinearcher",
+        UnitDefinitionId = "f1_backlinearcher",
+        StrategicParticipantId = "strategic_participant:expedition_0001:hero_archer_captain:corps_0002",
+        Count = 3
+    });
+    request.EnemyForces.Add(new BattleForceRequest
+    {
+        ForceId = "bonefield:f6_draugarlord",
+        SourceKind = "DefenderSite",
+        SourceId = "bonefield",
+        UnitDefinitionId = "f6_draugarlord",
+        Count = 2
+    });
+    request.EnemyForces.Add(new BattleForceRequest
+    {
+        ForceId = "bonefield:f6_spiritwolf",
+        SourceKind = "DefenderSite",
+        SourceId = "bonefield",
+        UnitDefinitionId = "f6_spiritwolf",
+        Count = 2
+    });
+    request.EnemyForces.Add(new BattleForceRequest
+    {
+        ForceId = "bonefield:f4_skullcaster",
+        SourceKind = "DefenderSite",
+        SourceId = "bonefield",
+        UnitDefinitionId = "f4_skullcaster",
+        Count = 2
+    });
+
+    BattleStartSnapshot launchedSnapshot = new();
+    AddSnapshotGroups(
+        launchedSnapshot,
+        "strategic_participant:expedition_0001:hero_archer_captain:corps_0002",
+        4);
+    AddSnapshotGroups(launchedSnapshot, "bonefield", 6);
+
+    IReadOnlyDictionary<string, string> map =
+        BattleRuntimeActorIdentity.BuildPresentationEntityToRuntimeActorMap(request, launchedSnapshot);
+
+    AssertEqual(
+        "strategic_participant:expedition_0001:hero_archer_captain:corps_0002:4",
+        map["strategic:expedition_0001:f1_backlinearcher:3"],
+        "snapshot-backed mapping should preserve player strategic participant runtime numbering");
+    AssertEqual(
+        "bonefield:1",
+        map["bonefield:f6_draugarlord:1"],
+        "first defender visual entity should map to the first launched site-source runtime actor");
+    AssertEqual(
+        "bonefield:3",
+        map["bonefield:f6_spiritwolf:1"],
+        "second defender force should continue numbering under the launched source force id");
+    AssertEqual(
+        "bonefield:6",
+        map["bonefield:f4_skullcaster:2"],
+        "all defender visual entities should resolve to Runtime actor ids emitted from the launched snapshot");
+}
+
+private static void AddSnapshotGroups(BattleStartSnapshot snapshot, string sourceForceId, int count)
+{
+    for (int index = 0; index < count; index++)
+    {
+        snapshot.BattleGroups.Add(new BattleGroupSnapshot
+        {
+            BattleGroupId = $"{sourceForceId}:group:{index}",
+            SourceForceId = sourceForceId,
+            HeroId = $"{sourceForceId}:hero:{index}",
+            CorpsId = $"{sourceForceId}:corps:{index}",
+            HeroDefinitionId = "test_hero",
+            CorpsDefinitionId = "test_corps",
+            SourceLocationId = "test_location"
+        });
+    }
 }
 
 internal static void BattleRuntimeHudUsesFullscreenHeroFrame()

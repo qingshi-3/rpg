@@ -17,6 +17,7 @@ public partial class StrategicWorldRoot
 {
     private void BuildUi()
     {
+        BuildSiteNameOverlay();
         Control hud = GameUiSceneFactory.Instantiate<Control>(
             GameUiSceneFactory.StrategicWorldHudScenePath,
             nameof(StrategicWorldRoot));
@@ -30,7 +31,7 @@ public partial class StrategicWorldRoot
         BindStrategicHud(hud);
         UpdateMainWorldViewportLayout(GetMapBounds());
         WarmupStrategicSelectionUiScenes();
-        BuildMapArea();
+        SyncSiteNameOverlay();
         BuildSiteHoverSummaryPanel();
     }
 
@@ -38,6 +39,7 @@ public partial class StrategicWorldRoot
     {
         GameUiSceneFactory.Preload(
             GameUiSceneFactory.WorldMutedLineScenePath,
+            GameUiSceneFactory.WorldSiteNameBadgeScenePath,
             GameUiSceneFactory.WorldPrimaryActionButtonScenePath,
             GameUiSceneFactory.WorldSecondaryActionButtonScenePath,
             GameUiSceneFactory.WorldCompactMarkerButtonScenePath,
@@ -205,56 +207,11 @@ public partial class StrategicWorldRoot
         }
     }
 
-    private void BuildMapArea()
-    {
-        if (_worldMapOverlay == null)
-        {
-            GameLog.Error(nameof(StrategicWorldRoot), "WorldMapOverlayMissing");
-            return;
-        }
-
-        foreach (WorldSiteDefinition site in Definition.SiteDefinitions)
-        {
-            Rect2 hitRect = ToViewportLocal(GetSiteHitRect(site));
-            Rect2 labelRect = ToViewportLocal(GetSiteLabelRect(site));
-            Button button = GameUiSceneFactory.CreateWorldSiteHitButton(nameof(StrategicWorldRoot));
-            if (button == null)
-            {
-                continue;
-            }
-
-            button.Name = $"{site.Id}Button";
-            button.Position = hitRect.Position;
-            button.Size = hitRect.Size;
-            button.Pressed += () =>
-            {
-                HideSiteHoverSummary(site.Id);
-                SelectSite(site.Id);
-            };
-            button.MouseEntered += () => ShowSiteHoverSummary(site.Id);
-            button.MouseExited += () => HideSiteHoverSummary(site.Id);
-            button.GuiInput += @event => OnSiteButtonGuiInput(site.Id, @event);
-            _worldMapOverlay.AddChild(button);
-            _siteButtons[site.Id] = button;
-
-            Label label = GameUiSceneFactory.CreateWorldSiteLabel(nameof(StrategicWorldRoot));
-            if (label == null)
-            {
-                continue;
-            }
-
-            label.Name = $"{site.Id}Label";
-            label.Position = labelRect.Position;
-            label.Size = labelRect.Size;
-            _worldMapOverlay.AddChild(label);
-            _siteLabels[site.Id] = label;
-        }
-    }
-
     private void ResetWorld()
     {
         StrategicWorldRuntime.Reset();
         StrategicManagementRuntime.Reset();
+        ResetStrategicFogMaskCache();
         _selectedSiteId = "";
         _selectedOpportunityId = "";
         _selectedArmyIds.Clear();
@@ -287,42 +244,24 @@ public partial class StrategicWorldRoot
         _resourceLabel.Text = $"{resources}    大地图结算 {State.WorldTick}";
     }
 
-    private void RefreshSiteButtons(StrategicWorldDefinitionQueries queries)
+    private Rect2 GetSiteMarkerLayoutHitRect(WorldSiteDefinition definition, float zoom = 1.0f)
     {
-        foreach ((string siteId, Button button) in _siteButtons)
+        float inverseZoom = 1.0f / Mathf.Max(zoom, 0.001f);
+        if (definition != null && TryGetSiteVisualMapBounds(definition.Id, out Rect2 mapBounds))
         {
-            WorldSiteDefinition definition = queries.GetSite(siteId);
-            Rect2 hitRect = ToViewportLocal(GetSiteHitRect(definition));
-            button.Position = hitRect.Position;
-            button.Size = hitRect.Size;
-            button.Visible = true;
-            button.Text = "";
-            bool isBlockedTarget = _isExpeditionTargeting
-                ? IsSiteBlockedForExpeditionTarget(siteId)
-                : IsSiteBlockedForSelectedSiteCommand(siteId);
-            button.MouseDefaultCursorShape = isBlockedTarget ? CursorShape.Forbidden : CursorShape.PointingHand;
-            button.TooltipText = "";
-
-            if (_siteLabels.TryGetValue(siteId, out Label label))
-            {
-                Rect2 labelRect = ToViewportLocal(GetSiteLabelRect(definition));
-                label.Position = labelRect.Position;
-                label.Size = labelRect.Size;
-                label.Visible = true;
-                label.Text = definition.DisplayName;
-                label.TooltipText = "";
-            }
-
-            if (_hoveredSiteId == siteId)
-            {
-                RefreshSiteHoverSummary(queries, siteId);
-            }
+            return mapBounds.Grow(SiteVisualHitPadding * inverseZoom);
         }
+
+        Vector2 center = GetSiteMapPosition(definition);
+        Vector2 size = SiteButtonSize * inverseZoom;
+        return new Rect2(center - size / 2.0f, size);
     }
+
     private void ShowSiteHoverSummary(string siteId)
     {
         _hoveredSiteId = siteId;
         RefreshSiteHoverSummary(new StrategicWorldDefinitionQueries(Definition), siteId);
+        SyncSiteNameOverlay();
     }
 
     private void HideSiteHoverSummary(string siteId)
@@ -334,6 +273,7 @@ public partial class StrategicWorldRoot
 
         _hoveredSiteId = "";
         _siteHoverSummaryPanel?.HideSummary();
+        SyncSiteNameOverlay();
     }
 
     private void RefreshSiteHoverSummary(StrategicWorldDefinitionQueries queries, string siteId)

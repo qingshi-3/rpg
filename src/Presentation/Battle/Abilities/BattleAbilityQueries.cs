@@ -1,9 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Definitions.Battle.Abilities;
-using Rpg.Domain.Battle.Grid;
 using Rpg.Presentation.Battle.Entities;
-using Rpg.Presentation.Battle.Rules;
 
 namespace Rpg.Presentation.Battle.Abilities;
 
@@ -80,107 +78,6 @@ public static class BattleAbilityQueries
                 System.StringComparison.Ordinal));
 
         return ability != null;
-    }
-
-    public static bool CanUseAbility(BattleEntity actor, AbilityDefinition ability, out string reason)
-    {
-        reason = "";
-
-        if (actor == null || ability == null)
-        {
-            reason = "能力数据不完整";
-            return false;
-        }
-
-        if (BattleRuleQueries.IsDefeated(actor))
-        {
-            reason = "倒下的单位不能行动";
-            return false;
-        }
-
-        return true;
-    }
-
-    public static bool IsValidTarget(
-        BattleGridMap gridMap,
-        IReadOnlyList<BattleEntity> entities,
-        BattleEntity actor,
-        BattleEntity target,
-        GridPosition destination,
-        AbilityDefinition ability,
-        System.Action<BattleEntity> markEntityDefeated,
-        out string reason)
-    {
-        reason = "";
-
-        if (!CanUseAbility(actor, ability, out reason))
-        {
-            return false;
-        }
-
-        GridOccupantComponent actorGrid = actor.GetComponent<GridOccupantComponent>();
-        GridOccupantComponent targetGrid = target?.GetComponent<GridOccupantComponent>();
-        if (actorGrid == null || targetGrid == null)
-        {
-            reason = "目标不在地图中";
-            return false;
-        }
-
-        int range = System.Math.Max(ability.Range, 0);
-        if (BattleRuleQueries.GetManhattanDistance(actorGrid.Position, targetGrid.Position) > range)
-        {
-            reason = "目标超出范围";
-            return false;
-        }
-
-        var context = new AbilityUseContext(
-            gridMap,
-            entities ?? System.Array.Empty<BattleEntity>(),
-            actor,
-            target,
-            destination,
-            ability,
-            markEntityDefeated);
-
-        AbilityTargetRule[] rules = ability.TargetRules?
-            .Where(rule => rule != null)
-            .ToArray() ?? System.Array.Empty<AbilityTargetRule>();
-
-        if (rules.Length == 0)
-        {
-            reason = "能力缺少目标规则";
-            return false;
-        }
-
-        foreach (AbilityTargetRule rule in rules)
-        {
-            if (!rule.IsValidTarget(context, out reason))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public static AbilityEffectResult ApplyEffects(AbilityUseContext context)
-    {
-        if (context?.Ability?.Effects == null)
-        {
-            return AbilityEffectResult.None;
-        }
-
-        int totalDamage = 0;
-        bool defeated = false;
-
-        foreach (AbilityEffect effect in context.Ability.Effects.Where(effect => effect != null))
-        {
-            AbilityEffectResult result = effect.Apply(context);
-            totalDamage += result.DamageApplied;
-            defeated |= result.TargetDefeated;
-        }
-
-        return new AbilityEffectResult(totalDamage, defeated);
     }
 
     private static AbilityDefinition CreateBasicAttackAbility(AttackComponent attack)

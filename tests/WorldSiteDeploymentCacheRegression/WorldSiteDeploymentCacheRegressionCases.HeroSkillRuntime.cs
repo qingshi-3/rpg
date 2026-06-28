@@ -522,6 +522,15 @@ private static BattleStartSnapshot BuildStrategicSkillIdentitySnapshot(string pa
                 CorpsId = "corps_0003",
                 CorpsDefinitionId = "f1_elyxstormblade",
                 CorpsStrength = 100,
+                MaxHitPoints = 100,
+                AttackDamage = 10,
+                AttackRange = 1,
+                AttackSpeed = 1,
+                MoveStepSeconds = 0.2,
+                AttackActionSeconds = 0.4,
+                AttackImpactDelaySeconds = 0.2,
+                FootprintWidth = 1,
+                FootprintHeight = 1,
                 SourceLocationId = "plains_city",
                 CellX = 0,
                 CellY = 0
@@ -536,6 +545,15 @@ private static BattleStartSnapshot BuildStrategicSkillIdentitySnapshot(string pa
                 CorpsId = "bonefield_spiritwolf",
                 CorpsDefinitionId = "f6_spiritwolf",
                 CorpsStrength = 100,
+                MaxHitPoints = 100,
+                AttackDamage = 10,
+                AttackRange = 1,
+                AttackSpeed = 1,
+                MoveStepSeconds = 0.2,
+                AttackActionSeconds = 0.4,
+                AttackImpactDelaySeconds = 0.2,
+                FootprintWidth = 1,
+                FootprintHeight = 1,
                 SourceLocationId = "bonefield",
                 CellX = 3,
                 CellY = 0
@@ -547,6 +565,7 @@ private static BattleStartSnapshot BuildStrategicSkillIdentitySnapshot(string pa
         snapshot.SkillDefinitions.Add(skill);
     }
 
+    AttachFlatSnapshotTopology(snapshot);
     return snapshot;
 }
 

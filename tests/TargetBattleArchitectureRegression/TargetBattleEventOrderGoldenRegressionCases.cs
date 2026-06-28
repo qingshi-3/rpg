@@ -109,7 +109,7 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
 
     private static BattleStartSnapshot BuildEventOrderGoldenSnapshot()
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = "snapshot_battle_event_order_golden",
             BattleId = "battle_event_order_golden",
@@ -122,6 +122,8 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
                 BuildGroup("group_enemy_rear", "enemy", "force_enemy_rear", "hero_enemy_rear", "corps_enemy_rear", 2, 0, hitPoints: 10, damage: 4)
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static BattleGroupSnapshot BuildGroup(

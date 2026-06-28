@@ -22,11 +22,12 @@ public partial class StrategicWorldRoot
         Stopwatch stopwatch = Stopwatch.StartNew();
         StrategicWorldDefinitionQueries queries = new(Definition);
         RefreshResources();
-        RefreshSiteButtons(queries);
         RefreshCurrentStrategicWorldPanel(queries);
         RefreshWorldClockLabel();
         _noticeLabel.Text = StrategicWorldRuntime.LastNotice;
         RefreshStrategicFog();
+        SyncSiteNameOverlay();
+        QueueStrategicStaticOverlayRedraw();
         QueueStrategicOverlayRedraw();
         stopwatch.Stop();
         if (stopwatch.ElapsedMilliseconds >= 16)

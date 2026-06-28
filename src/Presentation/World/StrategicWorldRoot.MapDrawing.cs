@@ -20,17 +20,28 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        StrategicWorldDefinitionQueries queries = new(Definition);
-        Rect2 mapBounds = ToViewportLocal(GetMapBounds());
+        Rect2 mapBounds = TryCalculateStrategicMapBounds(out Rect2 calculatedMapBounds)
+            ? calculatedMapBounds
+            : GetMapBounds();
         if (!HasConfiguredWorldMapSurface())
         {
             DrawStrategicMapBackground(_worldMapOverlay, mapBounds);
         }
 
-        DrawSiteIcons(_worldMapOverlay, queries);
-        DrawWorldOpportunities(_worldMapOverlay, queries);
-        DrawWorldArmies(_worldMapOverlay);
-        DrawArmySelectionBox(_worldMapOverlay);
+        DrawSiteIcons(_worldMapOverlay);
+    }
+
+    private void DrawWorldMapDynamicOverlay()
+    {
+        if (Definition == null || _worldMapDynamicOverlay == null)
+        {
+            return;
+        }
+
+        StrategicWorldDefinitionQueries queries = new(Definition);
+        DrawWorldOpportunities(_worldMapDynamicOverlay, queries);
+        DrawWorldArmies(_worldMapDynamicOverlay);
+        DrawArmySelectionBox(_worldMapDynamicOverlay);
     }
 
     private void DrawStrategicMapBackground(Control canvas, Rect2 mapBounds)
@@ -109,13 +120,13 @@ DrawWorldArmyMarker(canvas, army);
                 continue;
             }
 
-DrawWorldOpportunityMarker(canvas, opportunity, queries.GetOpportunity(opportunity.DefinitionId));
+            DrawWorldOpportunityMarker(canvas, opportunity, queries.GetOpportunity(opportunity.DefinitionId));
         }
     }
 
     private void DrawWorldOpportunityMarker(Control canvas, WorldOpportunityState opportunity, WorldOpportunityDefinition definition)
     {
-        Vector2 position = MapToViewportLocal(opportunity.WorldPosition);
+        Vector2 position = opportunity.WorldPosition;
         bool selected = opportunity.OpportunityId == _selectedOpportunityId;
         int remainingTicks = Mathf.Max(0, opportunity.ExpiresTick - State.WorldTick);
         float pulse = 1.0f + Mathf.Clamp(remainingTicks, 0, 5) * 0.03f;
@@ -146,7 +157,7 @@ DrawWorldOpportunityMarker(canvas, opportunity, queries.GetOpportunity(opportuni
 
     private void DrawWorldArmyMarker(Control canvas, WorldArmyState army)
     {
-        Vector2 position = MapToViewportLocal(army.WorldPosition);
+        Vector2 position = army.WorldPosition;
         bool playerOwned = army.OwnerFactionId == State.PlayerFactionId;
         Color fill = playerOwned
             ? new Color(0.35f, 0.72f, 0.92f, 1.0f)
@@ -179,7 +190,7 @@ DrawWorldOpportunityMarker(canvas, opportunity, queries.GetOpportunity(opportuni
 
         if (army.Status == WorldArmyStatus.Moving)
         {
-            canvas.DrawCircle(MapToViewportLocal(army.Destination), 5.0f, new Color(fill.R, fill.G, fill.B, 0.75f));
+            canvas.DrawCircle(army.Destination, 5.0f, new Color(fill.R, fill.G, fill.B, 0.75f));
         }
     }
 
@@ -190,23 +201,24 @@ DrawWorldOpportunityMarker(canvas, opportunity, queries.GetOpportunity(opportuni
             return;
         }
 
-        Rect2 rect = ToViewportLocal(BuildScreenRect(_armySelectionStartScreen, _armySelectionCurrentScreen));
+        Rect2 rect = BuildScreenRect(_armySelectionStartScreen, _armySelectionCurrentScreen);
         canvas.DrawRect(rect, new Color(0.32f, 0.7f, 0.95f, 0.16f), true);
         canvas.DrawRect(rect, new Color(0.52f, 0.86f, 1.0f, 0.9f), false, 2.0f);
     }
 
-    private void DrawSiteIcons(Control canvas, StrategicWorldDefinitionQueries queries)
+    private void DrawSiteIcons(Control canvas)
     {
         foreach (WorldSiteDefinition definition in Definition.SiteDefinitions)
         {
             WorldSiteState state = State.SiteStates[definition.Id];
-            Vector2 center = GetSiteViewportCenter(definition);
+            Vector2 center = GetSiteMapPosition(definition);
             Color color = GetSiteColor(state);
             bool selected = definition.Id == _selectedSiteId;
+            bool hovered = definition.Id == _hoveredSiteId;
 
-            if (TryGetSiteVisualViewportBounds(definition.Id, out Rect2 visualBounds))
+            if (TryGetSiteVisualMapBounds(definition.Id, out Rect2 visualBounds))
             {
-                DrawSiteVisualOverlay(canvas, state, visualBounds, selected);
+                DrawSiteVisualOverlay(canvas, state, visualBounds, selected || hovered);
                 continue;
             }
 

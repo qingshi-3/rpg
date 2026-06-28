@@ -63,7 +63,7 @@ internal static void BattleGroupSessionProbeRunsWithoutConsumingLegacyHandoff()
     AssertEqual("probe_battle", probe.Snapshot.BattleId, "probe battle id");
     AssertEqual("site_under_test", probe.Snapshot.TargetLocationId, "probe target location id");
     AssertEqual("site_under_test", probe.Snapshot.LocationContext.LocationId, "probe location context id");
-    AssertEqual(1, probe.Snapshot.BattleGroups.Count, "probe battle group count");
+    AssertEqual(2, probe.Snapshot.BattleGroups.Count, "probe battle group count");
     AssertEqual("player_camp", probe.Snapshot.BattleGroups[0].SourceLocationId, "probe source location id");
     AssertTrue(probe.FlowResult.SettlementPlan.Accepted, "probe settlement should accept");
     AssertEqual("probe_battle", probe.FlowResult.Report.BattleId, "probe report battle id");
@@ -176,8 +176,44 @@ internal static BattleStartRequest BuildProbeBattleRequest(string requestId, str
         SourceId = "army_1",
         UnitDefinitionId = StrategicWorldIds.UnitMilitia,
         Count = 1,
-        FactionId = "player"
+        FactionId = "player",
+        MaxHitPoints = 20,
+        AttackDamage = 5,
+        AttackRange = 1,
+        AttackSpeed = 1,
+        MoveStepSeconds = 0.2,
+        AttackActionSeconds = 0.4,
+        AttackImpactDelaySeconds = 0.2,
+        FootprintWidth = 1,
+        FootprintHeight = 1
     });
+    request.EnemyForces.Add(new BattleForceRequest
+    {
+        ForceId = "enemy_force",
+        UnitDefinitionId = StrategicWorldIds.UnitMilitia,
+        Count = 1,
+        FactionId = "enemy",
+        MaxHitPoints = 20,
+        AttackDamage = 5,
+        AttackRange = 1,
+        AttackSpeed = 1,
+        MoveStepSeconds = 0.2,
+        AttackActionSeconds = 0.4,
+        AttackImpactDelaySeconds = 0.2,
+        FootprintWidth = 1,
+        FootprintHeight = 1,
+        PreferredPlacements =
+        {
+            new BattleForcePlacementRequest
+            {
+                PlacementId = "enemy_force:preferred",
+                CellX = 3,
+                CellY = 0,
+                CellHeight = 0
+            }
+        }
+    });
+    AttachFlatRequestTopology(request);
     return request;
 }
 

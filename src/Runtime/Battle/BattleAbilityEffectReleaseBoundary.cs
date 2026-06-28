@@ -59,7 +59,7 @@ internal static class BattleAbilityEffectReleaseBoundary
                              State = state,
                              NavigationGraph = navigationGraph,
                              Actor = actor,
-                             Target = target ?? new BattleRuntimeActor(),
+                             Target = target,
                              HasTargetGrid = command?.HasTargetGrid ?? false,
                              TargetGridX = command?.TargetGridX ?? 0,
                              TargetGridY = command?.TargetGridY ?? 0,

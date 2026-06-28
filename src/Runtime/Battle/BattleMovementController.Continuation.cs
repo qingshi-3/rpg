@@ -585,26 +585,7 @@ internal sealed partial class BattleMovementController
 
     private static bool IsRegionReached(BattleRuntimeTickStartActorFact actorFact, BattleRegionMovementGoal goal)
     {
-        if (goal == null)
-        {
-            return false;
-        }
-
-        int width = System.Math.Max(1, goal.Width);
-        int height = System.Math.Max(1, goal.Height);
-        BattleGridCoord regionAnchor = new(
-            goal.CenterCellX - (width - 1) / 2,
-            goal.CenterCellY - (height - 1) / 2,
-            goal.CenterCellHeight);
-        BattleRuntimeActor region = new()
-        {
-            GridX = regionAnchor.X,
-            GridY = regionAnchor.Y,
-            GridHeight = goal.CenterCellHeight,
-            FootprintWidth = width,
-            FootprintHeight = height
-        };
-        return BattleActorFootprint.GetGap(actorFact.Actor, actorFact.Anchor, region, regionAnchor) <= 1;
+        return BattleLocalCombatRegionResolver.IsRegionReached(actorFact, goal);
     }
 
     private static bool IsUsableMoveContext(BattleRuntimeTickContext context)

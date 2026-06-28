@@ -19,7 +19,7 @@ public static class GameUiSceneFactory
     public const string BattleRuntimeSkillSlotScenePath = "res://scenes/world/ui/BattleRuntimeSkillSlot.tscn";
     public const string PreBattleDialogScenePath = "res://scenes/world/ui/PreBattleDialog.tscn";
     public const string WorldSiteHitButtonScenePath = "res://scenes/world/ui/WorldSiteHitButton.tscn";
-    public const string WorldSiteLabelScenePath = "res://scenes/world/ui/WorldSiteLabel.tscn";
+    public const string WorldSiteNameBadgeScenePath = "res://scenes/world/ui/WorldSiteNameBadge.tscn";
     public const string WorldSiteHoverSummaryPanelScenePath = "res://scenes/world/ui/WorldSiteHoverSummaryPanel.tscn";
     public const string WorldMutedLineScenePath = "res://scenes/world/ui/WorldMutedLine.tscn";
     public const string WorldPrimaryActionButtonScenePath = "res://scenes/world/ui/WorldPrimaryActionButton.tscn";
@@ -64,9 +64,9 @@ public static class GameUiSceneFactory
         return Instantiate<Button>(WorldSiteHitButtonScenePath, ownerName);
     }
 
-    public static Label CreateWorldSiteLabel(string ownerName)
+    public static WorldSiteNameBadge CreateWorldSiteNameBadge(string ownerName)
     {
-        return Instantiate<Label>(WorldSiteLabelScenePath, ownerName);
+        return Instantiate<WorldSiteNameBadge>(WorldSiteNameBadgeScenePath, ownerName);
     }
 
     public static WorldSiteHoverSummaryPanel CreateWorldSiteHoverSummaryPanel(string ownerName)

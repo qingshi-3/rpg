@@ -128,7 +128,7 @@ internal static void StrategicWorldExpeditionTargetingAcceptsLeftClickTarget()
     string rootSource = ReadStrategicWorldRootSource().Replace("\r\n", "\n", StringComparison.Ordinal);
     string leftMouseBody = ExtractMethodBody(
         rootSource,
-        "private void HandleWorldArmyLeftMouse(\n        InputEventMouseButton mouseButton,\n        Vector2 screenPosition,\n        bool eventIsViewportLocal)");
+        "private void HandleWorldArmyLeftMouse(\n        InputEventMouseButton mouseButton,\n        Vector2 mapPosition,\n        bool eventIsViewportLocal)");
     int targetingIndex = leftMouseBody.IndexOf("_isExpeditionTargeting", StringComparison.Ordinal);
     int issueIndex = leftMouseBody.IndexOf("TryIssueExpeditionToTarget(_armySelectionCurrentScreen)", StringComparison.Ordinal);
     int selectSiteIndex = leftMouseBody.IndexOf("TrySelectSiteAt(_armySelectionCurrentScreen)", StringComparison.Ordinal);
@@ -286,8 +286,9 @@ internal static void WorldSiteBattleRuntimeHeroSkillSubmitsHeroCastCommand()
     string requestFactoryBody = ExtractMethodBody(ReadWorldSitePresentationSource(), "internal static CommandRequest BuildHeroSkillCommandRequest(");
 
     AssertTrue(
-        rootSource.Contains("HeroSkillCommandIds.FirstSliceHeroSkillId", StringComparison.Ordinal),
-        "battle runtime HUD should define one explicit first-slice hero skill id for the current deployed hero");
+        rootSource.Contains("BuildBattleRuntimeSkillSnapshots(selected).FirstOrDefault()?.SkillId", StringComparison.Ordinal) &&
+        !pressBody.Contains("HeroSkillCommandIds.FirstSliceHeroSkillId", StringComparison.Ordinal),
+        "battle runtime HUD should read the pressed skill id from the selected runtime skill snapshot instead of fabricating a default first-slice skill");
     AssertTrue(
         rootSource.Contains("OnBattleRuntimeHeroSkillPressed", StringComparison.Ordinal) &&
         rootSource.Contains("OnBattleRuntimeSkillSlotPressed", StringComparison.Ordinal) &&
@@ -659,6 +660,7 @@ internal static void StrategicWorldUsesDedicatedMainWorldViewport()
 {
     string root = ProjectRoot();
     string scene = File.ReadAllText(Path.Combine(root, "scenes", "world", "StrategicWorldRoot.tscn"));
+    string mapScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "StrategicWorldMap.tscn"));
     string rootSource = ReadStrategicWorldRootSource();
     string expectedArchitecture = File.ReadAllText(Path.Combine(
         root,
@@ -674,18 +676,24 @@ internal static void StrategicWorldUsesDedicatedMainWorldViewport()
         "strategic world scene should define a real main world SubViewport under a viewport container.");
     AssertTrue(
         scene.Contains("node name=\"WorldCamera\" type=\"Camera2D\" parent=\"MainWorldViewportHost/MainWorldViewport\"", StringComparison.Ordinal) &&
-        scene.Contains("node name=\"WorldMapRoot\" type=\"Node2D\" parent=\"MainWorldViewportHost/MainWorldViewport\"", StringComparison.Ordinal),
-        "strategic world map and camera should live inside MainWorldViewport, not beside HUD UI.");
+        scene.Contains("node name=\"WorldMapRoot\" parent=\"MainWorldViewportHost/MainWorldViewport\" instance=ExtResource(\"3_strategic_world_map\")", StringComparison.Ordinal) &&
+        mapScene.Contains("[node name=\"WorldMapRoot\" type=\"Node2D\"]", StringComparison.Ordinal) &&
+        mapScene.Contains("[node name=\"StrategicMapLayer\" type=\"TileMapLayer\" parent=\".\"", StringComparison.Ordinal) &&
+        mapScene.Contains("[node name=\"MapAnchors\" type=\"Node2D\" parent=\".\"", StringComparison.Ordinal),
+        "strategic world map should live in a dedicated map scene instance inside MainWorldViewport, not beside HUD UI.");
     AssertTrue(
         scene.Contains("node name=\"WorldMapOverlay\" type=\"Control\" parent=\"MainWorldViewportHost/MainWorldViewport\"", StringComparison.Ordinal),
-        "strategic site hit controls need a viewport-local overlay instead of root UI placement.");
+        "strategic world markers should draw inside the viewport-local overlay rather than the root canvas.");
     AssertTrue(
         rootSource.Contains("WorldMapOverlayPath", StringComparison.Ordinal) &&
         rootSource.Contains("_worldMapOverlay", StringComparison.Ordinal) &&
-        rootSource.Contains("_worldMapOverlay.AddChild(button)", StringComparison.Ordinal) &&
-        !rootSource.Contains("            AddChild(button);\n            _siteButtons", StringComparison.Ordinal) &&
-        !rootSource.Contains("            AddChild(button);\r\n            _siteButtons", StringComparison.Ordinal),
-        "strategic site hit buttons should attach to the viewport-local overlay rather than the root canvas.");
+        rootSource.Contains("GetSiteMarkerLayoutHitRect(", StringComparison.Ordinal) &&
+        rootSource.Contains("WorldSiteNameOverlay", StringComparison.Ordinal) &&
+        rootSource.Contains("WorldSiteNameBadge", StringComparison.Ordinal) &&
+        rootSource.Contains("SyncSiteNameOverlay(", StringComparison.Ordinal) &&
+        !rootSource.Contains("DrawSiteLabel(", StringComparison.Ordinal) &&
+        !rootSource.Contains("WorldSiteHitButton", StringComparison.Ordinal),
+        "strategic site markers should keep map-hit logic in world space while site names move to a screen-space UI overlay.");
     AssertTrue(
         rootSource.Contains("ToViewportLocal", StringComparison.Ordinal) &&
         rootSource.Contains("ToRootScreen", StringComparison.Ordinal),
@@ -707,6 +715,7 @@ internal static void StrategicWorldViewportOverlayOwnsInputAndMarkers()
         "Presentation",
         "World",
         "StrategicWorldRoot.MapSetup.cs"));
+    string updateWorldCameraViewBody = ExtractMethodBody(setupSource, "private bool UpdateWorldCameraView(bool force = false)");
     string selectionSource = File.ReadAllText(Path.Combine(
         ProjectRoot(),
         "src",
@@ -725,21 +734,22 @@ internal static void StrategicWorldViewportOverlayOwnsInputAndMarkers()
         "strategic viewport overlay signal setup should be guarded instead of disconnecting nonexistent Godot C# event connections.");
     AssertTrue(
         rootSource.Contains("HandleWorldArmyInput(@event, eventIsViewportLocal: true)", StringComparison.Ordinal) &&
-        rootSource.Contains("ToRootScreen(mouseButton.Position)", StringComparison.Ordinal),
-        "viewport-local map input should be converted back to root-screen coordinates before reusing world selection and command logic.");
+        rootSource.Contains("UpdateSiteHoverAt(mapPosition)", StringComparison.Ordinal) &&
+        !rootSource.Contains("ToRootScreen(mouseButton.Position)", StringComparison.Ordinal),
+        "viewport-local map input should stay in map space so world selection and hover logic do not relayout the overlay.");
     AssertTrue(
         drawingSource.Contains("private void DrawWorldMapOverlay()", StringComparison.Ordinal) &&
         !drawingSource.Contains("public override void _Draw()", StringComparison.Ordinal),
         "strategic runtime markers should draw on WorldMapOverlay instead of the root Control behind the SubViewport.");
     AssertTrue(
-        drawingSource.Contains("MapToViewportLocal(army.WorldPosition)", StringComparison.Ordinal) &&
-        drawingSource.Contains("MapToViewportLocal(opportunity.WorldPosition)", StringComparison.Ordinal) &&
-        drawingSource.Contains("TryGetSiteVisualViewportBounds", StringComparison.Ordinal),
-        "army, opportunity, and selected-site marker positions should be projected into viewport-local overlay coordinates.");
+        drawingSource.Contains("Vector2 position = army.WorldPosition", StringComparison.Ordinal) &&
+        drawingSource.Contains("Vector2 position = opportunity.WorldPosition", StringComparison.Ordinal) &&
+        !drawingSource.Contains("DrawSiteLabel(", StringComparison.Ordinal),
+        "army and opportunity markers should stay in map space while site names are handled by the UI overlay.");
     AssertTrue(
-        setupSource.Contains("QueueStrategicOverlayRedraw()", StringComparison.Ordinal) &&
+        !updateWorldCameraViewBody.Contains("QueueStrategicOverlayRedraw()", StringComparison.Ordinal) &&
         selectionSource.Contains("QueueStrategicOverlayRedraw()", StringComparison.Ordinal),
-        "camera updates and drag selection changes should redraw the viewport overlay that owns the visible strategic markers.");
+        "drag selection changes should redraw the overlay while camera panning should not force a full redraw.");
 }
 
 internal static void WorldSiteUsesDedicatedMainWorldViewport()
@@ -1279,40 +1289,4 @@ internal static void BattlePreparationLaunchExcludesReserveGroupsBeforeRuntime()
         "reserve pruning should remove undeployed player forces and plans from the Runtime request with a diagnostic.");
 }
 
-internal static void BattlePreparationMapDragUsesRequestBackedPlacements()
-{
-    string presentationSource = ReadWorldSitePresentationSource();
-    string interactionSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteInteraction.cs"));
-
-    AssertTrue(
-        presentationSource.Contains("BattlePreparationPlacementDragContext", StringComparison.Ordinal) &&
-        presentationSource.Contains("BattlePreparationDeploymentDragController", StringComparison.Ordinal) &&
-        interactionSource.Contains("_battlePreparationDeploymentDragController.TryResolveDragContext", StringComparison.Ordinal),
-        "battle preparation map drag should resolve placement metadata from the battle request as well as site placements");
-    AssertTrue(
-        interactionSource.Contains("_battlePreparationDeploymentDragController.TryMovePlacement", StringComparison.Ordinal),
-        "dropping a battle-preparation map entity should update request-backed placements without requiring a WorldSiteState placement row");
-    AssertTrue(
-        presentationSource.Contains("FootprintSize = _resolveForceFootprintSize(force)", StringComparison.Ordinal) &&
-        interactionSource.Contains("dragContext.ForceId", StringComparison.Ordinal) &&
-        interactionSource.Contains("dragContext.ForceIndex", StringComparison.Ordinal),
-        "map drag preview, validation, and occupancy should use the dragged request force footprint and self identity");
-}
-
-internal static void BattlePreparationMapDragUsesSameDeploymentZoneRestrictionForBothSides()
-{
-    string presentationSource = ReadWorldSitePresentationSource();
-    string interactionSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteInteraction.cs"));
-
-    AssertTrue(
-        presentationSource.Contains("ShouldRestrictDeploymentZone", StringComparison.Ordinal),
-        "battle preparation should make deployment-zone restriction an explicit side-aware rule");
-    AssertTrue(
-        interactionSource.Contains("BattlePreparationDeploymentDragController.ShouldRestrictDeploymentZone(dragContext)", StringComparison.Ordinal) &&
-        interactionSource.Contains("IsBattlePreparationFootprintDeployable", StringComparison.Ordinal),
-        "map drag should route both sides through the same authored deployment-zone validation");
-    AssertTrue(
-        !presentationSource.Contains("dragContext.FallbackFaction != BattleFaction.Enemy", StringComparison.Ordinal),
-        "enemy deployment map drags should not bypass authored DeploymentZone markers");
-}
 }

@@ -724,6 +724,30 @@ internal static void RuntimePlaybackAppliesDamageSemanticsThroughTargetQueue()
         "attack feedback may stay actor-queued, but health/death application should not wait for the actor visual tail to finish");
 }
 
+internal static void RuntimePlaybackMirrorsDamageFromRuntimeHpFacts()
+{
+    string liveObservation = ReadBattleRuntimeLiveObservationSource();
+    string health = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "HealthComponent.cs"));
+    string runtimeEvent = File.ReadAllText(Path.Combine("src", "Runtime", "Battle", "Events", "BattleEvent.cs"));
+
+    AssertTrue(
+        runtimeEvent.Contains("HasTargetHitPoints", StringComparison.Ordinal) &&
+        runtimeEvent.Contains("TargetHpBefore", StringComparison.Ordinal) &&
+        runtimeEvent.Contains("TargetHpAfter", StringComparison.Ordinal),
+        "Runtime damage events should expose target HP before/after facts for Presentation mirrors");
+    AssertTrue(
+        health.Contains("MirrorRuntimeDamage", StringComparison.Ordinal),
+        "Presentation health should expose a mirror method for Runtime damage facts");
+    AssertTrue(
+        liveObservation.Contains("health.MirrorRuntimeDamage", StringComparison.Ordinal) &&
+        liveObservation.Contains("runtimeEvent.TargetHpBefore", StringComparison.Ordinal) &&
+        liveObservation.Contains("runtimeEvent.TargetHpAfter", StringComparison.Ordinal),
+        "live presentation should mirror Runtime HP facts instead of recalculating target HP locally");
+    AssertTrue(
+        !liveObservation.Contains("health.ApplyDamage(damage, actor)", StringComparison.Ordinal),
+        "live presentation must not apply damage through the Presentation health authority");
+}
+
 internal static void RuntimePlaybackTargetDamageQueueDoesNotSerializeImpactDelay()
 {
     string state = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"));

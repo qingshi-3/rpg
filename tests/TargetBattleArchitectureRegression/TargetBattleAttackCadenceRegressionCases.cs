@@ -517,7 +517,7 @@ internal static class TargetBattleAttackCadenceRegressionCases
         int enemyCellX,
         int enemyCellY)
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = $"snapshot_{battleId}",
             BattleId = battleId,
@@ -528,6 +528,8 @@ internal static class TargetBattleAttackCadenceRegressionCases
                 BuildGroup("group_enemy", "enemy", "force_enemy", "hero_enemy", "corps_enemy", enemyCellX, enemyCellY)
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static BattleGroupSnapshot BuildGroup(

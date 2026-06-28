@@ -314,19 +314,36 @@ public partial class StrategicWorldRoot
         if (_strategicNavigationContext == null)
         {
             failureReason = "strategic_navigation_context_missing";
+            GameLog.Warn(
+                nameof(StrategicWorldRoot),
+                $"StrategicExpeditionNavigationResolveRejected sourceSite={_expeditionSourceSiteId} targetSite={targetSiteId} requested={requestedDestination} reason={failureReason}");
             return false;
         }
 
+        GameLog.Info(
+            nameof(StrategicWorldRoot),
+            $"StrategicExpeditionNavigationResolveRequested sourceSite={_expeditionSourceSiteId} targetSite={targetSiteId} requested={requestedDestination} navigation={_strategicNavigationContext.DiagnosticsSummary}");
+
         if (!TryResolveSiteExitArmyNavigationPoint(_expeditionSourceSiteId, requestedDestination, out sourceArmyPosition, out failureReason))
         {
+            GameLog.Warn(
+                nameof(StrategicWorldRoot),
+                $"StrategicExpeditionSourceNavigationResolveRejected sourceSite={_expeditionSourceSiteId} targetSite={targetSiteId} requested={requestedDestination} reason={failureReason}");
             return false;
         }
 
         if (!string.IsNullOrWhiteSpace(targetSiteId) &&
             !TryResolveSiteArmyNavigationPoint(targetSiteId, sourceArmyPosition, out resolvedDestination, out arrivalApproachOffset, out approachDirection, out failureReason))
         {
+            GameLog.Warn(
+                nameof(StrategicWorldRoot),
+                $"StrategicExpeditionTargetNavigationResolveRejected sourceSite={_expeditionSourceSiteId} targetSite={targetSiteId} source={sourceArmyPosition} requested={requestedDestination} reason={failureReason}");
             return false;
         }
+
+        GameLog.Info(
+            nameof(StrategicWorldRoot),
+            $"StrategicExpeditionNavigationResolved sourceSite={_expeditionSourceSiteId} targetSite={targetSiteId} requested={requestedDestination} source={sourceArmyPosition} destination={resolvedDestination} arrivalOffset={arrivalApproachOffset} approachDirection={approachDirection}");
 
         return StrategicCommandNavigationService.TryBuildOrDeferPath(
             _strategicNavigationContext,

@@ -205,6 +205,11 @@ public partial class StrategicWorldRoot
         return ToRootScreen(MapToViewportLocal(mapPosition));
     }
 
+    private Vector2 MapToOverlayLocal(Vector2 mapPosition)
+    {
+        return mapPosition;
+    }
+
     private Vector2 ScreenToMap(Vector2 screenPosition)
     {
         return ViewportLocalToMap(ToViewportLocal(screenPosition));
@@ -288,6 +293,11 @@ public partial class StrategicWorldRoot
         return BuildScreenRect(MapToScreen(mapRect.Position), MapToScreen(mapRect.End));
     }
 
+    private Rect2 MapRectToOverlayLocal(Rect2 mapRect)
+    {
+        return mapRect;
+    }
+
     private Rect2 MapRectToViewportLocal(Rect2 mapRect)
     {
         return BuildScreenRect(MapToViewportLocal(mapRect.Position), MapToViewportLocal(mapRect.End));
@@ -319,6 +329,19 @@ public partial class StrategicWorldRoot
         return true;
     }
 
+    private bool TryGetSiteVisualMapBounds(string siteId, out Rect2 mapBounds)
+    {
+        mapBounds = default;
+        if (string.IsNullOrWhiteSpace(siteId) ||
+            !_siteVisualFootprints.TryGetValue(siteId, out SiteVisualFootprint footprint))
+        {
+            return false;
+        }
+
+        mapBounds = footprint.MapBounds;
+        return true;
+    }
+
     private Rect2 GetSiteHitRect(WorldSiteDefinition definition)
     {
         if (definition != null &&
@@ -333,6 +356,8 @@ public partial class StrategicWorldRoot
 
     private Rect2 GetSiteLabelRect(WorldSiteDefinition definition)
     {
+        // Site name badges live in screen-space UI. This rect is their overlay
+        // placement contract, not world geometry.
         if (definition != null &&
             TryGetSiteVisualScreenBounds(definition.Id, out Rect2 screenBounds))
         {

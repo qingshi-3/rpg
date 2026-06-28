@@ -242,17 +242,15 @@ internal sealed class BattleRuntimeLivePresentationObserver
                 out BattleEntity actor,
                 out BattleEntity target,
                 out HealthComponent health,
-                out int damage))
+                out int damage,
+                out int targetHpBefore,
+                out int targetHpAfter))
         {
             return 0;
         }
 
-        int targetHpBeforeHit = health?.Hp ?? 0;
         int previewApplied = damage;
-        bool previewDefeated = IsRuntimeDefeatingDamageEvent(runtimeEvent) ||
-                               health != null &&
-                               targetHpBeforeHit > 0 &&
-                               targetHpBeforeHit - System.Math.Min(targetHpBeforeHit, damage) <= 0;
+        bool previewDefeated = targetHpBefore > 0 && targetHpAfter <= 0;
         BattleDamageEvent damageEvent = BuildRuntimeDamageEvent(runtimeEvent, target, previewApplied, previewDefeated);
         bool isSkillDamage = IsRuntimeSkillDamageEvent(runtimeEvent);
         BattleUnitRoot unitRoot = UnitRoot;
@@ -264,7 +262,7 @@ internal sealed class BattleRuntimeLivePresentationObserver
                 new[] { damageEvent },
                 runtimeEvent?.ReasonCode ?? ""));
         diagnostic?.LogFeedbackStarted(
-            targetHpBeforeHit,
+            targetHpBefore,
             previewApplied,
             previewDefeated,
             attackAnimationSeconds,
@@ -295,7 +293,9 @@ internal sealed class BattleRuntimeLivePresentationObserver
                 out BattleEntity actor,
                 out BattleEntity target,
                 out HealthComponent health,
-                out int damage))
+                out int damage,
+                out int targetHpBefore,
+                out int targetHpAfter))
         {
             return;
         }
@@ -309,6 +309,8 @@ internal sealed class BattleRuntimeLivePresentationObserver
             target,
             health,
             damage,
+            targetHpBefore,
+            targetHpAfter,
             actionDurationSeconds,
             0,
             diagnostic,
@@ -323,12 +325,16 @@ internal sealed class BattleRuntimeLivePresentationObserver
         out BattleEntity actor,
         out BattleEntity target,
         out HealthComponent health,
-        out int damage)
+        out int damage,
+        out int targetHpBefore,
+        out int targetHpAfter)
     {
         actor = null;
         target = null;
         health = null;
         damage = 0;
+        targetHpBefore = 0;
+        targetHpAfter = 0;
 
         if (UnitRoot == null)
         {
@@ -362,6 +368,14 @@ internal sealed class BattleRuntimeLivePresentationObserver
 
         health = target.GetComponent<HealthComponent>();
         damage = System.Math.Max(0, -runtimeEvent.CorpsStrengthDelta);
+        if (!runtimeEvent.HasTargetHitPoints)
+        {
+            diagnostic?.LogSkipped("missing_runtime_target_hp");
+            return false;
+        }
+
+        targetHpBefore = System.Math.Max(0, runtimeEvent.TargetHpBefore);
+        targetHpAfter = System.Math.Max(0, runtimeEvent.TargetHpAfter);
         return true;
     }
 
@@ -417,6 +431,8 @@ internal sealed class BattleRuntimeLivePresentationObserver
         BattleEntity target,
         HealthComponent health,
         int damage,
+        int targetHpBefore,
+        int targetHpAfter,
         double attackAnimationSeconds,
         double runtimeImpactDelaySeconds,
         BattleRuntimeLivePresentationState.BattlePresentationFatalDamageDiagnostic diagnostic = null,
@@ -450,24 +466,23 @@ internal sealed class BattleRuntimeLivePresentationObserver
         DamageReactionComponent damageReaction = target.GetComponent<DamageReactionComponent>();
         damageReaction?.BeginImpactAlignedDamageTiming();
         int applied;
-        int hpBefore = health.Hp;
         try
         {
-            applied = health.ApplyDamage(damage, actor);
+            applied = health.MirrorRuntimeDamage(actor, damage, targetHpBefore, targetHpAfter);
         }
         finally
         {
             damageReaction?.EndImpactAlignedDamageTiming();
         }
 
-        bool presentationDefeated = BattleRuleQueries.IsDefeated(target);
-        diagnostic?.LogDamageApplied(applied, hpBefore, health.Hp, presentationDefeated);
+        bool runtimeDefeated = targetHpBefore > 0 && targetHpAfter <= 0;
+        diagnostic?.LogDamageApplied(applied, targetHpBefore, targetHpAfter, runtimeDefeated);
         if (applied <= 0)
         {
             return;
         }
 
-        if (presentationDefeated)
+        if (runtimeDefeated)
         {
             diagnostic?.LogMarkDefeatedRequested();
             UnitRoot?.MarkEntityDefeated(target);

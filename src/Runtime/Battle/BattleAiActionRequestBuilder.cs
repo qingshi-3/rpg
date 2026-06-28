@@ -44,8 +44,10 @@ internal static class BattleAiActionRequestBuilder
             targetFact == null ||
             actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst &&
             BattleCombatGeometry.GetOrthogonalAttackGap(actorFact, targetFact.Value) > System.Math.Max(1, actorFact.Actor.AttackRange);
+        bool regionReached = BattleLocalCombatRegionResolver.IsRegionReached(actorFact, regionMovementGoal);
         if (shouldAdvanceInsideCommandScope &&
-            regionMovementGoal != null)
+            regionMovementGoal != null &&
+            !regionReached)
         {
             return BattleRuntimeAiActionRequest.AdvanceTowardRegion(actorFact.Actor.ActorId, regionMovementGoal);
         }

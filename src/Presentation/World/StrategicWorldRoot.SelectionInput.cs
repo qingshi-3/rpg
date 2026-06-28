@@ -89,8 +89,8 @@ public partial class StrategicWorldRoot
 
         return State.OpportunityStates.Values
             .Where(opportunity => opportunity.Status == WorldOpportunityStatus.Active)
-            .OrderBy(opportunity => MapToScreen(opportunity.WorldPosition).DistanceSquaredTo(screenPosition))
-            .FirstOrDefault(opportunity => MapToScreen(opportunity.WorldPosition).DistanceTo(screenPosition) <= OpportunityMarkerRadius + 10.0f);
+            .OrderBy(opportunity => opportunity.WorldPosition.DistanceSquaredTo(screenPosition))
+            .FirstOrDefault(opportunity => opportunity.WorldPosition.DistanceTo(screenPosition) <= OpportunityMarkerRadius + 10.0f);
     }
 
     private void OnWorldMapOverlayGuiInput(InputEvent @event)
@@ -113,23 +113,23 @@ public partial class StrategicWorldRoot
 
         if (@event is InputEventMouseButton mouseButton)
         {
-            // The world viewport owns map events, but selection/command code still
-            // compares against root-screen rectangles shared with the HUD.
-            Vector2 screenPosition = eventIsViewportLocal ? ToRootScreen(mouseButton.Position) : mouseButton.Position;
+            // The world viewport owns map events, and map-space positions stay in the
+            // overlay's local coordinates so camera panning does not force a redraw.
+            Vector2 mapPosition = eventIsViewportLocal ? mouseButton.Position : ScreenToMap(mouseButton.Position);
             if (mouseButton.ButtonIndex == MouseButton.Left)
             {
-                HandleWorldArmyLeftMouse(mouseButton, screenPosition, eventIsViewportLocal);
+                HandleWorldArmyLeftMouse(mouseButton, mapPosition, eventIsViewportLocal);
             }
             else if (mouseButton.ButtonIndex == MouseButton.Right && mouseButton.Pressed)
             {
                 if (_isExpeditionTargeting)
                 {
-                    TryIssueExpeditionToTarget(screenPosition);
+                    TryIssueExpeditionToTarget(mapPosition);
                     AcceptWorldMapInput(eventIsViewportLocal);
                     return;
                 }
 
-                if (TryCommandSelectedArmies(screenPosition))
+                if (TryCommandSelectedArmies(mapPosition))
                 {
                     AcceptWorldMapInput(eventIsViewportLocal);
                 }
@@ -137,22 +137,29 @@ public partial class StrategicWorldRoot
         }
         else if (@event is InputEventMouseMotion mouseMotion && _isArmyBoxSelecting)
         {
-            _armySelectionCurrentScreen = eventIsViewportLocal ? ToRootScreen(mouseMotion.Position) : mouseMotion.Position;
+            _armySelectionCurrentScreen = eventIsViewportLocal ? mouseMotion.Position : ScreenToMap(mouseMotion.Position);
             QueueStrategicOverlayRedraw();
             AcceptWorldMapInput(eventIsViewportLocal);
+        }
+        else if (@event is InputEventMouseMotion motion)
+        {
+            Vector2 mapPosition = eventIsViewportLocal ? motion.Position : ScreenToMap(motion.Position);
+            // Hover is resolved against map-space rectangles so the world markers
+            // do not need button nodes that would be repositioned during pan.
+            UpdateSiteHoverAt(mapPosition);
         }
     }
 
     private void HandleWorldArmyLeftMouse(
         InputEventMouseButton mouseButton,
-        Vector2 screenPosition,
+        Vector2 mapPosition,
         bool eventIsViewportLocal)
     {
         if (mouseButton.Pressed)
         {
             _isArmyBoxSelecting = true;
-            _armySelectionStartScreen = screenPosition;
-            _armySelectionCurrentScreen = screenPosition;
+            _armySelectionStartScreen = mapPosition;
+            _armySelectionCurrentScreen = mapPosition;
             AcceptWorldMapInput(eventIsViewportLocal);
             return;
         }
@@ -163,7 +170,7 @@ public partial class StrategicWorldRoot
         }
 
         _isArmyBoxSelecting = false;
-        _armySelectionCurrentScreen = screenPosition;
+        _armySelectionCurrentScreen = mapPosition;
 
         bool append = mouseButton.ShiftPressed;
         if (_armySelectionStartScreen.DistanceTo(_armySelectionCurrentScreen) <= 8.0f)
@@ -252,7 +259,7 @@ public partial class StrategicWorldRoot
 
         foreach (WorldArmyState army in State.ArmyStates.Values.Where(CanSelectWorldArmy))
         {
-            if (rect.HasPoint(MapToScreen(army.WorldPosition)))
+            if (rect.HasPoint(army.WorldPosition))
             {
                 _selectedArmyIds.Add(army.ArmyId);
             }
@@ -277,7 +284,7 @@ public partial class StrategicWorldRoot
             return TryCommandSelectedArmiesToSite(targetSite.Id);
         }
 
-        Vector2 mapDestination = ScreenToMap(screenPosition);
+        Vector2 mapDestination = screenPosition;
         if (!TryBuildCommandPaths(
                 selectedArmies,
                 mapDestination,
@@ -326,18 +333,42 @@ public partial class StrategicWorldRoot
     {
         return State.ArmyStates.Values
             .Where(CanSelectWorldArmy)
-            .OrderBy(army => MapToScreen(army.WorldPosition).DistanceSquaredTo(screenPosition))
-            .FirstOrDefault(army => MapToScreen(army.WorldPosition).DistanceTo(screenPosition) <= Mathf.Max(army.Radius + 10.0f, 24.0f));
+            .OrderBy(army => army.WorldPosition.DistanceSquaredTo(screenPosition))
+            .FirstOrDefault(army => army.WorldPosition.DistanceTo(screenPosition) <= Mathf.Max(army.Radius + 10.0f, 24.0f));
     }
 
     private WorldSiteDefinition FindSiteAt(Vector2 screenPosition)
     {
+        float zoom = Mathf.Max(_worldCamera?.Zoom.X ?? 1.0f, 0.001f);
         return Definition.SiteDefinitions
             .Where(site => State.SiteStates.ContainsKey(site.Id))
             .FirstOrDefault(site =>
             {
-                return GetSiteHitRect(site).HasPoint(screenPosition);
+                return GetSiteMarkerLayoutHitRect(site, zoom).HasPoint(screenPosition);
             });
+    }
+
+    private void UpdateSiteHoverAt(Vector2 mapPosition)
+    {
+        if (_isArmyBoxSelecting || Definition == null || State == null)
+        {
+            return;
+        }
+
+        WorldSiteDefinition hoveredSite = FindSiteAt(mapPosition);
+        string hoveredSiteId = hoveredSite?.Id ?? "";
+        if (hoveredSiteId == _hoveredSiteId)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(hoveredSiteId))
+        {
+            HideSiteHoverSummary(_hoveredSiteId);
+            return;
+        }
+
+        ShowSiteHoverSummary(hoveredSiteId);
     }
 
     private static bool CanSelectWorldArmy(WorldArmyState army)

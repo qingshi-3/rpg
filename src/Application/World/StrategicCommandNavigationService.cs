@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using Rpg.Domain.World;
+using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Application.World;
 
@@ -31,8 +32,13 @@ public static class StrategicCommandNavigationService
         if (navigationContext == null)
         {
             failureReason = "strategic_navigation_context_missing";
+            GameLog.Warn(nameof(StrategicCommandNavigationService), $"StrategicCommandPathRequestRejected reason={failureReason} destination={destination}");
             return false;
         }
+
+        GameLog.Info(
+            nameof(StrategicCommandNavigationService),
+            $"StrategicCommandPathRequest count={armies.Count} destination={destination} navigation={DescribeNavigationContext(navigationContext)}");
 
         int commandableArmyCount = 0;
         foreach (WorldArmyState army in armies)
@@ -70,6 +76,7 @@ public static class StrategicCommandNavigationService
         if (commandableArmyCount == 0)
         {
             failureReason = "no_commandable_army";
+            GameLog.Warn(nameof(StrategicCommandNavigationService), $"StrategicCommandPathRequestRejected reason={failureReason} destination={destination}");
             return false;
         }
 
@@ -91,14 +98,21 @@ public static class StrategicCommandNavigationService
         if (navigationContext == null)
         {
             failureReason = "strategic_navigation_context_missing";
+            GameLog.Warn(nameof(StrategicCommandNavigationService), $"StrategicCommandPathRejected subject={subjectId} reason={failureReason} start={start} destination={destination}");
             return false;
         }
 
         if (navigationContext.TryBuildPath(start, destination, out path, out failureReason))
         {
+            GameLog.Info(
+                nameof(StrategicCommandNavigationService),
+                $"StrategicCommandPathBuilt subject={subjectId} start={start} destination={destination} points={path.Points.Count} navigation={DescribeNavigationContext(navigationContext)}");
             return true;
         }
 
+        GameLog.Warn(
+            nameof(StrategicCommandNavigationService),
+            $"StrategicCommandPathRejected subject={subjectId} reason={failureReason} start={start} destination={destination} {DescribePointMapping(navigationContext, "start", start)} {DescribePointMapping(navigationContext, "destination", destination)} navigation={DescribeNavigationContext(navigationContext)}");
         failureReason = PrefixSubject(subjectId, failureReason);
         return false;
     }
@@ -108,5 +122,19 @@ public static class StrategicCommandNavigationService
         return string.IsNullOrWhiteSpace(subjectId)
             ? failureReason
             : $"army={subjectId} {failureReason}";
+    }
+
+    private static string DescribeNavigationContext(IStrategicNavigationContext navigationContext)
+    {
+        return navigationContext is StrategicNavigationContext strategicContext
+            ? strategicContext.DiagnosticsSummary
+            : $"provider={navigationContext?.PrimaryProviderId ?? "<missing>"} version={navigationContext?.Version ?? 0}";
+    }
+
+    private static string DescribePointMapping(IStrategicNavigationContext navigationContext, string label, Vector2 point)
+    {
+        return navigationContext is StrategicNavigationContext strategicContext
+            ? $"{label}({strategicContext.DescribePointForDiagnostics(point)})"
+            : $"{label}(point={point})";
     }
 }

@@ -51,6 +51,7 @@ Run("battle grid map reader does not consume complex tileset navigation data", T
 Run("battle tilesets only expose walkable navigation custom data", TargetBattleNavigationRegressionCases.BattleTileSetsOnlyExposeWalkableNavigationCustomData);
 Run("battle navigation topology compiler produces final edges before runtime", TargetBattleNavigationRegressionCases.BattleNavigationTopologyCompilerProducesFinalEdgesBeforeRuntime);
 Run("runtime navigation graph consumes topology data layer only", TargetBattleNavigationRegressionCases.RuntimeNavigationGraphConsumesTopologyDataLayerOnly);
+Run("runtime navigation graph does not fallback from production create to actors", TargetBattleNavigationRegressionCases.RuntimeNavigationGraphDoesNotFallbackFromProductionCreateToActors);
 Run("runtime navigation main loop uses local neighbor planner instead of actor astar", TargetBattleNavigationRegressionCases.RuntimeNavigationMainLoopUsesLocalNeighborPlannerInsteadOfActorAStar);
 Run("battle navigation topology diagnostics print nodes edges and placements", TargetBattleNavigationRegressionCases.BattleNavigationTopologyDiagnosticsPrintNodesEdgesAndPlacements);
 Run("battle navigation snapshot builder excludes underground water from topology", TargetBattleNavigationRegressionCases.BattleNavigationSnapshotBuilderExcludesUndergroundWaterFromTopology);
@@ -178,6 +179,7 @@ static void RuntimeOwnsStableInMemoryActorState()
             }
         }
     };
+    TargetBattleTestTopology.CompileAroundGroups(snapshot);
     BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
     AssertTrue(result.Outcome.IsComplete, "valid snapshot should complete minimal runtime");
     AssertEqual("snapshot_1", result.FinalState.SnapshotId, "runtime state snapshot id");
@@ -667,6 +669,7 @@ static void BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces()
         FactionId = "enemy",
         Count = 1
     });
+    TargetBattleTestTopology.CompileRequestRect(request, -2, -2, 10, 4);
 
     BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().Probe(request);
 
@@ -750,7 +753,6 @@ static void LegacyResultAdapterCopiesRuntimeSurvivalIntoForceResults()
     AssertEqual(0, enemy.SurvivedCount, "enemy survived count");
     AssertEqual(1, enemy.DefeatedCount, "enemy defeated count");
 }
-
 static void LegacyResultAdapterMapsFailedHandoffToDisaster()
 {
     LegacyBattleResultAdapter adapter = new();
@@ -775,7 +777,6 @@ static void LegacyResultAdapterMapsFailedHandoffToDisaster()
     AssertTrue(incompleteRuntimeException.Outcome != Rpg.Application.Battle.BattleOutcome.Victory, "incomplete runtime exception must not map to victory");
     AssertTrue(incompleteRuntimeException.Outcome != Rpg.Application.Battle.BattleOutcome.Defeat, "incomplete runtime exception must not map to defeat");
 }
-
 static BattleStartSnapshot BuildOpposedSnapshot(
     string battleId,
     int playerStrength,
@@ -783,7 +784,7 @@ static BattleStartSnapshot BuildOpposedSnapshot(
     int enemyCellX = 6,
     int enemyCellY = 0)
 {
-    return new BattleStartSnapshot
+    BattleStartSnapshot snapshot = new()
     {
         SnapshotId = $"snapshot_{battleId}",
         BattleId = battleId,
@@ -822,8 +823,9 @@ static BattleStartSnapshot BuildOpposedSnapshot(
             }
         }
     };
+    TargetBattleTestTopology.CompileAroundGroups(snapshot);
+    return snapshot;
 }
-
 static void BattleGroupVerticalSliceSettlesAndReports()
 {
     HeroState hero = new() { HeroId = "hero_1", HeroDefinitionId = "hero_def_1", Level = 3 };
@@ -898,27 +900,23 @@ static void MixedValidAndMissingHeroHandoffRejectsSettlementAndNormalReport()
     AssertEqual("SettlementRejected", result.Report.OutcomeSummary, "mixed invalid handoff report outcome");
     AssertTrue(result.Report.FailureCandidates.Contains("battle_result_incomplete"), "mixed invalid handoff report failure reason");
 }
-
 static BattleEventStream StartedStream(string battleId)
 {
     BattleEventStream stream = new();
     stream.Add(new BattleEvent { EventId = $"{battleId}:started", BattleId = battleId, Kind = BattleEventKind.BattleStarted });
     return stream;
 }
-
 static BattleEventStream EndedStream(string battleId)
 {
     BattleEventStream stream = StartedStream(battleId);
     stream.Add(new BattleEvent { EventId = $"{battleId}:ended", BattleId = battleId, Kind = BattleEventKind.BattleEnded });
     return stream;
 }
-
 static void AssertRejectedPlan(SettlementPlan plan, string reason, string message)
 {
     AssertTrue(!plan.Accepted, $"{message} should reject");
     AssertEqual(reason, plan.RejectionReason, $"{message} rejection reason");
 }
-
 static string CombinedSource(params string[] pathParts)
 {
     string root = ProjectRoot();
@@ -932,7 +930,6 @@ static string CombinedSource(params string[] pathParts)
         .OrderBy(item => item, StringComparer.Ordinal)
         .Select(File.ReadAllText));
 }
-
 static string ProjectRoot()
 {
     DirectoryInfo? current = new(AppContext.BaseDirectory);
@@ -943,7 +940,6 @@ static string ProjectRoot()
 
     return current?.FullName ?? throw new InvalidOperationException("project root not found");
 }
-
 static void Run(string name, Action test)
 {
     try
@@ -957,7 +953,6 @@ static void Run(string name, Action test)
         Environment.ExitCode = 1;
     }
 }
-
 static void AssertTrue(bool condition, string message)
 {
     if (!condition)

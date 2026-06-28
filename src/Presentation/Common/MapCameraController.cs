@@ -251,6 +251,13 @@ public partial class MapCameraController : Camera2D
 
     public void SetViewportSizeOverride(Vector2 viewportSize)
     {
+        // Strategic world updates this every frame from the camera loop; keep the
+        // override idempotent so panning does not re-run zoom/clamp work needlessly.
+        if (_hasViewportSizeOverride && _viewportSizeOverride == viewportSize)
+        {
+            return;
+        }
+
         _viewportSizeOverride = viewportSize;
         _hasViewportSizeOverride = viewportSize.X > 0f && viewportSize.Y > 0f;
         SetZoomScalar(GetZoomScalar());
@@ -258,6 +265,11 @@ public partial class MapCameraController : Camera2D
 
     public void ClearViewportSizeOverride()
     {
+        if (!_hasViewportSizeOverride)
+        {
+            return;
+        }
+
         _viewportSizeOverride = default;
         _hasViewportSizeOverride = false;
         SetZoomScalar(GetZoomScalar());

@@ -166,6 +166,7 @@ internal static class TargetBattleLocalCombatPositionRegressionCases
             }
         };
         AddSurface(snapshot, 0, 0);
+        AddSurface(snapshot, 12, 7);
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
 
         string previousLog = File.Exists(GameLog.CurrentLogPath)
@@ -336,6 +337,10 @@ internal static class TargetBattleLocalCombatPositionRegressionCases
                 AddSurface(snapshot, x, y);
             }
         }
+        AddSurface(snapshot, 40, 18);
+        AddSurface(snapshot, 40, 19);
+        AddSurface(snapshot, 40, 20);
+        AddSurface(snapshot, 40, 21);
 
         AddPlannedGroup(snapshot, "player_unit_1", "player", "expedition:player_camp:1:army:f1_grandmasterzir", 33, 17, 600, "undead_deployment_zone_east_1", footprintWidth: 2, footprintHeight: 1);
         AddPlannedGroup(snapshot, "player_unit_2", "player", "expedition:player_camp:1:army:f1_azuritelion", 33, 18, 600, "undead_deployment_zone_east_1", footprintWidth: 2, footprintHeight: 1);

@@ -36,11 +36,16 @@ internal static class BattleTacticalObservationUpdater
         // mutation remains centralized in the battle-group state machine below.
         state.GroupPerceptionSummaryStore = BattleGroupPerceptionSummaryBuilder.BuildForGroups(livingCorps, tick);
         IReadOnlySet<string> groupsWithActiveCombatActions = BuildGroupsWithActiveCombatActions(livingCorps);
+        IReadOnlySet<string> groupsWithRetainedCombatJoin = BuildGroupsWithRetainedCombatJoin(
+            state.TacticalStates,
+            state.GroupActionZones,
+            state.CombatZones);
         IReadOnlyList<BattleEvent> engagementEvents = BattleGroupEngagementStateMachine.ApplyPerceptionTransitions(
             state.TacticalStateStore,
             state.GroupPerceptionSummaryStore,
             state.CombatZones,
             groupsWithActiveCombatActions,
+            groupsWithRetainedCombatJoin,
             battleId,
             tick,
             currentTimeSeconds);
@@ -66,6 +71,32 @@ internal static class BattleTacticalObservationUpdater
                            !string.IsNullOrWhiteSpace(item.BattleGroupId) &&
                            HasActiveCombatAction(item))
             .Select(item => item.BattleGroupId ?? "")
+            .ToHashSet(System.StringComparer.Ordinal);
+    }
+
+    private static IReadOnlySet<string> BuildGroupsWithRetainedCombatJoin(
+        IReadOnlyDictionary<string, BattleGroupTacticalState> tacticalStates,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> previousActionZones,
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
+    {
+        if (tacticalStates == null ||
+            previousActionZones == null ||
+            combatZones == null ||
+            tacticalStates.Count == 0 ||
+            previousActionZones.Count == 0 ||
+            combatZones.Count == 0)
+        {
+            return new HashSet<string>(System.StringComparer.Ordinal);
+        }
+
+        return previousActionZones.Values
+            .Where(zone => zone?.Kind == BattleGroupActionZoneKind.CombatJoin &&
+                           !string.IsNullOrWhiteSpace(zone.BattleGroupId) &&
+                           tacticalStates.TryGetValue(zone.BattleGroupId, out BattleGroupTacticalState tacticalState) &&
+                           tacticalState?.TacticalMode == BattleGroupTacticalMode.PlayerCommanded &&
+                           !string.IsNullOrWhiteSpace(zone.TargetCombatZoneId) &&
+                           combatZones.ContainsKey(zone.TargetCombatZoneId))
+            .Select(zone => zone.BattleGroupId ?? "")
             .ToHashSet(System.StringComparer.Ordinal);
     }
 
@@ -430,6 +461,7 @@ internal static class BattleTacticalObservationUpdater
             state.TacticalStates,
             livingCorps,
             state.CombatZones,
+            state.GroupActionZones,
             tick);
         bool actionChanged = !string.Equals(
             previousActionSignature,

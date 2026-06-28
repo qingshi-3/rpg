@@ -26,6 +26,7 @@ internal static class TargetBattleLayeredRuntimeRegressionCases
         request.PlayerForces.Add(BuildForce("army_1:hero", "PlayerArmy", "army_1", "player", "hero_unit", 1, (0, 0)));
         request.PlayerForces.Add(BuildForce("army_1:corps", "PlayerArmy", "army_1", "player", "corps_unit", 3, (1, 0), (1, 1), (1, 2)));
         request.EnemyForces.Add(BuildForce("site_1:defender", "DefenderSite", "site_1", "enemy", "enemy_unit", 2, (5, 0), (5, 1)));
+        TargetBattleTestTopology.CompileRequestRect(request, -2, -2, 8, 4);
 
         BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().PrepareSnapshot(request);
 

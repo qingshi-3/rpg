@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
@@ -85,5 +86,30 @@ internal static class BattleLocalCombatRegionResolver
         {
             return null;
         }
+    }
+
+    internal static bool IsRegionReached(BattleRuntimeTickStartActorFact actorFact, BattleRegionMovementGoal goal)
+    {
+        if (actorFact.Actor == null || goal == null)
+        {
+            return false;
+        }
+
+        int width = System.Math.Max(1, goal.Width);
+        int height = System.Math.Max(1, goal.Height);
+        BattleGridCoord regionAnchor = new(
+            goal.CenterCellX - (width - 1) / 2,
+            goal.CenterCellY - (height - 1) / 2,
+            goal.CenterCellHeight);
+        BattleRuntimeActor region = new()
+        {
+            GridX = regionAnchor.X,
+            GridY = regionAnchor.Y,
+            GridHeight = goal.CenterCellHeight,
+            FootprintWidth = width,
+            FootprintHeight = height
+        };
+
+        return BattleActorFootprint.GetGap(actorFact.Actor, actorFact.Anchor, region, regionAnchor) <= 1;
     }
 }

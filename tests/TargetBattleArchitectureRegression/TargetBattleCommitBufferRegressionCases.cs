@@ -149,6 +149,14 @@ internal static class TargetBattleCommitBufferRegressionCases
 
         AssertEqual(2, damage.Length, "both adjacent attacks should impact on the same runtime boundary");
         AssertTrue(damage.All(item => Math.Abs(item.RuntimeTimeSeconds - 0.4) <= 0.0001), "damage should be emitted at the runtime impact time");
+        BattleEvent playerDamage = damage.Single(item => item.TargetId == "force_player:1");
+        BattleEvent enemyDamage = damage.Single(item => item.TargetId == "force_enemy:1");
+        AssertTrue(playerDamage.HasTargetHitPoints, "runtime damage event should carry target HP mirror facts");
+        AssertTrue(enemyDamage.HasTargetHitPoints, "runtime damage event should carry target HP mirror facts");
+        AssertEqual(20, playerDamage.TargetHpBefore, "player damage event HP before");
+        AssertEqual(15, playerDamage.TargetHpAfter, "player damage event HP after");
+        AssertEqual(20, enemyDamage.TargetHpBefore, "enemy damage event HP before");
+        AssertEqual(15, enemyDamage.TargetHpAfter, "enemy damage event HP after");
         AssertEqual(15, player.HitPoints, "player HP after opposing impact");
         AssertEqual(15, enemy.HitPoints, "enemy HP after impact");
         AssertEqual(BattleRuntimeActorPhase.AttackRecovery, player.Phase, "player should enter attack recovery after impact");
@@ -349,7 +357,7 @@ internal static class TargetBattleCommitBufferRegressionCases
         int enemyCellX,
         int enemyCellY)
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = $"snapshot_{battleId}",
             BattleId = battleId,
@@ -360,6 +368,8 @@ internal static class TargetBattleCommitBufferRegressionCases
                 BuildGroup("group_enemy", "enemy", "force_enemy", "hero_enemy", "corps_enemy", enemyCellX, enemyCellY)
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static BattleStartSnapshot BuildDamageBeforeMovementSnapshot()
@@ -450,9 +460,11 @@ internal static class TargetBattleCommitBufferRegressionCases
             DisplayName = "Impact Boundary Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
+            CasterUnitIds = { "hero_player_definition" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0.2,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             Effects =
             {

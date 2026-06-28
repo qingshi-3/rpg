@@ -40,6 +40,7 @@ public static class BattleSkillSnapshotFactory
             CastSeconds = System.Math.Max(0, definition.Timing?.CastSeconds ?? 0),
             ImpactDelaySeconds = System.Math.Max(0, definition.Timing?.ImpactDelaySeconds ?? 0),
             RecoverySeconds = System.Math.Max(0, definition.Timing?.RecoverySeconds ?? 0),
+            HasInterruptPolicy = definition.InterruptPolicy != null,
             CanInterruptBasicAttackWindup = definition.InterruptPolicy?.CanInterruptBasicAttackWindup ?? false,
             CanCancelBasicAttackRecovery = definition.InterruptPolicy?.CanCancelBasicAttackRecovery ?? false,
             ReleasesWithoutOccupyingCaster = definition.InterruptPolicy?.ReleasesWithoutOccupyingCaster ?? false

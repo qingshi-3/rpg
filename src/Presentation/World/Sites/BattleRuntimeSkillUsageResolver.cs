@@ -20,9 +20,12 @@ internal static class BattleRuntimeSkillUsageResolver
             return WorldSiteRoot.BattleRuntimeSkillUsageState.Unavailable;
         }
 
-        string normalizedSkillId = string.IsNullOrWhiteSpace(skillId)
-            ? HeroSkillCommandIds.FirstSliceHeroSkillId
-            : skillId.Trim();
+        string normalizedSkillId = (skillId ?? "").Trim();
+        if (string.IsNullOrWhiteSpace(normalizedSkillId))
+        {
+            return WorldSiteRoot.BattleRuntimeSkillUsageState.Unavailable;
+        }
+
         if (string.Equals(normalizedSkillId, HeroSkillCommandIds.ThunderMarkFoldSkillId, System.StringComparison.Ordinal) &&
             !HasLiveThunderMark(selected.GroupKey, spatialMarks, runtimeTimeSeconds))
         {

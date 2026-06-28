@@ -26,11 +26,11 @@ public sealed class WorldSiteBattleGroupRuntimeResolveResult
 
 public sealed class WorldSiteBattleGroupRuntimeAdapter
 {
-    private readonly BattleGroupSessionProbeService _sessionService = new();
     private readonly BattleRuntimeSession _runtimeSession;
     private readonly BattleSettlementService _settlementService = new();
     private readonly BattleReportBuilder _reportBuilder = new();
     private readonly LegacyBattleResultAdapter _legacyResultAdapter = new();
+    private readonly StrategicBattleLaunchSnapshotSyncService _strategicLaunchSnapshotSync = new();
 
     public WorldSiteBattleGroupRuntimeAdapter(BattlePerformanceCounters performanceCounters = null)
     {
@@ -52,46 +52,11 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
 
     public bool TryStartActiveBattle(out WorldSiteBattleGroupRuntimeResolveResult result)
     {
-        if (!BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request) || request == null)
-        {
-            result = Reject("battle_handoff_missing", null, null);
-            return false;
-        }
-
-        BattleGroupSessionProbeResult sessionResult = _sessionService.PrepareSnapshot(request);
-        if (!sessionResult.Success)
-        {
-            result = Reject(sessionResult.FailureReason, request, sessionResult.FlowResult);
-            return false;
-        }
-
-        BattleRuntimeSessionController runtimeController = _runtimeSession.Begin(sessionResult.Snapshot);
-        if (IsInvalidRuntimeStart(runtimeController))
-        {
-            result = Reject("battle_group_runtime_start_failed", request, new BattleGroupBattleFlowResult
-            {
-                Snapshot = sessionResult.Snapshot,
-                RuntimeResult = runtimeController.BuildResult()
-            });
-            return false;
-        }
-
-        result = new WorldSiteBattleGroupRuntimeResolveResult
-        {
-            Success = true,
-            Request = request,
-            Snapshot = sessionResult.Snapshot,
-            RuntimeController = runtimeController,
-            FlowResult = new BattleGroupBattleFlowResult
-            {
-                Snapshot = sessionResult.Snapshot,
-                RuntimeResult = runtimeController.BuildResult()
-            }
-        };
-        GameLog.Info(
-            nameof(WorldSiteBattleGroupRuntimeAdapter),
-            $"BattleGroupRuntimeStarted request={request.RequestId} snapshot={sessionResult.Snapshot.SnapshotId} initialEvents={runtimeController.EventStream.Events.Count}");
-        return true;
+        // Strategic battles must enter Runtime through StrategicBattleActiveContext.
+        // The old handoff/probe path can no longer author production Runtime facts.
+        BattleSessionHandoff.TryPeekActiveRequest(out BattleStartRequest request);
+        result = Reject("strategic_battle_active_context_required", request, null);
+        return false;
     }
 
     public bool TryStartActiveBattle(
@@ -174,16 +139,16 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             return false;
         }
 
-        BattleGroupSessionProbeResult prepared = _sessionService.PrepareSnapshot(request);
-        if (!prepared.Success)
+        StrategicBattleLaunchSnapshotSyncResult syncResult = _strategicLaunchSnapshotSync.Sync(activeContext, request);
+        if (!syncResult.Success)
         {
-            failureReason = string.IsNullOrWhiteSpace(prepared.FailureReason)
+            failureReason = string.IsNullOrWhiteSpace(syncResult.FailureReason)
                 ? "strategic_battle_launch_snapshot_sync_failed"
-                : prepared.FailureReason;
+                : syncResult.FailureReason;
             return false;
         }
 
-        snapshot = prepared.Snapshot ?? new BattleStartSnapshot();
+        snapshot = syncResult.Snapshot ?? new BattleStartSnapshot();
         string battleId = !string.IsNullOrWhiteSpace(activeContext.Session?.SessionId)
             ? activeContext.Session.SessionId
             : !string.IsNullOrWhiteSpace(activeContext.ContextId)
@@ -195,9 +160,8 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             return false;
         }
 
-        // The current preparation UI still edits the compatibility request. At launch
-        // this adapter converts those draft facts into the active context snapshot so
-        // Runtime consumes one bridge-owned handoff, not a parallel legacy authority.
+        // Compatibility request is only the remaining preparation draft carrier.
+        // Strategic player identity must already resolve through the bridge session.
         snapshot.SnapshotId = activeSnapshot.SnapshotId;
         snapshot.BattleId = battleId;
         if (!string.IsNullOrWhiteSpace(activeContext.Session?.TargetLocationId))
@@ -225,13 +189,19 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             return Reject("battle_group_runtime_completion_missing", request, started?.FlowResult);
         }
 
+        BattleStartSnapshot snapshot = started.Snapshot ?? started.FlowResult?.Snapshot ?? new BattleStartSnapshot();
         if (!runtimeController.IsComplete)
         {
-            runtimeController.AdvanceToCompletion();
+            // Presentation-backed battles must already be complete when settlement begins.
+            // Completing here would turn an interrupted live handoff into normal writeback.
+            return Reject("battle_group_runtime_incomplete", request, new BattleGroupBattleFlowResult
+            {
+                Snapshot = snapshot,
+                RuntimeResult = runtimeController.BuildResult()
+            });
         }
 
         BattleRuntimeSessionResult runtimeResult = runtimeController.BuildResult();
-        BattleStartSnapshot snapshot = started.Snapshot ?? started.FlowResult?.Snapshot ?? new BattleStartSnapshot();
         SettlementPlan settlementPlan = _settlementService.BuildPlan(
             snapshot.SnapshotId,
             runtimeResult.Outcome,
@@ -289,13 +259,24 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             return Reject("strategic_battle_group_runtime_completion_missing", request, started?.FlowResult, activeContext);
         }
 
+        BattleStartSnapshot snapshot = started.Snapshot ?? started.FlowResult?.Snapshot ?? activeContext.Snapshot ?? new BattleStartSnapshot();
         if (!runtimeController.IsComplete)
         {
-            runtimeController.AdvanceToCompletion();
+            // Strategic writeback only accepts runtime facts produced before this boundary.
+            // Do not force an incomplete live-clock battle into a settlement/report chain.
+            BattleRuntimeSessionResult incompleteResult = runtimeController.BuildResult();
+            BattleGroupBattleFlowResult incompleteFlowResult = new()
+            {
+                Snapshot = snapshot,
+                RuntimeResult = incompleteResult
+            };
+            activeContext.Snapshot = snapshot;
+            activeContext.RuntimeResult = incompleteResult;
+            activeContext.FlowResult = incompleteFlowResult;
+            return Reject("battle_group_runtime_incomplete", request, incompleteFlowResult, activeContext);
         }
 
         BattleRuntimeSessionResult runtimeResult = runtimeController.BuildResult();
-        BattleStartSnapshot snapshot = started.Snapshot ?? started.FlowResult?.Snapshot ?? activeContext.Snapshot ?? new BattleStartSnapshot();
         SettlementPlan settlementPlan = _settlementService.BuildPlan(
             snapshot.SnapshotId,
             runtimeResult.Outcome,
@@ -371,8 +352,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
         return runtimeController?.Outcome?.IsComplete == false &&
                runtimeController.Outcome.TerminationReason == BattleTerminationReason.RuntimeException &&
                runtimeController.EventStream.Events.Any(item =>
-                   item.Kind == Rpg.Runtime.Battle.Events.BattleEventKind.CommandRejected &&
-                   item.ReasonCode == "battle_snapshot_invalid");
+                   item.Kind == Rpg.Runtime.Battle.Events.BattleEventKind.CommandRejected);
     }
 
     private static WorldSiteBattleGroupRuntimeResolveResult Reject(

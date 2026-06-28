@@ -30,6 +30,9 @@ public sealed class StrategicNavigationContext : IStrategicNavigationContext
 
     public int Version { get; }
     public string PrimaryProviderId => _isAvailable ? "strategic_grid" : "unavailable";
+    public string DiagnosticsSummary => _isAvailable
+        ? $"provider={PrimaryProviderId} version={Version} cells={_grid.CellCount} bounds={_grid.BoundsDescription} layer={_navigationTileLayer?.Name ?? "<missing>"}"
+        : $"provider={PrimaryProviderId} version={Version} unavailable={_unavailableReason}";
 
     public bool IsSynchronized(out string failureReason)
     {
@@ -243,6 +246,21 @@ public sealed class StrategicNavigationContext : IStrategicNavigationContext
         return true;
     }
 
+    public string DescribePointForDiagnostics(Vector2 mapPoint)
+    {
+        if (!IsFinite(mapPoint))
+        {
+            return $"point={mapPoint} finite=false";
+        }
+
+        if (!TryGetNavigationCellDetails(mapPoint, out Vector2 globalPoint, out Vector2 layerLocalPoint, out Vector2I cell))
+        {
+            return $"point={mapPoint} mapped=false layer={_navigationTileLayer?.Name ?? "<missing>"} mapRoot={_mapRoot?.Name ?? "<missing>"}";
+        }
+
+        return $"point={mapPoint} global={globalPoint} layerLocal={layerLocalPoint} cell={cell} contains={_grid.Contains(cell)}";
+    }
+
     private bool IsAvailable(out string failureReason)
     {
         failureReason = "";
@@ -298,13 +316,30 @@ public sealed class StrategicNavigationContext : IStrategicNavigationContext
     private bool TryGetNavigationCell(Vector2 mapPoint, out Vector2I cell)
     {
         cell = default;
+        if (!TryGetNavigationCellDetails(mapPoint, out _, out _, out cell))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private bool TryGetNavigationCellDetails(
+        Vector2 mapPoint,
+        out Vector2 globalPoint,
+        out Vector2 layerLocalPoint,
+        out Vector2I cell)
+    {
+        globalPoint = default;
+        layerLocalPoint = default;
+        cell = default;
         if (_navigationTileLayer == null || _mapRoot == null)
         {
             return false;
         }
 
-        Vector2 globalPoint = _mapRoot.ToGlobal(mapPoint);
-        Vector2 layerLocalPoint = _navigationTileLayer.ToLocal(globalPoint);
+        globalPoint = _mapRoot.ToGlobal(mapPoint);
+        layerLocalPoint = _navigationTileLayer.ToLocal(globalPoint);
         cell = _navigationTileLayer.LocalToMap(layerLocalPoint);
         return true;
     }

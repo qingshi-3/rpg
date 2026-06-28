@@ -176,6 +176,20 @@ internal static class TargetBattleNavigationRegressionCases
         AssertTrue(source.Contains("BattleNavigationTopology", StringComparison.Ordinal), "runtime graph should consume the explicit topology data layer");
     }
 
+    public static void RuntimeNavigationGraphDoesNotFallbackFromProductionCreateToActors()
+    {
+        string source = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Runtime", "Battle", "Navigation", "BattleNavigationGraph.cs"));
+        string createBody = ExtractMethodBody(source, "public static BattleNavigationGraph Create(LocationBattleContext context, IEnumerable<BattleRuntimeActor> actors)");
+
+        AssertTrue(
+            !createBody.Contains("CreateFromActors", StringComparison.Ordinal) &&
+            !source.Contains("public static BattleNavigationGraph CreateFromActors", StringComparison.Ordinal),
+            "production navigation graph creation must not silently fabricate an actor-derived walkable map");
+        AssertTrue(
+            source.Contains("CreateDiagnosticFromActors", StringComparison.Ordinal),
+            "actor-derived navigation graphs should be explicitly named diagnostic helpers if retained for tests");
+    }
+
     public static void RuntimeNavigationMainLoopUsesLocalNeighborPlannerInsteadOfActorAStar()
     {
         string root = ProjectRoot();
@@ -615,6 +629,10 @@ internal static class TargetBattleNavigationRegressionCases
             CorpsId = $"{sourceForceId}_corps",
             CorpsDefinitionId = $"{sourceForceId}_corps_definition",
             CorpsStrength = 80,
+            MaxHitPoints = 80,
+            AttackDamage = 1,
+            AttackRange = 1,
+            AttackSpeed = 1.0,
             SourceLocationId = factionId == "player" ? "city_1" : "site_1",
             CellX = cellX,
             CellY = cellY,
@@ -625,6 +643,40 @@ internal static class TargetBattleNavigationRegressionCases
     private static string ProjectRoot()
     {
         return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    }
+
+    private static string ExtractMethodBody(string source, string signature)
+    {
+        int start = source.IndexOf(signature, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            return "";
+        }
+
+        int brace = source.IndexOf('{', start);
+        if (brace < 0)
+        {
+            return "";
+        }
+
+        int depth = 0;
+        for (int index = brace; index < source.Length; index++)
+        {
+            if (source[index] == '{')
+            {
+                depth++;
+            }
+            else if (source[index] == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return source.Substring(brace, index - brace + 1);
+                }
+            }
+        }
+
+        return "";
     }
 
     private static void AssertTrue(bool condition, string message)

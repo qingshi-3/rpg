@@ -28,6 +28,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
     {
         run("runtime effect receiver and health component are actor held", RuntimeEffectReceiverAndHealthComponentAreActorHeld);
         run("runtime effect resolver routes damage through commit buffer", RuntimeEffectResolverRoutesDamageThroughCommitBuffer);
+        run("runtime effect boundaries do not fabricate missing actors", RuntimeEffectBoundariesDoNotFabricateMissingActors);
         run("runtime channel damage uses effect delivery request boundary", RuntimeChannelDamageUsesEffectDeliveryRequestBoundary);
         run("runtime hero skill resolver does not tail patch defeated targets", RuntimeHeroSkillResolverDoesNotTailPatchDefeatedTargets);
         run("runtime hero skill damage compatible event order and attribution", RuntimeHeroSkillDamageCompatibleEventOrderAndAttribution);
@@ -78,6 +79,26 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
         AssertTrue(
             source.Contains("BattleCommitBuffer", StringComparison.Ordinal),
             "BattleEffectResolver should submit effect damage requests to BattleCommitBuffer");
+    }
+
+    internal static void RuntimeEffectBoundariesDoNotFabricateMissingActors()
+    {
+        string root = ProjectRoot();
+        foreach (string relativePath in new[]
+        {
+            Path.Combine("src", "Runtime", "Battle", "Effects", "BattleEffectResolver.cs"),
+            Path.Combine("src", "Runtime", "Battle", "BattleAbilityEffectReleaseBoundary.cs"),
+            Path.Combine("src", "Runtime", "Battle", "BattleDisplacementCommitBoundary.cs")
+        })
+        {
+            string path = Path.Combine(root, relativePath);
+            string source = File.ReadAllText(path);
+            AssertDoesNotContain(
+                source,
+                "new BattleRuntimeActor()",
+                ToRepoPath(root, path),
+                "Runtime effect boundaries must fail or no-op explicitly when actor context is missing instead of fabricating blank actors");
+        }
     }
 
     internal static void RuntimeChannelDamageUsesEffectDeliveryRequestBoundary()
@@ -224,8 +245,9 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
     internal static void RuntimeEffectDamageUsesZeroFloorWithoutBasicAttackMinimum()
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_effect_commit_zero_floor", enemyStrength: 10);
-        AddDamageSkill(snapshot, ZeroFloorSkillId, damage: -5);
+        AddDamageSkill(snapshot, ZeroFloorSkillId, damage: 1);
         BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+        controller.State.SkillDefinitions.Single(item => item.SkillId == ZeroFloorSkillId).Effects[0].Amount = -5;
         FreezeAutonomousCorps(controller);
 
         BattleRuntimeCommandSubmitResult submit = SubmitTargetedSkill(
@@ -549,7 +571,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
         int enemyCellX = 6,
         int enemyCellY = 0)
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = $"snapshot_{battleId}",
             BattleId = battleId,
@@ -586,6 +608,8 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
                 }
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot, margin: 4);
+        return snapshot;
     }
 
     private static void AddDamageSkill(BattleStartSnapshot snapshot, string skillId, int damage)
@@ -596,9 +620,11 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             DisplayName = "Effect Commit Damage",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0.2,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = false,
             Effects =
@@ -620,9 +646,11 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             DisplayName = "Effect Commit Multi Damage",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0.2,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = false,
             Effects =
@@ -649,9 +677,11 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             DisplayName = "Effect Commit Mixed Damage Channel",
             TargetingMode = BattleSkillTargetingMode.TargetedActorOrCell,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             Effects =
             {
@@ -680,9 +710,11 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             DisplayName = "Thunder Spiral Break",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 3,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = true,
             Effects =
@@ -707,9 +739,11 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             DisplayName = "Effect Commit Double Channel",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             Effects =
             {
@@ -741,9 +775,11 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             DisplayName = "Effect Commit Opposing Channel",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 8,
+            CasterUnitIds = { "hero_def_player", "hero_def_enemy" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             Effects =
             {

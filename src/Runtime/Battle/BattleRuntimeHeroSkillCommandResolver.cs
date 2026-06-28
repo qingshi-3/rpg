@@ -11,11 +11,11 @@ namespace Rpg.Runtime.Battle;
 
 internal static partial class BattleRuntimeHeroSkillCommandResolver
 {
+    private const string SkillIdRequiredReason = "skill_id_required";
+
     internal static string NormalizeSkillId(string skillId)
     {
-        return string.IsNullOrWhiteSpace(skillId)
-            ? HeroSkillCommandIds.FirstSliceHeroSkillId
-            : skillId.Trim();
+        return string.IsNullOrWhiteSpace(skillId) ? "" : skillId.Trim();
     }
 
     internal static BattleRuntimeCommandSubmitResult Submit(
@@ -151,6 +151,13 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
         if (string.IsNullOrWhiteSpace(request.BattleGroupId))
         {
             return "battle_group_missing";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.SkillId))
+        {
+            // Skill identity is authored command payload, not a runtime default.
+            // Missing ids must surface the caller bug instead of casting a fallback skill.
+            return SkillIdRequiredReason;
         }
 
         caster = ResolveCaster(state, request.BattleGroupId, request.SourceActorId);

@@ -14,6 +14,7 @@ internal static class TargetBattleMovementIntentRegressionRegistration
         run("runtime plan-scoped movement does not scan far attack slots", TargetBattleMovementIntentRegressionCases.RuntimePlanScopedMovementDoesNotScanFarAttackSlots);
         run("runtime enemy move-first plan does not scan far attack slots", TargetBattleMovementIntentRegressionCases.RuntimeEnemyMoveFirstPlanDoesNotScanFarAttackSlots);
         run("runtime enemy attack-first plan senses local player before objective", TargetBattleMovementIntentRegressionCases.RuntimeEnemyAttackFirstPlanSensesLocalPlayerBeforeObjective);
+        TargetBattleMovementBattlefieldRegressionCases.Register(run);
         TargetBattleTargetSelectionRegressionCases.Register(run);
         run("explicit attack-first selection survives preparation default refresh", TargetBattlePreparationPlanRegressionCases.ExplicitAttackFirstSelectionSurvivesPreparationDefaultRefresh);
         run("runtime objective-zone plan resolves anchor from snapshot zone", TargetBattleMovementIntentRegressionCases.RuntimeObjectiveZonePlanResolvesAnchorFromSnapshotZone);

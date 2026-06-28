@@ -172,31 +172,78 @@ internal static void StrategicFogRemainsMapVisibilityOnly()
 {
     string root = ProjectRoot();
     string fogServicePath = Path.Combine(root, "src", "Application", "World", "StrategicFogOfWarService.cs");
-    string fogOverlayPath = Path.Combine(root, "src", "Presentation", "World", "StrategicWorldFogOverlay.cs");
     string fogRootPath = Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.Fog.cs");
-    string shaderPath = Path.Combine(root, "assets", "world", "shaders", "strategic_fog_of_war.gdshader");
 
     AssertTrue(File.Exists(fogServicePath), "strategic map fog service should remain");
-    AssertTrue(File.Exists(fogOverlayPath), "strategic map fog overlay should remain");
     AssertTrue(File.Exists(fogRootPath), "strategic root should keep fog presentation partial");
-    AssertTrue(File.Exists(shaderPath), "strategic fog shader should remain");
 
-    string fogSource = string.Join("\n", File.ReadAllText(fogServicePath), File.ReadAllText(fogRootPath));
-    string[] forbiddenFogFragments =
-    {
-        "WorldSiteIntel",
-        "StrategicWorldIntelState",
-        "WorldIntelVisibility",
-        "KnownSites",
-        "ThreatPlans",
-        "PendingThreatIds",
-        "DefenseRaid",
-        "WorldSiteMode.Alert"
-    };
+    string fogServiceSource = File.ReadAllText(fogServicePath);
+    string refreshFogBody = ExtractMethodBody(fogServiceSource, "public static StrategicFogRefreshResult RefreshVisibility(");
+    string getVisibilityBody = ExtractMethodBody(fogServiceSource, "public static StrategicFogVisibility GetPositionVisibility(");
+    AssertTrue(refreshFogBody.Contains("VisibleCells", StringComparison.Ordinal), "strategic fog should still calculate the current visible cells");
+    AssertTrue(refreshFogBody.Contains("ExploredCells.Clear()", StringComparison.Ordinal), "strategic fog should clear revealed-history state in binary mode");
+    AssertTrue(refreshFogBody.Contains("Array.Empty<string>()", StringComparison.Ordinal), "strategic fog refresh should stop reporting newly explored cells");
+    AssertTrue(getVisibilityBody.Contains("StrategicFogVisibility.Visible", StringComparison.Ordinal), "strategic fog visibility should still report current visible cells");
+    AssertTrue(getVisibilityBody.Contains("StrategicFogVisibility.Unknown", StringComparison.Ordinal), "strategic fog visibility should only distinguish visible and unknown");
+    AssertTrue(
+        !getVisibilityBody.Contains("StrategicFogVisibility.Revealed", StringComparison.Ordinal),
+        "strategic fog visibility should no longer expose revealed residual state");
+    AssertTrue(
+        !getVisibilityBody.Contains("ExploredCells.Contains", StringComparison.Ordinal),
+        "strategic fog visibility should not consult explored-history cells in binary mode");
+}
 
-    foreach (string fragment in forbiddenFogFragments)
-    {
-        AssertTrue(!fogSource.Contains(fragment, StringComparison.Ordinal), $"strategic fog should not restore intel or raid fragment={fragment}");
-    }
+internal static void StrategicFogUsesBinaryVisibilityOnly()
+{
+    string root = ProjectRoot();
+    string fogRootPath = Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.Fog.cs");
+    string fogServicePath = Path.Combine(root, "src", "Application", "World", "StrategicFogOfWarService.cs");
+
+    string rootSource = File.ReadAllText(fogRootPath);
+    string serviceSource = File.ReadAllText(fogServicePath);
+    string refreshFogBody = ExtractMethodBody(rootSource, "private bool RefreshStrategicFog()");
+    string refreshOverlayBody = ExtractMethodBody(rootSource, "private void RefreshStrategicFogOverlay()");
+
+    AssertTrue(
+        !rootSource.Contains("_pendingStrategicFogExploredCells", StringComparison.Ordinal),
+        "strategic fog refresh should not keep a pending explored-cell queue");
+    AssertTrue(
+        !rootSource.Contains("QueueStrategicFogExploredCells", StringComparison.Ordinal),
+        "strategic fog refresh should not enqueue explored cells for later flushing");
+    AssertTrue(
+        !rootSource.Contains("FlushPendingStrategicFogExploredMask", StringComparison.Ordinal),
+        "strategic fog refresh should not batch explored-history commits");
+    AssertTrue(
+        !rootSource.Contains("RefreshStrategicFogExploredMaskIncremental", StringComparison.Ordinal),
+        "strategic fog refresh should not expose an incremental explored-mask path");
+    AssertTrue(
+        refreshFogBody.Contains("RefreshStrategicFogVisibleCircles", StringComparison.Ordinal),
+        "strategic fog refresh should keep current visible circles updated");
+    AssertTrue(
+        refreshOverlayBody.Contains("SetFog(", StringComparison.Ordinal),
+        "strategic fog overlay should rebuild from visible circles only");
+    AssertTrue(
+        refreshOverlayBody.Contains("BuildStrategicFogOverlayCircles", StringComparison.Ordinal),
+        "strategic fog overlay should still project the current visible circles");
+    AssertTrue(
+        serviceSource.Contains("ExploredCells.Clear()", StringComparison.Ordinal),
+        "strategic fog service should clear revealed-history state in binary mode");
+    AssertTrue(
+        !refreshFogBody.Contains("newlyExploredCells", StringComparison.Ordinal),
+        "strategic fog refresh should not calculate newly explored cells in binary mode");
+
+    string mapSetupSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.MapSetup.cs"));
+    string updateWorldCameraViewBody = ExtractMethodBody(mapSetupSource, "private bool UpdateWorldCameraView(bool force = false)");
+    AssertTrue(
+        updateWorldCameraViewBody.Contains("_worldMapOverlay.Position = _worldMapRoot.GlobalPosition", StringComparison.Ordinal) &&
+        updateWorldCameraViewBody.Contains("_worldMapOverlay.Scale = _worldMapRoot.GlobalScale", StringComparison.Ordinal) &&
+        !updateWorldCameraViewBody.Contains("RefreshStrategicFogOverlay()", StringComparison.Ordinal),
+        "strategic camera changes should only sync the world canvas transform and leave fog rebuilds to world-state changes");
+
+    string uiBootstrapSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.UiBootstrap.cs"));
+    string resetWorldBody = ExtractMethodBody(uiBootstrapSource, "private void ResetWorld()");
+    AssertTrue(
+        resetWorldBody.Contains("ResetStrategicFogMaskCache", StringComparison.Ordinal),
+        "strategic world reset should invalidate the fog mask cache before rebuilding a new runtime state");
 }
 }

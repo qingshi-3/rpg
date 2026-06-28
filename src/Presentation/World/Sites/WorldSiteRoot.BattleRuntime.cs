@@ -110,46 +110,6 @@ public partial class WorldSiteRoot
             $"Battle navigation snapshot applied request={request?.RequestId ?? ""} surfaces={request?.NavigationSurfaces.Count ?? 0} connections={request?.NavigationConnections.Count ?? 0} syncedPlacementHeights={syncedPlacementHeights}");
     }
 
-    private void AlignBattlePresentationEntityIdsToRuntime(BattleStartRequest request)
-    {
-        if (_unitRoot == null || request == null)
-        {
-            return;
-        }
-
-        IReadOnlyDictionary<string, string> runtimeActorIdsByPresentationEntity =
-            BattleRuntimeActorIdentity.BuildPresentationEntityToRuntimeActorMap(request);
-        if (runtimeActorIdsByPresentationEntity.Count == 0)
-        {
-            return;
-        }
-
-        int aligned = 0;
-        foreach (BattleEntity entity in _unitRoot.GetEntitiesSnapshot())
-        {
-            string currentEntityId = entity?.EntityId ?? "";
-            if (string.IsNullOrWhiteSpace(currentEntityId) ||
-                !runtimeActorIdsByPresentationEntity.TryGetValue(currentEntityId, out string runtimeActorId) ||
-                string.IsNullOrWhiteSpace(runtimeActorId) ||
-                string.Equals(currentEntityId, runtimeActorId, System.StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            // Runtime events address corps actors, not legacy request force ids. Presentation
-            // entities must switch identity at the launch boundary before live events arrive.
-            entity.EntityId = runtimeActorId;
-            aligned++;
-        }
-
-        if (aligned > 0)
-        {
-            GameLog.Info(
-                nameof(WorldSiteRoot),
-                $"BattlePresentationEntityIdsAligned request={request.RequestId} count={aligned}");
-        }
-    }
-
     private void BindBattleRuntimeHud()
     {
         // Battle runtime owns a fullscreen battlefield. Persistent commands stay in
@@ -191,9 +151,17 @@ public partial class WorldSiteRoot
 
     private bool ActivateBattleGroupRuntime()
     {
-        bool started = TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext)
-            ? _battleGroupRuntimeAdapter.TryStartActiveBattle(activeContext, out WorldSiteBattleGroupRuntimeResolveResult resolution)
-            : _battleGroupRuntimeAdapter.TryStartActiveBattle(out resolution);
+        if (!TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext))
+        {
+            _battleStartBlockedReason = "strategic_battle_active_context_required";
+            GameLog.Warn(nameof(WorldSiteRoot), $"Battle group runtime activation blocked reason={_battleStartBlockedReason}");
+            SetBattleRuntimeEnabled(false);
+            return false;
+        }
+
+        bool started = _battleGroupRuntimeAdapter.TryStartActiveBattle(
+            activeContext,
+            out WorldSiteBattleGroupRuntimeResolveResult resolution);
         if (!started)
         {
             _battleStartBlockedReason = string.IsNullOrWhiteSpace(resolution?.FailureReason)
@@ -205,6 +173,7 @@ public partial class WorldSiteRoot
         }
 
         _activeBattleGroupRuntimeResolution = resolution;
+        AlignBattlePresentationEntityIdsToRuntime(resolution.Request, resolution.Snapshot);
         _ = PlayBattleGroupRuntimeAndApplyResultAsync(resolution);
         return true;
     }
@@ -218,9 +187,13 @@ public partial class WorldSiteRoot
         }
         catch (System.Exception ex)
         {
-            GameLog.Warn(nameof(WorldSiteRoot), $"Battle runtime presentation failed request={resolution?.Request?.RequestId ?? ""} error={ex.Message}");
+            // Failed live-clock handoff has no accepted settlement facts; do not write it back.
+            _battleStartBlockedReason = "battle_group_runtime_presentation_failed";
+            GameLog.Warn(nameof(WorldSiteRoot), $"Battle runtime presentation failed request={resolution?.Request?.RequestId ?? ""} reason={_battleStartBlockedReason} error={ex.Message}");
+            _activeBattleGroupRuntimeResolution = null; ClearBattleEntities(); SetBattleRuntimeEnabled(false);
+            CancelActiveBattleLaunch(_battleStartBlockedReason);
+            return;
         }
-
         resolution = resolution?.ActiveContext != null
             ? _battleGroupRuntimeAdapter.CompleteResolvedBattle(resolution, resolution.ActiveContext)
             : _battleGroupRuntimeAdapter.CompleteResolvedBattle(resolution);
@@ -268,11 +241,7 @@ public partial class WorldSiteRoot
             resolution.Request?.ReturnScenePath ?? "");
     }
 
-    private double ResolveRuntimePlaybackTickSeconds()
-    {
-        return BattleActionTimingPolicy.DefaultSimulationTickSeconds;
-    }
-
+    private double ResolveRuntimePlaybackTickSeconds() => BattleActionTimingPolicy.DefaultSimulationTickSeconds;
     private async Task WaitSiteBattlePresentationSeconds(double seconds)
     {
         await BattlePresentationClockWaiter.WaitSecondsAsync(
@@ -403,29 +372,6 @@ public partial class WorldSiteRoot
                 ? ""
                 : $"战斗结束：{report.OutcomeSummary}"
         };
-    }
-
-    private void ApplyBattleModifiers(BattleStartRequest request)
-    {
-        int towerSupportCount = request.BattleModifiers.Count(modifier => modifier.Type == "tower_support" && modifier.Uses > 0);
-        if (towerSupportCount > 0)
-        {
-            int damage = towerSupportCount * 2;
-            BattleEntity target = _unitRoot.GetEntitiesSnapshot()
-                .FirstOrDefault(entity =>
-                    entity.GetComponent<FactionComponent>()?.Faction == BattleFaction.Enemy &&
-                    !BattleRuleQueries.IsDefeated(entity));
-            if (target != null)
-            {
-                int applied = target.GetComponent<HealthComponent>()?.ApplyDamage(damage) ?? 0;
-                if (BattleRuleQueries.IsDefeated(target))
-                {
-                    _unitRoot.MarkEntityDefeated(target);
-                }
-
-                GameLog.Info(nameof(WorldSiteRoot), $"Tower support applied target={target.EntityId} damage={applied} supports={towerSupportCount}");
-            }
-        }
     }
 
     private void EnsureBattleRenderSortDomain()

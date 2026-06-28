@@ -45,6 +45,7 @@ internal static class BattleRuntimeDecisionContextBuilder
             battleId,
             tick);
         BattleRegionMovementGoal regionMovementGoal = BattleLocalCombatRegionResolver.ResolveRegionMovementGoal(actorFact, tacticalStateStore);
+        bool regionReached = BattleLocalCombatRegionResolver.IsRegionReached(actorFact, regionMovementGoal);
         BattleGroupActionZoneSnapshot combatJoinActionZone = BattleGroupActionZoneResolver.ResolveActorCombatJoinActionZone(
             actorFact,
             groupActionZones,
@@ -66,7 +67,9 @@ internal static class BattleRuntimeDecisionContextBuilder
             : localCombatRegion == null
                 ? facts
                 : BattleLocalCombatRegionResolver.FilterFactsToLocalCombatRegion(facts, actorFact, localCombatRegion);
-        bool useCommandScopedTargets = regionMovementGoal == null || actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst;
+        bool useCommandScopedTargets = regionMovementGoal == null ||
+                                       regionReached ||
+                                       actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst;
         BattleTargetSelectionService.BattleTargetCandidateSet targetCandidateSet = combatJoinActionZone != null
             ? BattleTargetSelectionService.BuildCombatZoneScopedTargetCandidates(
                 targetFacts, actorFact, navigationGraph, occupancy, performanceCounters, combatJoinRegion)

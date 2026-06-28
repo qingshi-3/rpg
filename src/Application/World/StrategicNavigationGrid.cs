@@ -18,15 +18,33 @@ public sealed class StrategicNavigationGrid
     };
 
     private readonly HashSet<Vector2I> _walkableCells;
+    private readonly Vector2I _minCell;
+    private readonly Vector2I _maxCell;
+    private readonly bool _hasBounds;
 
     public StrategicNavigationGrid(IEnumerable<Vector2I> walkableCells)
     {
         _walkableCells = walkableCells == null
             ? new HashSet<Vector2I>()
             : new HashSet<Vector2I>(walkableCells);
+
+        foreach (Vector2I cell in _walkableCells)
+        {
+            if (!_hasBounds)
+            {
+                _minCell = cell;
+                _maxCell = cell;
+                _hasBounds = true;
+                continue;
+            }
+
+            _minCell = new Vector2I(Mathf.Min(_minCell.X, cell.X), Mathf.Min(_minCell.Y, cell.Y));
+            _maxCell = new Vector2I(Mathf.Max(_maxCell.X, cell.X), Mathf.Max(_maxCell.Y, cell.Y));
+        }
     }
 
     public int CellCount => _walkableCells.Count;
+    public string BoundsDescription => _hasBounds ? $"min={_minCell} max={_maxCell}" : "empty";
 
     public bool Contains(Vector2I cell)
     {

@@ -33,7 +33,7 @@ internal static class BattleEffectResolver
             BattleSkillEffectKind.CreateThunderMark => ApplyCreateThunderMark(context),
             BattleSkillEffectKind.TeleportToThunderMark => BattleDisplacementCommitBoundary.CommitThunderMarkTeleport(context, payload),
             BattleSkillEffectKind.StartChanneledAreaDamage => ApplyStartChanneledAreaDamage(context, payload),
-            _ => Array.Empty<BattleEvent>()
+            _ => throw new InvalidOperationException($"Unsupported battle effect kind {payload.EffectKind}")
         };
     }
 
@@ -41,11 +41,16 @@ internal static class BattleEffectResolver
         BattleEffectExecutionContext context,
         BattleEffectPayload payload)
     {
-        BattleRuntimeActor actor = context.Actor ?? new BattleRuntimeActor();
-        BattleRuntimeActor target = context.Target ?? new BattleRuntimeActor();
-        if (string.IsNullOrWhiteSpace(actor.ActorId) || string.IsNullOrWhiteSpace(target.ActorId))
+        BattleRuntimeActor actor = context.Actor;
+        BattleRuntimeActor target = context.Target;
+        if (string.IsNullOrWhiteSpace(actor?.ActorId))
         {
-            return Array.Empty<BattleEvent>();
+            return new[] { CreateEffectFailedEvent(context, null, "", "battle_effect_source_actor_missing") };
+        }
+
+        if (string.IsNullOrWhiteSpace(target?.ActorId))
+        {
+            return new[] { CreateEffectFailedEvent(context, actor, "", "battle_effect_target_actor_missing") };
         }
 
         BattleCommitBuffer commitBuffer = context.CommitBuffer ?? new BattleCommitBuffer();
@@ -59,14 +64,14 @@ internal static class BattleEffectResolver
     private static IReadOnlyList<BattleEvent> ApplyCreateThunderMark(BattleEffectExecutionContext context)
     {
         BattleRuntimeState state = context.State;
-        BattleRuntimeActor actor = context.Actor ?? new BattleRuntimeActor();
-        BattleRuntimeActor target = context.Target ?? new BattleRuntimeActor();
-        if (state == null || string.IsNullOrWhiteSpace(actor.ActorId))
+        BattleRuntimeActor actor = context.Actor;
+        BattleRuntimeActor target = context.Target;
+        if (state == null || string.IsNullOrWhiteSpace(actor?.ActorId))
         {
             return Array.Empty<BattleEvent>();
         }
 
-        if (string.IsNullOrWhiteSpace(target.ActorId) && context.HasTargetGrid)
+        if (string.IsNullOrWhiteSpace(target?.ActorId) && context.HasTargetGrid)
         {
             BattleRuntimeSpatialMark groundMark = new()
             {
@@ -114,7 +119,7 @@ internal static class BattleEffectResolver
             };
         }
 
-        if (string.IsNullOrWhiteSpace(target.ActorId))
+        if (string.IsNullOrWhiteSpace(target?.ActorId))
         {
             return Array.Empty<BattleEvent>();
         }
@@ -172,8 +177,8 @@ internal static class BattleEffectResolver
         BattleEffectPayload payload)
     {
         BattleRuntimeState state = context.State;
-        BattleRuntimeActor actor = context.Actor ?? new BattleRuntimeActor();
-        if (state == null || string.IsNullOrWhiteSpace(actor.ActorId))
+        BattleRuntimeActor actor = context.Actor;
+        if (state == null || string.IsNullOrWhiteSpace(actor?.ActorId))
         {
             return Array.Empty<BattleEvent>();
         }
@@ -213,6 +218,30 @@ internal static class BattleEffectResolver
             channel,
             context.CommitBuffer,
             context.DeferEffectDamageCommit);
+    }
+
+    private static BattleEvent CreateEffectFailedEvent(
+        BattleEffectExecutionContext context,
+        BattleRuntimeActor actor,
+        string targetId,
+        string reasonCode)
+    {
+        return new BattleEvent
+        {
+            EventId = $"{context.BattleId}:tick_{context.RuntimeTick}:{context.SourceCommandId}:effect_failed:{reasonCode}",
+            BattleId = context.BattleId,
+            BattleGroupId = actor?.BattleGroupId ?? "",
+            ActorId = actor?.ActorId ?? "",
+            TargetId = targetId ?? "",
+            SourceCommandId = context.SourceCommandId ?? "",
+            SourceActionId = context.SourceActionId ?? "",
+            SourceDefinitionId = context.SourceDefinitionId ?? "",
+            EffectKind = context.SourceDefinitionId ?? "",
+            Kind = BattleEventKind.CommandFailed,
+            ReasonCode = reasonCode ?? "",
+            RuntimeTick = context.RuntimeTick,
+            RuntimeTimeSeconds = context.RuntimeTimeSeconds
+        };
     }
 
 }

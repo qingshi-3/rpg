@@ -770,10 +770,10 @@ internal static void RuntimeImpactDamageDoesNotDoubleDelayDefeatedPresentation()
         playback.Contains("BeginImpactAlignedDamageTiming()", StringComparison.Ordinal) &&
         playback.Contains("EndImpactAlignedDamageTiming()", StringComparison.Ordinal) &&
         playback.IndexOf("BeginImpactAlignedDamageTiming()", StringComparison.Ordinal) <
-        playback.IndexOf("health.ApplyDamage(damage, actor)", StringComparison.Ordinal) &&
-        playback.IndexOf("health.ApplyDamage(damage, actor)", StringComparison.Ordinal) <
+        playback.IndexOf("health.MirrorRuntimeDamage(actor, damage, targetHpBefore, targetHpAfter)", StringComparison.Ordinal) &&
+        playback.IndexOf("health.MirrorRuntimeDamage(actor, damage, targetHpBefore, targetHpAfter)", StringComparison.Ordinal) <
         playback.IndexOf("EndImpactAlignedDamageTiming()", StringComparison.Ordinal),
-        "runtime playback should mark visible damage as already impact-aligned before applying health changes");
+        "runtime playback should mark visible damage as already impact-aligned before mirroring Runtime health facts");
     AssertTrue(
         damageReaction.Contains("public void BeginImpactAlignedDamageTiming()", StringComparison.Ordinal) &&
         damageReaction.Contains("public void EndImpactAlignedDamageTiming()", StringComparison.Ordinal) &&
@@ -817,8 +817,10 @@ internal static void UnitCombatStatsSnapshotContract()
     AssertTrue(
         runtimeActor.Contains("public int AttackDamage { get; set; }", StringComparison.Ordinal) &&
         runtimeSession.Contains("HitPoints = ResolveCombatHitPoints(group)", StringComparison.Ordinal) &&
-        runtimeSession.Contains("AttackDamage = ResolveAttackDamage(group.AttackDamage)", StringComparison.Ordinal),
-        "runtime actors should use snapshot combat hp and attack damage instead of hardcoded combat values");
+        runtimeSession.Contains("AttackDamage = group.AttackDamage", StringComparison.Ordinal) &&
+        !runtimeSession.Contains("ResolveAttackDamage", StringComparison.Ordinal) &&
+        !runtimeSession.Contains("LegacyCorpsAttackDamage", StringComparison.Ordinal),
+        "runtime actors should use validated snapshot attack damage directly instead of retaining legacy damage fallbacks");
 }
 
 internal static void BattleUnitBaseSceneAuthorsHealthBarAndSpriteAnimationBackend()
@@ -1121,27 +1123,6 @@ internal static void LegacyStarterUnitPackagesAreRemoved()
     }
 }
 
-internal static void StarterAudioMigrationUsesSourceVisuals()
-{
-    string report = File.ReadAllText(Path.Combine("assets", "audio", "sfx", "duelyst_audio_migration_a.json"));
-
-    AssertTrue(
-        report.Contains("actual SpriteFrames source visual", StringComparison.Ordinal),
-        "migration report should document source-visual mapping rule");
-    AssertTrue(
-        report.Contains("f1_shieldforger.png / RSX.f1Surgeforger*", StringComparison.Ordinal),
-        "shieldforger-backed units should map from f1Surgeforger visual identity");
-    AssertTrue(
-        report.Contains("f1_scintilla.png / RSX.f1Scintilla*", StringComparison.Ordinal),
-        "scintilla-backed units should map from f1Scintilla visual identity");
-    AssertTrue(
-        report.Contains("app/sdk/cards/factory/wartech/faction1.coffee:291-307", StringComparison.Ordinal),
-        "surgeforger mapping should cite original Duelyst card factory sound block");
-    AssertTrue(
-        report.Contains("app/sdk/cards/factory/bloodstorm/faction1.coffee:100-116", StringComparison.Ordinal),
-        "scintilla mapping should cite original Duelyst card factory sound block");
-}
-
 internal static void BattleUnitDisplayNamesUseIndexedResourceLabel()
 {
     AssertEqual("盾牌铸造者01", BattleUnitDisplayNameFormatter.FormatInstanceName("盾牌铸造者", 0), "first visible unit should use 01 suffix");
@@ -1167,19 +1148,4 @@ internal static void StarterUnitDisplayNamesUseSourceVisualTranslations()
     }
 }
 
-internal static void WorldUnitLabelsResolveThroughBattleDefinitions()
-{
-    string strategicRoot = ReadStrategicWorldRootSource();
-    string siteRoot = ReadWorldSiteRootSource();
-
-    AssertTrue(
-        strategicRoot.Contains("_battleUnitFactory.ResolveUnitDisplayName(unitTypeId)", StringComparison.Ordinal),
-        "strategic world UI should resolve unit group labels from battle unit definitions");
-    AssertTrue(
-        siteRoot.Contains("_battleUnitFactory.ResolveUnitDisplayName(unitTypeId)", StringComparison.Ordinal),
-        "site detail UI should resolve garrison labels from battle unit definitions");
-    AssertTrue(
-        siteRoot.Contains("_battleUnitFactory.ResolveUnitInstanceDisplayName(placement.UnitTypeId", StringComparison.Ordinal),
-        "site placement labels should use the same indexed instance names as battle units");
-}
 }

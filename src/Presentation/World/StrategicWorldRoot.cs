@@ -38,6 +38,8 @@ public partial class StrategicWorldRoot : Control
 	// not send it into a retreat-like strategic move.
 	private const float DeferredBattleStandbyDistance = 32.0f;
 	// 战略行军只允许查询这一层；视觉层不能作为寻路兜底，否则会重新产生多权威路径问题。
+	// 场景当前使用 StrategicNavigationLayer，保留旧名兼容老分支和临时场景。
+	private const string StrategicNavigationLayerName = "StrategicNavigationLayer";
 	private const string StrategicNavigationTileLayerName = "StrategicNavigationTileLayer";
 	private const string StrategicNavigationRootName = "StrategicNavigationRoot";
 	private static readonly Vector2 SiteButtonSize = new(132.0f, 106.0f);
@@ -114,14 +116,14 @@ public partial class StrategicWorldRoot : Control
 	private readonly BattleUnitFactory _battleUnitFactory = new();
 	private readonly SceneTransitionRouter _sceneTransitionRouter;
 
-	private readonly Dictionary<string, Button> _siteButtons = new();
-	private readonly Dictionary<string, Label> _siteLabels = new();
 	private readonly Dictionary<string, SiteVisualFootprint> _siteVisualFootprints = new();
 	private readonly HashSet<string> _reportedSiteVisualFootprintFailures = new();
 	private readonly HashSet<string> _reportedSiteNavigationPointResolutions = new();
 	private Control _mainWorldViewportHost;
 	private SubViewport _mainWorldViewport;
 	private Control _worldMapOverlay;
+	private Control _worldMapDynamicOverlay;
+	private Control _worldSiteNameOverlay;
 	private Control _strategicHudRoot;
 	private Control _topBarHost;
 	private Control _leftPrimaryPanelHost;
@@ -160,6 +162,7 @@ public partial class StrategicWorldRoot : Control
 	private Label _actionTitleLabel;
 	private WorldOpportunityDetailPanel _opportunityDetailPanel;
 	private WorldSiteHoverSummaryPanel _siteHoverSummaryPanel;
+	private readonly Dictionary<string, WorldSiteNameBadge> _worldSiteNameBadges = new();
 
 	private string _selectedSiteId = "";
 	private string _selectedOpportunityId = "";
@@ -177,6 +180,7 @@ public partial class StrategicWorldRoot : Control
 	private double _worldClockAccumulator;
 	private bool _reportedStrategicNavigationNotSynchronized;
 	private bool _worldMapOverlaySignalsConnected;
+	private bool _worldMapDynamicOverlaySignalsConnected;
 	private BattleStartRequest _pendingBattleRequest;
 	private StrategicBattleActiveContext _pendingStrategicBattleActiveContext;
 	private PendingBattleLaunchRollback _pendingBattleRollback;
@@ -185,6 +189,7 @@ public partial class StrategicWorldRoot : Control
 	private Vector2 _lastWorldMapRootPosition = new(float.NaN, float.NaN);
 	private Vector2 _lastWorldMapRootScale = new(float.NaN, float.NaN);
 	private bool _strategicFogMaskReady;
+	private string _lastStrategicFogRefreshSignature = "";
 
 	private StrategicWorldDefinition Definition => StrategicWorldRuntime.Definition;
 	private StrategicWorldState State => StrategicWorldRuntime.State;

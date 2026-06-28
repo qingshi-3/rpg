@@ -37,10 +37,33 @@ public partial class StrategicWorldRoot
             _worldMapOverlay.Draw += DrawWorldMapOverlay;
             _worldMapOverlaySignalsConnected = true;
         }
+
+        _worldMapDynamicOverlay = GetNodeOrNull<Control>(new NodePath("MainWorldViewportHost/MainWorldViewport/WorldMapOverlay/WorldMapDynamicOverlay"));
+        if (_worldMapDynamicOverlay == null)
+        {
+            _worldMapDynamicOverlay = new Control
+            {
+                Name = "WorldMapDynamicOverlay",
+                MouseFilter = MouseFilterEnum.Ignore
+            };
+            _worldMapOverlay.AddChild(_worldMapDynamicOverlay);
+        }
+
+        _worldMapDynamicOverlay.MouseFilter = MouseFilterEnum.Ignore;
+        _worldMapDynamicOverlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
+        _worldMapDynamicOverlay.Position = Vector2.Zero;
+        _worldMapDynamicOverlay.Size = _worldMapOverlay.Size;
+        if (!_worldMapDynamicOverlaySignalsConnected)
+        {
+            _worldMapDynamicOverlay.Draw += DrawWorldMapDynamicOverlay;
+            _worldMapDynamicOverlaySignalsConnected = true;
+        }
     }
 
     private void ResolveWorldMapNodes()
     {
+        // The world map subtree is authored in StrategicWorldMap.tscn; the root
+        // only binds the instance and does not rebuild missing map nodes at runtime.
         _worldMapRoot = GetNodeOrNull<Node2D>(WorldMapRootPath);
         if (_worldMapRoot == null)
         {
@@ -50,11 +73,10 @@ public partial class StrategicWorldRoot
 
         _worldMapRoot.ZIndex = System.Math.Min(_worldMapRoot.ZIndex, -20);
 
-        Node2D mapAnchors = GetOrCreateNode2D(_worldMapRoot, "MapAnchors");
-        _siteAnchorRoot = GetNodeOrNull<Node2D>(SiteAnchorRootPath) ?? GetOrCreateNode2D(mapAnchors, "Sites");
-        _siteVisualLayer = GetNodeOrNull<TileMapLayer>(SiteVisualLayerPath) ?? _worldMapRoot.GetNodeOrNull<TileMapLayer>("SiteVisualLayer");
-        _armySpawnPointRoot = GetNodeOrNull<Node2D>(ArmySpawnPointRootPath) ?? GetOrCreateNode2D(mapAnchors, "ArmySpawnPoints");
-        _ = GetNodeOrNull<Node2D>(EncounterZoneRootPath) ?? GetOrCreateNode2D(mapAnchors, "EncounterZones");
+        _siteAnchorRoot = GetNodeOrNull<Node2D>(SiteAnchorRootPath);
+        _siteVisualLayer = GetNodeOrNull<TileMapLayer>(SiteVisualLayerPath);
+        _armySpawnPointRoot = GetNodeOrNull<Node2D>(ArmySpawnPointRootPath);
+        _ = GetNodeOrNull<Node2D>(EncounterZoneRootPath);
         EnsureStrategicNavigationLayerIsStable();
     }
 
@@ -80,6 +102,8 @@ public partial class StrategicWorldRoot
         _strategicNavigationRoot.GlobalRotation = 0.0f;
 
         _strategicNavigationTileLayer =
+            _strategicNavigationRoot.GetNodeOrNull<TileMapLayer>(StrategicNavigationLayerName) ??
+            _worldMapRoot?.GetNodeOrNull<TileMapLayer>(StrategicNavigationLayerName) ??
             _strategicNavigationRoot.GetNodeOrNull<TileMapLayer>(StrategicNavigationTileLayerName) ??
             _worldMapRoot?.GetNodeOrNull<TileMapLayer>(StrategicNavigationTileLayerName);
         if (_strategicNavigationTileLayer == null)
@@ -94,7 +118,7 @@ public partial class StrategicWorldRoot
             _strategicNavigationTileLayer.Transform = navigationLayerTransform;
             GameLog.Info(
                 nameof(StrategicWorldRoot),
-                $"StrategicNavigationLayerStabilized layer={StrategicNavigationTileLayerName} parent={StrategicNavigationRootName}");
+                $"StrategicNavigationLayerStabilized layer={_strategicNavigationTileLayer.Name} parent={StrategicNavigationRootName}");
         }
 
         _strategicNavigationTileLayer.Visible = true;
@@ -152,7 +176,6 @@ public partial class StrategicWorldRoot
         }
 
         Rect2 mapViewBounds = GetMapBounds();
-        UpdateMainWorldViewportLayout(mapViewBounds);
         _worldCamera.SetViewportSizeOverride(mapViewBounds.Size);
 
         Vector2 zoom = _worldCamera.Zoom;
@@ -169,17 +192,31 @@ public partial class StrategicWorldRoot
 
         _lastWorldMapRootPosition = _worldMapRoot.GlobalPosition;
         _lastWorldMapRootScale = _worldMapRoot.GlobalScale;
-        RefreshStrategicFogOverlay();
-        if (Definition != null && State != null && _siteButtons.Count > 0)
+        if (_worldMapOverlay != null)
         {
-            RefreshSiteButtons(new StrategicWorldDefinitionQueries(Definition));
+            // Panning only needs a transform sync for the shared world canvas; the
+            // viewport sizing/layout stays on the slower rebuild path so drag does
+            // not relayout the world UI tree every frame.
+            _worldMapOverlay.Position = _worldMapRoot.GlobalPosition;
+            _worldMapOverlay.Scale = _worldMapRoot.GlobalScale;
+            if (_worldMapDynamicOverlay != null)
+            {
+                _worldMapDynamicOverlay.Position = Vector2.Zero;
+                _worldMapDynamicOverlay.Scale = Vector2.One;
+            }
         }
 
-        QueueStrategicOverlayRedraw();
+        SyncSiteNameOverlay();
+
         return true;
     }
 
     private void QueueStrategicOverlayRedraw()
+    {
+        _worldMapDynamicOverlay?.QueueRedraw();
+    }
+
+    private void QueueStrategicStaticOverlayRedraw()
     {
         _worldMapOverlay?.QueueRedraw();
     }
@@ -203,9 +240,15 @@ public partial class StrategicWorldRoot
             return;
         }
 
-        // MainWorldViewportHost keeps its scene-authored anchors. This method only
-        // syncs the SubViewport texture and overlay to that stable host rectangle.
-        SetFullRect(_worldMapOverlay);
+        _worldMapOverlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
+        _worldMapOverlay.Position = Vector2.Zero;
+        _worldMapOverlay.Size = viewportSize;
+        if (_worldMapDynamicOverlay != null)
+        {
+            _worldMapDynamicOverlay.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
+            _worldMapDynamicOverlay.Position = Vector2.Zero;
+            _worldMapDynamicOverlay.Size = viewportSize;
+        }
     }
 
     private bool TryCalculateStrategicMapBounds(out Rect2 bounds)
@@ -435,7 +478,7 @@ public partial class StrategicWorldRoot
         _reportedStrategicNavigationNotSynchronized = false;
         GameLog.Info(
             nameof(StrategicWorldRoot),
-            $"StrategicNavigationConfigured provider={_strategicNavigationContext.PrimaryProviderId} version={_strategicNavigationContext.Version} layer={StrategicNavigationTileLayerName} cells={navigationCellCount}");
+            $"StrategicNavigationConfigured provider={_strategicNavigationContext.PrimaryProviderId} version={_strategicNavigationContext.Version} layer={_strategicNavigationTileLayer.Name} cells={navigationCellCount}");
     }
 
     private void SyncDefinitionMapPositionsFromAnchors()

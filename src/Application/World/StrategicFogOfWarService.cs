@@ -22,37 +22,37 @@ public sealed class StrategicFogOfWarSettings
 }
 
 public readonly record struct StrategicFogVisionSource(Vector2 Position, float Radius);
+public readonly record struct StrategicFogRefreshResult(bool Changed, IReadOnlyList<string> NewlyExploredCells);
 
 public static class StrategicFogOfWarService
 {
-    // Fog cells are map visibility granularity only. They must not carry site intel,
-    // infiltration, alert, or battle-trigger facts.
+    // Fog cells are map visibility granularity only. The runtime now treats fog as
+    // binary visibility: either currently visible or unknown. It must not carry
+    // site intel, infiltration, alert, battle-trigger, or revealed-history facts.
     public const float DefaultFogTexelWorldSize = 16.0f;
 
-    public static bool RefreshVisibility(
+    public static StrategicFogRefreshResult RefreshVisibility(
         StrategicWorldState state,
         StrategicWorldDefinition definition,
         StrategicFogOfWarSettings settings)
     {
         if (state == null || definition == null)
         {
-            return false;
+            return new StrategicFogRefreshResult(false, Array.Empty<string>());
         }
 
         state.Fog ??= new StrategicWorldFogState();
         HashSet<string> previousVisible = state.Fog.VisibleCells.ToHashSet(StringComparer.Ordinal);
-        HashSet<string> previousExplored = state.Fog.ExploredCells.ToHashSet(StringComparer.Ordinal);
 
         StrategicFogOfWarSettings effectiveSettings = NormalizeSettings(settings);
         HashSet<string> visible = BuildVisibleCellKeys(BuildVisionSources(state, definition, effectiveSettings), effectiveSettings);
-        HashSet<string> explored = new(previousExplored, StringComparer.Ordinal);
-        explored.UnionWith(visible);
 
         state.Fog.VisibleCells = visible.OrderBy(key => key, StringComparer.Ordinal).ToList();
-        state.Fog.ExploredCells = explored.OrderBy(key => key, StringComparer.Ordinal).ToList();
+        state.Fog.ExploredCells.Clear();
         state.Fog.LastUpdatedWorldTick = state.WorldTick;
 
-        return !previousVisible.SetEquals(visible) || !previousExplored.SetEquals(explored);
+        bool changed = !previousVisible.SetEquals(visible);
+        return new StrategicFogRefreshResult(changed, Array.Empty<string>());
     }
 
     public static HashSet<string> BuildVisibleCellKeys(
@@ -108,9 +108,7 @@ public static class StrategicFogOfWarService
             return StrategicFogVisibility.Visible;
         }
 
-        return fog.ExploredCells.Contains(cellKey)
-            ? StrategicFogVisibility.Revealed
-            : StrategicFogVisibility.Unknown;
+        return StrategicFogVisibility.Unknown;
     }
 
     public static IEnumerable<string> EnumerateCellKeysForBounds(Rect2 bounds, StrategicFogOfWarSettings settings)

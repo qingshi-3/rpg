@@ -93,6 +93,7 @@ BattleHitFeedbackRegressionCases.Run("battle runtime live observation waits for 
 BattleHitFeedbackRegressionCases.Run("runtime playback damage waits for target movement but not target attack backlog", BattleHitFeedbackRegressionCases.RuntimePlaybackDamageWaitsForTargetMovementButNotTargetAttackBacklog);
 BattleHitFeedbackRegressionCases.Run("runtime target damage does not wait for attacker movement backlog", BattleHitFeedbackRegressionCases.RuntimeTargetDamageDoesNotWaitForAttackerMovementBacklog);
 BattleHitFeedbackRegressionCases.Run("runtime playback applies damage semantics through target queue", BattleHitFeedbackRegressionCases.RuntimePlaybackAppliesDamageSemanticsThroughTargetQueue);
+BattleHitFeedbackRegressionCases.Run("runtime playback mirrors damage from runtime hp facts", BattleHitFeedbackRegressionCases.RuntimePlaybackMirrorsDamageFromRuntimeHpFacts);
 BattleHitFeedbackRegressionCases.Run("runtime playback target damage queue does not serialize impact delay", BattleHitFeedbackRegressionCases.RuntimePlaybackTargetDamageQueueDoesNotSerializeImpactDelay);
 BattleHitFeedbackRegressionCases.Run("runtime playback movement path uses footprint center resolver", BattleHitFeedbackRegressionCases.RuntimePlaybackMovementPathUsesFootprintCenterResolver);
 BattleHitFeedbackRegressionCases.Run("battle runtime presentation starts incremental runtime before settlement", BattleHitFeedbackRegressionCases.BattleRuntimePresentationStartsIncrementalRuntimeBeforeSettlement);

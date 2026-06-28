@@ -1,10 +1,14 @@
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Navigation;
+using Rpg.Application.Battle.Reports;
+using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
 using Rpg.Runtime.Battle;
+using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Results;
 internal static partial class StrategicManagementRegressionCases
 {
@@ -61,13 +65,27 @@ internal static partial class StrategicManagementRegressionCases
         {
             ForceId = $"{heroId}:hero",
             UnitDefinitionId = definitions.Heroes[hero.HeroDefinitionId].BattleUnitId,
-            Count = 1
+            Count = 1,
+            MaxHitPoints = 30,
+            AttackDamage = 6,
+            AttackRange = 1,
+            AttackSpeed = 1.0,
+            MoveStepSeconds = 0.16,
+            AttackActionSeconds = 1.0,
+            AttackImpactDelaySeconds = 0.45
         });
         request.PlayerForces.Add(new BattleForceRequest
         {
             ForceId = $"{corps.CorpsInstanceId}:corps",
             UnitDefinitionId = definitions.Corps[corps.CorpsDefinitionId].BattleUnitId,
-            Count = definitions.Corps[corps.CorpsDefinitionId].BattleUnitCount
+            Count = definitions.Corps[corps.CorpsDefinitionId].BattleUnitCount,
+            MaxHitPoints = 24,
+            AttackDamage = 5,
+            AttackRange = 1,
+            AttackSpeed = 1.0,
+            MoveStepSeconds = 0.16,
+            AttackActionSeconds = 1.0,
+            AttackImpactDelaySeconds = 0.45
         });
         bridge.AttachSessionToLegacyRequest(session, request);
         return request;
@@ -145,6 +163,18 @@ internal static partial class StrategicManagementRegressionCases
         foreach (StrategicBattleParticipantReference participant in session.Participants)
         {
             int survivorCount = Math.Max(0, survivingCorpsActors?.Invoke(participant) ?? 0);
+            int initialCount = ResolveParticipantInitialCount(request, participant);
+            runtimeOutcome.ActorOutcomes.Add(new BattleActorOutcome
+            {
+                ActorId = $"{participant.ParticipantId}:hero",
+                BattleGroupId = participant.ParticipantId,
+                FactionId = participant.FactionId,
+                SourceForceId = participant.ParticipantId,
+                SourceStateId = participant.HeroId,
+                Kind = BattleRuntimeActorKind.Hero,
+                Survived = true,
+                RemainingHitPoints = 1
+            });
             for (int index = 0; index < survivorCount; index++)
             {
                 runtimeOutcome.ActorOutcomes.Add(new BattleActorOutcome
@@ -159,12 +189,37 @@ internal static partial class StrategicManagementRegressionCases
                     RemainingHitPoints = 1
                 });
             }
+
+            // Bridge summaries must consume explicit runtime actor outcomes.
+            // Defeated corps actors are recorded here instead of being inferred from outcome.
+            for (int index = survivorCount; index < initialCount; index++)
+            {
+                runtimeOutcome.ActorOutcomes.Add(new BattleActorOutcome
+                {
+                    ActorId = $"{participant.ParticipantId}:corps:{index}",
+                    BattleGroupId = participant.ParticipantId,
+                    FactionId = participant.FactionId,
+                    SourceForceId = participant.ParticipantId,
+                    SourceStateId = participant.CorpsInstanceId,
+                    Kind = BattleRuntimeActorKind.Corps,
+                    Survived = false,
+                    RemainingHitPoints = 0
+                });
+            }
         }
 
+        BattleEventStream eventStream = BuildEndedStream(session.SessionId);
+        SettlementPlan settlement = new BattleSettlementService().BuildPlan(
+            context.Snapshot.SnapshotId,
+            runtimeOutcome,
+            eventStream);
         context.RuntimeResult = new BattleRuntimeSessionResult
         {
-            Outcome = runtimeOutcome
+            Outcome = runtimeOutcome,
+            EventStream = eventStream
         };
+        context.SettlementPlan = settlement;
+        context.Report = new BattleReportBuilder().Build(runtimeOutcome, eventStream, settlement);
         return context;
     }
 
@@ -293,6 +348,39 @@ internal static partial class StrategicManagementRegressionCases
                     !string.IsNullOrWhiteSpace(force.StrategicParticipantId) &&
                     !string.IsNullOrWhiteSpace(force.StrategicCorpsInstanceId)),
             $"all forces for {heroId} should carry strategic participant and corps identity");
+    }
+
+    private static void AttachStrategicLaunchFlatTopology(
+        BattleStartRequest request,
+        int minX = -2,
+        int minY = -2,
+        int maxX = 32,
+        int maxY = 24)
+    {
+        if (request == null)
+        {
+            return;
+        }
+
+        request.NavigationSurfaces.Clear();
+        request.NavigationConnections.Clear();
+        for (int y = minY; y <= maxY; y++)
+        {
+            for (int x = minX; x <= maxX; x++)
+            {
+                request.NavigationSurfaces.Add(new BattleNavigationSurfaceSnapshot
+                {
+                    X = x,
+                    Y = y,
+                    Height = 0,
+                    MoveCost = 1
+                });
+            }
+        }
+
+        request.NavigationTopology = BattleNavigationTopologyCompiler.Compile(
+            request.NavigationSurfaces,
+            request.NavigationConnections);
     }
 
     private static StrategicManagementDashboardViewModel InvokeLocationDashboard(

@@ -85,9 +85,11 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             DisplayName = "Effect Commit Timed Damage",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = castSeconds,
             ImpactDelaySeconds = 0,
             RecoverySeconds = recoverySeconds,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = false,
             Effects =

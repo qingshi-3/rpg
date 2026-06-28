@@ -12,6 +12,7 @@ internal static class BattleCrowdMovementPlanner
     private const int LocalObjectiveAvoidanceMaxDepth = 6;
     private const int LocalObjectiveAvoidanceMaxNodes = 64;
     private const int LocalObjectiveFollowBudget = 20;
+    private const int LocalAttackSlotProofMaxCellDistance = 7;
     private const int ObstacleFollowPenalty = 50000;
 
     public static bool TryFindNextStepTowardTarget(
@@ -277,6 +278,16 @@ internal static class BattleCrowdMovementPlanner
     {
         const int MaxGreedyLookaheadNodes = 256;
         BattleGridCoord targetAnchor = new(target.GridX, target.GridY, target.GridHeight);
+        int startCellDistance = GetAnchorDistance(start, targetAnchor) / BattlePathCostPolicy.StepCost;
+        if (startCellDistance > LocalAttackSlotProofMaxCellDistance)
+        {
+            // The attack-slot proof is a near-field guard against walking into
+            // a locally blocked target. Far pressure movement must not require
+            // proving the final attack slot through a tiny BFS horizon; each
+            // committed step is still validated again at Runtime boundaries.
+            return true;
+        }
+
         Queue<BattleGridCoord> frontier = new();
         HashSet<BattleGridCoord> visited = new();
         frontier.Enqueue(start);

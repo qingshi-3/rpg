@@ -1,9 +1,14 @@
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Reports;
+using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
+using Rpg.Runtime.Battle;
+using Rpg.Runtime.Battle.Events;
+using Rpg.Runtime.Battle.Results;
 internal static partial class StrategicManagementRegressionCases
 {
     internal static void StrategicBattleResultSummaryAppliesVictoryConsequences()
@@ -45,6 +50,74 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual("", state.CorpsInstances[corpsId].CurrentExpeditionId, "victory should unlock the corps from active expedition");
         AssertEqual(72, state.CorpsInstances[corpsId].Strength, "victory should write remaining corps strength");
         AssertEqual(StrategicCorpsInstanceStatus.AssignedToHero, state.CorpsInstances[corpsId].Status, "surviving corps should return to assigned hero status");
+    }
+
+    internal static void StrategicBattleResultSummaryRejectsMissingRuntimeActorOutcomes()
+    {
+        var setup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService bridge = new(setup.Definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            setup.State,
+            setup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        StrategicBattleSnapshotResult snapshotResult = bridge.CompileStartSnapshot(setup.State, session);
+        BattleOutcomeResult outcome = BattleOutcomeResult.Completed(
+            snapshotResult.Snapshot.SnapshotId,
+            session.SessionId,
+            BattleTerminationReason.NormalVictory);
+        StrategicBattleActiveContext context = new()
+        {
+            ContextId = session.SessionId,
+            Session = session,
+            Snapshot = snapshotResult.Snapshot,
+            RuntimeResult = new BattleRuntimeSessionResult
+            {
+                Outcome = outcome,
+                EventStream = BuildEndedStream(session.SessionId)
+            },
+            SettlementPlan = new SettlementPlan
+            {
+                Accepted = true,
+                SnapshotId = snapshotResult.Snapshot.SnapshotId,
+                BattleId = session.SessionId
+            },
+            Report = new BattleReportRecord
+            {
+                ReportId = "report_missing_actor_outcomes",
+                SnapshotId = snapshotResult.Snapshot.SnapshotId,
+                BattleId = session.SessionId
+            }
+        };
+
+        StrategicBattleResultSummary summary = bridge.BuildResultSummary(context);
+
+        AssertTrue(
+            summary.Participants.Count == 0,
+            "bridge summary must not fabricate participant strength when runtime actor outcomes are missing");
+        AssertEqual(BattleOutcome.None, summary.Outcome, "missing actor outcomes should block normal strategic outcome");
+        AssertEqual(
+            StrategicFailureReasons.MissingBattleResultSummary,
+            StrategicBattleBridgeService.GetActiveContextFailureReason(context),
+            "missing actor outcomes should be a summary failure");
+    }
+
+    private static BattleEventStream BuildEndedStream(string battleId)
+    {
+        BattleEventStream stream = new();
+        stream.Add(new BattleEvent
+        {
+            EventId = $"{battleId}:started",
+            BattleId = battleId,
+            Kind = BattleEventKind.BattleStarted
+        });
+        stream.Add(new BattleEvent
+        {
+            EventId = $"{battleId}:ended",
+            BattleId = battleId,
+            Kind = BattleEventKind.BattleEnded
+        });
+        return stream;
     }
 
     internal static void StrategicBattleResultRecordsRewardHeroFeedbackAndEquipmentSample()
@@ -111,6 +184,53 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(
             state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood) > beforeWood,
             "victory should grant wood as a visible strategic reward");
+    }
+
+    internal static void StrategicBattleExplicitSummaryConsequencesOverrideTargetDefinitionRewards()
+    {
+        var setup = CreateStrategicAssaultExpedition();
+        StrategicManagementState state = setup.State;
+        StrategicManagementCommandService commands = setup.Commands;
+        string expeditionId = setup.ExpeditionId;
+        string corpsId = setup.CorpsInstanceId;
+        int beforeOre = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceOre);
+        int beforeWood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood);
+        StrategicBattleBridgeService bridge = new(setup.Definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            state,
+            expeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        StrategicBattleResultSummary summary = new()
+        {
+            SessionId = session.SessionId,
+            ExpeditionId = expeditionId,
+            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            Outcome = BattleOutcome.Victory,
+            ObjectiveSucceeded = true,
+            HasConsequenceFacts = true,
+            WorldChangeText = "summary-world-change",
+            ProgressionText = "summary-progression",
+            RewardLines = { "summary:no_target_reward" }
+        };
+        summary.Participants.Add(new StrategicBattleParticipantResult
+        {
+            HeroId = StrategicManagementIds.HeroOrdinaryCommander,
+            CorpsInstanceId = corpsId,
+            RemainingCorpsStrength = 72
+        });
+
+        StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
+
+        AssertTrue(result.Success, $"explicit summary consequence facts should apply, got {result.FailureReason}");
+        AssertEqual(beforeOre, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceOre), "summary without resource rewards must not grant target-definition ore");
+        AssertEqual(beforeWood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood), "summary without resource rewards must not grant target-definition wood");
+        AssertTrue(!state.UnlockedEquipmentSampleIds.Contains(StrategicManagementIds.EquipmentBonefieldCommandHorn), "summary without equipment rewards must not unlock target-definition equipment");
+        StrategicBattleFeedbackRecord feedback = state.BattleFeedbackRecords[result.CreatedEntityId];
+        AssertEqual("summary-world-change", feedback.WorldChangeText, "feedback should use summary world change fact");
+        AssertEqual("summary-progression", feedback.ProgressionText, "feedback should use summary progression fact");
+        AssertTrue(feedback.RewardLines.Contains("summary:no_target_reward"), "feedback should use summary reward lines");
+        AssertTrue(!feedback.RewardLines.Any(line => line.Contains("鐧介鍙疯", StringComparison.Ordinal)), "feedback should not name target-definition reward equipment");
     }
 
     internal static void StrategicBattleResultRecordsDefeatFeedbackAndRecoveryReason()

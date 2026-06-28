@@ -27,14 +27,21 @@ internal sealed class BattleHealthComponent
         int normalizedAmount = System.Math.Max(0, amount);
         HitPointCommitResult commit = CommitHitPointChange(System.Math.Max(0, _actor.HitPoints) - normalizedAmount);
 
-        return new EffectDamageCommitResult(normalizedAmount, commit.TransitionedToDefeated);
+        return new EffectDamageCommitResult(
+            normalizedAmount,
+            commit.HitPointsBefore,
+            commit.RemainingHitPoints,
+            commit.TransitionedToDefeated);
     }
 
     internal BasicAttackDamageCommitResult CommitBasicAttackDamage(int remainingHitPoints)
     {
         HitPointCommitResult commit = CommitHitPointChange(remainingHitPoints);
 
-        return new BasicAttackDamageCommitResult(commit.RemainingHitPoints, commit.TransitionedToDefeated);
+        return new BasicAttackDamageCommitResult(
+            commit.HitPointsBefore,
+            commit.RemainingHitPoints,
+            commit.TransitionedToDefeated);
     }
 
     private HitPointCommitResult CommitHitPointChange(int remainingHitPoints)
@@ -49,12 +56,22 @@ internal sealed class BattleHealthComponent
             BattleRuntimeActorStateMachine.MarkDefeated(_actor);
         }
 
-        return new HitPointCommitResult(after, transitionedToDefeated);
+        return new HitPointCommitResult(before, after, transitionedToDefeated);
     }
 
-    internal readonly record struct EffectDamageCommitResult(int DamageAmount, bool TransitionedToDefeated);
+    internal readonly record struct EffectDamageCommitResult(
+        int DamageAmount,
+        int HitPointsBefore,
+        int RemainingHitPoints,
+        bool TransitionedToDefeated);
 
-    internal readonly record struct BasicAttackDamageCommitResult(int RemainingHitPoints, bool TransitionedToDefeated);
+    internal readonly record struct BasicAttackDamageCommitResult(
+        int HitPointsBefore,
+        int RemainingHitPoints,
+        bool TransitionedToDefeated);
 
-    private readonly record struct HitPointCommitResult(int RemainingHitPoints, bool TransitionedToDefeated);
+    private readonly record struct HitPointCommitResult(
+        int HitPointsBefore,
+        int RemainingHitPoints,
+        bool TransitionedToDefeated);
 }

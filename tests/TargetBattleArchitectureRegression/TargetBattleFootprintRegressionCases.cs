@@ -175,7 +175,7 @@ internal static class TargetBattleFootprintRegressionCases
         int enemyFootprintWidth = 1,
         int enemyFootprintHeight = 1)
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = $"snapshot_{battleId}",
             BattleId = battleId,
@@ -216,11 +216,13 @@ internal static class TargetBattleFootprintRegressionCases
                 }
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static BattleStartSnapshot BuildFootprintBlockSnapshot()
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = "snapshot_battle_footprint_block",
             BattleId = "battle_footprint_block",
@@ -273,11 +275,13 @@ internal static class TargetBattleFootprintRegressionCases
                 }
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static BattleStartSnapshot BuildBlockedAnchorRouteSnapshot()
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = "snapshot_battle_blocked_anchor_route",
             BattleId = "battle_blocked_anchor_route",
@@ -289,11 +293,13 @@ internal static class TargetBattleFootprintRegressionCases
                 BuildGroup("group_enemy", "enemy", "z_enemy", "hero_enemy", "corps_enemy", 4, 0)
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static BattleStartSnapshot BuildLargeInteriorRouteSnapshot()
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = "snapshot_battle_large_interior_route",
             BattleId = "battle_large_interior_route",
@@ -305,6 +311,8 @@ internal static class TargetBattleFootprintRegressionCases
                 BuildGroup("group_enemy", "enemy", "z_enemy", "hero_enemy", "corps_enemy", 5, 1)
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static BattleGroupSnapshot BuildGroup(

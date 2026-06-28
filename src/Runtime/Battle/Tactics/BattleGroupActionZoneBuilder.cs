@@ -13,6 +13,7 @@ internal static class BattleGroupActionZoneBuilder
         IReadOnlyDictionary<string, BattleGroupTacticalState> tacticalStates,
         IEnumerable<BattleRuntimeActor> livingCorps,
         IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> previousActionZones,
         int runtimeTick)
     {
         BattleRuntimeActor[] actors = (livingCorps ?? Enumerable.Empty<BattleRuntimeActor>())
@@ -32,7 +33,7 @@ internal static class BattleGroupActionZoneBuilder
             }
 
             BattleCombatZoneSnapshot selectedCombatZone = state.EngagementState == BattleGroupEngagementState.Engaged
-                ? SelectCombatZone(members, combatZones)
+                ? SelectCombatZone(state.BattleGroupId, members, combatZones, previousActionZones)
                 : null;
             BattleGroupActionZoneSnapshot actionZone = selectedCombatZone != null
                 ? FromCombatZone(state.BattleGroupId, selectedCombatZone, runtimeTick)
@@ -69,12 +70,28 @@ internal static class BattleGroupActionZoneBuilder
     }
 
     private static BattleCombatZoneSnapshot SelectCombatZone(
+        string battleGroupId,
         IReadOnlyList<BattleRuntimeActor> members,
-        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
+        IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> previousActionZones)
     {
         if (combatZones == null || combatZones.Count == 0)
         {
             return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(battleGroupId) &&
+            previousActionZones != null &&
+            previousActionZones.TryGetValue(battleGroupId, out BattleGroupActionZoneSnapshot previousActionZone) &&
+            previousActionZone?.Kind == BattleGroupActionZoneKind.CombatJoin &&
+            !string.IsNullOrWhiteSpace(previousActionZone.TargetCombatZoneId) &&
+            combatZones.TryGetValue(previousActionZone.TargetCombatZoneId, out BattleCombatZoneSnapshot retainedCombatZone))
+        {
+            // Refresh computes the next selected combat scope before old action
+            // state is discarded. This prevents a one-tick objective fallback
+            // when allied participants die while this group is already joining
+            // the still-live fight.
+            return retainedCombatZone;
         }
 
         HashSet<string> memberIds = members.Select(item => item.ActorId ?? "").ToHashSet(StringComparer.Ordinal);

@@ -18,6 +18,9 @@ public sealed class BattleEvent
     public double ActionDurationSeconds { get; set; }
     public double ActionImpactDelaySeconds { get; set; }
     public int CorpsStrengthDelta { get; set; }
+    public bool HasTargetHitPoints { get; set; }
+    public int TargetHpBefore { get; set; }
+    public int TargetHpAfter { get; set; }
     public bool HasActorCells { get; set; }
     public int ActorGridX { get; set; }
     public int ActorGridY { get; set; }

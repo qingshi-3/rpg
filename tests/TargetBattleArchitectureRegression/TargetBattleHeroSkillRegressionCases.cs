@@ -18,6 +18,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
     internal static void Register(System.Action<string, System.Action> run)
     {
         run("targeted hero skill requires target at submission", TargetedHeroSkillRequiresTargetAtSubmission);
+        run("targeted hero skill requires explicit skill id at submission", TargetedHeroSkillRequiresExplicitSkillIdAtSubmission);
         run("targeted hero skill rejects out of range at submission", TargetedHeroSkillRejectsOutOfRangeAtSubmission);
         run("targeted hero skill accepts diamond range at submission", TargetedHeroSkillAcceptsDiamondRangeAtSubmission);
         run("runtime rejects hero skill not bound to caster company", RuntimeRejectsHeroSkillNotBoundToCasterCompany);
@@ -126,8 +127,8 @@ internal static partial class TargetBattleHeroSkillRegressionCases
         BattleGroupSnapshot playerGroup = snapshot.BattleGroups.Single(item => item.BattleGroupId == "group_player");
         playerGroup.CorpsDefinitionId = "f1_windbladecommander";
         snapshot.SkillDefinitions.Clear();
-        AddBoundSkill(snapshot, ShieldBarrierSkillId, "曦盾结界", "f1_grandmasterzir", damage: 12);
-        AddBoundSkill(snapshot, SunPiercerSkillId, "贯日一击", "f1_windbladecommander", damage: 18);
+        AddBoundSkill(snapshot, ShieldBarrierSkillId, "Shield Barrier", "f1_grandmasterzir", damage: 12);
+        AddBoundSkill(snapshot, SunPiercerSkillId, "Sun Piercer", "f1_windbladecommander", damage: 18);
         BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
 
         BattleRuntimeCommandSubmitResult rejected = SubmitTargetedSkill(
@@ -773,12 +774,14 @@ internal static partial class TargetBattleHeroSkillRegressionCases
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
             SkillId = FirstSliceSkillId,
-            DisplayName = "破阵",
+            DisplayName = "鐮撮樀",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0.2,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = false,
             Effects =
@@ -790,6 +793,12 @@ internal static partial class TargetBattleHeroSkillRegressionCases
                 }
             }
         });
+        TargetBattleTestTopology.CompileRect(
+            snapshot,
+            0,
+            Math.Min(0, enemyCellY),
+            Math.Max(8, enemyCellX),
+            Math.Max(0, enemyCellY));
         return snapshot;
     }
 
@@ -820,9 +829,11 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             DisplayName = "Follow Up",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0.2,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = false,
             Effects =
@@ -852,6 +863,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0.2,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = false,
             Effects =

@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://d1xaymd7742v0"]
-
-[ext_resource type="PackedScene" uid="uid://c3lr27iop8h3x" path="res://scenes/maps/markers/SemanticMapMarker.tscn" id="1_base_marker"]
-
-[node name="BuildingSlotMapMarker" instance=ExtResource("1_base_marker")]
-editor_description = "Abstract semantic marker scene. Do not instance directly; use a business child scene such as BuildingSlotMapMarker or DeploymentZoneMapMarker."

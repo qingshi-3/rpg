@@ -39,6 +39,7 @@ internal static class TargetBattlePlayerCommandRegionRegressionCases
         });
         request.PlayerForces.Add(BuildForce("player_company", "player", 0));
         request.EnemyForces.Add(BuildForce("enemy_company", "enemy", 10));
+        TargetBattleTestTopology.CompileRequestRect(request, -2, -2, 13, 4);
 
         BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().PrepareSnapshot(request);
 

@@ -153,13 +153,17 @@ internal sealed class BattleCommitBuffer
                 BattleEventKind.EffectApplied,
                 ResolveUniqueEffectEventId($"{request.BattleId}:tick_{request.RuntimeTick}:{request.Actor.ActorId}:effect:{request.TargetHealth.Actor.ActorId}"),
                 "effect_applied",
-                delta));
+                delta,
+                result.HitPointsBefore,
+                result.RemainingHitPoints));
             events.Add(CreateEffectDamageEvent(
                 request,
                 BattleEventKind.DamageApplied,
                 ResolveUniqueEffectEventId($"{request.BattleId}:tick_{request.RuntimeTick}:{request.Actor.ActorId}:effect_damage:{request.TargetHealth.Actor.ActorId}"),
                 result.TransitionedToDefeated ? "effect_damage_target_defeated" : "effect_damage",
-                delta));
+                delta,
+                result.HitPointsBefore,
+                result.RemainingHitPoints));
         }
 
         _effectDamageRequests.Clear();
@@ -201,11 +205,14 @@ internal sealed class BattleCommitBuffer
                          item => item.Actor.ActorId,
                          System.StringComparer.Ordinal))
             {
+                int hpBefore = remaining;
                 int applied = System.Math.Min(request.DeclaredDamage, remaining);
                 remaining = System.Math.Max(0, remaining - applied);
                 applications.Add(new BasicAttackApplication(
                     request,
                     applied,
+                    HpBefore: hpBefore,
+                    HpAfter: remaining,
                     IsFinishingHit: applied > 0 && remaining == 0));
             }
 
@@ -227,6 +234,8 @@ internal sealed class BattleCommitBuffer
                 application.Request.ActorAnchor,
                 application.Request.TargetAnchor,
                 application.AppliedDamage,
+                application.HpBefore,
+                application.HpAfter,
                 application.IsFinishingHit));
         }
 
@@ -269,7 +278,12 @@ internal sealed class BattleCommitBuffer
         BattleGridCoord TargetAnchor,
         int DeclaredDamage);
 
-    private readonly record struct BasicAttackApplication(BasicAttackRequest Request, int AppliedDamage, bool IsFinishingHit);
+    private readonly record struct BasicAttackApplication(
+        BasicAttackRequest Request,
+        int AppliedDamage,
+        int HpBefore,
+        int HpAfter,
+        bool IsFinishingHit);
 
     private readonly record struct EffectDeliveryRequest(
         string BattleId,
@@ -328,7 +342,9 @@ internal sealed class BattleCommitBuffer
         BattleEventKind kind,
         string eventId,
         string reasonCode,
-        int corpsStrengthDelta)
+        int corpsStrengthDelta,
+        int targetHpBefore,
+        int targetHpAfter)
     {
         BattleRuntimeActor target = request.TargetHealth.Actor;
         return new BattleEvent
@@ -347,6 +363,9 @@ internal sealed class BattleCommitBuffer
             RuntimeTick = request.RuntimeTick,
             RuntimeTimeSeconds = request.RuntimeTimeSeconds,
             CorpsStrengthDelta = corpsStrengthDelta,
+            HasTargetHitPoints = kind == BattleEventKind.DamageApplied,
+            TargetHpBefore = targetHpBefore,
+            TargetHpAfter = targetHpAfter,
             HasActorCells = true,
             ActorGridX = request.ActorAnchor.X,
             ActorGridY = request.ActorAnchor.Y,

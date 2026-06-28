@@ -646,6 +646,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
                 }
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot, margin: 8);
         return snapshot;
     }
 
@@ -657,9 +658,11 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             DisplayName = "Thunder Tag Throw",
             TargetingMode = (BattleSkillTargetingMode)TargetedActorOrCellTargetingModeValue,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = false,
             Effects =
@@ -693,9 +696,11 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             DisplayName = "Thunder Mark Fold",
             TargetingMode = (BattleSkillTargetingMode)TargetedCellTargetingModeValue,
             Range = 8,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = true,
             Effects =
@@ -725,9 +730,11 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             DisplayName = "Thunder Spiral Break",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 3,
+            CasterUnitIds = { "hero_def_player" },
             CastSeconds = 0,
             ImpactDelaySeconds = 0,
             RecoverySeconds = 0,
+            HasInterruptPolicy = true,
             CanInterruptBasicAttackWindup = true,
             CanCancelBasicAttackRecovery = true,
             Effects = { channel }

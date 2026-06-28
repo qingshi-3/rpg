@@ -28,6 +28,9 @@ Run("strategic battle bridge creates session without strategic preparation metad
 Run("strategic battle bridge creates active context", StrategicManagementRegressionCases.StrategicBattleBridgeCreatesActiveContext);
 Run("strategic battle active context launch uses bridge snapshot authority", StrategicManagementRegressionCases.StrategicBattleActiveContextLaunchUsesBridgeSnapshotAuthority);
 Run("strategic battle active context launch syncs final preparation snapshot", StrategicManagementRegressionCases.StrategicBattleActiveContextLaunchSyncsFinalPreparationSnapshot);
+Run("strategic battle active context launch rejects unmapped compatibility player force", StrategicManagementRegressionCases.StrategicBattleActiveContextLaunchRejectsUnmappedCompatibilityPlayerForce);
+Run("strategic battle active context launch rejects missing navigation topology", StrategicManagementRegressionCases.StrategicBattleActiveContextLaunchRejectsMissingNavigationTopology);
+Run("strategic battle active context launch rejects missing combat stats", StrategicManagementRegressionCases.StrategicBattleActiveContextLaunchRejectsMissingCombatStats);
 Run("retarget moving expedition to assault updates strategic battle session authority", StrategicManagementRegressionCases.RetargetMovingExpeditionToAssaultUpdatesStrategicBattleSessionAuthority);
 Run("retarget moving expedition to assault creates bridge session without preparation gate", StrategicManagementRegressionCases.RetargetMovingExpeditionToAssaultCreatesBridgeSessionWithoutPreparationGate);
 Run("strategic battle result summary omits strategic preparation feedback", StrategicManagementRegressionCases.StrategicBattleResultSummaryOmitsStrategicPreparationFeedback);
@@ -35,6 +38,7 @@ Run("strategic battle bridge maps duplicate battle unit participants by particip
 Run("strategic battle bridge snapshot preserves strategic participant identity", StrategicManagementRegressionCases.StrategicBattleBridgeSnapshotPreservesStrategicParticipantIdentity);
 Run("strategic battle result summary applies victory consequences", StrategicManagementRegressionCases.StrategicBattleResultSummaryAppliesVictoryConsequences);
 Run("strategic battle result records reward hero feedback and equipment sample", StrategicManagementRegressionCases.StrategicBattleResultRecordsRewardHeroFeedbackAndEquipmentSample);
+Run("strategic battle explicit summary consequences override target definition rewards", StrategicManagementRegressionCases.StrategicBattleExplicitSummaryConsequencesOverrideTargetDefinitionRewards);
 Run("strategic battle result records defeat feedback and recovery reason", StrategicManagementRegressionCases.StrategicBattleResultRecordsDefeatFeedbackAndRecoveryReason);
 Run("strategic management dashboard exposes latest battle feedback", StrategicManagementRegressionCases.StrategicManagementDashboardExposesLatestBattleFeedback);
 Run("strategic battle result rejects duplicate reward application", StrategicManagementRegressionCases.StrategicBattleResultRejectsDuplicateRewardApplication);
@@ -45,6 +49,7 @@ Run("strategic battle result summary applies all expedition participant conseque
 Run("strategic battle result summary rejects legacy request result authority", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsLegacyRequestResultAuthority);
 Run("strategic battle result summary rejects mismatched result", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsMismatchedResult);
 Run("strategic battle result summary rejects missing participant result", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsMissingParticipantResult);
+Run("strategic battle result summary rejects missing runtime actor outcomes", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsMissingRuntimeActorOutcomes);
 Run("strategic battle bridge rejects resolved expedition", StrategicManagementRegressionCases.StrategicBattleBridgeRejectsResolvedExpedition);
 Run("strategic battle bridge rejects location without battle entry metadata", StrategicManagementRegressionCases.StrategicBattleBridgeRejectsLocationWithoutBattleEntryMetadata);
 Run("strategic management dashboard summarizes city resources buildings reserve corps and heroes", StrategicManagementRegressionCases.StrategicManagementDashboardSummarizesCityResourcesBuildingsReserveCorpsAndHeroes);

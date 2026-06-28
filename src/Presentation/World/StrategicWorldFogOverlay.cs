@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Godot;
+using Rpg.Application.World;
 using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Presentation.World;
@@ -11,6 +13,8 @@ public partial class StrategicWorldFogOverlay : Control
 	private const int MaxVisibleCircles = 32;
 	private const int MinExploredMaskResolution = 256;
 	private const int MaxExploredMaskResolution = 1024;
+	private const long FullMaskRebuildWarningMilliseconds = 12;
+	private const int IncrementalUpdateLargeCellWarningThreshold = 128;
 	private static readonly StringName UnknownColorParameter = "unknown_color";
 	private static readonly StringName RevealedColorParameter = "revealed_color";
 	private static readonly StringName ExploredMaskParameter = "explored_mask";
@@ -30,7 +34,15 @@ public partial class StrategicWorldFogOverlay : Control
 	};
 
 	private ShaderMaterial _material;
+	// Legacy explored-history fields remain only for compatibility with older
+	// callers; the active strategic fog path no longer uses them.
 	private ImageTexture _emptyExploredMask;
+	private Image _exploredMaskImage;
+	private ImageTexture _exploredMaskTexture;
+	private Rect2 _exploredMaskMapBounds;
+	private Vector2I _exploredMaskOriginCell;
+	private Vector2I _exploredMaskTextureSize;
+	private float _exploredMaskFogTexelWorldSize;
 
 	public StrategicWorldFogOverlay()
 	{
@@ -55,9 +67,7 @@ public partial class StrategicWorldFogOverlay : Control
 
 	public void SetFog(
 		Rect2 screenBounds,
-		IEnumerable<StrategicWorldFogOverlayRect> revealedRects,
 		IEnumerable<StrategicWorldFogOverlayCircle> visibleCircles,
-		float fogTexelScreenSize,
 		Color unknownColor)
 	{
 		EnsureShaderRect();
@@ -67,26 +77,84 @@ public partial class StrategicWorldFogOverlay : Control
 		}
 
 		Rect2 bounds = NormalizeRect(screenBounds);
-		Color revealedColor = ResolveRevealedColor(revealedRects);
-		Vector2I exploredMaskSize = EstimateExploredMaskSize(bounds, MathF.Max(1.0f, fogTexelScreenSize));
-		ImageTexture exploredMask = BuildExploredMask(
-			bounds,
-			revealedRects,
-			exploredMaskSize);
 		Vector4[] circleParameters = BuildCircleParameters(visibleCircles, out int circleCount);
-
-		_material.SetShaderParameter(UnknownColorParameter, unknownColor);
-		_material.SetShaderParameter(RevealedColorParameter, revealedColor);
-		_material.SetShaderParameter(ExploredMaskParameter, exploredMask ?? GetEmptyExploredMask());
-		_material.SetShaderParameter(
-			ExploredMaskTextureSizeParameter,
-			new Vector2(exploredMaskSize.X, exploredMaskSize.Y));
-		_material.SetShaderParameter(MapRectParameter, new Vector4(bounds.Position.X, bounds.Position.Y, bounds.Size.X, bounds.Size.Y));
-		_material.SetShaderParameter(VisibleCircleCountParameter, circleCount);
-		_material.SetShaderParameter(VisibleCirclesParameter, circleParameters);
-		_material.SetShaderParameter(EdgeSoftnessParameter, 5.0f);
-		UpdateOverlaySizeParameter();
+		ApplyBinaryFogShaderParameters(bounds, unknownColor, circleCount, circleParameters);
 		_shaderRect.Visible = true;
+	}
+
+	public void SetFog(
+		Rect2 screenBounds,
+		Rect2 mapBounds,
+		IEnumerable<string> exploredCellKeys,
+		IEnumerable<StrategicWorldFogOverlayCircle> visibleCircles,
+		StrategicFogOfWarSettings settings,
+		Color unknownColor)
+	{
+		EnsureShaderRect();
+		if (_material == null)
+		{
+			return;
+		}
+
+		Stopwatch stopwatch = Stopwatch.StartNew();
+		Rect2 bounds = NormalizeRect(screenBounds);
+		Rect2 normalizedMapBounds = NormalizeRect(mapBounds);
+		EnsureMapSpaceMask(normalizedMapBounds, settings, forceRebuild: true);
+		RebuildExploredMaskTexture(exploredCellKeys);
+		Vector4[] circleParameters = BuildCircleParameters(visibleCircles, out int circleCount);
+		ApplyFogShaderParameters(bounds, unknownColor, ResolveRevealedColor(), GetExploredMaskTexture(), _exploredMaskTextureSize, circleCount, circleParameters);
+		_shaderRect.Visible = true;
+		stopwatch.Stop();
+		if (stopwatch.ElapsedMilliseconds >= FullMaskRebuildWarningMilliseconds)
+		{
+			GameLog.Info(
+				nameof(StrategicWorldFogOverlay),
+				$"StrategicFogFullMaskRebuildCost elapsedMs={stopwatch.ElapsedMilliseconds} exploredCells={CountItems(exploredCellKeys)} maskSize={_exploredMaskTextureSize}");
+		}
+	}
+
+	public bool UpdateExploredMaskIncremental(
+		Rect2 screenBounds,
+		Rect2 mapBounds,
+		IEnumerable<string> newlyExploredCells,
+		IEnumerable<StrategicWorldFogOverlayCircle> visibleCircles,
+		StrategicFogOfWarSettings settings,
+		Color unknownColor)
+	{
+		EnsureShaderRect();
+		if (_material == null)
+		{
+			return false;
+		}
+
+		Rect2 bounds = NormalizeRect(screenBounds);
+		Rect2 normalizedMapBounds = NormalizeRect(mapBounds);
+		if (!CanReuseMapSpaceMask(normalizedMapBounds, settings))
+		{
+			return false;
+		}
+
+		int newCellCount = UpdateExploredMaskCells(newlyExploredCells);
+		if (newCellCount <= 0)
+		{
+			Vector4[] visibleCircleParameters = BuildCircleParameters(visibleCircles, out int visibleCircleCount);
+			ApplyFogShaderParameters(bounds, unknownColor, ResolveRevealedColor(), GetExploredMaskTexture(), _exploredMaskTextureSize, visibleCircleCount, visibleCircleParameters);
+			_shaderRect.Visible = true;
+			return true;
+		}
+
+		CommitExploredMaskTexture();
+		Vector4[] committedVisibleCircleParameters = BuildCircleParameters(visibleCircles, out int committedVisibleCircleCount);
+		ApplyFogShaderParameters(bounds, unknownColor, ResolveRevealedColor(), GetExploredMaskTexture(), _exploredMaskTextureSize, committedVisibleCircleCount, committedVisibleCircleParameters);
+		_shaderRect.Visible = true;
+		if (newCellCount >= IncrementalUpdateLargeCellWarningThreshold)
+		{
+			GameLog.Info(
+				nameof(StrategicWorldFogOverlay),
+				$"StrategicFogIncrementalMaskLargeUpdate newCells={newCellCount} maskSize={_exploredMaskTextureSize}");
+		}
+
+		return true;
 	}
 
 	public void SetVisibleCircles(IEnumerable<StrategicWorldFogOverlayCircle> visibleCircles)
@@ -104,6 +172,25 @@ public partial class StrategicWorldFogOverlay : Control
 		_shaderRect.Visible = true;
 	}
 
+	public void UpdateFogScreenTransform(
+		Rect2 screenBounds,
+		IEnumerable<StrategicWorldFogOverlayCircle> visibleCircles)
+	{
+		EnsureShaderRect();
+		if (_material == null)
+		{
+			return;
+		}
+
+		Rect2 bounds = NormalizeRect(screenBounds);
+		Vector4[] circleParameters = BuildCircleParameters(visibleCircles, out int circleCount);
+		_material.SetShaderParameter(MapRectParameter, new Vector4(bounds.Position.X, bounds.Position.Y, bounds.Size.X, bounds.Size.Y));
+		_material.SetShaderParameter(VisibleCircleCountParameter, circleCount);
+		_material.SetShaderParameter(VisibleCirclesParameter, circleParameters);
+		UpdateOverlaySizeParameter();
+		_shaderRect.Visible = true;
+	}
+
 	public void ClearFog()
 	{
 		EnsureShaderRect();
@@ -114,6 +201,12 @@ public partial class StrategicWorldFogOverlay : Control
 			_material.SetShaderParameter(ExploredMaskTextureSizeParameter, new Vector2(1.0f, 1.0f));
 		}
 
+		_exploredMaskImage = null;
+		_exploredMaskTexture = null;
+		_exploredMaskMapBounds = default;
+		_exploredMaskOriginCell = default;
+		_exploredMaskTextureSize = default;
+		_exploredMaskFogTexelWorldSize = 0.0f;
 		_shaderRect.Visible = false;
 	}
 
@@ -154,94 +247,141 @@ public partial class StrategicWorldFogOverlay : Control
 		_material?.SetShaderParameter(OverlaySizeParameter, Size);
 	}
 
-	private static ImageTexture BuildExploredMask(
-		Rect2 bounds,
-		IEnumerable<StrategicWorldFogOverlayRect> revealedRects,
-		Vector2I maskSize)
+	private void EnsureMapSpaceMask(
+		Rect2 mapBounds,
+		StrategicFogOfWarSettings settings,
+		bool forceRebuild)
 	{
-		if (bounds.Size.X <= 0.0f || bounds.Size.Y <= 0.0f)
-		{
-			return null;
-		}
-
-		int width = Mathf.Max(1, maskSize.X);
-		int height = Mathf.Max(1, maskSize.Y);
-		Image image = Image.CreateEmpty(width, height, false, Image.Format.R8);
-		image.Fill(Colors.Black);
-		if (revealedRects != null)
-		{
-			foreach (StrategicWorldFogOverlayRect rect in revealedRects)
-			{
-				FillMaskSoftCircle(image, bounds, NormalizeRect(rect.ScreenRect));
-			}
-		}
-
-		return ImageTexture.CreateFromImage(image);
-	}
-
-	private static void FillMaskSoftCircle(Image image, Rect2 bounds, Rect2 rect)
-	{
-		int resolutionX = image.GetWidth();
-		int resolutionY = image.GetHeight();
-		Rect2 clipped = bounds.Intersection(rect);
-		if (clipped.Size.X <= 0.0f || clipped.Size.Y <= 0.0f)
+		float fogTexelWorldSize = ResolveFogTexelWorldSize(settings);
+		Vector2I maskSize = EstimateExploredMaskSize(mapBounds, fogTexelWorldSize);
+		if (!forceRebuild && CanReuseMapSpaceMask(mapBounds, settings))
 		{
 			return;
 		}
 
-		Vector2 rectCenter = rect.GetCenter();
-		float radius = MathF.Max(rect.Size.X, rect.Size.Y) * 0.5f;
-		if (radius <= 0.0f)
+		EnsureExploredMaskTexture(maskSize);
+		_exploredMaskMapBounds = mapBounds;
+		_exploredMaskFogTexelWorldSize = fogTexelWorldSize;
+		_exploredMaskOriginCell = new Vector2I(
+			Mathf.FloorToInt(mapBounds.Position.X / fogTexelWorldSize),
+			Mathf.FloorToInt(mapBounds.Position.Y / fogTexelWorldSize));
+		_exploredMaskTextureSize = maskSize;
+	}
+
+	private void EnsureExploredMaskTexture(Vector2I maskSize)
+	{
+		Vector2I safeSize = new(Mathf.Max(2, maskSize.X), Mathf.Max(2, maskSize.Y));
+		if (_exploredMaskImage != null && _exploredMaskTexture != null && _exploredMaskTextureSize == safeSize)
 		{
 			return;
 		}
 
-		float centerX = (rectCenter.X - bounds.Position.X) / bounds.Size.X * resolutionX;
-		float centerY = (rectCenter.Y - bounds.Position.Y) / bounds.Size.Y * resolutionY;
-		float radiusX = radius / bounds.Size.X * resolutionX;
-		float radiusY = radius / bounds.Size.Y * resolutionY;
-		const float featherPixels = 1.5f;
-		int startX = Mathf.Clamp(Mathf.FloorToInt(centerX - radiusX - featherPixels), 0, resolutionX - 1);
-		int endX = Mathf.Clamp(Mathf.CeilToInt(centerX + radiusX + featherPixels), 0, resolutionX);
-		int startY = Mathf.Clamp(Mathf.FloorToInt(centerY - radiusY - featherPixels), 0, resolutionY - 1);
-		int endY = Mathf.Clamp(Mathf.CeilToInt(centerY + radiusY + featherPixels), 0, resolutionY);
-
-		for (int y = startY; y < endY; y++)
-		{
-			for (int x = startX; x < endX; x++)
-			{
-				float px = x + 0.5f;
-				float py = y + 0.5f;
-				float normalizedX = radiusX <= 0.0f ? 0.0f : (px - centerX) / radiusX;
-				float normalizedY = radiusY <= 0.0f ? 0.0f : (py - centerY) / radiusY;
-				float distance = (Mathf.Sqrt(normalizedX * normalizedX + normalizedY * normalizedY) - 1.0f) * MathF.Max(radiusX, radiusY);
-				distance = MathF.Max(0.0f, distance);
-				if (distance > featherPixels)
-				{
-					continue;
-				}
-
-				float amount = 1.0f - SmoothStep(0.0f, featherPixels, distance);
-				float current = image.GetPixel(x, y).R;
-				if (amount > current)
-				{
-					image.SetPixel(x, y, new Color(amount, 0.0f, 0.0f));
-				}
-			}
-		}
+		_exploredMaskImage = Image.CreateEmpty(safeSize.X, safeSize.Y, false, Image.Format.R8);
+		_exploredMaskImage.Fill(Colors.Black);
+		_exploredMaskTexture = ImageTexture.CreateFromImage(_exploredMaskImage);
 	}
 
-	private static float SmoothStep(float edge0, float edge1, float value)
+	private bool CanReuseMapSpaceMask(
+		Rect2 mapBounds,
+		StrategicFogOfWarSettings settings)
 	{
-		float t = Mathf.Clamp((value - edge0) / (edge1 - edge0), 0.0f, 1.0f);
-		return t * t * (3.0f - 2.0f * t);
+		return _exploredMaskImage != null &&
+			   _exploredMaskTexture != null &&
+			   IsSameRect(_exploredMaskMapBounds, mapBounds) &&
+			   MathF.Abs(_exploredMaskFogTexelWorldSize - ResolveFogTexelWorldSize(settings)) <= 0.001f;
+	}
+
+	private Texture2D GetExploredMaskTexture()
+	{
+		if (_exploredMaskTexture != null)
+		{
+			return _exploredMaskTexture;
+		}
+
+		return GetEmptyExploredMask();
+	}
+
+	private void RebuildExploredMaskTexture(
+		IEnumerable<string> exploredCellKeys)
+	{
+		if (_exploredMaskImage == null)
+		{
+			return;
+		}
+
+		_exploredMaskImage.Fill(Colors.Black);
+		UpdateExploredMaskCells(exploredCellKeys);
+		CommitExploredMaskTexture();
+	}
+
+	private int UpdateExploredMaskCells(
+		IEnumerable<string> exploredCellKeys)
+    {
+		int updatedCells = 0;
+		if (_exploredMaskImage == null || exploredCellKeys == null)
+		{
+			return updatedCells;
+		}
+
+		foreach (string cellKey in exploredCellKeys)
+		{
+			if (SetExploredCell(cellKey))
+			{
+				updatedCells++;
+			}
+		}
+
+		return updatedCells;
+	}
+
+	private bool SetExploredCell(
+		string cellKey)
+	{
+		if (_exploredMaskImage == null || string.IsNullOrWhiteSpace(cellKey))
+		{
+			return false;
+		}
+
+		Vector2I pixel = CellKeyToMaskPixel(cellKey);
+		if (pixel.X < 0 || pixel.Y < 0 || pixel.X >= _exploredMaskImage.GetWidth() || pixel.Y >= _exploredMaskImage.GetHeight())
+		{
+			return false;
+		}
+
+		_exploredMaskImage.SetPixel(pixel.X, pixel.Y, Colors.White);
+		return true;
+	}
+
+	private Vector2I CellKeyToMaskPixel(
+		string cellKey)
+	{
+		Vector2I cell = ParseCellKey(cellKey);
+		int pixelX = cell.X - _exploredMaskOriginCell.X;
+		int pixelY = cell.Y - _exploredMaskOriginCell.Y;
+		return new Vector2I(pixelX, pixelY);
+	}
+
+	private void CommitExploredMaskTexture()
+	{
+		if (_exploredMaskImage == null)
+		{
+			return;
+		}
+
+		if (_exploredMaskTexture == null)
+		{
+			_exploredMaskTexture = ImageTexture.CreateFromImage(_exploredMaskImage);
+			return;
+		}
+
+		_exploredMaskTexture.Update(_exploredMaskImage);
 	}
 
 	private static int ComputeExploredMaskResolution(
 		float axisLength,
-		float fogTexelScreenSize)
+		float fogTexelWorldSize)
 	{
-		float clampedCellSize = Mathf.Max(1.0f, fogTexelScreenSize);
+		float clampedCellSize = Mathf.Max(1.0f, fogTexelWorldSize);
 		float target = axisLength / clampedCellSize;
 		if (!float.IsFinite(target) || target <= 0.0f)
 		{
@@ -256,11 +396,11 @@ public partial class StrategicWorldFogOverlay : Control
 
 	private static Vector2I EstimateExploredMaskSize(
 		Rect2 bounds,
-		float fogTexelScreenSize)
+		float fogTexelWorldSize)
 	{
 		return new Vector2I(
-			ComputeExploredMaskResolution(bounds.Size.X, fogTexelScreenSize),
-			ComputeExploredMaskResolution(bounds.Size.Y, fogTexelScreenSize));
+			ComputeExploredMaskResolution(bounds.Size.X, fogTexelWorldSize),
+			ComputeExploredMaskResolution(bounds.Size.Y, fogTexelWorldSize));
 	}
 
 	private static Vector4[] BuildCircleParameters(
@@ -292,18 +432,44 @@ public partial class StrategicWorldFogOverlay : Control
 		return parameters;
 	}
 
-	private static Color ResolveRevealedColor(IEnumerable<StrategicWorldFogOverlayRect> revealedRects)
+	private void ApplyFogShaderParameters(
+		Rect2 bounds,
+		Color unknownColor,
+		Color revealedColor,
+		Texture2D exploredMask,
+		Vector2I exploredMaskSize,
+		int circleCount,
+		Vector4[] circleParameters)
 	{
-		if (revealedRects == null)
-		{
-			return new Color(0.025f, 0.03f, 0.035f, 0.42f);
-		}
+		_material.SetShaderParameter(UnknownColorParameter, unknownColor);
+		_material.SetShaderParameter(RevealedColorParameter, revealedColor);
+		_material.SetShaderParameter(ExploredMaskParameter, exploredMask);
+		_material.SetShaderParameter(
+			ExploredMaskTextureSizeParameter,
+			new Vector2(Mathf.Max(1, exploredMaskSize.X), Mathf.Max(1, exploredMaskSize.Y)));
+		_material.SetShaderParameter(MapRectParameter, new Vector4(bounds.Position.X, bounds.Position.Y, bounds.Size.X, bounds.Size.Y));
+		_material.SetShaderParameter(VisibleCircleCountParameter, circleCount);
+		_material.SetShaderParameter(VisibleCirclesParameter, circleParameters);
+		_material.SetShaderParameter(EdgeSoftnessParameter, 5.0f);
+		UpdateOverlaySizeParameter();
+	}
 
-		foreach (StrategicWorldFogOverlayRect rect in revealedRects)
-		{
-			return rect.Color;
-		}
+	private void ApplyBinaryFogShaderParameters(
+		Rect2 bounds,
+		Color unknownColor,
+		int circleCount,
+		Vector4[] circleParameters)
+	{
+		_material.SetShaderParameter(UnknownColorParameter, unknownColor);
+		_material.SetShaderParameter(MapRectParameter, new Vector4(bounds.Position.X, bounds.Position.Y, bounds.Size.X, bounds.Size.Y));
+		_material.SetShaderParameter(VisibleCircleCountParameter, circleCount);
+		_material.SetShaderParameter(VisibleCirclesParameter, circleParameters);
+		_material.SetShaderParameter(EdgeSoftnessParameter, 5.0f);
+		UpdateOverlaySizeParameter();
+	}
 
+	private static Color ResolveRevealedColor()
+	{
 		return new Color(0.025f, 0.03f, 0.035f, 0.42f);
 	}
 
@@ -329,6 +495,48 @@ public partial class StrategicWorldFogOverlay : Control
 			Mathf.Max(rect.Position.X, rect.Position.X + rect.Size.X),
 			Mathf.Max(rect.Position.Y, rect.Position.Y + rect.Size.Y));
 		return new Rect2(start, end - start);
+	}
+
+	private static bool IsSameRect(Rect2 left, Rect2 right)
+	{
+		return left.Position.DistanceSquaredTo(right.Position) <= 0.001f &&
+			   left.Size.DistanceSquaredTo(right.Size) <= 0.001f;
+	}
+
+	private static Vector2I ParseCellKey(string cellKey)
+	{
+		string[] parts = (cellKey ?? "").Split(':');
+		return parts.Length == 2 &&
+		       int.TryParse(parts[0], out int x) &&
+		       int.TryParse(parts[1], out int y)
+			? new Vector2I(x, y)
+			: Vector2I.Zero;
+	}
+
+	private static float ResolveFogTexelWorldSize(StrategicFogOfWarSettings settings)
+	{
+		return Mathf.Max(settings?.FogTexelWorldSize ?? StrategicFogOfWarService.DefaultFogTexelWorldSize, 1.0f);
+	}
+
+	private static int CountItems<T>(IEnumerable<T> items)
+	{
+		if (items == null)
+		{
+			return 0;
+		}
+
+		if (items is ICollection<T> collection)
+		{
+			return collection.Count;
+		}
+
+		int count = 0;
+		foreach (T _ in items)
+		{
+			count++;
+		}
+
+		return count;
 	}
 }
 

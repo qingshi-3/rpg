@@ -18,6 +18,20 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
         run("runtime stale retarget preserves tactical scope", StaleRetargetPreservesTacticalScope);
         run("runtime diagonal height step validates sides at source height", DiagonalHeightStepValidatesSidesAtSourceHeight);
         run("runtime invalid handoff remains incomplete", InvalidHandoffRemainsIncomplete);
+        run("runtime missing navigation topology remains incomplete", MissingNavigationTopologyRemainsIncomplete);
+        run("runtime blank faction remains invalid", BlankFactionRemainsInvalid);
+        run("runtime malformed combat stats remain invalid", MalformedCombatStatsRemainInvalid);
+        run("runtime malformed footprint dimensions remain invalid", MalformedFootprintDimensionsRemainInvalid);
+        run("runtime illegal start footprint remains incomplete", IllegalStartFootprintRemainsIncomplete);
+        run("runtime invalid skill targeting remains incomplete", InvalidSkillTargetingRemainsIncomplete);
+        run("runtime targeted skill range remains required", TargetedSkillRangeRemainsRequired);
+        run("runtime skill caster bindings remain required", SkillCasterBindingsRemainRequired);
+        run("runtime skill interrupt policy remains required", SkillInterruptPolicyRemainsRequired);
+        run("runtime explicit false skill interrupt policy remains valid", ExplicitFalseSkillInterruptPolicyRemainsValid);
+        run("runtime ordinary damage effect amount remains positive", OrdinaryDamageEffectAmountRemainsPositive);
+        run("runtime empty skill effects remain invalid", EmptySkillEffectsRemainInvalid);
+        run("runtime invalid skill effect kind remains incomplete", InvalidSkillEffectKindRemainsIncomplete);
+        run("runtime invalid channeled effect payload remains incomplete", InvalidChanneledEffectPayloadRemainsIncomplete);
         run("runtime duplicate actor ids fail with named invariant", DuplicateActorIdsFailWithNamedInvariant);
     }
 
@@ -157,6 +171,300 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
             "invalid handoff should keep the diagnostic rejection event");
     }
 
+    private static void MissingNavigationTopologyRemainsIncomplete()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_missing_navigation_topology",
+            BattleId = "battle_missing_navigation_topology",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "force_player", "player", BattleGroupTacticalMode.PlayerCommanded, 0, 0),
+                BuildGroup("group_enemy", "force_enemy", "enemy", BattleGroupTacticalMode.EnemyOffense, 3, 0)
+            }
+        };
+
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        AssertTrue(!controller.IsComplete, "missing topology handoff should stay incomplete");
+        AssertTrue(!controller.Outcome.IsComplete, "missing topology outcome should stay incomplete");
+        AssertTrue(
+            controller.EventStream.Events.Any(item => item.ReasonCode == "navigation_topology_missing"),
+            "missing topology should emit an explicit launch rejection reason");
+    }
+
+    private static void BlankFactionRemainsInvalid()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_blank_faction_invalid");
+        snapshot.BattleGroups[0].FactionId = "";
+
+        AssertInvalidGroupSnapshot(snapshot, "battle_group_faction_missing", "blank faction");
+    }
+
+    private static void MalformedCombatStatsRemainInvalid()
+    {
+        BattleStartSnapshot missingHitPoints = BuildOpposedSnapshot("battle_missing_hit_points_invalid");
+        missingHitPoints.BattleGroups[0].MaxHitPoints = 0;
+        AssertInvalidGroupSnapshot(missingHitPoints, "battle_group_hit_points_invalid", "missing hit points");
+
+        BattleStartSnapshot missingAttackDamage = BuildOpposedSnapshot("battle_missing_attack_damage_invalid");
+        missingAttackDamage.BattleGroups[0].AttackDamage = 0;
+        AssertInvalidGroupSnapshot(missingAttackDamage, "battle_group_attack_damage_invalid", "missing attack damage");
+
+        BattleStartSnapshot missingAttackRange = BuildOpposedSnapshot("battle_missing_attack_range_invalid");
+        missingAttackRange.BattleGroups[0].AttackRange = 0;
+        AssertInvalidGroupSnapshot(missingAttackRange, "battle_group_attack_range_invalid", "missing attack range");
+
+        BattleStartSnapshot invalidAttackSpeed = BuildOpposedSnapshot("battle_invalid_attack_speed_invalid");
+        invalidAttackSpeed.BattleGroups[0].AttackSpeed = double.NaN;
+        AssertInvalidGroupSnapshot(invalidAttackSpeed, "battle_group_attack_speed_invalid", "invalid attack speed");
+    }
+
+    private static void MalformedFootprintDimensionsRemainInvalid()
+    {
+        BattleStartSnapshot zeroWidth = BuildOpposedSnapshot("battle_zero_footprint_width_invalid");
+        zeroWidth.BattleGroups[0].FootprintWidth = 0;
+        AssertInvalidGroupSnapshot(zeroWidth, "battle_group_footprint_invalid", "zero footprint width");
+
+        BattleStartSnapshot negativeHeight = BuildOpposedSnapshot("battle_negative_footprint_height_invalid");
+        negativeHeight.BattleGroups[0].FootprintHeight = -1;
+        AssertInvalidGroupSnapshot(negativeHeight, "battle_group_footprint_invalid", "negative footprint height");
+
+        BattleStartSnapshot tooWide = BuildOpposedSnapshot("battle_oversized_footprint_invalid");
+        tooWide.BattleGroups[0].FootprintWidth = 4;
+        AssertInvalidGroupSnapshot(tooWide, "battle_group_footprint_invalid", "oversized footprint width");
+    }
+
+    private static void IllegalStartFootprintRemainsIncomplete()
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = "snapshot_illegal_start_footprint",
+            BattleId = "battle_illegal_start_footprint",
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "force_player", "player", BattleGroupTacticalMode.PlayerCommanded, 0, 0),
+                BuildGroup("group_enemy", "force_enemy", "enemy", BattleGroupTacticalMode.EnemyOffense, 3, 0)
+            }
+        };
+        snapshot.BattleGroups[0].FootprintWidth = 2;
+        snapshot.BattleGroups[0].FootprintHeight = 2;
+        AddRectSurfaces(snapshot, 0, 0, 3, 0);
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        AssertTrue(!controller.IsComplete, "illegal footprint handoff should stay incomplete");
+        AssertTrue(!controller.Outcome.IsComplete, "illegal footprint outcome should stay incomplete");
+        AssertTrue(
+            controller.EventStream.Events.Any(item => item.ReasonCode == "battle_start_footprint_invalid"),
+            "illegal start footprint should emit an explicit launch rejection reason");
+    }
+
+    private static void InvalidSkillTargetingRemainsIncomplete()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_invalid_skill_targeting", new BattleSkillSnapshot
+        {
+            SkillId = "invalid_targeting_skill",
+            DisplayName = "Invalid Targeting Skill",
+            TargetingMode = BattleSkillTargetingMode.None,
+            Range = 4,
+            CasterUnitIds = { "force_player_hero_definition" },
+            Effects =
+            {
+                new BattleSkillEffectSnapshot
+                {
+                    Kind = BattleSkillEffectKind.Damage,
+                    Amount = 12
+                }
+            }
+        });
+
+        AssertInvalidSkillSnapshot(snapshot, "battle_skill_targeting_invalid", "invalid targeting mode");
+    }
+
+    private static void TargetedSkillRangeRemainsRequired()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_targeted_skill_range_required", new BattleSkillSnapshot
+        {
+            SkillId = "missing_range_skill",
+            DisplayName = "Missing Range Skill",
+            TargetingMode = BattleSkillTargetingMode.TargetedActor,
+            Range = 0,
+            CasterUnitIds = { "force_player_hero_definition" },
+            Effects =
+            {
+                new BattleSkillEffectSnapshot
+                {
+                    Kind = BattleSkillEffectKind.Damage,
+                    Amount = 12
+                }
+            }
+        });
+
+        AssertInvalidSkillSnapshot(snapshot, "battle_skill_range_invalid", "targeted skill range");
+    }
+
+    private static void SkillCasterBindingsRemainRequired()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_missing_skill_caster_bindings", new BattleSkillSnapshot
+        {
+            SkillId = "missing_caster_bindings_skill",
+            DisplayName = "Missing Caster Bindings Skill",
+            TargetingMode = BattleSkillTargetingMode.TargetedActor,
+            Range = 4,
+            Effects =
+            {
+                new BattleSkillEffectSnapshot
+                {
+                    Kind = BattleSkillEffectKind.Damage,
+                    Amount = 12
+                }
+            }
+        });
+
+        AssertInvalidSkillSnapshot(snapshot, "battle_skill_caster_bindings_missing", "missing caster bindings");
+    }
+
+    private static void SkillInterruptPolicyRemainsRequired()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_missing_skill_interrupt_policy", new BattleSkillSnapshot
+        {
+            SkillId = "missing_interrupt_policy_skill",
+            DisplayName = "Missing Interrupt Policy Skill",
+            TargetingMode = BattleSkillTargetingMode.TargetedActor,
+            Range = 4,
+            CasterUnitIds = { "force_player_hero_definition" },
+            Effects =
+            {
+                new BattleSkillEffectSnapshot
+                {
+                    Kind = BattleSkillEffectKind.Damage,
+                    Amount = 12
+                }
+            }
+        }, authoredInterruptPolicy: false);
+
+        AssertInvalidSkillSnapshot(snapshot, "battle_skill_interrupt_policy_missing", "missing interrupt policy");
+    }
+
+    private static void ExplicitFalseSkillInterruptPolicyRemainsValid()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_explicit_false_skill_interrupt_policy", new BattleSkillSnapshot
+        {
+            SkillId = "explicit_false_interrupt_policy_skill",
+            DisplayName = "Explicit False Interrupt Policy Skill",
+            TargetingMode = BattleSkillTargetingMode.TargetedActor,
+            Range = 4,
+            CasterUnitIds = { "force_player_hero_definition" },
+            HasInterruptPolicy = true,
+            CanInterruptBasicAttackWindup = false,
+            CanCancelBasicAttackRecovery = false,
+            ReleasesWithoutOccupyingCaster = false,
+            Effects =
+            {
+                new BattleSkillEffectSnapshot
+                {
+                    Kind = BattleSkillEffectKind.Damage,
+                    Amount = 12
+                }
+            }
+        });
+
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        AssertTrue(
+            !controller.EventStream.Events.Any(item =>
+                item.Kind == BattleEventKind.CommandRejected &&
+                item.SourceDefinitionId == "explicit_false_interrupt_policy_skill"),
+            "explicitly authored all-false interrupt policy should not be rejected as missing");
+    }
+
+    private static void OrdinaryDamageEffectAmountRemainsPositive()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_non_positive_damage_amount", new BattleSkillSnapshot
+        {
+            SkillId = "non_positive_damage_skill",
+            DisplayName = "Non Positive Damage Skill",
+            TargetingMode = BattleSkillTargetingMode.TargetedActor,
+            Range = 4,
+            CasterUnitIds = { "force_player_hero_definition" },
+            Effects =
+            {
+                new BattleSkillEffectSnapshot
+                {
+                    Kind = BattleSkillEffectKind.Damage,
+                    Amount = 0
+                }
+            }
+        });
+
+        AssertInvalidSkillSnapshot(snapshot, "battle_skill_effect_damage_amount_invalid", "non-positive damage amount");
+    }
+
+    private static void EmptySkillEffectsRemainInvalid()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_empty_skill_effects_invalid", new BattleSkillSnapshot
+        {
+            SkillId = "empty_effects_skill",
+            DisplayName = "Empty Effects Skill",
+            TargetingMode = BattleSkillTargetingMode.TargetedActor,
+            Range = 4,
+            CasterUnitIds = { "force_player_hero_definition" }
+        });
+
+        AssertInvalidSkillSnapshot(snapshot, "battle_skill_effects_missing", "empty effect list");
+    }
+
+    private static void InvalidSkillEffectKindRemainsIncomplete()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_invalid_skill_effect_kind", new BattleSkillSnapshot
+        {
+            SkillId = "invalid_effect_kind_skill",
+            DisplayName = "Invalid Effect Kind Skill",
+            TargetingMode = BattleSkillTargetingMode.TargetedActor,
+            Range = 4,
+            CasterUnitIds = { "force_player_hero_definition" },
+            Effects =
+            {
+                new BattleSkillEffectSnapshot
+                {
+                    Kind = (BattleSkillEffectKind)999,
+                    Amount = 12
+                }
+            }
+        });
+
+        AssertInvalidSkillSnapshot(snapshot, "battle_skill_effect_kind_invalid", "invalid effect kind");
+    }
+
+    private static void InvalidChanneledEffectPayloadRemainsIncomplete()
+    {
+        BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_invalid_channel_payload", new BattleSkillSnapshot
+        {
+            SkillId = "invalid_channel_skill",
+            DisplayName = "Invalid Channel Skill",
+            TargetingMode = BattleSkillTargetingMode.TargetedCell,
+            Range = 4,
+            CasterUnitIds = { "force_player_hero_definition" },
+            Effects =
+            {
+                new BattleSkillEffectSnapshot
+                {
+                    Kind = BattleSkillEffectKind.StartChanneledAreaDamage,
+                    Amount = 10,
+                    DurationSeconds = 0,
+                    TickIntervalSeconds = 0.2,
+                    Radius = 0
+                }
+            }
+        });
+
+        AssertInvalidSkillSnapshot(snapshot, "battle_skill_effect_channel_timing_invalid", "channeled effect timing");
+    }
+
     private static void DuplicateActorIdsFailWithNamedInvariant()
     {
         BattleRuntimeSessionController controller = new BattleRuntimeSession()
@@ -217,6 +525,47 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
             }
         };
         AddRectSurfaces(snapshot, 0, 0, 6, 1);
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildOpposedSnapshot(string battleId)
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = $"snapshot_{battleId}",
+            BattleId = battleId,
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "force_player", "player", BattleGroupTacticalMode.PlayerCommanded, 0, 0),
+                BuildGroup("group_enemy", "force_enemy", "enemy", BattleGroupTacticalMode.EnemyOffense, 4, 0)
+            }
+        };
+        AddRectSurfaces(snapshot, 0, 0, 4, 0);
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private static BattleStartSnapshot BuildOpposedSnapshotWithSkill(
+        string battleId,
+        BattleSkillSnapshot skill,
+        bool authoredInterruptPolicy = true)
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = $"snapshot_{battleId}",
+            BattleId = battleId,
+            TargetLocationId = "site_1",
+            BattleGroups =
+            {
+                BuildGroup("group_player", "force_player", "player", BattleGroupTacticalMode.PlayerCommanded, 0, 0),
+                BuildGroup("group_enemy", "force_enemy", "enemy", BattleGroupTacticalMode.EnemyOffense, 4, 0)
+            }
+        };
+        skill.HasInterruptPolicy = authoredInterruptPolicy;
+        snapshot.SkillDefinitions.Add(skill);
+        AddRectSurfaces(snapshot, 0, 0, 4, 0);
         BattleNavigationTestTopology.Compile(snapshot.LocationContext);
         return snapshot;
     }
@@ -378,7 +727,7 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
             BattleGroups =
             {
                 BuildGroup("support_group", "support", "player", BattleGroupTacticalMode.PlayerCommanded, 0, 0),
-                BuildGroup("front_group", "front", "", BattleGroupTacticalMode.PlayerCommanded, 2, 0),
+                BuildGroup("front_group", "front", "player", BattleGroupTacticalMode.PlayerCommanded, 2, 0),
                 BuildGroup("target_group", "target", "enemy", BattleGroupTacticalMode.EnemyOffense, 3, 0)
             }
         };
@@ -477,6 +826,34 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
         {
             throw new Exception(message);
         }
+    }
+
+    private static void AssertInvalidSkillSnapshot(BattleStartSnapshot snapshot, string expectedReason, string message)
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        AssertTrue(!controller.IsComplete, $"{message} handoff should stay incomplete");
+        AssertTrue(!controller.Outcome.IsComplete, $"{message} outcome should stay incomplete");
+        AssertTrue(
+            controller.EventStream.Events.Any(item =>
+                item.Kind == BattleEventKind.CommandRejected &&
+                item.SourceDefinitionId == snapshot.SkillDefinitions[0].SkillId &&
+                item.ReasonCode == expectedReason),
+            $"{message} should emit explicit skill snapshot rejection reason");
+    }
+
+    private static void AssertInvalidGroupSnapshot(BattleStartSnapshot snapshot, string expectedReason, string message)
+    {
+        BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
+
+        AssertTrue(!controller.IsComplete, $"{message} handoff should stay incomplete");
+        AssertTrue(!controller.Outcome.IsComplete, $"{message} outcome should stay incomplete");
+        AssertTrue(
+            controller.EventStream.Events.Any(item =>
+                item.Kind == BattleEventKind.CommandRejected &&
+                item.BattleGroupId == snapshot.BattleGroups[0].BattleGroupId &&
+                item.ReasonCode == expectedReason),
+            $"{message} should emit explicit battle group snapshot rejection reason");
     }
 
     private static T AssertThrows<T>(Action action, string message) where T : Exception

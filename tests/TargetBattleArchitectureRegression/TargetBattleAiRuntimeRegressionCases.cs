@@ -287,7 +287,7 @@ internal static class TargetBattleAiRuntimeRegressionCases
 
     private static BattleStartSnapshot BuildOpposedSnapshot()
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = "snapshot_runtime_ai_boundary",
             BattleId = "battle_runtime_ai_boundary",
@@ -324,6 +324,8 @@ internal static class TargetBattleAiRuntimeRegressionCases
                 }
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static string ProjectRoot()

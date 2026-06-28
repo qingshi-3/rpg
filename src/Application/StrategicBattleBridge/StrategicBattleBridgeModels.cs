@@ -3,6 +3,7 @@ using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Definitions.StrategicManagement;
 using Rpg.Runtime.Battle;
 
 namespace Rpg.Application.StrategicBattleBridge;
@@ -139,6 +140,15 @@ public sealed class StrategicBattleResultSummary
     public BattleOutcome Outcome { get; set; } = BattleOutcome.None;
     public bool ObjectiveSucceeded { get; set; }
     public List<StrategicBattleParticipantResult> Participants { get; set; } = new();
+    public bool HasConsequenceFacts { get; set; }
+    public string TargetDisplayName { get; set; } = "";
+    public string WorldChangeText { get; set; } = "";
+    public string FailureReasonText { get; set; } = "";
+    public string ProgressionText { get; set; } = "";
+    public string RewardClaimId { get; set; } = "";
+    public List<string> RewardLines { get; set; } = new();
+    public List<StrategicResourceAmount> ResourceRewards { get; set; } = new();
+    public List<string> RewardEquipmentSampleIds { get; set; } = new();
 }
 
 public sealed class StrategicBattleParticipantResult

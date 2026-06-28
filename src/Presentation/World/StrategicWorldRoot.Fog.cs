@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
@@ -21,31 +22,12 @@ public partial class StrategicWorldRoot
         }
 
         StrategicFogOfWarSettings settings = BuildFogSettings();
-        HashSet<string> explored = State.Fog.ExploredCells.ToHashSet();
+        _lastStrategicFogRefreshSignature = BuildStrategicFogRefreshSignature(settings);
         Color unknownColor = new(0.015f, 0.016f, 0.018f, 0.86f);
-        Color revealedColor = new(0.025f, 0.03f, 0.035f, 0.42f);
-        List<StrategicWorldFogOverlayRect> revealedRects = new();
-
-        foreach (string cellKey in StrategicFogOfWarService.EnumerateCellKeysForBounds(mapBounds, settings))
-        {
-            if (!explored.Contains(cellKey))
-            {
-                continue;
-            }
-
-            Rect2 mapRect = StrategicFogOfWarService.CellKeyToWorldRect(cellKey, settings);
-            Rect2 screenRect = MapRectToViewportLocal(mapRect);
-            revealedRects.Add(new StrategicWorldFogOverlayRect(
-                screenRect,
-                revealedColor));
-        }
-
         List<StrategicWorldFogOverlayCircle> visibleCircles = BuildStrategicFogOverlayCircles(settings);
         _fogOverlay.SetFog(
-            MapRectToViewportLocal(mapBounds),
-            revealedRects,
+            mapBounds,
             visibleCircles,
-            EstimateFogTexelScreenSize(settings.FogTexelWorldSize),
             unknownColor);
         _strategicFogMaskReady = true;
     }
@@ -65,10 +47,8 @@ public partial class StrategicWorldRoot
         List<StrategicWorldFogOverlayCircle> circles = new();
         foreach (StrategicFogVisionSource source in StrategicFogOfWarService.BuildVisionSources(State, Definition, settings))
         {
-            Vector2 center = MapToViewportLocal(source.Position);
-            float radiusX = center.DistanceTo(MapToViewportLocal(source.Position + new Vector2(source.Radius, 0.0f)));
-            float radiusY = center.DistanceTo(MapToViewportLocal(source.Position + new Vector2(0.0f, source.Radius)));
-            float radius = Mathf.Max(radiusX, radiusY);
+            Vector2 center = source.Position;
+            float radius = source.Radius;
             if (radius > 0.0f)
             {
                 circles.Add(new StrategicWorldFogOverlayCircle(center, radius));
@@ -85,10 +65,18 @@ public partial class StrategicWorldRoot
             return false;
         }
 
-        int exploredCountBefore = State.Fog?.ExploredCells?.Count ?? 0;
-        bool changed = StrategicFogOfWarService.RefreshVisibility(State, Definition, BuildFogSettings());
-        int exploredCountAfter = State.Fog?.ExploredCells?.Count ?? 0;
-        if (!_strategicFogMaskReady || exploredCountAfter != exploredCountBefore)
+        StrategicFogOfWarSettings settings = BuildFogSettings();
+        string refreshSignature = BuildStrategicFogRefreshSignature(settings);
+        if (_strategicFogMaskReady &&
+            string.Equals(refreshSignature, _lastStrategicFogRefreshSignature, StringComparison.Ordinal))
+        {
+            RefreshStrategicFogVisibleCircles();
+            return false;
+        }
+
+        StrategicFogOfWarService.RefreshVisibility(State, Definition, settings);
+        _lastStrategicFogRefreshSignature = refreshSignature;
+        if (!_strategicFogMaskReady)
         {
             RefreshStrategicFogOverlay();
         }
@@ -97,12 +85,14 @@ public partial class StrategicWorldRoot
             RefreshStrategicFogVisibleCircles();
         }
 
-        if (changed)
-        {
-            QueueStrategicOverlayRedraw();
-        }
+        return true;
+    }
 
-        return changed;
+    private void ResetStrategicFogMaskCache()
+    {
+        _strategicFogMaskReady = false;
+        _lastStrategicFogRefreshSignature = "";
+        _fogOverlay?.ClearFog();
     }
 
     private StrategicFogOfWarSettings BuildFogSettings()
@@ -115,15 +105,24 @@ public partial class StrategicWorldRoot
         };
     }
 
-    private float EstimateFogTexelScreenSize(float fogTexelWorldSize)
+    private string BuildStrategicFogRefreshSignature(StrategicFogOfWarSettings settings)
     {
-        Vector2 mapOriginScreen = MapToViewportLocal(Vector2.Zero);
-        Vector2 mapOffsetXScreen = MapToViewportLocal(new Vector2(1.0f, 0.0f));
-        Vector2 mapOffsetYScreen = MapToViewportLocal(new Vector2(0.0f, 1.0f));
+        if (State == null || Definition == null)
+        {
+            return "";
+        }
 
-        float scaleX = (mapOffsetXScreen - mapOriginScreen).Length();
-        float scaleY = (mapOffsetYScreen - mapOriginScreen).Length();
-        return fogTexelWorldSize * Mathf.Max(1.0f, Mathf.Max(scaleX, scaleY));
+        float fogTexelWorldSize = Mathf.Max(settings?.FogTexelWorldSize ?? StrategicFogOfWarService.DefaultFogTexelWorldSize, 1.0f);
+        List<string> parts = new();
+        foreach (StrategicFogVisionSource source in StrategicFogOfWarService.BuildVisionSources(State, Definition, settings))
+        {
+            int cellX = Mathf.FloorToInt(source.Position.X / fogTexelWorldSize);
+            int cellY = Mathf.FloorToInt(source.Position.Y / fogTexelWorldSize);
+            parts.Add($"{cellX}:{cellY}:{Mathf.RoundToInt(source.Radius)}");
+        }
+
+        parts.Sort(StringComparer.Ordinal);
+        return $"{fogTexelWorldSize:0.###}|{parts.Count}|{string.Join("|", parts)}";
     }
 
     private bool IsMapPositionVisible(Vector2 mapPosition)

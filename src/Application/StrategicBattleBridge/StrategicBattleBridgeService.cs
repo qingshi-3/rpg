@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Reports;
+using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.StrategicManagement;
@@ -11,6 +13,7 @@ using Rpg.Domain.Heroes;
 using Rpg.Domain.StrategicManagement;
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle;
+using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Results;
 
 namespace Rpg.Application.StrategicBattleBridge;
@@ -257,9 +260,12 @@ public sealed class StrategicBattleBridgeService
     {
         StrategicBattleSession session = context?.Session;
         BattleStartSnapshot snapshot = context?.Snapshot;
-        BattleRuntimeSessionResult runtimeResult = context?.RuntimeResult ?? context?.FlowResult?.RuntimeResult;
+        BattleRuntimeSessionResult runtimeResult = ResolveRuntimeResult(context);
         BattleOutcomeResult outcome = runtimeResult?.Outcome;
-        BattleOutcome mappedOutcome = MapRuntimeOutcome(outcome);
+        string failureReason = GetActiveContextFailureReason(context);
+        BattleOutcome mappedOutcome = string.IsNullOrWhiteSpace(failureReason)
+            ? MapRuntimeOutcome(outcome)
+            : BattleOutcome.None;
         StrategicBattleResultSummary summary = new()
         {
             SessionId = session?.SessionId ?? context?.ContextId ?? "",
@@ -270,8 +276,11 @@ public sealed class StrategicBattleBridgeService
             ObjectiveSucceeded = mappedOutcome == BattleOutcome.Victory
         };
 
-        if (!string.IsNullOrWhiteSpace(GetActiveContextFailureReason(context)))
+        if (!string.IsNullOrWhiteSpace(failureReason))
         {
+            GameLog.Warn(
+                nameof(StrategicBattleBridgeService),
+                $"StrategicBattleResultSummaryRejected session={summary.SessionId} snapshot={summary.SnapshotId} reason={failureReason}");
             return summary;
         }
 
@@ -285,15 +294,15 @@ public sealed class StrategicBattleBridgeService
             int initialCount = ResolveInitialParticipantCount(context.CompatibilityRequest, participant);
             int survivedCount = CountSurvivingRuntimeCorps(outcome, participant);
             int preBattleStrength = Math.Max(0, participant.PreBattleCorpsStrength);
-            int remainingStrength;
-            if (outcome.ActorOutcomes.Count == 0 || initialCount <= 0)
+            if (initialCount <= 0)
             {
-                remainingStrength = mappedOutcome == BattleOutcome.Victory ? preBattleStrength : 0;
+                GameLog.Warn(
+                    nameof(StrategicBattleBridgeService),
+                    $"StrategicBattleParticipantSummarySkipped session={summary.SessionId} participant={participant.ParticipantId} reason=initial_participant_count_missing");
+                continue;
             }
-            else
-            {
-                remainingStrength = (int)Math.Round(preBattleStrength * Math.Clamp(survivedCount / (double)initialCount, 0.0, 1.0));
-            }
+
+            int remainingStrength = (int)Math.Round(preBattleStrength * Math.Clamp(survivedCount / (double)initialCount, 0.0, 1.0));
 
             summary.Participants.Add(new StrategicBattleParticipantResult
             {
@@ -308,7 +317,12 @@ public sealed class StrategicBattleBridgeService
 
     public static string GetActiveContextFailureReason(StrategicBattleActiveContext context)
     {
-        if (context == null || context.Session == null || context.RuntimeResult?.Outcome == null)
+        BattleRuntimeSessionResult runtimeResult = ResolveRuntimeResult(context);
+        BattleOutcomeResult outcome = runtimeResult?.Outcome;
+        BattleEventStream eventStream = runtimeResult?.EventStream;
+        SettlementPlan settlementPlan = ResolveSettlementPlan(context);
+        BattleReportRecord report = ResolveReport(context);
+        if (context == null || context.Session == null || outcome == null)
         {
             return StrategicFailureReasons.MissingBattleResultSummary;
         }
@@ -320,18 +334,101 @@ public sealed class StrategicBattleBridgeService
             return StrategicFailureReasons.BattleResultMismatch;
         }
 
-        if (!string.IsNullOrWhiteSpace(context.RuntimeResult.Outcome.BattleId) &&
-            !string.Equals(context.RuntimeResult.Outcome.BattleId, context.Session.SessionId, StringComparison.Ordinal))
+        if (!string.IsNullOrWhiteSpace(outcome.BattleId) &&
+            !string.Equals(outcome.BattleId, context.Session.SessionId, StringComparison.Ordinal))
         {
             return StrategicFailureReasons.BattleResultMismatch;
         }
 
-        if (!context.RuntimeResult.Outcome.IsComplete || context.Session.Participants.Count == 0)
+        if (context.Snapshot == null ||
+            string.IsNullOrWhiteSpace(context.Snapshot.SnapshotId) ||
+            !string.Equals(outcome.SnapshotId ?? "", context.Snapshot.SnapshotId, StringComparison.Ordinal))
+        {
+            return string.IsNullOrWhiteSpace(outcome.SnapshotId)
+                ? StrategicFailureReasons.MissingBattleResultSummary
+                : StrategicFailureReasons.BattleResultMismatch;
+        }
+
+        if (!outcome.IsComplete ||
+            outcome.ActorOutcomes == null ||
+            outcome.ActorOutcomes.Count == 0 ||
+            context.Session.Participants.Count == 0)
+        {
+            return StrategicFailureReasons.MissingBattleResultSummary;
+        }
+
+        if (eventStream == null ||
+            eventStream.Events.Count == 0 ||
+            !eventStream.Events.Any(item =>
+                item.Kind == BattleEventKind.BattleEnded &&
+                string.Equals(item.BattleId ?? "", outcome.BattleId ?? "", StringComparison.Ordinal)))
+        {
+            return StrategicFailureReasons.MissingBattleResultSummary;
+        }
+
+        if (settlementPlan?.Accepted != true)
+        {
+            return StrategicFailureReasons.MissingBattleResultSummary;
+        }
+
+        if (!string.Equals(settlementPlan.SnapshotId ?? "", outcome.SnapshotId ?? "", StringComparison.Ordinal) ||
+            !string.Equals(settlementPlan.BattleId ?? "", outcome.BattleId ?? "", StringComparison.Ordinal))
+        {
+            return StrategicFailureReasons.BattleResultMismatch;
+        }
+
+        if (report == null ||
+            string.IsNullOrWhiteSpace(report.ReportId) ||
+            string.IsNullOrWhiteSpace(report.SnapshotId) ||
+            string.IsNullOrWhiteSpace(report.BattleId))
+        {
+            return StrategicFailureReasons.MissingBattleResultSummary;
+        }
+
+        if (!string.Equals(report.SnapshotId ?? "", outcome.SnapshotId ?? "", StringComparison.Ordinal) ||
+            !string.Equals(report.BattleId ?? "", outcome.BattleId ?? "", StringComparison.Ordinal))
+        {
+            return StrategicFailureReasons.BattleResultMismatch;
+        }
+
+        if (context.Session.Participants.Any(participant =>
+                participant == null ||
+                string.IsNullOrWhiteSpace(participant.ParticipantId) ||
+                string.IsNullOrWhiteSpace(participant.HeroId) ||
+                string.IsNullOrWhiteSpace(participant.CorpsInstanceId) ||
+                !HasParticipantRuntimeCorpsOutcome(outcome, participant)))
         {
             return StrategicFailureReasons.MissingBattleResultSummary;
         }
 
         return "";
+    }
+
+    private static BattleRuntimeSessionResult ResolveRuntimeResult(StrategicBattleActiveContext context)
+    {
+        return context?.RuntimeResult ?? context?.FlowResult?.RuntimeResult;
+    }
+
+    private static SettlementPlan ResolveSettlementPlan(StrategicBattleActiveContext context)
+    {
+        return context?.SettlementPlan ?? context?.FlowResult?.SettlementPlan;
+    }
+
+    private static BattleReportRecord ResolveReport(StrategicBattleActiveContext context)
+    {
+        return context?.Report ?? context?.FlowResult?.Report;
+    }
+
+    private static bool HasParticipantRuntimeCorpsOutcome(
+        BattleOutcomeResult outcome,
+        StrategicBattleParticipantReference participant)
+    {
+        return (outcome?.ActorOutcomes ?? new List<BattleActorOutcome>())
+            .Any(actor =>
+                actor.Kind == BattleRuntimeActorKind.Corps &&
+                (string.Equals(actor.SourceForceId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
+                 string.Equals(actor.BattleGroupId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
+                 string.Equals(actor.SourceStateId ?? "", participant.CorpsInstanceId ?? "", StringComparison.Ordinal)));
     }
 
     public StrategicBattleResultSummary BuildResultSummary(BattleStartRequest request, BattleResult result)

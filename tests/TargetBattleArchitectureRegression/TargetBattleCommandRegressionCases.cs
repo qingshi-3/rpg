@@ -81,6 +81,7 @@ internal static class TargetBattleCommandRegressionCases
                 }
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
 
         BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(snapshot);
 
@@ -114,6 +115,7 @@ internal static class TargetBattleCommandRegressionCases
             FactionId = "enemy",
             Count = 1
         });
+        TargetBattleTestTopology.CompileRequestRect(request, -2, -2, 10, 4);
 
         BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().Probe(request);
 
@@ -308,7 +310,7 @@ internal static class TargetBattleCommandRegressionCases
         int enemyCellX = 6,
         int enemyCellY = 0)
     {
-        return new BattleStartSnapshot
+        BattleStartSnapshot snapshot = new()
         {
             SnapshotId = $"snapshot_{battleId}",
             BattleId = battleId,
@@ -345,6 +347,8 @@ internal static class TargetBattleCommandRegressionCases
                 }
             }
         };
+        TargetBattleTestTopology.CompileAroundGroups(snapshot);
+        return snapshot;
     }
 
     private static void AssertTrue(bool condition, string message)

@@ -20,6 +20,7 @@ public static class BattleGroupEngagementStateMachine
         IReadOnlyDictionary<string, BattleGroupPerceptionSummary> perceptionSummaries,
         IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
         IReadOnlySet<string> groupsWithActiveCombatActions,
+        IReadOnlySet<string> groupsWithRetainedCombatJoin,
         string battleId,
         int runtimeTick,
         double runtimeTimeSeconds)
@@ -58,6 +59,7 @@ public static class BattleGroupEngagementStateMachine
                     state,
                     summary.BattleGroupId,
                     groupsWithActiveCombatActions?.Contains(summary.BattleGroupId ?? "") == true,
+                    groupsWithRetainedCombatJoin?.Contains(summary.BattleGroupId ?? "") == true,
                     battleId,
                     runtimeTick,
                     runtimeTimeSeconds));
@@ -166,6 +168,7 @@ public static class BattleGroupEngagementStateMachine
         BattleGroupTacticalState state,
         string battleGroupId,
         bool hasActiveCombatAction,
+        bool hasRetainedCombatJoin,
         string battleId,
         int runtimeTick,
         double runtimeTimeSeconds)
@@ -178,6 +181,15 @@ public static class BattleGroupEngagementStateMachine
 
         if (HasRecentMemberActionTrigger(state, runtimeTick))
         {
+            store.ResetNoPerceivedHostileTicks(battleGroupId);
+            return Array.Empty<BattleEvent>();
+        }
+
+        if (hasRetainedCombatJoin)
+        {
+            // A player-commanded combat join is the group-owned next combat
+            // scope. Do not clear targets or fall back to objective movement
+            // until that combat-zone fact has disappeared from observation.
             store.ResetNoPerceivedHostileTicks(battleGroupId);
             return Array.Empty<BattleEvent>();
         }

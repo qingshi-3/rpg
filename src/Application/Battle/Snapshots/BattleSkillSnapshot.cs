@@ -12,6 +12,7 @@ public sealed class BattleSkillSnapshot
     public double CastSeconds { get; set; }
     public double ImpactDelaySeconds { get; set; }
     public double RecoverySeconds { get; set; }
+    public bool HasInterruptPolicy { get; set; }
     public bool CanInterruptBasicAttackWindup { get; set; }
     public bool CanCancelBasicAttackRecovery { get; set; }
     public bool ReleasesWithoutOccupyingCaster { get; set; }
