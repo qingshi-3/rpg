@@ -5,6 +5,7 @@ using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Infrastructure.Logging;
+using Rpg.Presentation.Battle;
 
 namespace Rpg.Presentation.World.Sites;
 
@@ -180,6 +181,7 @@ public partial class WorldSiteRoot
 
         // Reuse the picker icon's AtlasTexture so single-building atlas regions
         // and mouse-follow previews cannot drift apart.
+        SuppressStrategicBuildingAutoHover();
         _strategicBuildingPlacementPreview.SetPreview(
             (footprintCells ?? System.Array.Empty<GridPosition>())
                 .Select(BuildCellPolygonGlobal),
@@ -190,6 +192,26 @@ public partial class WorldSiteRoot
     private void ClearStrategicBuildingPlacementPreview()
     {
         _strategicBuildingPlacementPreview?.ClearPreview();
+        if (string.IsNullOrWhiteSpace(_selectedStrategicBuildingDefinitionId))
+        {
+            RestoreStrategicBuildingAutoHover();
+        }
+        else
+        {
+            SuppressStrategicBuildingAutoHover();
+        }
+    }
+
+    private void SuppressStrategicBuildingAutoHover()
+    {
+        // Building placement owns its own footprint frame; the generic map hover
+        // would otherwise add a misleading 1x1 white diamond under the preview.
+        _highlightOverlay?.SetCells(BattleGridHighlightKind.Hover, System.Array.Empty<GridPosition>());
+    }
+
+    private void RestoreStrategicBuildingAutoHover()
+    {
+        _highlightOverlay?.ClearCells(BattleGridHighlightKind.Hover);
     }
 
     private void CancelStrategicBuildingPlacement()

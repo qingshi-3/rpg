@@ -1,6 +1,6 @@
 # Strategic Fog Overlay Performance
 
-Status: Automated Verification Passed - Manual QA Pending
+Status: Archived by user request - Automated Verification Passed
 
 ## Origin
 
@@ -122,7 +122,7 @@ Automated verification:
 
 Manual QA:
 
-- Pending desktop Mono playthrough.
+- Desktop Mono playthrough was pending when this record was archived by user request on 2026-06-29.
 
 Third-pass automated verification:
 

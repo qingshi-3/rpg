@@ -777,11 +777,22 @@ internal static void WorldSiteStrategicBuildingPlacementUsesMarkerBackedPreview(
         placementSource.Contains("ClearStrategicBuildingPlacementPreview", StringComparison.Ordinal),
         "strategic building placement should have explicit preview set and clear lifecycle");
     AssertTrue(
+        placementSource.Contains("SuppressStrategicBuildingAutoHover", StringComparison.Ordinal) &&
+        placementSource.Contains("RestoreStrategicBuildingAutoHover", StringComparison.Ordinal) &&
+        placementSource.Contains("BattleGridHighlightKind.Hover", StringComparison.Ordinal),
+        "strategic building placement should suppress the generic 1x1 map hover so only the building footprint frame is visible");
+    AssertTrue(
         previewSource.Contains("StrategicBuildingPlacementPreview : Node2D", StringComparison.Ordinal) &&
         previewSource.Contains("SetPreview(") &&
         previewSource.Contains("Texture2D", StringComparison.Ordinal) &&
         previewSource.Contains("DrawTextureRect", StringComparison.Ordinal),
         "placement preview should be a viewport Node2D that renders the selected building texture");
+    AssertTrue(
+        previewSource.Contains("TryBuildFootprintFramePolygon", StringComparison.Ordinal) &&
+        previewSource.Contains("DrawPlacementFootprintFrame", StringComparison.Ordinal) &&
+        previewSource.Contains("DrawPlacementCornerSegment", StringComparison.Ordinal) &&
+        previewSource.Contains("DrawLine", StringComparison.Ordinal),
+        "placement preview should draw the hover corner frame from the whole building footprint, not a fixed 1x1 cell");
     AssertTrue(
         !previewSource.Contains("DrawColoredPolygon", StringComparison.Ordinal) &&
         !previewSource.Contains("DrawPolyline", StringComparison.Ordinal) &&

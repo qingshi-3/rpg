@@ -299,6 +299,8 @@ Follow-up presentation slice:
 - Building placement preview follows the mouse, resolves the active marker-backed construction region, and displays real-time legality from Strategic Management rules before the click submits `BuildCityBuilding`.
 - Building picker icons and mouse-follow previews use focused single-building `AtlasTexture` resources. They must not point directly at whole multi-building sprite sheets; those sheets are only source atlases.
 - Building preview textures use 16x16 source-cell scale as the base and are drawn to the selected footprint's grid-space bounds. The preview must not draw the old n*m footprint grid; invalid placement feedback uses the preview tint and command failure notice instead.
+- Building placement hover corner frames must be derived from the selected building's full footprint bounds, so 2x2 and 3x2 buildings frame the whole placement area instead of the mouse cell.
+- Building placement mode suppresses the generic map 1x1 hover indicator while a building remains selected; the selected building footprint frame is the only placement hover cue.
 - The site peacetime management panel is a player-city workspace only. Battle preparation/runtime, non-city strategic locations, and non-player-held sites must not render the build/recruit/corps/overview tabs.
 - Construction-region marker coordinates and Strategic Management region definitions must stay aligned so marker-backed preview cells and command validation evaluate the same region bounds.
 - Region labels such as economy, military, and civic are layout/readability labels only. They must not reject building categories.

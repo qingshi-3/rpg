@@ -34,9 +34,19 @@ project/assembly_name="rpg"
 [file_customization]
 
 folder_colors={
+"res://addons/": "gray",
 "res://assets/": "red",
+"res://config/": "yellow",
+"res://demo/": "gray",
+"res://design-proposals/": "gray",
 "res://docs/": "yellow",
-"res://src/": "green"
+"res://gameplay-alignment/": "gray",
+"res://gameplay-design/": "gray",
+"res://outputs/": "gray",
+"res://src/": "teal",
+"res://system-design/": "gray",
+"res://tests/": "green",
+"res://tools/": "purple"
 }
 
 [input]
