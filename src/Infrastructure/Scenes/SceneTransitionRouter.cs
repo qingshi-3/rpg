@@ -106,6 +106,14 @@ public sealed class SceneTransitionRouter
 
         // Strategic battles publish Bridge Active Context for the destination scene.
         // The legacy BattleSessionHandoff branch below remains only for non-Strategic compatibility.
+        if (BattleSessionHandoff.HasActiveLaunch)
+        {
+            BattleSessionHandoff.CancelBattle();
+            GameLog.Warn(
+                nameof(SceneTransitionRouter),
+                $"StaleLegacyBattleHandoffClearedForStrategicTransition context={activeContext.ContextId}");
+        }
+
         StrategicBattleActiveContextStore.Begin(activeContext);
         Error error = _gateway.ChangeSceneToFile(
             scenePath,

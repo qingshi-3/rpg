@@ -27,12 +27,35 @@ public sealed class StrategicManagementDefinitionSet
 
     public Dictionary<string, StrategicHeroDefinition> Heroes { get; set; } =
         new(System.StringComparer.Ordinal);
+
+    public StrategicConscriptionDefinition Conscription { get; set; } = new();
 }
 
 public sealed class StrategicResourceDefinition
 {
     public string ResourceId { get; set; } = "";
     public string DisplayName { get; set; } = "";
+}
+
+public sealed class StrategicConscriptionDefinition
+{
+    public StrategicManualConscriptionDefinition Manual { get; set; } = new();
+    public List<StrategicConscriptionIntensityDefinition> AutoIntensities { get; set; } = new();
+}
+
+public sealed class StrategicManualConscriptionDefinition
+{
+    public int ReserveGain { get; set; }
+    public List<StrategicResourceAmount> Cost { get; set; } = new();
+}
+
+public sealed class StrategicConscriptionIntensityDefinition
+{
+    public string IntensityId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public int ReserveGain { get; set; }
+    public List<StrategicResourceAmount> Cost { get; set; } = new();
+    public bool RequiresTrainingGround { get; set; }
 }
 
 public sealed class StrategicLocationDefinition
@@ -101,12 +124,19 @@ public sealed class StrategicBuildingDefinition
     public int FootprintWidth { get; set; } = 1;
     public int FootprintHeight { get; set; } = 1;
     public List<StrategicResourceAmount> BuildCost { get; set; } = new();
+    public StrategicBuildingProvidedCapabilities ProvidedCapabilities { get; set; } = new();
+}
+
+public sealed class StrategicBuildingProvidedCapabilities
+{
+    public List<StrategicResourceAmount> ResourceProductionPerWorldTimePulse { get; set; } = new();
 }
 
 public sealed class StrategicCorpsDefinition
 {
     public string CorpsDefinitionId { get; set; } = "";
     public string DisplayName { get; set; } = "";
+    public string IconPath { get; set; } = "";
     public string BattleUnitId { get; set; } = "";
     public int BattleUnitCount { get; set; } = 1;
     public int SoldierCapacityCost { get; set; } = 30;

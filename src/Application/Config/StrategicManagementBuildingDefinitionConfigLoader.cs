@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using Rpg.Definitions.StrategicManagement;
 
@@ -13,7 +12,7 @@ public sealed class StrategicManagementBuildingDefinitionConfig
 
 public static class StrategicManagementBuildingDefinitionConfigLoader
 {
-    public const string DefaultConfigPath = "res://config/strategic_management/first_slice_buildings.json";
+    public const string DefaultConfigPath = "res://config/strategic_management/cities/buildings_foundation.json";
 
     public static IReadOnlyList<StrategicBuildingDefinition> LoadDefaultBuildings() =>
         LoadBuildings(DefaultConfigPath);
@@ -55,6 +54,12 @@ public static class StrategicManagementBuildingDefinitionConfigLoader
             }
 
             ValidateAmounts(building.BuildCost, "buildCost", building.BuildingDefinitionId, path);
+            ValidateAmounts(
+                building.ProvidedCapabilities?.ResourceProductionPerWorldTimePulse,
+                "providedCapabilities.resourceProductionPerWorldTimePulse",
+                building.BuildingDefinitionId,
+                path,
+                allowEmpty: true);
         }
     }
 
@@ -65,14 +70,25 @@ public static class StrategicManagementBuildingDefinitionConfigLoader
         string path,
         bool allowEmpty = false)
     {
-        if ((amounts == null || amounts.Count == 0) && allowEmpty)
+        if (amounts == null || amounts.Count == 0)
         {
-            return;
+            if (allowEmpty)
+            {
+                return;
+            }
+
+            throw new InvalidOperationException($"Strategic management building amount list is empty id={buildingId} field={field} path={path}");
         }
 
-        foreach (StrategicResourceAmount amount in amounts ?? Enumerable.Empty<StrategicResourceAmount>())
+        HashSet<string> resourceIds = new(StringComparer.Ordinal);
+        foreach (StrategicResourceAmount amount in amounts)
         {
             RequireNonEmpty(amount.ResourceId, $"{field}.resourceId", path);
+            if (!resourceIds.Add(amount.ResourceId))
+            {
+                throw new InvalidOperationException($"Strategic management building has duplicate resource amount id={buildingId} field={field} resource={amount.ResourceId} path={path}");
+            }
+
             if (amount.Amount <= 0)
             {
                 throw new InvalidOperationException($"Strategic management building has non-positive amount id={buildingId} field={field} resource={amount.ResourceId} path={path}");

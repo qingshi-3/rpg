@@ -102,6 +102,35 @@ internal static void SceneTransitionRouterEntersStrategicBattleThroughActiveCont
     StrategicBattleActiveContextStore.Clear();
 }
 
+internal static void StrategicBattleTransitionClearsStaleLegacyHandoff()
+{
+    BattleSessionHandoff.CancelBattle();
+    StrategicBattleActiveContextStore.Clear();
+    FakeSceneTransitionGateway gateway = new(Error.Ok);
+    SceneTransitionRouter router = new(gateway);
+    StrategicBattleActiveContext context = BuildSceneTransitionActiveContext("strategic_context_clears_legacy");
+    BattleSessionHandoff.BeginBattle(new BattleStartRequest
+    {
+        RequestId = "stale_legacy_strategic_request",
+        BattleKind = BattleKind.AssaultSite,
+        SiteScenePath = "res://scenes/world/sites/WorldSiteRoot.tscn",
+        StrategicExpeditionId = "stale_expedition"
+    });
+
+    SceneTransitionResult result = router.EnterBattlePreparation(new SceneTransitionBattleRequest
+    {
+        ActiveContext = context
+    });
+
+    AssertTrue(result.Success, "strategic battle transition should still start with a stale legacy handoff present");
+    AssertTrue(
+        !BattleSessionHandoff.HasActiveLaunch,
+        "strategic battle transition must clear stale legacy handoff before destination scene entry can read it");
+
+    StrategicBattleActiveContextStore.Clear();
+    BattleSessionHandoff.CancelBattle();
+}
+
 internal static void SceneTransitionRouterCancelsStrategicActiveContextOnSceneFailure()
 {
     BattleSessionHandoff.CancelBattle();

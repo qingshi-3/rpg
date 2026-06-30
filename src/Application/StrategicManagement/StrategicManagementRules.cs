@@ -16,6 +16,91 @@ public sealed class StrategicManagementRules
         _definitions = definitions ?? new StrategicManagementDefinitionSet();
     }
 
+    public int GetManualConscriptionReserveGain()
+    {
+        return System.Math.Max(0, _definitions.Conscription?.Manual?.ReserveGain ?? 0);
+    }
+
+    public IReadOnlyList<StrategicResourceAmount> GetManualConscriptionCost()
+    {
+        return NormalizeCost(_definitions.Conscription?.Manual?.Cost);
+    }
+
+    public IReadOnlyList<StrategicConscriptionIntensityRule> GetAutoConscriptionIntensityRules()
+    {
+        return (_definitions.Conscription?.AutoIntensities ?? new List<StrategicConscriptionIntensityDefinition>())
+            .Where(item => !string.IsNullOrWhiteSpace(item.IntensityId))
+            .Select(ToConscriptionRule)
+            .ToList();
+    }
+
+    private static StrategicConscriptionIntensityRule ToConscriptionRule(StrategicConscriptionIntensityDefinition definition)
+    {
+        return new(
+            definition.IntensityId,
+            definition.DisplayName,
+            definition.ReserveGain,
+            NormalizeCost(definition.Cost),
+            definition.RequiresTrainingGround);
+    }
+
+    private static List<StrategicResourceAmount> NormalizeCost(IReadOnlyCollection<StrategicResourceAmount> cost)
+    {
+        return (cost ?? System.Array.Empty<StrategicResourceAmount>())
+            .Where(item => item.Amount > 0 && !string.IsNullOrWhiteSpace(item.ResourceId))
+            .Select(item => new StrategicResourceAmount(item.ResourceId, item.Amount))
+            .OrderBy(item => item.ResourceId)
+            .ToList();
+    }
+
+    public bool TryGetAutoConscriptionIntensityRule(
+        string intensityId,
+        out StrategicConscriptionIntensityRule rule)
+    {
+        rule = GetAutoConscriptionIntensityRules()
+            .FirstOrDefault(item => string.Equals(item.IntensityId, intensityId ?? "", System.StringComparison.Ordinal));
+        return rule != null;
+    }
+
+    public string GetManualConscriptionFailureReason(
+        StrategicManagementState state,
+        string cityId)
+    {
+        if (!TryGetCityContext(state, cityId, out StrategicCityState city, out StrategicLocationState cityLocation))
+        {
+            return StrategicFailureReasons.MissingCity;
+        }
+
+        if (GetRemainingCityForceCapacity(state, city.LocationId) < GetManualConscriptionReserveGain())
+        {
+            return StrategicFailureReasons.CityForceCapacityFull;
+        }
+
+        return state.CanSpend(cityLocation.OwnerFactionId, GetManualConscriptionCost())
+            ? ""
+            : StrategicFailureReasons.InsufficientResources;
+    }
+
+    public string GetAutoConscriptionIntensityFailureReason(
+        StrategicManagementState state,
+        string cityId,
+        string intensityId)
+    {
+        if (!TryGetAutoConscriptionIntensityRule(intensityId, out StrategicConscriptionIntensityRule rule))
+        {
+            return StrategicFailureReasons.InvalidConscriptionIntensity;
+        }
+
+        if (!TryGetCityContext(state, cityId, out StrategicCityState city, out _))
+        {
+            return StrategicFailureReasons.MissingCity;
+        }
+
+        return rule.RequiresTrainingGround && !CityHasConstructedBuilding(city, StrategicManagementIds.BuildingTrainingGround)
+            ? StrategicFailureReasons.MissingBuilding
+            : "";
+    }
+
     public IReadOnlyList<StrategicMusterTemplateAvailability> GetMusterTemplates(
         StrategicManagementState state,
         string cityId)
@@ -140,7 +225,9 @@ public sealed class StrategicManagementRules
         int activeForces = 0;
         foreach (StrategicCorpsInstanceState corps in state.CorpsInstances.Values)
         {
-            if (!string.Equals(corps.HomeCityId, cityId, System.StringComparison.Ordinal) ||
+            if (!string.IsNullOrWhiteSpace(corps.CurrentExpeditionId) ||
+                corps.Status == StrategicCorpsInstanceStatus.Expedition ||
+                !string.Equals(corps.HomeCityId, cityId, System.StringComparison.Ordinal) ||
                 !_definitions.Corps.TryGetValue(corps.CorpsDefinitionId, out StrategicCorpsDefinition definition))
             {
                 continue;
@@ -374,10 +461,50 @@ public sealed class StrategicManagementRules
 
         return intent switch
         {
-            StrategicExpeditionIntent.ReinforceLocation => GetTargetReinforcementFailureReason(state, sourceLocation, targetLocationId, expedition.FactionId),
-            StrategicExpeditionIntent.AssaultLocation => GetTargetAssaultFailureReason(state, sourceLocation, targetLocationId, expedition.FactionId),
+            StrategicExpeditionIntent.ReinforceLocation => GetTargetReinforcementFailureReason(state, sourceLocation, targetLocationId, expedition.FactionId, rejectSameAsSource: false),
+            StrategicExpeditionIntent.AssaultLocation => GetTargetAssaultFailureReason(state, sourceLocation, targetLocationId, expedition.FactionId, rejectSameAsSource: false),
             _ => StrategicFailureReasons.UnsupportedExpeditionIntent
         };
+    }
+
+    public string GetExpeditionArrivalFailureReason(
+        StrategicManagementState state,
+        string expeditionId)
+    {
+        if (state == null)
+        {
+            return StrategicFailureReasons.MissingDefinitions;
+        }
+
+        if (!state.Expeditions.TryGetValue(expeditionId ?? "", out StrategicExpeditionState expedition))
+        {
+            return StrategicFailureReasons.MissingExpedition;
+        }
+
+        if (expedition.Status != StrategicExpeditionStatus.Moving)
+        {
+            return StrategicFailureReasons.ExpeditionNotCommandable;
+        }
+
+        if (expedition.Intent != StrategicExpeditionIntent.ReinforceLocation)
+        {
+            return StrategicFailureReasons.UnsupportedExpeditionIntent;
+        }
+
+        if (!state.Locations.TryGetValue(expedition.TargetLocationId ?? "", out StrategicLocationState targetLocation))
+        {
+            return StrategicFailureReasons.MissingLocation;
+        }
+
+        if (!string.Equals(targetLocation.OwnerFactionId, expedition.FactionId, System.StringComparison.Ordinal) ||
+            targetLocation.ControlState != StrategicLocationControlState.PlayerHeld)
+        {
+            return StrategicFailureReasons.TargetLocationNotOwned;
+        }
+
+        return state.Cities.ContainsKey(expedition.TargetLocationId ?? "")
+            ? ""
+            : StrategicFailureReasons.MissingCity;
     }
 
     public IReadOnlyList<StrategicResourceAmount> GetLocationProduction(
@@ -397,6 +524,49 @@ public sealed class StrategicManagementRules
             .Where(item => item.Amount > 0 && !string.IsNullOrWhiteSpace(item.ResourceId))
             .OrderBy(item => item.ResourceId)
             .Select(item => new StrategicResourceAmount(item.ResourceId, item.Amount * elapsedPulses))
+            .ToList();
+    }
+
+    public IReadOnlyList<StrategicResourceAmount> GetCityBuildingProduction(
+        StrategicManagementState state,
+        string cityId,
+        string factionId,
+        int elapsedPulses)
+    {
+        if (elapsedPulses <= 0 ||
+            !TryGetCityContext(state, cityId, out StrategicCityState city, out StrategicLocationState cityLocation) ||
+            !string.Equals(cityLocation.OwnerFactionId, factionId ?? "", System.StringComparison.Ordinal) ||
+            cityLocation.ControlState != StrategicLocationControlState.PlayerHeld)
+        {
+            return System.Array.Empty<StrategicResourceAmount>();
+        }
+
+        Dictionary<string, int> totals = new(System.StringComparer.Ordinal);
+        foreach (StrategicBuildingInstanceState instance in city.Buildings)
+        {
+            if (instance?.IsConstructed != true ||
+                !_definitions.Buildings.TryGetValue(instance.BuildingDefinitionId ?? "", out StrategicBuildingDefinition building))
+            {
+                continue;
+            }
+
+            foreach (StrategicResourceAmount amount in building.ProvidedCapabilities?.ResourceProductionPerWorldTimePulse ??
+                                                     Enumerable.Empty<StrategicResourceAmount>())
+            {
+                if (amount.Amount <= 0 || string.IsNullOrWhiteSpace(amount.ResourceId))
+                {
+                    continue;
+                }
+
+                totals.TryGetValue(amount.ResourceId, out int current);
+                totals[amount.ResourceId] = current + amount.Amount * elapsedPulses;
+            }
+        }
+
+        return totals
+            .Where(item => item.Value > 0)
+            .OrderBy(item => item.Key)
+            .Select(item => new StrategicResourceAmount(item.Key, item.Value))
             .ToList();
     }
 
@@ -472,7 +642,8 @@ public sealed class StrategicManagementRules
         StrategicManagementState state,
         StrategicLocationState sourceLocation,
         string targetLocationId,
-        string factionId)
+        string factionId,
+        bool rejectSameAsSource = true)
     {
         if (string.IsNullOrWhiteSpace(targetLocationId) ||
             !state.Locations.TryGetValue(targetLocationId, out StrategicLocationState targetLocation))
@@ -480,7 +651,11 @@ public sealed class StrategicManagementRules
             return StrategicFailureReasons.MissingLocation;
         }
 
-        if (string.Equals(targetLocation.LocationId, sourceLocation.LocationId, System.StringComparison.Ordinal))
+        // Creation rejects same-location targets. Retargeting does not: after dispatch,
+        // SourceLocationId is only a departure record and the expedition may return
+        // to that city through the normal owned-target reinforce path.
+        if (rejectSameAsSource &&
+            string.Equals(targetLocation.LocationId, sourceLocation.LocationId, System.StringComparison.Ordinal))
         {
             return StrategicFailureReasons.SameLocationTarget;
         }
@@ -560,7 +735,8 @@ public sealed class StrategicManagementRules
         StrategicManagementState state,
         StrategicLocationState sourceLocation,
         string targetLocationId,
-        string factionId)
+        string factionId,
+        bool rejectSameAsSource = true)
     {
         if (string.IsNullOrWhiteSpace(targetLocationId) ||
             !state.Locations.TryGetValue(targetLocationId, out StrategicLocationState targetLocation))
@@ -568,7 +744,8 @@ public sealed class StrategicManagementRules
             return StrategicFailureReasons.MissingLocation;
         }
 
-        if (string.Equals(targetLocation.LocationId, sourceLocation.LocationId, System.StringComparison.Ordinal))
+        if (rejectSameAsSource &&
+            string.Equals(targetLocation.LocationId, sourceLocation.LocationId, System.StringComparison.Ordinal))
         {
             return StrategicFailureReasons.SameLocationTarget;
         }
@@ -627,6 +804,18 @@ public sealed class StrategicManagementRules
         return city.Buildings.Any(instance =>
             _definitions.Buildings.TryGetValue(instance.BuildingDefinitionId, out StrategicBuildingDefinition building) &&
             string.Equals(building.CategoryId, requiredCategoryId, System.StringComparison.Ordinal));
+    }
+
+    private bool CityHasConstructedBuilding(StrategicCityState city, string buildingDefinitionId)
+    {
+        if (city == null || string.IsNullOrWhiteSpace(buildingDefinitionId))
+        {
+            return false;
+        }
+
+        return city.Buildings.Any(instance =>
+            instance?.IsConstructed == true &&
+            string.Equals(instance.BuildingDefinitionId, buildingDefinitionId, System.StringComparison.Ordinal));
     }
 
     private bool FootprintsOverlap(
@@ -707,4 +896,30 @@ public sealed class StrategicManagementRules
             reasons.Add(reason);
         }
     }
+}
+
+public sealed class StrategicConscriptionIntensityRule
+{
+    public StrategicConscriptionIntensityRule(
+        string intensityId,
+        string displayName,
+        int reserveGain,
+        IReadOnlyCollection<StrategicResourceAmount> cost,
+        bool requiresTrainingGround)
+    {
+        IntensityId = intensityId ?? "";
+        DisplayName = displayName ?? "";
+        ReserveGain = System.Math.Max(0, reserveGain);
+        Cost = (cost ?? System.Array.Empty<StrategicResourceAmount>())
+            .Where(item => item.Amount > 0 && !string.IsNullOrWhiteSpace(item.ResourceId))
+            .Select(item => new StrategicResourceAmount(item.ResourceId, item.Amount))
+            .ToList();
+        RequiresTrainingGround = requiresTrainingGround;
+    }
+
+    public string IntensityId { get; }
+    public string DisplayName { get; }
+    public int ReserveGain { get; }
+    public List<StrategicResourceAmount> Cost { get; }
+    public bool RequiresTrainingGround { get; }
 }

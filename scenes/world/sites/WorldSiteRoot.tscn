@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://x3kdwb8wb6wk"]
+[gd_scene load_steps=13 format=3 uid="uid://x3kdwb8wb6wk"]
 
 [ext_resource type="Script" uid="uid://2u80f8wpormt" path="res://src/Presentation/World/Sites/WorldSiteRoot.cs" id="1_world_site_root"]
 [ext_resource type="PackedScene" uid="uid://dfxnneblk65na" path="res://scenes/world/sites/impl/demo_site.tscn" id="2_demo_site"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://cv25ye6mjqydp" path="res://src/Presentation/Battle/Preview/BattleSelectionVignetteOverlay.cs" id="24_selection_vignette"]
 [ext_resource type="Script" uid="uid://i5atw8ijt1q6" path="res://src/Presentation/Battle/BattleDeploymentZoneOverlay.cs" id="25_deployment_zone_overlay"]
 [ext_resource type="Script" uid="uid://bfn7pj8wq4v3n" path="res://src/Presentation/World/Sites/StrategicBuildingPlacementPreview.cs" id="26_building_preview"]
+[ext_resource type="PackedScene" path="res://scenes/world/sites/StrategicCityBuildingMapEntity.tscn" id="27_building_entity"]
 
 [node name="WorldSiteRoot" type="Control"]
 layout_mode = 3
@@ -21,6 +22,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_world_site_root")
 SiteMapScene = ExtResource("2_demo_site")
+StrategicCityBuildingMapEntityScene = ExtResource("27_building_entity")
 
 [node name="MainWorldViewportHost" type="SubViewportContainer" parent="."]
 layout_mode = 0
@@ -38,6 +40,8 @@ disable_3d = true
 transparent_bg = true
 
 [node name="MapRoot" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport"]
+
+[node name="CityBuildingRoot" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport"]
 
 [node name="UnitRoot" type="Node2D" parent="MainWorldViewportHost/MainWorldViewport"]
 script = ExtResource("19_battle_unit_root")

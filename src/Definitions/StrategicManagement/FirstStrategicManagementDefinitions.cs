@@ -8,24 +8,28 @@ public static class FirstStrategicManagementDefinitions
 {
     public static StrategicManagementDefinitionSet Create()
     {
+        StrategicManagementContentConfig content = StrategicManagementContentConfigLoader.LoadDefaultContent();
         StrategicManagementDefinitionSet definitions = new();
-        AddResources(definitions);
+        AddResources(definitions, content.Resources);
+        definitions.Conscription = content.Conscription;
         AddLocations(definitions);
         AddBattleRewards(definitions);
         AddEquipmentSamples(definitions);
         AddCityIdentities(definitions);
-        AddBuildings(definitions);
-        AddCorps(definitions);
+        AddBuildings(definitions, content.Buildings);
+        AddCorps(definitions, content.Corps);
         AddHeroes(definitions);
         return definitions;
     }
 
-    private static void AddResources(StrategicManagementDefinitionSet definitions)
+    private static void AddResources(
+        StrategicManagementDefinitionSet definitions,
+        IEnumerable<StrategicResourceDefinition> resources)
     {
-        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceMoney, DisplayName = "资金" });
-        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceFood, DisplayName = "粮食" });
-        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceWood, DisplayName = "木材" });
-        Add(definitions.Resources, new StrategicResourceDefinition { ResourceId = StrategicManagementIds.ResourceOre, DisplayName = "矿石" });
+        foreach (StrategicResourceDefinition resource in resources)
+        {
+            Add(definitions.Resources, resource);
+        }
     }
 
     private static void AddLocations(StrategicManagementDefinitionSet definitions)
@@ -82,12 +86,43 @@ public static class FirstStrategicManagementDefinitions
         {
             LocationId = StrategicManagementIds.LocationBonefieldOutpost,
             MapSiteId = StrategicManagementIds.MapSiteBonefield,
-            DisplayName = "白骨岗哨",
-            Kind = StrategicLocationKind.Ruin,
+            DisplayName = "敌方前哨",
+            Kind = StrategicLocationKind.City,
             BattleEncounterId = "assault_bonefield",
             BattleMapDefinitionId = "bonefield_assault_v1",
             BattleScenePath = "res://scenes/world/sites/WorldSiteRoot.tscn",
-            BattleObjectiveId = "occupy_bonefield"
+            BattleObjectiveId = "occupy_bonefield",
+            CityIdentityId = StrategicManagementIds.CityIdentityPlainsHuman,
+            ConstructionRegions =
+            {
+                new StrategicConstructionRegionDefinition
+                {
+                    RegionId = StrategicManagementIds.RegionPlainsEconomy,
+                    DisplayName = "\u897f\u4fa7\u519c\u5546\u533a",
+                    OriginX = 10,
+                    OriginY = 6,
+                    Width = 8,
+                    Height = 6
+                },
+                new StrategicConstructionRegionDefinition
+                {
+                    RegionId = StrategicManagementIds.RegionPlainsMilitary,
+                    DisplayName = "\u4e1c\u4fa7\u519b\u5907\u533a",
+                    OriginX = 21,
+                    OriginY = 18,
+                    Width = 7,
+                    Height = 5
+                },
+                new StrategicConstructionRegionDefinition
+                {
+                    RegionId = StrategicManagementIds.RegionPlainsCivic,
+                    DisplayName = "\u5185\u57ce\u4e8b\u52a1\u533a",
+                    OriginX = 12,
+                    OriginY = 28,
+                    Width = 6,
+                    Height = 4
+                }
+            }
         });
     }
 
@@ -97,12 +132,12 @@ public static class FirstStrategicManagementDefinitions
         {
             RewardId = StrategicManagementIds.RewardBonefieldVictory,
             TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
-            DisplayName = "白骨岗哨占领奖励",
-            VictorySummaryText = "白骨岗哨已转入我方控制，周边通路和基础物资点被打开。",
-            DefeatSummaryText = "白骨岗哨仍由敌方控制，出征部队需要重整后再战。",
+            DisplayName = "敌方前哨占领奖励",
+            VictorySummaryText = "敌方前哨已转入我方控制，周边通路和基础物资点被打开。",
+            DefeatSummaryText = "敌方前哨仍由敌方控制，出征部队需要重整后再战。",
             VictoryProgressionText = "进展：新区域已被占领，可作为后续资源开发和战线推进节点。",
-            DefeatProgressionText = "进展：本次未能夺取白骨岗哨，请先重整编制、补员后重新出征。",
-            UnlockText = "占领：白骨岗哨",
+            DefeatProgressionText = "进展：本次未能夺取敌方前哨，请先重整编制、补员后重新出征。",
+            UnlockText = "占领：敌方前哨",
             VictoryResourceRewards =
             {
                 new StrategicResourceAmount(StrategicManagementIds.ResourceOre, 25),
@@ -139,10 +174,10 @@ public static class FirstStrategicManagementDefinitions
         Add(definitions.EquipmentSamples, new StrategicEquipmentSampleDefinition
         {
             EquipmentSampleId = StrategicManagementIds.EquipmentBonefieldCommandHorn,
-            DisplayName = "白骨号角",
+            DisplayName = "前哨号角",
             SlotKind = "token",
             Grade = "rare",
-            RoleText = "号令道具：记录白骨岗哨战利品，可作为后续编队指挥物。"
+            RoleText = "号令道具：记录前哨战利品，可作为后续编队指挥物。"
         });
     }
 
@@ -161,70 +196,24 @@ public static class FirstStrategicManagementDefinitions
         });
     }
 
-    private static void AddBuildings(StrategicManagementDefinitionSet definitions)
+    private static void AddBuildings(
+        StrategicManagementDefinitionSet definitions,
+        IEnumerable<StrategicBuildingDefinition> buildings)
     {
-        foreach (StrategicBuildingDefinition building in StrategicManagementBuildingDefinitionConfigLoader.LoadDefaultBuildings())
+        foreach (StrategicBuildingDefinition building in buildings)
         {
             Add(definitions.Buildings, building);
         }
     }
 
-    private static void AddCorps(StrategicManagementDefinitionSet definitions)
+    private static void AddCorps(
+        StrategicManagementDefinitionSet definitions,
+        IEnumerable<StrategicCorpsDefinition> corpsDefinitions)
     {
-        Add(definitions.Corps, CommonCorps(
-            StrategicManagementIds.CorpsShieldLine,
-            "天蓝石狮卫",
-            30,
-            20,
-            30,
-            FirstSliceHeroCompanyIds.ShieldCorpsUnit,
-            FirstSliceHeroCompanyIds.ShieldCorpsCount));
-        Add(definitions.Corps, CommonCorps(
-            StrategicManagementIds.CorpsArcherLine,
-            "穿阳弓手",
-            35,
-            20,
-            30,
-            FirstSliceHeroCompanyIds.ArcherCorpsUnit,
-            FirstSliceHeroCompanyIds.ArcherCorpsCount));
-        Add(definitions.Corps, CommonCorps(
-            StrategicManagementIds.CorpsCavalryLine,
-            "辉光龙骑",
-            45,
-            30,
-            40,
-            FirstSliceHeroCompanyIds.AssaultCorpsUnit,
-            FirstSliceHeroCompanyIds.AssaultCorpsCount));
-    }
-
-    private static StrategicCorpsDefinition CommonCorps(
-        string id,
-        string displayName,
-        int moneyCost,
-        int foodCost,
-        int soldiers,
-        string battleUnitId,
-        int battleUnitCount)
-    {
-        return new StrategicCorpsDefinition
+        foreach (StrategicCorpsDefinition corps in corpsDefinitions)
         {
-            CorpsDefinitionId = id,
-            DisplayName = displayName,
-            BattleUnitId = battleUnitId ?? "",
-            BattleUnitCount = System.Math.Max(1, battleUnitCount),
-            SoldierCapacityCost = soldiers,
-            RequiredCityIdentityIds = { StrategicManagementIds.CityIdentityPlainsHuman },
-            CreationCost =
-            {
-                new StrategicResourceAmount(StrategicManagementIds.ResourceMoney, moneyCost),
-                new StrategicResourceAmount(StrategicManagementIds.ResourceFood, foodCost)
-            },
-            ReplenishFullCost =
-            {
-                new StrategicResourceAmount(StrategicManagementIds.ResourceMoney, moneyCost),
-                new StrategicResourceAmount(StrategicManagementIds.ResourceFood, foodCost)
-            }
-        };
+            Add(definitions.Corps, corps);
+        }
     }
 
     private static void AddHeroes(StrategicManagementDefinitionSet definitions)

@@ -94,7 +94,7 @@ public sealed class WorldBattleResultApplier
     {
         WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
         StrategicWorldDefinitionQueries queries = new(definition);
-        string targetSite = StrategicWorldDisplayNames.GetSiteLabel(queries, site.SiteId, "埋骨地");
+        string targetSite = StrategicWorldDisplayNames.GetSiteLabel(queries, site.SiteId, "敌方前哨");
         if (result.Outcome == BattleOutcome.Victory && ObjectiveSucceeded(result, "occupy_bonefield"))
         {
             RemoveBattleForcesFromSite(site, request.EnemyForces, result);

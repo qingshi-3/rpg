@@ -17,10 +17,11 @@ internal sealed class StrategicManagementDashboardPanelBinder
     private readonly VBoxContainer _buildingList;
     private readonly Label _buildingBuildTitle;
     private readonly GridContainer _buildingBuildList;
-    private readonly VBoxContainer _recruitList;
+    private readonly VBoxContainer _conscriptionList;
     private readonly VBoxContainer _corpsList;
     private readonly Action<string> _selectBuildingForPlacement;
-    private readonly Action<string> _createCorps;
+    private readonly Action _manualConscript;
+    private readonly Action<string> _setAutoConscriptionIntensity;
     private readonly Action<string> _replenishCorps;
     private readonly Action<string> _toggleHeroAssignment;
 
@@ -31,10 +32,11 @@ internal sealed class StrategicManagementDashboardPanelBinder
         VBoxContainer buildingList,
         Label buildingBuildTitle,
         GridContainer buildingBuildList,
-        VBoxContainer recruitList,
+        VBoxContainer conscriptionList,
         VBoxContainer corpsList,
         Action<string> selectBuildingForPlacement,
-        Action<string> createCorps,
+        Action manualConscript,
+        Action<string> setAutoConscriptionIntensity,
         Action<string> replenishCorps,
         Action<string> toggleHeroAssignment)
     {
@@ -44,10 +46,11 @@ internal sealed class StrategicManagementDashboardPanelBinder
         _buildingList = buildingList;
         _buildingBuildTitle = buildingBuildTitle;
         _buildingBuildList = buildingBuildList;
-        _recruitList = recruitList;
+        _conscriptionList = conscriptionList;
         _corpsList = corpsList;
         _selectBuildingForPlacement = selectBuildingForPlacement;
-        _createCorps = createCorps;
+        _manualConscript = manualConscript;
+        _setAutoConscriptionIntensity = setAutoConscriptionIntensity;
         _replenishCorps = replenishCorps;
         _toggleHeroAssignment = toggleHeroAssignment;
     }
@@ -74,7 +77,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
 
         BindBuildings(city);
         BindBuildingOptions(city);
-        BindRecruitmentOptions(city);
+        BindConscription(city.Conscription);
         BindCorpsAndHeroes(safeDashboard, city);
     }
 
@@ -139,7 +142,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
         ClearChildren(_buildingBuildList);
         if (_buildingBuildTitle != null)
         {
-            _buildingBuildTitle.Text = "可建设建筑";
+            _buildingBuildTitle.Text = "可建建筑";
         }
 
         if (city.BuildingOptions.Count == 0)
@@ -163,37 +166,57 @@ internal sealed class StrategicManagementDashboardPanelBinder
                 option.IconPath,
                 option.FootprintWidth,
                 option.FootprintHeight,
-                FormatCosts(option.BuildCost),
+                FormatCostsForPresentation(option.BuildCost),
                 option.CanBuild);
             if (option.CanBuild)
             {
-                card.Selected += selectedBuildingDefinitionId =>
-                    _selectBuildingForPlacement?.Invoke(buildingDefinitionId);
+                card.Selected += _ => _selectBuildingForPlacement?.Invoke(buildingDefinitionId);
             }
 
-            _buildingBuildList.AddChild(card);
+            _buildingBuildList?.AddChild(card);
         }
     }
 
-    private void BindRecruitmentOptions(StrategicCityManagementViewModel city)
+    private void BindConscription(StrategicConscriptionViewModel conscription)
     {
-        ClearChildren(_recruitList);
-        AddMutedLine(_recruitList, "可创建编制");
-        if (city.MusterTemplates.Count == 0)
+        ClearChildren(_conscriptionList);
+        StrategicConscriptionViewModel safeConscription = conscription ?? new StrategicConscriptionViewModel();
+        AddMutedLine(
+            _conscriptionList,
+            $"兵力：现役 {safeConscription.ActiveForces} / 预备 {safeConscription.ReserveForces} / 容量 {safeConscription.CityForceCapacity} / 剩余 {safeConscription.RemainingForceCapacity}");
+
+        StrategicConscriptionManualOptionViewModel manual = safeConscription.ManualOption ?? new StrategicConscriptionManualOptionViewModel();
+        string manualLine = $"手动征兵\n预备兵 +{manual.ReserveGain}    成本 {FormatCostsForPresentation(manual.Cost)}";
+        if (!manual.CanConscript)
         {
-            AddMutedLine(_recruitList, "当前城市没有开放可创建编制。");
-            return;
+            manualLine = $"{manualLine}\n不可执行：{FormatReasonsForPresentation(manual.DisabledReason)}";
         }
 
-        foreach (StrategicMusterTemplateViewModel template in city.MusterTemplates)
+        AddActionButton(
+            _conscriptionList,
+            manualLine,
+            !manual.CanConscript,
+            () => _manualConscript?.Invoke());
+
+        AddMutedLine(_conscriptionList, "自动征兵力度");
+        foreach (StrategicConscriptionIntensityOptionViewModel option in safeConscription.IntensityOptions)
         {
-            string state = template.CanCreate ? "可创建" : $"不可创建：{FormatReasons(template.DisabledReasons)}";
-            string corpsDefinitionId = template.CorpsDefinitionId;
+            string currentText = option.IsCurrent ? "当前" : "可选择";
+            string requirementText = option.RequiresTrainingGround ? "需要训练场" : "无需训练场";
+            string optionLine =
+                $"{option.DisplayName}    {currentText}\n每次大地图结算：预备兵 +{option.ReserveGain}    成本 {FormatCostsForPresentation(option.Cost)}    {requirementText}";
+            bool disabled = option.IsCurrent || !option.CanSelect;
+            if (!option.CanSelect && !option.IsCurrent)
+            {
+                optionLine = $"{optionLine}\n不可选择：{FormatReasonsForPresentation(option.DisabledReason)}";
+            }
+
+            string intensityId = option.IntensityId;
             AddActionButton(
-                _recruitList,
-                $"{template.DisplayName}\n{state}    成本 {FormatCosts(template.CreationCost)}",
-                !template.CanCreate,
-                () => _createCorps?.Invoke(corpsDefinitionId));
+                _conscriptionList,
+                optionLine,
+                disabled,
+                () => _setAutoConscriptionIntensity?.Invoke(intensityId));
         }
     }
 
@@ -213,8 +236,8 @@ internal sealed class StrategicManagementDashboardPanelBinder
             string replenishLine = corps.Strength >= 100
                 ? "无需补员"
                 : corps.CanReplenish
-                    ? $"可补员    预备兵 {corps.ReplenishReserveCost}    成本 {FormatCosts(corps.ReplenishCost)}"
-                    : $"不可补员：{FormatReasons(corps.ReplenishDisabledReason)}";
+                    ? $"可补员    预备兵 {corps.ReplenishReserveCost}    成本 {FormatCostsForPresentation(corps.ReplenishCost)}"
+                    : $"不可补员：{FormatReasonsForPresentation(corps.ReplenishDisabledReason)}";
             string corpsInstanceId = corps.CorpsInstanceId;
             AddActionButton(
                 _corpsList,
@@ -235,7 +258,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
                 ? $"解除编制：{hero.AssignedCorpsDisplayName}    适性 {hero.AptitudeGrade}"
                 : hasAvailableCorps
                     ? "分配当前城市可用编制"
-                    : "当前城市没有可用驻扎编制";
+                    : "当前城市没有可用驻守编制";
             AddActionButton(
                 _corpsList,
                 $"{hero.DisplayName}\n{assignmentLine}",
@@ -261,8 +284,8 @@ internal sealed class StrategicManagementDashboardPanelBinder
 
         AddMutedLine(_buildingBuildList, "该地点不是城市，不开放建筑建设。");
 
-        ClearChildren(_recruitList);
-        AddMutedLine(_recruitList, "该地点不开放城市招募。");
+        ClearChildren(_conscriptionList);
+        AddMutedLine(_conscriptionList, "该地点不开放城市征兵。");
 
         ClearChildren(_corpsList);
         AddMutedLine(_corpsList, "该地点不管理城市预备兵和编制。");
@@ -321,19 +344,21 @@ internal sealed class StrategicManagementDashboardPanelBinder
         return string.Join("    ", resources.Select(item => $"{item.DisplayName} {item.Amount}"));
     }
 
-    private static string FormatCosts(IReadOnlyList<StrategicResourceCostViewModel> costs)
+    internal static string FormatCostsForPresentation(IReadOnlyList<StrategicResourceCostViewModel> costs)
     {
         return costs == null || costs.Count == 0
             ? "无"
             : string.Join(" / ", costs.Select(item => $"{item.DisplayName} {item.Amount}"));
     }
 
-    private static string FormatReasons(IReadOnlyList<string> reasons)
+    internal static string FormatReasonsForPresentation(IReadOnlyList<string> reasons)
     {
-        return reasons == null || reasons.Count == 0 ? "未知原因" : string.Join(" / ", reasons.Select(FormatReason));
+        return reasons == null || reasons.Count == 0
+            ? "未知原因"
+            : string.Join(" / ", reasons.Select(FormatReason));
     }
 
-    private static string FormatReasons(string reason)
+    internal static string FormatReasonsForPresentation(string reason)
     {
         return string.IsNullOrWhiteSpace(reason) ? "未知原因" : FormatReason(reason);
     }
@@ -365,6 +390,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
             StrategicFailureReasons.BuildingPlacementOccupied => "建筑占地被占用",
             StrategicFailureReasons.InsufficientReserveForces => "预备兵不足",
             StrategicFailureReasons.CityForceCapacityFull => "城市兵力容量已满",
+            StrategicFailureReasons.InvalidConscriptionIntensity => "征兵力度无效",
             StrategicFailureReasons.InvalidReplenishmentTarget => "补员目标无效",
             StrategicFailureReasons.CorpsAlreadyFullStrength => "编制已满员",
             StrategicFailureReasons.FactionMismatch => "势力不匹配",
@@ -390,7 +416,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
     {
         return status switch
         {
-            StrategicCorpsInstanceStatus.Garrisoned => "驻扎",
+            StrategicCorpsInstanceStatus.Garrisoned => "驻守",
             StrategicCorpsInstanceStatus.AssignedToHero => "已分配",
             StrategicCorpsInstanceStatus.Expedition => "远征",
             StrategicCorpsInstanceStatus.Recovering => "恢复中",

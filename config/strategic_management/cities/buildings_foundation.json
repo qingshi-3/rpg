@@ -10,7 +10,12 @@
       "buildCost": [
         { "resourceId": "resource_money", "amount": 30 },
         { "resourceId": "resource_wood", "amount": 20 }
-      ]
+      ],
+      "providedCapabilities": {
+        "resourceProductionPerWorldTimePulse": [
+          { "resourceId": "resource_food", "amount": 8 }
+        ]
+      }
     },
     {
       "buildingDefinitionId": "building_market",
@@ -22,7 +27,12 @@
       "buildCost": [
         { "resourceId": "resource_money", "amount": 20 },
         { "resourceId": "resource_wood", "amount": 25 }
-      ]
+      ],
+      "providedCapabilities": {
+        "resourceProductionPerWorldTimePulse": [
+          { "resourceId": "resource_money", "amount": 6 }
+        ]
+      }
     },
     {
       "buildingDefinitionId": "building_lumber_camp",
@@ -34,7 +44,12 @@
       "buildCost": [
         { "resourceId": "resource_money", "amount": 20 },
         { "resourceId": "resource_wood", "amount": 10 }
-      ]
+      ],
+      "providedCapabilities": {
+        "resourceProductionPerWorldTimePulse": [
+          { "resourceId": "resource_wood", "amount": 8 }
+        ]
+      }
     },
     {
       "buildingDefinitionId": "building_mine",
@@ -46,7 +61,12 @@
       "buildCost": [
         { "resourceId": "resource_money", "amount": 25 },
         { "resourceId": "resource_wood", "amount": 15 }
-      ]
+      ],
+      "providedCapabilities": {
+        "resourceProductionPerWorldTimePulse": [
+          { "resourceId": "resource_ore", "amount": 5 }
+        ]
+      }
     },
     {
       "buildingDefinitionId": "building_training_ground",
@@ -89,7 +109,7 @@
     {
       "buildingDefinitionId": "building_medical_shrine",
       "iconPath": "res://assets/textures/world/Buildings/Foundation/medical_shrine_icon.tres",
-      "displayName": "医祠",
+      "displayName": "医所",
       "categoryId": "building_category_support",
       "footprintWidth": 2,
       "footprintHeight": 2,

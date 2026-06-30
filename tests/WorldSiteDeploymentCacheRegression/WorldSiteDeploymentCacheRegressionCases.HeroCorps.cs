@@ -143,6 +143,20 @@ internal static void StrategicWorldExpeditionTargetingAcceptsLeftClickTarget()
         "expedition target prompt should tell players that left-click also confirms the target");
 }
 
+internal static void StrategicWorldExpeditionTargetingUsesResolvedMapPosition()
+{
+    string rootSource = ReadStrategicWorldRootSource().Replace("\r\n", "\n", StringComparison.Ordinal);
+    string issueBody = ExtractMethodBody(rootSource, "private bool TryIssueExpeditionToTarget(Vector2 mapPosition)");
+
+    AssertTrue(
+        issueBody.Contains("FindSiteAt(mapPosition)", StringComparison.Ordinal) &&
+        issueBody.Contains("TryCreateExpedition(\"\", mapPosition, WorldArmyIntent.MoveToPosition)", StringComparison.Ordinal),
+        "expedition target clicks should use the map position resolved by the input boundary for both site and empty-ground targets");
+    AssertTrue(
+        !issueBody.Contains("ScreenToMap", StringComparison.Ordinal),
+        "expedition target handling must not convert an already resolved map position a second time");
+}
+
 internal static void WorldSiteRootGatesBattleStartBehindDeployment()
 {
     string rootSource = ReadWorldSiteRootSource();

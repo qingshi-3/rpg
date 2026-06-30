@@ -1,0 +1,102 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/PostBattleSettlementDialog.cs" id="1_dialog"]
+[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
+[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_large.tres" id="3_panel_large"]
+
+[node name="PostBattleSettlementDialog" type="Control"]
+visible = false
+z_index = 760
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme = ExtResource("2_theme")
+script = ExtResource("1_dialog")
+
+[node name="Backdrop" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.02, 0.018, 0.012, 0.58)
+
+[node name="Panel" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(680, 440)
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -340.0
+offset_top = -220.0
+offset_right = 340.0
+offset_bottom = 220.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+theme_override_styles/panel = ExtResource("3_panel_large")
+
+[node name="Margin" type="MarginContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 20
+
+[node name="Stack" type="VBoxContainer" parent="Panel/Margin"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 14
+
+[node name="TitleLabel" type="Label" parent="Panel/Margin/Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 24
+text = "战斗结算"
+horizontal_alignment = 1
+
+[node name="ResultScroll" type="ScrollContainer" parent="Panel/Margin/Stack"]
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ResultBody" type="Label" parent="Panel/Margin/Stack/ResultScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.9, 0.94, 0.86, 1)
+text = "结算已完成。"
+autowrap_mode = 3
+
+[node name="Actions" type="HBoxContainer" parent="Panel/Margin/Stack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="ManageCityButton" type="Button" parent="Panel/Margin/Stack/Actions"]
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
+focus_mode = 2
+mouse_default_cursor_shape = 2
+theme_type_variation = &"WorldPrimaryActionButton"
+text = "管理城池"
+
+[node name="ReturnButton" type="Button" parent="Panel/Margin/Stack/Actions"]
+custom_minimum_size = Vector2(150, 50)
+layout_mode = 2
+focus_mode = 2
+mouse_default_cursor_shape = 2
+theme_type_variation = &"WorldSecondaryActionButton"
+text = "返回"

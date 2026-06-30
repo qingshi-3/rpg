@@ -15,6 +15,9 @@ namespace Rpg.Presentation.World;
 
 public partial class StrategicWorldRoot
 {
+    private WorldResourceTicker _resourceTicker;
+    private string _lastResourceTickerSignature = "";
+
     private void BuildUi()
     {
         BuildSiteNameOverlay();
@@ -44,6 +47,7 @@ public partial class StrategicWorldRoot
             GameUiSceneFactory.WorldSecondaryActionButtonScenePath,
             GameUiSceneFactory.WorldCompactMarkerButtonScenePath,
             GameUiSceneFactory.WorldExpeditionCountRowScenePath,
+            GameUiSceneFactory.WorldResourceFloatTextScenePath,
             GameUiSceneFactory.PreBattleDialogScenePath);
 
         Node warmupRoot = new() { Name = "StrategicUiWarmup" };
@@ -55,6 +59,7 @@ public partial class StrategicWorldRoot
         AddWarmupNode(warmupRoot, GameUiSceneFactory.CreateWorldSecondaryActionButton(nameof(StrategicWorldRoot)));
         AddWarmupNode(warmupRoot, GameUiSceneFactory.CreateWorldCompactMarkerButton(nameof(StrategicWorldRoot)));
         AddWarmupNode(warmupRoot, GameUiSceneFactory.CreateWorldExpeditionCountRow(nameof(StrategicWorldRoot)));
+        AddWarmupNode(warmupRoot, GameUiSceneFactory.CreateWorldResourceFloatText(nameof(StrategicWorldRoot)));
         warmupRoot.QueueFree();
     }
 
@@ -101,6 +106,7 @@ public partial class StrategicWorldRoot
             hud,
             "ModalHost",
             nameof(StrategicWorldRoot));
+        BindWorldResourceFloatOverlay(hud);
         Label title = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
             "TopBarHost/TopLeftStatus/Title",
@@ -110,7 +116,7 @@ public partial class StrategicWorldRoot
             title.Text = Definition.DisplayName;
         }
 
-        _resourceLabel = GameUiSceneFactory.GetRequiredNode<Label>(
+        _resourceTicker = GameUiSceneFactory.GetRequiredNode<WorldResourceTicker>(
             hud,
             "TopBarHost/TopLeftStatus/ResourceLabel",
             nameof(StrategicWorldRoot));
@@ -241,7 +247,16 @@ public partial class StrategicWorldRoot
         string resources = string.Join(
             "    ",
             dashboard.Resources.Select(resource => $"{resource.DisplayName} {resource.Amount}"));
-        _resourceLabel.Text = $"{resources}    大地图结算 {State.WorldTick}";
+        string signature = string.Join(
+            "|",
+            dashboard.Resources.Select(resource => $"{resource.ResourceId}:{resource.Amount}"));
+        bool animate = !string.IsNullOrWhiteSpace(_lastResourceTickerSignature) &&
+                       !string.Equals(signature, _lastResourceTickerSignature, System.StringComparison.Ordinal);
+        _lastResourceTickerSignature = signature;
+        if (_resourceTicker != null)
+        {
+            _resourceTicker.SetText($"{resources}    大地图结算 {State.WorldTick}", animate);
+        }
     }
 
     private Rect2 GetSiteMarkerLayoutHitRect(WorldSiteDefinition definition, float zoom = 1.0f)
@@ -279,20 +294,20 @@ public partial class StrategicWorldRoot
     private void RefreshSiteHoverSummary(StrategicWorldDefinitionQueries queries, string siteId)
     {
         if (_siteHoverSummaryPanel == null ||
-            string.IsNullOrWhiteSpace(siteId) ||
-            !State.SiteStates.TryGetValue(siteId, out WorldSiteState state))
+            string.IsNullOrWhiteSpace(siteId))
         {
             return;
         }
 
         WorldSiteDefinition definition = queries.GetSite(siteId);
-        if (definition == null)
+        if (definition == null ||
+            !TryBuildStrategicLocationDashboardForMapSite(siteId, out StrategicManagementDashboardViewModel dashboard))
         {
             _siteHoverSummaryPanel.HideSummary();
             return;
         }
 
-        _siteHoverSummaryPanel.Bind(WorldSiteHoverSummaryPresenter.Build(queries, definition, state));
+        _siteHoverSummaryPanel.Bind(WorldSiteHoverSummaryPresenter.Build(definition, dashboard));
         _siteHoverSummaryPanel.Visible = true;
         _siteHoverSummaryPanel.ResetSize();
 

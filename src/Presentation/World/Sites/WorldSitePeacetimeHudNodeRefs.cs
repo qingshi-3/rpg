@@ -23,13 +23,21 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
     internal Button ReturnMapButton { get; private init; }
     internal HBoxContainer SiteManagementTabBar { get; private init; }
     internal Button BuildTabButton { get; private init; }
+    internal Button ConscriptionTabButton { get; private init; }
     internal Button RecruitTabButton { get; private init; }
     internal Button CorpsTabButton { get; private init; }
     internal Button OverviewTabButton { get; private init; }
     internal Control SiteBuildSection { get; private init; }
-    internal Control SiteRecruitSection { get; private init; }
+    internal Control SiteConscriptionSection { get; private init; }
     internal Control SiteCorpsSection { get; private init; }
     internal Control SiteOverviewSection { get; private init; }
+    internal Control MilitaryWorkbenchPanel { get; private init; }
+    internal VBoxContainer MilitaryHeroList { get; private init; }
+    internal GridContainer MilitaryMusterGrid { get; private init; }
+    internal Label MilitaryHeroSummaryLabel { get; private init; }
+    internal Label MilitaryNoticeLabel { get; private init; }
+    internal Button MilitaryBackButton { get; private init; }
+    internal Button MilitaryCloseButton { get; private init; }
     internal Label SiteHudBody { get; private init; }
     internal Label SiteSelectionLabel { get; private init; }
     internal Control BattlePreparationRosterDock { get; private init; }
@@ -46,7 +54,7 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
     internal BattlePreparationObjectiveThumbnail BattlePreparationObjectiveThumbnail { get; private init; }
     internal Label SiteBuildingBuildTitle { get; private init; }
     internal GridContainer SiteBuildingOptionGrid { get; private init; }
-    internal VBoxContainer SiteRecruitList { get; private init; }
+    internal VBoxContainer SiteConscriptionList { get; private init; }
     internal VBoxContainer SiteBuildingList { get; private init; }
     internal VBoxContainer SiteGarrisonList { get; private init; }
     internal Label SiteNoticeLabel { get; private init; }
@@ -76,11 +84,12 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
             ReturnMapButton = Get<Button>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/ReturnMapButton", ownerName),
             SiteManagementTabBar = Get<HBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar", ownerName),
             BuildTabButton = Get<Button>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar/BuildTabButton", ownerName),
+            ConscriptionTabButton = Get<Button>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar/ConscriptionTabButton", ownerName),
             RecruitTabButton = Get<Button>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar/RecruitTabButton", ownerName),
             CorpsTabButton = Get<Button>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar/CorpsTabButton", ownerName),
             OverviewTabButton = Get<Button>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar/OverviewTabButton", ownerName),
             SiteBuildSection = Get<Control>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection", ownerName),
-            SiteRecruitSection = Get<Control>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteRecruitSection", ownerName),
+            SiteConscriptionSection = Get<Control>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection", ownerName),
             SiteCorpsSection = Get<Control>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteCorpsSection", ownerName),
             SiteOverviewSection = Get<Control>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection", ownerName),
             SiteHudBody = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteHudBody", ownerName),
@@ -99,7 +108,14 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
             BattlePreparationObjectiveThumbnail = Get<BattlePreparationObjectiveThumbnail>(root, "MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail", ownerName),
             SiteBuildingBuildTitle = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/BuildTitle", ownerName),
             SiteBuildingOptionGrid = Get<GridContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/SiteBuildingOptionGrid", ownerName),
-            SiteRecruitList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteRecruitSection/SiteRecruitList", ownerName),
+            SiteConscriptionList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection/SiteConscriptionList", ownerName),
+            MilitaryWorkbenchPanel = Get<Control>(root, "ModalHost/MilitaryWorkbenchPanel", ownerName),
+            MilitaryHeroList = Get<VBoxContainer>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryHeroScroll/MilitaryHeroList", ownerName),
+            MilitaryMusterGrid = Get<GridContainer>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryMusterScroll/MilitaryMusterGrid", ownerName),
+            MilitaryHeroSummaryLabel = Get<Label>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryHeader/MilitaryHeroSummaryLabel", ownerName),
+            MilitaryNoticeLabel = Get<Label>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryNoticeLabel", ownerName),
+            MilitaryBackButton = Get<Button>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryHeader/MilitaryBackButton", ownerName),
+            MilitaryCloseButton = Get<Button>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryHeader/MilitaryCloseButton", ownerName),
             SiteBuildingList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteBuildingList", ownerName),
             SiteGarrisonList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteCorpsSection/SiteGarrisonList", ownerName),
             SiteNoticeLabel = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteNoticeLabel", ownerName),

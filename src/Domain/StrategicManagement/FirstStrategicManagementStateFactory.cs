@@ -21,8 +21,11 @@ public static class FirstStrategicManagementStateFactory
         AddLocation(state, StrategicManagementIds.LocationTimberSite, StrategicManagementIds.FactionPlayer, StrategicLocationControlState.PlayerHeld);
         AddLocation(state, StrategicManagementIds.LocationBonefieldOutpost, StrategicManagementIds.FactionEnemy, StrategicLocationControlState.EnemyHeld);
 
-        if (definitions.Locations.TryGetValue(StrategicManagementIds.LocationPlainsCity, out StrategicLocationDefinition cityDefinition))
+        foreach (StrategicLocationDefinition cityDefinition in definitions.Locations.Values
+            .Where(location => location.Kind == StrategicLocationKind.City))
         {
+            // Every implemented managed location owns isolated city state from the start;
+            // ownership/control decide whether the player may open its management UI.
             state.Cities[cityDefinition.LocationId] = new StrategicCityState
             {
                 LocationId = cityDefinition.LocationId,

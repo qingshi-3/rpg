@@ -21,6 +21,7 @@ public static class StrategicFailureReasons
     public const string BuildingPlacementOccupied = "building_placement_occupied";
     public const string InsufficientReserveForces = "insufficient_reserve_forces";
     public const string CityForceCapacityFull = "city_force_capacity_full";
+    public const string InvalidConscriptionIntensity = "invalid_conscription_intensity";
     public const string InvalidReplenishmentTarget = "invalid_replenishment_target";
     public const string CorpsAlreadyFullStrength = "corps_already_full_strength";
     public const string FactionMismatch = "faction_mismatch";

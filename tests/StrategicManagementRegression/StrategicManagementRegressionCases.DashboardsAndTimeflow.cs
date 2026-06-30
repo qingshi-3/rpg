@@ -72,11 +72,14 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(
             afterDispatch.SelectedCity.HeroCompanies.All(item => item.HeroId != StrategicManagementIds.HeroOrdinaryCommander),
             "source city expedition roster must not keep the hero company already on expedition");
+        AssertTrue(
+            afterDispatch.SelectedCity.CorpsInstances.All(item => item.CorpsInstanceId != corpsInstanceId),
+            "source city corps list must not keep the company after it leaves on expedition");
+        int dispatchedForceCost = definitions.Corps[StrategicManagementIds.CorpsShieldLine].SoldierCapacityCost;
         AssertEqual(
-            StrategicCorpsInstanceStatus.Expedition,
-            FindCorps(afterDispatch, corpsInstanceId).Status,
-            "dispatched corps should remain durable strategic state with expedition status");
-        AssertEqual(100, afterDispatch.SelectedCity.ActiveForces, "active forces should still include expedition corps from the home city");
+            100 - dispatchedForceCost,
+            afterDispatch.SelectedCity.ActiveForces,
+            "active forces should exclude expedition corps after it leaves the source city");
     }
 
     internal static void StrategicManagementDashboardReflectsFoundationCommandMutations()
@@ -122,6 +125,37 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(StrategicHeroCorpsAptitudeGrade.B, hero.AptitudeGrade, "hero row should show derived aptitude");
     }
 
+    internal static void StrategicManagementDashboardSeparatesConscriptionFromCorpsRecruitment()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementViewModelService viewModels = new(definitions, new StrategicManagementRules(definitions));
+
+        StrategicManagementDashboardViewModel dashboard = viewModels.BuildDashboard(
+            state,
+            StrategicManagementIds.FactionPlayer,
+            StrategicManagementIds.LocationPlainsCity);
+        object conscription = GetRequiredProperty<object>(dashboard.SelectedCity, "Conscription");
+        object manualOption = GetRequiredProperty<object>(conscription, "ManualOption");
+        IEnumerable<object> intensityOptions = GetRequiredProperty<IEnumerable<object>>(conscription, "IntensityOptions");
+
+        AssertEqual("conscription_off", GetRequiredProperty<string>(conscription, "CurrentIntensityId"), "dashboard should expose the current auto-conscription intensity");
+        AssertEqual(80, GetRequiredProperty<int>(conscription, "ReserveForces"), "conscription page should expose reserve pool state");
+        AssertEqual(40, GetRequiredProperty<int>(conscription, "RemainingForceCapacity"), "conscription page should expose remaining reserve capacity");
+        AssertEqual(10, GetRequiredProperty<int>(manualOption, "ReserveGain"), "manual conscription option should expose the accepted batch size");
+        AssertEqual(true, GetRequiredProperty<bool>(manualOption, "CanConscript"), "manual conscription should initially be available");
+        AssertEqual(4, intensityOptions.Count(), "conscription page should expose off/low/standard/high automatic intensity options");
+        AssertTrue(
+            intensityOptions.Any(option =>
+                GetRequiredProperty<string>(option, "IntensityId") == "conscription_standard" &&
+                GetRequiredProperty<string>(option, "DisabledReason") == StrategicFailureReasons.MissingBuilding),
+            "standard auto conscription should be present but disabled before the training ground is built");
+        AssertTrue(
+            dashboard.SelectedCity.MusterTemplates.Count > 0 &&
+            dashboard.SelectedCity.MusterTemplates.All(template => !string.IsNullOrWhiteSpace(template.CorpsDefinitionId)),
+            "corps recruitment should remain a separate muster-template list from conscription");
+    }
+
     internal static void StrategicManagementDashboardSummarizesNonCityLocation()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
@@ -156,10 +190,12 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationBonefieldOutpost);
         object targetLocation = GetRequiredProperty<object>(targetDashboard, "SelectedLocation");
         AssertEqual(StrategicManagementIds.MapSiteBonefield, GetRequiredProperty<string>(targetLocation, "MapSiteId"), "foundation target should expose the Bonefield map-site id");
-        AssertEqual(StrategicLocationKind.Ruin, GetRequiredProperty<StrategicLocationKind>(targetLocation, "Kind"), "foundation target should be a generic ruin/outpost target, not a beast route");
+        AssertEqual(StrategicLocationKind.City, GetRequiredProperty<StrategicLocationKind>(targetLocation, "Kind"), "foundation target should be an enemy-held managed stronghold/city");
         AssertEqual("", GetRequiredProperty<string>(targetLocation, "SourcePermissionDisplayText"), "foundation target should not expose beast source permission text");
         AssertEqual(StrategicManagementIds.FactionEnemy, GetRequiredProperty<string>(targetLocation, "OwnerFactionId"), "foundation target should start enemy-held");
         AssertEqual(StrategicLocationControlState.EnemyHeld, GetRequiredProperty<StrategicLocationControlState>(targetLocation, "ControlState"), "foundation target should start enemy-held");
+        AssertEqual(false, GetRequiredProperty<bool>(targetLocation, "CanManageCity"), "enemy-held Bonefield should not expose player city management before victory");
+        AssertEqual("", targetDashboard.SelectedCity.LocationId, "enemy-held Bonefield should not bind city-management detail before victory");
 
         StrategicCommandResult occupy = commands.OccupyLocation(
             state,
@@ -175,6 +211,8 @@ internal static partial class StrategicManagementRegressionCases
         object occupiedTargetLocation = GetRequiredProperty<object>(occupiedTargetDashboard, "SelectedLocation");
         AssertEqual(StrategicManagementIds.FactionPlayer, GetRequiredProperty<string>(occupiedTargetLocation, "OwnerFactionId"), "location dashboard should reflect command-mutated owner");
         AssertEqual(StrategicLocationControlState.PlayerHeld, GetRequiredProperty<StrategicLocationControlState>(occupiedTargetLocation, "ControlState"), "location dashboard should reflect command-mutated control");
+        AssertEqual(true, GetRequiredProperty<bool>(occupiedTargetLocation, "CanManageCity"), "player-held Bonefield should expose city management after victory writeback");
+        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, occupiedTargetDashboard.SelectedCity.LocationId, "occupied Bonefield should bind its own isolated city-management state");
 
         StrategicManagementRuntime.Reset();
         StrategicManagementDashboardViewModel runtimeDashboard = InvokeRuntimeLocationDashboard(
@@ -308,7 +346,7 @@ internal static partial class StrategicManagementRegressionCases
             "runtime should not keep AdvanceStrategicStep as a public compatibility wrapper");
     }
 
-    internal static void StrategicManagementSettlesElapsedWorldTimeWithoutCityBuildingEffects()
+    internal static void StrategicManagementSettlesElapsedWorldTimeWithCityEconomyBuildingProduction()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
@@ -351,9 +389,9 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(result.Success, $"settling elapsed world time should succeed, got {result.FailureReason}");
         AssertEqual(2, GetElapsedWorldTimePulses(state), "settlement should add requested pulses to durable world-map time");
         AssertEqual(
-            beforeFood,
+            beforeFood + 16,
             state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood),
-            "built farm should not produce direct per-pulse food until the economy/capability model is rebuilt");
+            "constructed farm should produce food during elapsed world-map settlement");
         AssertEqual(
             beforeWood + 24,
             state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
@@ -363,11 +401,138 @@ internal static partial class StrategicManagementRegressionCases
             result.Events.Any(item => item.Kind == "StrategicWorldTimeSettled"),
             "elapsed-time settlement should emit a command-level time event");
         AssertTrue(
-            !result.Events.Any(item => item.Kind == "StrategicCityProductionSettled"),
-            "global advancement should not emit retired city building production events");
+            result.Events.Any(item => item.Kind == "StrategicCityBuildingProductionSettled"),
+            "global advancement should emit a city-building production event for constructed economy buildings");
         AssertTrue(
             !result.Events.Any(item => item.Kind == "StrategicCityReserveRecovered"),
             "global advancement should not emit retired city reserve recovery events");
+    }
+
+    internal static void StrategicManagementSettlesLowAutoConscriptionDuringElapsedWorldTime()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        city.ReserveForces = 0;
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+
+        StrategicCommandResult policy = InvokeSetAutoConscriptionIntensity(
+            commands,
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            "conscription_low");
+        AssertTrue(policy.Success, $"low auto conscription should be selectable, got {policy.FailureReason}");
+
+        StrategicCommandResult result = InvokeSettleElapsedWorldTime(
+            commands,
+            state,
+            StrategicManagementIds.FactionPlayer,
+            1);
+
+        AssertTrue(result.Success, $"elapsed world time should settle with low auto conscription, got {result.FailureReason}");
+        AssertEqual(2, city.ReserveForces, "low auto conscription should add reserve soldiers during world-map time");
+        AssertEqual(beforeMoney - 2, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "low auto conscription should spend money");
+        AssertEqual(beforeFood - 3, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "low auto conscription should spend food");
+        AssertTrue(
+            result.Events.Any(item => item.Kind == "StrategicCityReserveForcesAutoConscripted"),
+            "auto conscription settlement should emit a reserve-soldier event");
+    }
+
+    internal static void StrategicManagementStandardAutoConscriptionRequiresTrainingGround()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicConstructionRegionDefinition military = FindRegion(definitions, StrategicManagementIds.RegionPlainsMilitary);
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+
+        StrategicCommandResult missingTrainingGround = InvokeSetAutoConscriptionIntensity(
+            commands,
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            "conscription_standard");
+        AssertTrue(!missingTrainingGround.Success, "standard auto conscription should fail before the training ground exists");
+        AssertEqual(StrategicFailureReasons.MissingBuilding, missingTrainingGround.FailureReason, "missing training ground should be explicit");
+        AssertEqual("conscription_off", GetRequiredProperty<string>(city, "AutoConscriptionIntensityId"), "failed policy selection must not mutate the city intensity");
+
+        StrategicCommandResult buildTraining = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingTrainingGround,
+            StrategicManagementIds.RegionPlainsMilitary,
+            military.OriginX,
+            military.OriginY);
+        AssertTrue(buildTraining.Success, $"training ground setup should succeed, got {buildTraining.FailureReason}");
+
+        StrategicCommandResult policy = InvokeSetAutoConscriptionIntensity(
+            commands,
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            "conscription_standard");
+        AssertTrue(policy.Success, $"standard auto conscription should be selectable after training ground, got {policy.FailureReason}");
+        city.ReserveForces = 0;
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+
+        StrategicCommandResult result = InvokeSettleElapsedWorldTime(
+            commands,
+            state,
+            StrategicManagementIds.FactionPlayer,
+            1);
+
+        AssertTrue(result.Success, $"elapsed world time should settle with standard auto conscription, got {result.FailureReason}");
+        AssertEqual(6, city.ReserveForces, "standard auto conscription should add the accepted reserve batch");
+        AssertEqual(beforeMoney - 5, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "standard auto conscription should spend money");
+        AssertEqual(beforeFood - 8, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "standard auto conscription should spend food");
+    }
+
+    internal static void StrategicManagementAutoConscriptionSkipsWithoutResourcesOrCapacity()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementRules rules = new(definitions);
+        StrategicManagementCommandService commands = new(definitions, rules);
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+
+        StrategicCommandResult policy = InvokeSetAutoConscriptionIntensity(
+            commands,
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            "conscription_low");
+        AssertTrue(policy.Success, $"low auto conscription should be selectable, got {policy.FailureReason}");
+
+        city.ReserveForces = 0;
+        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney, 0);
+        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood, 0);
+        StrategicCommandResult noResources = InvokeSettleElapsedWorldTime(
+            commands,
+            state,
+            StrategicManagementIds.FactionPlayer,
+            1);
+        AssertTrue(noResources.Success, $"world time should still settle when auto conscription skips resources, got {noResources.FailureReason}");
+        AssertEqual(0, city.ReserveForces, "resource shortage should skip reserve gain");
+        AssertEqual(0, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "resource shortage should not mutate money");
+        AssertEqual(0, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "resource shortage should not mutate food");
+
+        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney, 500);
+        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood, 300);
+        city.ReserveForces = city.CityForceCapacity - rules.GetActiveForces(state, city.LocationId) - 1;
+        int beforeReserve = city.ReserveForces;
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+
+        StrategicCommandResult noCapacity = InvokeSettleElapsedWorldTime(
+            commands,
+            state,
+            StrategicManagementIds.FactionPlayer,
+            1);
+
+        AssertTrue(noCapacity.Success, $"world time should still settle when auto conscription skips capacity, got {noCapacity.FailureReason}");
+        AssertEqual(beforeReserve, city.ReserveForces, "insufficient full-batch capacity should skip reserve gain");
+        AssertEqual(beforeMoney, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "capacity skip should not spend money");
+        AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "capacity skip should not spend food");
     }
 
     internal static void StrategicManagementElapsedWorldTimeSkipsEnemyHeldProduction()

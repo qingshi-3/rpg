@@ -210,6 +210,7 @@ public partial class WorldSiteRoot
         }
 
         _activeBattleGroupRuntimeResolution = null;
+        BattleOutcome outcome = resolution.BattleResult?.Outcome ?? BattleOutcome.None;
         applyResult = resolution.ActiveContext != null
             ? ApplyStrategicBattleResultToWorld(resolution.ActiveContext, resolution.BattleResult)
             : ApplyBattleResultToWorld(resolution.Request, resolution.BattleResult);
@@ -228,17 +229,26 @@ public partial class WorldSiteRoot
         ReconcileWorldSitePlacementsAfterBattle(
             resolution.Request,
             System.Array.Empty<WorldSiteLivePlacementSnapshot>(),
-            resolution.BattleResult.Outcome);
+            outcome);
         ClearBattleEntities();
         SetBattleRuntimeEnabled(false);
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"Battle group runtime resolved request={resolution.Request?.RequestId ?? ""} outcome={resolution.BattleResult?.Outcome} reportEvents={resolution.Report?.SourceEventIds.Count ?? 0} failure={string.Join(",", resolution.Report?.FailureCandidates ?? new List<string>())}");
-        SwitchToNonBattleUi(
-            resolution.BattleResult.Outcome,
+
+        string returnScenePath = ResolveBattleResultReturnScenePath(resolution.Request?.ReturnScenePath ?? "");
+        ShowPostBattleSettlementDialog(
+            outcome,
             resolution.Request,
             applyResult,
-            resolution.Request?.ReturnScenePath ?? "");
+            returnScenePath);
+    }
+
+    private static string ResolveBattleResultReturnScenePath(string returnScenePath)
+    {
+        return string.IsNullOrWhiteSpace(returnScenePath)
+            ? "res://scenes/world/StrategicWorldRoot.tscn"
+            : returnScenePath;
     }
 
     private double ResolveRuntimePlaybackTickSeconds() => BattleActionTimingPolicy.DefaultSimulationTickSeconds;
@@ -798,6 +808,8 @@ public partial class WorldSiteRoot
             };
         }
 
+        StrategicManagementRuntime.SaveCurrentState();
+
         StrategicBattleFeedbackRecord strategicFeedback = null;
         if (!string.IsNullOrWhiteSpace(strategicResult.CreatedEntityId))
         {
@@ -815,12 +827,13 @@ public partial class WorldSiteRoot
                 ? "战斗结果已写回战略经营。"
                 : strategicNotice
         };
-        ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult);
+        ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult, summary);
         ApplyStrategicBattleResultWorldArmyCarrierCleanup(context.CompatibilityRequest, applyResult);
         StrategicWorldRuntime.LastNotice = applyResult.Message;
         context.CompatibilityResult = compatibilityResult;
         context.ResultConsumed = true;
         StrategicBattleActiveContextStore.Clear("result_consumed");
+        ClearLegacyStrategicBattleHandoff("result_consumed");
         _activeStrategicBattleContext = null;
         return applyResult;
     }
@@ -868,7 +881,7 @@ public partial class WorldSiteRoot
         return applyResult;
     }
 
-    private void ApplyStrategicBattleResultPresentationCleanup(BattleStartRequest request, WorldActionResult result)
+    private void ApplyStrategicBattleResultPresentationCleanup(BattleStartRequest request, WorldActionResult result, StrategicBattleResultSummary summary)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.SourceArmyId))
         {
@@ -892,6 +905,19 @@ public partial class WorldSiteRoot
             placement.PlacementKind is WorldSiteUnitPlacementKind.VisitingArmy or WorldSiteUnitPlacementKind.Attacker);
         int removedLegacyGarrisonUnits = new WorldSiteBattleUnitPoolService()
             .RemoveImportedArmyForSiteBattle(site, request.SourceArmyId);
+        int removedDefenderPlacements = 0;
+        if (summary != null &&
+            summary.Outcome == BattleOutcome.Victory &&
+            summary.ObjectiveSucceeded)
+        {
+            // Strategic Management has already applied ownership. This only prevents
+            // stale legacy defender placements from being redrawn after victory.
+            removedDefenderPlacements = site.UnitPlacements.RemoveAll(placement =>
+                placement != null &&
+                placement.PlacementKind is WorldSiteUnitPlacementKind.Defender or WorldSiteUnitPlacementKind.Garrison &&
+                !string.Equals(placement.FactionId, StrategicWorldIds.FactionPlayer, System.StringComparison.Ordinal) &&
+                !string.Equals(placement.SourceKind, "PlayerArmy", System.StringComparison.Ordinal));
+        }
 
         if (site.SiteMode == WorldSiteMode.Wartime)
         {
@@ -904,11 +930,11 @@ public partial class WorldSiteRoot
                     request.RequestId));
         }
 
-        if (removedPlacements > 0 || removedLegacyGarrisonUnits > 0)
+        if (removedPlacements > 0 || removedLegacyGarrisonUnits > 0 || removedDefenderPlacements > 0)
         {
             GameLog.Info(
                 nameof(WorldSiteRoot),
-                $"StrategicBattlePresentationCleanup site={site.SiteId} army={request.SourceArmyId} removedPlacements={removedPlacements} removedLegacyGarrisonUnits={removedLegacyGarrisonUnits}");
+                $"StrategicBattlePresentationCleanup site={site.SiteId} army={request.SourceArmyId} removedPlacements={removedPlacements} removedLegacyGarrisonUnits={removedLegacyGarrisonUnits} removedDefenderPlacements={removedDefenderPlacements}");
         }
     }
 

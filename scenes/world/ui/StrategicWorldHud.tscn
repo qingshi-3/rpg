@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://b0jkn47t51ide"]
+[gd_scene load_steps=13 format=3 uid="uid://b0jkn47t51ide"]
 
 [ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="1_theme"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/basic-ui/1/button_pause.png" id="11_pause_icon"]
@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" path="res://assets/textures/ui/basic-ui/1/button_quick_pressed.png" id="17_quick_pressed_icon"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/basic-ui/1/button_reset_hover.png" id="18_reset_hover_icon"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/basic-ui/1/button_reset_pressed.png" id="19_reset_pressed_icon"]
+[ext_resource type="Script" path="res://src/Presentation/World/WorldResourceTicker.cs" id="20_resource_ticker"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_top_bar"]
 
@@ -80,6 +81,16 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
+[node name="WorldResourceFloatOverlay" type="Control" parent="OverlayHost"]
+z_index = 140
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
 [node name="ModalHost" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
@@ -120,13 +131,42 @@ text = "战略大世界"
 vertical_alignment = 1
 clip_text = true
 
-[node name="ResourceLabel" type="Label" parent="TopBarHost/TopLeftStatus"]
+[node name="ResourceLabel" type="Control" parent="TopBarHost/TopLeftStatus"]
+clip_contents = true
+custom_minimum_size = Vector2(360, 22)
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
+script = ExtResource("20_resource_ticker")
+
+[node name="CurrentLabel" type="Label" parent="TopBarHost/TopLeftStatus/ResourceLabel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-text = "人口 0/0    经济 0    石材 0    世界步 0"
+text = "资金 0    粮食 0    木材 0    矿石 0"
 vertical_alignment = 1
 clip_text = true
+text_overrun_behavior = 3
+
+[node name="IncomingLabel" type="Label" parent="TopBarHost/TopLeftStatus/ResourceLabel"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+text = "资金 0    粮食 0    木材 0    矿石 0"
+vertical_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
 
 [node name="NoticeLabel" type="Label" parent="TopBarHost"]
 z_index = 80

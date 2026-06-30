@@ -14,7 +14,7 @@ font_color = Color(0.91, 0.89, 0.82, 1)
 [node name="WorldSiteHoverSummaryPanel" type="PanelContainer"]
 visible = false
 z_index = 130
-custom_minimum_size = Vector2(190, 78)
+custom_minimum_size = Vector2(260, 78)
 mouse_filter = 2
 theme = ExtResource("2_theme")
 theme_type_variation = &"WorldContextCard"
@@ -34,20 +34,17 @@ theme_override_constants/separation = 4
 [node name="TitleLabel" type="Label" parent="Margin/Root"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "场域"
+text = "战略地点"
 label_settings = SubResource("LabelSettings_hover_title")
-text_overrun_behavior = 3
 
 [node name="ResourceLabel" type="Label" parent="Margin/Root"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "人口 0/0　经济 0　石材 0"
+text = "粮食 0  资金 0  木材 0  矿石 0"
 label_settings = SubResource("LabelSettings_hover_body")
-text_overrun_behavior = 3
 
 [node name="ForceLabel" type="Label" parent="Margin/Root"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "兵团 0　英雄 0"
+text = "预备兵 0/0  英雄 0"
 label_settings = SubResource("LabelSettings_hover_body")
-text_overrun_behavior = 3

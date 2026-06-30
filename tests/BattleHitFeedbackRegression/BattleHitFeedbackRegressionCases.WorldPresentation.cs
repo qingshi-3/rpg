@@ -10,6 +10,7 @@ using Rpg.Presentation.Common;
 using Rpg.Presentation.World;
 using Rpg.Definitions.Battle.Audio;
 using Rpg.Application.Battle;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
@@ -19,23 +20,45 @@ internal static partial class BattleHitFeedbackRegressionCases
 {
 internal static void WorldSiteHoverSummaryUsesLocalResourcesAndForceCounts()
 {
-    StrategicWorldDefinition definition = BuildResourceDisplayNameTestDefinition();
-    StrategicWorldDefinitionQueries queries = new(definition);
-    StrategicWorldState state = BuildResourceDisplayNameTestState();
-    WorldSiteState site = state.SiteStates[StrategicWorldIds.SiteBonefield];
-    site.LocalResources.Set(StrategicWorldIds.ResourcePopulation, 5);
-    site.LocalResources.Reserve(StrategicWorldIds.ResourcePopulation, 2, "bonefield:test", "test");
-    site.LocalResources.Set(StrategicWorldIds.ResourceEconomy, 8);
-    site.LocalResources.Set(StrategicWorldIds.ResourceStone, 12);
-    site.Garrison.Add(new GarrisonState { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 4 });
-    site.Garrison.Add(new GarrisonState { UnitTypeId = FirstSliceHeroCompanyIds.ShieldHeroUnit, Count = 1 });
+    WorldSiteDefinition siteDefinition = new()
+    {
+        Id = "test_city_site",
+        DisplayName = "Legacy Name"
+    };
+    StrategicManagementDashboardViewModel dashboard = new()
+    {
+        SelectedLocation = new StrategicLocationDashboardViewModel
+        {
+            LocationId = "city_test",
+            DisplayName = "Test Quarry",
+            CanManageCity = true
+        },
+        SelectedCity = new StrategicCityManagementViewModel
+        {
+            ReserveForces = 12,
+            CityForceCapacity = 20,
+            HeroCompanies =
+            {
+                new StrategicHeroCompanyViewModel { HeroId = "hero_a" },
+                new StrategicHeroCompanyViewModel { HeroId = "hero_b" },
+                new StrategicHeroCompanyViewModel { HeroId = "hero_c" }
+            }
+        },
+        Resources =
+        {
+            new StrategicResourceViewModel { ResourceId = "money", DisplayName = "Money", Amount = 10 },
+            new StrategicResourceViewModel { ResourceId = "food", DisplayName = "Food", Amount = 7 }
+        }
+    };
 
-    WorldSiteDefinition siteDefinition = queries.GetSite(StrategicWorldIds.SiteBonefield);
-    WorldSiteHoverSummaryData summary = WorldSiteHoverSummaryPresenter.Build(queries, siteDefinition, site);
+    WorldSiteHoverSummaryData summary = WorldSiteHoverSummaryPresenter.Build(siteDefinition, dashboard);
 
     AssertEqual("Test Quarry", summary.Title, "hover summary title should use configured site display name");
-    AssertEqual("Labor 3/5　Coin 8　Granite 12", summary.ResourceText, "hover summary should use local resources and configured resource labels");
-    AssertEqual("兵团 4　英雄 1", summary.ForceText, "hover summary should count non-hero troops separately from heroes");
+    AssertEqual("Food 7  Money 10", summary.ResourceText, "hover summary should use strategic management dashboard assets");
+    AssertTrue(
+        summary.ForceText.Contains("12/20", StringComparison.Ordinal) &&
+        summary.ForceText.Contains("3", StringComparison.Ordinal),
+        "hover summary should show city reserve capacity and current hero-company count from strategic management");
 }
 
 internal static void WorldSiteHoverSummaryStaysInsideViewport()

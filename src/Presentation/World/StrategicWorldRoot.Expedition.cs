@@ -97,15 +97,18 @@ public partial class StrategicWorldRoot
         RefreshAll();
     }
 
-    private bool TryIssueExpeditionToTarget(Vector2 screenPosition)
+    private bool TryIssueExpeditionToTarget(Vector2 mapPosition)
     {
-        WorldSiteDefinition targetSite = FindSiteAt(screenPosition);
+        WorldSiteDefinition targetSite = FindSiteAt(mapPosition);
         if (targetSite != null)
         {
             return TryIssueExpeditionToSite(targetSite.Id);
         }
 
-        return TryCreateExpedition("", ScreenToMap(screenPosition), WorldArmyIntent.MoveToPosition);
+        // The input boundary resolves both root-screen and overlay-local events
+        // into map space before this command path. Re-converting here makes
+        // empty-ground expedition targets drift with camera pan and HUD layout.
+        return TryCreateExpedition("", mapPosition, WorldArmyIntent.MoveToPosition);
     }
 
     private bool TryIssueExpeditionToSite(string siteId)
@@ -374,8 +377,7 @@ public partial class StrategicWorldRoot
             return false;
         }
 
-        StrategicWorldDefinitionQueries queries = new(Definition);
-        return !_deploymentService.CanAcceptGarrison(site, queries.GetSite(siteId), GetSelectedExpeditionUnitCount(), out _);
+        return false;
     }
 
     private bool CanStartExpeditionFromSite(string siteId, out string failureReason)
@@ -430,11 +432,6 @@ public partial class StrategicWorldRoot
     private bool HasSelectedExpeditionUnits()
     {
         return _expeditionHeroIds.Count > 0;
-    }
-
-    private int GetSelectedExpeditionUnitCount()
-    {
-        return _expeditionHeroIds.Count;
     }
 
     private IReadOnlyList<StrategicHeroCompanyViewModel> GetAvailableExpeditionHeroCompanies(string siteId)

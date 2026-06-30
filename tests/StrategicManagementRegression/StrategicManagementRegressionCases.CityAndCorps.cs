@@ -170,6 +170,45 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(0, city.ReserveForces, "reserve should not change");
     }
 
+    internal static void RecruitCorpsForHeroCreatesAndBindsNewCorpsWhileReturningOldCorpsToCity()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicHeroState hero = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander];
+        string oldCorpsInstanceId = hero.AssignedCorpsInstanceId;
+        int beforeReserve = city.ReserveForces;
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+        int beforeCorpsCount = state.CorpsInstances.Count;
+
+        StrategicCommandResult result = InvokeRecruitCorpsForHero(
+            commands,
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            StrategicManagementIds.CorpsCavalryLine);
+
+        AssertTrue(result.Success, $"hero-directed recruitment should succeed, got {result.FailureReason}");
+        AssertTrue(state.CorpsInstances.ContainsKey(result.CreatedEntityId), "hero-directed recruitment should create a durable corps instance");
+        AssertEqual(beforeCorpsCount + 1, state.CorpsInstances.Count, "hero-directed recruitment should add exactly one corps instance");
+        AssertEqual(result.CreatedEntityId, hero.AssignedCorpsInstanceId, "selected hero should lead the newly recruited corps");
+
+        StrategicCorpsInstanceState oldCorps = state.CorpsInstances[oldCorpsInstanceId];
+        AssertEqual("", oldCorps.AssignedHeroId, "replaced corps should return to the city instead of staying on the hero");
+        AssertEqual(StrategicCorpsInstanceStatus.Garrisoned, oldCorps.Status, "replaced corps should become an unassigned garrison corps");
+
+        StrategicCorpsInstanceState newCorps = state.CorpsInstances[result.CreatedEntityId];
+        AssertEqual(StrategicManagementIds.CorpsCavalryLine, newCorps.CorpsDefinitionId, "new corps should use the selected corps definition");
+        AssertEqual(StrategicManagementIds.HeroOrdinaryCommander, newCorps.AssignedHeroId, "new corps should reference the selected hero");
+        AssertEqual(StrategicCorpsInstanceStatus.AssignedToHero, newCorps.Status, "new corps should start bound to the selected hero");
+        AssertEqual(beforeReserve - definitions.Corps[StrategicManagementIds.CorpsCavalryLine].SoldierCapacityCost, city.ReserveForces, "hero recruitment should consume reserve soldiers once");
+        AssertEqual(beforeMoney - 45, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "hero recruitment should consume selected corps money cost");
+        AssertEqual(beforeFood - 30, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "hero recruitment should consume selected corps food cost");
+        AssertTrue(result.Events.Any(item => item.Kind == "StrategicCorpsRecruitedForHero"), "hero recruitment should emit a low-noise event");
+    }
+
     internal static void ReplenishCorpsConsumesResourcesReserveAndRestoresStrength()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
@@ -220,6 +259,68 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(40, corps.Strength, "failed replenishment must not change strength");
         AssertEqual(0, city.ReserveForces, "failed replenishment must not change reserve");
         AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "failed replenishment must not spend resources");
+    }
+
+    internal static void ManualConscriptionConsumesResourcesAndCreatesReserveSoldiers()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        int beforeReserve = city.ReserveForces;
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+
+        StrategicCommandResult result = InvokeManualConscriptReserveForces(
+            commands,
+            state,
+            StrategicManagementIds.LocationPlainsCity);
+
+        AssertTrue(result.Success, $"manual conscription should succeed, got {result.FailureReason}");
+        AssertEqual(beforeReserve + 10, city.ReserveForces, "manual conscription should add one accepted reserve-soldier batch");
+        AssertEqual(beforeMoney - 15, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "manual conscription should spend the higher money cost");
+        AssertEqual(beforeFood - 20, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "manual conscription should spend the higher food cost");
+        AssertTrue(
+            result.Events.Any(item => item.Kind == "StrategicCityReserveForcesManuallyConscripted"),
+            "manual conscription should emit a low-noise reserve-soldier event");
+    }
+
+    internal static void ManualConscriptionFailureLeavesResourcesAndReserveUnchanged()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementRules rules = new(definitions);
+        StrategicManagementCommandService commands = new(definitions, rules);
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        city.ReserveForces = city.CityForceCapacity - rules.GetActiveForces(state, city.LocationId);
+        int beforeReserve = city.ReserveForces;
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+
+        StrategicCommandResult full = InvokeManualConscriptReserveForces(
+            commands,
+            state,
+            StrategicManagementIds.LocationPlainsCity);
+
+        AssertTrue(!full.Success, "manual conscription should fail when the city lacks full-batch reserve capacity");
+        AssertEqual(StrategicFailureReasons.CityForceCapacityFull, full.FailureReason, "manual conscription capacity failure should be explicit");
+        AssertEqual(beforeReserve, city.ReserveForces, "capacity failure must not change reserve soldiers");
+        AssertEqual(beforeMoney, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "capacity failure must not spend money");
+        AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "capacity failure must not spend food");
+
+        city.ReserveForces = 0;
+        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney, 0);
+        beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+        StrategicCommandResult insufficientResources = InvokeManualConscriptReserveForces(
+            commands,
+            state,
+            StrategicManagementIds.LocationPlainsCity);
+
+        AssertTrue(!insufficientResources.Success, "manual conscription should fail without resources");
+        AssertEqual(StrategicFailureReasons.InsufficientResources, insufficientResources.FailureReason, "manual conscription resource failure should be explicit");
+        AssertEqual(0, city.ReserveForces, "resource failure must not change reserve soldiers");
+        AssertEqual(0, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "resource failure must not change money");
+        AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "resource failure must not spend food");
     }
 
     internal static void AssignCorpsToHeroRecordsAptitudeWithoutRandomFailure()

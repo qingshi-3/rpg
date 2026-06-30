@@ -38,25 +38,35 @@ public partial class StrategicWorldRoot
 
         if (site.OwnerFactionId == State.PlayerFactionId)
         {
-            int incomingSlots = selectedArmies.Sum(army => _deploymentService.GetArmyGarrisonSlotUsage(army));
-            if (!_deploymentService.CanAcceptGarrison(site, siteDefinition, incomingSlots, out string failureReason))
+            bool hasStrategicExpeditionCarrier = HasSelectedStrategicExpeditionCarrier(selectedArmies);
+            if (hasStrategicExpeditionCarrier &&
+                !TrySyncStrategicExpeditionCommand(selectedArmies, siteDefinition.Id, WorldArmyIntent.ReinforceSite))
             {
-                StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason(failureReason);
-                GameLog.Info(nameof(StrategicWorldRoot), $"WorldArmyCommandReinforceRejected site={siteId} reason={failureReason} incoming={incomingSlots}");
                 RefreshAll();
                 return true;
+            }
+
+            // Strategic expedition carriers are movement adapters; city station writes belong to Strategic Management.
+            // Only legacy world armies should consume legacy WorldSite garrison capacity here.
+            WorldArmyState[] legacyGarrisonArmies = hasStrategicExpeditionCarrier
+                ? selectedArmies.Where(army => string.IsNullOrWhiteSpace(army?.StrategicExpeditionId)).ToArray()
+                : selectedArmies;
+            if (legacyGarrisonArmies.Length > 0)
+            {
+                int incomingSlots = legacyGarrisonArmies.Sum(army => _deploymentService.GetArmyGarrisonSlotUsage(army));
+                if (!_deploymentService.CanAcceptGarrison(site, siteDefinition, incomingSlots, out string failureReason))
+                {
+                    StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason(failureReason);
+                    GameLog.Info(nameof(StrategicWorldRoot), $"WorldArmyCommandReinforceRejected site={siteId} reason={failureReason} incoming={incomingSlots}");
+                    RefreshAll();
+                    return true;
+                }
             }
 
             Vector2 approachFrom = GetAverageArmyPosition(selectedArmies);
             if (!TryResolveSiteArmyNavigationPoint(siteDefinition.Id, approachFrom, out Vector2 siteArmyPosition, out Vector2 siteArrivalOffset, out WorldSiteAttackDirection siteApproachDirection, out string siteNavigationFailureReason))
             {
                 ReportWorldArmyCommandNavigationRejected("reinforce_site", siteNavigationFailureReason);
-                return true;
-            }
-
-            if (!TrySyncStrategicExpeditionCommand(selectedArmies, siteDefinition.Id, WorldArmyIntent.ReinforceSite))
-            {
-                RefreshAll();
                 return true;
             }
 
@@ -147,6 +157,11 @@ public partial class StrategicWorldRoot
         StrategicWorldRuntime.LastNotice = $"已命令 {selectedArmies.Length} 支小队进攻 {siteDefinition.DisplayName}。";
         RefreshAll();
         return true;
+    }
+
+    private static bool HasSelectedStrategicExpeditionCarrier(IEnumerable<WorldArmyState> armies)
+    {
+        return armies != null && armies.Any(army => !string.IsNullOrWhiteSpace(army?.StrategicExpeditionId));
     }
 
     private bool TrySyncStrategicExpeditionCommand(

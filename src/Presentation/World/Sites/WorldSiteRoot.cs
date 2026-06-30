@@ -43,6 +43,9 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	public NodePath MapRootPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/MapRoot");
 
 	[Export]
+	public NodePath CityBuildingRootPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/CityBuildingRoot");
+
+	[Export]
 	public NodePath UnitRootPath { get; set; } = new("MainWorldViewportHost/MainWorldViewport/UnitRoot");
 
 	[Export]
@@ -66,9 +69,13 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	[Export]
 	public PackedScene FieldInterceptMapScene { get; set; }
 
+	[Export]
+	public PackedScene StrategicCityBuildingMapEntityScene { get; set; }
+
 	private Node _mapRoot;
 	private Control _mainWorldViewportHost;
 	private SubViewport _mainWorldViewport;
+	private Node2D _cityBuildingRoot;
 	private BattleUnitRoot _unitRoot;
 	private Node _activeSiteMap;
 	private BattleGridMap _activeGridMap;
@@ -99,16 +106,24 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattleRuntimeHeroFramePresenter _battleRuntimeHeroFramePresenter;
 	private Button _battleRuntimeRegroupButton;
 	private Button _siteBuildTabButton;
+	private Button _siteConscriptionTabButton;
 	private Button _siteRecruitTabButton;
 	private Button _siteCorpsTabButton;
 	private Button _siteOverviewTabButton;
 	private Control _siteBuildSection;
-	private Control _siteRecruitSection;
+	private Control _siteConscriptionSection;
 	private Control _siteCorpsSection;
 	private Control _siteOverviewSection;
+	private Control _militaryWorkbenchPanel;
+	private VBoxContainer _militaryHeroList;
+	private GridContainer _militaryMusterGrid;
+	private Label _militaryHeroSummaryLabel;
+	private Label _militaryNoticeLabel;
+	private Button _militaryBackButton;
+	private Button _militaryCloseButton;
 	private Label _siteBuildingBuildTitle;
 	private GridContainer _siteBuildingOptionGrid;
-	private VBoxContainer _siteRecruitList;
+	private VBoxContainer _siteConscriptionList;
 	private Control _siteMinimapHost;
 	private Control _battlePreparationRosterDock;
 	private VBoxContainer _battlePreparationRosterList;
@@ -124,11 +139,14 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattlePreparationObjectiveThumbnail _battlePreparationObjectiveThumbnail;
 	private Button _returnMapButton;
 	private BattleObjectiveMapDialog _battleObjectiveMapDialog;
+	private PostBattleSettlementDialog _postBattleSettlementDialog;
 	private VBoxContainer _siteBuildingList;
 	private VBoxContainer _siteGarrisonList;
 	private StrategicManagementDashboardPanelBinder _strategicManagementDashboardPanelBinder;
+	private StrategicMilitaryWorkbenchBinder _strategicMilitaryWorkbenchBinder;
 	private readonly BattleObjectivePlanningHudBinder _battleObjectivePlanningHudBinder = new();
 	private readonly BattlePreparationHudBinder _battlePreparationHudBinder = new();
+	private readonly Dictionary<string, StrategicCityBuildingMapEntity> _cityBuildingEntities = new();
 	private readonly Dictionary<string, Node2D> _sitePlacementEntities = new();
 	private SemanticMapMarkerExtractionResult _semanticMapMarkers = new();
 	private WorldSiteRuntimeDeploymentCache _deploymentCache;
@@ -144,8 +162,15 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private WorldSiteBattleGroupRuntimeResolveResult _activeBattleGroupRuntimeResolution;
 	private string _siteHudReturnScenePath = "";
 	private string _siteHudSiteId = "";
+	private string _postBattleSettlementReturnScenePath = "";
+	private string _postBattleSettlementSiteId = "";
+	private BattleOutcome _postBattleSettlementOutcome = BattleOutcome.None;
+	private BattleStartRequest _postBattleSettlementRequest;
+	private WorldActionResult _postBattleSettlementApplyResult;
+	private bool _postBattleSettlementDialogOpen;
 	private string _selectedPlacementId = "";
 	private string _selectedStrategicBuildingDefinitionId = "";
+	private string _selectedMilitaryWorkbenchHeroId = "";
 	private BattleCorpsCommand _selectedBattleCorpsCommand = BattleCorpsCommand.Assault;
 	private string _selectedBattleRuntimeGroupKey = "";
 	private SiteManagementSection _selectedSiteManagementSection = SiteManagementSection.Build;
@@ -250,7 +275,48 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 			return true;
 		}
 
-		return BattleSessionHandoff.TryPeekActiveRequest(out request);
+		return TryPeekLegacyNonStrategicBattleRequest(out request);
+	}
+
+	private static bool TryPeekLegacyNonStrategicBattleRequest(out BattleStartRequest request)
+	{
+		if (!BattleSessionHandoff.TryPeekActiveRequest(out request))
+		{
+			return false;
+		}
+
+		if (!IsStrategicBattleRequest(request))
+		{
+			return true;
+		}
+
+		// Strategic battle requests are valid only through StrategicBattleActiveContext.
+		// A lone legacy handoff here means a previous bridge transition leaked state.
+		ClearLegacyStrategicBattleHandoff("stale_strategic_legacy_request");
+		request = null;
+		return false;
+	}
+
+	private static bool IsStrategicBattleRequest(BattleStartRequest request)
+	{
+		return request != null &&
+			   (!string.IsNullOrWhiteSpace(request.StrategicBattleSessionId) ||
+				!string.IsNullOrWhiteSpace(request.StrategicExpeditionId) ||
+				!string.IsNullOrWhiteSpace(request.StrategicSourceLocationId) ||
+				!string.IsNullOrWhiteSpace(request.StrategicTargetLocationId));
+	}
+
+	private static void ClearLegacyStrategicBattleHandoff(string reason)
+	{
+		if (!BattleSessionHandoff.HasActiveLaunch)
+		{
+			return;
+		}
+
+		BattleSessionHandoff.CancelBattle();
+		GameLog.Warn(
+			nameof(WorldSiteRoot),
+			$"StaleLegacyStrategicBattleHandoffCleared reason={reason ?? ""}");
 	}
 
 	private bool HasActiveBattleLaunch()
@@ -264,6 +330,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		{
 			StrategicBattleActiveContextStore.Clear(reason);
 			_activeStrategicBattleContext = null;
+			ClearLegacyStrategicBattleHandoff(reason);
 			return;
 		}
 
@@ -282,6 +349,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 		ResolveMainWorldViewportNodes();
 		_mapRoot = GetNode<Node>(MapRootPath);
+		_cityBuildingRoot = GetNodeOrNull<Node2D>(CityBuildingRootPath);
 		_unitRoot = GetNodeOrNull<BattleUnitRoot>(UnitRootPath);
 		_highlightOverlay = GetNodeOrNull<BattleGridHighlightOverlay>(HighlightOverlayPath);
 		_deploymentZoneOverlay = GetNodeOrNull<BattleDeploymentZoneOverlay>(DeploymentZoneOverlayPath);
@@ -305,7 +373,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 		GameLog.Info(
 			nameof(WorldSiteRoot),
-			$"Ready mapRoot={_mapRoot?.GetPath()} unitRoot={_unitRoot?.GetPath()} highlight={_highlightOverlay != null}");
+			$"Ready mapRoot={_mapRoot?.GetPath()} cityBuildingRoot={_cityBuildingRoot?.GetPath()} unitRoot={_unitRoot?.GetPath()} highlight={_highlightOverlay != null}");
 
 		LoadConfiguredSiteMap();
 		_isBattlePreparationActive = hasActiveBattleLaunch;
@@ -534,7 +602,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		}
 
 		Rect2 worldViewportRect = ResolveMainWorldViewportRect();
-		bool reserveUiWorkspace = _siteHudRoot?.Visible == true;
+		bool reserveUiWorkspace = ShouldReserveSiteHudWorkspace();
 
 		// The site/battle map is a separate world viewport. HUD and modal UI stay on
 		// the outer CanvasLayer, so root mouse positions must cross this boundary.
@@ -564,12 +632,20 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 			return new Rect2(Vector2.Zero, rootViewportSize);
 		}
 
-		if (_siteHudRoot?.Visible == true)
+		if (ShouldReserveSiteHudWorkspace())
 		{
 			return ResolveWorldSiteHudViewportRect(rootViewportSize);
 		}
 
 		return ResolveAuthoredMainWorldViewportRect(rootViewportSize);
+	}
+
+	private bool ShouldReserveSiteHudWorkspace()
+	{
+		return _siteHudRoot?.Visible == true &&
+		       !_postBattleSettlementDialogOpen &&
+		       !IsBattleRuntimeHudActive() &&
+		       !(_isBattlePreparationActive && !_battleRuntimeEnabled);
 	}
 
 	private Rect2 ResolveWorldSiteHudViewportRect(Vector2 rootViewportSize)

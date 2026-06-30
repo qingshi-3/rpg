@@ -134,6 +134,20 @@ internal static void StrategicWorldSelectionContextClearsExpeditionDraft()
         "the explicit cancel button should use the same expedition draft cleanup path");
 }
 
+internal static void StrategicWorldSiteSelectionClearsArmySelection()
+{
+    string rootSource = ReadStrategicWorldRootSource();
+    string selectSiteBody = ExtractMethodBody(rootSource, "private void SelectSite(string siteId)");
+    string opportunityBody = ExtractMethodBody(rootSource, "private void SelectOpportunity(string opportunityId)");
+
+    AssertTrue(
+        selectSiteBody.Contains("_selectedArmyIds.Clear();", StringComparison.Ordinal),
+        "clicking a city/site on the large map should clear selected world armies so army highlight state does not remain active behind the site panel");
+    AssertTrue(
+        opportunityBody.Contains("_selectedArmyIds.Clear();", StringComparison.Ordinal),
+        "opportunity selection should keep clearing selected world armies as the existing selection-state pattern");
+}
+
 private static bool CreateExpedition(
     WorldExpeditionService service,
     StrategicWorldState state,

@@ -45,11 +45,108 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(result.Success, $"battle result summary should apply, got {result.FailureReason}");
         AssertEqual(StrategicManagementIds.FactionPlayer, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].OwnerFactionId, "victory should transfer target location to player control");
         AssertEqual(StrategicLocationControlState.PlayerHeld, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].ControlState, "victory should mark target location player-held");
+        AssertTrue(state.Cities.ContainsKey(StrategicManagementIds.LocationBonefieldOutpost), "victory target should have managed city state available for post-battle management");
         AssertEqual(StrategicExpeditionStatus.Resolved, state.Expeditions[expeditionId].Status, "victory should resolve the expedition");
         AssertEqual("", state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].CurrentExpeditionId, "victory should unlock the hero from active expedition");
         AssertEqual("", state.CorpsInstances[corpsId].CurrentExpeditionId, "victory should unlock the corps from active expedition");
         AssertEqual(72, state.CorpsInstances[corpsId].Strength, "victory should write remaining corps strength");
         AssertEqual(StrategicCorpsInstanceStatus.AssignedToHero, state.CorpsInstances[corpsId].Status, "surviving corps should return to assigned hero status");
+    }
+
+    internal static void StrategicBattleVictoryStationsSurvivingCompaniesAtCapturedCity()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementRules rules = new(definitions);
+        StrategicManagementCommandService commands = new(definitions, rules);
+        StrategicManagementViewModelService viewModels = new(definitions, rules);
+        string[] heroIds =
+        {
+            StrategicManagementIds.HeroOrdinaryCommander,
+            StrategicManagementIds.HeroArcherCaptain,
+            StrategicManagementIds.HeroCavalryCaptain
+        };
+        string ordinaryCorpsId = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].AssignedCorpsInstanceId;
+        string archerCorpsId = state.Heroes[StrategicManagementIds.HeroArcherCaptain].AssignedCorpsInstanceId;
+        string cavalryCorpsId = state.Heroes[StrategicManagementIds.HeroCavalryCaptain].AssignedCorpsInstanceId;
+        StrategicCommandResult expedition = commands.CreateExpedition(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicExpeditionIntent.AssaultLocation,
+            heroIds);
+        AssertTrue(expedition.Success, $"multi-company expedition should be created, got {expedition.FailureReason}");
+
+        StrategicManagementDashboardViewModel sourceWhileMoving = viewModels.BuildDashboard(
+            state,
+            StrategicManagementIds.FactionPlayer,
+            StrategicManagementIds.LocationPlainsCity);
+        AssertEqual(0, sourceWhileMoving.SelectedCity.HeroCompanies.Count, "source city should not expose companies already committed to an expedition");
+
+        StrategicBattleBridgeService bridge = new(definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            state,
+            expedition.CreatedEntityId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        BattleStartRequest request = new()
+        {
+            RequestId = "request_station_survivors",
+            BattleKind = BattleKind.AssaultSite
+        };
+        foreach (string heroId in heroIds)
+        {
+            StrategicHeroState hero = state.Heroes[heroId];
+            StrategicCorpsInstanceState corps = state.CorpsInstances[hero.AssignedCorpsInstanceId];
+            request.PlayerForces.Add(new BattleForceRequest
+            {
+                ForceId = $"{heroId}:hero",
+                UnitDefinitionId = definitions.Heroes[hero.HeroDefinitionId].BattleUnitId,
+                Count = 1
+            });
+            request.PlayerForces.Add(new BattleForceRequest
+            {
+                ForceId = $"{corps.CorpsInstanceId}:corps",
+                UnitDefinitionId = definitions.Corps[corps.CorpsDefinitionId].BattleUnitId,
+                Count = definitions.Corps[corps.CorpsDefinitionId].BattleUnitCount
+            });
+        }
+        bridge.AttachSessionToLegacyRequest(session, request);
+        StrategicBattleActiveContext context = BuildCompletedActiveContext(
+            bridge,
+            state,
+            session,
+            request,
+            BattleOutcome.Victory,
+            participant => participant.HeroId == StrategicManagementIds.HeroCavalryCaptain
+                ? 0
+                : ResolveParticipantInitialCount(request, participant));
+        StrategicBattleResultSummary summary = bridge.BuildResultSummary(context);
+
+        StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
+
+        AssertTrue(result.Success, $"victory result should apply, got {result.FailureReason}");
+        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, state.CorpsInstances[ordinaryCorpsId].HomeCityId, "surviving ordinary corps should station at the captured city");
+        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, state.CorpsInstances[archerCorpsId].HomeCityId, "surviving archer corps should station at the captured city");
+        AssertEqual("", state.CorpsInstances[cavalryCorpsId].HomeCityId, "routed cavalry corps should not auto-return to the source city or station at the captured city");
+        AssertEqual(StrategicCorpsInstanceStatus.Routed, state.CorpsInstances[cavalryCorpsId].Status, "zero-strength participant should remain routed");
+
+        StrategicManagementDashboardViewModel sourceAfterVictory = viewModels.BuildDashboard(
+            state,
+            StrategicManagementIds.FactionPlayer,
+            StrategicManagementIds.LocationPlainsCity);
+        StrategicManagementDashboardViewModel targetAfterVictory = viewModels.BuildDashboard(
+            state,
+            StrategicManagementIds.FactionPlayer,
+            StrategicManagementIds.LocationBonefieldOutpost);
+        AssertEqual(0, sourceAfterVictory.SelectedCity.HeroCompanies.Count, "source city should not regain companies that are now stationed at the captured city");
+        AssertTrue(
+            targetAfterVictory.SelectedCity.HeroCompanies.Any(company => company.HeroId == StrategicManagementIds.HeroOrdinaryCommander) &&
+            targetAfterVictory.SelectedCity.HeroCompanies.Any(company => company.HeroId == StrategicManagementIds.HeroArcherCaptain),
+            "captured city should expose surviving stationed companies as dispatchable");
+        AssertTrue(
+            !targetAfterVictory.SelectedCity.HeroCompanies.Any(company => company.HeroId == StrategicManagementIds.HeroCavalryCaptain),
+            "captured city should not expose routed participants as dispatchable");
     }
 
     internal static void StrategicBattleResultSummaryRejectsMissingRuntimeActorOutcomes()
@@ -163,7 +260,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(feedback.WorldChangeText.Contains("控制", StringComparison.Ordinal), "feedback should explain the world control change");
         AssertTrue(feedback.GetType().GetProperty("PreparationText") == null, "victory feedback should not carry strategic preparation text");
         AssertTrue(feedback.RewardLines.Any(line => line.Contains("占领", StringComparison.Ordinal) || line.Contains("获得", StringComparison.Ordinal)), "victory feedback should show a strategic reward or occupation gain");
-        AssertTrue(feedback.RewardLines.Any(line => line.Contains("白骨号角", StringComparison.Ordinal)), "victory feedback should name the gained equipment sample");
+        AssertTrue(feedback.RewardLines.Any(line => line.Contains("前哨号角", StringComparison.Ordinal)), "victory feedback should name the gained equipment sample");
         AssertEqual(3, feedback.EquipmentSamples.Count, "first slice should expose weapon, armor, and token equipment samples");
         AssertTrue(feedback.EquipmentSamples.Any(item => item.SlotKind == "weapon"), "equipment sample set should include a weapon");
         AssertTrue(feedback.EquipmentSamples.Any(item => item.SlotKind == "armor"), "equipment sample set should include armor");
@@ -230,7 +327,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual("summary-world-change", feedback.WorldChangeText, "feedback should use summary world change fact");
         AssertEqual("summary-progression", feedback.ProgressionText, "feedback should use summary progression fact");
         AssertTrue(feedback.RewardLines.Contains("summary:no_target_reward"), "feedback should use summary reward lines");
-        AssertTrue(!feedback.RewardLines.Any(line => line.Contains("鐧介鍙疯", StringComparison.Ordinal)), "feedback should not name target-definition reward equipment");
+        AssertTrue(!feedback.RewardLines.Any(line => line.Contains("前哨号角", StringComparison.Ordinal)), "feedback should not name target-definition reward equipment");
     }
 
     internal static void StrategicBattleResultRecordsDefeatFeedbackAndRecoveryReason()
@@ -315,7 +412,7 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationBonefieldOutpost);
 
         AssertEqual(result.CreatedEntityId, dashboard.LatestBattleFeedback.FeedbackId, "dashboard should expose latest feedback for the selected battle target");
-        AssertTrue(dashboard.LatestBattleFeedback.RewardLines.Any(line => line.Contains("白骨号角", StringComparison.Ordinal)), "dashboard feedback should show reward equipment text");
+        AssertTrue(dashboard.LatestBattleFeedback.RewardLines.Any(line => line.Contains("前哨号角", StringComparison.Ordinal)), "dashboard feedback should show reward equipment text");
         AssertTrue(dashboard.LatestBattleFeedback.HeroFeedback.Any(item => item.ReactionText.Contains("曦盾执旗者", StringComparison.Ordinal)), "dashboard feedback should show named hero reaction");
         AssertTrue(dashboard.LatestBattleFeedback.EquipmentSamples.Any(item => item.IsReward), "dashboard feedback should expose which equipment sample was gained");
     }

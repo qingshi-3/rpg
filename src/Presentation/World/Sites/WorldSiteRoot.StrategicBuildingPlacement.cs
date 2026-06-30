@@ -119,6 +119,7 @@ public partial class WorldSiteRoot
         {
             _selectedStrategicBuildingDefinitionId = "";
             ClearStrategicBuildingPlacementPreview();
+            StrategicManagementRuntime.SaveCurrentState();
         }
 
         HandleStrategicManagementCommandResult("建设建筑", result);

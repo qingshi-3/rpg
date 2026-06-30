@@ -5,6 +5,9 @@ namespace Rpg.Application.StrategicManagement;
 
 public static class StrategicManagementRuntime
 {
+    public const string DefaultSavePath = "user://saves/strategic_management_autosave.json";
+    private static readonly StrategicManagementStateInvariantService Invariants = new();
+
     public static StrategicManagementDefinitionSet Definitions { get; private set; }
     public static StrategicManagementState State { get; private set; }
     public static StrategicManagementRules Rules { get; private set; }
@@ -12,6 +15,7 @@ public static class StrategicManagementRuntime
     public static StrategicWorldTimeflowController Timeflow { get; private set; }
     public static StrategicManagementViewModelService ViewModels { get; private set; }
     public static StrategicManagementMapSiteResolver LocationMappings { get; private set; }
+    public static StrategicManagementSaveService SaveService { get; private set; }
 
     public static void EnsureInitialized()
     {
@@ -21,8 +25,10 @@ public static class StrategicManagementRuntime
             Commands != null &&
             Timeflow != null &&
             ViewModels != null &&
-            LocationMappings != null)
+            LocationMappings != null &&
+            SaveService != null)
         {
+            Invariants.RepairAll(State);
             return;
         }
 
@@ -33,6 +39,8 @@ public static class StrategicManagementRuntime
         Timeflow = new StrategicWorldTimeflowController(Commands);
         ViewModels = new StrategicManagementViewModelService(Definitions, Rules);
         LocationMappings = new StrategicManagementMapSiteResolver(Definitions);
+        SaveService = new StrategicManagementSaveService();
+        Invariants.RepairAll(State);
     }
 
     public static void Reset()
@@ -44,6 +52,22 @@ public static class StrategicManagementRuntime
         Timeflow = new StrategicWorldTimeflowController(Commands);
         ViewModels = new StrategicManagementViewModelService(Definitions, Rules);
         LocationMappings = new StrategicManagementMapSiteResolver(Definitions);
+        SaveService = new StrategicManagementSaveService();
+        Invariants.RepairAll(State);
+    }
+
+    public static void SaveCurrentState(string path = DefaultSavePath)
+    {
+        EnsureInitialized();
+        Invariants.RepairAll(State);
+        SaveService.Save(State, path);
+    }
+
+    public static void LoadSavedState(string path = DefaultSavePath)
+    {
+        EnsureInitialized();
+        State = SaveService.Load(path);
+        Invariants.RepairAll(State);
     }
 
     public static StrategicManagementDashboardViewModel BuildDashboard(string factionId, string cityId)

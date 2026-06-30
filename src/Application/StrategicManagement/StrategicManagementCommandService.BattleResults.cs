@@ -31,7 +31,8 @@ public sealed partial class StrategicManagementCommandService
         }
 
         expedition.Status = StrategicExpeditionStatus.Resolved;
-        ApplyParticipantBattleResults(state, expedition, summary);
+        string capturedCityId = ResolveCapturedCityForSurvivingParticipants(state, expedition, targetLocation, victory);
+        ApplyParticipantBattleResults(state, expedition, summary, capturedCityId);
         StrategicBattleFeedbackRecord feedback = BuildBattleFeedbackRecord(
             state,
             expedition,
@@ -471,16 +472,36 @@ public sealed partial class StrategicManagementCommandService
         };
     }
 
+    private static string ResolveCapturedCityForSurvivingParticipants(
+        StrategicManagementState state,
+        StrategicExpeditionState expedition,
+        StrategicLocationState targetLocation,
+        bool victory)
+    {
+        if (!victory ||
+            state == null ||
+            expedition == null ||
+            targetLocation == null ||
+            !state.Cities.ContainsKey(targetLocation.LocationId) ||
+            !string.Equals(targetLocation.OwnerFactionId, expedition.FactionId, System.StringComparison.Ordinal))
+        {
+            return "";
+        }
+
+        return targetLocation.LocationId;
+    }
+
     private static void ApplyParticipantBattleResults(
         StrategicManagementState state,
         StrategicExpeditionState expedition,
-        StrategicBattleResultSummary summary)
+        StrategicBattleResultSummary summary,
+        string capturedCityId)
     {
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
         {
             StrategicBattleParticipantResult result = summary.Participants.First(item =>
                 string.Equals(item.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
-            UnlockExpeditionParticipant(state, expedition, participant, result);
+            UnlockExpeditionParticipant(state, expedition, participant, result, capturedCityId);
         }
     }
 }

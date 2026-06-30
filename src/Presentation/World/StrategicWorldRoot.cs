@@ -137,7 +137,6 @@ public partial class StrategicWorldRoot : Control
 	private TileMapLayer _strategicNavigationTileLayer;
 	private StrategicWorldFogOverlay _fogOverlay;
 	private StrategicNavigationContext _strategicNavigationContext = StrategicNavigationContext.CreateUnavailable("strategic_navigation_not_configured");
-	private Label _resourceLabel;
 	private Label _worldClockLabel;
 	private Label _noticeLabel;
 	private TextureButton _worldClockToggleButton;

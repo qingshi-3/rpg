@@ -34,6 +34,9 @@ public partial class StrategicWorldRoot
         }
 
         ClearExpeditionDraftSelectionContext("site_selected");
+        // Site detail selection is exclusive with world-army selection; otherwise
+        // selected army highlights remain active behind the city/site panel.
+        _selectedArmyIds.Clear();
         _selectedSiteId = siteId;
         _selectedOpportunityId = "";
         RefreshAll();

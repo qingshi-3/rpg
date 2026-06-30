@@ -97,12 +97,15 @@ public partial class StrategicWorldRoot
         WorldTickResult tickResult = _worldTickService.AdvanceWorldTick(State, Definition);
         List<string> messages = new() { $"大地图结算完成：{tickResult.WorldTick}。" };
         messages.AddRange(tickResult.Messages);
-        // The legacy world clock still drives map cadence, but durable strategic
-        // elapsed-time effects belong to Strategic Management commands.
+        // The legacy world clock still drives map cadence, but elapsed strategic
+        // effects mutate launch-session memory only here. Save policy belongs to
+        // a save coordinator/autosave boundary, not this high-frequency tick loop.
         StrategicCommandResult strategicSettlement = StrategicManagementRuntime.SettleElapsedWorldTime(1);
         if (strategicSettlement.Success)
         {
-            if (strategicSettlement.Events.Any(item => item.Kind == "StrategicLocationProductionSettled"))
+            ShowStrategicProductionFeedback(strategicSettlement);
+            if (strategicSettlement.Events.Any(item =>
+                    item.Kind is "StrategicLocationProductionSettled" or "StrategicCityBuildingProductionSettled"))
             {
                 messages.Add("战略经营产出已结算。");
             }
@@ -173,6 +176,8 @@ public partial class StrategicWorldRoot
             return false;
         }
 
+        ApplyArrivedStrategicReinforcements(result);
+
         if (result.ArrivedArmyIds.Count > 0 || result.Messages.Count > 0)
         {
             StrategicWorldRuntime.LastNotice = result.Messages.Count > 0 ? string.Join("\n", result.Messages) : $"部队已抵达目标：{string.Join("，", result.ArrivedArmyIds)}。";
@@ -183,6 +188,51 @@ public partial class StrategicWorldRoot
         RefreshStrategicFog();
         QueueStrategicOverlayRedraw();
         return true;
+    }
+
+    private void ApplyArrivedStrategicReinforcements(WorldArmyMovementResult movementResult)
+    {
+        if (movementResult?.ArrivedArmyIds == null || movementResult.ArrivedArmyIds.Count == 0)
+        {
+            return;
+        }
+
+        foreach (string armyId in movementResult.ArrivedArmyIds.ToArray())
+        {
+            if (!State.ArmyStates.TryGetValue(armyId, out WorldArmyState army) ||
+                army.Intent != WorldArmyIntent.ReinforceSite ||
+                string.IsNullOrWhiteSpace(army.StrategicExpeditionId))
+            {
+                continue;
+            }
+
+            StrategicCommandResult strategicResult = StrategicManagementRuntime.Commands.CompleteExpeditionArrival(
+                StrategicManagementRuntime.State,
+                army.StrategicExpeditionId);
+            if (!strategicResult.Success)
+            {
+                string reason = FormatStrategicExpeditionFailureReason(strategicResult.FailureReason);
+                movementResult.Messages.Add(reason);
+                GameLog.Warn(
+                    nameof(StrategicWorldRoot),
+                    $"StrategicExpeditionArrivalRejected army={army.ArmyId} expedition={army.StrategicExpeditionId} reason={strategicResult.FailureReason}");
+                continue;
+            }
+
+            StrategicManagementRuntime.SaveCurrentState();
+            WorldArmyCommandResult carrierResult = _armyCommandService.RemoveResolvedStrategicExpeditionCarrier(
+                State.ArmyStates,
+                army.ArmyId,
+                army.StrategicExpeditionId,
+                "reinforce_arrived");
+            if (!carrierResult.Success)
+            {
+                movementResult.Messages.Add(WorldActionResolver.FormatFailureReason(carrierResult.FailureReason));
+                GameLog.Warn(
+                    nameof(StrategicWorldRoot),
+                    $"StrategicExpeditionArrivalCarrierCleanupRejected army={army.ArmyId} expedition={army.StrategicExpeditionId} reason={carrierResult.FailureReason}");
+            }
+        }
     }
 
     private void RestoreWorldClockAfterSiteReturn()

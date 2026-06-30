@@ -18,6 +18,7 @@ public static class GameUiSceneFactory
     public const string BattleRuntimeHeroSwitchButtonScenePath = "res://scenes/world/ui/BattleRuntimeHeroSwitchButton.tscn";
     public const string BattleRuntimeSkillSlotScenePath = "res://scenes/world/ui/BattleRuntimeSkillSlot.tscn";
     public const string PreBattleDialogScenePath = "res://scenes/world/ui/PreBattleDialog.tscn";
+    public const string PostBattleSettlementDialogScenePath = "res://scenes/world/ui/PostBattleSettlementDialog.tscn";
     public const string WorldSiteHitButtonScenePath = "res://scenes/world/ui/WorldSiteHitButton.tscn";
     public const string WorldSiteNameBadgeScenePath = "res://scenes/world/ui/WorldSiteNameBadge.tscn";
     public const string WorldSiteHoverSummaryPanelScenePath = "res://scenes/world/ui/WorldSiteHoverSummaryPanel.tscn";
@@ -26,7 +27,10 @@ public static class GameUiSceneFactory
     public const string WorldSecondaryActionButtonScenePath = "res://scenes/world/ui/WorldSecondaryActionButton.tscn";
     public const string WorldCompactMarkerButtonScenePath = "res://scenes/world/ui/WorldCompactMarkerButton.tscn";
     public const string WorldBuildingOptionCardScenePath = "res://scenes/world/ui/WorldBuildingOptionCard.tscn";
+    public const string WorldMusterOptionCardScenePath = "res://scenes/world/ui/WorldMusterOptionCard.tscn";
+    public const string WorldMilitaryHeroCardScenePath = "res://scenes/world/ui/WorldMilitaryHeroCard.tscn";
     public const string WorldExpeditionCountRowScenePath = "res://scenes/world/ui/WorldExpeditionCountRow.tscn";
+    public const string WorldResourceFloatTextScenePath = "res://scenes/world/ui/WorldResourceFloatText.tscn";
     public const string WorldOpportunityDetailPanelScenePath = "res://scenes/world/ui/WorldOpportunityDetailPanel.tscn";
     public const string BattleIntentMarkerScenePath = "res://scenes/battle/intents/BattleIntentMarker.tscn";
     public const string BattleDamageNumberScenePath = "res://scenes/battle/feedback/BattleDamageNumber.tscn";
@@ -104,6 +108,11 @@ public static class GameUiSceneFactory
         return Instantiate<StrategicBattleGateDialog>(PreBattleDialogScenePath, ownerName);
     }
 
+    public static PostBattleSettlementDialog CreatePostBattleSettlementDialog(string ownerName)
+    {
+        return Instantiate<PostBattleSettlementDialog>(PostBattleSettlementDialogScenePath, ownerName);
+    }
+
     public static Label CreateWorldMutedLine(string ownerName)
     {
         return Instantiate<Label>(WorldMutedLineScenePath, ownerName);
@@ -129,9 +138,24 @@ public static class GameUiSceneFactory
         return Instantiate<WorldBuildingOptionCard>(WorldBuildingOptionCardScenePath, ownerName);
     }
 
+    public static WorldMusterOptionCard CreateWorldMusterOptionCard(string ownerName)
+    {
+        return Instantiate<WorldMusterOptionCard>(WorldMusterOptionCardScenePath, ownerName);
+    }
+
+    public static WorldMilitaryHeroCard CreateWorldMilitaryHeroCard(string ownerName)
+    {
+        return Instantiate<WorldMilitaryHeroCard>(WorldMilitaryHeroCardScenePath, ownerName);
+    }
+
     public static HBoxContainer CreateWorldExpeditionCountRow(string ownerName)
     {
         return Instantiate<HBoxContainer>(WorldExpeditionCountRowScenePath, ownerName);
+    }
+
+    public static WorldResourceFloatText CreateWorldResourceFloatText(string ownerName)
+    {
+        return Instantiate<WorldResourceFloatText>(WorldResourceFloatTextScenePath, ownerName);
     }
 
     public static BattleIntentMarker CreateBattleIntentMarker(string ownerName)

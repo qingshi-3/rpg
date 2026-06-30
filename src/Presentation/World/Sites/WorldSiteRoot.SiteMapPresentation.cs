@@ -3,10 +3,13 @@ using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Maps;
+using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.Battle;
 using Rpg.Definitions.Maps;
+using Rpg.Definitions.StrategicManagement;
 using Rpg.Definitions.World;
 using Rpg.Domain.Battle.Grid;
+using Rpg.Domain.StrategicManagement;
 using Rpg.Domain.World;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle;
@@ -19,8 +22,11 @@ namespace Rpg.Presentation.World.Sites;
 
 public partial class WorldSiteRoot
 {
+    private const string StrategicCityBuildingMapEntityScenePath = "res://scenes/world/sites/StrategicCityBuildingMapEntity.tscn";
+
     private void RefreshSiteMapEntities(WorldSiteState site, WorldSiteDefinition definition)
     {
+        RefreshStrategicCityBuildingEntities();
         ClearChildren(_sitePlacementEntityRoot);
         _sitePlacementEntities.Clear();
         ClearBattleEntities();
@@ -33,6 +39,16 @@ public partial class WorldSiteRoot
         if (_unitRoot == null)
         {
             GameLog.Warn(nameof(WorldSiteRoot), $"Cannot rebuild site management units because UnitRoot is missing site={site.SiteId}");
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"SiteManagementInteractionsRebuilt site={site.SiteId} placements={site.UnitPlacements.Count} animated=0 canInteract={CanOpenSiteDetail(site)}");
+            return;
+        }
+
+        bool legacyPlacementsVisible = ShouldRenderLegacySitePlacementUnits(site);
+        if (!legacyPlacementsVisible)
+        {
+            _unitRoot.Visible = false;
             GameLog.Info(
                 nameof(WorldSiteRoot),
                 $"SiteManagementInteractionsRebuilt site={site.SiteId} placements={site.UnitPlacements.Count} animated=0 canInteract={CanOpenSiteDetail(site)}");
@@ -66,6 +82,160 @@ public partial class WorldSiteRoot
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"SiteManagementInteractionsRebuilt site={site.SiteId} placements={site.UnitPlacements.Count} animated={animatedCount} canInteract={CanOpenSiteDetail(site)}");
+    }
+
+    private bool ShouldRenderLegacySitePlacementUnits(WorldSiteState site)
+    {
+        if (site == null)
+        {
+            return false;
+        }
+
+        if (_isBattlePreparationActive || _battleRuntimeEnabled)
+        {
+            return true;
+        }
+
+        // Managed-city peacetime corps ownership comes from Strategic Management.
+        // Legacy WorldSite placements are battle/deployment cache, not city garrison truth.
+        if (CanOpenManagedCityDetail(_siteHudSiteId))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private void RefreshStrategicCityBuildingEntities()
+    {
+        // Confirmed buildings are a Strategic Management read model here; this
+        // presentation layer must never become a second construction authority.
+        ClearChildren(_cityBuildingRoot);
+        _cityBuildingEntities.Clear();
+        if (_cityBuildingRoot == null ||
+            string.IsNullOrWhiteSpace(_siteHudSiteId) ||
+            _coordinateLayer == null ||
+            !TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
+        {
+            return;
+        }
+
+        StrategicManagementRuntime.EnsureInitialized();
+        if (!StrategicManagementRuntime.State.Cities.TryGetValue(cityId, out StrategicCityState city))
+        {
+            return;
+        }
+
+        PackedScene entityScene = ResolveStrategicCityBuildingMapEntityScene();
+        if (entityScene == null)
+        {
+            GameLog.Warn(nameof(WorldSiteRoot), "Cannot render strategic city buildings because building entity scene is missing.");
+            return;
+        }
+
+        int renderedCount = 0;
+        foreach (StrategicBuildingInstanceState building in city.Buildings)
+        {
+            if (building == null ||
+                !StrategicManagementRuntime.Definitions.Buildings.TryGetValue(
+                    building.BuildingDefinitionId ?? "",
+                    out StrategicBuildingDefinition definition))
+            {
+                GameLog.Warn(
+                    nameof(WorldSiteRoot),
+                    $"Strategic city building render skipped because definition is missing instance={building?.BuildingInstanceId ?? ""} definition={building?.BuildingDefinitionId ?? ""}");
+                continue;
+            }
+
+            if (!TryBuildStrategicBuildingDrawRect(building, definition, out Rect2 drawRect))
+            {
+                GameLog.Warn(
+                    nameof(WorldSiteRoot),
+                    $"Strategic city building render skipped because footprint is unavailable instance={building.BuildingInstanceId} grid={building.GridX},{building.GridY}");
+                continue;
+            }
+
+            Node instance = entityScene.Instantiate();
+            if (instance is not StrategicCityBuildingMapEntity entity)
+            {
+                instance?.QueueFree();
+                GameLog.Warn(nameof(WorldSiteRoot), "Strategic city building entity scene root is not StrategicCityBuildingMapEntity.");
+                continue;
+            }
+
+            string instanceId = building.BuildingInstanceId ?? "";
+            entity.Name = $"{NormalizeNodeName(instanceId)}CityBuilding";
+            Texture2D texture = string.IsNullOrWhiteSpace(definition.IconPath)
+                ? null
+                : GD.Load<Texture2D>(definition.IconPath);
+            entity.SetBuilding(
+                instanceId,
+                definition.DisplayName,
+                texture,
+                drawRect);
+            _cityBuildingRoot.AddChild(entity);
+            _cityBuildingEntities[instanceId] = entity;
+            renderedCount++;
+        }
+
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"StrategicCityBuildingsRebuilt site={_siteHudSiteId} city={cityId} buildings={city.Buildings.Count} rendered={renderedCount}");
+    }
+
+    private PackedScene ResolveStrategicCityBuildingMapEntityScene()
+    {
+        StrategicCityBuildingMapEntityScene ??= GD.Load<PackedScene>(StrategicCityBuildingMapEntityScenePath);
+        return StrategicCityBuildingMapEntityScene;
+    }
+
+    private bool TryBuildStrategicBuildingDrawRect(
+        StrategicBuildingInstanceState building,
+        StrategicBuildingDefinition definition,
+        out Rect2 rect)
+    {
+        rect = default;
+        if (building == null || definition == null)
+        {
+            return false;
+        }
+
+        IReadOnlyList<GridPosition> footprintCells = BuildStrategicBuildingFootprintCells(
+            new GridPosition(building.GridX, building.GridY),
+            new Vector2I(
+                System.Math.Max(1, definition.FootprintWidth),
+                System.Math.Max(1, definition.FootprintHeight)));
+        return TryBuildPolygonBounds(footprintCells.Select(BuildCellPolygonGlobal), out rect);
+    }
+
+    private static bool TryBuildPolygonBounds(
+        IEnumerable<Vector2[]> polygons,
+        out Rect2 rect)
+    {
+        rect = default;
+        Vector2[] points = (polygons ?? System.Array.Empty<Vector2[]>())
+            .SelectMany(polygon => polygon ?? System.Array.Empty<Vector2>())
+            .ToArray();
+        if (points.Length == 0)
+        {
+            return false;
+        }
+
+        float minX = points.Min(point => point.X);
+        float minY = points.Min(point => point.Y);
+        float maxX = points.Max(point => point.X);
+        float maxY = points.Max(point => point.Y);
+        rect = new Rect2(minX, minY, maxX - minX, maxY - minY);
+        return rect.Size.X > 0.001f && rect.Size.Y > 0.001f;
+    }
+
+    private static string NormalizeNodeName(string value)
+    {
+        string normalized = string.IsNullOrWhiteSpace(value) ? "Strategic" : value.Trim();
+        return normalized
+            .Replace(':', '_')
+            .Replace('-', '_')
+            .Replace(' ', '_');
     }
 
     private void ExtractSemanticMapMarkers(string mapId)

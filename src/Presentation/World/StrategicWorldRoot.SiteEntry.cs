@@ -49,14 +49,13 @@ public partial class StrategicWorldRoot
     private bool CanEnterSelectedSiteDetail(out string failureReason)
     {
         failureReason = "";
-        if (string.IsNullOrWhiteSpace(_selectedSiteId) || !State.SiteStates.TryGetValue(_selectedSiteId, out WorldSiteState site))
+        if (!TryBuildSelectedStrategicLocationDashboard(out StrategicManagementDashboardViewModel dashboard))
         {
             failureReason = "missing_site";
             return false;
         }
 
-        if (site.OwnerFactionId != State.PlayerFactionId ||
-            site.ControlState is not (SiteControlState.PlayerHeld or SiteControlState.Damaged))
+        if (!dashboard.SelectedLocation.CanManageCity)
         {
             failureReason = "site_not_owned";
             return false;
@@ -65,11 +64,39 @@ public partial class StrategicWorldRoot
         return true;
     }
 
-    private bool CanShowSelectedSiteDetailEntry(WorldSiteState site)
+    private bool CanShowSelectedSiteDetailEntry()
     {
-        return site != null &&
-               site.OwnerFactionId == State.PlayerFactionId &&
-               site.ControlState is SiteControlState.PlayerHeld or SiteControlState.Damaged;
+        return TryBuildSelectedStrategicLocationDashboard(out StrategicManagementDashboardViewModel dashboard) &&
+               dashboard.SelectedLocation.CanManageCity;
+    }
+
+    private bool TryBuildSelectedStrategicLocationDashboard(out StrategicManagementDashboardViewModel dashboard)
+    {
+        return TryBuildStrategicLocationDashboardForMapSite(_selectedSiteId, out dashboard);
+    }
+
+    private static bool TryBuildStrategicLocationDashboardForMapSite(
+        string mapSiteId,
+        out StrategicManagementDashboardViewModel dashboard)
+    {
+        dashboard = null;
+        if (string.IsNullOrWhiteSpace(mapSiteId))
+        {
+            return false;
+        }
+
+        // Large-map management actions must read Strategic Management ownership.
+        // WorldSiteState is only a legacy map/scene cache and may lag after conquest.
+        StrategicManagementRuntime.EnsureInitialized();
+        if (!StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(mapSiteId, out string locationId))
+        {
+            return false;
+        }
+
+        dashboard = StrategicManagementRuntime.BuildLocationDashboard(
+            StrategicManagementIds.FactionPlayer,
+            locationId);
+        return true;
     }
 
     private bool TryGetSelectedArrivedAssaultArmy(out WorldArmyState army)

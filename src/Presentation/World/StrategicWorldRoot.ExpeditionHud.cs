@@ -13,10 +13,6 @@ public partial class StrategicWorldRoot
 {
     private bool RefreshExpeditionControls()
     {
-        WorldSiteState selectedSite = State.SiteStates.TryGetValue(_selectedSiteId, out WorldSiteState site)
-            ? site
-            : null;
-
         if (_isExpeditionDrafting)
         {
             ClampExpeditionDraftCounts();
@@ -52,7 +48,11 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        if (CanShowSelectedSiteDetailEntry(selectedSite))
+        bool handledStrategicLocationActions = TryBuildSelectedStrategicLocationDashboard(
+            out StrategicManagementDashboardViewModel selectedLocationDashboard) &&
+            selectedLocationDashboard.SelectedLocation.IsCity;
+
+        if (CanShowSelectedSiteDetailEntry())
         {
             bool canEnter = CanEnterSelectedSiteDetail(out string enterFailureReason);
             Button enterButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
@@ -87,8 +87,7 @@ public partial class StrategicWorldRoot
             expeditionButton.Pressed += BeginExpeditionDraft;
             _actionList.AddChild(expeditionButton);
         }
-        else if (selectedSite?.OwnerFactionId == State.PlayerFactionId &&
-                 selectedSite.ControlState is SiteControlState.PlayerHeld or SiteControlState.Damaged)
+        else if (selectedLocationDashboard?.SelectedLocation.CanManageCity == true)
         {
             Button expeditionButton = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicWorldRoot));
             if (expeditionButton == null)
@@ -102,7 +101,12 @@ public partial class StrategicWorldRoot
             _actionList.AddChild(expeditionButton);
         }
 
-        return false;
+        if (handledStrategicLocationActions && _actionList.GetChildCount() == 0)
+        {
+            AddMutedLine(_actionList, "该地点暂未开放玩家经营。");
+        }
+
+        return handledStrategicLocationActions;
     }
 
     private string BuildSelectedDefaultCorpsText()

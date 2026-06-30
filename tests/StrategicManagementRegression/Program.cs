@@ -3,9 +3,14 @@ System.Environment.SetEnvironmentVariable(
     Path.Combine(Path.GetTempPath(), "rpg-strategic-management-tests"));
 
 Run("strategic management foundation building definitions load from config", StrategicManagementRegressionCases.StrategicManagementFoundationBuildingDefinitionsLoadFromConfig);
+Run("strategic management foundation content uses module config authority", StrategicManagementRegressionCases.StrategicManagementFoundationContentUsesModuleConfigAuthority);
+Run("strategic management config rejects invalid resource amount lists", StrategicManagementRegressionCases.StrategicManagementConfigRejectsInvalidResourceAmountLists);
 Run("strategic management foundation resources replace obsolete first-loop resources", StrategicManagementRegressionCases.StrategicManagementFoundationResourcesReplaceObsoleteFirstLoopResources);
 Run("strategic management state initializes without legacy world state", StrategicManagementRegressionCases.StrategicManagementStateInitializesWithoutLegacyWorldState);
+Run("strategic management state saves and loads foundation city mutations", StrategicManagementRegressionCases.StrategicManagementStateSavesAndLoadsFoundationCityMutations);
+Run("strategic management runtime repairs captured city company ownership on load", StrategicManagementRegressionCases.StrategicManagementRuntimeRepairsCapturedCityCompanyOwnershipOnLoad);
 Run("first city initializes construction regions reserve and force capacity", StrategicManagementRegressionCases.FirstCityInitializesConstructionRegionsReserveAndForceCapacity);
+Run("first city initializes conscription policy off", StrategicManagementRegressionCases.FirstCityInitializesConscriptionPolicyOff);
 Run("first playable starts with three dispatchable hero companies", StrategicManagementRegressionCases.FirstPlayableStartsWithThreeDispatchableHeroCompanies);
 Run("strategic management resolves map site ids without silent city fallback", StrategicManagementRegressionCases.StrategicManagementResolvesMapSiteIdsWithoutSilentCityFallback);
 Run("strategic management has no strategic battle preparation choice system", StrategicManagementRegressionCases.StrategicManagementHasNoStrategicBattlePreparationChoiceSystem);
@@ -16,11 +21,16 @@ Run("build city building consumes resources and records placement", StrategicMan
 Run("build city building rejects invalid placement without mutation", StrategicManagementRegressionCases.BuildCityBuildingRejectsInvalidPlacementWithoutMutation);
 Run("create corps consumes resources reserve and creates persistent corps instance", StrategicManagementRegressionCases.CreateCorpsConsumesResourcesReserveAndCreatesPersistentCorpsInstance);
 Run("create corps failure leaves resources reserve and corps list unchanged", StrategicManagementRegressionCases.CreateCorpsFailureLeavesResourcesReserveAndCorpsListUnchanged);
+Run("recruit corps for hero creates and binds new corps while returning old corps to city", StrategicManagementRegressionCases.RecruitCorpsForHeroCreatesAndBindsNewCorpsWhileReturningOldCorpsToCity);
 Run("replenish corps consumes resources reserve and restores strength", StrategicManagementRegressionCases.ReplenishCorpsConsumesResourcesReserveAndRestoresStrength);
 Run("replenish corps failure leaves resources reserve and strength unchanged", StrategicManagementRegressionCases.ReplenishCorpsFailureLeavesResourcesReserveAndStrengthUnchanged);
+Run("manual conscription consumes resources and creates reserve soldiers", StrategicManagementRegressionCases.ManualConscriptionConsumesResourcesAndCreatesReserveSoldiers);
+Run("manual conscription failure leaves resources and reserve unchanged", StrategicManagementRegressionCases.ManualConscriptionFailureLeavesResourcesAndReserveUnchanged);
 Run("assign corps to hero records aptitude without random failure", StrategicManagementRegressionCases.AssignCorpsToHeroRecordsAptitudeWithoutRandomFailure);
 Run("create expedition locks assigned hero company", StrategicManagementRegressionCases.CreateExpeditionLocksAssignedHeroCompany);
 Run("create expedition locks selected hero companies", StrategicManagementRegressionCases.CreateExpeditionLocksSelectedHeroCompanies);
+Run("reinforce arrival stations expedition at owned target city", StrategicManagementRegressionCases.ReinforceArrivalStationsExpeditionAtOwnedTargetCity);
+Run("retarget moving expedition can reinforce departure city", StrategicManagementRegressionCases.RetargetMovingExpeditionCanReinforceDepartureCity);
 Run("create expedition rejects hero without assigned corps", StrategicManagementRegressionCases.CreateExpeditionRejectsHeroWithoutAssignedCorps);
 Run("strategic battle bridge creates assault session from expedition", StrategicManagementRegressionCases.StrategicBattleBridgeCreatesAssaultSessionFromExpedition);
 Run("strategic battle bridge creates session for all expedition participants", StrategicManagementRegressionCases.StrategicBattleBridgeCreatesSessionForAllExpeditionParticipants);
@@ -37,6 +47,7 @@ Run("strategic battle result summary omits strategic preparation feedback", Stra
 Run("strategic battle bridge maps duplicate battle unit participants by participant identity", StrategicManagementRegressionCases.StrategicBattleBridgeMapsDuplicateBattleUnitParticipantsByParticipantIdentity);
 Run("strategic battle bridge snapshot preserves strategic participant identity", StrategicManagementRegressionCases.StrategicBattleBridgeSnapshotPreservesStrategicParticipantIdentity);
 Run("strategic battle result summary applies victory consequences", StrategicManagementRegressionCases.StrategicBattleResultSummaryAppliesVictoryConsequences);
+Run("strategic battle victory stations surviving companies at captured city", StrategicManagementRegressionCases.StrategicBattleVictoryStationsSurvivingCompaniesAtCapturedCity);
 Run("strategic battle result records reward hero feedback and equipment sample", StrategicManagementRegressionCases.StrategicBattleResultRecordsRewardHeroFeedbackAndEquipmentSample);
 Run("strategic battle explicit summary consequences override target definition rewards", StrategicManagementRegressionCases.StrategicBattleExplicitSummaryConsequencesOverrideTargetDefinitionRewards);
 Run("strategic battle result records defeat feedback and recovery reason", StrategicManagementRegressionCases.StrategicBattleResultRecordsDefeatFeedbackAndRecoveryReason);
@@ -55,10 +66,14 @@ Run("strategic battle bridge rejects location without battle entry metadata", St
 Run("strategic management dashboard summarizes city resources buildings reserve corps and heroes", StrategicManagementRegressionCases.StrategicManagementDashboardSummarizesCityResourcesBuildingsReserveCorpsAndHeroes);
 Run("strategic management dashboard exposes dispatchable hero companies", StrategicManagementRegressionCases.StrategicManagementDashboardExposesDispatchableHeroCompanies);
 Run("strategic management dashboard reflects foundation command mutations", StrategicManagementRegressionCases.StrategicManagementDashboardReflectsFoundationCommandMutations);
+Run("strategic management dashboard separates conscription from corps recruitment", StrategicManagementRegressionCases.StrategicManagementDashboardSeparatesConscriptionFromCorpsRecruitment);
 Run("strategic management dashboard summarizes non-city location", StrategicManagementRegressionCases.StrategicManagementDashboardSummarizesNonCityLocation);
 Run("strategic management settles controlled resource site production", StrategicManagementRegressionCases.StrategicManagementSettlesControlledResourceSiteProduction);
 Run("strategic management uses elapsed world time naming instead of step naming", StrategicManagementRegressionCases.StrategicManagementUsesElapsedWorldTimeNamingInsteadOfStepNaming);
-Run("strategic management settles elapsed world time without city building effects", StrategicManagementRegressionCases.StrategicManagementSettlesElapsedWorldTimeWithoutCityBuildingEffects);
+Run("strategic management settles elapsed world time with city economy building production", StrategicManagementRegressionCases.StrategicManagementSettlesElapsedWorldTimeWithCityEconomyBuildingProduction);
+Run("strategic management settles low auto conscription during elapsed world time", StrategicManagementRegressionCases.StrategicManagementSettlesLowAutoConscriptionDuringElapsedWorldTime);
+Run("strategic management standard auto conscription requires training ground", StrategicManagementRegressionCases.StrategicManagementStandardAutoConscriptionRequiresTrainingGround);
+Run("strategic management auto conscription skips without resources or capacity", StrategicManagementRegressionCases.StrategicManagementAutoConscriptionSkipsWithoutResourcesOrCapacity);
 Run("strategic management elapsed world time skips enemy held production", StrategicManagementRegressionCases.StrategicManagementElapsedWorldTimeSkipsEnemyHeldProduction);
 Run("strategic management elapsed world time rejects invalid pulse count without mutation", StrategicManagementRegressionCases.StrategicManagementElapsedWorldTimeRejectsInvalidPulseCountWithoutMutation);
 Run("strategic management runtime blocks elapsed time while city management paused", StrategicManagementRegressionCases.StrategicManagementRuntimeBlocksElapsedTimeWhileCityManagementPaused);

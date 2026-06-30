@@ -1,0 +1,45 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/build_inventory_preview_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/WorldMilitaryHeroCard.cs" id="2_card_script"]
+
+[node name="WorldMilitaryHeroCard" type="Button"]
+custom_minimum_size = Vector2(220, 74)
+size_flags_horizontal = 3
+focus_mode = 2
+toggle_mode = true
+theme = ExtResource("1_theme")
+theme_type_variation = &"WorldBuildingOptionCard"
+script = ExtResource("2_card_script")
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 8.0
+offset_right = -12.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="NameLabel" type="Label" parent="Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.33, 0.17, 0.08, 1)
+theme_override_font_sizes/font_size = 17
+text = "英雄"
+clip_text = true
+
+[node name="CorpsLabel" type="Label" parent="Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.44, 0.31, 0.2, 1)
+theme_override_font_sizes/font_size = 13
+text = "当前：未配置编制"
+clip_text = true

@@ -1,0 +1,50 @@
+{
+  "conscription": {
+    "manual": {
+      "reserveGain": 10,
+      "cost": [
+        { "resourceId": "resource_money", "amount": 15 },
+        { "resourceId": "resource_food", "amount": 20 }
+      ]
+    },
+    "autoIntensities": [
+      {
+        "intensityId": "conscription_off",
+        "displayName": "关闭",
+        "reserveGain": 0,
+        "cost": [],
+        "requiresTrainingGround": false
+      },
+      {
+        "intensityId": "conscription_low",
+        "displayName": "低",
+        "reserveGain": 2,
+        "cost": [
+          { "resourceId": "resource_money", "amount": 2 },
+          { "resourceId": "resource_food", "amount": 3 }
+        ],
+        "requiresTrainingGround": false
+      },
+      {
+        "intensityId": "conscription_standard",
+        "displayName": "标准",
+        "reserveGain": 6,
+        "cost": [
+          { "resourceId": "resource_money", "amount": 5 },
+          { "resourceId": "resource_food", "amount": 8 }
+        ],
+        "requiresTrainingGround": true
+      },
+      {
+        "intensityId": "conscription_high",
+        "displayName": "高",
+        "reserveGain": 10,
+        "cost": [
+          { "resourceId": "resource_money", "amount": 12 },
+          { "resourceId": "resource_food", "amount": 18 }
+        ],
+        "requiresTrainingGround": true
+      }
+    ]
+  }
+}

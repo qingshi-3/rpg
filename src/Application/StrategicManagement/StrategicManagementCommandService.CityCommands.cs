@@ -96,6 +96,70 @@ public sealed partial class StrategicManagementCommandService
         return result;
     }
 
+    public StrategicCommandResult RecruitCorpsForHero(
+        StrategicManagementState state,
+        string cityId,
+        string heroId,
+        string corpsDefinitionId)
+    {
+        string failureReason = GetRecruitCorpsForHeroFailureReason(state, cityId, heroId, corpsDefinitionId);
+        if (!string.IsNullOrWhiteSpace(failureReason))
+        {
+            return Reject("RecruitCorpsForHero", heroId, failureReason);
+        }
+
+        StrategicCityState city = state.Cities[cityId ?? ""];
+        StrategicLocationState location = state.Locations[city.LocationId];
+        StrategicHeroState hero = state.Heroes[heroId ?? ""];
+        StrategicCorpsDefinition definition = _definitions.Corps[corpsDefinitionId ?? ""];
+        string previousCorpsInstanceId = hero.AssignedCorpsInstanceId ?? "";
+
+        state.Spend(location.OwnerFactionId, definition.CreationCost);
+        city.ReserveForces = System.Math.Max(0, city.ReserveForces - System.Math.Max(0, definition.SoldierCapacityCost));
+
+        // Hero-directed recruitment is one strategic mutation: the previous corps
+        // returns to the city, and the newly mustered corps becomes the hero's active company.
+        if (!string.IsNullOrWhiteSpace(previousCorpsInstanceId) &&
+            state.CorpsInstances.TryGetValue(previousCorpsInstanceId, out StrategicCorpsInstanceState previousCorps))
+        {
+            previousCorps.AssignedHeroId = "";
+            previousCorps.Status = StrategicCorpsInstanceStatus.Garrisoned;
+        }
+
+        string corpsInstanceId = state.AllocateCorpsInstanceId();
+        StrategicCorpsInstanceState recruitedCorps = new()
+        {
+            CorpsInstanceId = corpsInstanceId,
+            CorpsDefinitionId = definition.CorpsDefinitionId,
+            HomeCityId = city.LocationId,
+            FactionId = location.OwnerFactionId,
+            Strength = 100,
+            Level = 1,
+            EquipmentLevel = 0,
+            Experience = 0,
+            Status = StrategicCorpsInstanceStatus.AssignedToHero,
+            AssignedHeroId = hero.HeroId
+        };
+        state.CorpsInstances[corpsInstanceId] = recruitedCorps;
+        hero.AssignedCorpsInstanceId = recruitedCorps.CorpsInstanceId;
+        StrategicHeroCorpsAptitudeGrade aptitude = _rules.EvaluateHeroCorpsAptitude(state, hero.HeroId, definition.CorpsDefinitionId);
+
+        StrategicCommandResult result = StrategicCommandResult.Ok(city.LocationId, hero.HeroId, corpsInstanceId, previousCorpsInstanceId);
+        result.CreatedEntityId = corpsInstanceId;
+        result.AptitudeGrade = aptitude;
+        result.Events.Add(Event(
+            "StrategicCorpsRecruitedForHero",
+            corpsInstanceId,
+            ("city", city.LocationId),
+            ("hero", hero.HeroId),
+            ("corps", definition.CorpsDefinitionId),
+            ("previousCorps", previousCorpsInstanceId),
+            ("reserveSpent", definition.SoldierCapacityCost.ToString()),
+            ("aptitude", aptitude.ToString())));
+        Accept("RecruitCorpsForHero", corpsInstanceId, result);
+        return result;
+    }
+
     public StrategicCommandResult ReplenishCorps(
         StrategicManagementState state,
         string cityId,
@@ -135,6 +199,64 @@ public sealed partial class StrategicManagementCommandService
             ("reserveSpent", reserveCost.ToString()),
             ("resources", FormatResourceAmounts(resourceCost))));
         Accept("ReplenishCorps", corps.CorpsInstanceId, result);
+        return result;
+    }
+
+    public StrategicCommandResult ManualConscriptReserveForces(
+        StrategicManagementState state,
+        string cityId)
+    {
+        string failureReason = _rules.GetManualConscriptionFailureReason(state, cityId);
+        if (!string.IsNullOrWhiteSpace(failureReason))
+        {
+            return Reject("ManualConscriptReserveForces", cityId, failureReason);
+        }
+
+        StrategicCityState city = state.Cities[cityId];
+        StrategicLocationState location = state.Locations[city.LocationId];
+        int reserveGain = _rules.GetManualConscriptionReserveGain();
+        System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> cost = _rules.GetManualConscriptionCost();
+
+        state.Spend(location.OwnerFactionId, cost);
+        city.ReserveForces += reserveGain;
+
+        StrategicCommandResult result = StrategicCommandResult.Ok(city.LocationId);
+        result.ChangedFactIds.Add(city.LocationId);
+        foreach (StrategicResourceAmount amount in cost)
+        {
+            result.ChangedFactIds.Add($"{location.OwnerFactionId}:{amount.ResourceId}");
+        }
+
+        result.Events.Add(Event(
+            "StrategicCityReserveForcesManuallyConscripted",
+            city.LocationId,
+            ("reserveGain", reserveGain.ToString()),
+            ("resources", FormatResourceAmounts(cost))));
+        Accept("ManualConscriptReserveForces", city.LocationId, result);
+        return result;
+    }
+
+    public StrategicCommandResult SetAutoConscriptionIntensity(
+        StrategicManagementState state,
+        string cityId,
+        string intensityId)
+    {
+        string failureReason = _rules.GetAutoConscriptionIntensityFailureReason(state, cityId, intensityId);
+        if (!string.IsNullOrWhiteSpace(failureReason))
+        {
+            return Reject("SetAutoConscriptionIntensity", cityId, failureReason);
+        }
+
+        StrategicCityState city = state.Cities[cityId];
+        city.AutoConscriptionIntensityId = intensityId ?? StrategicManagementIds.ConscriptionOff;
+
+        StrategicCommandResult result = StrategicCommandResult.Ok(city.LocationId);
+        result.ChangedFactIds.Add(city.LocationId);
+        result.Events.Add(Event(
+            "StrategicCityAutoConscriptionPolicyChanged",
+            city.LocationId,
+            ("intensity", city.AutoConscriptionIntensityId)));
+        Accept("SetAutoConscriptionIntensity", city.LocationId, result);
         return result;
     }
 
@@ -219,5 +341,53 @@ public sealed partial class StrategicManagementCommandService
         return string.IsNullOrWhiteSpace(corps.AssignedHeroId)
             ? ""
             : StrategicFailureReasons.CorpsAlreadyAssigned;
+    }
+
+    private string GetRecruitCorpsForHeroFailureReason(
+        StrategicManagementState state,
+        string cityId,
+        string heroId,
+        string corpsDefinitionId)
+    {
+        if (state == null || !state.Cities.TryGetValue(cityId ?? "", out StrategicCityState city))
+        {
+            return StrategicFailureReasons.MissingCity;
+        }
+
+        if (!state.Locations.TryGetValue(city.LocationId, out StrategicLocationState cityLocation))
+        {
+            return StrategicFailureReasons.MissingLocation;
+        }
+
+        if (!state.Heroes.TryGetValue(heroId ?? "", out StrategicHeroState hero))
+        {
+            return StrategicFailureReasons.MissingHero;
+        }
+
+        if (!string.Equals(hero.FactionId, cityLocation.OwnerFactionId, System.StringComparison.Ordinal))
+        {
+            return StrategicFailureReasons.FactionMismatch;
+        }
+
+        if (!string.IsNullOrWhiteSpace(hero.CurrentExpeditionId))
+        {
+            return StrategicFailureReasons.HeroAlreadyOnExpedition;
+        }
+
+        if (!string.IsNullOrWhiteSpace(hero.AssignedCorpsInstanceId))
+        {
+            if (!state.CorpsInstances.TryGetValue(hero.AssignedCorpsInstanceId, out StrategicCorpsInstanceState currentCorps))
+            {
+                return StrategicFailureReasons.MissingCorpsInstance;
+            }
+
+            if (!string.IsNullOrWhiteSpace(currentCorps.CurrentExpeditionId) ||
+                currentCorps.Status == StrategicCorpsInstanceStatus.Expedition)
+            {
+                return StrategicFailureReasons.CorpsAlreadyOnExpedition;
+            }
+        }
+
+        return _rules.GetCorpsCreationFailureReason(state, city.LocationId, corpsDefinitionId);
     }
 }

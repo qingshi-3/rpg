@@ -10,7 +10,6 @@ Use this directory only after the relevant accepted authority is current. If imp
 
 | Proposal | Status | Reason Kept Active |
 |---|---|---|
-| `2026-06-20-strategic-operation-foundation-loop.md` | Reopened Cleanup - Automated Verification Passed, Manual QA Pending | Old `BuildingSlot`/Facility-slot scaffolding, direct per-building production/recovery/capacity effects, and construction-region category bans have been retired. Construction-region placement remains the accepted direction; desktop manual QA is still pending. |
 | `2026-06-19-site-map-layout-first-city.md` | Paused - Scaffold Verified, Detailed Authoring Deferred | Keeps the SMLA-001 city-map scaffold and bridge marker contract, but defers detailed TileMapLayer/map-content authoring until the operational loop is validated on `DemoSite`. |
 
 ## Archived Implementation Proposals

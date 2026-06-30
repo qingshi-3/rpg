@@ -2,7 +2,7 @@ namespace Rpg.Application.World;
 
 public static class StrategicWorldIds
 {
-    public const string DefinitionChapter01 = "chapter_01_strategic_v1";
+    public const string DefinitionDefaultSandbox = "default_sandbox_strategic_v1";
 
     public const string FactionPlayer = "player";
     public const string FactionUndead = "undead";

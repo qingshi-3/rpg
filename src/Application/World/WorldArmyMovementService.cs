@@ -266,7 +266,9 @@ public sealed class WorldArmyMovementService
     {
         army.ClearNavigationPath();
         army.ClearArrivalApproachOffset();
+        bool isStrategicExpeditionCarrier = IsStrategicExpeditionCarrier(army);
         if (army.Intent == WorldArmyIntent.ReinforceSite &&
+            !isStrategicExpeditionCarrier &&
             !_deploymentService.CanAcceptArmyGarrison(state, definition, army, out string failureReason))
         {
             army.Status = WorldArmyStatus.Idle;
@@ -307,7 +309,7 @@ public sealed class WorldArmyMovementService
             }
         });
 
-        if (army.Intent == WorldArmyIntent.ReinforceSite)
+        if (army.Intent == WorldArmyIntent.ReinforceSite && !isStrategicExpeditionCarrier)
         {
             TransferArrivedGarrison(state, definition, army, result);
         }
@@ -321,6 +323,11 @@ public sealed class WorldArmyMovementService
         GameLog.Info(
             nameof(WorldArmyMovementService),
             $"WorldArmyArrived army={army.ArmyId} owner={army.OwnerFactionId} target={army.TargetSiteId} intent={army.Intent} status={army.Status} units={FormatUnits(army.GarrisonUnits)} battleReady={result.BattleReadyArmyIds.Contains(army.ArmyId)}");
+    }
+
+    private static bool IsStrategicExpeditionCarrier(WorldArmyState army)
+    {
+        return !string.IsNullOrWhiteSpace(army?.StrategicExpeditionId);
     }
 
     private static string FormatUnits(IEnumerable<GarrisonState> units)

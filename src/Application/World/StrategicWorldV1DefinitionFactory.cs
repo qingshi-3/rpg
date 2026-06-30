@@ -18,8 +18,8 @@ public static class StrategicWorldV1DefinitionFactory
     {
         return new StrategicWorldDefinition
         {
-            Id = StrategicWorldIds.DefinitionChapter01,
-            DisplayName = "第一章：埋骨地攻防",
+            Id = StrategicWorldIds.DefinitionDefaultSandbox,
+            DisplayName = "沙盒大世界",
             StartingSiteId = StrategicWorldIds.SitePlayerCamp,
             PlayerFactionId = StrategicWorldIds.FactionPlayer,
             EnemyFactionIds = new List<string> { StrategicWorldIds.FactionUndead },
@@ -165,7 +165,7 @@ public static class StrategicWorldV1DefinitionFactory
             new()
             {
                 Id = StrategicWorldIds.SiteBonefield,
-                DisplayName = "埋骨地",
+                DisplayName = "敌方前哨",
                 SiteKind = WorldSiteKind.ResourceSite,
                 Description = "第一座可争夺资源地点，承接普通攻占战和后续战略经营开发。",
                 MapPosition = new Vector2(796, 413),
@@ -177,7 +177,7 @@ public static class StrategicWorldV1DefinitionFactory
                     new()
                     {
                         ZoneId = WorldSiteDeploymentService.DefaultGarrisonZoneId,
-                        DisplayName = "埋骨地驻军区",
+                        DisplayName = "敌方前哨驻军区",
                         ZoneKind = SiteDeploymentZoneKind.DefaultGarrison,
                         Capacity = 4,
                         Cells = new List<Vector2I>
@@ -191,8 +191,8 @@ public static class StrategicWorldV1DefinitionFactory
                 },
                 EntranceDefinitions = new List<BattleEntranceDefinition>
                 {
-                    new() { EntranceId = "main_entrance", DisplayName = "埋骨地入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.West, BattleAnchorId = "bonefield_main_entrance" },
-                    new() { EntranceId = "main_entrance_east", DisplayName = "埋骨地东侧入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.East, BattleAnchorId = "bonefield_east_entrance" },
+                    new() { EntranceId = "main_entrance", DisplayName = "敌方前哨入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.West, BattleAnchorId = "bonefield_main_entrance" },
+                    new() { EntranceId = "main_entrance_east", DisplayName = "敌方前哨东侧入口", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.East, BattleAnchorId = "bonefield_east_entrance" },
                     new() { EntranceId = "defense_post", DisplayName = "防守据点", FactionId = StrategicWorldIds.FactionPlayer, Direction = WorldSiteAttackDirection.Any, BattleAnchorId = "bonefield_defense_post", Source = "Garrison" }
                 },
                 Tags = new List<string> { "resource_site" }
@@ -413,7 +413,7 @@ public static class StrategicWorldV1DefinitionFactory
             new()
             {
                 Id = "wilderness_bonefield_outskirts",
-                DisplayName = "埋骨地外缘",
+                DisplayName = "旧战场外缘",
                 MapPosition = new Vector2(892, 400),
                 Radius = 66.0f
             },

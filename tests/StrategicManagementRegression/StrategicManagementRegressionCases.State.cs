@@ -1,5 +1,6 @@
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Application.Config;
 using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.StrategicManagement;
@@ -10,11 +11,13 @@ internal static partial class StrategicManagementRegressionCases
     internal static void StrategicManagementFoundationBuildingDefinitionsLoadFromConfig()
     {
         string root = ProjectRoot();
-        string configPath = Path.Combine(root, "config", "strategic_management", "first_slice_buildings.json");
+        string configPath = Path.Combine(root, "config", "strategic_management", "cities", "buildings_foundation.json");
+        string retiredConfigPath = Path.Combine(root, "config", "strategic_management", "first_slice_buildings.json");
         string definitionsPath = Path.Combine(root, "src", "Definitions", "StrategicManagement", "FirstStrategicManagementDefinitions.cs");
         string loaderPath = Path.Combine(root, "src", "Application", "Config", "StrategicManagementBuildingDefinitionConfigLoader.cs");
 
-        AssertTrue(File.Exists(configPath), "first-slice strategic building definitions should live under config/strategic_management");
+        AssertTrue(File.Exists(configPath), "foundation strategic building definitions should live under config/strategic_management/cities");
+        AssertTrue(!File.Exists(retiredConfigPath), "strategic building config should not remain as a root first_slice_buildings.json file");
         string configText = File.ReadAllText(configPath);
         string definitionsSource = File.ReadAllText(definitionsPath);
         string loaderSource = File.ReadAllText(loaderPath);
@@ -25,8 +28,10 @@ internal static partial class StrategicManagementRegressionCases
             configText.Contains("\"categoryId\"", StringComparison.Ordinal) &&
             configText.Contains("\"iconPath\"", StringComparison.Ordinal) &&
             configText.Contains("\"footprintWidth\"", StringComparison.Ordinal) &&
-            configText.Contains("\"buildCost\"", StringComparison.Ordinal),
-            "building config should carry ids, icons, categories, footprints, and build costs");
+            configText.Contains("\"buildCost\"", StringComparison.Ordinal) &&
+            configText.Contains("\"providedCapabilities\"", StringComparison.Ordinal) &&
+            configText.Contains("\"resourceProductionPerWorldTimePulse\"", StringComparison.Ordinal),
+            "building config should carry ids, icons, categories, footprints, build costs, and first-slice provided capabilities");
         foreach (string retiredField in new[]
         {
             "productionPerWorldTimePulse",
@@ -39,7 +44,8 @@ internal static partial class StrategicManagementRegressionCases
                 $"building config should not keep retired direct building effect field={retiredField}");
         }
         AssertTrue(
-            definitionsSource.Contains("StrategicManagementBuildingDefinitionConfigLoader.LoadDefaultBuildings", StringComparison.Ordinal) &&
+            loaderSource.Contains("res://config/strategic_management/cities/buildings_foundation.json", StringComparison.Ordinal) &&
+            definitionsSource.Contains("StrategicManagementContentConfigLoader.LoadDefaultContent", StringComparison.Ordinal) &&
             !definitionsSource.Contains("new StrategicFacilityDefinition", StringComparison.Ordinal),
             "first-slice strategic definitions should use the building config loader instead of inline facility content literals");
         AssertTrue(
@@ -51,6 +57,9 @@ internal static partial class StrategicManagementRegressionCases
             typeof(StrategicBuildingDefinition).GetProperty("IconPath") != null &&
             typeof(StrategicBuildingOptionViewModel).GetProperty("IconPath") != null,
             "building definitions and dashboard options should carry a Presentation icon path for the RTS-style build picker");
+        AssertTrue(
+            typeof(StrategicBuildingDefinition).GetProperty("ProvidedCapabilities") != null,
+            "building definitions should expose a thin provided-capability object instead of retired direct scalar fields");
         foreach (string retiredProperty in new[]
         {
             "ProductionPerWorldTimePulse",
@@ -95,6 +104,172 @@ internal static partial class StrategicManagementRegressionCases
                 $"building icon atlas region must not reuse a whole multi-building sheet id={building.BuildingDefinitionId}");
         }
         AssertEqual(StrategicManagementIds.BuildingCategoryEconomy, farm.CategoryId, "farm should be an economy building");
+        object capabilities = GetRequiredProperty<object>(farm, "ProvidedCapabilities");
+        IReadOnlyCollection<StrategicResourceAmount> production =
+            GetRequiredProperty<IReadOnlyCollection<StrategicResourceAmount>>(capabilities, "ResourceProductionPerWorldTimePulse");
+        AssertEqual(
+            8,
+            FindStrategicAmount(production, StrategicManagementIds.ResourceFood),
+            "farm should provide first-slice food production through building capabilities");
+    }
+
+    internal static void StrategicManagementFoundationContentUsesModuleConfigAuthority()
+    {
+        string root = ProjectRoot();
+        string configRoot = Path.Combine(root, "config", "strategic_management");
+        string definitionsPath = Path.Combine(root, "src", "Definitions", "StrategicManagement", "FirstStrategicManagementDefinitions.cs");
+        string rulesPath = Path.Combine(root, "src", "Application", "StrategicManagement", "StrategicManagementRules.cs");
+        string loaderDir = Path.Combine(root, "src", "Application", "Config");
+
+        foreach (string requiredPath in new[]
+        {
+            Path.Combine(configRoot, "economy", "resources.json"),
+            Path.Combine(configRoot, "economy", "conscription_policies.json"),
+            Path.Combine(configRoot, "cities", "buildings_foundation.json"),
+            Path.Combine(configRoot, "military", "corps_common.json")
+        })
+        {
+            AssertTrue(File.Exists(requiredPath), $"Strategic Management foundation content should be split by module path={requiredPath}");
+        }
+
+        foreach (string forbiddenDirectory in new[]
+        {
+            Path.Combine(configRoot, "packs"),
+            Path.Combine(configRoot, "content_sets")
+        })
+        {
+            AssertTrue(!Directory.Exists(forbiddenDirectory), $"first version should not introduce content-pack directories path={forbiddenDirectory}");
+        }
+
+        string definitionsSource = File.ReadAllText(definitionsPath);
+        string rulesSource = File.ReadAllText(rulesPath);
+        string configLoaderSource = string.Join(
+            "\n",
+            Directory.GetFiles(loaderDir, "StrategicManagement*.cs", SearchOption.AllDirectories)
+                .OrderBy(path => path)
+                .Select(File.ReadAllText));
+
+        AssertTrue(
+            configLoaderSource.Contains("StrategicManagementContentConfigLoader", StringComparison.Ordinal) &&
+            configLoaderSource.Contains("economy/resources.json", StringComparison.Ordinal) &&
+            configLoaderSource.Contains("economy/conscription_policies.json", StringComparison.Ordinal) &&
+            configLoaderSource.Contains("military/corps_common.json", StringComparison.Ordinal),
+            "Strategic Management should use one module-aware content loader for foundation resources, conscription policies, buildings, and common corps");
+        AssertTrue(
+            !definitionsSource.Contains("new StrategicResourceDefinition", StringComparison.Ordinal) &&
+            !definitionsSource.Contains("CommonCorps(", StringComparison.Ordinal),
+            "first strategic definitions should not hardcode resources or common corps cost literals in C#");
+        AssertTrue(
+            !rulesSource.Contains("new StrategicConscriptionIntensityRule(", StringComparison.Ordinal) &&
+            !rulesSource.Contains("return 10;", StringComparison.Ordinal) &&
+            typeof(StrategicManagementDefinitionSet).GetProperty("Conscription") != null,
+            "conscription gain, costs, labels, and building requirements should be content definitions consumed by rules");
+
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        AssertEqual("资金", definitions.Resources[StrategicManagementIds.ResourceMoney].DisplayName, "money display name should load from economy resource config");
+        AssertEqual(30, definitions.Corps[StrategicManagementIds.CorpsShieldLine].SoldierCapacityCost, "shield corps soldier cost should load from common corps config");
+        AssertEqual(
+            45,
+            FindStrategicAmount(definitions.Corps[StrategicManagementIds.CorpsCavalryLine].CreationCost, StrategicManagementIds.ResourceMoney),
+            "cavalry corps money cost should load from common corps config");
+
+        StrategicManagementRules rules = new(definitions);
+        AssertEqual(10, rules.GetManualConscriptionReserveGain(), "manual conscription reserve gain should still expose the accepted first value");
+        AssertEqual(15, FindStrategicAmount(rules.GetManualConscriptionCost(), StrategicManagementIds.ResourceMoney), "manual conscription money cost should load from conscription policy config");
+        StrategicConscriptionIntensityRule standard = rules.GetAutoConscriptionIntensityRules()
+            .First(item => item.IntensityId == StrategicManagementIds.ConscriptionStandard);
+        AssertTrue(standard.RequiresTrainingGround, "standard auto conscription should retain its training-ground requirement from config");
+        AssertEqual(6, standard.ReserveGain, "standard auto conscription gain should load from config");
+    }
+
+    internal static void StrategicManagementConfigRejectsInvalidResourceAmountLists()
+    {
+        string tempRoot = Path.Combine(Path.GetTempPath(), $"rpg-strategic-config-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+        string emptyBuildCostPath = Path.Combine(tempRoot, "empty_build_cost.json");
+        string duplicateBuildCostPath = Path.Combine(tempRoot, "duplicate_build_cost.json");
+        string duplicateConscriptionCostPath = Path.Combine(tempRoot, "duplicate_conscription_cost.json");
+        try
+        {
+            File.WriteAllText(
+                emptyBuildCostPath,
+                """
+                {
+                  "buildings": [
+                    {
+                      "buildingDefinitionId": "building_test",
+                      "iconPath": "res://icon.tres",
+                      "displayName": "Test Building",
+                      "categoryId": "building_category_test",
+                      "footprintWidth": 1,
+                      "footprintHeight": 1,
+                      "buildCost": []
+                    }
+                  ]
+                }
+                """);
+            File.WriteAllText(
+                duplicateBuildCostPath,
+                """
+                {
+                  "buildings": [
+                    {
+                      "buildingDefinitionId": "building_test",
+                      "iconPath": "res://icon.tres",
+                      "displayName": "Test Building",
+                      "categoryId": "building_category_test",
+                      "footprintWidth": 1,
+                      "footprintHeight": 1,
+                      "buildCost": [
+                        { "resourceId": "resource_money", "amount": 10 },
+                        { "resourceId": "resource_money", "amount": 5 }
+                      ]
+                    }
+                  ]
+                }
+                """);
+            File.WriteAllText(
+                duplicateConscriptionCostPath,
+                """
+                {
+                  "conscription": {
+                    "manual": {
+                      "reserveGain": 10,
+                      "cost": [
+                        { "resourceId": "resource_money", "amount": 15 },
+                        { "resourceId": "resource_money", "amount": 5 }
+                      ]
+                    },
+                    "autoIntensities": [
+                      {
+                        "intensityId": "conscription_off",
+                        "displayName": "Off",
+                        "reserveGain": 0,
+                        "cost": [],
+                        "requiresTrainingGround": false
+                      }
+                    ]
+                  }
+                }
+                """);
+
+            AssertThrowsInvalidOperation(
+                () => StrategicManagementBuildingDefinitionConfigLoader.LoadBuildings(emptyBuildCostPath),
+                "empty build cost should be rejected because required cost lists must be explicit");
+            AssertThrowsInvalidOperation(
+                () => StrategicManagementBuildingDefinitionConfigLoader.LoadBuildings(duplicateBuildCostPath),
+                "duplicate building build-cost resources should be rejected");
+            AssertThrowsInvalidOperation(
+                () => StrategicManagementContentConfigLoader.LoadConscription(duplicateConscriptionCostPath),
+                "duplicate conscription cost resources should be rejected");
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
     }
 
     internal static void StrategicManagementFoundationResourcesReplaceObsoleteFirstLoopResources()
@@ -130,6 +305,121 @@ internal static partial class StrategicManagementRegressionCases
         AssertNoLegacyWorldReferences(typeof(StrategicManagementState));
     }
 
+    internal static void StrategicManagementStateSavesAndLoadsFoundationCityMutations()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicConstructionRegionDefinition economy = FindRegion(definitions, StrategicManagementIds.RegionPlainsEconomy);
+
+        StrategicCommandResult build = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingFarm,
+            StrategicManagementIds.RegionPlainsEconomy,
+            economy.OriginX,
+            economy.OriginY);
+        AssertTrue(build.Success, $"setup build should succeed, got {build.FailureReason}");
+
+        string savePath = Path.Combine(Path.GetTempPath(), $"rpg-strategic-management-save-{Guid.NewGuid():N}.json");
+        try
+        {
+            StrategicManagementSaveService saveService = new();
+            saveService.Save(state, savePath);
+            AssertTrue(File.Exists(savePath), "strategic management save should write a JSON file");
+            string json = File.ReadAllText(savePath);
+            AssertTrue(
+                json.Contains("\"version\"", StringComparison.OrdinalIgnoreCase) &&
+                json.Contains(StrategicManagementIds.BuildingFarm, StringComparison.Ordinal) &&
+                !json.Contains(".tres", StringComparison.Ordinal),
+                "strategic management save should be versioned JSON state, not resource serialization");
+
+            StrategicManagementState loaded = saveService.Load(savePath);
+            StrategicCityState loadedCity = loaded.Cities[StrategicManagementIds.LocationPlainsCity];
+            StrategicBuildingInstanceState loadedBuilding = loadedCity.Buildings.Single();
+            AssertEqual(StrategicManagementIds.BuildingFarm, loadedBuilding.BuildingDefinitionId, "loaded save should keep placed building definition");
+            AssertEqual(economy.OriginX, loadedBuilding.GridX, "loaded save should keep building grid x");
+            AssertEqual(economy.OriginY, loadedBuilding.GridY, "loaded save should keep building grid y");
+            AssertEqual(
+                state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney),
+                loaded.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney),
+                "loaded save should keep spent resource amounts");
+            AssertEqual(state.NextBuildingSerial, loaded.NextBuildingSerial, "loaded save should keep next building serial");
+        }
+        finally
+        {
+            if (File.Exists(savePath))
+            {
+                File.Delete(savePath);
+            }
+        }
+
+        AssertTrue(
+            typeof(StrategicManagementRuntime).GetMethod("SaveCurrentState") != null &&
+            typeof(StrategicManagementRuntime).GetMethod("LoadSavedState") != null,
+            "strategic management runtime should expose save/load entry points without reviving legacy world save service");
+    }
+
+    internal static void StrategicManagementRuntimeRepairsCapturedCityCompanyOwnershipOnLoad()
+    {
+        var setup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService bridge = new(setup.Definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            setup.State,
+            setup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        StrategicBattleResultSummary summary = new()
+        {
+            SessionId = session.SessionId,
+            ExpeditionId = setup.ExpeditionId,
+            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            Outcome = BattleOutcome.Victory,
+            ObjectiveSucceeded = true
+        };
+        summary.Participants.Add(new StrategicBattleParticipantResult
+        {
+            HeroId = StrategicManagementIds.HeroOrdinaryCommander,
+            CorpsInstanceId = setup.CorpsInstanceId,
+            RemainingCorpsStrength = 72
+        });
+        StrategicCommandResult applied = setup.Commands.ApplyBattleResultSummary(setup.State, summary);
+        AssertTrue(applied.Success, $"setup victory should apply, got {applied.FailureReason}");
+        setup.State.CorpsInstances[setup.CorpsInstanceId].HomeCityId = StrategicManagementIds.LocationPlainsCity;
+
+        string savePath = Path.Combine(Path.GetTempPath(), $"rpg-strategic-management-bad-company-home-{Guid.NewGuid():N}.json");
+        try
+        {
+            new StrategicManagementSaveService().Save(setup.State, savePath);
+            StrategicManagementRuntime.Reset();
+            StrategicManagementRuntime.LoadSavedState(savePath);
+
+            StrategicManagementState loaded = StrategicManagementRuntime.State;
+            AssertEqual(
+                StrategicManagementIds.LocationBonefieldOutpost,
+                loaded.CorpsInstances[setup.CorpsInstanceId].HomeCityId,
+                "runtime load should repair surviving resolved expedition corps into the captured managed city");
+            StrategicManagementDashboardViewModel sourceDashboard = StrategicManagementRuntime.BuildDashboard(
+                StrategicManagementIds.FactionPlayer,
+                StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementDashboardViewModel targetDashboard = StrategicManagementRuntime.BuildDashboard(
+                StrategicManagementIds.FactionPlayer,
+                StrategicManagementIds.LocationBonefieldOutpost);
+            AssertTrue(
+                !sourceDashboard.SelectedCity.HeroCompanies.Any(company => company.HeroId == StrategicManagementIds.HeroOrdinaryCommander),
+                "repaired source city should not expose the captured expedition company");
+            AssertEqual(1, targetDashboard.SelectedCity.HeroCompanies.Count, "repaired captured city should expose the surviving expedition company");
+        }
+        finally
+        {
+            StrategicManagementRuntime.Reset();
+            if (File.Exists(savePath))
+            {
+                File.Delete(savePath);
+            }
+        }
+    }
+
     internal static void FirstCityInitializesConstructionRegionsReserveAndForceCapacity()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
@@ -154,6 +444,31 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementRules rules = new(definitions);
         AssertEqual(100, rules.GetActiveForces(state, city.LocationId), "starting active forces should be derived from the three starting corps");
         AssertEqual(40, rules.GetRemainingCityForceCapacity(state, city.LocationId), "remaining capacity should be capacity minus active plus reserve");
+    }
+
+    internal static void FirstCityInitializesConscriptionPolicyOff()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+
+        AssertTrue(
+            typeof(StrategicCityState).GetProperty("AutoConscriptionIntensityId") != null,
+            "city state should store the city-local automatic conscription intensity id");
+        AssertEqual(
+            "conscription_off",
+            GetRequiredProperty<string>(city, "AutoConscriptionIntensityId"),
+            "first city should default automatic conscription to off to avoid hidden resource drain");
+        AssertTrue(
+            typeof(StrategicManagementCommandService).GetMethod(
+                "ManualConscriptReserveForces",
+                new[] { typeof(StrategicManagementState), typeof(string) }) != null,
+            "command service should expose manual reserve-soldier conscription");
+        AssertTrue(
+            typeof(StrategicManagementCommandService).GetMethod(
+                "SetAutoConscriptionIntensity",
+                new[] { typeof(StrategicManagementState), typeof(string), typeof(string) }) != null,
+            "command service should expose city-local automatic conscription intensity selection");
     }
 
     internal static void FirstPlayableStartsWithThreeDispatchableHeroCompanies()
@@ -215,9 +530,17 @@ internal static partial class StrategicManagementRegressionCases
             bonefieldLocationId,
             "bonefield should map to the first hostile foundation target");
         AssertTrue(
-            !resolver.TryResolveCityId(StrategicManagementIds.MapSiteBonefield, out string bonefieldCityId),
-            "non-city hostile targets must not resolve as managed cities");
-        AssertEqual("", bonefieldCityId, "non-city city mapping output should stay empty");
+            resolver.TryResolveCityId(StrategicManagementIds.MapSiteBonefield, out string bonefieldCityId),
+            "Bonefield is the first hostile managed stronghold and should resolve through the city mapping gate");
+        AssertEqual(
+            StrategicManagementIds.LocationBonefieldOutpost,
+            bonefieldCityId,
+            "Bonefield city mapping should preserve the hostile target location id");
+
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        AssertTrue(
+            state.Cities.ContainsKey(StrategicManagementIds.LocationBonefieldOutpost),
+            "Bonefield should start with isolated managed-city state even before the player captures it");
 
         AssertTrue(
             !resolver.TryResolveLocationId("unknown_site", out string unknownLocationId),

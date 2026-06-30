@@ -1,0 +1,20 @@
+{
+  "resources": [
+    {
+      "resourceId": "resource_money",
+      "displayName": "资金"
+    },
+    {
+      "resourceId": "resource_food",
+      "displayName": "粮食"
+    },
+    {
+      "resourceId": "resource_wood",
+      "displayName": "木材"
+    },
+    {
+      "resourceId": "resource_ore",
+      "displayName": "矿石"
+    }
+  ]
+}

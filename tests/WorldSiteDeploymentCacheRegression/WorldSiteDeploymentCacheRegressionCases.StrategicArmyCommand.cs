@@ -1,5 +1,6 @@
 using Godot;
 using Rpg.Application.World;
+using Rpg.Definitions.World;
 using Rpg.Domain.World;
 
 internal static partial class WorldSiteDeploymentCacheRegressionCases
@@ -211,6 +212,52 @@ internal static void StrategicArmyCommandServiceRemovesResolvedExpeditionCarrier
     AssertTrue(result.Events.Any(item => item.Kind == "WorldArmyStrategicExpeditionCarrierRemoved"), "removal should be observable in low-noise diagnostics");
 }
 
+internal static void StrategicReinforceCarrierArrivalBypassesLegacyGarrisonCapacity()
+{
+    StrategicWorldDefinition definition = new()
+    {
+        Id = "strategic_reinforce_capacity_test"
+    };
+    definition.SiteDefinitions.Add(BuildDefaultZoneDefinition(new Vector2I(0, 0)));
+    definition.SiteDefinitions[0].Id = "target_site";
+    StrategicWorldState state = new()
+    {
+        PlayerFactionId = StrategicWorldIds.FactionPlayer
+    };
+    state.SiteStates["target_site"] = new WorldSiteState
+    {
+        SiteId = "target_site",
+        OwnerFactionId = StrategicWorldIds.FactionPlayer,
+        ControlState = SiteControlState.PlayerHeld,
+        Garrison =
+        {
+            new GarrisonState { UnitTypeId = "existing", Count = 1 }
+        }
+    };
+    WorldArmyState army = BuildCommandableArmy("strategic_reinforce");
+    army.StrategicExpeditionId = "expedition_reinforce";
+    army.TargetSiteId = "target_site";
+    army.Intent = WorldArmyIntent.ReinforceSite;
+    army.Status = WorldArmyStatus.Moving;
+    army.WorldPosition = new Vector2(12, 12);
+    army.Destination = new Vector2(12, 12);
+    army.SetNavigationPath(new[] { army.Destination }, army.Destination, 1);
+    army.GarrisonUnits.Add(new GarrisonState { UnitTypeId = "strategic_company", Count = 2 });
+    state.ArmyStates[army.ArmyId] = army;
+
+    WorldArmyMovementResult result = new WorldArmyMovementService().AdvanceArmies(
+        state,
+        definition,
+        delta: 0.1,
+        navigationContext: new StaticNavigationContext(1));
+
+    AssertTrue(result.ArrivedArmyIds.Contains(army.ArmyId), "strategic reinforce carrier should arrive even when legacy garrison zone is full");
+    AssertTrue(result.GarrisonRejectedArmyIds.Count == 0, "strategic reinforce carrier must not be rejected by legacy garrison capacity");
+    AssertEqual(WorldArmyStatus.Garrisoned, army.Status, "arrived strategic reinforce carrier should reach the owned target site");
+    AssertEqual(1, state.SiteStates["target_site"].Garrison.Count, "strategic carrier arrival should not mutate legacy site garrison rows");
+    AssertEqual(1, state.SiteStates["target_site"].Garrison[0].Count, "legacy target garrison count should stay unchanged");
+}
+
 internal static void StrategicArmyCommandServiceRejectsUncommandableArmies()
 {
     WorldArmyCommandService service = new();
@@ -331,6 +378,35 @@ internal static void StrategicWorldRootSyncsStrategicExpeditionBeforeSelectedArm
         syncBody.Contains("StrategicManagementRuntime.Rules.GetExpeditionRetargetFailureReason", StringComparison.Ordinal) &&
         syncBody.Contains("StrategicManagementRuntime.Commands.RetargetExpedition", StringComparison.Ordinal),
         "strategic expedition sync should prevalidate and then mutate through Strategic Management command authority");
+}
+
+internal static void StrategicWorldRootSyncsSelectedStrategicOwnedTargetsBeforeLegacyCapacity()
+{
+    string source = ReadStrategicWorldRootSource();
+    string siteBody = ExtractMethodBody(source, "private bool TryCommandSelectedArmiesToSite(string siteId)");
+    int syncIndex = siteBody.IndexOf("TrySyncStrategicExpeditionCommand(", StringComparison.Ordinal);
+    int legacyCapacityIndex = siteBody.IndexOf("_deploymentService.CanAcceptGarrison", StringComparison.Ordinal);
+
+    AssertTrue(
+        syncIndex >= 0 && legacyCapacityIndex >= 0 && syncIndex < legacyCapacityIndex,
+        "selected Strategic Management expedition carriers must sync owned-city targets before legacy garrison-capacity checks can reject them");
+    AssertTrue(
+        siteBody.Contains("HasSelectedStrategicExpeditionCarrier(", StringComparison.Ordinal),
+        "owned-site commands should explicitly branch strategic expedition carriers away from legacy garrison capacity");
+}
+
+internal static void StrategicWorldRootDoesNotBlockStrategicOwnedTargetsByLegacyGarrisonCapacity()
+{
+    string source = ReadStrategicWorldRootSource();
+    string expeditionTargetBlockBody = ExtractMethodBody(source, "private bool IsSiteBlockedForExpeditionTarget(string siteId)");
+    string expeditionCreateBody = ExtractMethodBody(source, "private bool TryCreateExpedition(string targetSiteId, Vector2 destination, WorldArmyIntent intent)");
+
+    AssertTrue(
+        !expeditionTargetBlockBody.Contains("CanAcceptGarrison", StringComparison.Ordinal),
+        "new Strategic Management expeditions to owned cities must not be target-blocked by legacy WorldSite garrison capacity");
+    AssertTrue(
+        !expeditionCreateBody.Contains("CanAcceptGarrison", StringComparison.Ordinal),
+        "creating a Strategic Management expedition should rely on Strategic Management rules, not legacy garrison capacity");
 }
 
 internal static void StrategicWorldRootDefersBattleGateToStandbyWithoutBottomSheet()
@@ -462,13 +538,13 @@ internal static void StrategicBattleResultKeepsPresentationCleanupOnly()
     string source = ReadWorldSiteRootSource();
     string body = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
     int strategicApplyIndex = body.IndexOf("StrategicManagementRuntime.Commands.ApplyBattleResultSummary", StringComparison.Ordinal);
-    int cleanupIndex = body.IndexOf("ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult)", StringComparison.Ordinal);
+    int cleanupIndex = body.IndexOf("ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult, summary)", StringComparison.Ordinal);
     int carrierCleanupIndex = body.IndexOf("ApplyStrategicBattleResultWorldArmyCarrierCleanup(context.CompatibilityRequest, applyResult)", StringComparison.Ordinal);
     int strategicNoticeIndex = body.IndexOf("BuildStrategicBattleFeedbackReturnNotice(strategicFeedback)", StringComparison.Ordinal);
     int strategicReturnIndex = strategicNoticeIndex < 0
         ? -1
         : body.IndexOf("return applyResult;", strategicNoticeIndex, StringComparison.Ordinal);
-    string cleanupBody = ExtractMethodBody(source, "private void ApplyStrategicBattleResultPresentationCleanup(BattleStartRequest request, WorldActionResult result)");
+    string cleanupBody = ExtractMethodBody(source, "private void ApplyStrategicBattleResultPresentationCleanup(BattleStartRequest request, WorldActionResult result, StrategicBattleResultSummary summary)");
     string carrierCleanupBody = ExtractMethodBody(source, "private void ApplyStrategicBattleResultWorldArmyCarrierCleanup(BattleStartRequest request, WorldActionResult result)");
 
     AssertTrue(
@@ -486,6 +562,12 @@ internal static void StrategicBattleResultKeepsPresentationCleanupOnly()
         cleanupBody.Contains("\"PlayerArmy\"", StringComparison.Ordinal),
         "presentation cleanup should remove only resolved legacy player-army attacker/visiting placements");
     AssertTrue(
+        cleanupBody.Contains("summary.Outcome == BattleOutcome.Victory", StringComparison.Ordinal) &&
+        cleanupBody.Contains("summary.ObjectiveSucceeded", StringComparison.Ordinal) &&
+        cleanupBody.Contains("WorldSiteUnitPlacementKind.Defender", StringComparison.Ordinal) &&
+        cleanupBody.Contains("WorldSiteUnitPlacementKind.Garrison", StringComparison.Ordinal),
+        "strategic victory should also clear stale legacy defender/garrison placements from site presentation cache after Strategic Management writeback");
+    AssertTrue(
         cleanupBody.Contains("EnterAftermath", StringComparison.Ordinal) ||
         cleanupBody.Contains("EnterPeacetime", StringComparison.Ordinal),
         "presentation cleanup should exit legacy Wartime site mode without running legacy strategic settlement");
@@ -497,7 +579,7 @@ internal static void StrategicBattleResultKeepsPresentationCleanupOnly()
         "AdvanceWorldTick",
         "OwnerFactionId",
         "ControlState",
-        ".Garrison",
+        "site.Garrison",
         "ArmyStates"
     };
     foreach (string fragment in forbidden)
@@ -513,6 +595,143 @@ internal static void StrategicBattleResultKeepsPresentationCleanupOnly()
     AssertTrue(
         !carrierCleanupBody.Contains(".Remove(", StringComparison.Ordinal),
         "world army carrier cleanup should not directly remove armies from Presentation");
+}
+
+internal static void StrategicBattleResultClearsStaleLegacyHandoff()
+{
+    string source = ReadWorldSiteRootSource();
+    string applyBody = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
+    string cleanupBody = ExtractMethodBody(source, "private static void ClearLegacyStrategicBattleHandoff(");
+    int activeContextClearIndex = applyBody.IndexOf("StrategicBattleActiveContextStore.Clear(\"result_consumed\")", StringComparison.Ordinal);
+    int legacyCleanupIndex = applyBody.IndexOf("ClearLegacyStrategicBattleHandoff(\"result_consumed\")", StringComparison.Ordinal);
+
+    AssertTrue(
+        activeContextClearIndex >= 0 &&
+        legacyCleanupIndex > activeContextClearIndex,
+        "strategic battle result consumption should clear any stale legacy handoff after consuming the active strategic context");
+    AssertTrue(
+        cleanupBody.Contains("BattleSessionHandoff.HasActiveLaunch", StringComparison.Ordinal) &&
+        cleanupBody.Contains("BattleSessionHandoff.CancelBattle()", StringComparison.Ordinal) &&
+        cleanupBody.Contains("StaleLegacyStrategicBattleHandoffCleared", StringComparison.Ordinal),
+        "legacy handoff cleanup should be explicit, logged, and scoped to stale strategic battle state");
+}
+
+internal static void StrategicBattleResultPersistsStrategicStateBeforeFeedback()
+{
+    string source = ReadWorldSiteRootSource();
+    string applyBody = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
+    int strategicApplyIndex = applyBody.IndexOf("StrategicManagementRuntime.Commands.ApplyBattleResultSummary", StringComparison.Ordinal);
+    int rejectedReturnIndex = applyBody.IndexOf("if (!strategicResult.Success)", StringComparison.Ordinal);
+    int saveIndex = applyBody.IndexOf("StrategicManagementRuntime.SaveCurrentState()", StringComparison.Ordinal);
+    int feedbackIndex = applyBody.IndexOf("BuildStrategicBattleFeedbackReturnNotice(strategicFeedback)", StringComparison.Ordinal);
+
+    AssertTrue(
+        strategicApplyIndex >= 0 &&
+        rejectedReturnIndex > strategicApplyIndex &&
+        saveIndex > rejectedReturnIndex &&
+        feedbackIndex > saveIndex,
+        "strategic battle result writeback should apply Strategic Management consequences, reject failures, then persist the settled state before composing player feedback");
+}
+
+internal static void WorldSiteRootRejectsStaleLegacyStrategicHandoff()
+{
+    string source = ReadWorldSiteRootSource();
+    string resolveBody = ExtractMethodBody(source, "private bool TryResolveActiveBattleRequest(out BattleStartRequest request)");
+    string legacyBody = ExtractMethodBody(source, "private static bool TryPeekLegacyNonStrategicBattleRequest(");
+
+    AssertTrue(
+        resolveBody.Contains("TryPeekLegacyNonStrategicBattleRequest(out request)", StringComparison.Ordinal),
+        "WorldSiteRoot should resolve non-Strategic compatibility requests through a stale-state guard");
+    AssertTrue(
+        !resolveBody.Contains("return BattleSessionHandoff.TryPeekActiveRequest(out request);", StringComparison.Ordinal),
+        "WorldSiteRoot must not directly fall back to the legacy handoff because stale strategic requests reopen old battles");
+    AssertTrue(
+        legacyBody.Contains("BattleSessionHandoff.TryPeekActiveRequest(out request)", StringComparison.Ordinal) &&
+        legacyBody.Contains("IsStrategicBattleRequest(request)", StringComparison.Ordinal) &&
+        legacyBody.Contains("ClearLegacyStrategicBattleHandoff(\"stale_strategic_legacy_request\")", StringComparison.Ordinal) &&
+        legacyBody.Contains("return false;", StringComparison.Ordinal),
+        "legacy handoff guard should clear and reject strategic requests when no active strategic context exists");
+}
+
+internal static void StrategicBattlePostResultShowsSettlementModalBeforeRouting()
+{
+    string source = ReadWorldSiteRootSource();
+    string runtimeBody = ExtractMethodBody(source, "private async Task PlayBattleGroupRuntimeAndApplyResultAsync(");
+    int clearEntitiesIndex = runtimeBody.IndexOf("ClearBattleEntities()", StringComparison.Ordinal);
+    int modalIndex = runtimeBody.IndexOf("ShowPostBattleSettlementDialog(", StringComparison.Ordinal);
+    int directReturnIndex = runtimeBody.IndexOf("ReturnToReturnScene(", StringComparison.Ordinal);
+
+    AssertTrue(
+        clearEntitiesIndex >= 0 &&
+        modalIndex > clearEntitiesIndex,
+        "battle runtime completion should clear runtime presentation and then show a settled post-battle modal before any player-facing route");
+    AssertTrue(
+        directReturnIndex < 0 || directReturnIndex > modalIndex,
+        "battle runtime completion must not directly return to the world map before the player acknowledges the settled result modal");
+    AssertTrue(
+        !source.Contains("private bool ShouldReturnToWorldMapAfterBattle(", StringComparison.Ordinal),
+        "post-battle route should no longer be decided by an immediate outcome gate; the settlement modal owns player acknowledgement actions");
+}
+
+internal static void StrategicBattleSettlementModalIsResourceBackedAndActionScoped()
+{
+    string root = ProjectRoot();
+    string factorySource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs"));
+    string siteHudSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteManagementHud.cs"));
+    string rootSource = ReadWorldSiteRootSource();
+    string dialogPath = Path.Combine(root, "scenes", "world", "ui", "PostBattleSettlementDialog.tscn");
+    AssertTrue(File.Exists(dialogPath), $"post-battle settlement dialog should be an authored Godot scene path={dialogPath}");
+
+    string dialogScene = File.ReadAllText(dialogPath);
+    string scriptPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "PostBattleSettlementDialog.cs");
+    AssertTrue(File.Exists(scriptPath), $"post-battle settlement dialog should use a focused script path={scriptPath}");
+    string dialogScript = File.ReadAllText(scriptPath);
+    string manageButtonBlock = ExtractSceneNodeBlock(dialogScene, "[node name=\"ManageCityButton\"");
+    string returnButtonBlock = ExtractSceneNodeBlock(dialogScene, "[node name=\"ReturnButton\"");
+    string buildHudBody = ExtractMethodBody(siteHudSource, "private void BuildSiteHud()");
+    string showDialogBody = ExtractMethodBody(siteHudSource, "private void ShowPostBattleSettlementDialog(");
+    string managePressedBody = ExtractMethodBody(siteHudSource, "private void OnPostBattleSettlementManageCityPressed()");
+    string returnPressedBody = ExtractMethodBody(siteHudSource, "private void OnPostBattleSettlementReturnPressed()");
+    string resolveViewportBody = ExtractMethodBody(rootSource, "private Rect2 ResolveMainWorldViewportRect()");
+    string reserveWorkspaceBody = ExtractMethodBody(rootSource, "private bool ShouldReserveSiteHudWorkspace()");
+
+    AssertTrue(
+        factorySource.Contains("PostBattleSettlementDialogScenePath", StringComparison.Ordinal) &&
+        factorySource.Contains("CreatePostBattleSettlementDialog", StringComparison.Ordinal),
+        "post-battle settlement dialog should be loaded through GameUiSceneFactory");
+    AssertTrue(
+        buildHudBody.Contains("CreatePostBattleSettlementDialog", StringComparison.Ordinal) &&
+        buildHudBody.Contains("_postBattleSettlementDialog", StringComparison.Ordinal),
+        "WorldSiteRoot should instantiate the settlement dialog once under the site ModalHost");
+    AssertTrue(
+        dialogScene.Contains("PostBattleSettlementDialog.cs", StringComparison.Ordinal) &&
+        dialogScene.Contains("[node name=\"Backdrop\"", StringComparison.Ordinal) &&
+        dialogScene.Contains("[node name=\"ResultBody\"", StringComparison.Ordinal) &&
+        manageButtonBlock.Contains("text = \"管理城池\"", StringComparison.Ordinal) &&
+        returnButtonBlock.Contains("text = \"返回\"", StringComparison.Ordinal),
+        "post-battle settlement dialog should show Chinese result text and explicit manage/return actions");
+    AssertTrue(
+        dialogScript.Contains("public event System.Action ManageCityPressed", StringComparison.Ordinal) &&
+        dialogScript.Contains("public event System.Action ReturnPressed", StringComparison.Ordinal) &&
+        dialogScript.Contains("ManageCityAvailable", StringComparison.Ordinal),
+        "settlement dialog script should expose action events and gate the manage-city button");
+    AssertTrue(
+        rootSource.Contains("CanOpenManagedCityDetail(siteId)", StringComparison.Ordinal) &&
+        rootSource.Contains("ManageCityAvailable", StringComparison.Ordinal) &&
+        rootSource.Contains("SwitchToNonBattleUi(", StringComparison.Ordinal) &&
+        rootSource.Contains("ReturnToReturnScene(", StringComparison.Ordinal),
+        "settlement modal actions should return to the world map or open management only when the settled target is a managed player city");
+    AssertTrue(
+        rootSource.Contains("_postBattleSettlementDialogOpen", StringComparison.Ordinal) &&
+        showDialogBody.Contains("_postBattleSettlementDialogOpen = true;", StringComparison.Ordinal) &&
+        managePressedBody.Contains("_postBattleSettlementDialogOpen = false;", StringComparison.Ordinal) &&
+        returnPressedBody.Contains("_postBattleSettlementDialogOpen = false;", StringComparison.Ordinal),
+        "post-battle settlement modal should own an explicit open flag that is cleared by both acknowledgement actions");
+    AssertTrue(
+        resolveViewportBody.Contains("ShouldReserveSiteHudWorkspace()", StringComparison.Ordinal) &&
+        reserveWorkspaceBody.Contains("_siteHudRoot?.Visible == true", StringComparison.Ordinal) &&
+        reserveWorkspaceBody.Contains("!_postBattleSettlementDialogOpen", StringComparison.Ordinal),
+        "post-battle settlement modal should not reserve the hidden left management workspace behind the result dialog");
 }
 
 internal static void BattleGroupProbePreservesStrategicForceIdentity()
@@ -585,6 +804,68 @@ private static void AssertNoArmyCommandAssignment(string methodBody, string cont
         AssertTrue(
             !methodBody.Contains(fragment, StringComparison.Ordinal),
             $"{context} should not directly mutate army command state fragment={fragment}");
+    }
+}
+
+private sealed class StaticNavigationContext : IStrategicNavigationContext
+{
+    public StaticNavigationContext(int version)
+    {
+        Version = version;
+    }
+
+    public int Version { get; }
+    public string PrimaryProviderId => "static_test";
+
+    public bool IsSynchronized(out string failureReason)
+    {
+        failureReason = "";
+        return true;
+    }
+
+    public bool IsPointNavigable(Vector2 mapPoint, out string failureReason)
+    {
+        failureReason = "";
+        return true;
+    }
+
+    public bool TryGetNearestNavigablePoint(Vector2 mapPoint, int maxCellRadius, out Vector2 navigablePoint, out string failureReason)
+    {
+        navigablePoint = mapPoint;
+        failureReason = "";
+        return true;
+    }
+
+    public bool TryGetNearestReachableNavigablePoint(
+        Vector2 start,
+        Vector2 preferredPoint,
+        int maxCellRadius,
+        out Vector2 navigablePoint,
+        out StrategicNavigationPath path,
+        out string failureReason)
+    {
+        navigablePoint = preferredPoint;
+        path = BuildPath(start, preferredPoint);
+        failureReason = "";
+        return true;
+    }
+
+    public bool TryBuildPath(Vector2 start, Vector2 destination, out StrategicNavigationPath path, out string failureReason)
+    {
+        path = BuildPath(start, destination);
+        failureReason = "";
+        return true;
+    }
+
+    private StrategicNavigationPath BuildPath(Vector2 start, Vector2 destination)
+    {
+        StrategicNavigationPath path = new()
+        {
+            ProviderId = PrimaryProviderId
+        };
+        path.Points.Add(start);
+        path.Points.Add(destination);
+        return path;
     }
 }
 }

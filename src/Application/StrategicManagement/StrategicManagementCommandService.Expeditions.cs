@@ -72,6 +72,9 @@ public sealed partial class StrategicManagementCommandService
         {
             hero.CurrentExpeditionId = expedition.ExpeditionId;
             corps.CurrentExpeditionId = expedition.ExpeditionId;
+            // A moving expedition owns its companies until arrival or battle settlement.
+            // SourceLocationId is a departure record, not a continuing city station.
+            corps.HomeCityId = "";
             corps.Status = StrategicCorpsInstanceStatus.Expedition;
         }
 
@@ -116,6 +119,38 @@ public sealed partial class StrategicManagementCommandService
         return result;
     }
 
+    public StrategicCommandResult CompleteExpeditionArrival(
+        StrategicManagementState state,
+        string expeditionId)
+    {
+        string failureReason = _rules.GetExpeditionArrivalFailureReason(state, expeditionId);
+        if (!string.IsNullOrWhiteSpace(failureReason))
+        {
+            return Reject("CompleteExpeditionArrival", expeditionId, failureReason);
+        }
+
+        StrategicExpeditionState expedition = state.Expeditions[expeditionId ?? ""];
+        expedition.Status = StrategicExpeditionStatus.Resolved;
+        foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
+        {
+            UnlockExpeditionParticipant(state, expedition, participant, null, expedition.TargetLocationId);
+        }
+
+        StrategicCommandResult result = StrategicCommandResult.Ok(
+            EnumerateExpeditionParticipants(expedition)
+                .SelectMany(item => new[] { item.HeroId, item.CorpsInstanceId })
+                .Append(expedition.ExpeditionId)
+                .ToArray());
+        result.CreatedEntityId = expedition.ExpeditionId;
+        result.Events.Add(Event(
+            "StrategicExpeditionArrived",
+            expedition.ExpeditionId,
+            ("target", expedition.TargetLocationId),
+            ("intent", expedition.Intent.ToString())));
+        Accept("CompleteExpeditionArrival", expedition.ExpeditionId, result);
+        return result;
+    }
+
     public StrategicCommandResult RetargetExpedition(
         StrategicManagementState state,
         string expeditionId,
@@ -156,7 +191,8 @@ public sealed partial class StrategicManagementCommandService
         StrategicManagementState state,
         StrategicExpeditionState expedition,
         StrategicExpeditionParticipantState expeditionParticipant,
-        StrategicBattleParticipantResult participant)
+        StrategicBattleParticipantResult participant,
+        string stationCityId = "")
     {
         if (state.Heroes.TryGetValue(expeditionParticipant?.HeroId ?? "", out StrategicHeroState hero) &&
             string.Equals(hero.CurrentExpeditionId, expedition.ExpeditionId, System.StringComparison.Ordinal))
@@ -176,6 +212,13 @@ public sealed partial class StrategicManagementCommandService
         if (string.Equals(corps.CurrentExpeditionId, expedition.ExpeditionId, System.StringComparison.Ordinal))
         {
             corps.CurrentExpeditionId = "";
+        }
+
+        // Expedition settlement is the only place that gives the company a new station.
+        // Moving companies keep HomeCityId empty so source cities cannot manage them.
+        if (remainingStrength > 0 && !string.IsNullOrWhiteSpace(stationCityId))
+        {
+            corps.HomeCityId = stationCityId;
         }
 
         corps.Status = remainingStrength <= 0

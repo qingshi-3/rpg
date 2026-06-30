@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
-using Rpg.Application.World;
+using Rpg.Application.StrategicManagement;
+using Rpg.Definitions.StrategicManagement;
 using Rpg.Definitions.World;
-using Rpg.Domain.World;
 
 namespace Rpg.Presentation.World;
 
@@ -13,19 +13,20 @@ public static class WorldSiteHoverSummaryPresenter
     public const float DefaultEdgeMargin = 12.0f;
 
     public static WorldSiteHoverSummaryData Build(
-        StrategicWorldDefinitionQueries queries,
         WorldSiteDefinition definition,
-        WorldSiteState state)
+        StrategicManagementDashboardViewModel dashboard)
     {
-        ResourceStore resources = state?.LocalResources ?? new ResourceStore();
+        StrategicLocationDashboardViewModel location = dashboard?.SelectedLocation;
+        StrategicCityManagementViewModel city = dashboard?.SelectedCity;
+        string title = string.IsNullOrWhiteSpace(location?.DisplayName)
+            ? definition?.DisplayName ?? definition?.Id ?? ""
+            : location.DisplayName;
+
         return new WorldSiteHoverSummaryData
         {
-            Title = StrategicWorldDisplayNames.GetSiteLabel(queries, definition?.Id, definition?.DisplayName ?? ""),
-            ResourceText =
-                $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourcePopulation)} {resources.GetAvailable(StrategicWorldIds.ResourcePopulation)}/{resources.GetAmount(StrategicWorldIds.ResourcePopulation)}　" +
-                $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceEconomy)} {resources.GetAmount(StrategicWorldIds.ResourceEconomy)}　" +
-                $"{StrategicWorldDisplayNames.GetResourceLabel(queries, StrategicWorldIds.ResourceStone)} {resources.GetAmount(StrategicWorldIds.ResourceStone)}",
-            ForceText = $"兵团 {GetSiteArmyCount(state)}　英雄 {GetSiteHeroCount(state)}"
+            Title = title,
+            ResourceText = BuildAssetText(dashboard?.Resources),
+            ForceText = BuildCityForceText(city, location)
         };
     }
 
@@ -53,37 +54,36 @@ public static class WorldSiteHoverSummaryPresenter
             Mathf.Clamp(y, edgeMargin, effectiveViewport.Y - effectiveSize.Y - edgeMargin));
     }
 
-    private static int GetSiteHeroCount(WorldSiteState state)
+    private static string BuildAssetText(IEnumerable<StrategicResourceViewModel> resources)
     {
-        int tagHeroes = state?.ActiveTags?.Count(tag => tag.StartsWith("hero:")) ?? 0;
-        int unitHeroes = GetHeroCount(state?.Garrison);
-        return tagHeroes + unitHeroes;
+        string text = string.Join(
+            "  ",
+            (resources ?? Enumerable.Empty<StrategicResourceViewModel>())
+            .Where(resource => resource != null && !string.IsNullOrWhiteSpace(resource.DisplayName))
+            .OrderBy(resource => resource.ResourceId)
+            .Select(resource => $"{resource.DisplayName} {resource.Amount}"));
+        return string.IsNullOrWhiteSpace(text) ? "资产 无" : text;
     }
 
-    private static int GetHeroCount(IEnumerable<GarrisonState> garrison)
+    private static string BuildCityForceText(
+        StrategicCityManagementViewModel city,
+        StrategicLocationDashboardViewModel location)
     {
-        return garrison?
-            .Where(unit => IsHeroUnitType(unit.UnitTypeId))
-            .Sum(unit => System.Math.Max(unit.Count, 0)) ?? 0;
-    }
+        if (location?.CanManageCity != true || city == null)
+        {
+            string control = string.IsNullOrWhiteSpace(location?.ControlStateDisplayName)
+                ? "未知"
+                : location.ControlStateDisplayName;
+            string production = string.IsNullOrWhiteSpace(location?.ProductionDisplayText)
+                ? "无"
+                : location.ProductionDisplayText;
+            return $"控制 {control}  产出 {production}";
+        }
 
-    private static int GetSiteArmyCount(WorldSiteState state)
-    {
-        return GetArmyCount(state?.Garrison);
-    }
-
-    private static int GetArmyCount(IEnumerable<GarrisonState> garrison)
-    {
-        return garrison == null
-            ? 0
-            : garrison
-                .Where(unit => !IsHeroUnitType(unit.UnitTypeId))
-                .Sum(unit => System.Math.Max(unit.Count, 0));
-    }
-
-    private static bool IsHeroUnitType(string unitTypeId)
-    {
-        return FirstSliceHeroCompanyIds.IsHeroUnit(unitTypeId);
+        int reserveForces = System.Math.Max(0, city.ReserveForces);
+        int capacity = System.Math.Max(0, city.CityForceCapacity);
+        int currentHeroCompanies = city.HeroCompanies?.Count ?? 0;
+        return $"预备兵 {reserveForces}/{capacity}  英雄 {currentHeroCompanies}";
     }
 }
 

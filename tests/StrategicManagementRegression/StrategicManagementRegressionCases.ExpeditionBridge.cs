@@ -32,6 +32,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(expedition.CreatedEntityId, state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].CurrentExpeditionId, "hero should be locked to the expedition");
         AssertEqual(expedition.CreatedEntityId, state.CorpsInstances[corpsInstanceId].CurrentExpeditionId, "corps should be locked to the expedition");
         AssertEqual(StrategicCorpsInstanceStatus.Expedition, state.CorpsInstances[corpsInstanceId].Status, "corps status should move to expedition");
+        AssertEqual("", state.CorpsInstances[corpsInstanceId].HomeCityId, "corps on expedition should not remain stationed at the source city");
     }
 
     internal static void CreateExpeditionLocksSelectedHeroCompanies()
@@ -69,7 +70,71 @@ internal static partial class StrategicManagementRegressionCases
             AssertEqual(expedition.CreatedEntityId, state.Heroes[heroId].CurrentExpeditionId, $"{heroId} should be locked to the expedition");
             AssertEqual(expedition.CreatedEntityId, state.CorpsInstances[corpsInstanceId].CurrentExpeditionId, $"{corpsInstanceId} should be locked to the expedition");
             AssertEqual(StrategicCorpsInstanceStatus.Expedition, state.CorpsInstances[corpsInstanceId].Status, $"{corpsInstanceId} should move to expedition status");
+            AssertEqual("", state.CorpsInstances[corpsInstanceId].HomeCityId, $"{corpsInstanceId} should leave the source city while on expedition");
         }
+    }
+
+    internal static void ReinforceArrivalStationsExpeditionAtOwnedTargetCity()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementRules rules = new(definitions);
+        StrategicManagementCommandService commands = new(definitions, rules);
+        state.Locations[StrategicManagementIds.LocationBonefieldOutpost].OwnerFactionId = StrategicManagementIds.FactionPlayer;
+        state.Locations[StrategicManagementIds.LocationBonefieldOutpost].ControlState = StrategicLocationControlState.PlayerHeld;
+        string corpsInstanceId = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].AssignedCorpsInstanceId;
+        state.CorpsInstances[corpsInstanceId].HomeCityId = StrategicManagementIds.LocationBonefieldOutpost;
+
+        StrategicCommandResult expedition = commands.CreateExpedition(
+            state,
+            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicExpeditionIntent.ReinforceLocation,
+            StrategicManagementIds.HeroOrdinaryCommander);
+        AssertTrue(expedition.Success, $"reinforce expedition should be created, got {expedition.FailureReason}");
+
+        StrategicCommandResult arrival = commands.CompleteExpeditionArrival(state, expedition.CreatedEntityId);
+
+        AssertTrue(arrival.Success, $"reinforce arrival should settle, got {arrival.FailureReason}");
+        AssertEqual(StrategicExpeditionStatus.Resolved, state.Expeditions[expedition.CreatedEntityId].Status, "reinforce arrival should resolve the expedition");
+        AssertEqual("", state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].CurrentExpeditionId, "arrival should unlock the hero");
+        AssertEqual("", state.CorpsInstances[corpsInstanceId].CurrentExpeditionId, "arrival should unlock the corps");
+        AssertEqual(StrategicManagementIds.LocationPlainsCity, state.CorpsInstances[corpsInstanceId].HomeCityId, "arrival should station the corps at the target city");
+        AssertEqual(StrategicCorpsInstanceStatus.AssignedToHero, state.CorpsInstances[corpsInstanceId].Status, "surviving arrival corps should return to assigned hero status");
+    }
+
+    internal static void RetargetMovingExpeditionCanReinforceDepartureCity()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        string corpsInstanceId = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].AssignedCorpsInstanceId;
+
+        StrategicCommandResult expedition = commands.CreateExpedition(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            "",
+            StrategicExpeditionIntent.MoveToPosition,
+            StrategicManagementIds.HeroOrdinaryCommander);
+        AssertTrue(expedition.Success, $"move expedition should be created, got {expedition.FailureReason}");
+        AssertEqual("", state.CorpsInstances[corpsInstanceId].HomeCityId, "dispatch should detach the corps from its departure city");
+
+        StrategicCommandResult retarget = commands.RetargetExpedition(
+            state,
+            expedition.CreatedEntityId,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicExpeditionIntent.ReinforceLocation);
+
+        AssertTrue(retarget.Success, $"moving expedition should be able to reinforce its departure record city, got {retarget.FailureReason}");
+        AssertEqual(StrategicManagementIds.LocationPlainsCity, state.Expeditions[expedition.CreatedEntityId].SourceLocationId, "source remains a departure record");
+        AssertEqual(StrategicManagementIds.LocationPlainsCity, state.Expeditions[expedition.CreatedEntityId].TargetLocationId, "retarget should allow the departure city as the new target");
+        AssertEqual("", state.CorpsInstances[corpsInstanceId].HomeCityId, "retarget should not station the corps before arrival");
+
+        StrategicCommandResult arrival = commands.CompleteExpeditionArrival(state, expedition.CreatedEntityId);
+
+        AssertTrue(arrival.Success, $"arrival at departure city should settle through Strategic Management, got {arrival.FailureReason}");
+        AssertEqual(StrategicManagementIds.LocationPlainsCity, state.CorpsInstances[corpsInstanceId].HomeCityId, "arrival should station the corps at the chosen target city");
+        AssertEqual("", state.CorpsInstances[corpsInstanceId].CurrentExpeditionId, "arrival should unlock the corps expedition id");
     }
 
     internal static void CreateExpeditionRejectsHeroWithoutAssignedCorps()
