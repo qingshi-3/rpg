@@ -246,4 +246,29 @@ internal static void StrategicFogUsesBinaryVisibilityOnly()
         resetWorldBody.Contains("ResetStrategicFogMaskCache", StringComparison.Ordinal),
         "strategic world reset should invalidate the fog mask cache before rebuilding a new runtime state");
 }
+
+internal static void StrategicFogOverlayUsesMapBoundsSurface()
+{
+    string root = ProjectRoot();
+    string overlayPath = Path.Combine(root, "src", "Presentation", "World", "StrategicWorldFogOverlay.cs");
+    string fogRootPath = Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.Fog.cs");
+
+    string overlaySource = File.ReadAllText(overlayPath);
+    string fogRootSource = File.ReadAllText(fogRootPath);
+    string refreshOverlayBody = ExtractMethodBody(fogRootSource, "private void RefreshStrategicFogOverlay()");
+
+    AssertTrue(
+        refreshOverlayBody.Contains("TryCalculateStrategicMapBounds(out Rect2 mapBounds)", StringComparison.Ordinal) &&
+        refreshOverlayBody.Contains("_fogOverlay.SetFog(", StringComparison.Ordinal),
+        "strategic fog refresh should pass the strategic map bounds into the fog overlay.");
+    AssertTrue(
+        overlaySource.Contains("private Rect2 _fogMapBounds", StringComparison.Ordinal) &&
+        overlaySource.Contains("ApplyFogSurfaceBounds(bounds)", StringComparison.Ordinal) &&
+        overlaySource.Contains("new Rect2(Vector2.Zero, bounds.Size)", StringComparison.Ordinal),
+        "strategic fog overlay should size and position its drawing surface from map bounds instead of keeping a viewport-sized ColorRect.");
+    AssertTrue(
+        overlaySource.Contains("BuildCircleParameters(visibleCircles, -bounds.Position", StringComparison.Ordinal) &&
+        overlaySource.Contains("BuildCircleParameters(visibleCircles, GetFogCircleOffset()", StringComparison.Ordinal),
+        "strategic fog overlay should convert map-space visibility circles into the map-bounds surface local space before passing them to the shader.");
+}
 }

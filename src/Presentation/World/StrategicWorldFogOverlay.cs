@@ -43,6 +43,8 @@ public partial class StrategicWorldFogOverlay : Control
 	private Vector2I _exploredMaskOriginCell;
 	private Vector2I _exploredMaskTextureSize;
 	private float _exploredMaskFogTexelWorldSize;
+	private Rect2 _fogMapBounds;
+	private bool _hasFogMapBounds;
 
 	public StrategicWorldFogOverlay()
 	{
@@ -77,8 +79,9 @@ public partial class StrategicWorldFogOverlay : Control
 		}
 
 		Rect2 bounds = NormalizeRect(screenBounds);
-		Vector4[] circleParameters = BuildCircleParameters(visibleCircles, out int circleCount);
-		ApplyBinaryFogShaderParameters(bounds, unknownColor, circleCount, circleParameters);
+		ApplyFogSurfaceBounds(bounds);
+		Vector4[] circleParameters = BuildCircleParameters(visibleCircles, -bounds.Position, out int circleCount);
+		ApplyBinaryFogShaderParameters(new Rect2(Vector2.Zero, bounds.Size), unknownColor, circleCount, circleParameters);
 		_shaderRect.Visible = true;
 	}
 
@@ -165,7 +168,7 @@ public partial class StrategicWorldFogOverlay : Control
 			return;
 		}
 
-		Vector4[] circleParameters = BuildCircleParameters(visibleCircles, out int circleCount);
+		Vector4[] circleParameters = BuildCircleParameters(visibleCircles, GetFogCircleOffset(), out int circleCount);
 		_material.SetShaderParameter(VisibleCircleCountParameter, circleCount);
 		_material.SetShaderParameter(VisibleCirclesParameter, circleParameters);
 		UpdateOverlaySizeParameter();
@@ -183,8 +186,9 @@ public partial class StrategicWorldFogOverlay : Control
 		}
 
 		Rect2 bounds = NormalizeRect(screenBounds);
-		Vector4[] circleParameters = BuildCircleParameters(visibleCircles, out int circleCount);
-		_material.SetShaderParameter(MapRectParameter, new Vector4(bounds.Position.X, bounds.Position.Y, bounds.Size.X, bounds.Size.Y));
+		ApplyFogSurfaceBounds(bounds);
+		Vector4[] circleParameters = BuildCircleParameters(visibleCircles, -bounds.Position, out int circleCount);
+		_material.SetShaderParameter(MapRectParameter, new Vector4(0.0f, 0.0f, bounds.Size.X, bounds.Size.Y));
 		_material.SetShaderParameter(VisibleCircleCountParameter, circleCount);
 		_material.SetShaderParameter(VisibleCirclesParameter, circleParameters);
 		UpdateOverlaySizeParameter();
@@ -207,6 +211,8 @@ public partial class StrategicWorldFogOverlay : Control
 		_exploredMaskOriginCell = default;
 		_exploredMaskTextureSize = default;
 		_exploredMaskFogTexelWorldSize = 0.0f;
+		_fogMapBounds = default;
+		_hasFogMapBounds = false;
 		_shaderRect.Visible = false;
 	}
 
@@ -245,6 +251,25 @@ public partial class StrategicWorldFogOverlay : Control
 	private void UpdateOverlaySizeParameter()
 	{
 		_material?.SetShaderParameter(OverlaySizeParameter, Size);
+	}
+
+	private void ApplyFogSurfaceBounds(Rect2 bounds)
+	{
+		// The fog overlay is a map-space surface under the transformed world overlay.
+		// Size it to the strategic map, not the camera viewport; SubViewport clipping
+		// still keeps shader raster cost bounded to visible screen pixels.
+		_fogMapBounds = bounds;
+		_hasFogMapBounds = bounds.Size.X > 0.0f && bounds.Size.Y > 0.0f;
+		SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
+		Position = bounds.Position;
+		Size = new Vector2(Mathf.Max(1.0f, bounds.Size.X), Mathf.Max(1.0f, bounds.Size.Y));
+		UpdateShaderRectBounds();
+		UpdateOverlaySizeParameter();
+	}
+
+	private Vector2 GetFogCircleOffset()
+	{
+		return _hasFogMapBounds ? -_fogMapBounds.Position : Vector2.Zero;
 	}
 
 	private void EnsureMapSpaceMask(
@@ -407,6 +432,14 @@ public partial class StrategicWorldFogOverlay : Control
 		IEnumerable<StrategicWorldFogOverlayCircle> visibleCircles,
 		out int circleCount)
 	{
+		return BuildCircleParameters(visibleCircles, Vector2.Zero, out circleCount);
+	}
+
+	private static Vector4[] BuildCircleParameters(
+		IEnumerable<StrategicWorldFogOverlayCircle> visibleCircles,
+		Vector2 circleOffset,
+		out int circleCount)
+	{
 		Vector4[] parameters = new Vector4[MaxVisibleCircles];
 		circleCount = 0;
 		if (visibleCircles == null)
@@ -426,7 +459,8 @@ public partial class StrategicWorldFogOverlay : Control
 				continue;
 			}
 
-			parameters[circleCount++] = new Vector4(circle.ScreenCenter.X, circle.ScreenCenter.Y, circle.ScreenRadius, 0.0f);
+			Vector2 center = circle.ScreenCenter + circleOffset;
+			parameters[circleCount++] = new Vector4(center.X, center.Y, circle.ScreenRadius, 0.0f);
 		}
 
 		return parameters;

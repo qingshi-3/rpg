@@ -244,6 +244,7 @@ WorldSiteDeploymentCacheRegressionCases.Run("site exploration runtime is deleted
 WorldSiteDeploymentCacheRegressionCases.Run("strategic save intel and raid runtime are deleted", WorldSiteDeploymentCacheRegressionCases.StrategicSaveIntelAndRaidRuntimeAreDeleted);
 WorldSiteDeploymentCacheRegressionCases.Run("strategic fog remains map visibility only", WorldSiteDeploymentCacheRegressionCases.StrategicFogRemainsMapVisibilityOnly);
 WorldSiteDeploymentCacheRegressionCases.Run("strategic fog uses binary visibility only", WorldSiteDeploymentCacheRegressionCases.StrategicFogUsesBinaryVisibilityOnly);
+WorldSiteDeploymentCacheRegressionCases.Run("strategic fog overlay uses map bounds surface", WorldSiteDeploymentCacheRegressionCases.StrategicFogOverlayUsesMapBoundsSurface);
 WorldSiteDeploymentCacheRegressionCases.Run("scene transition router begins and clears site visit on scene failure", WorldSiteDeploymentCacheRegressionCases.SceneTransitionRouterBeginsAndClearsSiteVisitOnSceneFailure);
 WorldSiteDeploymentCacheRegressionCases.Run("scene transition router begins battle and cancels handoff on scene failure", WorldSiteDeploymentCacheRegressionCases.SceneTransitionRouterBeginsBattleAndCancelsHandoffOnSceneFailure);
 WorldSiteDeploymentCacheRegressionCases.Run("scene transition router enters strategic battle through active context", WorldSiteDeploymentCacheRegressionCases.SceneTransitionRouterEntersStrategicBattleThroughActiveContext);
