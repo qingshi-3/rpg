@@ -8,7 +8,7 @@ Follow-up cleanup status on 2026-05-17:
 - Old AP/action-wheel wireframe assets under `docs/20-game-design/tactical-battle/battle-ui-wireframes/` were deleted.
 - The dead `WorldSiteRoot.UseAutoBattleRuntime` exported switch was removed and regression tests now guard against restoring it.
 
-This audit checks whether the first migration left misleading or broken residue behind. It does not evaluate missing target features such as hero-company combat, equipment depth, city attributes, or battle command UI.
+This audit checks whether the first migration left misleading or broken residue behind. It does not evaluate missing target features such as battle-group combat, equipment depth, city attributes, or battle command UI.
 
 ## Authority Used
 
@@ -70,7 +70,7 @@ Updated examples:
 - `docs/10-product/positioning.md` now presents city/strategic-location operation and hero-led corps combat.
 - `docs/30-technical-design/battle/README.md` and `docs/30-technical-design/battle/battle-scene-architecture.md` now route future runtime work through accepted light RTS architecture.
 - `docs/30-technical-design/world/strategic-world-v1-battle-contract.md` now states the manual AP runtime is removed.
-- `docs/40-content/tutorial/tutorial-battle-spec.md` now teaches hero-led company commands instead of pure no-command auto battle.
+- `docs/40-content/tutorial/tutorial-battle-spec.md` now teaches hero-led battle-group commands instead of pure no-command auto battle.
 
 Historical migration documents still use old terminology by design. They are records, not active authority.
 

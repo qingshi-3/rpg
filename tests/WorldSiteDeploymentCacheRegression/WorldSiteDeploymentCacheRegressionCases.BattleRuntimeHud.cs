@@ -244,13 +244,15 @@ internal static void BattleRuntimeHudUsesSkillListNotSingleTextButton()
         "World",
         "Sites",
         "BattleRuntimeSkillSlot.cs"));
-    string skillDefinitions = File.ReadAllText(Path.Combine(
-        root,
-        "src",
-        "Definitions",
-        "Battle",
-        "Skills",
-        "FirstSliceBattleSkillDefinitions.cs"));
+    string skillDefinitions = string.Join("\n", new[]
+    {
+        File.ReadAllText(Path.Combine(root, "config", "battle", "battle_skill_definitions.json")),
+        File.ReadAllText(Path.Combine(root, "assets", "battle", "skills", "skill_shield_barrier.tres")),
+        File.ReadAllText(Path.Combine(root, "assets", "battle", "skills", "skill_sun_piercer.tres")),
+        File.ReadAllText(Path.Combine(root, "assets", "battle", "skills", "skill_thunder_tag_throw.tres")),
+        File.ReadAllText(Path.Combine(root, "assets", "battle", "skills", "skill_thunder_mark_fold.tres")),
+        File.ReadAllText(Path.Combine(root, "assets", "battle", "skills", "skill_thunder_spiral_break.tres"))
+    });
     string heroFramePresenterSource = File.ReadAllText(Path.Combine(
         root,
         "src",
@@ -277,6 +279,11 @@ internal static void BattleRuntimeHudUsesSkillListNotSingleTextButton()
         slotSource.Contains("EmitSignal(SignalName.Pressed", StringComparison.Ordinal),
         "runtime skill slot should expose bindable state for future cooldown text and current lock status");
     AssertTrue(
+        skillDefinitions.Contains("skill_shield_barrier", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("skill_sun_piercer", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("skill_thunder_tag_throw", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("skill_thunder_mark_fold", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("skill_thunder_spiral_break", StringComparison.Ordinal) ||
         skillDefinitions.Contains("DisplayName = \"曦盾结界\"", StringComparison.Ordinal) &&
         skillDefinitions.Contains("DisplayName = \"贯日一击\"", StringComparison.Ordinal) &&
         skillDefinitions.Contains("DisplayName = \"雷签飞投\"", StringComparison.Ordinal) &&

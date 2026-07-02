@@ -50,21 +50,21 @@ Battle preparation should express commander intent before real-time execution st
 The default battle-preparation loop is:
 
 ```text
-select a hero company
--> deploy that hero company with its selected formation
--> choose a configured objective area for that company
--> choose the company's engagement rule
--> repeat for every participating hero company
+select a battle group
+-> deploy that battle group with its selected formation
+-> choose a configured objective area for that battle group
+-> choose the battle group's engagement rule
+-> repeat for every participating battle group
 -> start battle
 ```
 
-Hero-company formation is a planning preference, not individual soldier micromanagement. Strategic management may let the player set a long-term default formation for each hero company, such as standard, assault, guard, loose, or column. Battle preparation initializes the current battle's selected formation from that default. The player may switch the selected formation before or after placement, but the selected formation belongs to the current battle plan unless the player explicitly saves it as the company's default in a future management flow.
+Battle-group formation is a planning preference, not individual soldier micromanagement. Strategic management may let the player set a long-term default formation for each battle group, such as standard, assault, guard, loose, or column. Battle preparation initializes the current battle's selected formation from that default. The player may switch the selected formation before or after placement, but the selected formation belongs to the current battle plan unless the player explicitly saves it as the battle group's default in a future management flow.
 
-Drag deployment uses the selected formation. Formation adaptation may help the company fit narrow or irregular deployment zones, but it must preserve the player's tactical intent and every member footprint. The system may compress spacing or fall back to a column-like arrangement; it must not overlap members, place only part of a footprint in the zone, or silently scatter the company into unrelated positions.
+Drag deployment uses the selected formation. Formation adaptation may help the battle group fit narrow or irregular deployment zones, but it must preserve the player's tactical intent and every member footprint. The system may compress spacing or fall back to a column-like arrangement; it must not overlap members, place only part of a footprint in the zone, or silently scatter the battle group into unrelated positions.
 
 The objective area is a player-facing tactical region authored on the battle map, such as a gate approach, high ground, flank route, bridgehead, reserve point, or enemy core. It is not an arbitrary hidden coordinate chosen by AI. The UI should present objective areas in a polished zoomed-out tactical view while preserving the horizontal battle identity of the map.
 
-The engagement rule tells the company how to behave while advancing and after contact. Initial rules should cover:
+The engagement rule tells the battle group how to behave while advancing and after contact. Initial rules should cover:
 
 | Rule | Player Expectation |
 |---|---|
@@ -75,11 +75,11 @@ The engagement rule tells the company how to behave while advancing and after co
 | Retreat-first | Break away when survival, morale, or rule thresholds trigger retreat. |
 | Protect-hero | Keep the corps near the hero and prioritize threats to the hero. |
 
-This plan does not turn battle into pure auto-playback. It gives each hero company an initial battle intention that can later be overridden by accepted hero, corps, or combined commands. Mature automatic behavior should be readable as execution of the player's plan, not as every unit independently searching the whole map for the globally best target or attack position.
+This plan does not turn battle into pure auto-playback. It gives each battle group an initial battle intention that can later be overridden by accepted hero, corps, or combined commands. Mature automatic behavior should be readable as execution of the player's plan, not as every unit independently searching the whole map for the globally best target or attack position.
 
 ### Local Combat Response
 
-Automatic battle behavior should understand active local fights, not only global objectives and direct target pursuit. When combat starts near a company, nearby units that satisfy the local combat rules should evaluate whether they should join the local fight, take an open attack position, hold a named support position, or remain on their objective/defense task.
+Automatic battle behavior should understand active local fights, not only global objectives and direct target pursuit. When combat starts near a battle group, nearby units that satisfy the local combat rules should evaluate whether they should join the local fight, take an open attack position, hold a named support position, or remain on their objective/defense task.
 
 This behavior should make enemies and allies read as battlefield participants with local awareness:
 
@@ -96,7 +96,7 @@ Local response must remain readable by role:
 - ranged units prefer legal firing positions and avoid blocking the front;
 - cavalry or other mobile units should not clog chokepoints and should join mainly when a side or rear approach is available.
 
-Each hero company should preserve its command identity. Local response may temporarily redirect a company into a nearby fight, but it should not scatter visible soldiers into independent long-term behaviors or pull every nearby company into one fight without budget, leash, and return rules.
+Each battle group should preserve its command identity. Local response may temporarily redirect a battle group into a nearby fight, but it should not scatter visible soldiers into independent long-term behaviors or pull every nearby battle group into one fight without budget, leash, and return rules.
 
 
 ### Intent-Directed Enemy Combat
@@ -145,10 +145,10 @@ Internal settlement ticks or pulses may be used by the implementation to batch e
 Combat is hero-led light RTS.
 
 ```text
-hero company = 1 hero + 1 main corps
+battle group = 1 hero + 1 main corps
 ```
 
-The player selects a hero company, but command is split into three channels:
+The player selects a battle group, but command is split into three channels:
 
 ```text
 hero command
@@ -184,13 +184,13 @@ Corps commands affect the hero's troops as a group. The player never controls in
 
 Combined commands affect the hero and corps together:
 
-- company move;
-- company attack;
-- company defend;
-- company retreat;
+- battle-group move;
+- battle-group attack;
+- battle-group defend;
+- battle-group retreat;
 - regroup.
 
-Combat should support medium-frequency command. The player often selects hero companies, moves, focuses targets, casts hero skills, and redirects troops, but does not perform high-frequency individual soldier micro.
+Combat should support medium-frequency command. The player often selects battle groups, moves, focuses targets, casts hero skills, and redirects troops, but does not perform high-frequency individual soldier micro.
 
 Long-term hero capacity may allow one hero to manage multiple corps slots, such as a `4-6` upper limit. The first playable combat slices may still use one hero plus one main corps as the battle-group shape. That is an implementation staging rule, not a rejection of later reserve or multi-corps capacity.
 
@@ -199,8 +199,8 @@ Long-term hero capacity may allow one hero to manage multiple corps slots, such 
 Each hero brings one visible corps.
 
 ```text
-normal company: 1 hero + 3-8 visible soldiers
-normal battle: 3-5 friendly hero companies
+normal battle group: 1 hero + 3-8 visible soldiers
+normal battle: 3-5 friendly battle groups
 ```
 
 Soldiers are visible and participate in movement, attacks, formation, and death presentation. Long-term state does not track each soldier independently.
@@ -299,7 +299,7 @@ Strategic management treats corps options as city-supported muster templates and
 
 A muster template is the right for a city to create or rebuild a corps type. It comes from the city's identity, controlled source locations, facilities, special resources, relationships, or later accepted systems. A template is not a free unit and does not bypass resource, time, facility, or capacity costs.
 
-A corps instance is an actual persistent force attached to a city, garrison, expedition, or hero company. It tracks readiness facts such as strength, training, equipment level, experience, state, and current assignment. Long-term state still does not track individual soldiers independently.
+A corps instance is an actual persistent force attached to a city, garrison, expedition, or battle group. It tracks readiness facts such as strength, training, equipment level, experience, state, and current assignment. Long-term state still does not track individual soldiers independently.
 
 Severe losses should not permanently delete a corps instance by default in the first strategic-management model. A wiped or shattered corps should enter a routed, scattered, or rebuilding state that requires city support and resources to restore if the relevant muster template remains available.
 
@@ -397,6 +397,10 @@ Skill tiers:
 - core tactical skill: medium cooldown, medium mana cost;
 - ultimate: long cooldown, high mana cost, limited per battle by resource pressure.
 
+Skill assignment is a long-term loadout decision, not a hardcoded battle shortcut. Heroes, battle groups, equipment, or progression may grant skill slots that point to stable skill definitions. Those grants may carry level, source, modifier, or slot facts, but they should not duplicate the full skill definition.
+
+Skill availability should remain readable to the player through mana, cooldown, charges, limited per-battle use, and explicit disabled reasons. Adding a new skill by content should usually mean composing authored skill definitions and reusable effect primitives; adding a new kind of effect, target rule, cost rule, or cross-system mechanic is code/system work.
+
 ### Corps Progression
 
 Corps growth has two axes:
@@ -474,7 +478,7 @@ Wood
 Ore
 CityForceCapacity
 ReserveForces
-ActiveForces (derived from corps, hero companies, and garrison instances)
+ActiveForces (derived from corps, battle groups, and garrison instances)
 ConstructionRegions
 BuildingInstances
 ```
@@ -494,8 +498,8 @@ First-phase resources use faction-shared storage. Cross-city transport loss, reg
 | Food | Recruitment, reserve recovery, garrison upkeep when added later, and long defense when added later. |
 | Wood | Basic construction, city development, defensive structures, and some equipment or repair-like costs when added later. |
 | Ore | Military construction, corps creation, equipment upgrades, and defense support. |
-| CityForceCapacity | Total city manpower capacity for active corps, garrison, hero companies, and reserve soldiers. |
-| ActiveForces | Soldiers already committed into corps, hero companies, or garrison; derived from owned or stationed military instances when possible. |
+| CityForceCapacity | Total city manpower capacity for active corps, garrison, battle groups, and reserve soldiers. |
+| ActiveForces | Soldiers already committed into corps, battle groups, or garrison; derived from owned or stationed military instances when possible. |
 | ReserveForces | Prepared but unassigned soldiers available for recruitment, replenishment, and later manpower-based local support. |
 | ConstructionRegions | Authored buildable areas that constrain where city buildings may be placed; they do not restrict building category. |
 | BuildingInstances | Built city structures with level, construction state, placed region position, strategic effects, and later support state. |
@@ -638,7 +642,7 @@ Battle reports explain command, build, and resource outcomes.
 Minimum report facts:
 
 - outcome;
-- hero company contribution;
+- battle group contribution;
 - corps strength loss;
 - hero skill use and impact;
 - corps automatic skill performance;
@@ -653,7 +657,7 @@ Failure reasons should be actionable:
 ```text
 frontline collapsed
 hero overextended during assault
-ranged company lacked protection
+ranged battle group lacked protection
 cavalry was countered by spear or chokepoint pressure
 mana ran out before key skill timing
 corps equipment level was too low
@@ -719,7 +723,7 @@ First-phase commands:
 ```text
 hero: move / hold / attack / retreat / cast skill
 corps: advance / return to guard / hold / attack target / retreat
-combined: company move / company attack / company retreat / regroup
+combined: battle-group move / battle-group attack / battle-group retreat / regroup
 ```
 
 ## Non-Goals

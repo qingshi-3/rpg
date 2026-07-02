@@ -30,7 +30,7 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
         run("runtime explicit false skill interrupt policy remains valid", ExplicitFalseSkillInterruptPolicyRemainsValid);
         run("runtime ordinary damage effect amount remains positive", OrdinaryDamageEffectAmountRemainsPositive);
         run("runtime empty skill effects remain invalid", EmptySkillEffectsRemainInvalid);
-        run("runtime invalid skill effect kind remains incomplete", InvalidSkillEffectKindRemainsIncomplete);
+        run("runtime unsupported skill effect payload remains incomplete", UnsupportedSkillEffectPayloadRemainsIncomplete);
         run("runtime invalid channeled effect payload remains incomplete", InvalidChanneledEffectPayloadRemainsIncomplete);
         run("runtime duplicate actor ids fail with named invariant", DuplicateActorIdsFailWithNamedInvariant);
     }
@@ -267,17 +267,16 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_invalid_skill_targeting", new BattleSkillSnapshot
         {
-            SkillId = "invalid_targeting_skill",
+            SkillDefinitionId = "invalid_targeting_skill",
             DisplayName = "Invalid Targeting Skill",
             TargetingMode = BattleSkillTargetingMode.None,
             Range = 4,
             CasterUnitIds = { "force_player_hero_definition" },
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = 12
+                    BaseDamage = 12
                 }
             }
         });
@@ -289,17 +288,16 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_targeted_skill_range_required", new BattleSkillSnapshot
         {
-            SkillId = "missing_range_skill",
+            SkillDefinitionId = "missing_range_skill",
             DisplayName = "Missing Range Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 0,
             CasterUnitIds = { "force_player_hero_definition" },
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = 12
+                    BaseDamage = 12
                 }
             }
         });
@@ -311,16 +309,15 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_missing_skill_caster_bindings", new BattleSkillSnapshot
         {
-            SkillId = "missing_caster_bindings_skill",
+            SkillDefinitionId = "missing_caster_bindings_skill",
             DisplayName = "Missing Caster Bindings Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 4,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = 12
+                    BaseDamage = 12
                 }
             }
         });
@@ -332,17 +329,16 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_missing_skill_interrupt_policy", new BattleSkillSnapshot
         {
-            SkillId = "missing_interrupt_policy_skill",
+            SkillDefinitionId = "missing_interrupt_policy_skill",
             DisplayName = "Missing Interrupt Policy Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 4,
             CasterUnitIds = { "force_player_hero_definition" },
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = 12
+                    BaseDamage = 12
                 }
             }
         }, authoredInterruptPolicy: false);
@@ -354,7 +350,7 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_explicit_false_skill_interrupt_policy", new BattleSkillSnapshot
         {
-            SkillId = "explicit_false_interrupt_policy_skill",
+            SkillDefinitionId = "explicit_false_interrupt_policy_skill",
             DisplayName = "Explicit False Interrupt Policy Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 4,
@@ -365,10 +361,9 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
             ReleasesWithoutOccupyingCaster = false,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = 12
+                    BaseDamage = 12
                 }
             }
         });
@@ -386,17 +381,16 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_non_positive_damage_amount", new BattleSkillSnapshot
         {
-            SkillId = "non_positive_damage_skill",
+            SkillDefinitionId = "non_positive_damage_skill",
             DisplayName = "Non Positive Damage Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 4,
             CasterUnitIds = { "force_player_hero_definition" },
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = 0
+                    BaseDamage = 0
                 }
             }
         });
@@ -408,7 +402,7 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_empty_skill_effects_invalid", new BattleSkillSnapshot
         {
-            SkillId = "empty_effects_skill",
+            SkillDefinitionId = "empty_effects_skill",
             DisplayName = "Empty Effects Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 4,
@@ -418,46 +412,41 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
         AssertInvalidSkillSnapshot(snapshot, "battle_skill_effects_missing", "empty effect list");
     }
 
-    private static void InvalidSkillEffectKindRemainsIncomplete()
+    private static void UnsupportedSkillEffectPayloadRemainsIncomplete()
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_invalid_skill_effect_kind", new BattleSkillSnapshot
         {
-            SkillId = "invalid_effect_kind_skill",
-            DisplayName = "Invalid Effect Kind Skill",
+            SkillDefinitionId = "unsupported_effect_payload_skill",
+            DisplayName = "Unsupported Effect Payload Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 4,
             CasterUnitIds = { "force_player_hero_definition" },
             Effects =
             {
-                new BattleSkillEffectSnapshot
-                {
-                    Kind = (BattleSkillEffectKind)999,
-                    Amount = 12
-                }
+                new UnsupportedSkillEffectSnapshot()
             }
         });
 
-        AssertInvalidSkillSnapshot(snapshot, "battle_skill_effect_kind_invalid", "invalid effect kind");
+        AssertInvalidSkillSnapshot(snapshot, "battle_skill_effect_payload_invalid", "unsupported effect payload");
     }
 
     private static void InvalidChanneledEffectPayloadRemainsIncomplete()
     {
         BattleStartSnapshot snapshot = BuildOpposedSnapshotWithSkill("battle_invalid_channel_payload", new BattleSkillSnapshot
         {
-            SkillId = "invalid_channel_skill",
+            SkillDefinitionId = "invalid_channel_skill",
             DisplayName = "Invalid Channel Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 4,
             CasterUnitIds = { "force_player_hero_definition" },
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new ChanneledAreaDamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.StartChanneledAreaDamage,
-                    Amount = 10,
+                    BaseDamage = 10,
                     DurationSeconds = 0,
                     TickIntervalSeconds = 0.2,
-                    Radius = 0
+                    Radius = 1
                 }
             }
         });
@@ -837,7 +826,7 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
         AssertTrue(
             controller.EventStream.Events.Any(item =>
                 item.Kind == BattleEventKind.CommandRejected &&
-                item.SourceDefinitionId == snapshot.SkillDefinitions[0].SkillId &&
+                item.SourceDefinitionId == snapshot.SkillDefinitions[0].SkillDefinitionId &&
                 item.ReasonCode == expectedReason),
             $"{message} should emit explicit skill snapshot rejection reason");
     }
@@ -880,6 +869,11 @@ internal static class TargetBattleRuntimeCorrectnessRegressionCases
             "|",
             (events ?? Array.Empty<BattleEvent>())
             .Select(item => $"{item.Kind}:{item.ActorId}->{item.TargetId}:{item.ReasonCode}:to={item.ToGridX},{item.ToGridY}"));
+    }
+
+    private sealed class UnsupportedSkillEffectSnapshot : BattleSkillEffectSnapshot
+    {
+        public override BattleSkillEffectSnapshotType EffectSnapshotType => BattleSkillEffectSnapshotType.Damage;
     }
 
     private sealed class RecordingBattleRuntimeAiExecutor : IBattleRuntimeAiExecutor

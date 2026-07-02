@@ -81,7 +81,7 @@ internal static string ReadBattleRuntimeLiveObservationSource()
             Path.Combine(dir, "BattleRuntimeLivePresentationObserver.cs"),
             Path.Combine(dir, "BattleRuntimeLivePresentationState.cs"),
             Path.Combine(dir, "BattleRuntimeTeleportPresentationObserver.cs"),
-            Path.Combine(dir, "BattleRuntimeThunderTagPresentationObserver.cs")
+            Path.Combine(dir, "BattleRuntimeSkillProfilePresentationObserver.cs")
         })
         .Where(File.Exists)
         .OrderBy(path => path, StringComparer.Ordinal)

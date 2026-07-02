@@ -8,7 +8,7 @@ internal static class BattleRuntimeHeroSkillCommandRequestFactory
     internal static CommandRequest BuildHeroSkillCommandRequest(
         string groupKey,
         string battleId,
-        string skillId,
+        string skillDefinitionId,
         string sourceActorId,
         string targetActorId,
         GridPosition? targetGrid,
@@ -16,13 +16,13 @@ internal static class BattleRuntimeHeroSkillCommandRequestFactory
     {
         return new CommandRequest
         {
-            CommandId = $"hero_skill:{groupKey ?? ""}:{skillId ?? ""}",
+            CommandId = $"hero_skill:{groupKey ?? ""}:{skillDefinitionId ?? ""}",
             BattleId = battleId ?? "",
             BattleGroupId = groupKey ?? "",
             SourceActorId = sourceActorId ?? "",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = skillId ?? "",
+            SkillDefinitionId = skillDefinitionId ?? "",
             TargetActorId = targetActorId ?? "",
             HasTargetGrid = targetGrid.HasValue,
             TargetGridX = targetGrid?.X ?? 0,

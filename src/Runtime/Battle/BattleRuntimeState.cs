@@ -15,7 +15,7 @@ public sealed class BattleRuntimeState
     public List<BattleSkillSnapshot> SkillDefinitions { get; set; } = new();
     public List<BattleRuntimeSpatialMark> SpatialMarks { get; } = new();
     internal long NextAbilityOrderSequence { get; set; }
-    internal HashSet<string> UsedHeroSkillKeys { get; } = new(System.StringComparer.Ordinal);
+    internal BattleSkillAvailabilityState SkillAvailability { get; } = new();
     internal BattleGroupTacticalStateStore TacticalStateStore { get; set; } = BattleGroupTacticalStateStore.Empty();
     internal IReadOnlyDictionary<string, BattleGroupPerceptionSummary> GroupPerceptionSummaryStore { get; set; } =
         new Dictionary<string, BattleGroupPerceptionSummary>();

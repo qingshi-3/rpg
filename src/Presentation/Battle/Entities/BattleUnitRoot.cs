@@ -218,6 +218,8 @@ public partial class BattleUnitRoot : Node2D
             return;
         }
 
+        GridOccupantComponent gridOccupant = entity.GetComponent<GridOccupantComponent>();
+        GridSurfacePosition snapSurface = ResolveMovementInterruptionSurface(entity, gridOccupant);
         bool hadMovement = _movementLanes.Remove(entity);
         bool hadPendingIdle = _pendingMovementIdleSeconds.Remove(entity);
         if (!snapToLogicalGrid)
@@ -225,24 +227,32 @@ public partial class BattleUnitRoot : Node2D
             return;
         }
 
-        GridOccupantComponent gridOccupant = entity.GetComponent<GridOccupantComponent>();
         if (gridOccupant == null)
         {
             return;
         }
 
-        // Skill casting is an anchored action. If a visual movement lane is
-        // still catching up to Runtime's grid state, finish that presentation
-        // boundary before the cast FX starts so the unit does not drift mid-cast.
-        if (TryResolveMovementGlobalPosition(gridOccupant, gridOccupant.SurfacePosition, out Vector2 globalPosition))
+        // Skill casting is an anchored action. A queued movement target is only
+        // future visual work; interruption snaps to the last visually committed
+        // surface so Presentation does not invent a second current position.
+        if (TryResolveMovementGlobalPosition(gridOccupant, snapSurface, out Vector2 globalPosition))
         {
             entity.GlobalPosition = globalPosition;
-            ApplyRenderSort(entity, gridOccupant.SurfacePosition);
+            gridOccupant.SetSurfacePosition(snapSurface);
+            ApplyRenderSort(entity, snapSurface);
             if (hadMovement || hadPendingIdle)
             {
                 entity.GetComponent<UnitAnimationComponent>()?.PlayIdle();
             }
         }
+    }
+
+    private GridSurfacePosition ResolveMovementInterruptionSurface(BattleEntity entity, GridOccupantComponent gridOccupant)
+    {
+        return entity != null &&
+               _movementLanes.TryGetValue(entity, out MovementLane lane)
+            ? lane.CommittedSurface
+            : gridOccupant?.SurfacePosition ?? default;
     }
 
     public Task ShowActionCueAsync(BattleEntity entity, BattleFaction faction, double durationSeconds)

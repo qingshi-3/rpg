@@ -13,7 +13,7 @@ public sealed class FirstSliceHeroCompanyDefinition
     public string HeroUnit { get; init; } = "";
     public string DefaultCorpsUnit { get; init; } = "";
     public int DefaultCorpsCount { get; init; } = 1;
-    public string SkillId { get; init; } = "";
+    public List<string> SkillDefinitionIds { get; init; } = new();
 }
 
 public sealed class FirstSliceBonefieldRosterDefinition
@@ -40,7 +40,7 @@ public static class FirstSliceHeroCompanyConfigLoader
         string text = ProjectConfigFileReader.ReadAllText(path);
         FirstSliceHeroCompanyConfig config = JsonSerializer.Deserialize<FirstSliceHeroCompanyConfig>(
             text,
-            ProjectJson.Options) ?? throw new InvalidOperationException($"Invalid first-slice hero company config path={path}");
+            ProjectJson.Options) ?? throw new InvalidOperationException($"Invalid first-slice battle group config path={path}");
 
         Validate(config, path);
         return config;
@@ -50,7 +50,7 @@ public static class FirstSliceHeroCompanyConfigLoader
     {
         if (config.Companies == null || config.Companies.Count == 0)
         {
-            throw new InvalidOperationException($"First-slice hero company config has no companies path={path}");
+            throw new InvalidOperationException($"First-slice battle group config has no companies path={path}");
         }
 
         HashSet<string> companyIds = new(StringComparer.Ordinal);
@@ -62,10 +62,10 @@ public static class FirstSliceHeroCompanyConfigLoader
             RequireNonEmpty(company.RoleId, "roleId", path);
             RequireNonEmpty(company.HeroUnit, "heroUnit", path);
             RequireNonEmpty(company.DefaultCorpsUnit, "defaultCorpsUnit", path);
-            RequireNonEmpty(company.SkillId, "skillId", path);
+            ValidateSkillDefinitionIds(company, path);
             if (company.DefaultCorpsCount <= 0)
             {
-                throw new InvalidOperationException($"First-slice hero company config has non-positive default corps count company={company.CompanyId} path={path}");
+                throw new InvalidOperationException($"First-slice battle group config has non-positive default corps count company={company.CompanyId} path={path}");
             }
 
             if (!companyIds.Add(company.CompanyId))
@@ -86,7 +86,7 @@ public static class FirstSliceHeroCompanyConfigLoader
 
         if (config.BonefieldRoster == null || config.BonefieldRoster.Count == 0)
         {
-            throw new InvalidOperationException($"First-slice hero company config has no Bonefield roster path={path}");
+            throw new InvalidOperationException($"First-slice battle group config has no Bonefield roster path={path}");
         }
 
         HashSet<string> bonefieldRoles = new(StringComparer.Ordinal);
@@ -110,7 +110,26 @@ public static class FirstSliceHeroCompanyConfigLoader
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new InvalidOperationException($"First-slice hero company config field is empty field={field} path={path}");
+            throw new InvalidOperationException($"First-slice battle group config field is empty field={field} path={path}");
+        }
+    }
+
+    private static void ValidateSkillDefinitionIds(FirstSliceHeroCompanyDefinition company, string path)
+    {
+        if (company.SkillDefinitionIds == null || company.SkillDefinitionIds.Count == 0)
+        {
+            throw new InvalidOperationException($"First-slice battle group config has no skillDefinitionIds company={company.CompanyId} path={path}");
+        }
+
+        HashSet<string> skillDefinitionIds = new(StringComparer.Ordinal);
+        foreach (string rawSkillDefinitionId in company.SkillDefinitionIds)
+        {
+            string skillDefinitionId = rawSkillDefinitionId?.Trim() ?? "";
+            RequireNonEmpty(skillDefinitionId, "skillDefinitionIds", path);
+            if (!skillDefinitionIds.Add(skillDefinitionId))
+            {
+                throw new InvalidOperationException($"Duplicate first-slice skill definition id={skillDefinitionId} company={company.CompanyId} path={path}");
+            }
         }
     }
 }

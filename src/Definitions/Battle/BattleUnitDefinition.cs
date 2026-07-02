@@ -1,6 +1,5 @@
 using Godot;
 using Rpg.Definitions.Battle.Audio;
-using Rpg.Definitions.Battle.Abilities;
 
 namespace Rpg.Definitions.Battle;
 
@@ -18,9 +17,6 @@ public partial class BattleUnitDefinition : Resource
 
     [Export]
     public BattleUnitAudioDefinition Audio { get; set; }
-
-    [Export]
-    public Godot.Collections.Array<AbilityDefinition> Abilities { get; set; } = new();
 
     [Export]
     public BattleUnitControlMode ControlMode { get; set; } = BattleUnitControlMode.AutoByFaction;

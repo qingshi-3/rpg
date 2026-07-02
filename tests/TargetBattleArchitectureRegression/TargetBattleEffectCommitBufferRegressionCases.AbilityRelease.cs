@@ -74,14 +74,14 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
 
     private static void AddTimedDamageSkill(
         BattleStartSnapshot snapshot,
-        string skillId,
+        string skillDefinitionId,
         int damage,
         double castSeconds,
         double recoverySeconds)
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             DisplayName = "Effect Commit Timed Damage",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
@@ -94,10 +94,9 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             CanCancelBasicAttackRecovery = false,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = damage
+                    BaseDamage = damage
                 }
             }
         });

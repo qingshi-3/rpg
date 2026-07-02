@@ -85,7 +85,7 @@ internal static void StrategicWorldFirstSliceExpeditionSelectsOneToThreeHeroComp
     AssertTrue(
         rootSource.Contains("StrategicManagementRuntime.BuildDashboard(", StringComparison.Ordinal) &&
         rootSource.Contains("SelectedCity.HeroCompanies", StringComparison.Ordinal),
-        "StrategicWorldRoot should draft from Strategic Management hero-company view models");
+        "StrategicWorldRoot should draft from Strategic Management battle-group view models");
     AssertTrue(
         createBody.Contains("IReadOnlyList<string> selectedHeroIds = BuildSelectedExpeditionHeroIds()", StringComparison.Ordinal) &&
         createBody.Contains("StrategicManagementRuntime.Commands.CreateExpedition(", StringComparison.Ordinal) &&
@@ -95,7 +95,7 @@ internal static void StrategicWorldFirstSliceExpeditionSelectsOneToThreeHeroComp
     AssertTrue(
         adjustBody.Contains("StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition", StringComparison.Ordinal) &&
         !adjustBody.Contains("_expeditionHeroIds.Clear();", StringComparison.Ordinal),
-        "expedition draft should allow adding hero companies up to the first-slice maximum instead of clearing selection to one");
+        "expedition draft should allow adding battle groups up to the first-slice maximum instead of clearing selection to one");
     AssertTrue(
         clampBody.Contains("Take(StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition)", StringComparison.Ordinal),
         "expedition draft clamping should retain up to the first-slice maximum selected companies");
@@ -176,7 +176,7 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("BindBattlePreparationCompanyRoster", StringComparison.Ordinal) &&
         rootSource.Contains("BeginBattlePreparationCompanyDrag", StringComparison.Ordinal) &&
         !rootSource.Contains("BeginBattlePreparationRosterDrag", StringComparison.Ordinal),
-        "battle preparation should expose hero companies as compact draggable roster rows, not individual force-slot buttons");
+        "battle preparation should expose battle groups as compact draggable roster rows, not individual force-slot buttons");
     AssertTrue(
         rootSource.Contains("_battlePreparationStartButton", StringComparison.Ordinal) &&
         rootSource.Contains("BattlePreparationStartButton", StringComparison.Ordinal) &&
@@ -300,21 +300,21 @@ internal static void WorldSiteBattleRuntimeHeroSkillSubmitsHeroCastCommand()
     string requestFactoryBody = ExtractMethodBody(ReadWorldSitePresentationSource(), "internal static CommandRequest BuildHeroSkillCommandRequest(");
 
     AssertTrue(
-        rootSource.Contains("BuildBattleRuntimeSkillSnapshots(selected).FirstOrDefault()?.SkillId", StringComparison.Ordinal) &&
+        rootSource.Contains("ResolveSkillDefinitionId(BuildBattleRuntimeSkillSnapshots(selected).FirstOrDefault())", StringComparison.Ordinal) &&
         !pressBody.Contains("HeroSkillCommandIds.FirstSliceHeroSkillId", StringComparison.Ordinal),
-        "battle runtime HUD should read the pressed skill id from the selected runtime skill snapshot instead of fabricating a default first-slice skill");
+        "battle runtime HUD should read the pressed skill definition id from the selected runtime skill snapshot instead of fabricating a default first-slice skill");
     AssertTrue(
         rootSource.Contains("OnBattleRuntimeHeroSkillPressed", StringComparison.Ordinal) &&
         rootSource.Contains("OnBattleRuntimeSkillSlotPressed", StringComparison.Ordinal) &&
         pressBody.Contains("SetBattleRuntimeCommandPauseActive(true", StringComparison.Ordinal) &&
-        pressBody.Contains("BeginBattleRuntimeHeroSkillTargetPicking(selected, normalizedSkillId)", StringComparison.Ordinal) &&
+        pressBody.Contains("BeginBattleRuntimeHeroSkillTargetPicking(selected, normalizedSkillDefinitionId)", StringComparison.Ordinal) &&
         !pressBody.Contains("SubmitBattleRuntimeHeroSkillCommand(selected)", StringComparison.Ordinal),
         "hero skill button should enter tactical pause and target picking instead of submitting a targeted skill without a target");
     AssertTrue(
         rootSource.Contains("BuildBattleRuntimeHeroSkillCommandRequest", StringComparison.Ordinal) &&
         requestFactoryBody.Contains("Channel = CommandChannel.Hero", StringComparison.Ordinal) &&
         requestFactoryBody.Contains("Kind = CommandKind.CastSkill", StringComparison.Ordinal) &&
-        requestFactoryBody.Contains("SkillId = skillId", StringComparison.Ordinal) &&
+        requestFactoryBody.Contains("SkillDefinitionId = skillDefinitionId", StringComparison.Ordinal) &&
         requestFactoryBody.Contains("TargetActorId = targetActorId", StringComparison.Ordinal),
         "hero skill target click should build a CommandRequest through the hero cast-skill channel with the selected target");
     AssertTrue(
@@ -377,7 +377,7 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
         rootSource.Contains("SetCommandSelectionByEntityIds", StringComparison.Ordinal) &&
         rootSource.Contains("ApplyBattleRuntimeCommandGroupHighlight", StringComparison.Ordinal) &&
         rootSource.Contains("OnBattleRuntimeHeroSkillPressed", StringComparison.Ordinal),
-        "selecting a runtime hero company should highlight matching units and keep commands in the compact hero frame without mutating runtime truth.");
+        "selecting a runtime battle group should highlight matching units and keep commands in the compact hero frame without mutating runtime truth.");
     AssertTrue(
         worldSiteScene.Contains("UnitMoveDuration = 0.27", StringComparison.Ordinal),
         "runtime unit movement should be slowed in the site scene for readable realtime command evaluation.");
@@ -1047,7 +1047,7 @@ internal static void BattlePreparationPlanUsesStrategicDefaultFormation()
     AssertTrue(
         request.PlayerForces.Count > 0 &&
         request.PlayerForces.All(force => string.Equals(forceDefaultFormation.GetValue(force) as string, expectedFormation, StringComparison.Ordinal)),
-        "battle entry should copy the source army default formation to every player force in the hero company.");
+        "battle entry should copy the source army default formation to every player force in the battle group.");
 
     string groupViewSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "BattleRuntimeCommandGroupView.cs"));
     string hudSource = File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattlePreparationHud.cs"));

@@ -247,7 +247,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
         BattleStartSnapshot snapshot = BuildOpposedSnapshot("battle_effect_commit_zero_floor", enemyStrength: 10);
         AddDamageSkill(snapshot, ZeroFloorSkillId, damage: 1);
         BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
-        controller.State.SkillDefinitions.Single(item => item.SkillId == ZeroFloorSkillId).Effects[0].Amount = -5;
+        ((DamageSkillEffectSnapshot)controller.State.SkillDefinitions.Single(item => item.SkillDefinitionId == ZeroFloorSkillId).Effects[0]).BaseDamage = -5;
         FreezeAutonomousCorps(controller);
 
         BattleRuntimeCommandSubmitResult submit = SubmitTargetedSkill(
@@ -327,7 +327,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = MixedDamageChannelSkillId,
+            SkillDefinitionId = MixedDamageChannelSkillId,
             TargetActorId = EnemyActorId
         };
         SetCommandTargetGrid(request, x: 6, y: 0, height: 0);
@@ -381,7 +381,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             SourceActorId = "group_player:hero",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderSpiralBreakSkillId
+            SkillDefinitionId = ThunderSpiralBreakSkillId
         };
         SetCommandTargetGrid(request, x: 2, y: 0, height: 0);
 
@@ -426,7 +426,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             SourceActorId = "group_player:hero",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = DoubleChannelSkillId
+            SkillDefinitionId = DoubleChannelSkillId
         };
         SetCommandTargetGrid(request, x: 6, y: 0, height: 0);
 
@@ -479,7 +479,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             SourceActorId = PlayerActorId,
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = OpposingChannelSkillId
+            SkillDefinitionId = OpposingChannelSkillId
         };
         SetCommandTargetGrid(playerRequest, x: 6, y: 0, height: 0);
         CommandRequest enemyRequest = new()
@@ -490,7 +490,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             SourceActorId = EnemyActorId,
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = OpposingChannelSkillId
+            SkillDefinitionId = OpposingChannelSkillId
         };
         SetCommandTargetGrid(enemyRequest, x: 0, y: 0, height: 0);
 
@@ -533,7 +533,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             SourceActorId = PlayerActorId,
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = OpposingChannelSkillId
+            SkillDefinitionId = OpposingChannelSkillId
         };
         SetCommandTargetGrid(playerRequest, x: 6, y: 0, height: 0);
         CommandRequest enemyRequest = new()
@@ -544,7 +544,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             SourceActorId = EnemyActorId,
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = OpposingChannelSkillId
+            SkillDefinitionId = OpposingChannelSkillId
         };
         SetCommandTargetGrid(enemyRequest, x: 0, y: 0, height: 0);
 
@@ -612,11 +612,11 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
         return snapshot;
     }
 
-    private static void AddDamageSkill(BattleStartSnapshot snapshot, string skillId, int damage)
+    private static void AddDamageSkill(BattleStartSnapshot snapshot, string skillDefinitionId, int damage)
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             DisplayName = "Effect Commit Damage",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
@@ -629,20 +629,19 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             CanCancelBasicAttackRecovery = false,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = damage
+                    BaseDamage = damage
                 }
             }
         });
     }
 
-    private static void AddMultiDamageSkill(BattleStartSnapshot snapshot, string skillId, int firstDamage, int secondDamage)
+    private static void AddMultiDamageSkill(BattleStartSnapshot snapshot, string skillDefinitionId, int firstDamage, int secondDamage)
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             DisplayName = "Effect Commit Multi Damage",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
@@ -655,15 +654,13 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             CanCancelBasicAttackRecovery = false,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = firstDamage
+                    BaseDamage = firstDamage
                 },
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = secondDamage
+                    BaseDamage = secondDamage
                 }
             }
         });
@@ -673,7 +670,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = MixedDamageChannelSkillId,
+            SkillDefinitionId = MixedDamageChannelSkillId,
             DisplayName = "Effect Commit Mixed Damage Channel",
             TargetingMode = BattleSkillTargetingMode.TargetedActorOrCell,
             Range = 8,
@@ -685,18 +682,17 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             CanInterruptBasicAttackWindup = true,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = 1
+                    BaseDamage = 1
                 },
-                new BattleSkillEffectSnapshot
+                new ChanneledAreaDamageSkillEffectSnapshot
                 {
-                    Kind = (BattleSkillEffectKind)StartChanneledAreaDamageEffectKindValue,
-                    Amount = 1,
+                    BaseDamage = 1,
                     DurationSeconds = 0.4,
                     TickIntervalSeconds = 0.2,
-                    Radius = 0
+                    Radius = 1,
+                    UsesTargetOffset = true
                 }
             }
         });
@@ -706,7 +702,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = ThunderSpiralBreakSkillId,
+            SkillDefinitionId = ThunderSpiralBreakSkillId,
             DisplayName = "Thunder Spiral Break",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 3,
@@ -719,13 +715,13 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             CanCancelBasicAttackRecovery = true,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new ChanneledAreaDamageSkillEffectSnapshot
                 {
-                    Kind = (BattleSkillEffectKind)StartChanneledAreaDamageEffectKindValue,
-                    Amount = 9,
+                    BaseDamage = 9,
                     DurationSeconds = 1.6,
                     TickIntervalSeconds = 0.2,
-                    Radius = 1
+                    Radius = 1,
+                    UsesTargetOffset = true
                 }
             }
         });
@@ -735,7 +731,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = DoubleChannelSkillId,
+            SkillDefinitionId = DoubleChannelSkillId,
             DisplayName = "Effect Commit Double Channel",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 8,
@@ -747,21 +743,21 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             CanInterruptBasicAttackWindup = true,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new ChanneledAreaDamageSkillEffectSnapshot
                 {
-                    Kind = (BattleSkillEffectKind)StartChanneledAreaDamageEffectKindValue,
-                    Amount = 1,
+                    BaseDamage = 1,
                     DurationSeconds = 0.8,
                     TickIntervalSeconds = 0.2,
-                    Radius = 0
+                    Radius = 1,
+                    UsesTargetOffset = true
                 },
-                new BattleSkillEffectSnapshot
+                new ChanneledAreaDamageSkillEffectSnapshot
                 {
-                    Kind = (BattleSkillEffectKind)StartChanneledAreaDamageEffectKindValue,
-                    Amount = 1,
+                    BaseDamage = 1,
                     DurationSeconds = 0.8,
                     TickIntervalSeconds = 0.2,
-                    Radius = 0
+                    Radius = 1,
+                    UsesTargetOffset = true
                 }
             }
         });
@@ -771,7 +767,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = OpposingChannelSkillId,
+            SkillDefinitionId = OpposingChannelSkillId,
             DisplayName = "Effect Commit Opposing Channel",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 8,
@@ -783,13 +779,13 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             CanInterruptBasicAttackWindup = true,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new ChanneledAreaDamageSkillEffectSnapshot
                 {
-                    Kind = (BattleSkillEffectKind)StartChanneledAreaDamageEffectKindValue,
-                    Amount = 10,
+                    BaseDamage = 10,
                     DurationSeconds = 0.8,
                     TickIntervalSeconds = 0.2,
-                    Radius = 0
+                    Radius = 1,
+                    UsesTargetOffset = true
                 }
             }
         });
@@ -800,7 +796,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
         string battleId,
         string commandId,
         string targetActorId,
-        string skillId)
+        string skillDefinitionId)
     {
         return controller.SubmitCommand(new CommandRequest
         {
@@ -809,7 +805,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             TargetActorId = targetActorId
         });
     }

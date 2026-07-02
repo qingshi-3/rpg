@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using Rpg.Application.Battle.Commands;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle;
 using Rpg.Runtime.Battle.Events;
 
@@ -10,7 +10,7 @@ internal static class BattleRuntimeSkillUsageResolver
 {
     internal static WorldSiteRoot.BattleRuntimeSkillUsageState Resolve(
         BattleRuntimeCommandGroupView selected,
-        string skillId,
+        BattleSkillSnapshot skill,
         IReadOnlyList<BattleEvent> events,
         IReadOnlyList<BattleRuntimeSpatialMark> spatialMarks = null,
         double runtimeTimeSeconds = 0)
@@ -20,14 +20,14 @@ internal static class BattleRuntimeSkillUsageResolver
             return WorldSiteRoot.BattleRuntimeSkillUsageState.Unavailable;
         }
 
-        string normalizedSkillId = (skillId ?? "").Trim();
-        if (string.IsNullOrWhiteSpace(normalizedSkillId))
+        string normalizedSkillDefinitionId = ResolveSkillDefinitionId(skill);
+        if (string.IsNullOrWhiteSpace(normalizedSkillDefinitionId))
         {
             return WorldSiteRoot.BattleRuntimeSkillUsageState.Unavailable;
         }
 
-        if (string.Equals(normalizedSkillId, HeroSkillCommandIds.ThunderMarkFoldSkillId, System.StringComparison.Ordinal) &&
-            !HasLiveThunderMark(selected.GroupKey, spatialMarks, runtimeTimeSeconds))
+        if (RequiresLiveMark(skill) &&
+            !HasLiveOwnedMark(selected.GroupKey, spatialMarks, runtimeTimeSeconds))
         {
             return WorldSiteRoot.BattleRuntimeSkillUsageState.Unavailable;
         }
@@ -41,7 +41,7 @@ internal static class BattleRuntimeSkillUsageResolver
             item != null &&
             item.Kind == BattleEventKind.SkillUsed &&
             string.Equals(item.BattleGroupId ?? "", selected.GroupKey, System.StringComparison.Ordinal) &&
-            string.Equals(item.SourceDefinitionId ?? "", normalizedSkillId, System.StringComparison.Ordinal));
+            string.Equals(item.SourceDefinitionId ?? "", normalizedSkillDefinitionId, System.StringComparison.Ordinal));
         if (used)
         {
             return WorldSiteRoot.BattleRuntimeSkillUsageState.Used;
@@ -52,7 +52,7 @@ internal static class BattleRuntimeSkillUsageResolver
                 item != null &&
                 item.Kind == BattleEventKind.CommandFailed &&
                 string.Equals(item.BattleGroupId ?? "", selected.GroupKey, System.StringComparison.Ordinal) &&
-                string.Equals(item.SourceDefinitionId ?? "", normalizedSkillId, System.StringComparison.Ordinal) &&
+                string.Equals(item.SourceDefinitionId ?? "", normalizedSkillDefinitionId, System.StringComparison.Ordinal) &&
                 !string.IsNullOrWhiteSpace(item.SourceCommandId))
             .Select(item => item.SourceCommandId)
             .ToHashSet(System.StringComparer.Ordinal);
@@ -60,7 +60,7 @@ internal static class BattleRuntimeSkillUsageResolver
         bool pending = events.Any(item =>
             item != null &&
             string.Equals(item.BattleGroupId ?? "", selected.GroupKey, System.StringComparison.Ordinal) &&
-            string.Equals(item.SourceDefinitionId ?? "", normalizedSkillId, System.StringComparison.Ordinal) &&
+            string.Equals(item.SourceDefinitionId ?? "", normalizedSkillDefinitionId, System.StringComparison.Ordinal) &&
             item.Kind == BattleEventKind.CommandAccepted &&
             !failedCommandIds.Contains(item.SourceCommandId ?? ""));
         return pending
@@ -68,7 +68,17 @@ internal static class BattleRuntimeSkillUsageResolver
             : WorldSiteRoot.BattleRuntimeSkillUsageState.Ready;
     }
 
-    private static bool HasLiveThunderMark(
+    private static string ResolveSkillDefinitionId(BattleSkillSnapshot skill)
+    {
+        return skill?.SkillDefinitionId?.Trim() ?? "";
+    }
+
+    private static bool RequiresLiveMark(BattleSkillSnapshot skill) =>
+        skill?.Targeting?.RequiresSelectedMark == true ||
+        skill?.Targeting?.InputFlow == BattleSkillInputFlow.SelectMarkThenLandingCell ||
+        skill?.Effects?.OfType<TeleportToMarkSkillEffectSnapshot>().Any() == true;
+
+    private static bool HasLiveOwnedMark(
         string ownerBattleGroupId,
         IReadOnlyList<BattleRuntimeSpatialMark> spatialMarks,
         double runtimeTimeSeconds) =>

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle.AI;
 using Rpg.Runtime.Battle.Effects;
 using Rpg.Runtime.Battle.Events;
@@ -41,7 +40,7 @@ internal sealed class BattleCommitBuffer
     internal void RequestEffectDelivery(
         BattleEffectExecutionContext context,
         BattleRuntimeActor target,
-        BattleSkillEffectKind effectKind,
+        string effectKind,
         int amount)
     {
         if (context == null ||
@@ -59,6 +58,13 @@ internal sealed class BattleCommitBuffer
             context.SourceCommandId ?? "",
             context.SourceActionId ?? "",
             context.SourceDefinitionId ?? "",
+            context.PresentationProfileId ?? "",
+            context.CastFxProfileId ?? "",
+            context.ImpactFxProfileId ?? "",
+            context.MarkFxProfileId ?? "",
+            context.AreaFxProfileId ?? "",
+            context.SuppressActorCastFx,
+            context.HoldCastAnimationDuringAction,
             context.Actor,
             new BattleGridCoord(context.Actor.GridX, context.Actor.GridY, context.Actor.GridHeight),
             target,
@@ -89,6 +95,13 @@ internal sealed class BattleCommitBuffer
             context.SourceActionId ?? "",
             context.SourceDefinitionId ?? "",
             effectKind ?? "",
+            context.PresentationProfileId ?? "",
+            context.CastFxProfileId ?? "",
+            context.ImpactFxProfileId ?? "",
+            context.MarkFxProfileId ?? "",
+            context.AreaFxProfileId ?? "",
+            context.SuppressActorCastFx,
+            context.HoldCastAnimationDuringAction,
             context.Actor,
             context.ActorAnchorOverride ?? new BattleGridCoord(context.Actor.GridX, context.Actor.GridY, context.Actor.GridHeight),
             targetHealth,
@@ -106,7 +119,7 @@ internal sealed class BattleCommitBuffer
         foreach (EffectDeliveryRequest request in _effectDeliveryRequests)
         {
             BattleActorRuntime targetRuntime = new(request.Target);
-            targetRuntime.EffectReceiver.ReceiveEffect(
+            targetRuntime.EffectReceiver.ReceiveDamage(
                 this,
                 new BattleEffectExecutionContext
                 {
@@ -116,17 +129,21 @@ internal sealed class BattleCommitBuffer
                     SourceCommandId = request.SourceCommandId,
                     SourceActionId = request.SourceActionId,
                     SourceDefinitionId = request.SourceDefinitionId,
+                    PresentationProfileId = request.PresentationProfileId,
+                    CastFxProfileId = request.CastFxProfileId,
+                    ImpactFxProfileId = request.ImpactFxProfileId,
+                    MarkFxProfileId = request.MarkFxProfileId,
+                    AreaFxProfileId = request.AreaFxProfileId,
+                    SuppressActorCastFx = request.SuppressActorCastFx,
+                    HoldCastAnimationDuringAction = request.HoldCastAnimationDuringAction,
                     CommitBuffer = this,
                     ActorAnchorOverride = request.ActorAnchor,
                     TargetAnchorOverride = request.TargetAnchor,
                     Actor = request.Actor,
                     Target = request.Target
                 },
-                new BattleEffectPayload
-                {
-                    EffectKind = request.EffectKind,
-                    Amount = request.Amount
-                });
+                request.Amount,
+                request.EffectKind);
         }
 
         _effectDeliveryRequests.Clear();
@@ -292,11 +309,18 @@ internal sealed class BattleCommitBuffer
         string SourceCommandId,
         string SourceActionId,
         string SourceDefinitionId,
+        string PresentationProfileId,
+        string CastFxProfileId,
+        string ImpactFxProfileId,
+        string MarkFxProfileId,
+        string AreaFxProfileId,
+        bool SuppressActorCastFx,
+        bool HoldCastAnimationDuringAction,
         BattleRuntimeActor Actor,
         BattleGridCoord ActorAnchor,
         BattleRuntimeActor Target,
         BattleGridCoord TargetAnchor,
-        BattleSkillEffectKind EffectKind,
+        string EffectKind,
         int Amount);
 
     private readonly record struct EffectDamageRequest(
@@ -307,6 +331,13 @@ internal sealed class BattleCommitBuffer
         string SourceActionId,
         string SourceDefinitionId,
         string EffectKind,
+        string PresentationProfileId,
+        string CastFxProfileId,
+        string ImpactFxProfileId,
+        string MarkFxProfileId,
+        string AreaFxProfileId,
+        bool SuppressActorCastFx,
+        bool HoldCastAnimationDuringAction,
         BattleRuntimeActor Actor,
         BattleGridCoord ActorAnchor,
         BattleHealthComponent TargetHealth,
@@ -358,6 +389,13 @@ internal sealed class BattleCommitBuffer
             SourceActionId = request.SourceActionId,
             SourceDefinitionId = request.SourceDefinitionId,
             EffectKind = request.EffectKind,
+            PresentationProfileId = request.PresentationProfileId,
+            CastFxProfileId = request.CastFxProfileId,
+            ImpactFxProfileId = request.ImpactFxProfileId,
+            MarkFxProfileId = request.MarkFxProfileId,
+            AreaFxProfileId = request.AreaFxProfileId,
+            SuppressActorCastFx = request.SuppressActorCastFx,
+            HoldCastAnimationDuringAction = request.HoldCastAnimationDuringAction,
             Kind = kind,
             ReasonCode = reasonCode,
             RuntimeTick = request.RuntimeTick,

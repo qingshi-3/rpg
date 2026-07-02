@@ -64,7 +64,6 @@ public partial class BattleUnitRoot
             ? previousPosition
             : path[^1];
         Vector2 previousGlobal = entity.GlobalPosition;
-        gridOccupant.SetSurfacePosition(targetPosition);
         ApplyRenderSort(entity, previousPosition);
         if (TryBuildMovementGlobalPath(
                 path,
@@ -92,7 +91,7 @@ public partial class BattleUnitRoot
         {
             entity.GetComponent<UnitAnimationComponent>()?.FaceToward(fallbackGlobal);
             entity.GlobalPosition = fallbackGlobal;
-            ApplyRenderSort(entity, targetPosition);
+            CommitMovementSegmentSurface(entity, targetPosition);
         }
 
         GameLog.Warn(
@@ -205,7 +204,7 @@ public partial class BattleUnitRoot
             entity.GlobalPosition = globalPath[^1];
             if (surfacePath?.Count > 0)
             {
-                ApplyRenderSort(entity, surfacePath[^1]);
+                CommitMovementSegmentSurface(entity, surfacePath[^1]);
             }
             return 0;
         }
@@ -275,7 +274,7 @@ public partial class BattleUnitRoot
             }
 
             entity.GlobalPosition = segment.To;
-            ApplyRenderSort(entity, segment.ToSurface);
+            CommitMovementSegmentSurface(entity, segment.ToSurface);
             lane.CompleteCurrentSegment();
         }
 
@@ -364,6 +363,13 @@ public partial class BattleUnitRoot
         entity.GetComponent<UnitAnimationComponent>()?.PlayMove(restartMoveAnimation);
     }
 
+    private void CommitMovementSegmentSurface(BattleEntity entity, GridSurfacePosition surfacePosition)
+    {
+        GridOccupantComponent gridOccupant = entity?.GetComponent<GridOccupantComponent>();
+        gridOccupant?.SetSurfacePosition(surfacePosition);
+        ApplyRenderSort(entity, surfacePosition);
+    }
+
     private double ResolveMoveStepDurationSeconds(double stepDurationSeconds)
     {
         return ResolveVisualMoveStepDurationSeconds(stepDurationSeconds);
@@ -402,6 +408,7 @@ public partial class BattleUnitRoot
         private readonly Queue<MovementSegment> _segments = new();
         private MovementSegment _current;
         private bool _hasCurrent;
+        private GridSurfacePosition _committedSurface;
         private Vector2 _queuedEndPoint;
         private GridSurfacePosition _queuedEndSurface;
         private double _startupDelaySeconds;
@@ -409,6 +416,7 @@ public partial class BattleUnitRoot
 
         public MovementLane(Vector2 startPoint, GridSurfacePosition startSurface, double startupDelaySeconds)
         {
+            _committedSurface = startSurface;
             _queuedEndPoint = startPoint;
             _queuedEndSurface = startSurface;
             _startupDelaySeconds = System.Math.Max(0, startupDelaySeconds);
@@ -422,6 +430,7 @@ public partial class BattleUnitRoot
         public bool HasStartupDelay => _startupDelaySeconds > 0 && HasSegments;
         public bool HasContinuationHold => _continuationHoldSeconds > 0;
         public bool IsActive => HasSegments || HasContinuationHold;
+        public GridSurfacePosition CommittedSurface => _committedSurface;
 
         public void Enqueue(
             IReadOnlyList<Vector2> globalPath,
@@ -521,6 +530,11 @@ public partial class BattleUnitRoot
             LastCompletedSegmentDurationSeconds = _hasCurrent
                 ? _current.DurationSeconds
                 : LastCompletedSegmentDurationSeconds;
+            if (_hasCurrent)
+            {
+                _committedSurface = _current.ToSurface;
+            }
+
             _hasCurrent = false;
             IsNewSegment = false;
             ElapsedSeconds = 0;

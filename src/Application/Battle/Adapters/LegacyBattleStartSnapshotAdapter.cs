@@ -39,6 +39,11 @@ public sealed class LegacyBattleStartSnapshotAdapter
         return snapshot;
     }
 
+    public void RecompileSkillDefinitions(BattleStartSnapshot snapshot)
+    {
+        _snapshotBuilder.RecompileSkillDefinitions(snapshot);
+    }
+
     private static void CopyObjectiveZones(BattleStartRequest request, BattleStartSnapshot snapshot)
     {
         snapshot?.ObjectiveZones?.Clear();

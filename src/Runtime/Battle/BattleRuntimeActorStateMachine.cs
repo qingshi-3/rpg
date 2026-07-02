@@ -199,7 +199,10 @@ internal static class BattleRuntimeActorStateMachine
     internal static void MarkSkillCasting(
         BattleRuntimeActor actor,
         string actionId,
-        string skillId,
+        string skillDefinitionId,
+        string grantedSkillId,
+        string loadoutSlotId,
+        string ownerHeroId,
         string sourceCommandId,
         string targetActorId,
         bool hasTargetGrid,
@@ -221,7 +224,10 @@ internal static class BattleRuntimeActorStateMachine
         actor.ActionLockReason = "skill_casting";
         actor.ActionReadyAtSeconds = currentTimeSeconds + System.Math.Max(0, impactDelaySeconds) + System.Math.Max(0, recoverySeconds);
         actor.CurrentSkillActionId = actionId ?? "";
-        actor.CurrentSkillId = skillId ?? "";
+        actor.CurrentSkillDefinitionId = skillDefinitionId ?? "";
+        actor.CurrentSkillGrantedSkillId = grantedSkillId ?? "";
+        actor.CurrentSkillLoadoutSlotId = loadoutSlotId ?? "";
+        actor.CurrentSkillOwnerHeroId = ownerHeroId ?? "";
         actor.CurrentSkillSourceCommandId = sourceCommandId ?? "";
         actor.CurrentSkillTargetActorId = targetActorId ?? "";
         actor.CurrentSkillHasTargetGrid = hasTargetGrid;
@@ -263,7 +269,10 @@ internal static class BattleRuntimeActorStateMachine
         actor.ActionLockTicksRemaining = 0;
         actor.ActionLockReason = "";
         actor.CurrentSkillActionId = "";
-        actor.CurrentSkillId = "";
+        actor.CurrentSkillDefinitionId = "";
+        actor.CurrentSkillGrantedSkillId = "";
+        actor.CurrentSkillLoadoutSlotId = "";
+        actor.CurrentSkillOwnerHeroId = "";
         actor.CurrentSkillSourceCommandId = "";
         actor.CurrentSkillTargetActorId = "";
         actor.CurrentSkillHasTargetGrid = false;
@@ -380,7 +389,10 @@ internal static class BattleRuntimeActorStateMachine
         ClearMovementSteering(actor);
         actor.ActionReadyAtSeconds = 0;
         actor.CurrentSkillActionId = "";
-        actor.CurrentSkillId = "";
+        actor.CurrentSkillDefinitionId = "";
+        actor.CurrentSkillGrantedSkillId = "";
+        actor.CurrentSkillLoadoutSlotId = "";
+        actor.CurrentSkillOwnerHeroId = "";
         actor.CurrentSkillSourceCommandId = "";
         actor.CurrentSkillTargetActorId = "";
         actor.CurrentSkillHasTargetGrid = false;

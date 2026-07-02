@@ -10,7 +10,7 @@ namespace Rpg.Runtime.Battle;
 
 internal static class BattleDisplacementCommitBoundary
 {
-    internal static bool ValidateThunderMarkTeleportDestination(
+    internal static bool ValidateMarkTeleportDestination(
         BattleRuntimeState state,
         BattleRuntimeActor actor,
         string selectedSpatialMarkId,
@@ -61,9 +61,9 @@ internal static class BattleDisplacementCommitBoundary
         return true;
     }
 
-    internal static IReadOnlyList<BattleEvent> CommitThunderMarkTeleport(
+    internal static IReadOnlyList<BattleEvent> CommitMarkTeleport(
         BattleEffectExecutionContext context,
-        BattleEffectPayload payload)
+        TeleportToMarkSkillEffectSnapshot payload)
     {
         BattleRuntimeState state = context?.State;
         BattleRuntimeActor actor = context?.Actor;
@@ -83,8 +83,8 @@ internal static class BattleDisplacementCommitBoundary
         }
 
         BattleGridCoord destination = new(context.TargetGridX, context.TargetGridY, context.TargetGridHeight);
-        int radius = Math.Max(1, payload?.Amount ?? 0);
-        if (!ValidateThunderMarkTeleportDestination(
+        int radius = Math.Max(1, payload?.LandingRadius ?? 0);
+        if (!ValidateMarkTeleportDestination(
                 state,
                 actor,
                 context.SelectedSpatialMarkId,
@@ -105,42 +105,41 @@ internal static class BattleDisplacementCommitBoundary
         string afterDisplacementState = DescribeActorDisplacementState(actor);
         GameLog.Info(
             nameof(BattleDisplacementCommitBoundary),
-            $"BattleRuntimeThunderFoldDisplacementCommitted battle={context.BattleId ?? ""} tick={context.RuntimeTick} actor={actor.ActorId} mark={context.SelectedSpatialMarkId ?? ""} from={FormatGridCoord(from)} markAnchor={FormatGridCoord(markAnchor)} to={FormatGridCoord(destination)} before=[{beforeDisplacementState}] after=[{afterDisplacementState}]");
+            $"BattleRuntimeMarkTeleportDisplacementCommitted battle={context.BattleId ?? ""} tick={context.RuntimeTick} actor={actor.ActorId} mark={context.SelectedSpatialMarkId ?? ""} from={FormatGridCoord(from)} markAnchor={FormatGridCoord(markAnchor)} to={FormatGridCoord(destination)} before=[{beforeDisplacementState}] after=[{afterDisplacementState}]");
 
-        return new[]
+        BattleEvent teleportEvent = new()
         {
-            new BattleEvent
-            {
-                EventId = $"{context.BattleId}:tick_{context.RuntimeTick}:{actor.ActorId}:thunder_fold:{destination.X},{destination.Y},{destination.Height}",
-                BattleId = context.BattleId,
-                BattleGroupId = actor.BattleGroupId,
-                ActorId = actor.ActorId,
-                TargetId = mark.AttachedActorId ?? "",
-                SourceCommandId = context.SourceCommandId ?? "",
-                SourceActionId = context.SourceActionId ?? "",
-                SourceDefinitionId = context.SourceDefinitionId ?? "",
-                EffectKind = BattleSkillEffectKind.TeleportToThunderMark.ToString(),
-                Kind = BattleEventKind.ThunderMarkTeleported,
-                ReasonCode = "thunder_mark_fold",
-                RuntimeTick = context.RuntimeTick,
-                RuntimeTimeSeconds = context.RuntimeTimeSeconds,
-                HasActorCells = true,
-                ActorGridX = actor.GridX,
-                ActorGridY = actor.GridY,
-                ActorGridHeight = actor.GridHeight,
-                HasTargetCells = true,
-                TargetGridX = markAnchor.X,
-                TargetGridY = markAnchor.Y,
-                TargetGridHeight = markAnchor.Height,
-                HasMovementCells = true,
-                FromGridX = from.X,
-                FromGridY = from.Y,
-                FromGridHeight = from.Height,
-                ToGridX = destination.X,
-                ToGridY = destination.Y,
-                ToGridHeight = destination.Height
-            }
+            EventId = $"{context.BattleId}:tick_{context.RuntimeTick}:{actor.ActorId}:mark_teleport:{destination.X},{destination.Y},{destination.Height}",
+            BattleId = context.BattleId,
+            BattleGroupId = actor.BattleGroupId,
+            ActorId = actor.ActorId,
+            TargetId = mark.AttachedActorId ?? "",
+            SourceCommandId = context.SourceCommandId ?? "",
+            SourceActionId = context.SourceActionId ?? "",
+            SourceDefinitionId = context.SourceDefinitionId ?? "",
+            EffectKind = BattleEffectKindLabels.TeleportToMark,
+            Kind = BattleEventKind.ThunderMarkTeleported,
+            ReasonCode = "thunder_mark_fold",
+            RuntimeTick = context.RuntimeTick,
+            RuntimeTimeSeconds = context.RuntimeTimeSeconds,
+            HasActorCells = true,
+            ActorGridX = actor.GridX,
+            ActorGridY = actor.GridY,
+            ActorGridHeight = actor.GridHeight,
+            HasTargetCells = true,
+            TargetGridX = markAnchor.X,
+            TargetGridY = markAnchor.Y,
+            TargetGridHeight = markAnchor.Height,
+            HasMovementCells = true,
+            FromGridX = from.X,
+            FromGridY = from.Y,
+            FromGridHeight = from.Height,
+            ToGridX = destination.X,
+            ToGridY = destination.Y,
+            ToGridHeight = destination.Height
         };
+        BattleEventPresentationFields.CopyFromContext(teleportEvent, context);
+        return new[] { teleportEvent };
     }
 
     private static string DescribeActorDisplacementState(BattleRuntimeActor actor)
@@ -175,7 +174,7 @@ internal static class BattleDisplacementCommitBoundary
         string targetId,
         string reasonCode)
     {
-        return new BattleEvent
+        BattleEvent failedEvent = new()
         {
             EventId = $"{context.BattleId}:tick_{context.RuntimeTick}:{context.SourceCommandId}:thunder_skill_failed:{reasonCode}",
             BattleId = context.BattleId,
@@ -190,5 +189,7 @@ internal static class BattleDisplacementCommitBoundary
             RuntimeTick = context.RuntimeTick,
             RuntimeTimeSeconds = context.RuntimeTimeSeconds
         };
+        BattleEventPresentationFields.CopyFromContext(failedEvent, context);
+        return failedEvent;
     }
 }

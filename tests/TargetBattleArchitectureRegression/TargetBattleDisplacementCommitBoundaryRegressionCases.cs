@@ -14,32 +14,38 @@ internal static class TargetBattleDisplacementCommitBoundaryRegressionCases
         string root = ProjectRoot();
         string boundaryPath = Path.Combine(root, "src", "Runtime", "Battle", "BattleDisplacementCommitBoundary.cs");
         string effectResolverPath = Path.Combine(root, "src", "Runtime", "Battle", "Effects", "BattleEffectResolver.cs");
-        string heroSkillThunderPath = Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeHeroSkillCommandResolver.ThunderMark.cs");
+        string markTeleportExecutorPath = Path.Combine(root, "src", "Runtime", "Battle", "Effects", "TeleportToMarkSkillEffectExecutor.cs");
+        string heroSkillMarkPath = Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeHeroSkillCommandResolver.MarkTeleport.cs");
         string stateMachinePath = Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeActorStateMachine.cs");
 
         AssertTrue(File.Exists(boundaryPath), "Core Slice H17 should author BattleDisplacementCommitBoundary");
+        AssertTrue(!File.Exists(Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeHeroSkillCommandResolver.ThunderMark.cs")), "command validation should not keep the old ThunderMark partial after mark teleport generalization");
+        AssertTrue(File.Exists(heroSkillMarkPath), "command-time mark teleport validation partial should exist");
 
         string boundarySource = File.ReadAllText(boundaryPath);
         string effectResolverSource = File.ReadAllText(effectResolverPath);
-        string heroSkillThunderSource = File.ReadAllText(heroSkillThunderPath);
+        string markTeleportExecutorSource = File.ReadAllText(markTeleportExecutorPath);
+        string heroSkillMarkSource = File.ReadAllText(heroSkillMarkPath);
         string boundaryRelativePath = ToRepoPath(root, boundaryPath);
         string effectResolverRelativePath = ToRepoPath(root, effectResolverPath);
-        string heroSkillThunderRelativePath = ToRepoPath(root, heroSkillThunderPath);
+        string markTeleportExecutorRelativePath = ToRepoPath(root, markTeleportExecutorPath);
+        string heroSkillMarkRelativePath = ToRepoPath(root, heroSkillMarkPath);
 
         AssertContains(boundarySource, "class BattleDisplacementCommitBoundary", boundaryRelativePath, "displacement boundary should be an explicit runtime service");
-        AssertContains(boundarySource, "ValidateThunderMarkTeleportDestination", boundaryRelativePath, "displacement boundary should own shared Thunder Fold validation");
-        AssertContains(boundarySource, "CommitThunderMarkTeleport", boundaryRelativePath, "displacement boundary should own Thunder Fold release commit");
+        AssertContains(boundarySource, "ValidateMarkTeleportDestination", boundaryRelativePath, "displacement boundary should own shared mark-teleport validation");
+        AssertContains(boundarySource, "CommitMarkTeleport", boundaryRelativePath, "displacement boundary should own mark-teleport release commit");
         AssertContains(boundarySource, "BattleRuntimeActorStateMachine.CommitDisplacement", boundaryRelativePath, "displacement boundary should call the low-level actor displacement primitive");
         AssertContains(boundarySource, "BattleEventKind.ThunderMarkTeleported", boundaryRelativePath, "displacement boundary should create teleport events");
 
-        AssertContains(effectResolverSource, "BattleDisplacementCommitBoundary.CommitThunderMarkTeleport", effectResolverRelativePath, "effect resolver should dispatch teleport effect to displacement boundary");
+        AssertContains(markTeleportExecutorSource, "BattleDisplacementCommitBoundary.CommitMarkTeleport", markTeleportExecutorRelativePath, "typed teleport executor should dispatch mark teleport effect to displacement boundary");
+        AssertDoesNotContain(effectResolverSource, "CommitMarkTeleport", effectResolverRelativePath, "effect resolver should not dispatch mark teleport effects after typed executor migration");
         AssertDoesNotContain(effectResolverSource, "BattleDynamicOccupancy.FromActors", effectResolverRelativePath, "effect resolver must not build world occupancy for displacement");
         AssertDoesNotContain(effectResolverSource, "BattleRuntimeActorStateMachine.CommitDisplacement", effectResolverRelativePath, "effect resolver must not directly mutate actor displacement state");
         AssertDoesNotContain(effectResolverSource, "BattleEventKind.ThunderMarkTeleported", effectResolverRelativePath, "effect resolver must not create teleport events directly");
         AssertDoesNotContain(effectResolverSource, "BattleRuntimeThunderFoldDisplacementCommitted", effectResolverRelativePath, "effect resolver must not own displacement diagnostics");
 
-        AssertContains(heroSkillThunderSource, "BattleDisplacementCommitBoundary.ValidateThunderMarkTeleportDestination", heroSkillThunderRelativePath, "command-time Thunder Fold validation should reuse the displacement boundary");
-        AssertDoesNotContain(heroSkillThunderSource, "BattleDynamicOccupancy.FromActors", heroSkillThunderRelativePath, "hero skill command validation must not duplicate displacement occupancy rules");
+        AssertContains(heroSkillMarkSource, "BattleDisplacementCommitBoundary.ValidateMarkTeleportDestination", heroSkillMarkRelativePath, "command-time mark teleport validation should reuse the displacement boundary");
+        AssertDoesNotContain(heroSkillMarkSource, "BattleDynamicOccupancy.FromActors", heroSkillMarkRelativePath, "hero skill command validation must not duplicate displacement occupancy rules");
         AssertDirectDisplacementCommitOnlyInsideBoundary(root, boundaryPath, stateMachinePath);
     }
 

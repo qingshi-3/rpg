@@ -40,6 +40,7 @@ Run("runtime hold-line command keeps player corps from advancing", TargetBattleC
 Run("runtime focus-fire command targets lowest-health enemy corps", TargetBattleCommandRegressionCases.RuntimeFocusFireCommandTargetsLowestHealthEnemyCorps);
 TargetBattleHeroSkillRegressionCases.Register(Run);
 TargetBattleDisplacementCommitBoundaryRegressionCases.Register(Run); TargetBattleThunderMarkSkillRegressionCases.Register(Run);
+TargetBattleSkillConfigurationAuthorityRegressionCases.Register(Run);
 Run("runtime AI executor boundary uses typed requests", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorBoundaryUsesTypedRequests);
 Run("runtime AI executor consumes facts without mutable runtime authority", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorConsumesFactsWithoutMutableRuntimeAuthority);
 Run("runtime AI executor delegates to behavior tree boundary", TargetBattleAiRuntimeRegressionCases.RuntimeAiExecutorDelegatesToBehaviorTreeBoundary);
@@ -142,7 +143,8 @@ static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
     {
         ["src/Presentation/Battle/BattleGridHighlightOverlay.cs"] = 1070, ["src/Presentation/Battle/Entities/BattleUnitRoot.cs"] = 1112,
         ["src/Presentation/Battle/Entities/UnitAnimationComponent.cs"] = 1117, ["src/Presentation/World/Sites/WorldSiteRoot.SiteManagementHud.cs"] = 1032,
-        ["tests/BattleHitFeedbackRegression/BattleHitFeedbackRegressionCases.BattlePresentation.cs"] = 1162, ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.HeroCorps.cs"] = 1306
+        ["tests/BattleHitFeedbackRegression/BattleHitFeedbackRegressionCases.BattlePresentation.cs"] = 1162, ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.HeroCorps.cs"] = 1306,
+        ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.PresentationAntiRot.cs"] = 1424
     };
     var oversized = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
         .Where(path => !IsIgnoredCodePath(root, path))

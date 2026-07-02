@@ -9,6 +9,9 @@ namespace Rpg.Runtime.Battle;
 
 internal static class BattleAbilityEffectReleaseBoundary
 {
+    private static readonly BattleSkillEffectExecutorRegistry DefaultEffectExecutorRegistry =
+        BattleSkillEffectExecutorRegistry.CreateDefault();
+
     internal static void ReleaseSkillEffects(
         BattleRuntimeState state,
         BattleEventStream stream,
@@ -40,12 +43,12 @@ internal static class BattleAbilityEffectReleaseBoundary
             }
 
             bool deferChannelStartDamage =
-                effect.Kind == BattleSkillEffectKind.StartChanneledAreaDamage &&
+                effect is ChanneledAreaDamageSkillEffectSnapshot &&
                 channelStartCommitBuffer != null;
             BattleCommitBuffer commitBuffer = deferChannelStartDamage
                 ? channelStartCommitBuffer
                 : effectCommitBuffer;
-            foreach (BattleEvent effectEvent in BattleEffectResolver.Apply(
+            foreach (BattleEvent effectEvent in DefaultEffectExecutorRegistry.Execute(
                          new BattleEffectExecutionContext
                          {
                              BattleId = battleId ?? "",
@@ -53,7 +56,14 @@ internal static class BattleAbilityEffectReleaseBoundary
                              RuntimeTimeSeconds = runtimeTimeSeconds,
                              SourceCommandId = sourceCommandId ?? "",
                              SourceActionId = sourceActionId ?? "",
-                             SourceDefinitionId = skill.SkillId ?? "",
+                             SourceDefinitionId = ResolveSkillDefinitionId(skill),
+                             PresentationProfileId = skill.Presentation?.ProfileId ?? "",
+                             CastFxProfileId = skill.Presentation?.CastFxProfileId ?? "",
+                             ImpactFxProfileId = skill.Presentation?.ImpactFxProfileId ?? "",
+                             MarkFxProfileId = skill.Presentation?.MarkFxProfileId ?? "",
+                             AreaFxProfileId = skill.Presentation?.AreaFxProfileId ?? "",
+                             SuppressActorCastFx = skill.Presentation?.SuppressActorCastFx ?? false,
+                             HoldCastAnimationDuringAction = skill.Presentation?.HoldCastAnimationDuringAction ?? false,
                              CommitBuffer = commitBuffer,
                              DeferEffectDamageCommit = deferChannelStartDamage,
                              State = state,
@@ -66,24 +76,18 @@ internal static class BattleAbilityEffectReleaseBoundary
                              TargetGridHeight = command?.TargetGridHeight ?? 0,
                              SelectedSpatialMarkId = command?.SelectedSpatialMarkId ?? ""
                          },
-                         new BattleEffectPayload
-                         {
-                             EffectKind = effect.Kind,
-                             Amount = effect.Amount,
-                             DurationSeconds = effect.DurationSeconds,
-                             TickIntervalSeconds = effect.TickIntervalSeconds,
-                             Radius = effect.Radius
-                         }))
+                         effect))
             {
                 stream.Add(effectEvent);
             }
         }
 
-        state.UsedHeroSkillKeys.Add(BuildSkillKey(actor.BattleGroupId, skill.SkillId));
+        state.SkillAvailability.MarkReleased(actor.BattleGroupId, skill);
     }
 
-    private static string BuildSkillKey(string battleGroupId, string skillId)
+    private static string ResolveSkillDefinitionId(BattleSkillSnapshot skill)
     {
-        return $"{battleGroupId ?? ""}:{BattleRuntimeHeroSkillCommandResolver.NormalizeSkillId(skillId)}";
+        return skill?.SkillDefinitionId?.Trim() ?? "";
     }
+
 }

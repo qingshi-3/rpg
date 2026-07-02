@@ -18,7 +18,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = "",
+            SkillDefinitionId = "",
             TargetActorId = EnemyActorId
         });
 
@@ -27,7 +27,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             submit.Events.Any(item =>
                 item.Kind == BattleEventKind.CommandRejected &&
                 item.SourceCommandId == "cmd_hero_skill_requires_skill_id" &&
-                item.ReasonCode == "skill_id_required"),
+                item.ReasonCode == "skill_definition_id_required"),
             "missing skill id rejection should enter event stream without defaulting to first-slice skill");
         AssertTrue(
             submit.Events.All(item => item.SourceDefinitionId != FirstSliceSkillId),

@@ -163,12 +163,14 @@ internal static class TargetBattleAbilityControllerRegressionCases
 
         AssertContains(boundarySource, "class BattleAbilityEffectReleaseBoundary", boundaryRelativePath, "ability effect release boundary should be an explicit runtime service");
         AssertContains(boundarySource, "ReleaseSkillEffects", boundaryRelativePath, "ability effect release boundary should expose skill effect release");
-        AssertContains(boundarySource, "BattleEffectResolver.Apply", boundaryRelativePath, "ability effect release boundary should dispatch effect primitives");
+        AssertContains(boundarySource, "BattleSkillEffectExecutorRegistry", boundaryRelativePath, "ability effect release boundary should dispatch typed skill effects through the executor registry");
+        AssertContains(boundarySource, ".Execute(", boundaryRelativePath, "ability effect release boundary should execute typed payloads through the registry");
         AssertContains(boundarySource, "DeferEffectDamageCommit", boundaryRelativePath, "ability effect release boundary should preserve channel-start batching semantics");
         AssertContains(controllerSource, "BattleAbilityEffectReleaseBoundary.ReleaseSkillEffects", controllerRelativePath, "ability controller should delegate effect payload dispatch");
         AssertDoesNotContain(controllerSource, "BattleEffectResolver.Apply", controllerRelativePath, "ability controller must not execute effect primitives directly");
         AssertDoesNotContain(controllerSource, "new BattleEffectExecutionContext", controllerRelativePath, "ability controller must not build effect execution contexts directly");
         AssertDoesNotContain(controllerSource, "new BattleEffectPayload", controllerRelativePath, "ability controller must not build effect payloads directly");
+        AssertDoesNotContain(boundarySource, "new BattleEffectPayload", boundaryRelativePath, "ability effect release boundary must not adapt typed payloads into the deleted generic wrapper");
     }
 
     private static void RuntimeAbilityTickingIsCoordinatorOwned()
@@ -221,11 +223,11 @@ internal static class TargetBattleAbilityControllerRegressionCases
     {
         const string battleId = "battle_delayed_cell_skill_payload";
         const string commandId = "cmd_delayed_cell_mark";
-        const string skillId = "test_delayed_cell_mark";
+        const string skillDefinitionId = "test_delayed_cell_mark";
         BattleStartSnapshot snapshot = BuildOpposedSnapshot(battleId);
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             DisplayName = "Delayed Cell Mark",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 8,
@@ -237,9 +239,9 @@ internal static class TargetBattleAbilityControllerRegressionCases
             CanInterruptBasicAttackWindup = true,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new CreateMarkSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.CreateThunderMark
+                    LifetimeSeconds = 8.0
                 }
             }
         });
@@ -252,7 +254,7 @@ internal static class TargetBattleAbilityControllerRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             HasTargetGrid = true,
             TargetGridX = 3,
             TargetGridY = 2,
@@ -371,16 +373,16 @@ internal static class TargetBattleAbilityControllerRegressionCases
     private static void RuntimeActiveOneUseSkillRejectsDuplicateQueuedOrder()
     {
         const string battleId = "battle_active_one_use_skill_duplicate";
-        const string skillId = "one_use_active_skill";
+        const string skillDefinitionId = "one_use_active_skill";
         BattleStartSnapshot snapshot = BuildOpposedSnapshot(battleId);
-        AddDamageSkill(snapshot, skillId, damage: 4, castSeconds: 0.4, recoverySeconds: 0);
+        AddDamageSkill(snapshot, skillDefinitionId, damage: 4, castSeconds: 0.4, recoverySeconds: 0);
         BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(snapshot);
 
         BattleRuntimeCommandSubmitResult first = SubmitTargetedSkill(
             controller,
             battleId,
             "cmd_one_use_active_first",
-            skillId);
+            skillDefinitionId);
         AssertTrue(first.Accepted, "first one-use skill should be accepted");
         BattleRuntimeAdvanceResult start = controller.AdvanceFixedTick(0.1);
         AssertTrue(
@@ -393,14 +395,14 @@ internal static class TargetBattleAbilityControllerRegressionCases
             controller,
             battleId,
             "cmd_one_use_active_duplicate",
-            skillId);
+            skillDefinitionId);
 
         AssertTrue(!duplicate.Accepted, "duplicate one-use skill should reject while the first release is active or queued");
         AssertTrue(
             duplicate.Events.Any(item =>
                 item.Kind == BattleEventKind.CommandRejected &&
                 item.SourceCommandId == "cmd_one_use_active_duplicate" &&
-                item.SourceDefinitionId == skillId &&
+                item.SourceDefinitionId == skillDefinitionId &&
                 item.ReasonCode == "hero_skill_already_queued"),
             "duplicate one-use skill rejection should enter the event stream with command attribution");
 
@@ -457,15 +459,15 @@ internal static class TargetBattleAbilityControllerRegressionCases
 
     private static void AddDamageSkill(
         BattleStartSnapshot snapshot,
-        string skillId,
+        string skillDefinitionId,
         int damage,
         double castSeconds,
         double recoverySeconds)
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = skillId,
-            DisplayName = skillId,
+            SkillDefinitionId = skillDefinitionId,
+            DisplayName = skillDefinitionId,
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
             CasterUnitIds = { "hero_def_player" },
@@ -476,10 +478,9 @@ internal static class TargetBattleAbilityControllerRegressionCases
             CanInterruptBasicAttackWindup = true,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = damage
+                    BaseDamage = damage
                 }
             }
         });
@@ -489,7 +490,7 @@ internal static class TargetBattleAbilityControllerRegressionCases
         BattleRuntimeSessionController controller,
         string battleId,
         string commandId,
-        string skillId)
+        string skillDefinitionId)
     {
         return controller.SubmitCommand(new CommandRequest
         {
@@ -498,7 +499,7 @@ internal static class TargetBattleAbilityControllerRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             TargetActorId = "force_enemy:1"
         });
     }

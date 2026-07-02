@@ -11,11 +11,11 @@ namespace Rpg.Runtime.Battle;
 
 internal static partial class BattleRuntimeHeroSkillCommandResolver
 {
-    private const string SkillIdRequiredReason = "skill_id_required";
+    private const string SkillDefinitionIdRequiredReason = "skill_definition_id_required";
 
-    internal static string NormalizeSkillId(string skillId)
+    internal static string NormalizeSkillDefinitionId(string skillDefinitionId)
     {
-        return string.IsNullOrWhiteSpace(skillId) ? "" : skillId.Trim();
+        return string.IsNullOrWhiteSpace(skillDefinitionId) ? "" : skillDefinitionId.Trim();
     }
 
     internal static BattleRuntimeCommandSubmitResult Submit(
@@ -50,7 +50,7 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
                 runtimeTimeSeconds,
                 request,
                 commandId,
-                NormalizeSkillId(request?.SkillId),
+                NormalizeSkillDefinitionId(request?.SkillDefinitionId),
                 caster,
                 request?.TargetActorId ?? "",
                 target,
@@ -65,7 +65,10 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             CommandId = commandId,
             BattleGroupId = request.BattleGroupId ?? "",
             SourceActorId = caster.ActorId ?? "",
-            SkillId = skill.SkillId,
+            SkillDefinitionId = ResolveSkillDefinitionId(skill),
+            GrantedSkillId = skill.GrantedSkillId ?? "",
+            LoadoutSlotId = skill.LoadoutSlotId ?? "",
+            OwnerHeroId = skill.OwnerHeroId ?? "",
             TargetActorId = target?.ActorId ?? "",
             HasTargetGrid = request.HasTargetGrid,
             TargetGridX = request.TargetGridX,
@@ -86,7 +89,7 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             runtimeTimeSeconds,
             pendingOrder);
 
-        stream.Add(new BattleEvent
+        BattleEvent acceptedEvent = new()
         {
             EventId = $"{battleId}:tick_{runtimeTick}:{commandId}:hero_skill_command_accepted",
             BattleId = battleId ?? "",
@@ -94,17 +97,19 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             ActorId = caster.ActorId ?? "",
             TargetId = target?.ActorId ?? "",
             SourceCommandId = commandId,
-            SourceDefinitionId = skill.SkillId,
+            SourceDefinitionId = ResolveSkillDefinitionId(skill),
             Kind = BattleEventKind.CommandAccepted,
-            ReasonCode = skill.SkillId,
+            ReasonCode = ResolveSkillDefinitionId(skill),
             RuntimeTick = runtimeTick,
             RuntimeTimeSeconds = runtimeTimeSeconds,
             HasTargetCells = target != null || request.HasTargetGrid,
             TargetGridX = target?.GridX ?? request.TargetGridX,
             TargetGridY = target?.GridY ?? request.TargetGridY,
             TargetGridHeight = target?.GridHeight ?? request.TargetGridHeight
-        });
-        return BuildResult(stream, startIndex, accepted: true, skill.SkillId);
+        };
+        BattleEventPresentationFields.CopyFromSkill(acceptedEvent, skill);
+        stream.Add(acceptedEvent);
+        return BuildResult(stream, startIndex, accepted: true, ResolveSkillDefinitionId(skill));
     }
 
     private static string ValidateSubmission(
@@ -153,11 +158,11 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             return "battle_group_missing";
         }
 
-        if (string.IsNullOrWhiteSpace(request.SkillId))
+        if (string.IsNullOrWhiteSpace(request.SkillDefinitionId))
         {
             // Skill identity is authored command payload, not a runtime default.
             // Missing ids must surface the caller bug instead of casting a fallback skill.
-            return SkillIdRequiredReason;
+            return SkillDefinitionIdRequiredReason;
         }
 
         caster = ResolveCaster(state, request.BattleGroupId, request.SourceActorId);
@@ -168,7 +173,7 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
                 : "skill_caster_invalid";
         }
 
-        skill = ResolveSkill(state, request.SkillId);
+        skill = ResolveSkillForCaster(state, caster, request.SkillDefinitionId);
         if (skill == null)
         {
             return "skill_definition_missing";
@@ -231,14 +236,14 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             return "skill_target_out_of_range";
         }
 
-        if (UsesThunderMarkTeleport(skill) &&
+        if (UsesMarkTeleport(skill) &&
             string.IsNullOrWhiteSpace(request.SelectedSpatialMarkId))
         {
             return "thunder_mark_selection_required";
         }
 
-        if (UsesThunderMarkTeleport(skill) &&
-            !ValidateThunderMarkTeleportDestination(
+        if (UsesMarkTeleport(skill) &&
+            !ValidateMarkTeleportDestination(
                 state,
                 caster,
                 skill,
@@ -253,13 +258,13 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             return teleportReason;
         }
 
-        string requestedSkillKey = BuildSkillKey(request.BattleGroupId, skill.SkillId);
-        if (state.UsedHeroSkillKeys.Contains(requestedSkillKey))
+        if (!state.SkillAvailability.CanSubmit(request.BattleGroupId, skill, out string availabilityReason))
         {
-            return "hero_skill_already_used";
+            return availabilityReason;
         }
 
-        if (IsSkillPendingOrActiveForBattleGroup(state, request.BattleGroupId, caster, skill.SkillId))
+        string skillDefinitionId = ResolveSkillDefinitionId(skill);
+        if (IsSkillPendingOrActiveForBattleGroup(state, request.BattleGroupId, caster, skillDefinitionId))
         {
             return "hero_skill_already_queued";
         }
@@ -272,33 +277,82 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
         BattleRuntimeActor caster,
         BattleSkillSnapshot skill)
     {
-        HashSet<string> casterUnitIds = (skill?.CasterUnitIds ?? new List<string>())
-            .Where(unitId => !string.IsNullOrWhiteSpace(unitId))
-            .Select(unitId => unitId.Trim())
-            .ToHashSet(System.StringComparer.Ordinal);
-        if (casterUnitIds.Count == 0)
+        string ownerHeroId = skill?.OwnerHeroId?.Trim() ?? "";
+        if (!string.IsNullOrWhiteSpace(ownerHeroId))
         {
-            return true;
+            return !string.IsNullOrWhiteSpace(caster?.SourceHeroId) &&
+                string.Equals(caster.SourceHeroId, ownerHeroId, System.StringComparison.Ordinal);
         }
 
-        if (state?.Actors == null || caster == null)
+        string owner = !string.IsNullOrWhiteSpace(skill?.OwnerBattleGroupId)
+            ? skill.OwnerBattleGroupId.Trim()
+            : skill?.RuntimeCommanderGroupId?.Trim() ?? "";
+        bool hasGrantOrLoadoutFacts =
+            !string.IsNullOrWhiteSpace(skill?.GrantedSkillId) ||
+            !string.IsNullOrWhiteSpace(skill?.LoadoutSlotId);
+        if (!string.IsNullOrWhiteSpace(owner) || hasGrantOrLoadoutFacts)
+        {
+            string casterGroupId = caster?.BattleGroupId ?? "";
+            return !string.IsNullOrWhiteSpace(casterGroupId) &&
+                (string.IsNullOrWhiteSpace(owner) ||
+                 string.Equals(owner, casterGroupId, System.StringComparison.Ordinal));
+
+        }
+
+        return BattleSkillLegacyOwnershipPolicy.IsAllowedForCasterGroup(state, caster, skill);
+    }
+
+    private static BattleSkillSnapshot ResolveSkillForCaster(
+        BattleRuntimeState state,
+        BattleRuntimeActor caster,
+        string skillDefinitionId)
+    {
+        string normalized = NormalizeSkillDefinitionId(skillDefinitionId);
+        BattleSkillSnapshot[] matches = (state?.SkillDefinitions ?? Enumerable.Empty<BattleSkillSnapshot>())
+            .Where(item => string.Equals(ResolveSkillDefinitionId(item), normalized, System.StringComparison.Ordinal))
+            .ToArray();
+        if (matches.Length == 0)
+        {
+            return null;
+        }
+
+        string sourceHeroId = caster?.SourceHeroId?.Trim() ?? "";
+        if (!string.IsNullOrWhiteSpace(sourceHeroId))
+        {
+            BattleSkillSnapshot heroMatch = matches.FirstOrDefault(item =>
+                string.Equals(item?.OwnerHeroId?.Trim() ?? "", sourceHeroId, System.StringComparison.Ordinal));
+            if (heroMatch != null)
+            {
+                return heroMatch;
+            }
+        }
+
+        string battleGroupId = caster?.BattleGroupId?.Trim() ?? "";
+        BattleSkillSnapshot groupMatch = matches.FirstOrDefault(item => SkillMatchesBattleGroup(item, battleGroupId));
+        if (groupMatch != null)
+        {
+            return groupMatch;
+        }
+
+        BattleSkillSnapshot legacyMatch = matches.FirstOrDefault(item =>
+            BattleSkillLegacyOwnershipPolicy.IsAllowedForCasterGroup(state, caster, item));
+        return legacyMatch ?? matches.FirstOrDefault();
+    }
+
+    private static bool SkillMatchesBattleGroup(BattleSkillSnapshot skill, string battleGroupId)
+    {
+        if (string.IsNullOrWhiteSpace(battleGroupId))
         {
             return false;
         }
 
-        // Hero-company skills bind to authored unit ids, while existing runtime
-        // commands may originate from either the hidden hero proxy or visible corps.
-        return state.Actors.Any(actor =>
-            actor.HitPoints > 0 &&
-            string.Equals(actor.BattleGroupId, caster.BattleGroupId ?? "", System.StringComparison.Ordinal) &&
-            casterUnitIds.Contains(actor.UnitDefinitionId ?? ""));
+        return string.Equals(skill?.OwnerBattleGroupId?.Trim() ?? "", battleGroupId, System.StringComparison.Ordinal) ||
+            string.Equals(skill?.RuntimeCommanderGroupId?.Trim() ?? "", battleGroupId, System.StringComparison.Ordinal);
     }
 
-    private static BattleSkillSnapshot ResolveSkill(BattleRuntimeState state, string skillId)
+    private static string ResolveSkillDefinitionId(BattleSkillSnapshot skill)
     {
-        string normalized = NormalizeSkillId(skillId);
-        return state?.SkillDefinitions?
-            .FirstOrDefault(item => string.Equals(item?.SkillId, normalized, System.StringComparison.Ordinal));
+        return skill?.SkillDefinitionId?.Trim() ?? "";
     }
 
     private static BattleRuntimeActor ResolveHero(BattleRuntimeState state, string battleGroupId)
@@ -411,7 +465,7 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
         double runtimeTimeSeconds,
         CommandRequest request,
         string commandId,
-        string skillId,
+        string skillDefinitionId,
         BattleRuntimeActor caster,
         string targetActorId,
         BattleRuntimeActor target,
@@ -421,7 +475,7 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
     {
         GameLog.Info(
             nameof(BattleRuntimeHeroSkillCommandResolver),
-            $"BattleRuntimeHeroSkillCommandRejected battle={battleId ?? ""} tick={runtimeTick} source={request?.SourceActorId ?? ""} caster={caster?.ActorId ?? ""} casterCell={FormatCell(caster)} target={targetActorId ?? ""} targetCell={FormatCell(target)} skill={skillId ?? ""} range={range} gap={gap} reason={reasonCode ?? ""}");
+            $"BattleRuntimeHeroSkillCommandRejected battle={battleId ?? ""} tick={runtimeTick} source={request?.SourceActorId ?? ""} caster={caster?.ActorId ?? ""} casterCell={FormatCell(caster)} target={targetActorId ?? ""} targetCell={FormatCell(target)} skill={skillDefinitionId ?? ""} range={range} gap={gap} reason={reasonCode ?? ""}");
         stream?.Add(new BattleEvent
         {
             EventId = $"{battleId}:tick_{runtimeTick}:{commandId}:hero_skill_command_rejected",
@@ -430,7 +484,7 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             ActorId = caster?.ActorId ?? request?.SourceActorId ?? "",
             TargetId = targetActorId ?? "",
             SourceCommandId = commandId ?? "",
-            SourceDefinitionId = skillId ?? "",
+            SourceDefinitionId = skillDefinitionId ?? "",
             Kind = BattleEventKind.CommandRejected,
             ReasonCode = reasonCode ?? "",
             RuntimeTick = runtimeTick,
@@ -467,23 +521,18 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
         };
     }
 
-    private static string BuildSkillKey(string battleGroupId, string skillId)
-    {
-        return $"{battleGroupId ?? ""}:{NormalizeSkillId(skillId)}";
-    }
-
     private static bool IsSkillPendingOrActiveForBattleGroup(
         BattleRuntimeState state,
         string battleGroupId,
         BattleRuntimeActor caster,
-        string skillId)
+        string skillDefinitionId)
     {
         if (state?.Actors == null || string.IsNullOrWhiteSpace(battleGroupId))
         {
             return false;
         }
 
-        string normalizedSkillId = NormalizeSkillId(skillId);
+        string normalizedSkillDefinitionId = NormalizeSkillDefinitionId(skillDefinitionId);
         string casterId = caster?.ActorId ?? "";
         foreach (BattleRuntimeActor actor in state.Actors)
         {
@@ -493,7 +542,7 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             }
 
             if (BattleAbilityController.HasActiveSkillAction(actor) &&
-                string.Equals(NormalizeSkillId(actor.CurrentSkillId), normalizedSkillId, System.StringComparison.Ordinal))
+                string.Equals(NormalizeSkillDefinitionId(actor.CurrentSkillDefinitionId), normalizedSkillDefinitionId, System.StringComparison.Ordinal))
             {
                 return true;
             }
@@ -504,13 +553,13 @@ internal static partial class BattleRuntimeHeroSkillCommandResolver
             if (BattleAbilityController.HasActiveSkillAction(actor) &&
                 string.Equals(actor.ActorId ?? "", casterId, System.StringComparison.Ordinal) &&
                 actor.PendingAbilityOrders.Any(command =>
-                    string.Equals(NormalizeSkillId(command?.SkillId), normalizedSkillId, System.StringComparison.Ordinal)))
+                    string.Equals(NormalizeSkillDefinitionId(command?.SkillDefinitionId), normalizedSkillDefinitionId, System.StringComparison.Ordinal)))
             {
                 return true;
             }
 
             if (actor.ActiveChannels.Any(channel =>
-                    string.Equals(NormalizeSkillId(channel?.SourceDefinitionId), normalizedSkillId, System.StringComparison.Ordinal)))
+                    string.Equals(NormalizeSkillDefinitionId(channel?.SourceDefinitionId), normalizedSkillDefinitionId, System.StringComparison.Ordinal)))
             {
                 return true;
             }

@@ -162,6 +162,10 @@ public sealed class StrategicBattleBridgeService
             group.CorpsBattleUnitId = GetCorpsBattleUnitId(participant);
         }
 
+        _snapshotBuilder.RecompileSkillDefinitions(snapshot);
+        GameLog.Info(
+            nameof(StrategicBattleBridgeService),
+            $"StrategicBattleSkillSnapshotCompiled session={session.SessionId} snapshot={snapshot.SnapshotId} groups={snapshot.BattleGroups.Count} skills={snapshot.SkillDefinitions.Count}");
         return StrategicBattleSnapshotResult.Ok(snapshot);
     }
 
@@ -208,7 +212,7 @@ public sealed class StrategicBattleBridgeService
 
         GameLog.Info(
             nameof(StrategicBattleBridgeService),
-            $"StrategicBattleActiveContextCreated context={context.ContextId} expedition={session.ExpeditionId} target={session.TargetLocationId} snapshot={context.Snapshot.SnapshotId} scene={context.ScenePath}");
+            $"StrategicBattleActiveContextCreated context={context.ContextId} expedition={session.ExpeditionId} target={session.TargetLocationId} snapshot={context.Snapshot.SnapshotId} skills={context.Snapshot.SkillDefinitions.Count} scene={context.ScenePath}");
         return StrategicBattleActiveContextResult.Ok(context);
     }
 

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Presentation.Battle.Entities;
@@ -142,7 +143,8 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
         return gapX + gapY <= normalizedRange;
     }
 
-    internal static bool TryResolveThunderSpiralTargetCenter(
+    internal static bool TryResolveDirectionalAreaCenter(
+        BattleSkillTargetingSnapshot targeting,
         BattleEntity source,
         GridPosition mouseGrid,
         out GridPosition center)
@@ -179,24 +181,27 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
         return true;
     }
 
-    internal static IReadOnlyList<GridPosition> BuildThunderSpiralAreaCells(
+    internal static IReadOnlyList<GridPosition> BuildAreaPreviewCells(
+        BattleSkillTargetingSnapshot targeting,
         BattleEntity source,
         GridPosition mouseGrid,
         BattleGridMap gridMap)
     {
-        return TryResolveThunderSpiralTargetCenter(source, mouseGrid, out GridPosition center)
-            ? BuildThreeByThreeCells(center, gridMap)
+        return TryResolveDirectionalAreaCenter(targeting, source, mouseGrid, out GridPosition center)
+            ? BuildGridRadiusCells(center, ResolveAreaRadius(targeting), gridMap)
             : System.Array.Empty<GridPosition>();
     }
 
-    internal static IReadOnlyList<GridPosition> BuildThreeByThreeCells(
+    internal static IReadOnlyList<GridPosition> BuildGridRadiusCells(
         GridPosition center,
+        int radius,
         BattleGridMap gridMap)
     {
-        var cells = new List<GridPosition>(9);
-        for (int y = center.Y - 1; y <= center.Y + 1; y++)
+        int normalizedRadius = System.Math.Max(0, radius);
+        var cells = new List<GridPosition>();
+        for (int y = center.Y - normalizedRadius; y <= center.Y + normalizedRadius; y++)
         {
-            for (int x = center.X - 1; x <= center.X + 1; x++)
+            for (int x = center.X - normalizedRadius; x <= center.X + normalizedRadius; x++)
             {
                 GridPosition cell = new(x, y);
                 if (gridMap == null || gridMap.TryGetCell(cell, out _))
@@ -207,6 +212,11 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
         }
 
         return cells;
+    }
+
+    private static int ResolveAreaRadius(BattleSkillTargetingSnapshot targeting)
+    {
+        return targeting?.AreaRadius > 0 ? targeting.AreaRadius : 1;
     }
 
     private static bool TryResolveCorpsActorId(BattleEntity entity, out string actorId)

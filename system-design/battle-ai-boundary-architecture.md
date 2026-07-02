@@ -131,7 +131,7 @@ Local combat decisions must preserve player intent precedence:
 
 | Engagement Rule | Local Combat Behavior |
 |---|---|
-| Move-first | Joins only if the fight blocks the objective route, threatens the actor/company, lies near the planned corridor, or includes the retained target. Distant incidental fights are ignored. |
+| Move-first | Joins only if the fight blocks the objective route, threatens the actor/battle group, lies near the planned corridor, or includes the retained target. Distant incidental fights are ignored. |
 | Attack-first | Joins relevant local fights inside perception and command scope, preferring open attack slots. |
 | Fire-on-the-move | Joins only for short attacks or support moves that do not materially reverse objective progress. |
 | Hold | Joins only inside held area or leash, then returns when the threat leaves. |

@@ -75,7 +75,7 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
-        AssertTrue(expedition.Success, $"multi-company expedition should be created, got {expedition.FailureReason}");
+        AssertTrue(expedition.Success, $"multi-battle-group expedition should be created, got {expedition.FailureReason}");
 
         StrategicManagementDashboardViewModel sourceWhileMoving = viewModels.BuildDashboard(
             state,
@@ -599,7 +599,7 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
-        AssertTrue(expedition.Success, $"multi-company expedition should be created, got {expedition.FailureReason}");
+        AssertTrue(expedition.Success, $"multi-battle-group expedition should be created, got {expedition.FailureReason}");
         StrategicBattleBridgeService bridge = new(definitions);
         StrategicBattleSession session = bridge.CreateSession(
             state,

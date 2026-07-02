@@ -1,4 +1,3 @@
-﻿using Rpg.Definitions.Battle.Abilities;
 using Rpg.Presentation.Battle.Entities;
 
 namespace Rpg.Presentation.Battle.Intents;
@@ -25,11 +24,10 @@ public sealed class BattleIntentTemplate
 
     public BattleIntent Create(
         BattleEntity actor,
-        AbilityDefinition preferredAbility,
         int power,
         string reason = "")
     {
-        return new BattleIntent(actor, this, preferredAbility, power, reason);
+        return new BattleIntent(actor, this, power, reason);
     }
 }
 

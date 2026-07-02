@@ -2,13 +2,13 @@
 
 ## Parent Authority
 
-Global rules live in `../../content-systems-long-term-design.md`, especially the hero company, corps presentation, attributes, corps definition, and aptitude sections.
+Global rules live in `../../content-systems-long-term-design.md`, especially the battle group, corps presentation, attributes, corps definition, and aptitude sections.
 
 ## Boundary
 
 This detail area defines the player-facing unit model:
 
-- hero company composition;
+- battle group composition;
 - one hero plus one main corps;
 - visible soldiers and shared corps strength;
 - hero attributes and combat stats;
@@ -29,7 +29,7 @@ A corps instance is not a count of individual soldiers. It is a durable force re
 - current state such as garrisoned, assigned to hero, expedition, recovering, routed, scattered, or rebuilding;
 - home city or current strategic assignment.
 
-The first strategic-management version should keep one hero plus one main corps as the normal company shape. Multi-corps hero capacity, secondary corps, and complex mixed-company editing are later expansions.
+The first strategic-management version should keep one hero plus one main corps as the normal battle-group shape. Multi-corps hero capacity, secondary corps, and complex mixed-battle-group editing are later expansions.
 
 ## Muster Templates And Recovery
 
@@ -49,6 +49,14 @@ For first strategic management:
 
 The first special route is beast corps. Beast corps are shock-assault forces. They should be strongest with beast tamers, hunters, wildland leaders, or similar aptitude tags, and weaker with ordinary commanders. Their downside is high creation and recovery cost plus source/facility dependency.
 
+## Hero And Battle-Group Skill Loadouts
+
+Hero and battle-group skills are assigned through durable loadout or grant entries. A grant points to a stable skill definition and may carry slot, level, source, progression, equipment, or modifier facts. It must not duplicate the full skill definition.
+
+Hero-corps aptitude, equipment, profession mastery, rank, city support, or later content systems may unlock, modify, or disable granted skill links. Those systems should change grants, modifiers, or eligibility facts rather than hardcoding battle-specific skill lists.
+
+When a battle starts, only skills granted to participating battle groups should enter the battle snapshot. Unselected heroes or reserve-only battle groups must not expose usable commands in the live battle UI unless a later accepted reinforcement or reserve-command design changes that rule.
+
 ## To Refine
 
 - Post-v0.1 hero stat display.
@@ -60,11 +68,11 @@ The first special route is beast corps. Beast corps are shock-assault forces. Th
 
 ## First Playable Slice
 
-The first playable slice offers three selectable hero companies. The player deploys exactly one company into the Bonefield assault, and the selected hero brings the company's default corps automatically.
+The first playable slice offers three selectable battle groups. The player deploys exactly one battle group into the Bonefield assault, and the selected hero brings the battle group's default corps automatically.
 
 Required player roster:
 
-| Company Role | Hero Display Name | Hero Resource | Default Corps Display Name | Corps Resource |
+| Battle Group Role | Hero Display Name | Hero Resource | Default Corps Display Name | Corps Resource |
 | --- | --- | --- | --- | --- |
 | Shield line | `曦盾执旗者` | `assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres` | `天蓝石狮卫` | `assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres` |
 | Archer line | `逐日号令官` | `assets/battle/units/莱昂纳王国/f1_风刃指挥官/unit.tres` | `穿阳弓手` | `assets/battle/units/莱昂纳王国/f1_后排弓手/unit.tres` |

@@ -87,39 +87,29 @@ internal static void BattleRuntimeLaunchRequiresStrategicActiveContext()
 internal static void LegacyAbilityResourcesCannotExecutePresentationDamage()
 {
     string root = ProjectRoot();
-    string abilityEffectSource = File.ReadAllText(Path.Combine(
+    string effectReceiverSource = File.ReadAllText(Path.Combine(
         root,
         "src",
-        "Definitions",
+        "Runtime",
         "Battle",
-        "Abilities",
-        "AbilityEffect.cs"));
-    string damageEffectSource = File.ReadAllText(Path.Combine(
+        "BattleEffectReceiver.cs"));
+    string executorSource = File.ReadAllText(Path.Combine(
         root,
         "src",
-        "Definitions",
+        "Runtime",
         "Battle",
-        "Abilities",
-        "DamageAbilityEffect.cs"));
-    string abilityQueriesSource = File.ReadAllText(Path.Combine(
-        root,
-        "src",
-        "Presentation",
-        "Battle",
-        "Abilities",
-        "BattleAbilityQueries.cs"));
+        "Effects",
+        "DamageSkillEffectExecutor.cs"));
 
     AssertTrue(
-        !abilityEffectSource.Contains("Apply(AbilityUseContext", StringComparison.Ordinal),
-        "legacy ability resources should be data-only and must not expose an executable Apply contract");
+        !File.Exists(Path.Combine(root, "src", "Definitions", "Battle", "Abilities", "AbilityEffect.cs")) &&
+        !File.Exists(Path.Combine(root, "src", "Definitions", "Battle", "Abilities", "DamageAbilityEffect.cs")) &&
+        !File.Exists(Path.Combine(root, "src", "Presentation", "Battle", "Abilities", "BattleAbilityQueries.cs")),
+        "legacy ability resource execution path should be deleted, not kept as a data-only fallback");
     AssertTrue(
-        !damageEffectSource.Contains("ApplyDamage(", StringComparison.Ordinal) &&
-        !damageEffectSource.Contains("MarkEntityDefeated", StringComparison.Ordinal),
-        "legacy damage ability resources must not mutate Presentation HP or defeat state");
-    AssertTrue(
-        !abilityQueriesSource.Contains("ApplyEffects(", StringComparison.Ordinal) &&
-        !abilityQueriesSource.Contains(".Apply(context)", StringComparison.Ordinal),
-        "Presentation ability query helpers must not execute legacy resource effects");
+        executorSource.Contains("DamageSkillEffectSnapshot", StringComparison.Ordinal) &&
+        effectReceiverSource.Contains("ReceiveDamage", StringComparison.Ordinal),
+        "runtime damage should execute through typed skill effect snapshots and runtime receivers");
 }
 
 internal static void PresentationHealthComponentExposesOnlyRuntimeDamageMirror()

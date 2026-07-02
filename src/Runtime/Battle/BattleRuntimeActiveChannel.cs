@@ -7,6 +7,13 @@ internal sealed class BattleRuntimeActiveChannel
     public string SourceCommandId { get; init; } = "";
     public string SourceActionId { get; init; } = "";
     public string SourceDefinitionId { get; init; } = "";
+    public string PresentationProfileId { get; init; } = "";
+    public string CastFxProfileId { get; init; } = "";
+    public string ImpactFxProfileId { get; init; } = "";
+    public string MarkFxProfileId { get; init; } = "";
+    public string AreaFxProfileId { get; init; } = "";
+    public bool SuppressActorCastFx { get; init; }
+    public bool HoldCastAnimationDuringAction { get; init; }
     public double StartedAtSeconds { get; init; }
     public double EndsAtSeconds { get; init; }
     public double NextTickAtSeconds { get; set; }

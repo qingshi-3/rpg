@@ -6,7 +6,7 @@ Config files may reference resource ids and `res://` resource paths, but they do
 
 Current entries:
 
-- `battle/first_slice_hero_companies.json`: first-slice hero-company, default corps, skill, and Bonefield roster mappings.
+- `battle/first_slice_hero_companies.json`: first-slice battle-group, default corps, skill, and Bonefield roster mappings.
 - `battle/unit_definition_index.json`: curated battle unit id to authored `unit.tres` resource path index.
 - `strategic_management/economy/resources.json`: foundation Strategic Management resource definitions.
 - `strategic_management/economy/conscription_policies.json`: foundation reserve-soldier conscription policies.

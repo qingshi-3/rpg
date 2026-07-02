@@ -72,6 +72,7 @@ public sealed class BattleGroupSessionProbeService
 			seed.Heroes,
 			seed.Corps);
 		ApplyProbeMetadata(snapshot, seed);
+		_snapshotAdapter.RecompileSkillDefinitions(snapshot);
 		ApplyBattleEntryTacticalSeeds(snapshot, request, seed);
 		return new BattleGroupSessionProbeResult
 		{

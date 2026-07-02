@@ -58,7 +58,7 @@ internal static void WorldSiteHoverSummaryUsesLocalResourcesAndForceCounts()
     AssertTrue(
         summary.ForceText.Contains("12/20", StringComparison.Ordinal) &&
         summary.ForceText.Contains("3", StringComparison.Ordinal),
-        "hover summary should show city reserve capacity and current hero-company count from strategic management");
+        "hover summary should show city reserve capacity and current battle-group count from strategic management");
 }
 
 internal static void WorldSiteHoverSummaryStaysInsideViewport()

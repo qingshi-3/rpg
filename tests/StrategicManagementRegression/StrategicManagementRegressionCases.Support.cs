@@ -324,7 +324,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicHeroCompanyViewModel? company = dashboard.SelectedCity.HeroCompanies.FirstOrDefault(item => item.HeroId == heroId);
         if (company == null)
         {
-            throw new InvalidOperationException($"Missing dashboard hero company {heroId}");
+            throw new InvalidOperationException($"Missing dashboard battle group {heroId}");
         }
 
         return company;

@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
-using Rpg.Application.Battle.Commands;
 using Rpg.Definitions.Battle.Audio;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Presentation.Battle.Actions;
@@ -26,7 +25,9 @@ public partial class BattleUnitRoot
         BattleEntity target,
         double durationSeconds = 0,
         bool preserveMovement = false,
-        string sourceDefinitionId = "")
+        string presentationProfileId = "",
+        bool suppressActorCastFx = false,
+        bool holdCastAnimationDuringAction = false)
     {
         if (actor == null || !GodotObject.IsInstanceValid(actor))
         {
@@ -45,7 +46,7 @@ public partial class BattleUnitRoot
                 actorAnimation?.FaceToward(target.GlobalPosition);
             }
 
-            if (IsChanneledSkillCastPresentation(sourceDefinitionId) &&
+            if (IsChanneledSkillCastPresentation(presentationProfileId, holdCastAnimationDuringAction) &&
                 actorAnimation != null &&
                 actorAnimation.PlaySkillCastHoldAtFrame(actorAnimation.ResolveChanneledSkillCastHoldFrame()))
             {
@@ -57,7 +58,7 @@ public partial class BattleUnitRoot
             }
         }
 
-        if (!SuppressActorAttachedSkillCastFx(sourceDefinitionId))
+        if (!SuppressActorAttachedSkillCastFx(suppressActorCastFx))
         {
             actor.GetComponent<BattleSkillCastFxComponent>()?.PlaySkillCastFx(actionDurationSeconds);
         }
@@ -66,23 +67,22 @@ public partial class BattleUnitRoot
         return actionDurationSeconds;
     }
 
-    private static bool IsChanneledSkillCastPresentation(string sourceDefinitionId)
+    private static bool IsChanneledSkillCastPresentation(
+        string presentationProfileId,
+        bool holdCastAnimationDuringAction)
     {
-        return string.Equals(
-            sourceDefinitionId ?? "",
-            HeroSkillCommandIds.ThunderSpiralBreakSkillId,
-            System.StringComparison.Ordinal);
+        return holdCastAnimationDuringAction ||
+               string.Equals(
+                   presentationProfileId ?? "",
+                   "skill_channeled_area",
+                   System.StringComparison.Ordinal);
     }
 
-    private static bool SuppressActorAttachedSkillCastFx(string sourceDefinitionId)
+    private static bool SuppressActorAttachedSkillCastFx(bool suppressActorCastFx)
     {
-        // Thunder Spiral Break owns a separate authored area FX at the submitted
-        // 3x3 center; keeping the generic actor-attached cast ring makes the
-        // release read as centered on the caster.
-        return string.Equals(
-            sourceDefinitionId ?? "",
-            HeroSkillCommandIds.ThunderSpiralBreakSkillId,
-            System.StringComparison.Ordinal);
+        // Area profiles can own a separate authored world FX; the actor ring is
+        // suppressed only when Runtime events carry that presentation trait.
+        return suppressActorCastFx;
     }
 
     private void QueueHeldSkillCastResume(UnitAnimationComponent animation, double durationSeconds)
@@ -110,7 +110,7 @@ public partial class BattleUnitRoot
         }
     }
 
-    public double PlayThunderTagPresentation(
+    public double PlayMarkProjectilePresentation(
         BattleEntity actor,
         BattleEntity target,
         GridSurfacePosition targetSurface,
@@ -209,14 +209,14 @@ public partial class BattleUnitRoot
         return target?.GetNodeOrNull<Node2D>("VisualRoot") ?? target;
     }
 
-    public double PlayThunderSpiralBreakPresentation(
+    public double PlayChanneledAreaPresentation(
         BattleEntity actor,
         GridSurfacePosition targetSurface,
         double durationSeconds)
     {
         if (actor == null ||
             !GodotObject.IsInstanceValid(actor) ||
-            !TryResolveThunderSpiralAreaGlobalPosition(targetSurface, out Vector2 areaGlobal))
+            !TryResolveChanneledAreaGlobalPosition(targetSurface, out Vector2 areaGlobal))
         {
             return 0;
         }
@@ -228,7 +228,7 @@ public partial class BattleUnitRoot
         }
 
         BattleThunderSpiralFx spiralFx = fx as BattleThunderSpiralFx;
-        spiralFx?.ConfigureAreaCoreSize(ResolveThunderSpiralAreaPixelSize(targetSurface.Position));
+        spiralFx?.ConfigureAreaCoreSize(ResolveChanneledAreaPixelSize(targetSurface.Position));
 
         AddChild(fx);
         fx.GlobalPosition = areaGlobal + ThunderSpiralAreaOffset;
@@ -237,22 +237,21 @@ public partial class BattleUnitRoot
         return System.Math.Max(0, durationSeconds);
     }
 
-    private bool TryResolveThunderSpiralAreaGlobalPosition(
+    private bool TryResolveChanneledAreaGlobalPosition(
         GridSurfacePosition targetSurface,
         out Vector2 areaGlobal)
     {
         areaGlobal = default;
-        // Runtime stores Thunder Spiral Break's submitted 3x3 area as a target
-        // center cell. Presentation resolves that coarse center only; it does
-        // not derive a hand socket, preview cell, or secondary damage area.
+        // Runtime stores submitted area skills as a target center cell.
+        // Presentation resolves that center only; it does not derive gameplay
+        // legality from visuals.
         return _tryResolveCellGlobalPosition?.Invoke(targetSurface.Position, out areaGlobal) == true;
     }
 
-    private Vector2 ResolveThunderSpiralAreaPixelSize(GridPosition targetCenter)
+    private Vector2 ResolveChanneledAreaPixelSize(GridPosition targetCenter)
     {
-        // Thunder Spiral Break is a fixed 3x3 Runtime area. The release point
-        // only chooses the center; the authored vortex is tuned larger for
-        // readability but remains anchored to this center cell.
+        // The current authored vortex is tuned larger for readability but
+        // remains anchored to Runtime's submitted center cell.
         return BattleThunderSpiralFx.ResolveDefaultAreaPixelSize();
     }
 

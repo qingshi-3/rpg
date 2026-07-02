@@ -11,7 +11,7 @@ Run("strategic management state saves and loads foundation city mutations", Stra
 Run("strategic management runtime repairs captured city company ownership on load", StrategicManagementRegressionCases.StrategicManagementRuntimeRepairsCapturedCityCompanyOwnershipOnLoad);
 Run("first city initializes construction regions reserve and force capacity", StrategicManagementRegressionCases.FirstCityInitializesConstructionRegionsReserveAndForceCapacity);
 Run("first city initializes conscription policy off", StrategicManagementRegressionCases.FirstCityInitializesConscriptionPolicyOff);
-Run("first playable starts with three dispatchable hero companies", StrategicManagementRegressionCases.FirstPlayableStartsWithThreeDispatchableHeroCompanies);
+Run("first playable starts with three dispatchable battle groups", StrategicManagementRegressionCases.FirstPlayableStartsWithThreeDispatchableHeroCompanies);
 Run("strategic management resolves map site ids without silent city fallback", StrategicManagementRegressionCases.StrategicManagementResolvesMapSiteIdsWithoutSilentCityFallback);
 Run("strategic management has no strategic battle preparation choice system", StrategicManagementRegressionCases.StrategicManagementHasNoStrategicBattlePreparationChoiceSystem);
 Run("strategic management dashboard hides strategic battle preparation options", StrategicManagementRegressionCases.StrategicManagementDashboardHidesStrategicBattlePreparationOptions);
@@ -27,8 +27,8 @@ Run("replenish corps failure leaves resources reserve and strength unchanged", S
 Run("manual conscription consumes resources and creates reserve soldiers", StrategicManagementRegressionCases.ManualConscriptionConsumesResourcesAndCreatesReserveSoldiers);
 Run("manual conscription failure leaves resources and reserve unchanged", StrategicManagementRegressionCases.ManualConscriptionFailureLeavesResourcesAndReserveUnchanged);
 Run("assign corps to hero records aptitude without random failure", StrategicManagementRegressionCases.AssignCorpsToHeroRecordsAptitudeWithoutRandomFailure);
-Run("create expedition locks assigned hero company", StrategicManagementRegressionCases.CreateExpeditionLocksAssignedHeroCompany);
-Run("create expedition locks selected hero companies", StrategicManagementRegressionCases.CreateExpeditionLocksSelectedHeroCompanies);
+Run("create expedition locks assigned battle group", StrategicManagementRegressionCases.CreateExpeditionLocksAssignedHeroCompany);
+Run("create expedition locks selected battle groups", StrategicManagementRegressionCases.CreateExpeditionLocksSelectedHeroCompanies);
 Run("reinforce arrival stations expedition at owned target city", StrategicManagementRegressionCases.ReinforceArrivalStationsExpeditionAtOwnedTargetCity);
 Run("retarget moving expedition can reinforce departure city", StrategicManagementRegressionCases.RetargetMovingExpeditionCanReinforceDepartureCity);
 Run("create expedition rejects hero without assigned corps", StrategicManagementRegressionCases.CreateExpeditionRejectsHeroWithoutAssignedCorps);
@@ -64,7 +64,7 @@ Run("strategic battle result summary rejects missing runtime actor outcomes", St
 Run("strategic battle bridge rejects resolved expedition", StrategicManagementRegressionCases.StrategicBattleBridgeRejectsResolvedExpedition);
 Run("strategic battle bridge rejects location without battle entry metadata", StrategicManagementRegressionCases.StrategicBattleBridgeRejectsLocationWithoutBattleEntryMetadata);
 Run("strategic management dashboard summarizes city resources buildings reserve corps and heroes", StrategicManagementRegressionCases.StrategicManagementDashboardSummarizesCityResourcesBuildingsReserveCorpsAndHeroes);
-Run("strategic management dashboard exposes dispatchable hero companies", StrategicManagementRegressionCases.StrategicManagementDashboardExposesDispatchableHeroCompanies);
+Run("strategic management dashboard exposes dispatchable battle groups", StrategicManagementRegressionCases.StrategicManagementDashboardExposesDispatchableHeroCompanies);
 Run("strategic management dashboard reflects foundation command mutations", StrategicManagementRegressionCases.StrategicManagementDashboardReflectsFoundationCommandMutations);
 Run("strategic management dashboard separates conscription from corps recruitment", StrategicManagementRegressionCases.StrategicManagementDashboardSeparatesConscriptionFromCorpsRecruitment);
 Run("strategic management dashboard summarizes non-city location", StrategicManagementRegressionCases.StrategicManagementDashboardSummarizesNonCityLocation);

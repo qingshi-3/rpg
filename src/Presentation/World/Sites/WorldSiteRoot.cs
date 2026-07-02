@@ -176,11 +176,11 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private SiteManagementSection _selectedSiteManagementSection = SiteManagementSection.Build;
 	private bool _battleRuntimeHeroSkillTargetPickingActive;
 	private BattleRuntimeCommandGroupView _battleRuntimeHeroSkillTargetPickingGroup;
-	private string _battleRuntimeHeroSkillTargetPickingSkillId = "";
+	private string _battleRuntimeHeroSkillTargetPickingSkillDefinitionId = "";
 	private string _battleRuntimeHeroSkillPreviewTargetActorId = "";
-	private ThunderFoldTargetingStage _battleRuntimeThunderFoldTargetingStage = ThunderFoldTargetingStage.None;
-	private string _battleRuntimeThunderFoldSelectedMarkId = "";
-	private GridSurfacePosition _battleRuntimeThunderFoldSelectedMarkSurface;
+	private SkillTargetingStage _battleRuntimeSkillTargetingStage = SkillTargetingStage.None;
+	private string _battleRuntimeSelectedRuntimeAnchorId = "";
+	private GridSurfacePosition _battleRuntimeSelectedRuntimeAnchorSurface;
 	private string _selectedBattlePreparationPlanGroupKey = "";
 	private readonly HashSet<string> _explicitBattlePreparationRuleGroups = new(System.StringComparer.Ordinal);
 	private readonly Dictionary<Node, ProcessModeEnum> _battleRuntimePauseProcessModeRestore = new();

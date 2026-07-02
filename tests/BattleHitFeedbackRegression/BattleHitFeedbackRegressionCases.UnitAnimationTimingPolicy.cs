@@ -53,14 +53,15 @@ internal static void UnitAnimationComponentSupportsSpriteFrameHoldAndResume()
         animationSet.Contains("public int ChanneledSkillCastHoldFrame { get; set; } = 2;", StringComparison.Ordinal),
         "unit animation resources should expose the channeled skill cast hold frame as an authored concrete frame number");
     AssertTrue(
-        unitRoot.Contains("HeroSkillCommandIds.ThunderSpiralBreakSkillId", StringComparison.Ordinal) &&
+        unitRoot.Contains("holdCastAnimationDuringAction", StringComparison.Ordinal) &&
+        unitRoot.Contains("skill_channeled_area", StringComparison.Ordinal) &&
         unitRoot.Contains("PlaySkillCastHoldAtFrame", StringComparison.Ordinal) &&
         unitRoot.Contains("ResumeHeldAnimationFromNextFrame", StringComparison.Ordinal),
-        "thunder spiral presentation should route through the frame-hold cast path and release the held animation when the runtime duration ends");
+        "channeled-area presentation should route through the frame-hold cast path and release the held animation when the runtime duration ends");
     AssertTrue(
-        liveObservation.Contains("runtimeEvent.SourceDefinitionId", StringComparison.Ordinal) &&
-        liveObservation.Contains("sourceDefinitionId: runtimeEvent.SourceDefinitionId", StringComparison.Ordinal) &&
+        liveObservation.Contains("runtimeEvent.PresentationProfileId", StringComparison.Ordinal) &&
+        liveObservation.Contains("holdCastAnimationDuringAction: runtimeEvent.HoldCastAnimationDuringAction", StringComparison.Ordinal) &&
         liveObservation.Contains("runtimeEvent.ActionDurationSeconds", StringComparison.Ordinal),
-        "live SkillUsed observation should pass the runtime skill id and action duration into caster-side presentation instead of guessing locally");
+        "live SkillUsed observation should pass runtime profile traits and action duration into caster-side presentation instead of guessing locally");
 }
 }

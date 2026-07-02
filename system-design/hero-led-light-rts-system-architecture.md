@@ -23,7 +23,7 @@ The core architecture term is:
 battle group = 1 hero + 1 main corps
 ```
 
-Runtime-visible force counts may create multiple combat actors for presentation, collision, attack, or damage resolution, but they do not by themselves create separate battle-group commander state. The selectable hero company or accepted battle-group command identity remains the commander boundary. If a migration adapter expands old force-count data, it must preserve the owning battle-group identity instead of letting each expanded row become an independent tactical commander.
+Runtime-visible force counts may create multiple combat actors for presentation, collision, attack, or damage resolution, but they do not by themselves create separate battle-group commander state. The selectable battle group or accepted battle-group command identity remains the commander boundary. If a migration adapter expands old force-count data, it must preserve the owning battle-group identity instead of letting each expanded row become an independent tactical commander.
 
 Chinese design language uses **战斗编组**. Code-facing English should use `BattleGroup` unless a later accepted proposal changes the naming rule.
 

@@ -49,7 +49,7 @@ Result:
 
 ### What This Actually Means
 
-This is currently an immediate auto-resolution path with report summary. It is not yet a real-time battle scene where the player selects a hero company, commands hero and corps separately, casts hero skills, observes corps behavior, and then receives an explanatory report.
+This is currently an immediate auto-resolution path with report summary. It is not yet a real-time battle scene where the player selects a battle group, commands hero and corps separately, casts hero skills, observes corps behavior, and then receives an explanatory report.
 
 Key evidence:
 
@@ -70,7 +70,7 @@ Current state:
 Accepted target:
 
 - Hero-led light RTS.
-- Player selects hero companies.
+- Player selects battle groups.
 - Hero command, corps command, and combined command are separate.
 - Player can leave the hero in place while sending troops forward.
 
@@ -84,9 +84,9 @@ Priority:
 
 Recommended workstream:
 
-- Create a proposal for `hero-company-light-rts-combat` before further battle UI/runtime work.
+- Create a proposal for `battle-group-light-rts-combat` before further battle UI/runtime work.
 
-### GAP-B: No Hero Company Runtime Model
+### GAP-B: No Battle Group Runtime Model
 
 Current state:
 
@@ -96,13 +96,13 @@ Current state:
 
 Accepted target:
 
-- `hero company = 1 hero + 1 main corps`.
-- Hero and corps are distinct runtime actors under one selectable company.
+- `battle group = 1 hero + 1 main corps`.
+- Hero and corps are distinct runtime actors under one selectable battle group.
 - Corps uses shared `CorpsStrength 0-100`; visible soldiers are presentation derived from strength thresholds.
 
 Gap:
 
-- There is no accepted domain or runtime object for hero, corps, hero company, corps strength, hero/corps selection, or shared company ownership.
+- There is no accepted domain or runtime object for hero, corps, battle group, corps strength, hero/corps selection, or shared battle-group ownership.
 
 Priority:
 
@@ -110,7 +110,7 @@ Priority:
 
 Recommended workstream:
 
-- Define `Hero`, `Corps`, and `HeroCompany` state/definition contracts before adding more battle behavior.
+- Define `Hero`, `Corps`, and `BattleGroup` state/definition contracts before adding more battle behavior.
 
 ### GAP-C: No Battle-Time Player Command Layer
 
@@ -124,7 +124,7 @@ Accepted target:
 
 - Hero commands: move, attack, hold, retreat, cast skill, move relative to corps.
 - Corps commands: advance, return to guard, hold area, attack target/area, protect hero, retreat.
-- Combined commands: company move, attack, defend, retreat, regroup.
+- Combined commands: battle-group move, attack, defend, retreat, regroup.
 
 Gap:
 
@@ -136,7 +136,7 @@ Priority:
 
 Recommended workstream:
 
-- Build a minimal non-AP command architecture around hero company commands. Do not restore old `BattleCommandController` or action-menu UI.
+- Build a minimal non-AP command architecture around battle-group commands. Do not restore old `BattleCommandController` or action-menu UI.
 
 ### GAP-D: Combat Stats And Skills Are Too Thin
 
@@ -312,7 +312,7 @@ Current state:
 
 Accepted target:
 
-- Report explains outcome, hero company contribution, corps strength loss, hero skill impact, corps auto-skill performance, profession/tag bonds, equipment contribution, city/facility influence, actionable failure reason, rewards, XP, materials, and city/resource changes.
+- Report explains outcome, battle group contribution, corps strength loss, hero skill impact, corps auto-skill performance, profession/tag bonds, equipment contribution, city/facility influence, actionable failure reason, rewards, XP, materials, and city/resource changes.
 
 Gap:
 
@@ -390,11 +390,11 @@ These estimates are relative to the accepted hero-led light RTS and content-syst
 ## Recommended Migration Closure Order
 
 1. Freeze further "auto tactics playback UI" expansion as a product target. Keep it as backend auto-resolve/report infrastructure.
-2. Create a proposal for `hero-company-light-rts-combat` with current architecture and expected architecture copies.
-3. Define the minimal domain contracts: `Hero`, `Corps`, `HeroCompany`, `CorpsStrength`, command channels, skill resource state, and result writeback fields.
+2. Create a proposal for `battle-group-light-rts-combat` with current architecture and expected architecture copies.
+3. Define the minimal domain contracts: `Hero`, `Corps`, `BattleGroup`, `CorpsStrength`, command channels, skill resource state, and result writeback fields.
 4. Build the first live battle slice on a `WorldSite` map:
-   - one hero company vs one enemy group;
-   - select company;
+   - one battle group vs one enemy group;
+   - select battle group;
    - hero move/hold/attack/retreat;
    - corps advance/return/hold/attack/retreat;
    - one player-cast hero skill with mana and cooldown;

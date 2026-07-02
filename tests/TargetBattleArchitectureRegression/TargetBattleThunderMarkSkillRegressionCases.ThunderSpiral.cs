@@ -26,7 +26,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             SourceActorId = "group_player:hero",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderSpiralBreakSkillId
+            SkillDefinitionId = ThunderSpiralBreakSkillId
         };
         SetCommandTargetGrid(spiralRequest, x: 2, y: 0, height: 0);
 

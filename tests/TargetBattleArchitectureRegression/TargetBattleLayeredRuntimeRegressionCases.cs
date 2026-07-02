@@ -35,7 +35,7 @@ internal static class TargetBattleLayeredRuntimeRegressionCases
             .Where(item => item.SourceForceId is "army_1:hero" or "army_1:corps")
             .ToArray();
         AssertEqual(4, playerRows.Length, "force counts still produce runtime actor rows");
-        AssertEqual(1, playerRows.Select(item => item.RuntimeCommanderGroupId).Distinct(StringComparer.Ordinal).Count(), "one hero company should have one commander id");
+        AssertEqual(1, playerRows.Select(item => item.RuntimeCommanderGroupId).Distinct(StringComparer.Ordinal).Count(), "one battle group should have one commander id");
         AssertTrue(!string.IsNullOrWhiteSpace(playerRows[0].RuntimeCommanderGroupId), "commander id must be explicit");
 
         BattleRuntimeSessionController controller = new BattleRuntimeSession().Begin(result.Snapshot);

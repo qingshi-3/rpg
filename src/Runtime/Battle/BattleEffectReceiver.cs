@@ -12,28 +12,13 @@ internal sealed class BattleEffectReceiver
         _health = health ?? throw new ArgumentNullException(nameof(health));
     }
 
-    internal void ReceiveEffect(
-        BattleCommitBuffer commitBuffer,
-        BattleEffectExecutionContext context,
-        BattleEffectPayload payload)
-    {
-        if (payload == null)
-        {
-            return;
-        }
-
-        if (payload.EffectKind == Rpg.Application.Battle.Snapshots.BattleSkillEffectKind.Damage)
-        {
-            ReceiveDamage(commitBuffer, context, payload);
-        }
-    }
-
     internal void ReceiveDamage(
         BattleCommitBuffer commitBuffer,
         BattleEffectExecutionContext context,
-        BattleEffectPayload payload)
+        int amount,
+        string effectKind)
     {
-        if (commitBuffer == null || context == null || payload == null)
+        if (commitBuffer == null || context == null)
         {
             return;
         }
@@ -44,6 +29,10 @@ internal sealed class BattleEffectReceiver
             return;
         }
 
-        _health.RequestEffectDamage(commitBuffer, context, payload.Amount, payload.EffectKind.ToString());
+        _health.RequestEffectDamage(
+            commitBuffer,
+            context,
+            amount,
+            string.IsNullOrWhiteSpace(effectKind) ? BattleEffectKindLabels.Damage : effectKind);
     }
 }

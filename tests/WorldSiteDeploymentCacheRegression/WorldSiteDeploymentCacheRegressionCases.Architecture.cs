@@ -375,7 +375,6 @@ internal static void LegacyCombatApAuthoringFieldsAreDeleted()
     string[] sourceFiles =
     {
         Path.Combine(root, "src", "Definitions", "Battle", "BattleUnitDefinition.cs"),
-        Path.Combine(root, "src", "Definitions", "Battle", "Abilities", "AbilityDefinition.cs"),
         Path.Combine(root, "src", "Presentation", "Battle", "Entities", "MovementComponent.cs"),
         Path.Combine(root, "src", "Presentation", "Battle", "Entities", "AttackComponent.cs"),
         Path.Combine(root, "src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs"),
@@ -397,6 +396,10 @@ internal static void LegacyCombatApAuthoringFieldsAreDeleted()
         "RestoreMoveUses",
         "RestoreTurnResourcesForFaction"
     };
+
+    AssertTrue(
+        !File.Exists(Path.Combine(root, "src", "Definitions", "Battle", "Abilities", "AbilityDefinition.cs")),
+        "legacy ability definition authoring file should stay deleted after skill resource cutover");
 
     foreach (string file in sourceFiles)
     {

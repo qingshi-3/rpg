@@ -2927,6 +2927,7 @@ y_sort_enabled = true
 [node name="DeploymentZones" type="Node2D" parent="SemanticMarkers"]
 
 [node name="player_deployment_zone_west" parent="SemanticMarkers/DeploymentZones" instance=ExtResource("14_deployment_marker")]
+visible = false
 position = Vector2(64, 112)
 DeploymentSide = 1
 MarkerId = "player_deployment_zone_west"
@@ -2934,6 +2935,7 @@ Width = 4
 Height = 8
 
 [node name="undead_deployment_zone_east" parent="SemanticMarkers/DeploymentZones" instance=ExtResource("14_deployment_marker")]
+visible = false
 position = Vector2(352, 528)
 DeploymentSide = 2
 MarkerId = "undead_deployment_zone_east"
@@ -2941,5 +2943,6 @@ Width = 8
 Height = 4
 
 [node name="UnitPreviewWorkbench" parent="." instance=ExtResource("15_unit_preview_workbench")]
+visible = false
 position = Vector2(192, 192)
 metadata/authoring_hint = "editor_unit_preview"

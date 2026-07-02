@@ -64,7 +64,7 @@ Actor action state machines own only per-actor execution phases such as anchored
 
 Runtime validation remains the final authority for topology, footprint, occupancy, reservations, movement commits, attack legality, damage, defeat, and event emission. Validators may reject or degrade a requested action, but they must not silently become a second tactical commander.
 
-Each runtime actor belongs to one battle-group commander state. Multiple visible actors may share that commander state when they are produced from the same hero-led company or command group. Expanded force-count rows, presentation entities, or temporary adapter rows must not create independent commander state unless the accepted battle model says they are separate player-commandable battle groups.
+Each runtime actor belongs to one battle-group commander state. Multiple visible actors may share that commander state when they are produced from the same battle group or command group. Expanded force-count rows, presentation entities, or temporary adapter rows must not create independent commander state unless the accepted battle model says they are separate player-commandable battle groups.
 
 
 ## Battle Tactical Area Runtime State
@@ -239,7 +239,7 @@ Engagement rules bias transitions:
 | Retreat-first | Survival or morale triggers supersede attack and objective states with retreat. |
 | Protect-hero | Target choice and corps movement are constrained by hero distance and threats to the hero. |
 
-Runtime events must include plan state changes when they materially affect movement, target choice, retreat, hold, or battle outcome. Reports should be able to say that a company advanced as planned, was delayed by a chokepoint, switched to attack-first contact, returned to objective, or retreated.
+Runtime events must include plan state changes when they materially affect movement, target choice, retreat, hold, or battle outcome. Reports should be able to say that a battle group advanced as planned, was delayed by a chokepoint, switched to attack-first contact, returned to objective, or retreated.
 
 Plan-state logging must stay low-noise. Log meaningful group-state transitions, command supersession, target lock changes, local-combat entry or exit, regroup, retreat, defeat, and important degradation reasons. Do not log every fixed tick or every movement progress update as a state transition.
 

@@ -10,6 +10,13 @@ internal sealed class BattleEffectExecutionContext
     public string SourceActionId { get; set; } = "";
     public string SourceCommandId { get; set; } = "";
     public string SourceDefinitionId { get; set; } = "";
+    public string PresentationProfileId { get; set; } = "";
+    public string CastFxProfileId { get; set; } = "";
+    public string ImpactFxProfileId { get; set; } = "";
+    public string MarkFxProfileId { get; set; } = "";
+    public string AreaFxProfileId { get; set; } = "";
+    public bool SuppressActorCastFx { get; set; }
+    public bool HoldCastAnimationDuringAction { get; set; }
     internal BattleCommitBuffer CommitBuffer { get; set; }
     internal bool DeferEffectDamageCommit { get; set; }
     internal BattleGridCoord? ActorAnchorOverride { get; set; }

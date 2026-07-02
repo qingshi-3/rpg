@@ -145,6 +145,30 @@ internal static void BattleRuntimeLiveMovementContinuationHoldCoversSingleStepGa
         "movement continuation hold should cover about one fixed-clock step while staying bounded for real stop-to-idle cases");
 }
 
+internal static void BattleRuntimeMovementKeepsSurfacePositionAtVisualCommit()
+{
+    string unitRoot = ReadBattleUnitRootSource();
+    string moveBody = ExtractMethodBlock(unitRoot, "public double MoveEntityTo(");
+    string advanceBody = ExtractMethodBlock(unitRoot, "private bool AdvanceMovementLane(");
+    string stopBody = ExtractMethodBlock(unitRoot, "private void StopEntityMovement(BattleEntity entity, bool snapToLogicalGrid)");
+
+    AssertTrue(
+        !moveBody.Contains("gridOccupant.SetSurfacePosition(targetPosition);", StringComparison.Ordinal),
+        "movement presentation must not promote a queued target surface into the current surface before the visual lane reaches it");
+    AssertTrue(
+        advanceBody.Contains("CommitMovementSegmentSurface(entity, segment.ToSurface)", StringComparison.Ordinal) &&
+        unitRoot.Contains("private void CommitMovementSegmentSurface(BattleEntity entity, GridSurfacePosition surfacePosition)", StringComparison.Ordinal),
+        "movement lane completion should commit the Presentation surface only when the visible segment reaches its target");
+    AssertTrue(
+        stopBody.Contains("ResolveMovementInterruptionSurface(entity, gridOccupant)", StringComparison.Ordinal) &&
+        !stopBody.Contains("TryResolveMovementGlobalPosition(gridOccupant, gridOccupant.SurfacePosition", StringComparison.Ordinal),
+        "anchored action interruption should snap through a dedicated interruption surface resolver instead of reading a queued future target");
+    AssertTrue(
+        stopBody.IndexOf("ResolveMovementInterruptionSurface(entity, gridOccupant)", StringComparison.Ordinal) <
+        stopBody.IndexOf("_movementLanes.Remove(entity)", StringComparison.Ordinal),
+        "movement interruption must resolve the active lane's committed surface before removing the lane");
+}
+
 internal static void BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation()
 {
     string state = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeLivePresentationState.cs"));
@@ -182,9 +206,9 @@ internal static void BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation
         teleportObserver.Contains("activeMovementTweens", StringComparison.Ordinal),
         "teleport presentation should log the visual snap boundary and active movement lanes for manual QA");
     AssertTrue(
-        displacementBoundary.Contains("BattleRuntimeThunderFoldDisplacementCommitted", StringComparison.Ordinal) &&
+        displacementBoundary.Contains("BattleRuntimeMarkTeleportDisplacementCommitted", StringComparison.Ordinal) &&
         displacementBoundary.Contains("DescribeActorDisplacementState", StringComparison.Ordinal),
-        "runtime thunder fold boundary should log displacement state before and after CommitDisplacement so movement-command conflicts are diagnosable");
+        "runtime mark teleport boundary should log displacement state before and after CommitDisplacement so movement-command conflicts are diagnosable");
 }
 
 internal static void BattleRuntimeMovementQueuesPerceptionOverlayRefresh()
@@ -223,18 +247,18 @@ internal static void ThunderTagOffhandPresentationDoesNotInterruptMovement()
 {
     string liveObservation = ReadBattleRuntimeLiveObservationSource();
     string playback = ReadBattleRuntimePlaybackSource();
-    string thunderObserver = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeThunderTagPresentationObserver.cs"));
+    string profileObserver = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeSkillProfilePresentationObserver.cs"));
     string unitRoot = ReadBattleUnitRootSource();
     string skillPresentationBody = ExtractMethodBlock(unitRoot, "public double PlaySkillCastPresentation(");
 
     AssertTrue(
         liveObservation.Contains("IsOffhandSkillReleaseEvent(runtimeEvent)", StringComparison.Ordinal) &&
-        liveObservation.Contains("gateMovementStart: !BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent)", StringComparison.Ordinal),
+        liveObservation.Contains("gateMovementStart: !BattleRuntimeSkillProfilePresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent)", StringComparison.Ordinal),
         "offhand skill releases should not gate later runtime movement starts in live presentation");
     AssertTrue(
-        playback.Contains("preserveMovement: BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent)", StringComparison.Ordinal) &&
-        thunderObserver.Contains("HeroSkillCommandIds.ThunderTagThrowSkillId", StringComparison.Ordinal),
-        "thunder tag SkillUsed playback should pass the offhand movement-preservation trait from the runtime event");
+        playback.Contains("preserveMovement: BattleRuntimeSkillProfilePresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent)", StringComparison.Ordinal) &&
+        profileObserver.Contains("skill_mark_projectile", StringComparison.Ordinal),
+        "mark projectile SkillUsed playback should pass the offhand movement-preservation trait from the runtime event profile");
     AssertTrue(
         unitRoot.Contains("bool preserveMovement = false", StringComparison.Ordinal) &&
         skillPresentationBody.Contains("if (!preserveMovement)", StringComparison.Ordinal) &&
@@ -246,21 +270,21 @@ internal static void ThunderTagOffhandPresentationDoesNotInterruptMovement()
 internal static void ThunderTagPresentationShowsLightningAndMark()
 {
     string liveObservation = ReadBattleRuntimeLiveObservationSource();
-    string thunderObserver = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeThunderTagPresentationObserver.cs"));
+    string profileObserver = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeSkillProfilePresentationObserver.cs"));
     string unitRoot = ReadBattleUnitRootSource();
     string thunderLinkScenePath = Path.Combine("scenes", "battle", "entities", "fx", "BattleThunderLinkFx.tscn");
     string thunderMarkScenePath = Path.Combine("scenes", "battle", "entities", "fx", "BattleThunderMarkFx.tscn");
 
     AssertTrue(
         liveObservation.Contains("BattleEventKind.ThunderMarkCreated", StringComparison.Ordinal) &&
-        liveObservation.Contains("ObserveRuntimeThunderMarkCreatedEvent", StringComparison.Ordinal),
+        liveObservation.Contains("ObserveRuntimeMarkCreatedEvent", StringComparison.Ordinal),
         "live presentation should consume ThunderMarkCreated so the runtime mark is visible");
     AssertTrue(
-        thunderObserver.Contains("ObserveRuntimeThunderMarkCreatedEvent", StringComparison.Ordinal) &&
-        thunderObserver.Contains("unitRoot.PlayThunderTagPresentation", StringComparison.Ordinal),
+        profileObserver.Contains("ObserveRuntimeMarkCreatedEvent", StringComparison.Ordinal) &&
+        profileObserver.Contains("unitRoot.PlayMarkProjectilePresentation", StringComparison.Ordinal),
         "thunder mark playback should route through BattleUnitRoot instead of leaving the mark as a log-only runtime event");
     AssertTrue(
-        unitRoot.Contains("public double PlayThunderTagPresentation(", StringComparison.Ordinal) &&
+        unitRoot.Contains("public double PlayMarkProjectilePresentation(", StringComparison.Ordinal) &&
         unitRoot.Contains("BattleThunderLinkFx.tscn", StringComparison.Ordinal) &&
         unitRoot.Contains("BattleThunderMarkFx.tscn", StringComparison.Ordinal),
         "battle unit root should instantiate authored lightning-link and thunder-mark FX resources for thunder tag");
@@ -335,14 +359,14 @@ internal static void ThunderSpiralPresentationUsesAuthoredAreaFx()
 {
     string scenePath = Path.Combine("scenes", "battle", "entities", "fx", "BattleThunderSpiralFx.tscn");
     string scriptPath = Path.Combine("src", "Presentation", "Battle", "Entities", "BattleThunderSpiralFx.cs");
-    string observerPath = Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeThunderSpiralPresentationObserver.cs");
+    string observerPath = Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeSkillProfilePresentationObserver.cs");
     string liveObservation = ReadBattleRuntimeLiveObservationSource();
     string unitRoot = ReadBattleUnitRootSource();
     string worldSiteRoot = ReadWorldSiteRootSource();
 
     AssertTrue(File.Exists(scenePath), "thunder spiral should have an authored area FX scene");
     AssertTrue(File.Exists(scriptPath), "thunder spiral area FX should have a focused scene script");
-    AssertTrue(File.Exists(observerPath), "thunder spiral runtime presentation routing should live in a focused observer helper");
+    AssertTrue(File.Exists(observerPath), "channeled-area runtime presentation routing should live in a focused profile observer helper");
 
     string scene = File.ReadAllText(scenePath);
     string script = File.ReadAllText(scriptPath);
@@ -372,25 +396,26 @@ internal static void ThunderSpiralPresentationUsesAuthoredAreaFx()
     AssertFloatEqual(72f, fixedAreaSize.X, 0.0001f, "thunder spiral fixed visual width should be three 16 px tiles tuned 1.5x larger");
     AssertFloatEqual(72f, fixedAreaSize.Y, 0.0001f, "thunder spiral fixed visual height should be three 16 px tiles tuned 1.5x larger");
     AssertTrue(
-        observer.Contains("HeroSkillCommandIds.ThunderSpiralBreakSkillId", StringComparison.Ordinal) &&
+        observer.Contains("skill_channeled_area", StringComparison.Ordinal) &&
+        observer.Contains("HoldCastAnimationDuringAction", StringComparison.Ordinal) &&
         observer.Contains("runtimeEvent.HasTargetCells", StringComparison.Ordinal) &&
         observer.Contains("runtimeEvent.TargetGridX", StringComparison.Ordinal) &&
         observer.Contains("runtimeEvent.TargetGridY", StringComparison.Ordinal) &&
-        observer.Contains("unitRoot.PlayThunderSpiralBreakPresentation", StringComparison.Ordinal),
-        "thunder spiral presentation should consume the Runtime SkillUsed target-cell center instead of the caster cell or HUD preview");
+        observer.Contains("unitRoot.PlayChanneledAreaPresentation", StringComparison.Ordinal),
+        "channeled-area presentation should consume the Runtime SkillUsed target-cell center instead of the caster cell or HUD preview");
     AssertTrue(
-        liveObservation.Contains("BattleRuntimeThunderSpiralPresentationObserver.IsThunderSpiralSkillUsedEvent", StringComparison.Ordinal) &&
-        liveObservation.Contains("BattleRuntimeThunderSpiralPresentationObserver.ObserveRuntimeThunderSpiralSkillUsedEvent", StringComparison.Ordinal) &&
+        liveObservation.Contains("BattleRuntimeSkillProfilePresentationObserver.IsChanneledAreaSkillUsedEvent", StringComparison.Ordinal) &&
+        liveObservation.Contains("BattleRuntimeSkillProfilePresentationObserver.ObserveRuntimeChanneledAreaSkillUsedEvent", StringComparison.Ordinal) &&
         liveObservation.Contains("_focusBattleActionEntity?.Invoke(actor, true)", StringComparison.Ordinal),
-        "live SkillUsed observation should route thunder spiral to area FX and a coarse action focus");
+        "live SkillUsed observation should route channeled-area profiles to area FX and a coarse action focus");
     AssertTrue(
         unitRoot.Contains("DefaultThunderSpiralFxScenePath", StringComparison.Ordinal) &&
         unitRoot.Contains("ThunderSpiralAreaOffset = Vector2.Zero", StringComparison.Ordinal) &&
-        unitRoot.Contains("public double PlayThunderSpiralBreakPresentation(", StringComparison.Ordinal) &&
+        unitRoot.Contains("public double PlayChanneledAreaPresentation(", StringComparison.Ordinal) &&
         unitRoot.Contains("_tryResolveCellGlobalPosition?.Invoke(targetSurface.Position", StringComparison.Ordinal) &&
-        unitRoot.Contains("ResolveThunderSpiralAreaPixelSize", StringComparison.Ordinal) &&
+        unitRoot.Contains("ResolveChanneledAreaPixelSize", StringComparison.Ordinal) &&
         unitRoot.Contains("ConfigureAreaCoreSize", StringComparison.Ordinal) &&
-        unitRoot.Contains("SuppressActorAttachedSkillCastFx(sourceDefinitionId)", StringComparison.Ordinal) &&
+        unitRoot.Contains("SuppressActorAttachedSkillCastFx(suppressActorCastFx)", StringComparison.Ordinal) &&
         !unitRoot.Contains("new GridPosition(targetCenter.X + 1, targetCenter.Y)", StringComparison.Ordinal) &&
         !unitRoot.Contains("new GridPosition(targetCenter.X, targetCenter.Y + 1)", StringComparison.Ordinal) &&
         !unitRoot.Contains("HandPath", StringComparison.Ordinal) &&

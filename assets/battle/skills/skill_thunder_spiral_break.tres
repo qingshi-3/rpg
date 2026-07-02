@@ -1,0 +1,70 @@
+[gd_resource type="Resource" script_class="BattleSkillDefinitionResource" load_steps=19 format=3]
+
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/BattleSkillDefinitionResource.cs" id="1_definition"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/BattleSkillTimingResource.cs" id="2_timing"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/BattleSkillInterruptPolicyResource.cs" id="3_interrupt"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/BattleSkillTargetingProfileResource.cs" id="4_targeting"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/BattleSkillPresentationProfileResource.cs" id="5_presentation"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/BattleSkillEffectResource.cs" id="6_effect_base"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/ChanneledAreaDamageSkillEffectResource.cs" id="7_channel"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/BattleSkillCostRuleResource.cs" id="8_cost_base"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/LimitedUseSkillCostRuleResource.cs" id="9_limited_use"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/BattleSkillCooldownRuleResource.cs" id="10_cooldown_base"]
+[ext_resource type="Script" path="res://src/Definitions/Battle/Skills/NoCooldownSkillCooldownRuleResource.cs" id="11_no_cooldown"]
+
+[sub_resource type="Resource" id="BattleSkillTiming_thunder_spiral_break"]
+script = ExtResource("2_timing")
+
+[sub_resource type="Resource" id="BattleSkillInterrupt_thunder_spiral_break"]
+script = ExtResource("3_interrupt")
+CanInterruptBasicAttackWindup = true
+CanCancelBasicAttackRecovery = true
+
+[sub_resource type="Resource" id="BattleSkillTargeting_thunder_spiral_break"]
+script = ExtResource("4_targeting")
+InputFlow = 5
+TargetKind = 4
+Range = 3
+AreaShape = 5
+AreaRadius = 1
+DirectionMode = 3
+PreviewProfileId = "directional_square_area"
+
+[sub_resource type="Resource" id="BattleSkillPresentation_thunder_spiral_break"]
+script = ExtResource("5_presentation")
+ProfileId = "skill_channeled_area"
+AreaFxProfileId = "thunder_spiral"
+SuppressActorCastFx = true
+HoldCastAnimationDuringAction = true
+
+[sub_resource type="Resource" id="LimitedUseCost_thunder_spiral_break"]
+script = ExtResource("9_limited_use")
+MaxUses = 1
+
+[sub_resource type="Resource" id="NoCooldown_thunder_spiral_break"]
+script = ExtResource("11_no_cooldown")
+
+[sub_resource type="Resource" id="ChannelEffect_thunder_spiral_break"]
+script = ExtResource("7_channel")
+BaseDamage = 14
+DamageType = 1
+DurationSeconds = 1.6
+TickIntervalSeconds = 0.2
+AreaShape = 5
+Radius = 1
+FollowsCaster = true
+UsesTargetOffset = true
+
+[resource]
+script = ExtResource("1_definition")
+SkillDefinitionId = "skill_thunder_spiral_break"
+DisplayName = "雷旋破"
+IconText = "旋"
+Tags = Array[String](["first_slice", "thunder", "channel"])
+Timing = SubResource("BattleSkillTiming_thunder_spiral_break")
+InterruptPolicy = SubResource("BattleSkillInterrupt_thunder_spiral_break")
+CostRules = Array[ExtResource("8_cost_base")]([SubResource("LimitedUseCost_thunder_spiral_break")])
+CooldownRules = Array[ExtResource("10_cooldown_base")]([SubResource("NoCooldown_thunder_spiral_break")])
+Targeting = SubResource("BattleSkillTargeting_thunder_spiral_break")
+Effects = Array[ExtResource("6_effect_base")]([SubResource("ChannelEffect_thunder_spiral_break")])
+Presentation = SubResource("BattleSkillPresentation_thunder_spiral_break")

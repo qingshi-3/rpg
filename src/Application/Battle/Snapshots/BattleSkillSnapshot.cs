@@ -4,8 +4,23 @@ namespace Rpg.Application.Battle.Snapshots;
 
 public sealed class BattleSkillSnapshot
 {
-    public string SkillId { get; set; } = "";
+    public string SkillDefinitionId { get; set; } = "";
+    public string GrantedSkillId { get; set; } = "";
+    public string LoadoutSlotId { get; set; } = "";
+    public string OwnerHeroId { get; set; } = "";
+    public string OwnerBattleGroupId { get; set; } = "";
+    public string RuntimeCommanderGroupId { get; set; } = "";
     public string DisplayName { get; set; } = "";
+    public string IconText { get; set; } = "";
+    public List<string> Tags { get; set; } = new();
+    public BattleSkillCommandChannel CommandChannel { get; set; } = BattleSkillCommandChannel.Hero;
+    public BattleSkillType SkillType { get; set; } = BattleSkillType.Active;
+    public BattleSkillTargetingSnapshot Targeting { get; set; } = new();
+    public BattleSkillTimingSnapshot Timing { get; set; } = new();
+    public BattleSkillInterruptPolicySnapshot InterruptPolicy { get; set; } = new();
+    public List<BattleSkillCostSnapshot> Costs { get; set; } = new();
+    public BattleSkillCooldownSnapshot Cooldown { get; set; } = new NoCooldownSkillCooldownSnapshot();
+    public BattleSkillPresentationSnapshot Presentation { get; set; } = new();
     public BattleSkillTargetingMode TargetingMode { get; set; } = BattleSkillTargetingMode.None;
     public int Range { get; set; }
     public List<string> CasterUnitIds { get; set; } = new();

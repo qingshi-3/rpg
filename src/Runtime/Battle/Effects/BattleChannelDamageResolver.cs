@@ -50,6 +50,13 @@ internal static class BattleChannelDamageResolver
                     SourceCommandId = channel.SourceCommandId ?? "",
                     SourceActionId = channel.SourceActionId ?? "",
                     SourceDefinitionId = channel.SourceDefinitionId ?? "",
+                    PresentationProfileId = channel.PresentationProfileId ?? "",
+                    CastFxProfileId = channel.CastFxProfileId ?? "",
+                    ImpactFxProfileId = channel.ImpactFxProfileId ?? "",
+                    MarkFxProfileId = channel.MarkFxProfileId ?? "",
+                    AreaFxProfileId = channel.AreaFxProfileId ?? "",
+                    SuppressActorCastFx = channel.SuppressActorCastFx,
+                    HoldCastAnimationDuringAction = channel.HoldCastAnimationDuringAction,
                     CommitBuffer = commitBuffer,
                     DeferEffectDamageCommit = deferEffectDamageCommit,
                     State = state,
@@ -57,7 +64,7 @@ internal static class BattleChannelDamageResolver
                     Target = target
                 },
                 target,
-                BattleSkillEffectKind.Damage,
+                BattleEffectKindLabels.Damage,
                 channel.DamageAmount);
         }
 

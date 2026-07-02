@@ -8,7 +8,6 @@ using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Preview;
 using Rpg.Presentation.Common;
 using Rpg.Presentation.World;
-using Rpg.Definitions.Battle.Abilities;
 using Rpg.Definitions.Battle.Audio;
 using Rpg.Application.Battle;
 using Rpg.Application.World;
@@ -73,6 +72,7 @@ BattleHitFeedbackRegressionCases.Run("battle runtime live movement uses actor mo
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement queues before actor visual tail waits", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementQueuesBeforeActorVisualTailWaits);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement buffers committed segments without restarting move", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementBuffersCommittedSegmentsWithoutRestartingMove);
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement continuation hold covers single step gap", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementContinuationHoldCoversSingleStepGap);
+BattleHitFeedbackRegressionCases.Run("battle runtime movement keeps surface position at visual commit", BattleHitFeedbackRegressionCases.BattleRuntimeMovementKeepsSurfacePositionAtVisualCommit);
 BattleHitFeedbackRegressionCases.Run("battle runtime teleport cancels stale queued movement presentation", BattleHitFeedbackRegressionCases.BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation);
 BattleHitFeedbackRegressionCases.Run("battle runtime movement queues perception overlay refresh", BattleHitFeedbackRegressionCases.BattleRuntimeMovementQueuesPerceptionOverlayRefresh);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation consumes SkillUsed as cast cue", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue);
@@ -81,6 +81,9 @@ BattleHitFeedbackRegressionCases.Run("thunder tag presentation shows lightning a
 BattleHitFeedbackRegressionCases.Run("thunder mark lifetime timer is generation guarded", BattleHitFeedbackRegressionCases.ThunderMarkLifetimeTimerIsGenerationGuarded);
 BattleHitFeedbackRegressionCases.Run("thunder tag projectile reuses chain lightning fx frames", BattleHitFeedbackRegressionCases.ThunderTagProjectileReusesChainLightningFxFrames);
 BattleHitFeedbackRegressionCases.Run("thunder spiral presentation uses authored area fx", BattleHitFeedbackRegressionCases.ThunderSpiralPresentationUsesAuthoredAreaFx);
+BattleHitFeedbackRegressionCases.Run("skill presentation uses profile ids not thunder skill ids", BattleHitFeedbackRegressionCases.SkillPresentationUsesProfileIdsNotThunderSkillIds);
+BattleHitFeedbackRegressionCases.Run("skill used events expose presentation profile fields", BattleHitFeedbackRegressionCases.SkillUsedEventsExposePresentationProfileFields);
+BattleHitFeedbackRegressionCases.Run("mark and channel presentation observers avoid concrete skill ids", BattleHitFeedbackRegressionCases.MarkAndChannelPresentationObserversAvoidConcreteSkillIds);
 BattleHitFeedbackRegressionCases.Run("runtime skill damage does not replay caster cast", BattleHitFeedbackRegressionCases.RuntimeSkillDamageDoesNotReplayCasterCast);
 BattleHitFeedbackRegressionCases.Run("runtime skill damage feedback does not extend caster action tail", BattleHitFeedbackRegressionCases.RuntimeSkillDamageFeedbackDoesNotExtendCasterActionTail);
 BattleHitFeedbackRegressionCases.Run("battle runtime visual movement keeps runtime action duration", BattleHitFeedbackRegressionCases.BattleRuntimeVisualMovementKeepsRuntimeActionDuration);

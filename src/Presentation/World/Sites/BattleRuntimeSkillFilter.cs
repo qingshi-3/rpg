@@ -26,9 +26,20 @@ internal static class BattleRuntimeSkillFilter
         BattleSkillSnapshot skill,
         IEnumerable<string> casterUnitIds)
     {
-        if (skill == null || string.IsNullOrWhiteSpace(skill.SkillId))
+        if (skill == null || string.IsNullOrWhiteSpace(ResolveSkillDefinitionId(skill)))
         {
             return false;
+        }
+
+        string groupKey = selected?.GroupKey ?? "";
+        if (!string.IsNullOrWhiteSpace(skill.OwnerBattleGroupId) ||
+            !string.IsNullOrWhiteSpace(skill.RuntimeCommanderGroupId))
+        {
+            return !string.IsNullOrWhiteSpace(groupKey) &&
+                   (string.IsNullOrWhiteSpace(skill.OwnerBattleGroupId) ||
+                    string.Equals(skill.OwnerBattleGroupId, groupKey, System.StringComparison.Ordinal)) &&
+                   (string.IsNullOrWhiteSpace(skill.RuntimeCommanderGroupId) ||
+                    string.Equals(skill.RuntimeCommanderGroupId, groupKey, System.StringComparison.Ordinal));
         }
 
         HashSet<string> casterUnitIdSet = (casterUnitIds ?? System.Array.Empty<string>())
@@ -42,5 +53,10 @@ internal static class BattleRuntimeSkillFilter
 
         return selected?.Forces != null &&
                selected.Forces.Any(force => casterUnitIdSet.Contains(force?.UnitDefinitionId ?? ""));
+    }
+
+    private static string ResolveSkillDefinitionId(BattleSkillSnapshot skill)
+    {
+        return skill?.SkillDefinitionId?.Trim() ?? "";
     }
 }

@@ -64,7 +64,7 @@ City manpower follows:
 ActiveForces + ReserveForces <= CityForceCapacity
 ```
 
-Active forces are represented by corps, hero companies, and garrison instances. Reserve forces are prepared but unassigned soldiers that recover over world-map time and can be spent on corps creation, replenishment, and later manpower-based local battle support.
+Active forces are represented by corps, battle groups, and garrison instances. Reserve forces are prepared but unassigned soldiers that recover over world-map time and can be spent on corps creation, replenishment, and later manpower-based local battle support.
 
 Corps creation produces a persistent corps instance. The instance can be assigned to a hero, stationed in a garrison, travel with an expedition, recover after battle, train, or receive equipment-level upgrades.
 

@@ -18,7 +18,7 @@ The Strategic Management system owns the game's long-term strategic-management l
 - city identity, authored construction regions, city building definitions and instances;
 - city force capacity and aggregate reserve soldiers; recovery rules are owned by Strategic Management but must be defined through the accepted economy/capability model before implementation;
 - corps muster template availability and persistent corps instances;
-- hero strategic state, corps assignment, and expeditions;
+- hero strategic state, corps assignment, battle-group skill grants/loadouts, and expeditions;
 - strategic commands that mutate long-term state;
 - strategic presentation view models;
 - strategic-side battle handoff intent and battle-result application through a bridge boundary.
@@ -57,6 +57,7 @@ Definitions include:
 - construction-region definitions and placement metadata;
 - corps definitions and muster-template requirements;
 - hero-corps aptitude tags;
+- hero or battle-group default skill-grant references, as strategic assignment content that points to battle skill definitions;
 - strategic map metadata;
 - site map layout metadata only as far as the strategic layer needs to bind locations to reusable layout templates;
 - battle-entry metadata only as far as the strategic layer needs to know a location can request a battle.
@@ -76,7 +77,7 @@ State includes:
 - city building instances, construction state, placed construction-region/grid positions, optional battle anchor ids, and support state when relevant;
 - city force capacity and reserve soldier counts;
 - corps instances and their strategic state;
-- hero strategic state and corps assignment;
+- hero strategic state, corps assignment, and skill grants or loadout slots;
 - expedition state;
 - strategic pending-battle or resolved-battle markers when needed.
 
@@ -99,6 +100,7 @@ Rules answer:
 - whether a corps can be created, restored, trained, or upgraded;
 - whether reserve soldiers are available and how much capacity remains;
 - whether a hero can lead a corps and with what aptitude;
+- whether a hero or battle group has a valid skill grant or loadout slot for strategic assignment;
 - whether an expedition can be formed or sent.
 
 Rules do not mutate state, build UI, simulate combat, or provide hidden fallbacks. Every disabled player-facing action should be explainable through a rule result.
@@ -115,6 +117,7 @@ Commands include:
 - build, remove, or later upgrade a city building;
 - create, recover, train, or upgrade a corps instance;
 - assign or unassign a corps to a hero;
+- assign, unassign, unlock, or modify a hero or battle-group skill grant;
 - create or resolve an expedition;
 - request a battle handoff intent;
 - apply a battle result summary to strategic state.
@@ -177,7 +180,7 @@ Owns available muster-template evaluation and persistent corps instances.
 
 A muster template is a derived availability result from city identity, buildings, source locations, resources, and later accepted systems. A corps instance is durable strategic state with strength, training, equipment, experience, assignment, and recovery state.
 
-City reserve soldiers are an aggregate city manpower pool, not individual soldier records. Corps creation and replenishment consume reserve soldiers and resources. Active forces should be derived from corps, hero company, and garrison instances when possible, with the invariant:
+City reserve soldiers are an aggregate city manpower pool, not individual soldier records. Corps creation and replenishment consume reserve soldiers and resources. Active forces should be derived from corps, battle group, and garrison instances when possible, with the invariant:
 
 ```text
 ActiveForces + ReserveForces <= CityForceCapacity
@@ -187,9 +190,11 @@ Severe battle loss should move a corps instance into routed, scattered, recoveri
 
 ### Heroes And Expeditions
 
-Owns hero strategic availability, hero-corps assignment, aptitude evaluation, and expedition formation.
+Owns hero strategic availability, hero-corps assignment, aptitude evaluation, battle-group skill grants/loadouts, and expedition formation.
 
-The first version keeps one hero plus one main corps as the strategic company shape. Multi-corps heroes, secondary corps, and complex army composition are later expansions.
+The first version keeps one hero plus one main corps as the strategic battle-group shape. Multi-corps heroes, secondary corps, and complex army composition are later expansions.
+
+Skill definitions themselves are battle content definitions. Strategic Management owns persistent assignment facts such as which hero or battle group has which granted skill slot, where the grant came from, and which strategic modifiers apply before battle snapshot compilation. It must not duplicate skill effect definitions, cooldown rules, targeting rules, or Runtime availability state.
 
 ### Strategic Battle Boundary
 
@@ -212,6 +217,7 @@ Data-driven:
 - construction-region definitions;
 - corps definitions and basic muster/recovery costs;
 - hero aptitude tags;
+- hero or battle-group default skill-grant references;
 - strategic map metadata;
 - site map layout ids and high-level layout bindings for strategic locations;
 - high-level battle-entry metadata.
@@ -225,6 +231,7 @@ Code-owned rule families:
 - reserve soldier recovery and capacity validation;
 - corps creation, recovery, training, and equipment upgrading;
 - hero-corps assignment;
+- skill-grant assignment, unlock, and modifier validation;
 - expedition formation;
 - battle result application.
 
@@ -270,6 +277,7 @@ These may be deleted, replaced, or temporarily broken during the clean rebuild. 
 - Rules must be deterministic read-only queries over definitions and state.
 - Presentation must consume view models and submit commands.
 - Derived availability is not persistent authority.
+- Strategic skill grants/loadouts reference stable battle skill definition ids and do not duplicate skill definitions or battle Runtime cooldown state.
 - Battle Runtime must never be referenced as a live dependency by Strategic Management.
 - Battle integration must follow `strategic-battle-bridge-architecture.md` before implementing battle-side changes.
 - Strategic-location definitions may bind to site map layout ids, but persistent location facts must stay in Strategic Management state and be keyed by location id plus stable layout or marker ids.

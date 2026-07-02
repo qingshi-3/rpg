@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Config;
-using Rpg.Definitions.Battle.Abilities;
 using Rpg.Definitions.Battle;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Infrastructure.Logging;
@@ -403,18 +402,6 @@ public sealed class BattleUnitFactory
                               (faction == BattleFaction.Player ? BattleTargetTags.Ally : BattleTargetTags.Enemy);
         }
 
-        if (TryGetComponent(entity, definition, out AbilityComponent abilityComponent))
-        {
-            abilityComponent.Abilities = CopyConfiguredAbilities(definition);
-            if (abilityComponent.Abilities.Count == 0)
-            {
-                WarnOnce(
-                    $"legacy-attack-fallback:{definition.Id}",
-                    nameof(BattleUnitFactory),
-                    $"Battle unit has no configured abilities and will use AttackComponent fallback id={definition.Id}");
-            }
-        }
-
         if (TryGetComponent(entity, definition, out UnitAnimationComponent animationComponent))
         {
             animationComponent.AnimationSet = definition.Visual?.AnimationSet;
@@ -446,25 +433,6 @@ public sealed class BattleUnitFactory
             nameof(BattleUnitFactory),
             $"Battle unit missing component id={definition.Id} entity={entity.Name} component={componentName}");
         return false;
-    }
-
-    private static Godot.Collections.Array<AbilityDefinition> CopyConfiguredAbilities(BattleUnitDefinition definition)
-    {
-        var abilities = new Godot.Collections.Array<AbilityDefinition>();
-        if (definition.Abilities == null)
-        {
-            return abilities;
-        }
-
-        foreach (AbilityDefinition ability in definition.Abilities)
-        {
-            if (ability != null)
-            {
-                abilities.Add(ability);
-            }
-        }
-
-        return abilities;
     }
 
     private static bool IsSelectableByControlMode(BattleUnitControlMode controlMode, BattleFaction faction)

@@ -18,7 +18,7 @@ public partial class StrategicWorldRoot
             ClampExpeditionDraftCounts();
             string sourceName = ResolveSiteDisplayName(_expeditionSourceSiteId);
             AddMutedLine(_actionList, $"出发地点：{sourceName}");
-            AddMutedLine(_actionList, $"已选英雄公司：{BuildExpeditionUnitText()}");
+            AddMutedLine(_actionList, $"已选战斗编组：{BuildExpeditionUnitText()}");
             AddMutedLine(_actionList, $"编制：{BuildSelectedDefaultCorpsText()}");
 
             foreach (StrategicHeroCompanyViewModel company in GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId))
@@ -83,7 +83,7 @@ public partial class StrategicWorldRoot
             }
 
             expeditionButton.Text = "出征";
-            expeditionButton.TooltipText = "选择英雄公司";
+            expeditionButton.TooltipText = "选择战斗编组";
             expeditionButton.Pressed += BeginExpeditionDraft;
             _actionList.AddChild(expeditionButton);
         }
@@ -116,7 +116,7 @@ public partial class StrategicWorldRoot
             .OrderBy(company => company.HeroDisplayName)
             .ToArray();
         return selected.Length == 0
-            ? "请选择英雄公司"
+            ? "请选择战斗编组"
             : string.Join("、", selected.Select(company =>
                 $"{company.CorpsDisplayName} 强度 {company.Strength}/100 等级 {company.Level} 装备 {company.EquipmentLevel}"));
     }

@@ -54,9 +54,9 @@ internal static partial class StrategicManagementRegressionCases
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
 
-        AssertTrue(expedition.Success, $"multi-company expedition creation should succeed, got {expedition.FailureReason}");
+        AssertTrue(expedition.Success, $"multi-battle-group expedition creation should succeed, got {expedition.FailureReason}");
         StrategicExpeditionState expeditionState = state.Expeditions[expedition.CreatedEntityId];
-        AssertEqual(3, expeditionState.Participants.Count, "expedition should retain all selected hero-company participants");
+        AssertEqual(3, expeditionState.Participants.Count, "expedition should retain all selected battle-group participants");
         AssertEqual(heroIds[0], expeditionState.HeroId, "compatibility hero alias should retain the first selected participant");
         AssertEqual(state.Heroes[heroIds[0]].AssignedCorpsInstanceId, expeditionState.CorpsInstanceId, "compatibility corps alias should retain the first selected participant");
         foreach (string heroId in heroIds)
@@ -180,7 +180,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, session.TargetLocationId, "bridge session should retain target strategic location");
         AssertEqual("bonefield_assault_v1", session.MapDefinitionId, "bridge session should use target location battle metadata");
         AssertEqual("assault_bonefield", session.EncounterId, "bridge session should expose encounter metadata");
-        AssertEqual(1, session.Participants.Count, "first bridge slice should expose the selected hero company as one participant");
+        AssertEqual(1, session.Participants.Count, "first bridge slice should expose the selected battle group as one participant");
         AssertEqual(StrategicManagementIds.HeroOrdinaryCommander, session.Participants[0].HeroId, "participant should retain strategic hero id");
         AssertEqual(corpsId, session.Participants[0].CorpsInstanceId, "participant should retain strategic corps instance id");
         AssertEqual(100, session.Participants[0].PreBattleCorpsStrength, "participant should snapshot pre-battle corps strength");
@@ -203,7 +203,7 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationBonefieldOutpost,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
-        AssertTrue(expedition.Success, $"multi-company expedition creation should succeed, got {expedition.FailureReason}");
+        AssertTrue(expedition.Success, $"multi-battle-group expedition creation should succeed, got {expedition.FailureReason}");
         StrategicBattleBridgeService bridge = new(definitions);
 
         StrategicBattleSessionResult result = bridge.CreateSession(

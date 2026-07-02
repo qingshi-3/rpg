@@ -8,7 +8,6 @@ using Rpg.Presentation.Battle.Flow;
 using Rpg.Presentation.Battle.Preview;
 using Rpg.Presentation.Common;
 using Rpg.Presentation.World;
-using Rpg.Definitions.Battle.Abilities;
 using Rpg.Definitions.Battle.Audio;
 using Rpg.Application.Battle;
 using Rpg.Application.World;
@@ -301,23 +300,25 @@ internal static void UnitAudioDefinitionResolvesCueVariants()
 
 internal static void AbilitySpatialContractDefaults()
 {
-    string abilityDefinition = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Abilities", "AbilityDefinition.cs"));
-    string targetMode = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Abilities", "AbilityTargetMode.cs"));
-    string directionMode = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Abilities", "AbilityDirectionMode.cs"));
-    string areaShape = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Abilities", "AbilityAreaShape.cs"));
+    string definitionEnums = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Skills", "BattleSkillDefinitionEnums.cs"));
+    string targetingResource = File.ReadAllText(Path.Combine("src", "Definitions", "Battle", "Skills", "BattleSkillTargetingProfileResource.cs"));
+    string snapshotEnums = File.ReadAllText(Path.Combine("src", "Application", "Battle", "Snapshots", "BattleSkillSnapshotEnums.cs"));
+    string targetingSnapshot = File.ReadAllText(Path.Combine("src", "Application", "Battle", "Snapshots", "BattleSkillTargetingSnapshot.cs"));
 
-    AssertTrue(targetMode.Contains("UnitTarget = 0", StringComparison.Ordinal), "unit target mode should be the stable default enum value");
-    AssertTrue(directionMode.Contains("EightWay = 1", StringComparison.Ordinal), "eight-way direction mode should be available");
-    AssertTrue(areaShape.Contains("SingleActor = 0", StringComparison.Ordinal), "single actor area shape should be the stable default enum value");
     AssertTrue(
-        abilityDefinition.Contains("public AbilityTargetMode TargetMode { get; set; } = AbilityTargetMode.UnitTarget;", StringComparison.Ordinal),
-        "basic ability target mode should default to unit target");
+        definitionEnums.Contains("SelectActor", StringComparison.Ordinal) &&
+        definitionEnums.Contains("EightWay", StringComparison.Ordinal) &&
+        definitionEnums.Contains("SingleActor", StringComparison.Ordinal),
+        "skill definition enums should retain actor target, eight-way direction, and single-actor area contract terms");
     AssertTrue(
-        abilityDefinition.Contains("public AbilityDirectionMode DirectionMode { get; set; } = AbilityDirectionMode.EightWay;", StringComparison.Ordinal),
-        "basic ability direction mode should default to eight-way");
+        targetingResource.Contains("public BattleSkillInputFlowDefinition InputFlow { get; set; } = BattleSkillInputFlowDefinition.SelectActor;", StringComparison.Ordinal) &&
+        targetingResource.Contains("public BattleSkillTargetKindDefinition TargetKind { get; set; } = BattleSkillTargetKindDefinition.Actor;", StringComparison.Ordinal),
+        "authored skill targeting profiles should default to actor targeting instead of the deleted AbilityDefinition model");
     AssertTrue(
-        abilityDefinition.Contains("public AbilityAreaShape AreaShape { get; set; } = AbilityAreaShape.SingleActor;", StringComparison.Ordinal),
-        "basic ability area shape should default to single actor");
+        snapshotEnums.Contains("SelectActor", StringComparison.Ordinal) &&
+        snapshotEnums.Contains("EightWay", StringComparison.Ordinal) &&
+        targetingSnapshot.Contains("public BattleSkillInputFlow InputFlow { get; set; } = BattleSkillInputFlow.SelectActor;", StringComparison.Ordinal),
+        "runtime skill targeting snapshots should carry the same spatial contract without loading old ability resources");
 }
 
 internal static void BattleRuntimePlaybackConsumesRuntimeMovementCells()
@@ -734,8 +735,9 @@ internal static void SkillReleasePresentationUsesCastCueAndFallbackFx()
         unitRoot.Contains("private void StopEntityMovement(BattleEntity entity, bool snapToLogicalGrid)", StringComparison.Ordinal) &&
         unitRoot.Contains("_movementLanes.Remove(entity)", StringComparison.Ordinal) &&
         unitRoot.Contains("_pendingMovementIdleSeconds.Remove(entity)", StringComparison.Ordinal) &&
-        unitRoot.Contains("TryResolveMovementGlobalPosition(gridOccupant, gridOccupant.SurfacePosition", StringComparison.Ordinal),
-        "movement lane cancellation should clear queued movement and optionally sync the unit visual to its authoritative grid position");
+        unitRoot.Contains("ResolveMovementInterruptionSurface(entity, gridOccupant)", StringComparison.Ordinal) &&
+        !unitRoot.Contains("TryResolveMovementGlobalPosition(gridOccupant, gridOccupant.SurfacePosition", StringComparison.Ordinal),
+        "movement lane cancellation should clear queued movement and optionally sync the unit visual to its committed presentation surface");
     AssertTrue(
         playback.Contains("ObserveRuntimeSkillUsedEventAsync", StringComparison.Ordinal) &&
         playback.Contains("unitRoot.PlaySkillCastPresentation", StringComparison.Ordinal) &&

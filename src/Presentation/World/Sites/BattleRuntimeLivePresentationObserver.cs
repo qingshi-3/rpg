@@ -50,12 +50,12 @@ internal sealed class BattleRuntimeLivePresentationObserver
                 () => ObserveRuntimeSkillUsedEventAsync(
                     runtimeEvent,
                     presentationState.EntitiesByRuntimeActor),
-                gateMovementStart: !BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent));
+                gateMovementStart: !BattleRuntimeSkillProfilePresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent));
         }
 
         foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.ThunderMarkCreated))
         {
-            BattleRuntimeThunderTagPresentationObserver.ObserveRuntimeThunderMarkCreatedEvent(runtimeEvent, presentationState.EntitiesByRuntimeActor, UnitRoot);
+            BattleRuntimeSkillProfilePresentationObserver.ObserveRuntimeMarkCreatedEvent(runtimeEvent, presentationState.EntitiesByRuntimeActor, UnitRoot);
         }
 
         foreach (BattleEvent runtimeEvent in events.Where(item => item?.Kind == BattleEventKind.ThunderMarkTeleported))
@@ -203,7 +203,7 @@ internal sealed class BattleRuntimeLivePresentationObserver
         }
 
         entitiesByRuntimeActor.TryGetValue(runtimeEvent.TargetId ?? "", out BattleEntity target);
-        if (BattleRuntimeThunderSpiralPresentationObserver.IsThunderSpiralSkillUsedEvent(runtimeEvent))
+        if (BattleRuntimeSkillProfilePresentationObserver.IsChanneledAreaSkillUsedEvent(runtimeEvent))
         {
             _focusBattleActionEntity?.Invoke(actor, true);
         }
@@ -212,11 +212,13 @@ internal sealed class BattleRuntimeLivePresentationObserver
             actor,
             target,
             runtimeEvent.ActionDurationSeconds,
-            preserveMovement: BattleRuntimeThunderTagPresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent),
-            sourceDefinitionId: runtimeEvent.SourceDefinitionId);
-        if (BattleRuntimeThunderSpiralPresentationObserver.IsThunderSpiralSkillUsedEvent(runtimeEvent))
+            preserveMovement: BattleRuntimeSkillProfilePresentationObserver.IsOffhandSkillReleaseEvent(runtimeEvent),
+            presentationProfileId: runtimeEvent.PresentationProfileId,
+            suppressActorCastFx: runtimeEvent.SuppressActorCastFx,
+            holdCastAnimationDuringAction: runtimeEvent.HoldCastAnimationDuringAction);
+        if (BattleRuntimeSkillProfilePresentationObserver.IsChanneledAreaSkillUsedEvent(runtimeEvent))
         {
-            BattleRuntimeThunderSpiralPresentationObserver.ObserveRuntimeThunderSpiralSkillUsedEvent(
+            BattleRuntimeSkillProfilePresentationObserver.ObserveRuntimeChanneledAreaSkillUsedEvent(
                 runtimeEvent,
                 actor,
                 unitRoot);

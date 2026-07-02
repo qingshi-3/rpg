@@ -96,13 +96,13 @@ internal sealed class BattleRuntimeHeroFramePresenter
             return;
         }
 
-        HashSet<string> liveSkillIds = (skills ?? Array.Empty<BattleSkillSnapshot>())
-            .Where(skill => !string.IsNullOrWhiteSpace(skill?.SkillId))
-            .Select(skill => skill.SkillId)
+        HashSet<string> liveSkillDefinitionIds = (skills ?? Array.Empty<BattleSkillSnapshot>())
+            .Where(skill => !string.IsNullOrWhiteSpace(ResolveSkillDefinitionId(skill)))
+            .Select(ResolveSkillDefinitionId)
             .ToHashSet(StringComparer.Ordinal);
-        foreach (string staleSkillId in _skillSlots.Keys.Where(skillId => !liveSkillIds.Contains(skillId)).ToArray())
+        foreach (string staleSkillDefinitionId in _skillSlots.Keys.Where(skillDefinitionId => !liveSkillDefinitionIds.Contains(skillDefinitionId)).ToArray())
         {
-            if (_skillSlots.Remove(staleSkillId, out BattleRuntimeSkillSlot staleSlot))
+            if (_skillSlots.Remove(staleSkillDefinitionId, out BattleRuntimeSkillSlot staleSlot))
             {
                 staleSlot?.QueueFree();
             }
@@ -110,12 +110,13 @@ internal sealed class BattleRuntimeHeroFramePresenter
 
         foreach (BattleSkillSnapshot skill in skills ?? Array.Empty<BattleSkillSnapshot>())
         {
-            if (skill == null || string.IsNullOrWhiteSpace(skill.SkillId))
+            string skillDefinitionId = ResolveSkillDefinitionId(skill);
+            if (skill == null || string.IsNullOrWhiteSpace(skillDefinitionId))
             {
                 continue;
             }
 
-            if (!_skillSlots.TryGetValue(skill.SkillId, out BattleRuntimeSkillSlot slot) ||
+            if (!_skillSlots.TryGetValue(skillDefinitionId, out BattleRuntimeSkillSlot slot) ||
                 slot == null ||
                 !GodotObject.IsInstanceValid(slot))
             {
@@ -127,14 +128,14 @@ internal sealed class BattleRuntimeHeroFramePresenter
 
                 slot.Pressed += OnSkillSlotPressed;
                 _heroSkillList.AddChild(slot);
-                _skillSlots[skill.SkillId] = slot;
+                _skillSlots[skillDefinitionId] = slot;
             }
 
-            WorldSiteRoot.BattleRuntimeSkillUsageState usageState = resolveSkillUsageState?.Invoke(skill.SkillId)
+            WorldSiteRoot.BattleRuntimeSkillUsageState usageState = resolveSkillUsageState?.Invoke(skillDefinitionId)
                 ?? WorldSiteRoot.BattleRuntimeSkillUsageState.Unavailable;
             bool available = selected != null && hasRuntime && usageState == WorldSiteRoot.BattleRuntimeSkillUsageState.Ready;
             slot.Bind(
-                skill.SkillId,
+                skillDefinitionId,
                 skill.DisplayName,
                 available,
                 BattleRuntimeSkillHudText.BuildStatusText(selected, hasRuntime, usageState),
@@ -142,7 +143,12 @@ internal sealed class BattleRuntimeHeroFramePresenter
         }
     }
 
-    private void OnSkillSlotPressed(string skillId) => _skillSlotPressed?.Invoke(skillId);
+    private void OnSkillSlotPressed(string skillDefinitionId) => _skillSlotPressed?.Invoke(skillDefinitionId);
+
+    private static string ResolveSkillDefinitionId(BattleSkillSnapshot skill)
+    {
+        return skill?.SkillDefinitionId?.Trim() ?? "";
+    }
 
     private static string BuildHeroStateText(
         BattleRuntimeCommandGroupView selected,

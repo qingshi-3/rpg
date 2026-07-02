@@ -5,7 +5,10 @@ internal sealed class BattleRuntimePendingHeroSkillCommand
     public string CommandId { get; init; } = "";
     public string BattleGroupId { get; init; } = "";
     public string SourceActorId { get; init; } = "";
-    public string SkillId { get; init; } = "";
+    public string SkillDefinitionId { get; init; } = "";
+    public string GrantedSkillId { get; init; } = "";
+    public string LoadoutSlotId { get; init; } = "";
+    public string OwnerHeroId { get; init; } = "";
     public string TargetActorId { get; init; } = "";
     public bool HasTargetGrid { get; init; }
     public int TargetGridX { get; init; }

@@ -483,8 +483,8 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationPlainsCity);
 
         AssertEqual(3, dashboard.Heroes.Count, "first playable should expose three strategic heroes");
-        AssertEqual(3, dashboard.SelectedCity.HeroCompanies.Count, "first playable should start with three dispatchable hero companies");
-        AssertTrue(dashboard.SelectedCity.HeroCompanies.All(company => company.CanCreateExpedition), "all starting hero companies should be dispatchable");
+        AssertEqual(3, dashboard.SelectedCity.HeroCompanies.Count, "first playable should start with three dispatchable battle groups");
+        AssertTrue(dashboard.SelectedCity.HeroCompanies.All(company => company.CanCreateExpedition), "all starting battle groups should be dispatchable");
         AssertTrue(
             dashboard.SelectedCity.HeroCompanies.Any(company =>
                 company.HeroId == StrategicManagementIds.HeroOrdinaryCommander &&

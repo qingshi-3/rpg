@@ -18,7 +18,7 @@ internal static void FirstSliceHeroCompaniesUseAuthoredUnitResources()
     string oldInitialStatePath = Path.Combine(root, "assets", "definitions", "world", "strategic_world_v1_initial_state.tres");
     AssertTrue(File.Exists(idsPath), "first-slice content should use a three-company id catalog instead of the old one-hero V0 constants");
     AssertTrue(File.Exists(initialStatePath), "strategic initial roster config should live under config/world");
-    AssertTrue(File.Exists(companyConfigPath), "first-slice hero company mappings should live under config/battle");
+    AssertTrue(File.Exists(companyConfigPath), "first-slice battle-group mappings should live under config/battle");
     AssertTrue(File.Exists(unitIndexPath), "configured unit resource path index should live under config/battle");
     AssertTrue(!File.Exists(oldInitialStatePath), "strategic initial roster config should no longer live under assets/definitions");
 
@@ -49,12 +49,15 @@ internal static void FirstSliceHeroCompaniesUseAuthoredUnitResources()
     }
 
     AssertTrue(!initialState.Contains("res://assets/battle/units", StringComparison.Ordinal), "strategic initial state config should store unit ids, not resource paths");
-    AssertTrue(companyConfig.Contains("\"defaultCorpsCount\": 3", StringComparison.Ordinal), "selected hero company should attach three corps soldiers through config");
+    AssertTrue(companyConfig.Contains("\"defaultCorpsCount\": 3", StringComparison.Ordinal), "selected battle group should attach three corps soldiers through config");
     AssertTrue(
         companyConfig.Contains("\"heroUnit\": \"f1_elyxstormblade\"", StringComparison.Ordinal) &&
-        companyConfig.Contains("\"skillId\": \"first_slice_skill_thunder_tag_throw\"", StringComparison.Ordinal) &&
-        !companyConfig.Contains("\"skillId\": \"first_slice_skill_whirling_break\"", StringComparison.Ordinal),
-        "assault hero company should advertise the thunder demo starter skill instead of the old placeholder");
+        companyConfig.Contains("\"skillDefinitionIds\"", StringComparison.Ordinal) &&
+        companyConfig.Contains("\"skill_thunder_tag_throw\"", StringComparison.Ordinal) &&
+        companyConfig.Contains("\"skill_thunder_mark_fold\"", StringComparison.Ordinal) &&
+        companyConfig.Contains("\"skill_thunder_spiral_break\"", StringComparison.Ordinal) &&
+        !companyConfig.Contains("\"first_slice_skill_whirling_break\"", StringComparison.Ordinal),
+        "assault battle group should advertise the configured thunder demo skill grant list instead of the old placeholder");
     AssertConfiguredUnitPath(unitIndex, "assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", "shield hero index path");
     AssertConfiguredUnitPath(unitIndex, "assets/battle/units/莱昂纳王国/f1_风刃指挥官/unit.tres", "archer hero index path");
     AssertConfiguredUnitPath(unitIndex, "assets/battle/units/莱昂纳王国/f1_Elyx风暴刃/unit.tres", "assault hero index path");
@@ -102,7 +105,7 @@ internal static void FirstSliceAssaultRequestUsesSelectedHeroCompanyAndBonefield
         "first slice assault should read the selected hero's attached default corps from the source army");
     AssertTrue(
         request.PlayerForces.All(force => force.UnitDefinitionId != "f1_grandmasterzir" && force.UnitDefinitionId != "f1_elyxstormblade"),
-        "first slice assault should not deploy unselected hero companies");
+        "first slice assault should not deploy unselected battle groups");
     AssertTrue(
         request.EnemyForces.Any(force => force.UnitDefinitionId == "f6_draugarlord" && force.Count == 2),
         "first slice assault should read the Bonefield leader from the target site garrison");
@@ -143,7 +146,7 @@ internal static void FirstSliceAssaultRequestSplitsCarriedCompaniesIntoCommandGr
         "res://scenes/world/sites/WorldSiteRoot.tscn",
         armyId);
 
-    AssertEqual(4, request.PlayerForces.Count, "multi-company assault should carry two hero-company force pairs");
+    AssertEqual(4, request.PlayerForces.Count, "multi-battle-group assault should carry two battle-group force pairs");
     AssertEqual(8, request.PlayerForces.Sum(force => force.Count), "two carried companies should field two heroes plus six corps soldiers before reserve pruning");
     AssertTrue(
         request.PlayerForces.All(force =>
@@ -155,7 +158,7 @@ internal static void FirstSliceAssaultRequestSplitsCarriedCompaniesIntoCommandGr
         .GroupBy(ReadCommandGroupId, StringComparer.Ordinal)
         .Where(group => !string.IsNullOrWhiteSpace(group.Key))
         .ToArray();
-    AssertEqual(2, commandGroups.Length, "battle preparation should see each carried hero company as a separate command group");
+    AssertEqual(2, commandGroups.Length, "battle preparation should see each carried battle group as a separate command group");
     AssertTrue(
         commandGroups.Any(group =>
             group.Any(force => force.UnitDefinitionId == "f1_grandmasterzir") &&
@@ -246,7 +249,7 @@ internal static void FirstSliceStrategicAssaultRequestDoesNotImportHeroCompanyIn
         site.Garrison.Where(garrison =>
             garrison.SourceKind == "PlayerArmy" &&
             garrison.SourceId == armyId).Sum(garrison => garrison.Count),
-        "strategic assault request must not import the hero company into legacy target garrison");
+        "strategic assault request must not import the battle group into legacy target garrison");
 }
 
 internal static void StrategicBattleLegacyGarrisonCleanupRemovesStalePlayerArmyRows()

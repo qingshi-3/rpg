@@ -478,7 +478,7 @@ internal static void StrategicWorldHoverSummaryReadsStrategicManagementCityAsset
         presenterSource.Contains("StrategicManagementDashboardViewModel", StringComparison.Ordinal) &&
         presenterSource.Contains("ReserveForces", StringComparison.Ordinal) &&
         presenterSource.Contains("HeroCompanies", StringComparison.Ordinal),
-        "hover summary presenter should format city assets, reserve forces, and current-city hero companies from Strategic Management");
+        "hover summary presenter should format city assets, reserve forces, and current-city battle groups from Strategic Management");
 
     string[] forbiddenFragments =
     {

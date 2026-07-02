@@ -52,9 +52,9 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.FactionPlayer,
             StrategicManagementIds.LocationPlainsCity);
         StrategicHeroCompanyViewModel company = FindHeroCompany(beforeDispatch, StrategicManagementIds.HeroOrdinaryCommander);
-        AssertTrue(company.CanCreateExpedition, $"assigned hero company should be dispatchable, got {company.DisabledReason}");
-        AssertEqual(corpsInstanceId, company.CorpsInstanceId, "hero company should expose the assigned corps instance");
-        AssertEqual(StrategicManagementIds.CorpsShieldLine, company.CorpsDefinitionId, "hero company should expose the corps definition");
+        AssertTrue(company.CanCreateExpedition, $"assigned battle group should be dispatchable, got {company.DisabledReason}");
+        AssertEqual(corpsInstanceId, company.CorpsInstanceId, "battle group should expose the assigned corps instance");
+        AssertEqual(StrategicManagementIds.CorpsShieldLine, company.CorpsDefinitionId, "battle group should expose the corps definition");
         AssertEqual(3, beforeDispatch.SelectedCity.HeroCompanies.Count, "first city should start with three in-city expedition candidates");
         AssertEqual(100, beforeDispatch.SelectedCity.ActiveForces, "derived active forces should include in-city assigned corps before dispatch");
 
@@ -68,10 +68,10 @@ internal static partial class StrategicManagementRegressionCases
             state,
             StrategicManagementIds.FactionPlayer,
             StrategicManagementIds.LocationPlainsCity);
-        AssertEqual(2, afterDispatch.SelectedCity.HeroCompanies.Count, "dispatched hero company should leave the source city's expedition roster");
+        AssertEqual(2, afterDispatch.SelectedCity.HeroCompanies.Count, "dispatched battle group should leave the source city's expedition roster");
         AssertTrue(
             afterDispatch.SelectedCity.HeroCompanies.All(item => item.HeroId != StrategicManagementIds.HeroOrdinaryCommander),
-            "source city expedition roster must not keep the hero company already on expedition");
+            "source city expedition roster must not keep the battle group already on expedition");
         AssertTrue(
             afterDispatch.SelectedCity.CorpsInstances.All(item => item.CorpsInstanceId != corpsInstanceId),
             "source city corps list must not keep the company after it leaves on expedition");

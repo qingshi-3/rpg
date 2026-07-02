@@ -49,7 +49,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             "battle_thunder_tag_mark",
             "cmd_thunder_tag_mark",
             EnemyActorId,
-            skillId: ThunderTagThrowSkillId);
+            skillDefinitionId: ThunderTagThrowSkillId);
         AssertTrue(submit.Accepted, "thunder tag should accept an enemy target");
 
         BattleRuntimeAdvanceResult advance = controller.AdvanceFixedTick();
@@ -88,7 +88,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderTagThrowSkillId
+            SkillDefinitionId = ThunderTagThrowSkillId
         };
         SetCommandTargetGrid(request, x: 3, y: 2, height: 0);
 
@@ -155,7 +155,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             SourceActorId = caster.ActorId,
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderTagThrowSkillId,
+            SkillDefinitionId = ThunderTagThrowSkillId,
             TargetActorId = EnemyActorId
         });
         AssertTrue(submit.Accepted, "moving caster should accept offhand thunder tag");
@@ -196,7 +196,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderMarkFoldSkillId
+            SkillDefinitionId = ThunderMarkFoldSkillId
         };
         SetCommandTargetGrid(foldRequest, x: 5, y: 1, height: 0);
         SetProperty(foldRequest, "SelectedSpatialMarkId", "missing_mark");
@@ -225,7 +225,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             "battle_thunder_fold_selected_mark_required",
             "cmd_thunder_fold_selected_mark_tag",
             EnemyActorId,
-            skillId: ThunderTagThrowSkillId);
+            skillDefinitionId: ThunderTagThrowSkillId);
         AssertTrue(tag.Accepted, "thunder tag setup should be accepted");
         _ = controller.AdvanceFixedTick();
         AssertTrue(controller.State.SpatialMarks.Count > 0, "setup should create a runtime thunder mark");
@@ -237,7 +237,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderMarkFoldSkillId
+            SkillDefinitionId = ThunderMarkFoldSkillId
         };
         SetCommandTargetGrid(foldRequest, x: 5, y: 1, height: 0);
 
@@ -274,7 +274,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderMarkFoldSkillId
+            SkillDefinitionId = ThunderMarkFoldSkillId
         };
         SetCommandTargetGrid(foldRequest, x: hero.GridX, y: hero.GridY, height: hero.GridHeight);
         SetProperty(foldRequest, "SelectedSpatialMarkId", "manual_fold_mark_near_hero");
@@ -297,7 +297,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             "battle_thunder_fold_selected_mark",
             "cmd_thunder_fold_selected_attached_mark",
             EnemyActorId,
-            skillId: ThunderTagThrowSkillId);
+            skillDefinitionId: ThunderTagThrowSkillId);
         AssertTrue(attachedTag.Accepted, "attached thunder tag setup should be accepted");
         _ = controller.AdvanceFixedTick();
         string attachedMarkId = controller.State.SpatialMarks.Last().MarkId;
@@ -327,7 +327,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderMarkFoldSkillId
+            SkillDefinitionId = ThunderMarkFoldSkillId
         };
         SetCommandTargetGrid(foldRequest, x: 6, y: 2, height: 0);
         SetProperty(foldRequest, "SelectedSpatialMarkId", attachedMarkId);
@@ -354,7 +354,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             "battle_thunder_fold",
             "cmd_thunder_fold_tag",
             EnemyActorId,
-            skillId: ThunderTagThrowSkillId);
+            skillDefinitionId: ThunderTagThrowSkillId);
         AssertTrue(tag.Accepted, "thunder tag setup should be accepted");
         _ = controller.AdvanceFixedTick();
         string selectedMarkId = controller.State.SpatialMarks.Last().MarkId;
@@ -366,7 +366,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderMarkFoldSkillId
+            SkillDefinitionId = ThunderMarkFoldSkillId
         };
         SetCommandTargetGrid(foldRequest, x: 5, y: 1, height: 0);
         SetProperty(foldRequest, "SelectedSpatialMarkId", selectedMarkId);
@@ -405,7 +405,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             "battle_thunder_fold_displacement",
             "cmd_thunder_fold_displacement_tag",
             EnemyActorId,
-            skillId: ThunderTagThrowSkillId);
+            skillDefinitionId: ThunderTagThrowSkillId);
         AssertTrue(tag.Accepted, "thunder tag setup should be accepted");
         _ = controller.AdvanceFixedTick();
         string selectedMarkId = controller.State.SpatialMarks.Last().MarkId;
@@ -442,7 +442,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderMarkFoldSkillId
+            SkillDefinitionId = ThunderMarkFoldSkillId
         };
         SetCommandTargetGrid(foldRequest, x: 5, y: 1, height: 0);
         SetProperty(foldRequest, "SelectedSpatialMarkId", selectedMarkId);
@@ -480,7 +480,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             "battle_thunder_spiral_fold",
             "cmd_thunder_spiral_tag",
             EnemyActorId,
-            skillId: ThunderTagThrowSkillId);
+            skillDefinitionId: ThunderTagThrowSkillId);
         AssertTrue(tag.Accepted, "thunder tag setup should be accepted");
         _ = controller.AdvanceFixedTick();
         string selectedMarkId = controller.State.SpatialMarks.Last().MarkId;
@@ -492,7 +492,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderSpiralBreakSkillId
+            SkillDefinitionId = ThunderSpiralBreakSkillId
         };
         SetCommandTargetGrid(spiralRequest, x: 2, y: 0, height: 0);
         BattleRuntimeCommandSubmitResult spiral = controller.SubmitCommand(spiralRequest);
@@ -510,7 +510,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderMarkFoldSkillId
+            SkillDefinitionId = ThunderMarkFoldSkillId
         };
         SetCommandTargetGrid(foldRequest, x: 5, y: 0, height: 0);
         SetProperty(foldRequest, "SelectedSpatialMarkId", selectedMarkId);
@@ -556,7 +556,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             SourceActorId = "force_player:1",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderSpiralBreakSkillId
+            SkillDefinitionId = ThunderSpiralBreakSkillId
         };
         SetCommandTargetGrid(spiralRequest, x: 2, y: 0, height: 0);
         BattleRuntimeCommandSubmitResult spiral = controller.SubmitCommand(spiralRequest);
@@ -586,7 +586,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             SourceActorId = "force_player:1",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = ThunderSpiralBreakSkillId
+            SkillDefinitionId = ThunderSpiralBreakSkillId
         };
         SetCommandTargetGrid(spiralRequest, x: 2, y: 0, height: 0);
         BattleRuntimeCommandSubmitResult spiral = controller.SubmitCommand(spiralRequest);
@@ -654,7 +654,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = ThunderTagThrowSkillId,
+            SkillDefinitionId = ThunderTagThrowSkillId,
             DisplayName = "Thunder Tag Throw",
             TargetingMode = (BattleSkillTargetingMode)TargetedActorOrCellTargetingModeValue,
             Range = 8,
@@ -667,15 +667,13 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             CanCancelBasicAttackRecovery = false,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = 12
+                    BaseDamage = 12
                 },
-                new BattleSkillEffectSnapshot
+                new CreateMarkSkillEffectSnapshot
                 {
-                    Kind = (BattleSkillEffectKind)CreateThunderMarkEffectKindValue,
-                    Amount = 1
+                    LifetimeSeconds = 8.0
                 }
             }
         });
@@ -684,7 +682,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
     private static void AddOffhandThunderTagSkill(BattleStartSnapshot snapshot)
     {
         AddThunderTagSkill(snapshot);
-        BattleSkillSnapshot skill = snapshot.SkillDefinitions.Last(item => item.SkillId == ThunderTagThrowSkillId);
+        BattleSkillSnapshot skill = snapshot.SkillDefinitions.Last(item => item.SkillDefinitionId == ThunderTagThrowSkillId);
         SetProperty(skill, "ReleasesWithoutOccupyingCaster", true);
     }
 
@@ -692,7 +690,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = ThunderMarkFoldSkillId,
+            SkillDefinitionId = ThunderMarkFoldSkillId,
             DisplayName = "Thunder Mark Fold",
             TargetingMode = (BattleSkillTargetingMode)TargetedCellTargetingModeValue,
             Range = 8,
@@ -705,10 +703,9 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             CanCancelBasicAttackRecovery = true,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new TeleportToMarkSkillEffectSnapshot
                 {
-                    Kind = (BattleSkillEffectKind)TeleportToThunderMarkEffectKindValue,
-                    Amount = 3
+                    LandingRadius = 3
                 }
             }
         });
@@ -716,17 +713,17 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
 
     private static void AddThunderSpiralSkill(BattleStartSnapshot snapshot)
     {
-        BattleSkillEffectSnapshot channel = new()
+        BattleSkillEffectSnapshot channel = new ChanneledAreaDamageSkillEffectSnapshot
         {
-            Kind = (BattleSkillEffectKind)StartChanneledAreaDamageEffectKindValue,
-            Amount = 9
+            BaseDamage = 9,
+            UsesTargetOffset = true
         };
         SetProperty(channel, "DurationSeconds", 1.6);
         SetProperty(channel, "TickIntervalSeconds", 0.2);
         SetProperty(channel, "Radius", 1);
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = ThunderSpiralBreakSkillId,
+            SkillDefinitionId = ThunderSpiralBreakSkillId,
             DisplayName = "Thunder Spiral Break",
             TargetingMode = BattleSkillTargetingMode.TargetedCell,
             Range = 3,
@@ -746,7 +743,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
         string battleId,
         string commandId,
         string targetActorId,
-        string skillId)
+        string skillDefinitionId)
     {
         return controller.SubmitCommand(new CommandRequest
         {
@@ -755,7 +752,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             TargetActorId = targetActorId
         });
     }

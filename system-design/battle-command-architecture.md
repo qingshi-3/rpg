@@ -60,7 +60,7 @@ Create Intent
 
 The first implementation may expose only a small subset of commands, but it must preserve the channel boundary so later hero/corps differentiation does not become a UI-only distinction.
 
-Commands address the battle-group commander identity. A command may later fan out into hero and corps actor intents, but it must not be stored separately on expanded force-count actors as if each count row were an independent commandable company. Runtime actor commands are execution facts derived from the accepted group command.
+Commands address the battle-group commander identity. A command may later fan out into hero and corps actor intents, but it must not be stored separately on expanded force-count actors as if each count row were an independent commandable battle group. Runtime actor commands are execution facts derived from the accepted group command.
 
 ## Battle-Group Plan Relationship
 

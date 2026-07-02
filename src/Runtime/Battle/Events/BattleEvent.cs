@@ -11,6 +11,13 @@ public sealed class BattleEvent
     public string SourceActionId { get; set; } = "";
     public string SourceDefinitionId { get; set; } = "";
     public string EffectKind { get; set; } = "";
+    public string PresentationProfileId { get; set; } = "";
+    public string CastFxProfileId { get; set; } = "";
+    public string ImpactFxProfileId { get; set; } = "";
+    public string MarkFxProfileId { get; set; } = "";
+    public string AreaFxProfileId { get; set; } = "";
+    public bool SuppressActorCastFx { get; set; }
+    public bool HoldCastAnimationDuringAction { get; set; }
     public string TargetId { get; set; } = "";
     public string ReasonCode { get; set; } = "";
     public int RuntimeTick { get; set; } = -1;

@@ -14,5 +14,5 @@ public sealed class CommandRequest
 	public int TargetGridY { get; set; }
 	public int TargetGridHeight { get; set; }
 	public string SelectedSpatialMarkId { get; set; } = "";
-	public string SkillId { get; set; } = "";
+	public string SkillDefinitionId { get; set; } = "";
 }

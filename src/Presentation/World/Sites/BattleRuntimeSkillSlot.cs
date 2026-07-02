@@ -5,12 +5,12 @@ namespace Rpg.Presentation.World.Sites;
 public partial class BattleRuntimeSkillSlot : PanelContainer
 {
     [Signal]
-    public delegate void PressedEventHandler(string skillId);
+    public delegate void PressedEventHandler(string skillDefinitionId);
 
     private Label _nameLabel;
     private ColorRect _statusOverlay;
     private Label _statusLabel;
-    private string _skillId = "";
+    private string _skillDefinitionId = "";
     private string _displayName = "";
     private bool _available;
 
@@ -27,13 +27,13 @@ public partial class BattleRuntimeSkillSlot : PanelContainer
     }
 
     public void Bind(
-        string skillId,
+        string skillDefinitionId,
         string displayName,
         bool available,
         string statusText,
         double cooldownRemainingSeconds)
     {
-        _skillId = skillId ?? "";
+        _skillDefinitionId = skillDefinitionId ?? "";
         _displayName = string.IsNullOrWhiteSpace(displayName) ? "技能" : displayName.Trim();
         _available = available;
         StatusText = statusText ?? "";
@@ -76,7 +76,7 @@ public partial class BattleRuntimeSkillSlot : PanelContainer
 
         if (@event is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
         {
-            EmitSignal(SignalName.Pressed, _skillId);
+            EmitSignal(SignalName.Pressed, _skillDefinitionId);
             AcceptEvent();
         }
     }

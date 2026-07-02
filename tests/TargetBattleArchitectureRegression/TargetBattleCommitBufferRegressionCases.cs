@@ -274,7 +274,7 @@ internal static class TargetBattleCommitBufferRegressionCases
             SourceActorId = "force_player:1",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = "impact_boundary_skill",
+            SkillDefinitionId = "impact_boundary_skill",
             TargetActorId = "force_enemy:1"
         });
         AssertTrue(submit.Accepted, "impact-boundary skill command should be accepted as queued intent");
@@ -452,11 +452,11 @@ internal static class TargetBattleCommitBufferRegressionCases
         return snapshot;
     }
 
-    private static void AddInterruptingDamageSkill(BattleStartSnapshot snapshot, string skillId, int damage)
+    private static void AddInterruptingDamageSkill(BattleStartSnapshot snapshot, string skillDefinitionId, int damage)
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             DisplayName = "Impact Boundary Skill",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
@@ -468,10 +468,9 @@ internal static class TargetBattleCommitBufferRegressionCases
             CanInterruptBasicAttackWindup = true,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = damage
+                    BaseDamage = damage
                 }
             }
         });

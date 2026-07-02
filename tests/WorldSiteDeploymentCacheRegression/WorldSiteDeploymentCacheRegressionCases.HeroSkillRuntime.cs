@@ -12,9 +12,15 @@ using System.Runtime.CompilerServices;
 
 internal static partial class WorldSiteDeploymentCacheRegressionCases
 {
-internal static void BattleGroupProbeSnapshotIncludesFirstSliceHeroSkillDefinition()
+internal static void BattleGroupProbeSnapshotIncludesHeroOwnedConfiguredSkillDefinitions()
 {
     const string armyId = "army_first_slice_archer";
+    string[] expectedSkillDefinitionIds =
+    {
+        "skill_thunder_tag_throw",
+        "skill_thunder_mark_fold",
+        "skill_thunder_spiral_break"
+    };
     StrategicWorldDefinition definition = StrategicWorldV1DefinitionFactory.Create(loadInitialStateConfig: false);
     StrategicWorldState state = BuildFirstSliceAssaultState(
         definition,
@@ -31,12 +37,33 @@ internal static void BattleGroupProbeSnapshotIncludesFirstSliceHeroSkillDefiniti
     BattleGroupSessionProbeResult result = new BattleGroupSessionProbeService().PrepareSnapshot(request);
 
     AssertTrue(result.Success, $"probe snapshot should prepare successfully failure={result.FailureReason}");
-    AssertEqual(5, result.Snapshot.SkillDefinitions.Count, "probe snapshot should carry the two legacy first-slice hero skills plus the thunder mark demo kit");
-    AssertFirstSliceSkillSnapshot(result.Snapshot.SkillDefinitions, "first_slice_skill_shield_barrier", "曦盾结界", "f1_grandmasterzir", 12);
-    AssertFirstSliceSkillSnapshot(result.Snapshot.SkillDefinitions, "first_slice_skill_sun_piercer", "贯日一击", "f1_windbladecommander", 18);
-    AssertTrue(
-        result.Snapshot.SkillDefinitions.All(item => item.SkillId != "first_slice_skill_whirling_break"),
-        "thunder demo hero should not keep the old single-skill whirling placeholder");
+    BattleGroupSnapshot[] playerHeroGroups = result.Snapshot.BattleGroups
+        .Where(group =>
+            string.Equals(group.FactionId, StrategicWorldIds.FactionPlayer, StringComparison.Ordinal) &&
+            !string.IsNullOrWhiteSpace(group.HeroId))
+        .ToArray();
+    AssertEqual(
+        playerHeroGroups.Length * expectedSkillDefinitionIds.Length,
+        result.Snapshot.SkillDefinitions.Count,
+        "probe snapshot should carry a separate three-skill kit for each participating hero owner");
+
+    foreach (BattleGroupSnapshot group in playerHeroGroups)
+    {
+        IReadOnlyList<BattleSkillSnapshot> ownerSkills = result.Snapshot.SkillDefinitions
+            .Where(item => string.Equals(item.OwnerHeroId, group.HeroId, StringComparison.Ordinal))
+            .ToArray();
+        AssertEqual(3, ownerSkills.Count, $"hero={group.HeroId} should own exactly the configured three-skill kit");
+        AssertEqual(
+            string.Join("|", expectedSkillDefinitionIds),
+            string.Join("|", ownerSkills.Select(item => item.SkillDefinitionId)),
+            $"hero={group.HeroId} should reuse the shared thunder skill definitions in its own grants");
+        AssertTrue(
+            ownerSkills.All(item =>
+                item.GrantedSkillId.StartsWith($"default_hero:{group.HeroId}:grant:", StringComparison.Ordinal) &&
+                !item.GrantedSkillId.Contains("battle_group", StringComparison.Ordinal)),
+            $"hero={group.HeroId} skill grants should be hero-owned, not battle-group-owned");
+    }
+
     AssertThunderTagSkillSnapshot(result.Snapshot.SkillDefinitions);
     AssertThunderFoldSkillSnapshot(result.Snapshot.SkillDefinitions);
     AssertThunderSpiralSkillSnapshot(result.Snapshot.SkillDefinitions);
@@ -45,49 +72,24 @@ internal static void BattleGroupProbeSnapshotIncludesFirstSliceHeroSkillDefiniti
 internal static void BattleSkillDefinitionsLiveInContentLayerAndMapToSnapshots()
 {
     string root = ProjectRoot();
-    string definitionsSource = File.ReadAllText(Path.Combine(
-        root,
-        "src",
-        "Definitions",
-        "Battle",
-        "Skills",
-        "FirstSliceBattleSkillDefinitions.cs"));
-    string snapshotFactorySource = File.ReadAllText(Path.Combine(
-        root,
-        "src",
-        "Application",
-        "Battle",
-        "Snapshots",
-        "BattleSkillSnapshotFactory.cs"));
-    string runtimeResolverSource = File.ReadAllText(Path.Combine(
-        root,
-        "src",
-        "Runtime",
-        "Battle",
-        "BattleRuntimeHeroSkillCommandResolver.cs"));
+    string skillIndexSource = File.ReadAllText(Path.Combine(root, "config", "battle", "battle_skill_definitions.json"));
+    string compilerSource = File.ReadAllText(Path.Combine(root, "src", "Application", "Battle", "Snapshots", "BattleSkillSnapshotCompiler.cs"));
+    string runtimeResolverSource = File.ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeHeroSkillCommandResolver.cs"));
 
     AssertTrue(
-        definitionsSource.Contains("HeroSkillCommandIds.ShieldBarrierSkillId", StringComparison.Ordinal) &&
-        definitionsSource.Contains("HeroSkillCommandIds.SunPiercerSkillId", StringComparison.Ordinal) &&
-        definitionsSource.Contains("HeroSkillCommandIds.ThunderTagThrowSkillId", StringComparison.Ordinal) &&
-        definitionsSource.Contains("BattleSkillEffectKind.CreateThunderMark", StringComparison.Ordinal) &&
-        definitionsSource.Contains("BattleSkillEffectKind.TeleportToThunderMark", StringComparison.Ordinal) &&
-        definitionsSource.Contains("BattleSkillEffectKind.StartChanneledAreaDamage", StringComparison.Ordinal) &&
-        definitionsSource.Contains("CasterUnitIds", StringComparison.Ordinal) &&
-        definitionsSource.Contains("BattleSkillTargetingMode.TargetedActor", StringComparison.Ordinal) &&
-        definitionsSource.Contains("BattleSkillTargetingMode.TargetedCell", StringComparison.Ordinal) &&
-        definitionsSource.Contains("BattleSkillTargetingMode.TargetedActorOrCell", StringComparison.Ordinal) &&
-        definitionsSource.Contains("Range = 8", StringComparison.Ordinal) &&
-        definitionsSource.Contains("Amount = 18", StringComparison.Ordinal),
-        "first-slice hero skill data and caster bindings should be defined in the content/definition layer");
+        skillIndexSource.Contains("skill_shield_barrier", StringComparison.Ordinal) &&
+        skillIndexSource.Contains("skill_sun_piercer", StringComparison.Ordinal) &&
+        skillIndexSource.Contains("skill_thunder_tag_throw", StringComparison.Ordinal) &&
+        File.Exists(Path.Combine(root, "assets", "battle", "skills", "skill_shield_barrier.tres")) &&
+        File.Exists(Path.Combine(root, "assets", "battle", "skills", "skill_thunder_spiral_break.tres")),
+        "first-slice hero skill data should be authored as indexed battle skill resources");
     AssertTrue(
-        !definitionsSource.Contains("HeroSkillCommandIds.WhirlingBreakSkillId", StringComparison.Ordinal),
-        "thunder demo hero should use the thunder kit instead of the old whirling placeholder definition");
-    AssertTrue(
-        snapshotFactorySource.Contains("FirstSliceBattleSkillDefinitions.CreateSelectedHeroSkills", StringComparison.Ordinal) &&
-        snapshotFactorySource.Contains("CasterUnitIds", StringComparison.Ordinal) &&
-        snapshotFactorySource.Contains("new BattleSkillSnapshot", StringComparison.Ordinal),
-        "application snapshot factory should translate definitions and caster bindings into runtime snapshots");
+        compilerSource.Contains("BattleSkillDefinitionResource", StringComparison.Ordinal) &&
+        compilerSource.Contains("DamageSkillEffectSnapshot", StringComparison.Ordinal) &&
+        compilerSource.Contains("CreateMarkSkillEffectSnapshot", StringComparison.Ordinal) &&
+        compilerSource.Contains("TeleportToMarkSkillEffectSnapshot", StringComparison.Ordinal) &&
+        compilerSource.Contains("ChanneledAreaDamageSkillEffectSnapshot", StringComparison.Ordinal),
+        "application snapshot compiler should translate authored resources into typed runtime snapshots");
     AssertTrue(
         !runtimeResolverSource.Contains("FirstSliceBattleSkillDefinitions", StringComparison.Ordinal) &&
         runtimeResolverSource.Contains("skill_caster_not_allowed", StringComparison.Ordinal),
@@ -110,71 +112,40 @@ internal static void BattleRuntimeHudFiltersSkillsToSelectedHeroCompany()
         rootSource.Contains("BuildBattleRuntimeSkillSnapshots(selected)", StringComparison.Ordinal) &&
         presentationSource.Contains("IsBattleRuntimeSkillAvailableForGroup", StringComparison.Ordinal) &&
         presentationSource.Contains("CasterUnitIds", StringComparison.Ordinal),
-        "battle runtime HUD should filter skill snapshots by the selected hero company's bound hero unit");
+        "battle runtime HUD should filter skill snapshots by the selected battle group's bound hero unit");
     AssertTrue(
         targetPresentationSource.Contains("FirstSliceHeroCompanyIds.IsHeroUnit", StringComparison.Ordinal),
         "target picking should recognize every first-slice hero unit as the preferred visible caster");
 }
 
-private static void AssertFirstSliceSkillSnapshot(
-    IReadOnlyList<BattleSkillSnapshot> skills,
-    string expectedSkillId,
-    string expectedDisplayName,
-    string expectedCasterUnitId,
-    int expectedDamage)
-{
-    BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillId == expectedSkillId);
-    AssertTrue(skill != null, $"snapshot should include skill {expectedSkillId}");
-    AssertEqual(expectedDisplayName, skill.DisplayName, $"{expectedSkillId} display name");
-    AssertEqual(BattleSkillTargetingMode.TargetedActor, skill.TargetingMode, $"{expectedSkillId} targeting mode");
-    AssertEqual(8, skill.Range, $"{expectedSkillId} command acceptance range");
-    AssertTrue(skill.CanInterruptBasicAttackWindup, $"{expectedSkillId} should interrupt basic attack windup");
-    AssertTrue(!skill.CanCancelBasicAttackRecovery, $"{expectedSkillId} should not cancel basic attack recovery by default");
-    BattleSkillEffectSnapshot effect = skill.Effects.FirstOrDefault();
-    AssertTrue(effect != null, $"{expectedSkillId} should expose one damage effect snapshot");
-    AssertEqual(BattleSkillEffectKind.Damage, effect.Kind, $"{expectedSkillId} effect kind");
-    AssertEqual(expectedDamage, effect.Amount, $"{expectedSkillId} damage payload");
-
-    System.Reflection.PropertyInfo casterUnitIdsProperty = typeof(BattleSkillSnapshot).GetProperty("CasterUnitIds");
-    AssertTrue(casterUnitIdsProperty != null, "battle skill snapshots should carry caster unit bindings");
-    object value = casterUnitIdsProperty.GetValue(skill);
-    IEnumerable<string> casterUnitIds = value as IEnumerable<string> ?? Array.Empty<string>();
-    AssertTrue(
-        casterUnitIds.Contains(expectedCasterUnitId, StringComparer.Ordinal),
-        $"{expectedSkillId} should be bound to caster unit {expectedCasterUnitId}");
-}
-
 private static void AssertThunderTagSkillSnapshot(IReadOnlyList<BattleSkillSnapshot> skills)
 {
-    BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillId == "first_slice_skill_thunder_tag_throw");
+    BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillDefinitionId == "skill_thunder_tag_throw");
     AssertTrue(skill != null, "snapshot should include thunder tag throw");
-    AssertEqual("雷签飞投", skill.DisplayName, "thunder tag display name");
     AssertEqual((BattleSkillTargetingMode)3, skill.TargetingMode, "thunder tag targeting mode");
     AssertTrue(skill.ReleasesWithoutOccupyingCaster, "thunder tag should be an offhand release that does not occupy movement state");
-    AssertTrue(skill.Effects.Any(item => item.Kind == BattleSkillEffectKind.Damage && item.Amount == 12), "thunder tag should deal impact damage");
-    AssertTrue(skill.Effects.Any(item => item.Kind == BattleSkillEffectKind.CreateThunderMark), "thunder tag should create a runtime mark");
+    AssertTrue(skill.Effects.OfType<DamageSkillEffectSnapshot>().Any(item => item.BaseDamage == 12), "thunder tag should deal impact damage");
+    AssertTrue(skill.Effects.OfType<CreateMarkSkillEffectSnapshot>().Any(), "thunder tag should create a runtime mark");
 }
 
 private static void AssertThunderFoldSkillSnapshot(IReadOnlyList<BattleSkillSnapshot> skills)
 {
-    BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillId == "first_slice_skill_thunder_mark_fold");
+    BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillDefinitionId == "skill_thunder_mark_fold");
     AssertTrue(skill != null, "snapshot should include thunder mark fold");
-    AssertEqual("雷印折跃", skill.DisplayName, "thunder fold display name");
     AssertEqual(BattleSkillTargetingMode.TargetedCell, skill.TargetingMode, "thunder fold targeting mode");
     AssertTrue(skill.CanCancelBasicAttackRecovery, "thunder fold should be a high-tier mobility cancel");
-    AssertTrue(skill.Effects.Any(item => item.Kind == BattleSkillEffectKind.TeleportToThunderMark && item.Amount == 3), "thunder fold should teleport within the accepted radius around a selected mark");
+    AssertTrue(skill.Effects.OfType<TeleportToMarkSkillEffectSnapshot>().Any(item => item.LandingRadius == 3), "thunder fold should teleport within the accepted radius around a selected mark");
 }
 
 private static void AssertThunderSpiralSkillSnapshot(IReadOnlyList<BattleSkillSnapshot> skills)
 {
-    BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillId == "first_slice_skill_thunder_spiral_break");
+    BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillDefinitionId == "skill_thunder_spiral_break");
     AssertTrue(skill != null, "snapshot should include thunder spiral break");
-    AssertEqual("雷旋破", skill.DisplayName, "thunder spiral display name");
     AssertEqual(BattleSkillTargetingMode.TargetedCell, skill.TargetingMode, "thunder spiral targeting mode");
     AssertEqual(3, skill.Range, "thunder spiral direction target center range");
-    BattleSkillEffectSnapshot channel = skill.Effects.FirstOrDefault(item => item.Kind == BattleSkillEffectKind.StartChanneledAreaDamage);
+    ChanneledAreaDamageSkillEffectSnapshot channel = skill.Effects.OfType<ChanneledAreaDamageSkillEffectSnapshot>().FirstOrDefault();
     AssertTrue(channel != null, "thunder spiral should start a channeled damage window");
-    AssertEqual(14, channel.Amount, "thunder spiral tick damage");
+    AssertEqual(14, channel.BaseDamage, "thunder spiral tick damage");
     AssertEqual(1, channel.Radius, "thunder spiral radius");
     AssertTrue(channel.DurationSeconds >= 1.4 && channel.TickIntervalSeconds > 0, "thunder spiral should carry a readable channel duration and tick interval");
 }
@@ -204,12 +175,12 @@ internal static void WorldSiteBattleRuntimeHeroSkillTargetClickBuildsTargetedCom
 internal static void WorldSiteBattleRuntimeHeroSkillSupportsCellAndSelfTargets()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string beginBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeSkillPress(BattleRuntimeCommandGroupView selected, string skillId)");
+    string beginBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeSkillPress(BattleRuntimeCommandGroupView selected, string skillDefinitionId)");
     string targetInputBody = ExtractMethodBody(rootSource, "private bool TryHandleBattleRuntimeHeroSkillTargetInput(InputEvent inputEvent)");
     string requestFactoryBody = ExtractMethodBody(ReadWorldSitePresentationSource(), "internal static CommandRequest BuildHeroSkillCommandRequest(");
 
     AssertTrue(
-        beginBody.Contains("BattleSkillTargetingMode.None", StringComparison.Ordinal) &&
+        beginBody.Contains("IsImmediateSelfSkill(pressedSkill)", StringComparison.Ordinal) &&
         beginBody.Contains("SubmitBattleRuntimeHeroSkillCommand(selected, sourceActorId, \"\")", StringComparison.Ordinal),
         "self-centered hero skills should submit immediately after source resolution");
     AssertTrue(
@@ -245,10 +216,10 @@ internal static void BattleRuntimeThunderFoldRequiresLiveMarkBeforeSubmit()
     string rootResolveBody = ExtractMethodBody(rootSource, "private BattleRuntimeSkillUsageState ResolveSelectedHeroSkillUsageState(");
 
     AssertTrue(
-        resolverBody.Contains("HeroSkillCommandIds.ThunderMarkFoldSkillId", StringComparison.Ordinal) &&
-        resolverBody.Contains("HasLiveThunderMark", StringComparison.Ordinal) &&
+        resolverBody.Contains("RequiresLiveMark(skill)", StringComparison.Ordinal) &&
+        resolverBody.Contains("HasLiveOwnedMark", StringComparison.Ordinal) &&
         resolverBody.Contains("BattleRuntimeSkillUsageState.Unavailable", StringComparison.Ordinal),
-        "thunder fold should be unavailable in the HUD until the selected hero group has a live runtime mark");
+        "mark-dependent skills should be unavailable in the HUD until the selected hero group has a live runtime mark");
     AssertTrue(
         rootResolveBody.Contains("RuntimeController?.State?.SpatialMarks", StringComparison.Ordinal) &&
         rootResolveBody.Contains("RuntimeController?.CurrentTimeSeconds", StringComparison.Ordinal),
@@ -264,21 +235,21 @@ internal static void BattleRuntimeThunderFoldUsesTwoStageTargeting()
     string requestFactoryBody = ExtractMethodBody(presentationSource, "internal static CommandRequest BuildHeroSkillCommandRequest(");
 
     AssertTrue(
-        rootSource.Contains("ThunderFoldTargetingStage", StringComparison.Ordinal) &&
-        rootSource.Contains("TrySelectBattleRuntimeThunderFoldMark", StringComparison.Ordinal) &&
-        rootSource.Contains("BuildBattleRuntimeThunderFoldLandingCells", StringComparison.Ordinal),
-        "thunder fold should keep explicit mark-selection and landing-selection UI stages");
+        rootSource.Contains("SkillTargetingStage", StringComparison.Ordinal) &&
+        rootSource.Contains("TrySelectBattleRuntimeMark", StringComparison.Ordinal) &&
+        rootSource.Contains("BuildBattleRuntimeMarkLandingCells", StringComparison.Ordinal),
+        "mark-then-landing skills should keep explicit mark-selection and landing-selection UI stages");
     AssertTrue(
-        targetInputBody.Contains("HeroSkillCommandIds.ThunderMarkFoldSkillId", StringComparison.Ordinal) &&
-        targetInputBody.Contains("TrySelectBattleRuntimeThunderFoldMark", StringComparison.Ordinal) &&
-        targetInputBody.Contains("BeginBattleRuntimeThunderFoldLandingSelection", StringComparison.Ordinal) &&
-        targetInputBody.Contains("TrySubmitBattleRuntimeThunderFoldLanding", StringComparison.Ordinal),
-        "first fold click should select a live mark and only the second legal landing click should submit");
+        targetInputBody.Contains("UsesMarkThenLandingFlow(pickedSkill)", StringComparison.Ordinal) &&
+        targetInputBody.Contains("TrySelectBattleRuntimeMark", StringComparison.Ordinal) &&
+        targetInputBody.Contains("BeginBattleRuntimeMarkLandingSelection", StringComparison.Ordinal) &&
+        targetInputBody.Contains("TrySubmitBattleRuntimeMarkLanding", StringComparison.Ordinal),
+        "first mark-targeting click should select a live mark and only the second legal landing click should submit");
     AssertTrue(
-        refreshBody.Contains("BuildBattleRuntimeThunderFoldLandingCells", StringComparison.Ordinal) &&
-        refreshBody.Contains("BuildBattleRuntimeThunderFoldMarkCells", StringComparison.Ordinal) &&
+        refreshBody.Contains("BuildBattleRuntimeMarkLandingCells", StringComparison.Ordinal) &&
+        refreshBody.Contains("BuildBattleRuntimeMarkCandidateCells", StringComparison.Ordinal) &&
         refreshBody.Contains("BattleGridHighlightKind.Skill", StringComparison.Ordinal),
-        "fold mark preview should render live mark candidates, then landing preview should render candidate landing cells around the selected mark");
+        "mark preview should render live mark candidates, then landing preview should render candidate landing cells around the selected mark");
     AssertTrue(
         requestFactoryBody.Contains("SelectedSpatialMarkId = selectedSpatialMarkId", StringComparison.Ordinal),
         "fold command requests should carry the selected Runtime spatial mark id to Runtime validation");
@@ -287,24 +258,24 @@ internal static void BattleRuntimeThunderFoldUsesTwoStageTargeting()
 internal static void BattleRuntimeThunderSpiralUsesDirectionPreviewAndSecondClickSubmit()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string beginBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeSkillPress(BattleRuntimeCommandGroupView selected, string skillId)");
+    string beginBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeSkillPress(BattleRuntimeCommandGroupView selected, string skillDefinitionId)");
     string targetInputBody = ExtractMethodBody(rootSource, "private bool TryHandleBattleRuntimeHeroSkillTargetInput(InputEvent inputEvent)");
     string refreshBody = ExtractMethodBody(rootSource, "private void RefreshBattleRuntimeHeroSkillTargetPreview()");
 
     AssertTrue(
-        beginBody.Contains("BeginBattleRuntimeHeroSkillTargetPicking(selected, normalizedSkillId)", StringComparison.Ordinal) &&
+        beginBody.Contains("BeginBattleRuntimeHeroSkillTargetPicking(selected, normalizedSkillDefinitionId)", StringComparison.Ordinal) &&
         !beginBody.Contains("HeroSkillCommandIds.ThunderSpiralBreakSkillId", StringComparison.Ordinal),
-        "thunder spiral should use the normal target-picking entry instead of a skill-id hardcoded immediate submit");
+        "directional area skills should use the normal target-picking entry instead of a skill-id hardcoded immediate submit");
     AssertTrue(
-        targetInputBody.Contains("HeroSkillCommandIds.ThunderSpiralBreakSkillId", StringComparison.Ordinal) &&
-        targetInputBody.Contains("TrySubmitBattleRuntimeThunderSpiralDirection(position, sourceActorId)", StringComparison.Ordinal) &&
-        rootSource.Contains("ResolveBattleRuntimeThunderSpiralTargetCenter", StringComparison.Ordinal) &&
+        targetInputBody.Contains("UsesDirectionAreaFlow(pickedSkill)", StringComparison.Ordinal) &&
+        targetInputBody.Contains("TrySubmitBattleRuntimeDirectionalArea(position, sourceActorId, pickedSkill)", StringComparison.Ordinal) &&
+        rootSource.Contains("ResolveBattleRuntimeDirectionalAreaCenter", StringComparison.Ordinal) &&
         rootSource.Contains("SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, \"\", center)", StringComparison.Ordinal),
-        "thunder spiral click handling should resolve the current mouse quadrant into a direction center and only then submit the command");
+        "directional area click handling should resolve the current mouse quadrant into a direction center and only then submit the command");
     AssertTrue(
-        refreshBody.Contains("BuildBattleRuntimeThunderSpiralAreaCells(source, position)", StringComparison.Ordinal) &&
+        refreshBody.Contains("BuildBattleRuntimeDirectionalAreaCells(source, position, pickedSkill)", StringComparison.Ordinal) &&
         refreshBody.Contains("BattleGridHighlightKind.Target", StringComparison.Ordinal),
-        "thunder spiral preview should render the resolved forward 3x3 target area as target highlight cells");
+        "directional area preview should render the resolved forward target area as target highlight cells");
 
     BattleEntity source = BuildHeroSkillTargetEntity("player_force:1", BattleFaction.Player);
     GridOccupantComponent grid = source.GetComponent<GridOccupantComponent>();
@@ -317,11 +288,18 @@ internal static void BattleRuntimeThunderSpiralUsesDirectionPreviewAndSecondClic
         "Rpg.Presentation.World.Sites.BattleRuntimeHeroSkillTargetPresentation",
         throwOnError: true)!;
     System.Reflection.MethodInfo method = resolverType.GetMethod(
-        "BuildThunderSpiralAreaCells",
+        "BuildAreaPreviewCells",
         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
-        new[] { typeof(BattleEntity), typeof(GridPosition), typeof(BattleGridMap) })!;
+        new[] { typeof(BattleSkillTargetingSnapshot), typeof(BattleEntity), typeof(GridPosition), typeof(BattleGridMap) })!;
 
-    var rightCells = ((IEnumerable<GridPosition>)method.Invoke(null, new object?[] { source, new GridPosition(4, 1), null })!)
+    BattleSkillTargetingSnapshot targeting = new()
+    {
+        InputFlow = BattleSkillInputFlow.SelectDirectionArea,
+        TargetKind = BattleSkillTargetKind.Direction,
+        AreaShape = BattleSkillAreaShape.GridRadius,
+        AreaRadius = 1
+    };
+    var rightCells = ((IEnumerable<GridPosition>)method.Invoke(null, new object?[] { targeting, source, new GridPosition(4, 1), null })!)
         .ToHashSet();
 
     AssertTrue(rightCells.Contains(new GridPosition(1, -1)), "right-direction thunder spiral should include the front-left corner of the 3x3 area");
@@ -493,7 +471,7 @@ internal static void BattleRuntimeHudUsesStrategicParticipantIdForSkillCommands(
         SourceActorId = sourceActor.ActorId,
         Channel = CommandChannel.Hero,
         Kind = CommandKind.CastSkill,
-        SkillId = HeroSkillCommandIds.ThunderTagThrowSkillId,
+        SkillDefinitionId = "skill_thunder_tag_throw",
         TargetActorId = targetActor.ActorId
     });
 
@@ -560,13 +538,53 @@ private static BattleStartSnapshot BuildStrategicSkillIdentitySnapshot(string pa
             }
         }
     };
-    foreach (BattleSkillSnapshot skill in BattleSkillSnapshotFactory.CreateSelectedHeroSkillSnapshots())
-    {
-        snapshot.SkillDefinitions.Add(skill);
-    }
+    snapshot.SkillDefinitions.Add(BuildStrategicThunderTagSkillSnapshot(participantId));
 
     AttachFlatSnapshotTopology(snapshot);
     return snapshot;
+}
+
+private static BattleSkillSnapshot BuildStrategicThunderTagSkillSnapshot(string participantId)
+{
+    BattleSkillSnapshot skill = new()
+    {
+        SkillDefinitionId = "skill_thunder_tag_throw",
+        GrantedSkillId = $"test_grant:{participantId}:thunder_tag",
+        LoadoutSlotId = "primary",
+        OwnerBattleGroupId = participantId,
+        RuntimeCommanderGroupId = participantId,
+        DisplayName = "雷符飞投",
+        TargetingMode = BattleSkillTargetingMode.TargetedActorOrCell,
+        Range = 8,
+        Targeting = new BattleSkillTargetingSnapshot
+        {
+            InputFlow = BattleSkillInputFlow.SelectActorOrCell,
+            TargetKind = BattleSkillTargetKind.ActorOrCell,
+            Range = 8,
+            RangeMetric = BattleSkillRangeMetric.Manhattan,
+            PreviewProfileId = "diamond_range"
+        },
+        Timing = new BattleSkillTimingSnapshot(),
+        InterruptPolicy = new BattleSkillInterruptPolicySnapshot
+        {
+            CanCancelBasicAttackRecovery = true,
+            ReleasesWithoutOccupyingCaster = true
+        },
+        HasInterruptPolicy = true,
+        CanCancelBasicAttackRecovery = true,
+        ReleasesWithoutOccupyingCaster = true,
+        Costs = { new LimitedUseSkillCostSnapshot { MaxUses = 1 } },
+        Cooldown = new NoCooldownSkillCooldownSnapshot(),
+        Presentation = new BattleSkillPresentationSnapshot { ProfileId = "skill_mark_projectile" }
+    };
+    skill.Effects.Add(new DamageSkillEffectSnapshot { BaseDamage = 12 });
+    skill.Effects.Add(new CreateMarkSkillEffectSnapshot
+    {
+        MarkKind = BattleSkillMarkKind.ThunderMark,
+        LifetimeSeconds = 8,
+        AttachToActorWhenTargeted = true
+    });
+    return skill;
 }
 
 internal static void BattleRuntimePauseTargetClickSubmitsIntentWithoutAdvancingRuntime()
@@ -591,7 +609,7 @@ internal static void BattleRuntimePauseTargetClickSubmitsIntentWithoutAdvancingR
 internal static void BattleRuntimeHeroSkillTargetPickingUsesStaticHighlightOverlayAndClearsOnExit()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string beginBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeHeroSkillTargetPicking(BattleRuntimeCommandGroupView selected, string skillId)");
+    string beginBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeHeroSkillTargetPicking(BattleRuntimeCommandGroupView selected, string skillDefinitionId)");
     string refreshBody = ExtractMethodBody(rootSource, "private void RefreshBattleRuntimeHeroSkillTargetPreview()");
     string cancelBody = ExtractMethodBody(rootSource, "private void CancelBattleRuntimeHeroSkillTargetPicking(");
     string pauseBody = ExtractMethodBody(rootSource, "private void SetBattleRuntimeCommandPauseActive(bool paused, string reason)");

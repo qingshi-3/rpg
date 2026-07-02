@@ -1,4 +1,4 @@
-[gd_scene load_steps=20 format=3 uid="uid://ok1ty7de481t"]
+[gd_scene load_steps=19 format=3 uid="uid://ok1ty7de481t"]
 
 [ext_resource type="Script" uid="uid://kmyn63t5vy7" path="res://src/Presentation/Battle/Entities/BattleEntity.cs" id="1_entity"]
 [ext_resource type="Script" uid="uid://cxx2u5hct0pql" path="res://src/Presentation/Battle/Entities/FactionComponent.cs" id="2_faction"]
@@ -8,7 +8,6 @@
 [ext_resource type="Script" uid="uid://dbh4fik6ivcos" path="res://src/Presentation/Battle/Entities/GridOccupantComponent.cs" id="7_grid"]
 [ext_resource type="Script" uid="uid://cryc3kh1gcuma" path="res://src/Presentation/Battle/Entities/SelectableComponent.cs" id="8_selectable"]
 [ext_resource type="Script" uid="uid://bympifht7cbhp" path="res://src/Presentation/Battle/Entities/TargetableComponent.cs" id="9_targetable"]
-[ext_resource type="Script" uid="uid://b6w4tsfc6myg2" path="res://src/Presentation/Battle/Entities/AbilityComponent.cs" id="10_ability"]
 [ext_resource type="Script" uid="uid://cmam7x2pqw6de" path="res://src/Presentation/Battle/Entities/UnitAnimationComponent.cs" id="11_anim"]
 [ext_resource type="Script" uid="uid://cbk0yc12efgew" path="res://src/Presentation/Battle/Entities/DamageReactionComponent.cs" id="12_damage_reaction"]
 [ext_resource type="Script" uid="uid://dknv6h5yk2r1a" path="res://src/Presentation/Battle/Entities/BattleUnitAffiliationMarker.cs" id="13_affiliation_marker"]
@@ -90,9 +89,6 @@ script = ExtResource("8_selectable")
 
 [node name="TargetableComponent" type="Node" parent="."]
 script = ExtResource("9_targetable")
-
-[node name="AbilityComponent" type="Node" parent="."]
-script = ExtResource("10_ability")
 
 [node name="UnitAnimationComponent" type="Node" parent="."]
 script = ExtResource("11_anim")

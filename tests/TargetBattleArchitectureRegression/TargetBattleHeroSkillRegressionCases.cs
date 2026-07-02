@@ -23,6 +23,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
         run("targeted hero skill accepts diamond range at submission", TargetedHeroSkillAcceptsDiamondRangeAtSubmission);
         run("runtime rejects hero skill not bound to caster company", RuntimeRejectsHeroSkillNotBoundToCasterCompany);
         run("runtime skill binding uses hero battle unit identity distinct from corps", RuntimeSkillBindingUsesHeroBattleUnitIdentityDistinctFromCorps);
+        run("runtime shared skill definition resolves by hero owner not battle group", RuntimeSharedSkillDefinitionResolvesByHeroOwnerNotBattleGroup);
         run("targeted hero skill uses explicit source actor for range and release", TargetedHeroSkillUsesExplicitSourceActorForRangeAndRelease);
         run("runtime visible caster skill recovery completes", RuntimeVisibleCasterSkillRecoveryCompletes);
         run("runtime locks target at skill acceptance and ignores later range drift", RuntimeLocksTargetAtAcceptanceAndIgnoresLaterRangeDrift);
@@ -58,7 +59,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = FirstSliceSkillId
+            SkillDefinitionId = FirstSliceSkillId
         });
 
         AssertTrue(!submit.Accepted, "targeted hero skill command without a target should be rejected");
@@ -136,9 +137,9 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             "battle_hero_skill_caster_binding",
             "cmd_wrong_bound_skill",
             EnemyActorId,
-            skillId: ShieldBarrierSkillId);
+            skillDefinitionId: ShieldBarrierSkillId);
 
-        AssertTrue(!rejected.Accepted, "caster should not be able to use another hero company's active skill");
+        AssertTrue(!rejected.Accepted, "caster should not be able to use another battle group's active skill");
         AssertTrue(
             rejected.Events.Any(item =>
                 item.Kind == BattleEventKind.CommandRejected &&
@@ -152,9 +153,9 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             "battle_hero_skill_caster_binding",
             "cmd_bound_archer_skill",
             EnemyActorId,
-            skillId: SunPiercerSkillId);
+            skillDefinitionId: SunPiercerSkillId);
 
-        AssertTrue(accepted.Accepted, "caster should be able to use its own hero company's active skill");
+        AssertTrue(accepted.Accepted, "caster should be able to use its own battle group's active skill");
     }
 
     internal static void RuntimeSkillBindingUsesHeroBattleUnitIdentityDistinctFromCorps()
@@ -180,7 +181,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             SourceActorId = PlayerCorps(controller).ActorId,
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = "first_slice_skill_thunder_tag_throw",
+            SkillDefinitionId = "first_slice_skill_thunder_tag_throw",
             TargetActorId = EnemyActorId
         });
 
@@ -208,7 +209,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             SourceActorId = "force_player:1",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = FirstSliceSkillId,
+            SkillDefinitionId = FirstSliceSkillId,
             TargetActorId = EnemyActorId
         });
 
@@ -250,7 +251,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             SourceActorId = visibleCaster.ActorId,
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = FirstSliceSkillId,
+            SkillDefinitionId = FirstSliceSkillId,
             TargetActorId = EnemyActorId
         });
 
@@ -263,7 +264,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             visibleCaster.Phase != BattleRuntimeActorPhase.SkillCasting &&
             visibleCaster.Phase != BattleRuntimeActorPhase.SkillRecovery,
             $"visible caster must leave skill action locks after recovery: phase={visibleCaster.Phase}");
-        AssertEqual("", visibleCaster.CurrentSkillId, "visible caster skill state should be cleared after recovery");
+        AssertEqual("", visibleCaster.CurrentSkillDefinitionId, "visible caster skill state should be cleared after recovery");
     }
 
     internal static void RuntimeLocksTargetAtAcceptanceAndIgnoresLaterRangeDrift()
@@ -410,7 +411,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             "battle_hero_skill_waits_active_skill",
             "cmd_skill_casting_second",
             EnemyActorId,
-            skillId: "followup_skill");
+            skillDefinitionId: "followup_skill");
         AssertTrue(second.Accepted, "second skill command should be accepted as queued intent");
 
         BattleRuntimeAdvanceResult whileCasting = controller.AdvanceFixedTick();
@@ -459,7 +460,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             "battle_hero_skill_latest_pending",
             "cmd_pending_latest",
             EnemyActorId,
-            skillId: "latest_skill");
+            skillDefinitionId: "latest_skill");
 
         AssertTrue(first.Accepted && latest.Accepted, "idle caster should accept replacement skill intent");
         BattleRuntimeAdvanceResult advance = controller.AdvanceFixedTick();
@@ -507,7 +508,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             SourceActorId = caster.ActorId,
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = FirstSliceSkillId,
+            SkillDefinitionId = FirstSliceSkillId,
             TargetActorId = EnemyActorId
         });
         AssertTrue(submit.Accepted, "skill command should queue while the visible caster is moving");
@@ -548,7 +549,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             SourceActorId = caster.ActorId,
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = FirstSliceSkillId,
+            SkillDefinitionId = FirstSliceSkillId,
             TargetActorId = EnemyActorId
         });
         AssertTrue(submit.Accepted, "instant skill setup command should be accepted");
@@ -652,7 +653,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = FirstSliceSkillId,
+            SkillDefinitionId = FirstSliceSkillId,
             TargetActorId = EnemyActorId
         });
         AssertTrue(submit.Accepted, "report setup skill command should be accepted");
@@ -773,7 +774,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
         };
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = FirstSliceSkillId,
+            SkillDefinitionId = FirstSliceSkillId,
             DisplayName = "鐮撮樀",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
@@ -786,10 +787,9 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             CanCancelBasicAttackRecovery = false,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = 18
+                    BaseDamage = 18
                 }
             }
         });
@@ -807,7 +807,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
         string battleId,
         string commandId,
         string targetActorId,
-        string skillId = FirstSliceSkillId)
+        string skillDefinitionId = FirstSliceSkillId)
     {
         return controller.SubmitCommand(new CommandRequest
         {
@@ -816,16 +816,16 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             BattleGroupId = "group_player",
             Channel = CommandChannel.Hero,
             Kind = CommandKind.CastSkill,
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             TargetActorId = targetActorId
         });
     }
 
-    private static void AddFollowUpSkill(BattleStartSnapshot snapshot, string skillId, int damage)
+    private static void AddFollowUpSkill(BattleStartSnapshot snapshot, string skillDefinitionId, int damage)
     {
         snapshot.SkillDefinitions.Add(new BattleSkillSnapshot
         {
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             DisplayName = "Follow Up",
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
@@ -838,10 +838,9 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             CanCancelBasicAttackRecovery = false,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = damage
+                    BaseDamage = damage
                 }
             }
         });
@@ -849,14 +848,14 @@ internal static partial class TargetBattleHeroSkillRegressionCases
 
     private static void AddBoundSkill(
         BattleStartSnapshot snapshot,
-        string skillId,
+        string skillDefinitionId,
         string displayName,
         string casterUnitId,
         int damage)
     {
         BattleSkillSnapshot skill = new()
         {
-            SkillId = skillId,
+            SkillDefinitionId = skillDefinitionId,
             DisplayName = displayName,
             TargetingMode = BattleSkillTargetingMode.TargetedActor,
             Range = 8,
@@ -868,10 +867,9 @@ internal static partial class TargetBattleHeroSkillRegressionCases
             CanCancelBasicAttackRecovery = false,
             Effects =
             {
-                new BattleSkillEffectSnapshot
+                new DamageSkillEffectSnapshot
                 {
-                    Kind = BattleSkillEffectKind.Damage,
-                    Amount = damage
+                    BaseDamage = damage
                 }
             }
         };
@@ -911,6 +909,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
         AssertTrue(property.PropertyType == typeof(string) && property.CanWrite, $"{propertyName} should be a writable string property");
         property.SetValue(instance, value ?? "");
     }
+
 
     private static BattleRuntimeActor EnemyCorps(BattleRuntimeSessionController controller)
     {

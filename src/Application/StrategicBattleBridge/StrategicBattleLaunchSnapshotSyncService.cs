@@ -138,7 +138,7 @@ public sealed class StrategicBattleLaunchSnapshotSyncService
 
         GameLog.Info(
             nameof(StrategicBattleLaunchSnapshotSyncService),
-            $"StrategicBattleLaunchSnapshotSynced context={activeContext.ContextId ?? ""} request={compatibilityRequest.RequestId ?? ""} snapshot={snapshot.SnapshotId} battle={snapshot.BattleId} groups={snapshot.BattleGroups.Count}");
+            $"StrategicBattleLaunchSnapshotSynced context={activeContext.ContextId ?? ""} request={compatibilityRequest.RequestId ?? ""} snapshot={snapshot.SnapshotId} battle={snapshot.BattleId} groups={snapshot.BattleGroups.Count} activeSkills={activeSnapshot.SkillDefinitions.Count} launchSkills={snapshot.SkillDefinitions.Count}");
         return StrategicBattleLaunchSnapshotSyncResult.Ok(snapshot);
     }
 
@@ -485,15 +485,35 @@ public sealed class StrategicBattleLaunchSnapshotSyncService
     {
         foreach (BattleSkillSnapshot skill in source?.SkillDefinitions ?? Enumerable.Empty<BattleSkillSnapshot>())
         {
-            if (skill == null || string.IsNullOrWhiteSpace(skill.SkillId))
+            string skillDefinitionId = ResolveSkillDefinitionId(skill);
+            if (skill == null || string.IsNullOrWhiteSpace(skillDefinitionId))
             {
                 continue;
             }
 
             BattleSkillSnapshot copy = new()
             {
-                SkillId = skill.SkillId ?? "",
+                SkillDefinitionId = skillDefinitionId,
+                GrantedSkillId = skill.GrantedSkillId ?? "",
+                LoadoutSlotId = skill.LoadoutSlotId ?? "",
+                OwnerHeroId = skill.OwnerHeroId ?? "",
+                OwnerBattleGroupId = skill.OwnerBattleGroupId ?? "",
+                RuntimeCommanderGroupId = skill.RuntimeCommanderGroupId ?? "",
                 DisplayName = skill.DisplayName ?? "",
+                IconText = skill.IconText ?? "",
+                Tags = (skill.Tags ?? new List<string>())
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Select(item => item.Trim())
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList(),
+                CommandChannel = skill.CommandChannel,
+                SkillType = skill.SkillType,
+                Targeting = CloneTargeting(skill.Targeting),
+                Timing = CloneTiming(skill.Timing),
+                InterruptPolicy = CloneInterruptPolicy(skill.InterruptPolicy),
+                Costs = CloneCosts(skill.Costs),
+                Cooldown = CloneCooldown(skill.Cooldown),
+                Presentation = ClonePresentation(skill.Presentation),
                 TargetingMode = skill.TargetingMode,
                 Range = skill.Range,
                 CastSeconds = skill.CastSeconds,
@@ -505,25 +525,182 @@ public sealed class StrategicBattleLaunchSnapshotSyncService
                 ReleasesWithoutOccupyingCaster = skill.ReleasesWithoutOccupyingCaster
             };
             copy.CasterUnitIds.AddRange(skill.CasterUnitIds ?? Enumerable.Empty<string>());
-            foreach (BattleSkillEffectSnapshot effect in skill.Effects ?? Enumerable.Empty<BattleSkillEffectSnapshot>())
-            {
-                if (effect == null)
-                {
-                    continue;
-                }
-
-                copy.Effects.Add(new BattleSkillEffectSnapshot
-                {
-                    Kind = effect.Kind,
-                    Amount = effect.Amount,
-                    DurationSeconds = effect.DurationSeconds,
-                    TickIntervalSeconds = effect.TickIntervalSeconds,
-                    Radius = effect.Radius
-                });
-            }
+            copy.Effects.AddRange(CloneEffects(skill.Effects));
 
             target.SkillDefinitions.Add(copy);
         }
+    }
+
+    private static string ResolveSkillDefinitionId(BattleSkillSnapshot skill)
+    {
+        return skill?.SkillDefinitionId?.Trim() ?? "";
+    }
+
+    private static BattleSkillTargetingSnapshot CloneTargeting(BattleSkillTargetingSnapshot source)
+    {
+        return source == null
+            ? new BattleSkillTargetingSnapshot()
+            : new BattleSkillTargetingSnapshot
+            {
+                InputFlow = source.InputFlow,
+                TargetKind = source.TargetKind,
+                Range = source.Range,
+                RangeMetric = source.RangeMetric,
+                AreaShape = source.AreaShape,
+                AreaRadius = source.AreaRadius,
+                DirectionMode = source.DirectionMode,
+                RequiresSelectedMark = source.RequiresSelectedMark,
+                RequiredMarkKind = source.RequiredMarkKind,
+                LandingRadius = source.LandingRadius,
+                PreviewProfileId = source.PreviewProfileId ?? ""
+            };
+    }
+
+    private static BattleSkillTimingSnapshot CloneTiming(BattleSkillTimingSnapshot source)
+    {
+        return source == null
+            ? new BattleSkillTimingSnapshot()
+            : new BattleSkillTimingSnapshot
+            {
+                CastSeconds = source.CastSeconds,
+                ImpactDelaySeconds = source.ImpactDelaySeconds,
+                RecoverySeconds = source.RecoverySeconds
+            };
+    }
+
+    private static BattleSkillInterruptPolicySnapshot CloneInterruptPolicy(BattleSkillInterruptPolicySnapshot source)
+    {
+        return source == null
+            ? new BattleSkillInterruptPolicySnapshot()
+            : new BattleSkillInterruptPolicySnapshot
+            {
+                CanInterruptBasicAttackWindup = source.CanInterruptBasicAttackWindup,
+                CanCancelBasicAttackRecovery = source.CanCancelBasicAttackRecovery,
+                ReleasesWithoutOccupyingCaster = source.ReleasesWithoutOccupyingCaster,
+                CanInterruptActiveChannel = source.CanInterruptActiveChannel
+            };
+    }
+
+    private static BattleSkillPresentationSnapshot ClonePresentation(BattleSkillPresentationSnapshot source)
+    {
+        return source == null
+            ? new BattleSkillPresentationSnapshot()
+            : new BattleSkillPresentationSnapshot
+            {
+                ProfileId = source.ProfileId ?? "",
+                CastFxProfileId = source.CastFxProfileId ?? "",
+                ImpactFxProfileId = source.ImpactFxProfileId ?? "",
+                MarkFxProfileId = source.MarkFxProfileId ?? "",
+                AreaFxProfileId = source.AreaFxProfileId ?? "",
+                SuppressActorCastFx = source.SuppressActorCastFx,
+                HoldCastAnimationDuringAction = source.HoldCastAnimationDuringAction
+            };
+    }
+
+    private static List<BattleSkillCostSnapshot> CloneCosts(IEnumerable<BattleSkillCostSnapshot> costs)
+    {
+        return (costs ?? Enumerable.Empty<BattleSkillCostSnapshot>())
+            .Select(CloneCost)
+            .Where(item => item != null)
+            .ToList();
+    }
+
+    private static BattleSkillCostSnapshot CloneCost(BattleSkillCostSnapshot cost)
+    {
+        return cost switch
+        {
+            ManaCostSkillCostSnapshot mana => new ManaCostSkillCostSnapshot
+            {
+                PoolId = mana.PoolId ?? "",
+                Amount = mana.Amount,
+                PayTiming = mana.PayTiming,
+                RefundPolicy = mana.RefundPolicy
+            },
+            LimitedUseSkillCostSnapshot limitedUse => new LimitedUseSkillCostSnapshot
+            {
+                MaxUses = limitedUse.MaxUses,
+                ConsumeTiming = limitedUse.ConsumeTiming,
+                RefundPolicy = limitedUse.RefundPolicy
+            },
+            NoCostSkillCostSnapshot => new NoCostSkillCostSnapshot(),
+            null => null,
+            _ => null
+        };
+    }
+
+    private static BattleSkillCooldownSnapshot CloneCooldown(BattleSkillCooldownSnapshot cooldown)
+    {
+        return cooldown switch
+        {
+            PerGrantCooldownSkillCooldownSnapshot perGrant => new PerGrantCooldownSkillCooldownSnapshot
+            {
+                DurationSeconds = perGrant.DurationSeconds,
+                StartsOn = perGrant.StartsOn,
+                SharedCooldownGroupId = perGrant.SharedCooldownGroupId ?? ""
+            },
+            ChargeCooldownSkillCooldownSnapshot charge => new ChargeCooldownSkillCooldownSnapshot
+            {
+                MaxCharges = charge.MaxCharges,
+                RechargeSeconds = charge.RechargeSeconds,
+                StartsFull = charge.StartsFull
+            },
+            NoCooldownSkillCooldownSnapshot => new NoCooldownSkillCooldownSnapshot(),
+            _ => new NoCooldownSkillCooldownSnapshot()
+        };
+    }
+
+    private static List<BattleSkillEffectSnapshot> CloneEffects(IEnumerable<BattleSkillEffectSnapshot> effects)
+    {
+        return (effects ?? Enumerable.Empty<BattleSkillEffectSnapshot>())
+            .Select(CloneEffect)
+            .Where(item => item != null)
+            .ToList();
+    }
+
+    private static BattleSkillEffectSnapshot CloneEffect(BattleSkillEffectSnapshot effect)
+    {
+        BattleSkillEffectSnapshot clone = effect switch
+        {
+            DamageSkillEffectSnapshot damage => new DamageSkillEffectSnapshot
+            {
+                BaseDamage = damage.BaseDamage,
+                DamageType = damage.DamageType,
+                CanHitActors = damage.CanHitActors,
+                CanHitWorldObjects = damage.CanHitWorldObjects
+            },
+            CreateMarkSkillEffectSnapshot mark => new CreateMarkSkillEffectSnapshot
+            {
+                MarkKind = mark.MarkKind,
+                LifetimeSeconds = mark.LifetimeSeconds,
+                AttachToActorWhenTargeted = mark.AttachToActorWhenTargeted,
+                ReplaceExistingOwnedMark = mark.ReplaceExistingOwnedMark
+            },
+            TeleportToMarkSkillEffectSnapshot teleport => new TeleportToMarkSkillEffectSnapshot
+            {
+                RequiredMarkKind = teleport.RequiredMarkKind,
+                LandingRadius = teleport.LandingRadius,
+                ConsumesMark = teleport.ConsumesMark
+            },
+            ChanneledAreaDamageSkillEffectSnapshot channel => new ChanneledAreaDamageSkillEffectSnapshot
+            {
+                BaseDamage = channel.BaseDamage,
+                DamageType = channel.DamageType,
+                DurationSeconds = channel.DurationSeconds,
+                TickIntervalSeconds = channel.TickIntervalSeconds,
+                AreaShape = channel.AreaShape,
+                Radius = channel.Radius,
+                FollowsCaster = channel.FollowsCaster,
+                UsesTargetOffset = channel.UsesTargetOffset
+            },
+            _ => null
+        };
+        if (clone != null)
+        {
+            clone.EffectInstancePolicy = effect.EffectInstancePolicy;
+            clone.PresentationProfileId = effect.PresentationProfileId ?? "";
+        }
+
+        return clone;
     }
 
     private static void CopyObjectiveZones(

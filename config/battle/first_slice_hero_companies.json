@@ -6,7 +6,11 @@
 	  "heroUnit": "f1_grandmasterzir",
 	  "defaultCorpsUnit": "f1_azuritelion",
 	  "defaultCorpsCount": 3,
-	  "skillId": "first_slice_skill_shield_barrier"
+	  "skillDefinitionIds": [
+		"skill_thunder_tag_throw",
+		"skill_thunder_mark_fold",
+		"skill_thunder_spiral_break"
+	  ]
 	},
 	{
 	  "companyId": "first_slice_company_archer",
@@ -14,7 +18,11 @@
 	  "heroUnit": "f1_windbladecommander",
 	  "defaultCorpsUnit": "f1_backlinearcher",
 	  "defaultCorpsCount": 3,
-	  "skillId": "first_slice_skill_sun_piercer"
+	  "skillDefinitionIds": [
+		"skill_thunder_tag_throw",
+		"skill_thunder_mark_fold",
+		"skill_thunder_spiral_break"
+	  ]
 	},
 	{
 	  "companyId": "first_slice_company_assault",
@@ -22,7 +30,11 @@
 	  "heroUnit": "f1_elyxstormblade",
 	  "defaultCorpsUnit": "f1_radiantdragoon",
 	  "defaultCorpsCount": 3,
-	  "skillId": "first_slice_skill_thunder_tag_throw"
+	  "skillDefinitionIds": [
+		"skill_thunder_tag_throw",
+		"skill_thunder_mark_fold",
+		"skill_thunder_spiral_break"
+	  ]
 	}
   ],
   "bonefieldRoster": [

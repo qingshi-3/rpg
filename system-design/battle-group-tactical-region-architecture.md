@@ -80,7 +80,7 @@ Combat zones are global battlefield facts. They must not carry an owner battle-g
 
 Group action zones are battle-group-owned. A group action zone without an owner battle-group id is not valid decision input.
 
-The owner id is the battle-group commander id, not a presentation actor id, force-count row id, or temporary adapter row id. Multiple runtime actors that belong to the same hero-led company share tactical-region ownership and contribute to the same perception coverage, local-combat region, and engagement state.
+The owner id is the battle-group commander id, not a presentation actor id, force-count row id, or temporary adapter row id. Multiple runtime actors that belong to the same battle group share tactical-region ownership and contribute to the same perception coverage, local-combat region, and engagement state.
 
 Non-engaged movement targets group action zones, selected target objects, or fixed/temporary target regions, not moving units. A group may keep moving toward a stable target object or region while no relevant combat zone, opposing unit, recent damage, or attack event keeps it engaged.
 

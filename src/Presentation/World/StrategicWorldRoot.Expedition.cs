@@ -29,7 +29,7 @@ public partial class StrategicWorldRoot
         _expeditionHeroIds.Clear();
 
         ClampExpeditionDraftCounts();
-        StrategicWorldRuntime.LastNotice = "选择出征英雄公司。英雄会带领已分配编制出征。";
+        StrategicWorldRuntime.LastNotice = "选择出征战斗编组。英雄会带领已分配编制出征。";
         RefreshAll();
     }
 
@@ -38,7 +38,7 @@ public partial class StrategicWorldRoot
         ClampExpeditionDraftCounts();
         if (!HasSelectedExpeditionUnits())
         {
-            StrategicWorldRuntime.LastNotice = "请先选择要出征的英雄公司。";
+            StrategicWorldRuntime.LastNotice = "请先选择要出征的战斗编组。";
             RefreshAll();
             return;
         }
@@ -154,7 +154,7 @@ public partial class StrategicWorldRoot
         IReadOnlyList<string> selectedHeroIds = BuildSelectedExpeditionHeroIds();
         if (selectedHeroIds.Count == 0)
         {
-            StrategicWorldRuntime.LastNotice = "请先选择要出征的英雄公司。";
+            StrategicWorldRuntime.LastNotice = "请先选择要出征的战斗编组。";
             RefreshAll();
             return true;
         }
@@ -465,7 +465,7 @@ public partial class StrategicWorldRoot
             .ToArray();
 
         return selected.Length == 0
-            ? "未选择英雄公司"
+            ? "未选择战斗编组"
             : string.Join("、", selected.Select(company => $"{company.HeroDisplayName} + {company.CorpsDisplayName}"));
     }
 
@@ -476,7 +476,7 @@ public partial class StrategicWorldRoot
             StrategicFailureReasons.MissingCity => "缺少可出征城市",
             StrategicFailureReasons.MissingLocation => "缺少战略地点",
             StrategicFailureReasons.MissingHero => "缺少可出征英雄",
-            StrategicFailureReasons.HeroHasNoAssignedCorps => "没有已分配编制的英雄公司",
+            StrategicFailureReasons.HeroHasNoAssignedCorps => "没有已分配编制的战斗编组",
             StrategicFailureReasons.CorpsNotAssignedToHero => "编制没有分配给该英雄",
             StrategicFailureReasons.HeroAlreadyOnExpedition => "英雄已经在出征中",
             StrategicFailureReasons.CorpsAlreadyOnExpedition => "编制已经在出征中",

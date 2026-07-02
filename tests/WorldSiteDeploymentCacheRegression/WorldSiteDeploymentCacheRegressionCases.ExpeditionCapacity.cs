@@ -19,7 +19,7 @@ internal static void FirstSliceExpeditionCapacityAllowsMultipleSeparateArmies()
     playerSite.Garrison.Add(new GarrisonState { UnitTypeId = "f1_elyxstormblade", Count = 1, Morale = 80 });
 
     WorldExpeditionService service = new();
-    AssertEqual(3, WorldExpeditionService.FirstSliceMaxActivePlayerExpeditions, "first slice hardcoded expedition queue should cover the three selectable hero companies");
+    AssertEqual(3, WorldExpeditionService.FirstSliceMaxActivePlayerExpeditions, "first slice hardcoded expedition queue should cover the three selectable battle groups");
     AssertTrue(
         service.HasAvailablePlayerExpeditionCapacity(state, out int initialActiveCount, out int maxActiveExpeditions) &&
         initialActiveCount == 0 &&
@@ -55,7 +55,7 @@ internal static void FirstSliceExpeditionDraftKeepsHeroCompanySelectionsIndepend
     AssertTrue(
         beginBody.Contains("_expeditionHeroIds.Clear();", StringComparison.Ordinal) &&
         controlsBody.Contains("GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)", StringComparison.Ordinal),
-        "expedition draft should start from an empty selection and read dispatchable hero companies through the Strategic Management helper when binding the draft UI");
+        "expedition draft should start from an empty selection and read dispatchable battle groups through the Strategic Management helper when binding the draft UI");
     AssertTrue(
         availableBody.Contains("StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(", StringComparison.Ordinal) &&
         availableBody.Contains("StrategicManagementRuntime.BuildDashboard(", StringComparison.Ordinal) &&
@@ -88,14 +88,14 @@ internal static void StrategicWorldExpeditionDraftStartsEmptyAndAllowsDeselect()
         beginBody.Contains("_expeditionHeroIds.Clear();", StringComparison.Ordinal) &&
         !beginBody.Contains("_expeditionHeroIds.Add(", StringComparison.Ordinal) &&
         !beginBody.Contains("FirstOrDefault(company => company.CanCreateExpedition)", StringComparison.Ordinal),
-        "starting an expedition draft should leave the hero-company selection empty until the player explicitly chooses a company");
+        "starting an expedition draft should leave the battle-group selection empty until the player explicitly chooses a group");
     AssertTrue(
         adjustBody.Contains("else if (delta < 0)", StringComparison.Ordinal) &&
         adjustBody.Contains("_expeditionHeroIds.Remove(heroId);", StringComparison.Ordinal),
         "clicking the minus button on a selected expedition company should be able to remove that company from the draft");
     AssertTrue(
         controlsBody.Contains("AddExpeditionTargetButton(HasSelectedExpeditionUnits())", StringComparison.Ordinal),
-        "the choose-target button should stay disabled while the expedition draft has no selected hero company");
+        "the choose-target button should stay disabled while the expedition draft has no selected battle group");
 }
 
 internal static void StrategicWorldSelectionContextClearsExpeditionDraft()

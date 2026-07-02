@@ -13,6 +13,7 @@ public sealed class BattleRuntimeActor
     public string FactionId { get; set; } = "";
     public string UnitDefinitionId { get; set; } = "";
     public string SourceForceId { get; set; } = "";
+    public string SourceHeroId { get; set; } = "";
     public string SourceStateId { get; set; } = "";
     public BattleRuntimeActorKind Kind { get; set; }
     public int HitPoints { get; set; } = 1;
@@ -95,7 +96,10 @@ public sealed class BattleRuntimeActor
     public int CurrentBasicAttackTargetGridY { get; set; }
     public int CurrentBasicAttackTargetGridHeight { get; set; }
     public string CurrentSkillActionId { get; set; } = "";
-    public string CurrentSkillId { get; set; } = "";
+    public string CurrentSkillDefinitionId { get; set; } = "";
+    public string CurrentSkillGrantedSkillId { get; set; } = "";
+    public string CurrentSkillLoadoutSlotId { get; set; } = "";
+    public string CurrentSkillOwnerHeroId { get; set; } = "";
     public string CurrentSkillSourceCommandId { get; set; } = "";
     public string CurrentSkillTargetActorId { get; set; } = "";
     // Accepted skill orders wait with the caster, not in a center resolver queue.

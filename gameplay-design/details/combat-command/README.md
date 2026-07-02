@@ -8,7 +8,7 @@ Global rules live in `../../content-systems-long-term-design.md`, especially the
 
 This detail area defines player-facing battle command rules:
 
-- selecting a hero company;
+- selecting a battle group;
 - separating hero command, corps command, and combined command;
 - hero hold/attack/retreat/skill behavior;
 - corps advance/guard/hold/attack/retreat behavior;
@@ -32,10 +32,10 @@ Required player flow:
 2. The player selects a hero in a Chinese expedition panel.
 3. The selected hero brings a default corps.
 4. The player right-clicks an enemy strategic location.
-5. The hero company travels on the world map toward the enemy strategic location.
+5. The battle group travels on the world map toward the enemy strategic location.
 6. After arrival, the player chooses to enter the assault battle.
 7. The game enters pre-battle deployment.
-8. The player confirms or places the hero company in a valid deployment zone.
+8. The player confirms or places the battle group in a valid deployment zone.
 9. The player clicks `开战`.
 10. Real-time battle starts.
 
@@ -43,25 +43,25 @@ V0.1 does not require post-start hero/corps command controls. Those controls rem
 
 ## Target Battle-Plan Flow
 
-The mature battle-preparation flow should create one plan per selected hero company before the battle clock starts.
+The mature battle-preparation flow should create one plan per selected battle group before the battle clock starts.
 
 The player operation is:
 
-1. Drag a hero company portrait from the compact battle-preparation roster.
-2. While dragging, see the full hero-led company formation preview on the battlefield, including the hero and corps formation footprint.
+1. Drag a battle group portrait from the compact battle-preparation roster.
+2. While dragging, see the full battle-group formation preview on the battlefield, including the hero and corps formation footprint.
 3. Move the preview over the friendly deployment area; valid placements render normally, while invalid placements render the whole preview red.
-4. Drop the company on a legal placement to commit its initial formation.
-5. Open or focus the tactical battlefield thumbnail for the current company.
-6. Choose one configured objective area for that company from marker-backed target regions on the thumbnail.
-7. Choose the company's engagement rule from compact current-company controls.
-8. Repeat the flow for every participating company.
+4. Drop the battle group on a legal placement to commit its initial formation.
+5. Open or focus the tactical battlefield thumbnail for the current battle group.
+6. Choose one configured objective area for that battle group from marker-backed target regions on the thumbnail.
+7. Choose the battle group's engagement rule from compact current-battle-group controls.
+8. Repeat the flow for every participating battle group.
 9. Confirm all complete plans and start battle.
 
-The preparation roster is a compact index and drag source, not a long information panel. It should show only company identity and plan status, such as complete, partial, or missing. Detailed plan facts belong to the selected company feedback, map overlays, tactical thumbnail, or launch validation feedback.
+The preparation roster is a compact index and drag source, not a long information panel. It should show only battle-group identity and plan status, such as complete, partial, or missing. Detailed plan facts belong to the selected battle-group feedback, map overlays, tactical thumbnail, or launch validation feedback.
 
-During drag placement, persistent UI should move away from the battlefield so the player can read the map. The roster, top status, current-company plan controls, and start-battle button may slide offscreen while dragging, then return after release. Deployment legality feedback must remain visible through the formation preview and deployment-area highlight.
+During drag placement, persistent UI should move away from the battlefield so the player can read the map. The roster, top status, current-battle-group plan controls, and start-battle button may slide offscreen while dragging, then return after release. Deployment legality feedback must remain visible through the formation preview and deployment-area highlight.
 
-Objective areas are authored tactical regions, not invisible AI destinations. Examples include `正面入口`, `左翼高地`, `右翼通道`, `敌方核心`, and `预备集结点`. The UI should show their geography and likely route relationship to the deployed company before the player confirms.
+Objective areas are authored tactical regions, not invisible AI destinations. Examples include `正面入口`, `左翼高地`, `右翼通道`, `敌方核心`, and `预备集结点`. The UI should show their geography and likely route relationship to the deployed battle group before the player confirms.
 
 The engagement rule modifies automatic state transitions:
 
@@ -70,7 +70,7 @@ The engagement rule modifies automatic state transitions:
 | Fire-on-the-move | Advance toward the objective, but stop at movement boundaries for nearby valid attacks inside the rule radius. |
 | Move-first | Prefer objective progress and ignore non-blocking distant targets. |
 | Attack-first | Switch to sensed valid enemies earlier and accept deeper pursuit within the plan scope. |
-| Hold | Stay near the selected area and drop targets that pull the company too far away. |
+| Hold | Stay near the selected area and drop targets that pull the battle group too far away. |
 | Retreat-first | Prioritize withdrawal once survival, morale, or command thresholds are met. |
 | Protect-hero | Keep corps movement and target choice constrained by hero safety and distance. |
 
@@ -119,6 +119,20 @@ Ability content should support multiple targeting styles without changing the ba
 Direction handling is part of the ability definition. Common direction modes are free angle, 8-way square-grid snap, 4-way cardinal snap, and forward arc. Area handling is also definition-driven, with shapes such as single actor, single cell, line, cone, circle radius, and grid radius.
 
 The first implementation only needs basic actor-target attacks and the data-contract extension points for future abilities. Full projectile and area-skill behavior can be added later through these target and direction contracts.
+
+## Skill Input, Availability, And Presentation Traits
+
+Battle skill UI should consume command traits from the compiled skill snapshot instead of branching on concrete skill ids.
+
+Skill snapshots should expose the player-facing command facts needed for input and feedback:
+
+- command channel and caster eligibility;
+- targeted, cell, direction, mark-selection, or self-centered input flow;
+- range, area, direction-snap, preview, and two-stage selection traits;
+- cost, cooldown, charge, limited-use, and disabled-reason display facts;
+- presentation profile such as icon, cast preview, targeting cursor, range overlay, impact preview, and report label.
+
+Concrete skill ids identify content for lookup, unlocks, reports, and migration. They must not be the UI's main behavior switch. A new skill that uses existing targeting, availability, effect, and presentation traits should not require a new UI branch.
 
 ## Unit Footprints
 
@@ -219,7 +233,7 @@ A unit that is already casting or recovering from an active skill cannot start a
 
 During tactical pause, the player may select targets and submit skill commands. Pause-time input changes command intent only; it does not advance battle state, damage, cooldown, cast time, or AI perception until Runtime resumes and reaches a valid release or interrupt boundary.
 
-Tactical pause may let the player switch between multiple hero companies, but each skill submission is one selected hero's current skill intent. Runtime owns whether that intent replaces or waits: if the selected caster is not currently casting or recovering from an active skill, the newest accepted skill intent supersedes that caster's older unstarted pending skill intent; if the caster is already casting or recovering from an active skill, the accepted intent waits behind that active skill. Closing tactical pause hides hero and skill command controls while the battle continues.
+Tactical pause may let the player switch between multiple battle groups, but each skill submission is one selected hero's current skill intent. Runtime owns whether that intent replaces or waits: if the selected caster is not currently casting or recovering from an active skill, the newest accepted skill intent supersedes that caster's older unstarted pending skill intent; if the caster is already casting or recovering from an active skill, the accepted intent waits behind that active skill. Closing tactical pause hides hero and skill command controls while the battle continues.
 
 ## AI Telegraphing And Reports
 

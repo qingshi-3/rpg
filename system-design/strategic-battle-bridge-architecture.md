@@ -11,7 +11,7 @@ The accepted loop is:
 ```text
 strategic expedition targets a hostile battle-capable location
 -> world-map arrival opens a battle trigger confirmation
--> prepare hero companies on an authored battle map
+-> prepare battle groups on an authored battle map
 -> run hero-led light RTS Runtime
 -> explain the result through settlement and report facts
 -> apply consequences back to Strategic Management state through commands
@@ -25,7 +25,7 @@ It owns:
 
 - accepting a strategic battle intent from Strategic Management commands;
 - creating a transient strategic battle session;
-- exposing battle-preparation data for participating hero companies;
+- exposing battle-preparation data for participating battle groups;
 - exposing eligible local building support for pre-battle selection or confirmation when a battle occurs at a city or stronghold;
 - validating launch readiness at the bridge boundary;
 - compiling an immutable `BattleStartSnapshot` for battle Runtime;
@@ -65,7 +65,7 @@ Bridge runtime state may include:
 - battle kind;
 - attacker and defender faction IDs;
 - source and target strategic location IDs;
-- participant references for each hero company;
+- participant references for each battle group;
 - map definition ID and battle scene path;
 - available entrances, deployment zones, and objective zones from authored map metadata;
 - battle-preparation draft state;
@@ -102,7 +102,7 @@ Inputs are:
 - read-only Strategic Management definitions and state views needed to compile battle participants and location context;
 - the world-map battle trigger confirmation after the expedition arrives at the target;
 - battle map entry metadata, semantic deployment markers, semantic objective markers, entrances, and compiled navigation topology;
-- battle-preparation player choices: participating companies, deployment placements, formation, objective zone, and engagement rule;
+- battle-preparation player choices: participating battle groups, deployment placements, formation, objective zone, and engagement rule;
 - pre-battle local building support choices when the target location offers eligible support;
 - complete `BattleOutcomeResult`, `BattleEventStream`, `SettlementPlan`, and `BattleReportRecord` values after Runtime completion.
 
@@ -146,10 +146,10 @@ The bridge session envelope carries scene path, return route, rollback context, 
 
 ### Participant Identity
 
-Strategic participants are hero companies:
+Strategic participants are battle groups:
 
 ```text
-hero company = 1 hero + 1 main corps instance
+battle group = 1 hero + 1 main corps instance
 ```
 
 The bridge participant reference must preserve:
