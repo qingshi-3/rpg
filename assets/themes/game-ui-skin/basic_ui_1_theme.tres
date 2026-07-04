@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=7 format=3]
+[gd_resource type="Theme" load_steps=8 format=3]
 
 [ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_sheet.tres" id="1_panel_sheet"]
 [ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_card.tres" id="2_panel_card"]
@@ -6,12 +6,15 @@
 [ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_button_action_hover.tres" id="4_button_action_hover"]
 [ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_button_action_pressed.tres" id="5_button_action_pressed"]
 [ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_button_action_disabled.tres" id="6_button_action_disabled"]
+[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_topbar.tres" id="7_panel_topbar"]
 
 [resource]
 WorldContextSheet/base_type = &"PanelContainer"
 WorldContextSheet/styles/panel = ExtResource("1_panel_sheet")
 WorldContextCard/base_type = &"PanelContainer"
 WorldContextCard/styles/panel = ExtResource("2_panel_card")
+WorldTopStatusPanel/base_type = &"PanelContainer"
+WorldTopStatusPanel/styles/panel = ExtResource("7_panel_topbar")
 WorldPrimaryActionButton/base_type = &"Button"
 WorldPrimaryActionButton/colors/font_color = Color(0.96, 0.9, 0.72, 1)
 WorldPrimaryActionButton/colors/font_hover_color = Color(1, 0.96, 0.78, 1)

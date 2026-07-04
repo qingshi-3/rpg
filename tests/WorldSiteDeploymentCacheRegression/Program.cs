@@ -93,6 +93,7 @@ WorldSiteDeploymentCacheRegressionCases.Run("world site root gates battle start 
 WorldSiteDeploymentCacheRegressionCases.Run("world site root battle runtime command ui routes initial command", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootBattleRuntimeCommandUiRoutesInitialCommand);
 WorldSiteDeploymentCacheRegressionCases.Run("battle group probe snapshot includes hero owned configured skill definitions", WorldSiteDeploymentCacheRegressionCases.BattleGroupProbeSnapshotIncludesHeroOwnedConfiguredSkillDefinitions);
 WorldSiteDeploymentCacheRegressionCases.Run("battle skill definitions live in content layer and map to snapshots", WorldSiteDeploymentCacheRegressionCases.BattleSkillDefinitionsLiveInContentLayerAndMapToSnapshots);
+WorldSiteDeploymentCacheRegressionCases.Run("battle runtime hud shows hero troop summary panel", WorldSiteDeploymentCacheRegressionCases.BattleRuntimeHudShowsHeroTroopSummaryPanel);
 WorldSiteDeploymentCacheRegressionCases.Run("battle runtime hud filters skills to selected battle group", WorldSiteDeploymentCacheRegressionCases.BattleRuntimeHudFiltersSkillsToSelectedHeroCompany);
 WorldSiteDeploymentCacheRegressionCases.Run("world site battle runtime hero skill submits hero cast command", WorldSiteDeploymentCacheRegressionCases.WorldSiteBattleRuntimeHeroSkillSubmitsHeroCastCommand);
 WorldSiteDeploymentCacheRegressionCases.Run("world site battle runtime hero skill target click builds targeted command", WorldSiteDeploymentCacheRegressionCases.WorldSiteBattleRuntimeHeroSkillTargetClickBuildsTargetedCommand);
@@ -210,6 +211,7 @@ WorldSiteDeploymentCacheRegressionCases.Run("world site root delegates battle ob
 WorldSiteDeploymentCacheRegressionCases.Run("world site root delegates battle runtime live presentation observation", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootDelegatesBattleRuntimeLivePresentationObservation);
 WorldSiteDeploymentCacheRegressionCases.Run("world site root delegates battle preparation hud binding", WorldSiteDeploymentCacheRegressionCases.WorldSiteRootDelegatesBattlePreparationHudBinding);
 WorldSiteDeploymentCacheRegressionCases.Run("presentation ui scene paths preserve code bindings", WorldSiteDeploymentCacheRegressionCases.PresentationUiScenePathsPreserveCodeBindings);
+WorldSiteDeploymentCacheRegressionCases.Run("resource directory taxonomy keeps assets raw and resources authored", WorldSiteDeploymentCacheRegressionCases.ResourceDirectoryTaxonomyKeepsAssetsRawAndResourcesAuthored);
 WorldSiteDeploymentCacheRegressionCases.Run("godot text resources do not use utf8 bom", WorldSiteDeploymentCacheRegressionCases.GodotTextResourcesDoNotUseUtf8Bom);
 WorldSiteDeploymentCacheRegressionCases.Run("strategic world map viewport fills screen behind hud", WorldSiteDeploymentCacheRegressionCases.StrategicWorldMapViewportFillsScreenBehindHud);
 WorldSiteDeploymentCacheRegressionCases.Run("world viewport layout uses resolved control rects", WorldSiteDeploymentCacheRegressionCases.WorldViewportLayoutUsesResolvedControlRects);

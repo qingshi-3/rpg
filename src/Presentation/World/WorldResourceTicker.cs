@@ -174,8 +174,8 @@ public partial class WorldResourceTicker : Control
     private static void PrepareLabel(Label label)
     {
         label.MouseFilter = MouseFilterEnum.Ignore;
-        label.ClipText = true;
+        label.ClipText = false;
         label.VerticalAlignment = VerticalAlignment.Center;
-        label.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
+        label.TextOverrunBehavior = TextServer.OverrunBehavior.NoTrimming;
     }
 }

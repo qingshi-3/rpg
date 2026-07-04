@@ -17,6 +17,7 @@ public static class GameUiSceneFactory
     public const string BattlePreparationObjectiveThumbnailScenePath = "res://scenes/world/ui/BattlePreparationObjectiveThumbnail.tscn";
     public const string BattleRuntimeHeroSwitchButtonScenePath = "res://scenes/world/ui/BattleRuntimeHeroSwitchButton.tscn";
     public const string BattleRuntimeSkillSlotScenePath = "res://scenes/world/ui/BattleRuntimeSkillSlot.tscn";
+    public const string BattleRuntimeHeroTroopSummaryRowScenePath = "res://scenes/world/ui/BattleRuntimeHeroTroopSummaryRow.tscn";
     public const string PreBattleDialogScenePath = "res://scenes/world/ui/PreBattleDialog.tscn";
     public const string PostBattleSettlementDialogScenePath = "res://scenes/world/ui/PostBattleSettlementDialog.tscn";
     public const string WorldSiteHitButtonScenePath = "res://scenes/world/ui/WorldSiteHitButton.tscn";
@@ -101,6 +102,11 @@ public static class GameUiSceneFactory
     public static BattleRuntimeHeroSwitchButton CreateBattleRuntimeHeroSwitchButton(string ownerName)
     {
         return Instantiate<BattleRuntimeHeroSwitchButton>(BattleRuntimeHeroSwitchButtonScenePath, ownerName);
+    }
+
+    public static BattleRuntimeHeroTroopSummaryRow CreateBattleRuntimeHeroTroopSummaryRow(string ownerName)
+    {
+        return Instantiate<BattleRuntimeHeroTroopSummaryRow>(BattleRuntimeHeroTroopSummaryRowScenePath, ownerName);
     }
 
     public static StrategicBattleGateDialog CreateStrategicBattleGateDialog(string ownerName)

@@ -277,8 +277,11 @@ internal static void StrategicWorldResourceBarReadsStrategicManagementResources(
         refreshBody.Contains(".Resources", StringComparison.Ordinal),
         "strategic world resource bar should read faction-shared resources from Strategic Management dashboard resources");
     AssertTrue(
-        refreshBody.Contains("大地图结算", StringComparison.Ordinal),
-        "strategic world resource bar should keep the transitional large-map settlement counter display");
+        !refreshBody.Contains("大地图结算", StringComparison.Ordinal) &&
+        !refreshBody.Contains("DisplayName} {resource.Amount}", StringComparison.Ordinal) &&
+        refreshBody.Contains("foreach (StrategicResourceViewModel resource in dashboard.Resources)", StringComparison.Ordinal) &&
+        refreshBody.Contains("ticker.SetText(resource.Amount.ToString(), animate);", StringComparison.Ordinal),
+        "strategic world resource ticker should show resource amounts only; settlement state belongs to notice and world-clock UI");
 
     foreach (string forbidden in new[]
     {
@@ -302,22 +305,41 @@ internal static void StrategicWorldResourceBarUsesRollingTicker()
 {
     string root = ProjectRoot();
     string hudScenePath = Path.Combine(root, "scenes", "world", "ui", "StrategicWorldHud.tscn");
+    string themePath = Path.Combine(root, "assets", "themes", "game-ui-skin", "basic_ui_1_theme.tres");
     string tickerSourcePath = Path.Combine(root, "src", "Presentation", "World", "WorldResourceTicker.cs");
     string uiBootstrapPath = Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.UiBootstrap.cs");
     AssertTrue(File.Exists(hudScenePath), $"strategic world HUD scene should exist path={hudScenePath}");
+    AssertTrue(File.Exists(themePath), $"strategic world theme should exist path={themePath}");
     AssertTrue(File.Exists(tickerSourcePath), "top strategic resource bar rolling animation should live in a focused component");
 
     string scene = File.ReadAllText(hudScenePath);
+    string theme = File.ReadAllText(themePath);
     string tickerSource = File.ReadAllText(tickerSourcePath);
     string uiBootstrapSource = File.ReadAllText(uiBootstrapPath);
     string refreshBody = ExtractMethodBody(uiBootstrapSource, "private void RefreshResources()");
+    string topLeftStatusBlock = ExtractSceneNodeBlock(scene, "[node name=\"TopLeftStatus\"");
+    string resourceStripBlock = ExtractSceneNodeBlock(scene, "[node name=\"ResourceStrip\"");
+    string foodNameBlock = ExtractSceneNodeBlock(scene, "[node name=\"FoodNameLabel\"");
+    string foodTickerBlock = ExtractSceneNodeBlock(scene, "[node name=\"FoodAmountTicker\"");
+    string moneyTickerBlock = ExtractSceneNodeBlock(scene, "[node name=\"MoneyAmountTicker\"");
+    string oreTickerBlock = ExtractSceneNodeBlock(scene, "[node name=\"OreAmountTicker\"");
+    string woodTickerBlock = ExtractSceneNodeBlock(scene, "[node name=\"WoodAmountTicker\"");
 
     AssertTrue(
         scene.Contains("WorldResourceTicker.cs", StringComparison.Ordinal) &&
-        scene.Contains("[node name=\"ResourceLabel\" type=\"Control\" parent=\"TopBarHost/TopLeftStatus\"]", StringComparison.Ordinal) &&
-        scene.Contains("[node name=\"CurrentLabel\" type=\"Label\" parent=\"TopBarHost/TopLeftStatus/ResourceLabel\"]", StringComparison.Ordinal) &&
-        scene.Contains("[node name=\"IncomingLabel\" type=\"Label\" parent=\"TopBarHost/TopLeftStatus/ResourceLabel\"]", StringComparison.Ordinal),
-        "strategic world resource bar should use an authored rolling ticker control with two labels");
+        scene.Contains("[node name=\"TopLeftStatus\" type=\"PanelContainer\" parent=\"TopBarHost\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"Margin\" type=\"MarginContainer\" parent=\"TopBarHost/TopLeftStatus\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"ResourceStrip\" type=\"HBoxContainer\" parent=\"TopBarHost/TopLeftStatus/Margin\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"FoodNameLabel\" type=\"Label\" parent=\"TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"FoodAmountTicker\" type=\"Control\" parent=\"TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"CurrentLabel\" type=\"Label\" parent=\"TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot/FoodAmountTicker\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"IncomingLabel\" type=\"Label\" parent=\"TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot/FoodAmountTicker\"]", StringComparison.Ordinal),
+        "strategic world resource bar should keep resource type labels authored and roll only amount labels");
+    AssertTrue(
+        topLeftStatusBlock.Contains("theme_type_variation = &\"WorldTopStatusPanel\"", StringComparison.Ordinal) &&
+        theme.Contains("WorldTopStatusPanel/base_type = &\"PanelContainer\"", StringComparison.Ordinal) &&
+        theme.Contains("basic_ui_1_panel_topbar.tres", StringComparison.Ordinal),
+        "strategic world top-left resources should sit on a reusable window-frame panel background");
     AssertTrue(
         tickerSource.Contains("public partial class WorldResourceTicker : Control", StringComparison.Ordinal) &&
         tickerSource.Contains("public void SetText(string text, bool animate)", StringComparison.Ordinal) &&
@@ -325,10 +347,21 @@ internal static void StrategicWorldResourceBarUsesRollingTicker()
         tickerSource.Contains("ClipContents = true", StringComparison.Ordinal),
         "WorldResourceTicker should own the rolling label animation");
     AssertTrue(
-        uiBootstrapSource.Contains("private WorldResourceTicker _resourceTicker", StringComparison.Ordinal) &&
-        refreshBody.Contains("_resourceTicker.SetText(", StringComparison.Ordinal) &&
+        resourceStripBlock.Contains("theme_override_constants/separation = 14", StringComparison.Ordinal) &&
+        foodNameBlock.Contains("text = \"粮食\"", StringComparison.Ordinal) &&
+        foodTickerBlock.Contains("script = ExtResource(\"20_resource_ticker\")", StringComparison.Ordinal) &&
+        moneyTickerBlock.Contains("script = ExtResource(\"20_resource_ticker\")", StringComparison.Ordinal) &&
+        oreTickerBlock.Contains("script = ExtResource(\"20_resource_ticker\")", StringComparison.Ordinal) &&
+        woodTickerBlock.Contains("script = ExtResource(\"20_resource_ticker\")", StringComparison.Ordinal) &&
+        !foodNameBlock.Contains("script = ExtResource(\"20_resource_ticker\")", StringComparison.Ordinal) &&
+        !tickerSource.Contains("TextServer.OverrunBehavior.TrimEllipsis", StringComparison.Ordinal),
+        "strategic world resource ticker should animate only numeric amount controls, not resource-name labels");
+    AssertTrue(
+        uiBootstrapSource.Contains("private readonly Dictionary<string, WorldResourceTicker> _resourceAmountTickers", StringComparison.Ordinal) &&
+        refreshBody.Contains("_resourceAmountTickers.TryGetValue(resource.ResourceId, out WorldResourceTicker ticker)", StringComparison.Ordinal) &&
+        refreshBody.Contains("ticker.SetText(resource.Amount.ToString(), animate);", StringComparison.Ordinal) &&
         refreshBody.Contains("_lastResourceTickerSignature", StringComparison.Ordinal),
-        "strategic world refresh should bind resource totals through the rolling ticker and animate only resource amount changes");
+        "strategic world refresh should bind amount-only tickers and animate only resource amount changes");
     AssertTrue(
         !refreshBody.Contains("_resourceLabel.Text =", StringComparison.Ordinal),
         "strategic world resource totals should not bypass the rolling ticker by setting a raw Label directly");

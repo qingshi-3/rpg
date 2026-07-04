@@ -475,20 +475,29 @@ internal static void StrategicWorldTopBarControlsAreLayoutIndependent()
     string root = ProjectRoot();
     string scenePath = Path.Combine(root, "scenes", "world", "ui", "StrategicWorldHud.tscn");
     string scene = File.ReadAllText(scenePath);
+    string topLeftStatusBlock = ExtractSceneNodeBlock(scene, "[node name=\"TopLeftStatus\"");
     string controlsBlock = ExtractSceneNodeBlock(scene, "[node name=\"TopRightControls\"");
+    string bootstrapSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.UiBootstrap.cs"));
 
     AssertTrue(
         !scene.Contains("[node name=\"TopResourceRow\"", StringComparison.Ordinal) &&
         !scene.Contains("[node name=\"TopResourceBar\"", StringComparison.Ordinal),
         "top UI must not be a single resource bar or row; each top element should own its overlay placement");
     AssertTrue(
+        !scene.Contains("[node name=\"Title\" type=\"Label\" parent=\"TopBarHost/TopLeftStatus\"]", StringComparison.Ordinal) &&
+        !bootstrapSource.Contains("TopBarHost/TopLeftStatus/Title", StringComparison.Ordinal),
+        "top-left strategic HUD should not show the sandbox world title; it should only carry current-context status");
+    AssertTrue(
+        topLeftStatusBlock.Contains("type=\"PanelContainer\"", StringComparison.Ordinal) &&
+        topLeftStatusBlock.Contains("theme_type_variation = &\"WorldTopStatusPanel\"", StringComparison.Ordinal) &&
+        bootstrapSource.Contains("TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot/FoodAmountTicker", StringComparison.Ordinal),
+        "top-left resource status should be an independent window-backed overlay, not bare text on the world map");
+    AssertTrue(
         controlsBlock.Contains("parent=\"TopBarHost\"", StringComparison.Ordinal) &&
         controlsBlock.Contains("layout_mode = 1", StringComparison.Ordinal) &&
         controlsBlock.Contains("anchor_left = 1.0", StringComparison.Ordinal) &&
         controlsBlock.Contains("anchor_right = 1.0", StringComparison.Ordinal),
         "top-bar controls should be independently anchored to the right edge of TopBarHost");
-
-    string bootstrapSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.UiBootstrap.cs"));
     AssertTrue(
         bootstrapSource.Contains("TopBarHost/TopRightControls/PauseButton", StringComparison.Ordinal) &&
         bootstrapSource.Contains("TopBarHost/TopRightControls/QuickButton", StringComparison.Ordinal) &&
@@ -508,7 +517,9 @@ internal static void StrategicWorldHudUsesFullscreenOverlayContextLayout()
     string detailSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.DetailHud.cs"));
 
     AssertTrue(
-        scene.Contains("[node name=\"TopLeftStatus\" type=\"VBoxContainer\" parent=\"TopBarHost\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"TopLeftStatus\" type=\"PanelContainer\" parent=\"TopBarHost\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"ResourceStrip\" type=\"HBoxContainer\" parent=\"TopBarHost/TopLeftStatus/Margin\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"FoodAmountTicker\" type=\"Control\" parent=\"TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot\"]", StringComparison.Ordinal) &&
         scene.Contains("[node name=\"NoticeLabel\" type=\"Label\" parent=\"TopBarHost\"]", StringComparison.Ordinal) &&
         scene.Contains("[node name=\"WorldClockLabel\" type=\"Label\" parent=\"TopBarHost\"]", StringComparison.Ordinal) &&
         scene.Contains("[node name=\"TopRightControls\" type=\"HBoxContainer\" parent=\"TopBarHost\"]", StringComparison.Ordinal),

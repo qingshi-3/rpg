@@ -111,35 +111,53 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.05, 0.058, 0.052, 1)
 
-[node name="TopLeftStatus" type="VBoxContainer" parent="TopBarHost"]
+[node name="TopLeftStatus" type="PanelContainer" parent="TopBarHost"]
 z_index = 80
-custom_minimum_size = Vector2(360, 54)
+custom_minimum_size = Vector2(430, 42)
 layout_mode = 1
-offset_left = 20.0
-offset_top = 14.0
-offset_right = 380.0
-offset_bottom = 68.0
+offset_left = 12.0
+offset_top = 10.0
+offset_right = 442.0
+offset_bottom = 52.0
 mouse_filter = 2
-theme_override_constants/separation = 2
+theme_type_variation = &"WorldTopStatusPanel"
 
-[node name="Title" type="Label" parent="TopBarHost/TopLeftStatus"]
+[node name="Margin" type="MarginContainer" parent="TopBarHost/TopLeftStatus"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 8
+
+[node name="ResourceStrip" type="HBoxContainer" parent="TopBarHost/TopLeftStatus/Margin"]
+custom_minimum_size = Vector2(402, 24)
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 20
-text = "战略大世界"
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="FoodSlot" type="HBoxContainer" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip"]
+custom_minimum_size = Vector2(82, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="FoodNameLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "粮食"
 vertical_alignment = 1
-clip_text = true
 
-[node name="ResourceLabel" type="Control" parent="TopBarHost/TopLeftStatus"]
+[node name="FoodAmountTicker" type="Control" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot"]
 clip_contents = true
-custom_minimum_size = Vector2(360, 22)
+custom_minimum_size = Vector2(44, 24)
 layout_mode = 2
-size_flags_horizontal = 3
 mouse_filter = 2
 script = ExtResource("20_resource_ticker")
 
-[node name="CurrentLabel" type="Label" parent="TopBarHost/TopLeftStatus/ResourceLabel"]
+[node name="CurrentLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot/FoodAmountTicker"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -148,12 +166,11 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-text = "资金 0    粮食 0    木材 0    矿石 0"
+theme_override_font_sizes/font_size = 16
+text = "0"
 vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
 
-[node name="IncomingLabel" type="Label" parent="TopBarHost/TopLeftStatus/ResourceLabel"]
+[node name="IncomingLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot/FoodAmountTicker"]
 visible = false
 layout_mode = 1
 anchors_preset = 15
@@ -163,10 +180,153 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-text = "资金 0    粮食 0    木材 0    矿石 0"
+theme_override_font_sizes/font_size = 16
+text = "0"
 vertical_alignment = 1
-clip_text = true
-text_overrun_behavior = 3
+
+[node name="MoneySlot" type="HBoxContainer" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip"]
+custom_minimum_size = Vector2(82, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="MoneyNameLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/MoneySlot"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "资金"
+vertical_alignment = 1
+
+[node name="MoneyAmountTicker" type="Control" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/MoneySlot"]
+clip_contents = true
+custom_minimum_size = Vector2(44, 24)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("20_resource_ticker")
+
+[node name="CurrentLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/MoneySlot/MoneyAmountTicker"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "0"
+vertical_alignment = 1
+
+[node name="IncomingLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/MoneySlot/MoneyAmountTicker"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "0"
+vertical_alignment = 1
+
+[node name="OreSlot" type="HBoxContainer" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip"]
+custom_minimum_size = Vector2(82, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="OreNameLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/OreSlot"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "矿石"
+vertical_alignment = 1
+
+[node name="OreAmountTicker" type="Control" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/OreSlot"]
+clip_contents = true
+custom_minimum_size = Vector2(44, 24)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("20_resource_ticker")
+
+[node name="CurrentLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/OreSlot/OreAmountTicker"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "0"
+vertical_alignment = 1
+
+[node name="IncomingLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/OreSlot/OreAmountTicker"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "0"
+vertical_alignment = 1
+
+[node name="WoodSlot" type="HBoxContainer" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip"]
+custom_minimum_size = Vector2(82, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="WoodNameLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/WoodSlot"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "木材"
+vertical_alignment = 1
+
+[node name="WoodAmountTicker" type="Control" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/WoodSlot"]
+clip_contents = true
+custom_minimum_size = Vector2(44, 24)
+layout_mode = 2
+mouse_filter = 2
+script = ExtResource("20_resource_ticker")
+
+[node name="CurrentLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/WoodSlot/WoodAmountTicker"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "0"
+vertical_alignment = 1
+
+[node name="IncomingLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/WoodSlot/WoodAmountTicker"]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "0"
+vertical_alignment = 1
 
 [node name="NoticeLabel" type="Label" parent="TopBarHost"]
 z_index = 80

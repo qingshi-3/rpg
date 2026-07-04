@@ -15,7 +15,7 @@ namespace Rpg.Presentation.World;
 
 public partial class StrategicWorldRoot
 {
-    private WorldResourceTicker _resourceTicker;
+    private readonly Dictionary<string, WorldResourceTicker> _resourceAmountTickers = new(System.StringComparer.Ordinal);
     private string _lastResourceTickerSignature = "";
 
     private void BuildUi()
@@ -107,19 +107,23 @@ public partial class StrategicWorldRoot
             "ModalHost",
             nameof(StrategicWorldRoot));
         BindWorldResourceFloatOverlay(hud);
-        Label title = GameUiSceneFactory.GetRequiredNode<Label>(
+        _resourceAmountTickers.Clear();
+        BindResourceAmountTicker(
             hud,
-            "TopBarHost/TopLeftStatus/Title",
-            nameof(StrategicWorldRoot));
-        if (title != null)
-        {
-            title.Text = Definition.DisplayName;
-        }
-
-        _resourceTicker = GameUiSceneFactory.GetRequiredNode<WorldResourceTicker>(
+            StrategicManagementIds.ResourceFood,
+            "TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot/FoodAmountTicker");
+        BindResourceAmountTicker(
             hud,
-            "TopBarHost/TopLeftStatus/ResourceLabel",
-            nameof(StrategicWorldRoot));
+            StrategicManagementIds.ResourceMoney,
+            "TopBarHost/TopLeftStatus/Margin/ResourceStrip/MoneySlot/MoneyAmountTicker");
+        BindResourceAmountTicker(
+            hud,
+            StrategicManagementIds.ResourceOre,
+            "TopBarHost/TopLeftStatus/Margin/ResourceStrip/OreSlot/OreAmountTicker");
+        BindResourceAmountTicker(
+            hud,
+            StrategicManagementIds.ResourceWood,
+            "TopBarHost/TopLeftStatus/Margin/ResourceStrip/WoodSlot/WoodAmountTicker");
         _worldClockLabel = GameUiSceneFactory.GetRequiredNode<Label>(
             hud,
             "TopBarHost/WorldClockLabel",
@@ -213,6 +217,18 @@ public partial class StrategicWorldRoot
         }
     }
 
+    private void BindResourceAmountTicker(Control hud, string resourceId, string nodePath)
+    {
+        WorldResourceTicker ticker = GameUiSceneFactory.GetRequiredNode<WorldResourceTicker>(
+            hud,
+            nodePath,
+            nameof(StrategicWorldRoot));
+        if (ticker != null)
+        {
+            _resourceAmountTickers[resourceId] = ticker;
+        }
+    }
+
     private void ResetWorld()
     {
         StrategicWorldRuntime.Reset();
@@ -244,18 +260,18 @@ public partial class StrategicWorldRoot
         StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
             StrategicManagementIds.FactionPlayer,
             StrategicManagementIds.LocationPlainsCity);
-        string resources = string.Join(
-            "    ",
-            dashboard.Resources.Select(resource => $"{resource.DisplayName} {resource.Amount}"));
         string signature = string.Join(
             "|",
             dashboard.Resources.Select(resource => $"{resource.ResourceId}:{resource.Amount}"));
         bool animate = !string.IsNullOrWhiteSpace(_lastResourceTickerSignature) &&
                        !string.Equals(signature, _lastResourceTickerSignature, System.StringComparison.Ordinal);
         _lastResourceTickerSignature = signature;
-        if (_resourceTicker != null)
+        foreach (StrategicResourceViewModel resource in dashboard.Resources)
         {
-            _resourceTicker.SetText($"{resources}    大地图结算 {State.WorldTick}", animate);
+            if (_resourceAmountTickers.TryGetValue(resource.ResourceId, out WorldResourceTicker ticker))
+            {
+                ticker.SetText(resource.Amount.ToString(), animate);
+            }
         }
     }
 

@@ -38,6 +38,7 @@ public partial class BattleUnitRoot : Node2D
     private readonly Dictionary<BattleEntity, BattleActionCue> _actionCues = new();
     private readonly HashSet<BattleEntity> _commandSelectedEntities = new();
     private readonly HashSet<BattleEntity> _attackTargetPreviewedEntities = new();
+    private readonly HashSet<BattleEntity> _hoverPreviewedEntities = new();
     private readonly HashSet<BattleEntity> _defeatedEntities = new();
     private readonly HashSet<BattleEntity> _pendingDefeatedPresentations = new();
     private readonly List<TaskCompletionSource<bool>> _defeatedPresentationWaiters = new();
@@ -62,6 +63,7 @@ public partial class BattleUnitRoot : Node2D
     {
         ClearMovementPresentationState();
         ClearAllActionCues();
+        ClearHoverPreview();
         ClearCommandSelection();
         ClearAttackTargetPreview();
         _hitFeedbackPresenter?.ClearHitOutlines();
@@ -387,18 +389,21 @@ public partial class BattleUnitRoot : Node2D
         GameLog.Info(nameof(BattleUnitRoot), $"Active unit animations set to idle count={count}");
     }
 
-    public int SetCommandSelectionByEntityIds(ISet<string> entityIds)
+    public int SetCommandSelectionByEntityIds(ISet<string> entityIds, ISet<string> spotlightEntityIds = null)
     {
         HashSet<string> selectedIds = entityIds == null
             ? new HashSet<string>(System.StringComparer.Ordinal)
             : new HashSet<string>(entityIds.Where(id => !string.IsNullOrWhiteSpace(id)), System.StringComparer.Ordinal);
+        HashSet<string> selectedSpotlightEntityIds = spotlightEntityIds == null
+            ? new HashSet<string>(selectedIds, System.StringComparer.Ordinal)
+            : new HashSet<string>(spotlightEntityIds.Where(id => !string.IsNullOrWhiteSpace(id)), System.StringComparer.Ordinal);
         BattleEntity[] nextSelection = GetEntitiesSnapshot()
             .Where(entity =>
                 entity != null &&
                 GodotObject.IsInstanceValid(entity) &&
                 selectedIds.Contains(entity.EntityId ?? ""))
             .ToArray();
-        SetCommandSelection(nextSelection);
+        SetCommandSelection(nextSelection, selectedSpotlightEntityIds);
         return nextSelection.Length;
     }
 
@@ -430,6 +435,48 @@ public partial class BattleUnitRoot : Node2D
         SetAttackTargetPreview(System.Array.Empty<BattleEntity>());
     }
 
+    public int SetHoverPreviewByEntityId(string entityId)
+    {
+        if (string.IsNullOrWhiteSpace(entityId))
+        {
+            ClearHoverPreview();
+            return 0;
+        }
+
+        BattleEntity[] nextPreview = GetEntitiesSnapshot()
+            .Where(entity => entity != null &&
+                             !BattleRuleQueries.IsDefeated(entity) &&
+                             string.Equals(entity.EntityId ?? "", entityId, System.StringComparison.Ordinal))
+            .Take(1)
+            .ToArray();
+        SetHoverPreview(nextPreview);
+        return nextPreview.Length;
+    }
+
+    public void ClearHoverPreview()
+    {
+        SetHoverPreview(System.Array.Empty<BattleEntity>());
+    }
+
+    private void SetHoverPreview(IReadOnlyList<BattleEntity> nextPreview)
+    {
+        HashSet<BattleEntity> next = (nextPreview ?? System.Array.Empty<BattleEntity>())
+            .Where(entity => entity != null && GodotObject.IsInstanceValid(entity))
+            .ToHashSet();
+
+        foreach (BattleEntity entity in _hoverPreviewedEntities.Where(entity => !next.Contains(entity)).ToArray())
+        {
+            entity.GetComponent<BattleUnitPresentationComponent>()?.SetHoverVisible(false);
+            _hoverPreviewedEntities.Remove(entity);
+        }
+
+        foreach (BattleEntity entity in next)
+        {
+            entity.GetComponent<BattleUnitPresentationComponent>()?.SetHoverVisible(true);
+            _hoverPreviewedEntities.Add(entity);
+        }
+    }
+
     private void SetAttackTargetPreview(IReadOnlyList<BattleEntity> nextPreview)
     {
         HashSet<BattleEntity> next = (nextPreview ?? System.Array.Empty<BattleEntity>())
@@ -449,7 +496,7 @@ public partial class BattleUnitRoot : Node2D
         }
     }
 
-    private void SetCommandSelection(IReadOnlyList<BattleEntity> nextSelection)
+    private void SetCommandSelection(IReadOnlyList<BattleEntity> nextSelection, ISet<string> spotlightEntityIds = null)
     {
         HashSet<BattleEntity> next = (nextSelection ?? System.Array.Empty<BattleEntity>())
             .Where(entity => entity != null && GodotObject.IsInstanceValid(entity))
@@ -463,7 +510,8 @@ public partial class BattleUnitRoot : Node2D
 
         foreach (BattleEntity entity in next)
         {
-            entity.GetComponent<BattleUnitPresentationComponent>()?.SetSelected(true);
+            bool spotlightSelected = spotlightEntityIds == null || spotlightEntityIds.Contains(entity.EntityId ?? "");
+            entity.GetComponent<BattleUnitPresentationComponent>()?.SetSelected(true, spotlightSelected: spotlightSelected);
             _commandSelectedEntities.Add(entity);
         }
     }
@@ -493,6 +541,10 @@ public partial class BattleUnitRoot : Node2D
         }
 
         SetIntentMarker(entity, null);
+        if (_hoverPreviewedEntities.Remove(entity))
+        {
+            entity.GetComponent<BattleUnitPresentationComponent>()?.SetHoverVisible(false);
+        }
 
         GridOccupantComponent gridOccupant = entity.GetComponent<GridOccupantComponent>();
         if (gridOccupant != null)

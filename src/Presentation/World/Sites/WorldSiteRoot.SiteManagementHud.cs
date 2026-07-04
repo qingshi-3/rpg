@@ -61,6 +61,9 @@ public partial class WorldSiteRoot
         _siteBottomCommandHost = hudRefs.BottomCommandHost;
         _siteMinimapHost = hudRefs.MinimapHost;
         _siteModalHost = hudRefs.ModalHost;
+        _battleRuntimeSummaryBar = hudRefs.BattleRuntimeSummaryBar;
+        _battleRuntimeSummaryList = hudRefs.BattleRuntimeSummaryList;
+        _battleRuntimeSummaryPresenter = new BattleRuntimeHeroTroopSummaryPresenter(_battleRuntimeSummaryList);
         _battleRuntimeCommandBar = hudRefs.BattleRuntimeCommandBar;
         _battleRuntimeHeroFrame = hudRefs.BattleRuntimeHeroFrame;
         _battleRuntimeHeroSelectorPresenter = new BattleRuntimeHeroSelectorPresenter(hudRefs.BattleRuntimeHeroSelectorList, SelectBattleRuntimeCommandGroup);
@@ -656,6 +659,7 @@ public partial class WorldSiteRoot
             _battleRuntimeRequest = null;
             _activeBattleGroupRuntimeResolution = null;
             ClearBattleMovementTweenProbe();
+            SetHoveredBattleRuntimeEntity("");
             _unitRoot?.ClearCommandSelection();
             ClearBattlePerceptionOverlay();
             RefreshBattleRuntimeHeroFrame();
@@ -664,6 +668,11 @@ public partial class WorldSiteRoot
             if (_siteBottomCommandHost != null)
             {
                 _siteBottomCommandHost.Visible = false;
+            }
+
+            if (_battleRuntimeSummaryBar != null)
+            {
+                _battleRuntimeSummaryBar.Visible = false;
             }
 
             if (_battleRuntimeCommandBar != null)
@@ -991,6 +1000,11 @@ public partial class WorldSiteRoot
         if (_siteBottomCommandHost != null)
         {
             _siteBottomCommandHost.Visible = false;
+        }
+
+        if (_battleRuntimeSummaryBar != null)
+        {
+            _battleRuntimeSummaryBar.Visible = false;
         }
 
         if (_battleRuntimeCommandBar != null)

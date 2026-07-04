@@ -10,6 +10,7 @@ Use this directory only after the relevant accepted authority is current. If imp
 
 | Proposal | Status | Reason Kept Active |
 |---|---|---|
+| `2026-07-05-resource-directory-migration.md` | In Progress - Batch 0 Complete, No Resource Moves Yet | Staged migration plan for moving Godot-authored resources from mixed `assets/` storage into `resource/` without breaking scene/config/code references. |
 | `2026-06-19-site-map-layout-first-city.md` | Paused - Scaffold Verified, Detailed Authoring Deferred | Keeps the SMLA-001 city-map scaffold and bridge marker contract, but defers detailed TileMapLayer/map-content authoring until the operational loop is validated on `DemoSite`. |
 
 ## Archived Implementation Proposals

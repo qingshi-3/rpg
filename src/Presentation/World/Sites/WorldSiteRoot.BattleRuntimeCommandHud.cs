@@ -86,8 +86,14 @@ public partial class WorldSiteRoot
     {
         if (!_battleRuntimeCommandPauseActive)
         {
-            if (_siteBottomCommandHost != null) { _siteBottomCommandHost.Visible = false; }
+            bool showRuntimeSummary = IsBattleRuntimeHudActive();
+            if (_siteBottomCommandHost != null) { _siteBottomCommandHost.Visible = showRuntimeSummary; }
+            if (_battleRuntimeSummaryBar != null) { _battleRuntimeSummaryBar.Visible = showRuntimeSummary; }
             if (_battleRuntimeCommandBar != null) { _battleRuntimeCommandBar.Visible = false; }
+            if (showRuntimeSummary)
+            {
+                RefreshBattleRuntimeHeroFrame();
+            }
             UpdateMainWorldViewportLayout("battle_runtime_command_resume");
             return;
         }
@@ -103,6 +109,10 @@ public partial class WorldSiteRoot
         if (_siteBottomCommandHost != null)
         {
             _siteBottomCommandHost.Visible = true;
+        }
+        if (_battleRuntimeSummaryBar != null)
+        {
+            _battleRuntimeSummaryBar.Visible = true;
         }
         if (_battleRuntimeCommandBar != null)
         {
@@ -142,14 +152,22 @@ public partial class WorldSiteRoot
             return;
         }
         HashSet<string> entityIds = BuildBattleRuntimeCommandGroupEntityIds(selected);
-        int highlighted = _unitRoot == null ? 0 : _unitRoot.SetCommandSelectionByEntityIds(entityIds);
+        HashSet<string> spotlightEntityIds = BuildBattleRuntimeCommandGroupSpotlightEntityIds(selected);
+        int highlighted = _unitRoot == null ? 0 : _unitRoot.SetCommandSelectionByEntityIds(entityIds, spotlightEntityIds);
         GameLog.Info(
             nameof(WorldSiteRoot),
-            $"BattleRuntimeCommandGroupHighlighted group={selected.GroupKey} entities={highlighted}");
+            $"BattleRuntimeCommandGroupHighlighted group={selected.GroupKey} entities={highlighted} spotlights={spotlightEntityIds.Count}");
     }
     private static HashSet<string> BuildBattleRuntimeCommandGroupEntityIds(BattleRuntimeCommandGroupView selected)
     {
         return BattleRuntimeHeroSkillTargetPresentation.BuildGroupEntityIds(selected?.Forces);
+    }
+    private HashSet<string> BuildBattleRuntimeCommandGroupSpotlightEntityIds(BattleRuntimeCommandGroupView selected)
+    {
+        BattleEntity source = BuildBattleRuntimeHeroSkillSourceEntity(selected);
+        return string.IsNullOrWhiteSpace(source?.EntityId)
+            ? new HashSet<string>(System.StringComparer.Ordinal)
+            : new HashSet<string>(System.StringComparer.Ordinal) { source.EntityId };
     }
     private void RefreshBattleRuntimeHeroFrame()
     {
@@ -175,6 +193,12 @@ public partial class WorldSiteRoot
             skills,
             group => HasReadyBattleRuntimeSkill(group, hasRuntime),
             skillDefinitionId => ResolveSelectedHeroSkillUsageState(selected, skillDefinitionId));
+        if (_battleRuntimeSummaryPresenter != null)
+        {
+            _battleRuntimeSummaryPresenter.Refresh(
+                BuildBattleRuntimeHeroTroopSummaries(),
+                selected?.GroupKey ?? _selectedBattleRuntimeGroupKey);
+        }
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattleRuntimeHeroFrameRefreshed group={selected?.GroupKey ?? ""} runtimeSkills={runtimeSkillCount} filteredSkills={skills.Count} readySkills={readySkillCount} skillReady={hasReadySkill}");
@@ -378,7 +402,8 @@ public partial class WorldSiteRoot
         {
             return false;
         }
-        if (BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeCommandBar, mouseButton.Position))
+        if (BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeCommandBar, mouseButton.Position) ||
+            BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeSummaryBar, mouseButton.Position))
         {
             return false;
         }
@@ -667,6 +692,15 @@ public partial class WorldSiteRoot
         }
         return BattleRuntimeCommandHudModel.BuildPlayerGroups(request, _battleUnitFactory.ResolveUnitDisplayName);
     }
+
+    private IReadOnlyList<BattleRuntimeHeroTroopSummaryView> BuildBattleRuntimeHeroTroopSummaries()
+    {
+        return BattleRuntimeHeroTroopSummaryModel.Build(
+            BuildBattleRuntimePlayerGroups(),
+            _activeBattleGroupRuntimeResolution?.RuntimeController?.State,
+            BuildBattleRuntimeHeroSkillSourceEntity);
+    }
+
     private BattleRuntimeCommandGroupView ResolveSelectedBattleRuntimeGroup()
     {
         IReadOnlyList<BattleRuntimeCommandGroupView> groups = BuildBattleRuntimePlayerGroups();

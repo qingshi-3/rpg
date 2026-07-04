@@ -82,6 +82,7 @@ internal static void GodotTextResourcesDoNotUseUtf8Bom()
     string[] searchRoots =
     {
         Path.Combine(root, "assets"),
+        Path.Combine(root, "resource"),
         Path.Combine(root, "scenes")
     };
     string[] extensions = { ".tscn", ".tres", ".gdshader" };

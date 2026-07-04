@@ -84,6 +84,11 @@ public partial class WorldSiteRoot
             _siteBottomCommandHost.Visible = false;
         }
 
+        if (_battleRuntimeSummaryBar != null)
+        {
+            _battleRuntimeSummaryBar.Visible = false;
+        }
+
         if (_battleRuntimeCommandBar != null)
         {
             _battleRuntimeCommandBar.Visible = false;

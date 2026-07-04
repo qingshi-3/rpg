@@ -89,6 +89,9 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Control _sitePeacetimePanel;
 	private Control _siteModalHost;
 	private Control _siteBottomCommandHost;
+	private Control _battleRuntimeSummaryBar;
+	private HBoxContainer _battleRuntimeSummaryList;
+	private BattleRuntimeHeroTroopSummaryPresenter _battleRuntimeSummaryPresenter;
 	private Control _battleRuntimeCommandBar;
 	private Control _battleRuntimeHeroFrame;
 	private Node2D _sitePlacementEntityRoot;
@@ -173,6 +176,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private string _selectedMilitaryWorkbenchHeroId = "";
 	private BattleCorpsCommand _selectedBattleCorpsCommand = BattleCorpsCommand.Assault;
 	private string _selectedBattleRuntimeGroupKey = "";
+	private string _hoveredBattleRuntimeEntityId = "";
 	private SiteManagementSection _selectedSiteManagementSection = SiteManagementSection.Build;
 	private bool _battleRuntimeHeroSkillTargetPickingActive;
 	private BattleRuntimeCommandGroupView _battleRuntimeHeroSkillTargetPickingGroup;

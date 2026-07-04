@@ -14,6 +14,7 @@ public partial class BattleGridHighlightOverlay
     {
         if (!HoverEnabled || _battleMapView == null || _gridMap == null || _coordinateLayer == null)
         {
+            SetHoveredEntity(null);
             if (!_hoverOverrideActive)
             {
                 SetAutoHoverCell(null);
@@ -24,6 +25,7 @@ public partial class BattleGridHighlightOverlay
 
         if (_hoverOverrideActive)
         {
+            SetHoveredEntity(null);
             return;
         }
 
@@ -31,12 +33,14 @@ public partial class BattleGridHighlightOverlay
         Vector2I tilePosition = _coordinateLayer.LocalToMap(_coordinateLayer.ToLocal(mouseGlobal));
         var position = new GridPosition(tilePosition.X, tilePosition.Y);
 
-        if (TryResolveHoveredEntityFootprint(position, out IReadOnlyList<GridPosition> footprintCells))
+        if (TryResolveHoveredEntityFootprint(position, out IReadOnlyList<GridPosition> footprintCells, out BattleEntity entity))
         {
+            SetHoveredEntity(entity);
             SetHoverCells(footprintCells, overrideActive: false);
             return;
         }
 
+        SetHoveredEntity(null);
         SetAutoHoverCell(_gridMap.TryGetCell(position, out _) ? position : null);
     }
 
@@ -62,10 +66,13 @@ public partial class BattleGridHighlightOverlay
             overrideActive: false);
     }
 
-    private bool TryResolveHoveredEntityFootprint(GridPosition position, out IReadOnlyList<GridPosition> footprintCells)
+    private bool TryResolveHoveredEntityFootprint(
+        GridPosition position,
+        out IReadOnlyList<GridPosition> footprintCells,
+        out BattleEntity entity)
     {
         footprintCells = System.Array.Empty<GridPosition>();
-        BattleEntity entity = _siteRoot?.FindEntityAt(position);
+        entity = _siteRoot?.FindEntityAt(position);
         GridOccupantComponent gridOccupant = entity?.GetComponent<GridOccupantComponent>();
         if (gridOccupant == null)
         {
@@ -77,6 +84,11 @@ public partial class BattleGridHighlightOverlay
             gridOccupant.FootprintWidth,
             gridOccupant.FootprintHeight);
         return footprintCells.Count > 0;
+    }
+
+    private void SetHoveredEntity(BattleEntity entity)
+    {
+        _siteRoot?.SetHoveredBattleRuntimeEntity(entity?.EntityId ?? "");
     }
 
     private void SetHoverCells(IEnumerable<GridPosition> cells, bool overrideActive)

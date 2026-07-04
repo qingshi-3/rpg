@@ -22,23 +22,11 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
     [Export]
     public bool HideWhenFullHp { get; set; } = true;
 
-    [Export(PropertyHint.Range, "0.2,4,0.05")]
-    public double DamagedVisibleSeconds { get; set; } = 2.4;
-
-    [Export(PropertyHint.Range, "0,1,0.05")]
-    public float LowHpVisibleRatio { get; set; } = 0.35f;
-
-    [Export(PropertyHint.Range, "0.05,1,0.05")]
-    public double RevealFadeSeconds { get; set; } = 0.25;
-
     [Export(PropertyHint.Range, "0.1,1,0.05")]
-    public float HighHpAlpha { get; set; } = 0.45f;
+    public float AttentionAlpha { get; set; } = 0.96f;
 
-    [Export(PropertyHint.Range, "0.1,1,0.05")]
-    public float LowHpAlpha { get; set; } = 1f;
-
-    // Muted defaults keep the HP state readable without pulling attention away
-    // from small unit sprites; exported values remain available for per-unit tuning.
+    // Head bars are short-lived attention hints. Persistent battle readability lives
+    // in the runtime HUD so damaged units do not permanently add world-space noise.
     [Export]
     public Color BorderColor { get; set; } = new(0.018f, 0.02f, 0.018f, 0.78f);
 
@@ -61,8 +49,8 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
     private ColorRect _track;
     private ColorRect _fill;
     private int _lastHp = -1;
-    private double _damageRevealSecondsRemaining;
     private bool _attentionVisible;
+    private bool _hoverVisible;
 
     protected override void OnAttached()
     {
@@ -70,23 +58,6 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
         BindHealth();
         SetProcess(false);
         Refresh();
-    }
-
-    public override void _Process(double delta)
-    {
-        if (_damageRevealSecondsRemaining <= 0)
-        {
-            SetProcess(false);
-            Refresh();
-            return;
-        }
-
-        _damageRevealSecondsRemaining = System.Math.Max(0, _damageRevealSecondsRemaining - delta);
-        Refresh();
-        if (_damageRevealSecondsRemaining <= 0)
-        {
-            SetProcess(false);
-        }
     }
 
     public override void _ExitTree()
@@ -115,12 +86,23 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
         Refresh();
     }
 
+    public void SetHoverVisible(bool visible)
+    {
+        if (_hoverVisible == visible)
+        {
+            return;
+        }
+
+        _hoverVisible = visible;
+        Refresh();
+    }
+
     public void HideImmediately()
     {
         // Defeated units keep their sprite alive for the death cue, but HP UI
         // belongs to live/targetable state and must disappear before that cue.
-        _damageRevealSecondsRemaining = 0;
         _attentionVisible = false;
+        _hoverVisible = false;
         SetProcess(false);
         if (_root != null)
         {
@@ -198,12 +180,6 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
     {
         if (_health != null)
         {
-            if (_lastHp >= 0 && _health.Hp < _lastHp && !_health.IsDead)
-            {
-                _damageRevealSecondsRemaining = System.Math.Max(0, DamagedVisibleSeconds);
-                SetProcess(_damageRevealSecondsRemaining > 0);
-            }
-
             _lastHp = _health.Hp;
         }
 
@@ -226,7 +202,7 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
         // Defeat is emitted after HealthChanged, so hiding here removes the HP bar
         // on the zero-HP frame before BattleUnitRoot starts the death animation.
         _root.Visible = ShouldShowHealthBar(maxHp, ratio);
-        _root.Modulate = new Color(1f, 1f, 1f, ResolveVisibilityAlpha(ratio));
+        _root.Modulate = new Color(1f, 1f, 1f, ResolveVisibilityAlpha());
         _fill.Position = new Vector2(1f, 1f);
         _fill.Size = new Vector2(Mathf.Max(0f, innerSize.X * ratio), innerSize.Y);
         _fill.Color = ResolveFillColor(ratio);
@@ -250,58 +226,22 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
             return false;
         }
 
+        if (!_attentionVisible && !_hoverVisible)
+        {
+            return false;
+        }
+
         if (HideWhenFullHp && ratio >= 0.999f)
         {
             return false;
         }
 
-        if (ratio <= Mathf.Clamp(LowHpVisibleRatio, 0f, 1f))
-        {
-            return true;
-        }
-
-        if (_attentionVisible)
-        {
-            return true;
-        }
-
-        return _damageRevealSecondsRemaining > 0;
+        return true;
     }
 
-    private float ResolveVisibilityAlpha(float ratio)
+    private float ResolveVisibilityAlpha()
     {
-        float hpAlpha = ResolveHpAlpha(ratio);
-        if (ratio <= Mathf.Clamp(LowHpVisibleRatio, 0f, 1f))
-        {
-            return hpAlpha;
-        }
-
-        if (_attentionVisible)
-        {
-            return hpAlpha;
-        }
-
-        double fadeSeconds = System.Math.Max(0.01, RevealFadeSeconds);
-        if (_damageRevealSecondsRemaining >= fadeSeconds)
-        {
-            return hpAlpha;
-        }
-
-        return hpAlpha * Mathf.Clamp((float)(_damageRevealSecondsRemaining / fadeSeconds), 0f, 1f);
-    }
-
-    private float ResolveHpAlpha(float ratio)
-    {
-        float lowThreshold = Mathf.Clamp(LowHpVisibleRatio, 0f, 0.99f);
-        float lowAlpha = Mathf.Clamp(LowHpAlpha, 0f, 1f);
-        float highAlpha = Mathf.Clamp(HighHpAlpha, 0f, lowAlpha);
-        if (ratio <= lowThreshold)
-        {
-            return lowAlpha;
-        }
-
-        float t = Mathf.Clamp((ratio - lowThreshold) / (1f - lowThreshold), 0f, 1f);
-        return Mathf.Lerp(lowAlpha, highAlpha, t);
+        return Mathf.Clamp(AttentionAlpha, 0f, 1f);
     }
 
     private Vector2 ResolveInnerBarSize()

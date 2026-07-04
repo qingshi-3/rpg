@@ -22,8 +22,8 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
     public NodePath SelectionSpotlightPath { get; set; } = "SelectionSpotlight";
 
     [Export]
-    // The normal outline is softened so it separates sprites without overpowering authored internal ink.
-    public Color BaseOutlineColor { get; set; } = new(0.03f, 0.03f, 0.03f, 0.78f);
+    // Normal outlines stay opaque black so exterior ink cannot blend into a bright grey edge over light terrain.
+    public Color BaseOutlineColor { get; set; } = new(0f, 0f, 0f, 1f);
 
     [Export(PropertyHint.Range, "0,3,0.25")]
     public float BaseOutlineWidth { get; set; } = 1.0f;
@@ -71,6 +71,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
     private ShaderMaterial _unitBodyOutlineMaterial;
     private BattleFaction _faction = BattleFaction.Neutral;
     private bool _selected;
+    private bool _selectionSpotlightSelected;
     private bool _hitOutlined;
     private bool _targetPreviewed;
     private bool _previewFocused;
@@ -89,13 +90,20 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
 
     public void SetSelected(bool selected)
     {
-        if (_selected == selected)
+        SetSelected(selected, selected);
+    }
+
+    public void SetSelected(bool selected, bool spotlightSelected)
+    {
+        spotlightSelected = selected && spotlightSelected;
+        if (_selected == selected && _selectionSpotlightSelected == spotlightSelected)
         {
             return;
         }
 
         _selected = selected;
-        _selectionSpotlight?.SetSelected(selected);
+        _selectionSpotlightSelected = spotlightSelected;
+        _selectionSpotlight?.SetSelected(_selectionSpotlightSelected);
         ApplyUnitBodyOutline();
         ApplyPresentationZIndex();
         ApplyHealthBarAttention();
@@ -175,6 +183,11 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
         ApplyHealthBarAttention();
     }
 
+    public void SetHoverVisible(bool hovered)
+    {
+        _healthBar?.SetHoverVisible(hovered);
+    }
+
     public void SetMapSortZIndex(int zIndex, bool suppressRaise)
     {
         CaptureOriginalZIndex();
@@ -193,7 +206,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
             Entity.GetComponent<BattleUnitHealthBarComponent>() ??
             Entity.GetNodeOrNull<BattleUnitHealthBarComponent>("BattleUnitHealthBarComponent");
         _affiliationMarker?.SetFaction(_faction);
-        _selectionSpotlight?.SetSelected(_selected);
+        _selectionSpotlight?.SetSelected(_selectionSpotlightSelected);
         EnsureUnitBodyOutlineMaterial();
         ApplyUnitBodyOutline();
         ApplyPresentationZIndex();

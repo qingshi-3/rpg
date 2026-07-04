@@ -77,7 +77,7 @@ Adding a specific skill, equipment effect, or corps trait should usually require
 
 Repository-level gameplay configuration indexes live under `config/`. These files may reference resource ids and resource paths, but they do not contain Godot-authored resources, imported art, scenes, themes, shaders, or SpriteFrames.
 
-`config/` owns stable content indexes and mappings such as first-slice battle-group bindings, default corps attachments, battle unit resource path indexes, and strategic initial roster data. Repository directory ownership follows `system-design/resource-authoring-taxonomy.md`: `resource/` owns Godot-authored definitions such as `BattleUnitDefinition`, battle skill resources, behavior trees, themes, shaders, and tilesets; `assets/` owns raw imported media and source-like asset packages. `frames.tres` remains a temporary visual-content pipeline exception and may stay beside its source PNG/PLIST files under `assets/` until a later accepted migration changes that workflow.
+`config/` owns stable content indexes and mappings such as first-slice battle-group bindings, default corps attachments, battle unit resource path indexes, and strategic initial roster data. `assets/` owns the actual Godot resources such as `BattleUnitDefinition`, visuals, audio, animation sets, ability effects, and imported art.
 
 Application code may load `config/` indexes to assemble strategic definitions or locate authored resources. Presentation may consume a config-backed resource path index before falling back to broad asset discovery for legacy library content. Runtime must still consume snapshots and ids, not config files or Godot resources directly.
 

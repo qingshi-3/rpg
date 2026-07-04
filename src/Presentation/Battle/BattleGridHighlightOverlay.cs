@@ -222,6 +222,7 @@ public partial class BattleGridHighlightOverlay : Node2D
 
     public override void _ExitTree()
     {
+        _siteRoot?.SetHoveredBattleRuntimeEntity("");
         if (_siteRoot != null)
         {
             _siteRoot.SiteMapLoaded -= OnSiteMapLoaded;

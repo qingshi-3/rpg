@@ -9,6 +9,8 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
     internal Control BottomCommandHost { get; private init; }
     internal Control MinimapHost { get; private init; }
     internal Control ModalHost { get; private init; }
+    internal Control BattleRuntimeSummaryBar { get; private init; }
+    internal HBoxContainer BattleRuntimeSummaryList { get; private init; }
     internal Control BattleRuntimeCommandBar { get; private init; }
     internal Control BattleRuntimeHeroFrame { get; private init; }
     internal HBoxContainer BattleRuntimeHeroSelectorList { get; private init; }
@@ -70,6 +72,8 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
             BottomCommandHost = Get<Control>(root, "BottomCommandHost", ownerName),
             MinimapHost = Get<Control>(root, "MinimapHost", ownerName),
             ModalHost = Get<Control>(root, "ModalHost", ownerName),
+            BattleRuntimeSummaryBar = Get<Control>(root, "BottomCommandHost/BattleRuntimeSummaryBar", ownerName),
+            BattleRuntimeSummaryList = Get<HBoxContainer>(root, "BottomCommandHost/BattleRuntimeSummaryBar/SummaryMargin/BattleRuntimeSummaryScroll/BattleRuntimeSummaryList", ownerName),
             BattleRuntimeCommandBar = Get<Control>(root, "BottomCommandHost/BattleRuntimeCommandBar", ownerName),
             BattleRuntimeHeroFrame = Get<Control>(root, "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame", ownerName),
             BattleRuntimeHeroSelectorList = Get<HBoxContainer>(root, "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroSelectorList", ownerName),

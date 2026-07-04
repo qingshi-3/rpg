@@ -566,7 +566,9 @@ internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
         "strategic-world and site HUD scenes should expose stable layout host names.");
 
     AssertTrue(
-        tacticalWorldHudSource.Contains("node name=\"TopLeftStatus\" type=\"VBoxContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("node name=\"TopLeftStatus\" type=\"PanelContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("node name=\"ResourceStrip\" type=\"HBoxContainer\" parent=\"TopBarHost/TopLeftStatus/Margin\"", StringComparison.Ordinal) &&
+        tacticalWorldHudSource.Contains("node name=\"FoodAmountTicker\" type=\"Control\" parent=\"TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot\"", StringComparison.Ordinal) &&
         tacticalWorldHudSource.Contains("node name=\"SiteDetailPanel\" type=\"PanelContainer\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
         !peacetimeHudSource.Contains("node name=\"SiteTopBar\"", StringComparison.Ordinal) &&
         peacetimeHudSource.Contains("node name=\"SitePeacetimePanel\" type=\"PanelContainer\" parent=\"LeftPrimaryPanelHost\"", StringComparison.Ordinal) &&
@@ -633,7 +635,9 @@ internal static void PresentationUiScenePathsPreserveCodeBindings()
 
     AssertTrue(
         strategicHud.Contains("node name=\"Margin\" type=\"MarginContainer\" parent=\"OverlayHost/SiteDetailPanel\"", StringComparison.Ordinal) &&
-        strategicHud.Contains("node name=\"TopLeftStatus\" type=\"VBoxContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal),
+        strategicHud.Contains("node name=\"TopLeftStatus\" type=\"PanelContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal) &&
+        strategicHud.Contains("node name=\"ResourceStrip\" type=\"HBoxContainer\" parent=\"TopBarHost/TopLeftStatus/Margin\"", StringComparison.Ordinal) &&
+        strategicHud.Contains("node name=\"FoodAmountTicker\" type=\"Control\" parent=\"TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot\"", StringComparison.Ordinal),
         "strategic HUD overlay panels must keep full parent paths so code-bound labels/lists remain reachable.");
     AssertTrue(
         siteHud.Contains("node name=\"Margin\" type=\"MarginContainer\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel\"", StringComparison.Ordinal) &&

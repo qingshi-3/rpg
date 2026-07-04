@@ -189,6 +189,8 @@ internal static void WorldSiteRuntimeHudBindsHeroFrameInsteadOfLeftCommandPanel(
         "WorldSiteRoot should stop binding or toggling the left battle-runtime command panel");
     AssertTrue(
         siteManagementSource.Contains("_battleRuntimeHeroFrame", StringComparison.Ordinal) &&
+        siteManagementSource.Contains("_battleRuntimeSummaryList", StringComparison.Ordinal) &&
+        siteManagementSource.Contains("_battleRuntimeSummaryPresenter", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeHeroSelectorPresenter", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeHeroNameLabel", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeHeroHealthBar", StringComparison.Ordinal) &&
@@ -196,6 +198,50 @@ internal static void WorldSiteRuntimeHudBindsHeroFrameInsteadOfLeftCommandPanel(
         siteManagementSource.Contains("_battleRuntimeHeroSkillList", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeRegroupButton", StringComparison.Ordinal),
         "WorldSiteRoot should bind the authored runtime hero frame controls");
+}
+
+internal static void BattleRuntimeHudShowsHeroTroopSummaryPanel()
+{
+    string root = ProjectRoot();
+    string siteScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
+    string nodeRefsSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSitePeacetimeHudNodeRefs.cs"));
+    string rootSource = ReadWorldSiteRootSource();
+    string commandHudSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
+    string siteManagementSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteManagementHud.cs"));
+    string modelSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroTroopSummaryModel.cs"));
+    string presenterSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroTroopSummaryPresenter.cs"));
+
+    AssertTrue(
+        siteScene.Contains("BattleRuntimeSummaryList", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimeSummaryScroll", StringComparison.Ordinal),
+        "battle runtime HUD scene should author a bottom summary list instead of building the panel ad hoc in code");
+    AssertTrue(
+        nodeRefsSource.Contains("internal HBoxContainer BattleRuntimeSummaryList", StringComparison.Ordinal) &&
+        nodeRefsSource.Contains("BattleRuntimeSummaryList = Get<HBoxContainer>", StringComparison.Ordinal),
+        "WorldSitePeacetimeHudNodeRefs should expose the authored summary list to the site root binder");
+    AssertTrue(
+        rootSource.Contains("private HBoxContainer _battleRuntimeSummaryList", StringComparison.Ordinal) &&
+        rootSource.Contains("private BattleRuntimeHeroTroopSummaryPresenter _battleRuntimeSummaryPresenter", StringComparison.Ordinal) &&
+        siteManagementSource.Contains("_battleRuntimeSummaryPresenter = new BattleRuntimeHeroTroopSummaryPresenter", StringComparison.Ordinal),
+        "WorldSiteRoot should delegate battle summary binding to a focused presenter");
+    AssertTrue(
+        commandHudSource.Contains("BuildBattleRuntimeHeroTroopSummaries", StringComparison.Ordinal) &&
+        commandHudSource.Contains("_battleRuntimeSummaryPresenter.Refresh", StringComparison.Ordinal) &&
+        commandHudSource.Contains("_activeBattleGroupRuntimeResolution?.RuntimeController?.State", StringComparison.Ordinal),
+        "battle runtime refresh should build hero troop summaries from the live runtime state");
+    AssertTrue(
+        modelSource.Contains("BattleRuntimeActorKind.Corps", StringComparison.Ordinal) &&
+        modelSource.Contains("Sum(actor => System.Math.Max(0, actor.HitPoints))", StringComparison.Ordinal) &&
+        modelSource.Contains("Sum(actor => ResolveMaxHitPoints", StringComparison.Ordinal) &&
+        modelSource.Contains("RemainingTroopCount", StringComparison.Ordinal) &&
+        modelSource.Contains("TotalTroopCount", StringComparison.Ordinal),
+        "summary model should compute n/m and aggregate troop HP from grouped runtime corps actors");
+    AssertTrue(
+        presenterSource.Contains("ProgressBar", StringComparison.Ordinal) &&
+        presenterSource.Contains("SoldierCountText", StringComparison.Ordinal) &&
+        presenterSource.Contains("TroopHpCurrent", StringComparison.Ordinal) &&
+        presenterSource.Contains("HeroHpCurrent", StringComparison.Ordinal),
+        "summary presenter should bind hero HP, troop count, and aggregate troop HP into reusable row controls");
 }
 
 internal static void BattleRuntimeHudSwitchesSelectedHeroCompany()

@@ -135,7 +135,12 @@ public partial class WorldSiteRoot
     {
         if (_siteBottomCommandHost != null)
         {
-            _siteBottomCommandHost.Visible = _battleRuntimeCommandPauseActive;
+            _siteBottomCommandHost.Visible = true;
+        }
+
+        if (_battleRuntimeSummaryBar != null)
+        {
+            _battleRuntimeSummaryBar.Visible = true;
         }
 
         if (_battleRuntimeCommandBar != null)
@@ -146,7 +151,7 @@ public partial class WorldSiteRoot
         RefreshBattleRuntimeCommandControls(runtimeLocked);
         GameLog.Info(
             nameof(WorldSiteRoot),
-            $"BattleRuntimeCommandHudShown locked={runtimeLocked} bottomVisible={_siteBottomCommandHost?.Visible == true} commandVisible={_battleRuntimeCommandBar?.Visible == true}");
+            $"BattleRuntimeCommandHudShown locked={runtimeLocked} bottomVisible={_siteBottomCommandHost?.Visible == true} summaryVisible={_battleRuntimeSummaryBar?.Visible == true} commandVisible={_battleRuntimeCommandBar?.Visible == true}");
     }
 
     private bool ActivateBattleGroupRuntime()
@@ -770,6 +775,24 @@ public partial class WorldSiteRoot
     public BattleEntity FindEntityAt(GridPosition position)
     {
         return _unitRoot?.FindEntityAt(position);
+    }
+
+    public void SetHoveredBattleRuntimeEntity(string entityId)
+    {
+        string normalizedEntityId = entityId?.Trim() ?? "";
+        if (string.Equals(_hoveredBattleRuntimeEntityId, normalizedEntityId, System.StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _hoveredBattleRuntimeEntityId = normalizedEntityId;
+        if (string.IsNullOrWhiteSpace(normalizedEntityId))
+        {
+            _unitRoot?.ClearHoverPreview();
+            return;
+        }
+
+        _unitRoot?.SetHoverPreviewByEntityId(normalizedEntityId);
     }
 
     private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)

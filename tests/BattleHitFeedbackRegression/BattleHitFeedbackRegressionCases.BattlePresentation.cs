@@ -508,7 +508,7 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
     AssertTrue(
         unitRoot.Contains("_commandSelectedEntities", StringComparison.Ordinal) &&
         unitRoot.Contains("SetCommandSelectionByEntityIds", StringComparison.Ordinal) &&
-        unitRoot.Contains("SetSelected(true)", StringComparison.Ordinal) &&
+        unitRoot.Contains("SetSelected(true, spotlightSelected:", StringComparison.Ordinal) &&
         unitRoot.Contains("SetSelected(false)", StringComparison.Ordinal),
         "battle command selection should be a public unit-root presentation API that toggles selected outlines on matching entities.");
     AssertTrue(
@@ -517,21 +517,28 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
         "command selection should reuse the authored unit body outline shader instead of adding a separate hardcoded shader path.");
     AssertTrue(
         File.Exists(shaderPath) &&
-        shader.Contains("uniform vec4 base_outline_color", StringComparison.Ordinal) &&
+        shader.Contains("uniform vec4 base_outline_color : source_color = vec4(0.0, 0.0, 0.0, 1.0);", StringComparison.Ordinal) &&
         shader.Contains("uniform float base_outline_width", StringComparison.Ordinal) &&
         shader.Contains("uniform bool active_outline_enabled", StringComparison.Ordinal) &&
         shader.Contains("vec4 base_color = COLOR;", StringComparison.Ordinal) &&
         !shader.Contains("texture_color * COLOR", StringComparison.Ordinal) &&
+        shader.Contains("const float body_alpha_threshold = 0.08;", StringComparison.Ordinal) &&
+        !shader.Contains("sample_body_alpha", StringComparison.Ordinal) &&
+        shader.Contains("float texture_body_alpha = step(body_alpha_threshold, texture(TEXTURE, UV).a);", StringComparison.Ordinal) &&
+        shader.Contains("if (texture_body_alpha > 0.0)", StringComparison.Ordinal) &&
+        shader.Contains("COLOR = base_color;", StringComparison.Ordinal) &&
+        !shader.Contains("mix(final_outline, base_color, base_color.a)", StringComparison.Ordinal) &&
         shader.Contains("vec2 texel = TEXTURE_PIXEL_SIZE * outline_width;", StringComparison.Ordinal) &&
-        shader.Contains("texture(TEXTURE, UV + vec2(texel.x, 0.0))", StringComparison.Ordinal) &&
+        shader.Contains("step(body_alpha_threshold, texture(TEXTURE, UV + vec2(texel.x, 0.0)).a)", StringComparison.Ordinal) &&
+        !shader.Contains("neighbor_alpha = max(neighbor_alpha, texture(TEXTURE", StringComparison.Ordinal) &&
         !shader.Contains("sample_outline_alpha(", StringComparison.Ordinal),
-        "unit body outline shader should keep texture built-ins inside fragment scope so the GLES3 compiler accepts it.");
+        "unit body outline shader should keep source-colored body pixels unchanged and draw exterior ink from thresholded body alpha without moving the TEXTURE built-in outside fragment scope.");
     AssertTrue(
-        presentation.Contains("BaseOutlineColor { get; set; } = new(0.03f, 0.03f, 0.03f, 0.78f);", StringComparison.Ordinal) &&
+        presentation.Contains("BaseOutlineColor { get; set; } = new(0f, 0f, 0f, 1f);", StringComparison.Ordinal) &&
         presentation.Contains("BaseOutlineWidth { get; set; } = 1.0f;", StringComparison.Ordinal) &&
         presentation.Contains("BaseOutlineColorParameter", StringComparison.Ordinal) &&
         presentation.Contains("BaseOutlineWidthParameter", StringComparison.Ordinal),
-        "battle units should default to a softened one-pixel dark normal outline before selection or hit feedback.");
+        "battle units should default to a one-pixel pure black normal outline before selection or hit feedback.");
     AssertTrue(
         hitFeedbackPresenter.Contains("PlayHitOutlinePulse()", StringComparison.Ordinal) &&
         !unitRoot.Contains("SetHitOutlines(hitTargets, visible: true)", StringComparison.Ordinal),
@@ -548,6 +555,33 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
         presentation.Contains("ResolveHitOutlineColor()", StringComparison.Ordinal) &&
         presentation.Contains("ResolveHitOutlineWidth()", StringComparison.Ordinal),
         "hit outline pulse should animate shader intensity rather than toggling an immediate full-strength outline.");
+}
+
+internal static void BattleRuntimeCommandSelectionSpotlightsOnlySelectedHero()
+{
+    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
+    string presentation = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitPresentationComponent.cs"));
+    string commandHud = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
+    string targetPresentation = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeHeroSkillTargetPresentation.cs"));
+
+    AssertTrue(
+        unitRoot.Contains("SetCommandSelectionByEntityIds(ISet<string> entityIds, ISet<string> spotlightEntityIds = null)", StringComparison.Ordinal) &&
+        unitRoot.Contains("SetSelected(true, spotlightSelected:", StringComparison.Ordinal) &&
+        unitRoot.Contains("spotlightEntityIds.Contains(entity.EntityId ?? \"\")", StringComparison.Ordinal),
+        "runtime command selection should keep selected outlines for the full group while accepting a narrower spotlight entity set.");
+    AssertTrue(
+        presentation.Contains("public void SetSelected(bool selected, bool spotlightSelected)", StringComparison.Ordinal) &&
+        presentation.Contains("_selectionSpotlightSelected", StringComparison.Ordinal) &&
+        presentation.Contains("_selectionSpotlight?.SetSelected(_selectionSpotlightSelected)", StringComparison.Ordinal),
+        "unit presentation should track selection outline and selection spotlight independently.");
+    AssertTrue(
+        commandHud.Contains("BuildBattleRuntimeCommandGroupSpotlightEntityIds(selected)", StringComparison.Ordinal) &&
+        commandHud.Contains("SetCommandSelectionByEntityIds(entityIds, spotlightEntityIds)", StringComparison.Ordinal),
+        "battle runtime HUD should pass only the selected command group's source hero as the spotlight target.");
+    AssertTrue(
+        targetPresentation.Contains("ResolveSourceEntity", StringComparison.Ordinal) &&
+        commandHud.Contains("BuildBattleRuntimeHeroSkillSourceEntity(selected)", StringComparison.Ordinal),
+        "battle runtime spotlight ownership should reuse the existing hero/source entity resolver instead of inventing a second hero rule.");
 }
 
 internal static void DeploymentZonesUseDedicatedOverlayShader()
@@ -871,26 +905,27 @@ internal static void BattleUnitBaseSceneAuthorsHealthBarAndSpriteAnimationBacken
         "health bar placement should delegate to the generic unit overlay anchor");
     AssertTrue(
         healthBar.Contains("public bool HideWhenFullHp { get; set; } = true;", StringComparison.Ordinal) &&
-        healthBar.Contains("public double DamagedVisibleSeconds { get; set; } = 2.4;", StringComparison.Ordinal) &&
-        healthBar.Contains("public float LowHpVisibleRatio { get; set; } = 0.35f;", StringComparison.Ordinal) &&
-        healthBar.Contains("public float HighHpAlpha { get; set; } = 0.45f;", StringComparison.Ordinal) &&
-        healthBar.Contains("public float LowHpAlpha { get; set; } = 1f;", StringComparison.Ordinal) &&
         healthBar.Contains("public void SetAttentionVisible(bool visible)", StringComparison.Ordinal) &&
+        healthBar.Contains("public void SetHoverVisible(bool visible)", StringComparison.Ordinal) &&
         healthBar.Contains("_attentionVisible", StringComparison.Ordinal) &&
+        healthBar.Contains("_hoverVisible", StringComparison.Ordinal) &&
         healthBar.Contains("ShouldShowHealthBar(maxHp, ratio)", StringComparison.Ordinal) &&
-        healthBar.Contains("_damageRevealSecondsRemaining", StringComparison.Ordinal),
-        "health bar should stay hidden at full HP, reveal for a longer post-damage window, and remain visible for low HP or attention-focused units");
+        !healthBar.Contains("_damageRevealSecondsRemaining", StringComparison.Ordinal) &&
+        !healthBar.Contains("DamagedVisibleSeconds", StringComparison.Ordinal) &&
+        !healthBar.Contains("LowHpVisibleRatio", StringComparison.Ordinal),
+        "health bar should stay hidden unless the unit has explicit hover, selection, target-preview, or action attention.");
     AssertTrue(
-        healthBar.Contains("ResolveHpAlpha(ratio)", StringComparison.Ordinal) &&
-        healthBar.Contains("Mathf.Lerp", StringComparison.Ordinal) &&
-        healthBar.Contains("HighHpAlpha", StringComparison.Ordinal) &&
-        healthBar.Contains("LowHpAlpha", StringComparison.Ordinal),
-        "health bar alpha should scale by HP so high-health bars are quieter and low-health bars are more solid");
+        healthBar.Contains("private float ResolveVisibilityAlpha()", StringComparison.Ordinal) &&
+        !healthBar.Contains("Mathf.Lerp", StringComparison.Ordinal) &&
+        !healthBar.Contains("HighHpAlpha", StringComparison.Ordinal) &&
+        !healthBar.Contains("LowHpAlpha", StringComparison.Ordinal),
+        "attention health bars should render at a stable alpha instead of making low-HP units permanently louder.");
     AssertTrue(
         presentation.Contains("BattleUnitHealthBarComponent", StringComparison.Ordinal) &&
         presentation.Contains("ApplyHealthBarAttention()", StringComparison.Ordinal) &&
+        presentation.Contains("SetHoverVisible(bool hovered)", StringComparison.Ordinal) &&
         presentation.Contains("_healthBar?.SetAttentionVisible(_selected || _targetPreviewed || _previewFocused);", StringComparison.Ordinal),
-        "selection, target preview, and hover-style focus should ask the health bar to show when the unit is not full HP");
+        "selection, target preview, action focus, and hover should explicitly ask the health bar to show.");
     AssertTrue(
         healthBar.Contains("public Color BorderColor", StringComparison.Ordinal) &&
         healthBar.Contains("public Color TrackColor", StringComparison.Ordinal) &&
@@ -925,9 +960,9 @@ internal static void DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimat
         "health bar should disappear on the HealthChanged frame that drops HP to zero, before defeated animation starts");
     AssertTrue(
         healthBar.Contains("public void HideImmediately()", StringComparison.Ordinal) &&
-        healthBar.Contains("_damageRevealSecondsRemaining = 0;", StringComparison.Ordinal) &&
-        healthBar.Contains("_attentionVisible = false;", StringComparison.Ordinal),
-        "health bar should expose an immediate hide path that clears damage reveal and attention state");
+        healthBar.Contains("_attentionVisible = false;", StringComparison.Ordinal) &&
+        healthBar.Contains("_hoverVisible = false;", StringComparison.Ordinal),
+        "health bar should expose an immediate hide path that clears explicit attention state");
     AssertTrue(
         hideHealthBarIndex >= 0 &&
         playDefeatedIndex >= 0 &&
