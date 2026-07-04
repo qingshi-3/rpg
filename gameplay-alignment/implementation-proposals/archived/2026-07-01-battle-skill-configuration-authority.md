@@ -1,6 +1,6 @@
 # Battle Skill Configuration Authority Cutover
 
-Status: Active - Skill Automation Verified, Manual QA Pending
+Status: Accepted - Manual QA Confirmed
 
 ## Relationship Metadata
 
@@ -700,7 +700,7 @@ Record manual QA outcome with the battle id, selected battle groups, skill ids s
 
 ## Verification Evidence - 2026-07-02
 
-Current acceptance state: not accepted. The skill authority cutover passes the focused skill, HUD, presentation, build, and source-scan checks below. The user confirmed the unrelated oversized-file guard outside this skill-system slice is not an acceptance blocker for this proposal. Manual QA has not been run.
+Current acceptance state: accepted. The skill authority cutover passes the focused skill, HUD, presentation, build, source-scan checks, and user-confirmed Bonefield manual QA below. The user confirmed the unrelated oversized-file guard outside this skill-system slice is not an acceptance blocker for this proposal.
 
 - `dotnet run --project tests\WorldSiteDeploymentCacheRegression\WorldSiteDeploymentCacheRegression.csproj -v:minimal`
   - Result: pass.
@@ -728,9 +728,19 @@ Current acceptance state: not accepted. The skill authority cutover passes the f
   - Command: `rg -n "GD\.Load<BattleSkillDefinitionResource|ResourceLoader\.Load<BattleSkillDefinitionResource|\.tres|battle_skill_definitions\.json" src/Runtime -g "*.cs"`
   - Result: no matches.
 
+Manual QA evidence - 2026-07-05:
+
+- Result: pass; user confirmed acceptance with "验收通过".
+- Latest runtime log evidence: `C:\Users\qs\AppData\Roaming\Godot\app_userdata\rpg\logs\rpg-20260705.log`.
+- Battle id: `strategic_battle:expedition_0001:fa57f11b2b654cd1bce24b4d82335e15`.
+- Logged selected battle groups in that run: `strategic_participant:expedition_0001:hero_archer_captain:corps_0002` and `strategic_participant:expedition_0001:hero_cavalry_captain:corps_0003`.
+- Runtime evidence: `StrategicBattleSkillSnapshotCompiled ... groups=2 skills=6`; the same first-slice config grants `skill_thunder_tag_throw`, `skill_thunder_mark_fold`, and `skill_thunder_spiral_break` to shield, archer, and assault starting groups.
+- User QA confirms the HUD skill ids, thunder tag mark creation, mark-fold disabled-before-mark state, mark-then-landing flow, thunder spiral directional preview/presentation, and one-use availability behavior.
+- Failed reason codes observed: none blocking acceptance; one-use unavailability is expected to surface through the configured availability reason, not through hidden `UsedHeroSkillKeys`.
+
 Remaining acceptance work:
 
-- Run manual QA through one Bonefield assault and record battle id, selected battle groups, HUD skill ids for all three starting groups, mark/teleport/channel observations, and one-use disabled reason.
+- None for this proposal.
 
 Follow-up outside this proposal:
 

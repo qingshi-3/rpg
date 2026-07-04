@@ -26,6 +26,22 @@ public partial class BattleUnitRoot
     public bool HasActiveMovementTweens => _movementLanes.Count > 0;
     public int ActiveMovementTweenCount => _movementLanes.Count;
 
+    public bool TryResolveMovementPreviewSurface(BattleEntity entity, out GridSurfacePosition surfacePosition)
+    {
+        surfacePosition = default;
+        if (entity == null ||
+            !IsEntityAlive(entity) ||
+            !_movementLanes.TryGetValue(entity, out MovementLane lane))
+        {
+            return false;
+        }
+
+        // Preview only: this is the visual lane's next destination, not an
+        // authoritative combat position. HUD range previews use it because a
+        // moving actor cannot start the queued skill until this step lands.
+        return lane.TryResolvePreviewSurface(out surfacePosition);
+    }
+
     public override void _Process(double delta)
     {
         if (_battlePresentationPaused ||
@@ -538,6 +554,24 @@ public partial class BattleUnitRoot
             _hasCurrent = false;
             IsNewSegment = false;
             ElapsedSeconds = 0;
+        }
+
+        public bool TryResolvePreviewSurface(out GridSurfacePosition surfacePosition)
+        {
+            if (_hasCurrent)
+            {
+                surfacePosition = _current.ToSurface;
+                return true;
+            }
+
+            if (_segments.TryPeek(out MovementSegment nextSegment))
+            {
+                surfacePosition = nextSegment.ToSurface;
+                return true;
+            }
+
+            surfacePosition = default;
+            return false;
         }
     }
 

@@ -406,6 +406,7 @@ public partial class WorldSiteRoot
             GetViewport()?.SetInputAsHandled();
             return true;
         }
+        GridPosition previewAnchor = ResolveBattleRuntimeHeroSkillPreviewAnchor(source);
         BattleSkillSnapshot pickedSkill = BuildBattleRuntimeSkillSnapshots(_battleRuntimeHeroSkillTargetPickingGroup)
             .FirstOrDefault(item => string.Equals(ResolveSkillDefinitionId(item), _battleRuntimeHeroSkillTargetPickingSkillDefinitionId, System.StringComparison.Ordinal))
             ?? _activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SkillDefinitions?
@@ -437,11 +438,11 @@ public partial class WorldSiteRoot
         if (pickedSkill?.TargetingMode == BattleSkillTargetingMode.TargetedActorOrCell)
         {
             if (TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out string targetActorOrCellId) &&
-                IsBattleRuntimeHeroSkillTargetInRange(source, target, pickedSkill.Range))
+                IsBattleRuntimeHeroSkillTargetInRange(source, previewAnchor, target, pickedSkill.Range))
             {
                 SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, targetActorOrCellId);
             }
-            else if (IsBattleRuntimeHeroSkillCellInRange(source, position, pickedSkill.Range))
+            else if (IsBattleRuntimeHeroSkillCellInRange(source, previewAnchor, position, pickedSkill.Range))
             {
                 SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, "", position);
             }
@@ -455,7 +456,7 @@ public partial class WorldSiteRoot
         }
         if (pickedSkill?.TargetingMode == BattleSkillTargetingMode.TargetedCell)
         {
-            if (!IsBattleRuntimeHeroSkillCellInRange(source, position, pickedSkill.Range))
+            if (!IsBattleRuntimeHeroSkillCellInRange(source, previewAnchor, position, pickedSkill.Range))
             {
                 SetSiteNoticeText("请选择技能范围内的地块。");
                 RefreshBattleRuntimeHeroSkillTargetPreview();
@@ -468,7 +469,7 @@ public partial class WorldSiteRoot
             return true;
         }
         if (!TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out string targetActorId) ||
-            !IsBattleRuntimeHeroSkillTargetInRange(source, target, pickedSkill?.Range ?? 0))
+            !IsBattleRuntimeHeroSkillTargetInRange(source, previewAnchor, target, pickedSkill?.Range ?? 0))
         {
             SetSiteNoticeText("请选择可被技能影响的敌方单位。");
             GetViewport()?.SetInputAsHandled();
@@ -528,7 +529,8 @@ public partial class WorldSiteRoot
         BattleSkillSnapshot pickedSkill = ResolveBattleRuntimeSkillSnapshot(
             _battleRuntimeHeroSkillTargetPickingGroup,
             _battleRuntimeHeroSkillTargetPickingSkillDefinitionId);
-        IReadOnlyList<GridPosition> rangeCells = BuildBattleRuntimeHeroSkillRangeCells(source);
+        GridPosition previewAnchor = ResolveBattleRuntimeHeroSkillPreviewAnchor(source);
+        IReadOnlyList<GridPosition> rangeCells = BuildBattleRuntimeHeroSkillRangeCells(source, previewAnchor);
         IReadOnlyList<GridPosition> targetCells = System.Array.Empty<GridPosition>();
         string targetActorId = "";
         bool usesMarkThenLanding = UsesMarkThenLandingFlow(pickedSkill);
@@ -539,7 +541,7 @@ public partial class WorldSiteRoot
         {
             if (usesDirectionArea)
             {
-                targetCells = BuildBattleRuntimeDirectionalAreaCells(source, position, pickedSkill);
+                targetCells = BuildBattleRuntimeDirectionalAreaCells(source, previewAnchor, position, pickedSkill);
             }
             else if (usesMarkThenLanding && _battleRuntimeSkillTargetingStage == SkillTargetingStage.SecondarySelection)
             {
@@ -559,7 +561,7 @@ public partial class WorldSiteRoot
                     }
                 }
                 else if (TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out targetActorId) &&
-                         IsBattleRuntimeHeroSkillTargetInRange(source, target, ResolveBattleRuntimeHeroSkillRange()))
+                         IsBattleRuntimeHeroSkillTargetInRange(source, previewAnchor, target, ResolveBattleRuntimeHeroSkillRange()))
                 {
                     targetCells = BattleRuntimeHeroSkillTargetPresentation.BuildFootprintCells(target);
                 }
@@ -599,15 +601,16 @@ public partial class WorldSiteRoot
     private IReadOnlyList<GridPosition> BuildBattleRuntimeMarkCandidateCells() => BattleRuntimeMarkTargetingPresentation.BuildMarkCells(_activeBattleGroupRuntimeResolution?.RuntimeController?.State?.SpatialMarks, _battleRuntimeHeroSkillTargetPickingGroup?.GroupKey ?? _selectedBattleRuntimeGroupKey, _activeBattleGroupRuntimeResolution?.RuntimeController?.CurrentTimeSeconds ?? 0, _unitRoot);
     private IReadOnlyList<GridPosition> BuildBattleRuntimeMarkLandingCells(BattleEntity source, BattleSkillSnapshot skill) =>
         BattleRuntimeMarkTargetingPresentation.BuildLandingCells(_activeGridMap, _unitRoot, source, _battleRuntimeSelectedRuntimeAnchorSurface, ResolveMarkLandingRadius(skill));
-    private IReadOnlyList<GridPosition> BuildBattleRuntimeDirectionalAreaCells(BattleEntity source, GridPosition position, BattleSkillSnapshot skill) =>
-        BattleRuntimeHeroSkillTargetPresentation.BuildAreaPreviewCells(ResolveTargeting(skill), source, position, _activeGridMap);
-    private bool ResolveBattleRuntimeDirectionalAreaCenter(BattleEntity source, GridPosition position, BattleSkillSnapshot skill, out GridPosition center) =>
-        BattleRuntimeHeroSkillTargetPresentation.TryResolveDirectionalAreaCenter(ResolveTargeting(skill), source, position, out center);
+    private IReadOnlyList<GridPosition> BuildBattleRuntimeDirectionalAreaCells(BattleEntity source, GridPosition sourceAnchor, GridPosition position, BattleSkillSnapshot skill) =>
+        BattleRuntimeHeroSkillTargetPresentation.BuildAreaPreviewCells(ResolveTargeting(skill), source, sourceAnchor, position, _activeGridMap);
+    private bool ResolveBattleRuntimeDirectionalAreaCenter(BattleEntity source, GridPosition sourceAnchor, GridPosition position, BattleSkillSnapshot skill, out GridPosition center) =>
+        BattleRuntimeHeroSkillTargetPresentation.TryResolveDirectionalAreaCenter(ResolveTargeting(skill), source, sourceAnchor, position, out center);
     private void TrySubmitBattleRuntimeDirectionalArea(GridPosition position, string sourceActorId, BattleSkillSnapshot skill)
     {
         BattleEntity source = BuildBattleRuntimeHeroSkillSourceEntity(_battleRuntimeHeroSkillTargetPickingGroup);
-        if (!ResolveBattleRuntimeDirectionalAreaCenter(source, position, skill, out GridPosition center) ||
-            !IsBattleRuntimeHeroSkillCellInRange(source, center, ResolveBattleRuntimeHeroSkillRange()))
+        GridPosition previewAnchor = ResolveBattleRuntimeHeroSkillPreviewAnchor(source);
+        if (!ResolveBattleRuntimeDirectionalAreaCenter(source, previewAnchor, position, skill, out GridPosition center) ||
+            !IsBattleRuntimeHeroSkillCellInRange(source, previewAnchor, center, ResolveBattleRuntimeHeroSkillRange()))
         {
             SetSiteNoticeText("雷旋破：请选择英雄周围的释放方向。");
             RefreshBattleRuntimeHeroSkillTargetPreview();
@@ -632,10 +635,19 @@ public partial class WorldSiteRoot
     private bool TryResolveBattleRuntimeHeroSkillTargetActorId(BattleEntity source, BattleEntity target, out string targetActorId) => BattleRuntimeHeroSkillTargetPresentation.TryResolveTargetActorId(source, target, out targetActorId);
     private bool TryResolveBattleRuntimeHeroSkillSourceActorId(BattleEntity source, out string sourceActorId) => BattleRuntimeHeroSkillTargetPresentation.TryResolveSourceActorId(source, out sourceActorId);
     // Local picking mirrors the drawn preview; Runtime remains the command authority.
-    private bool IsBattleRuntimeHeroSkillTargetInRange(BattleEntity source, BattleEntity target, int range) => BattleRuntimeHeroSkillTargetPresentation.IsTargetInRange(source, target, range);
-    private bool IsBattleRuntimeHeroSkillCellInRange(BattleEntity source, GridPosition position, int range) => BattleRuntimeHeroSkillTargetPresentation.IsCellInRange(source, position, range);
+    private bool IsBattleRuntimeHeroSkillTargetInRange(BattleEntity source, GridPosition sourceAnchor, BattleEntity target, int range) => BattleRuntimeHeroSkillTargetPresentation.IsTargetInRange(source, sourceAnchor, target, range);
+    private bool IsBattleRuntimeHeroSkillCellInRange(BattleEntity source, GridPosition sourceAnchor, GridPosition position, int range) => BattleRuntimeHeroSkillTargetPresentation.IsCellInRange(source, sourceAnchor, position, range);
     private BattleEntity BuildBattleRuntimeHeroSkillSourceEntity(BattleRuntimeCommandGroupView selected) => BattleRuntimeHeroSkillTargetPresentation.ResolveSourceEntity(_unitRoot, selected?.Forces);
-    private IReadOnlyList<GridPosition> BuildBattleRuntimeHeroSkillRangeCells(BattleEntity source) => BattleRuntimeHeroSkillTargetPresentation.BuildRangeCells(source, _activeGridMap, ResolveBattleRuntimeHeroSkillRange());
+    private GridPosition ResolveBattleRuntimeHeroSkillPreviewAnchor(BattleEntity source)
+    {
+        if (_unitRoot?.TryResolveMovementPreviewSurface(source, out GridSurfacePosition movementSurface) == true)
+        {
+            return movementSurface.Position;
+        }
+
+        return source?.GetComponent<GridOccupantComponent>()?.Position ?? default;
+    }
+    private IReadOnlyList<GridPosition> BuildBattleRuntimeHeroSkillRangeCells(BattleEntity source, GridPosition sourceAnchor) => BattleRuntimeHeroSkillTargetPresentation.BuildRangeCells(source, sourceAnchor, _activeGridMap, ResolveBattleRuntimeHeroSkillRange());
     private int ResolveBattleRuntimeHeroSkillRange()
     {
         string skillDefinitionId = (_battleRuntimeHeroSkillTargetPickingSkillDefinitionId ?? "").Trim();

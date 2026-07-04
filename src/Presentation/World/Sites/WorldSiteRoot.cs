@@ -415,6 +415,11 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 			UpdateSiteMapEntities();
 			return;
 		}
+
+		if (runtimeMode == WorldSiteRuntimeMode.Battle)
+		{
+			RefreshBattleRuntimeHeroSkillTargetPreview();
+		}
 	}
 
 	public override void _Input(InputEvent @event)

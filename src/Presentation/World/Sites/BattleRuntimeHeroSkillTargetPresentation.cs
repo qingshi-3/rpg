@@ -79,6 +79,21 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
         BattleGridMap gridMap,
         int range)
     {
+        GridOccupantComponent grid = source?.GetComponent<GridOccupantComponent>();
+        if (grid == null || BattleRuleQueries.IsDefeated(source))
+        {
+            return System.Array.Empty<GridPosition>();
+        }
+
+        return BuildRangeCells(source, grid.Position, gridMap, range);
+    }
+
+    internal static IReadOnlyList<GridPosition> BuildRangeCells(
+        BattleEntity source,
+        GridPosition sourceAnchor,
+        BattleGridMap gridMap,
+        int range)
+    {
         var cells = new HashSet<GridPosition>();
         GridOccupantComponent grid = source?.GetComponent<GridOccupantComponent>();
         if (grid == null || BattleRuleQueries.IsDefeated(source))
@@ -86,7 +101,7 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
             return cells.ToArray();
         }
 
-        foreach (GridPosition cell in EnumerateRangeCells(grid, range))
+        foreach (GridPosition cell in EnumerateRangeCells(sourceAnchor, grid.FootprintWidth, grid.FootprintHeight, range))
         {
             if (gridMap == null || gridMap.TryGetCell(cell, out _))
             {
@@ -108,6 +123,17 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
     internal static bool IsTargetInRange(BattleEntity source, BattleEntity target, int range)
     {
         GridOccupantComponent sourceGrid = source?.GetComponent<GridOccupantComponent>();
+        if (sourceGrid == null)
+        {
+            return false;
+        }
+
+        return IsTargetInRange(source, sourceGrid.Position, target, range);
+    }
+
+    internal static bool IsTargetInRange(BattleEntity source, GridPosition sourceAnchor, BattleEntity target, int range)
+    {
+        GridOccupantComponent sourceGrid = source?.GetComponent<GridOccupantComponent>();
         GridOccupantComponent targetGrid = target?.GetComponent<GridOccupantComponent>();
         if (sourceGrid == null ||
             targetGrid == null ||
@@ -122,12 +148,23 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
         int sourceHeight = BattleFootprintCells.NormalizeSize(sourceGrid.FootprintHeight);
         int targetWidth = BattleFootprintCells.NormalizeSize(targetGrid.FootprintWidth);
         int targetHeight = BattleFootprintCells.NormalizeSize(targetGrid.FootprintHeight);
-        int gapX = GetAxisGap(sourceGrid.GridX, sourceWidth, targetGrid.GridX, targetWidth);
-        int gapY = GetAxisGap(sourceGrid.GridY, sourceHeight, targetGrid.GridY, targetHeight);
+        int gapX = GetAxisGap(sourceAnchor.X, sourceWidth, targetGrid.GridX, targetWidth);
+        int gapY = GetAxisGap(sourceAnchor.Y, sourceHeight, targetGrid.GridY, targetHeight);
         return gapX + gapY <= normalizedRange;
     }
 
     internal static bool IsCellInRange(BattleEntity source, GridPosition cell, int range)
+    {
+        GridOccupantComponent sourceGrid = source?.GetComponent<GridOccupantComponent>();
+        if (sourceGrid == null)
+        {
+            return false;
+        }
+
+        return IsCellInRange(source, sourceGrid.Position, cell, range);
+    }
+
+    internal static bool IsCellInRange(BattleEntity source, GridPosition sourceAnchor, GridPosition cell, int range)
     {
         GridOccupantComponent sourceGrid = source?.GetComponent<GridOccupantComponent>();
         if (sourceGrid == null || BattleRuleQueries.IsDefeated(source))
@@ -138,8 +175,8 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
         int normalizedRange = System.Math.Max(0, range);
         int sourceWidth = BattleFootprintCells.NormalizeSize(sourceGrid.FootprintWidth);
         int sourceHeight = BattleFootprintCells.NormalizeSize(sourceGrid.FootprintHeight);
-        int gapX = GetAxisGap(sourceGrid.GridX, sourceWidth, cell.X, 1);
-        int gapY = GetAxisGap(sourceGrid.GridY, sourceHeight, cell.Y, 1);
+        int gapX = GetAxisGap(sourceAnchor.X, sourceWidth, cell.X, 1);
+        int gapY = GetAxisGap(sourceAnchor.Y, sourceHeight, cell.Y, 1);
         return gapX + gapY <= normalizedRange;
     }
 
@@ -156,10 +193,27 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
             return false;
         }
 
+        return TryResolveDirectionalAreaCenter(targeting, source, grid.Position, mouseGrid, out center);
+    }
+
+    internal static bool TryResolveDirectionalAreaCenter(
+        BattleSkillTargetingSnapshot targeting,
+        BattleEntity source,
+        GridPosition sourceAnchor,
+        GridPosition mouseGrid,
+        out GridPosition center)
+    {
+        center = default;
+        GridOccupantComponent grid = source?.GetComponent<GridOccupantComponent>();
+        if (grid == null || BattleRuleQueries.IsDefeated(source))
+        {
+            return false;
+        }
+
         int width = BattleFootprintCells.NormalizeSize(grid.FootprintWidth);
         int height = BattleFootprintCells.NormalizeSize(grid.FootprintHeight);
-        int sourceCenterX2 = grid.GridX * 2 + width - 1;
-        int sourceCenterY2 = grid.GridY * 2 + height - 1;
+        int sourceCenterX2 = sourceAnchor.X * 2 + width - 1;
+        int sourceCenterY2 = sourceAnchor.Y * 2 + height - 1;
         int mouseCenterX2 = mouseGrid.X * 2;
         int mouseCenterY2 = mouseGrid.Y * 2;
         int dx = mouseCenterX2 - sourceCenterX2;
@@ -168,14 +222,14 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
         if (System.Math.Abs(dx) >= System.Math.Abs(dy))
         {
             center = dx >= 0
-                ? new GridPosition(grid.GridX + width + 1, grid.GridY)
-                : new GridPosition(grid.GridX - 2, grid.GridY);
+                ? new GridPosition(sourceAnchor.X + width + 1, sourceAnchor.Y)
+                : new GridPosition(sourceAnchor.X - 2, sourceAnchor.Y);
         }
         else
         {
             center = dy >= 0
-                ? new GridPosition(grid.GridX, grid.GridY + height + 1)
-                : new GridPosition(grid.GridX, grid.GridY - 2);
+                ? new GridPosition(sourceAnchor.X, sourceAnchor.Y + height + 1)
+                : new GridPosition(sourceAnchor.X, sourceAnchor.Y - 2);
         }
 
         return true;
@@ -188,6 +242,18 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
         BattleGridMap gridMap)
     {
         return TryResolveDirectionalAreaCenter(targeting, source, mouseGrid, out GridPosition center)
+            ? BuildGridRadiusCells(center, ResolveAreaRadius(targeting), gridMap)
+            : System.Array.Empty<GridPosition>();
+    }
+
+    internal static IReadOnlyList<GridPosition> BuildAreaPreviewCells(
+        BattleSkillTargetingSnapshot targeting,
+        BattleEntity source,
+        GridPosition sourceAnchor,
+        GridPosition mouseGrid,
+        BattleGridMap gridMap)
+    {
+        return TryResolveDirectionalAreaCenter(targeting, source, sourceAnchor, mouseGrid, out GridPosition center)
             ? BuildGridRadiusCells(center, ResolveAreaRadius(targeting), gridMap)
             : System.Array.Empty<GridPosition>();
     }
@@ -254,22 +320,26 @@ internal static class BattleRuntimeHeroSkillTargetPresentation
                 force.SourceKind?.Contains("Hero", System.StringComparison.OrdinalIgnoreCase) == true);
     }
 
-    private static IEnumerable<GridPosition> EnumerateRangeCells(GridOccupantComponent grid, int range)
+    private static IEnumerable<GridPosition> EnumerateRangeCells(
+        GridPosition anchor,
+        int footprintWidth,
+        int footprintHeight,
+        int range)
     {
         int normalizedRange = System.Math.Max(0, range);
-        int width = BattleFootprintCells.NormalizeSize(grid?.FootprintWidth ?? 1);
-        int height = BattleFootprintCells.NormalizeSize(grid?.FootprintHeight ?? 1);
-        int minX = (grid?.GridX ?? 0) - normalizedRange;
-        int maxX = (grid?.GridX ?? 0) + width - 1 + normalizedRange;
-        int minY = (grid?.GridY ?? 0) - normalizedRange;
-        int maxY = (grid?.GridY ?? 0) + height - 1 + normalizedRange;
+        int width = BattleFootprintCells.NormalizeSize(footprintWidth);
+        int height = BattleFootprintCells.NormalizeSize(footprintHeight);
+        int minX = anchor.X - normalizedRange;
+        int maxX = anchor.X + width - 1 + normalizedRange;
+        int minY = anchor.Y - normalizedRange;
+        int maxY = anchor.Y + height - 1 + normalizedRange;
 
         for (int y = minY; y <= maxY; y++)
         {
             for (int x = minX; x <= maxX; x++)
             {
-                int gapX = GetAxisGap(grid.GridX, width, x, 1);
-                int gapY = GetAxisGap(grid.GridY, height, y, 1);
+                int gapX = GetAxisGap(anchor.X, width, x, 1);
+                int gapY = GetAxisGap(anchor.Y, height, y, 1);
                 if (gapX + gapY <= normalizedRange)
                 {
                     yield return new GridPosition(x, y);

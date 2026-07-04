@@ -201,8 +201,8 @@ internal static void WorldSiteBattleRuntimeThunderTagSupportsGroundOrAttachedTar
     AssertTrue(
         targetInputBody.Contains("BattleSkillTargetingMode.TargetedActorOrCell", StringComparison.Ordinal) &&
         targetInputBody.Contains("TryResolveBattleRuntimeHeroSkillTargetActorId(source, target, out string targetActorOrCellId)", StringComparison.Ordinal) &&
-        targetInputBody.Contains("IsBattleRuntimeHeroSkillTargetInRange(source, target, pickedSkill.Range)", StringComparison.Ordinal) &&
-        targetInputBody.Contains("IsBattleRuntimeHeroSkillCellInRange(source, position, pickedSkill.Range)", StringComparison.Ordinal) &&
+        targetInputBody.Contains("IsBattleRuntimeHeroSkillTargetInRange(source, previewAnchor, target, pickedSkill.Range)", StringComparison.Ordinal) &&
+        targetInputBody.Contains("IsBattleRuntimeHeroSkillCellInRange(source, previewAnchor, position, pickedSkill.Range)", StringComparison.Ordinal) &&
         targetInputBody.Contains("SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, targetActorOrCellId)", StringComparison.Ordinal) &&
         targetInputBody.Contains("SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, \"\", position)", StringComparison.Ordinal),
         "thunder tag target picking should attach to an in-range valid unit, or create an in-range ground mark when the clicked cell has no valid target");
@@ -273,7 +273,7 @@ internal static void BattleRuntimeThunderSpiralUsesDirectionPreviewAndSecondClic
         rootSource.Contains("SubmitBattleRuntimeHeroSkillCommand(_battleRuntimeHeroSkillTargetPickingGroup, sourceActorId, \"\", center)", StringComparison.Ordinal),
         "directional area click handling should resolve the current mouse quadrant into a direction center and only then submit the command");
     AssertTrue(
-        refreshBody.Contains("BuildBattleRuntimeDirectionalAreaCells(source, position, pickedSkill)", StringComparison.Ordinal) &&
+        refreshBody.Contains("BuildBattleRuntimeDirectionalAreaCells(source, previewAnchor, position, pickedSkill)", StringComparison.Ordinal) &&
         refreshBody.Contains("BattleGridHighlightKind.Target", StringComparison.Ordinal),
         "directional area preview should render the resolved forward target area as target highlight cells");
 
@@ -308,6 +308,81 @@ internal static void BattleRuntimeThunderSpiralUsesDirectionPreviewAndSecondClic
     AssertTrue(!rightCells.Contains(new GridPosition(-1, 0)), "right-direction thunder spiral should not highlight cells behind the caster");
 }
 
+internal static void BattleRuntimeHeroSkillPreviewUsesMovementDestinationAnchor()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string unitMovementSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "Battle",
+        "Entities",
+        "BattleUnitRoot.Movement.cs"));
+    string rootProcessBody = ExtractMethodBody(rootSource, "public override void _Process(double delta)");
+    string refreshBody = ExtractMethodBody(rootSource, "private void RefreshBattleRuntimeHeroSkillTargetPreview()");
+    string submitDirectionBody = ExtractMethodBody(rootSource, "private void TrySubmitBattleRuntimeDirectionalArea(");
+
+    AssertTrue(
+        rootProcessBody.Contains("RefreshBattleRuntimeHeroSkillTargetPreview()", StringComparison.Ordinal),
+        "active skill target picking should refresh during Process so moving-caster destination changes redraw without mouse motion");
+    AssertTrue(
+        unitMovementSource.Contains("TryResolveMovementPreviewSurface", StringComparison.Ordinal),
+        "unit movement presentation should expose the current visual movement destination as a preview-only surface");
+    AssertTrue(
+        refreshBody.Contains("ResolveBattleRuntimeHeroSkillPreviewAnchor(source)", StringComparison.Ordinal) &&
+        refreshBody.Contains("BuildBattleRuntimeHeroSkillRangeCells(source, previewAnchor)", StringComparison.Ordinal) &&
+        refreshBody.Contains("BuildBattleRuntimeDirectionalAreaCells(source, previewAnchor, position, pickedSkill)", StringComparison.Ordinal),
+        "skill target preview should build range and directional area from the caster's movement destination anchor");
+    AssertTrue(
+        submitDirectionBody.Contains("ResolveBattleRuntimeHeroSkillPreviewAnchor(source)", StringComparison.Ordinal) &&
+        submitDirectionBody.Contains("ResolveBattleRuntimeDirectionalAreaCenter(source, previewAnchor, position, skill", StringComparison.Ordinal) &&
+        submitDirectionBody.Contains("IsBattleRuntimeHeroSkillCellInRange(source, previewAnchor, center", StringComparison.Ordinal),
+        "directional area submit should use the same movement destination anchor as the drawn preview");
+
+    BattleEntity source = BuildHeroSkillTargetEntity("player_force:1", BattleFaction.Player);
+    GridOccupantComponent grid = source.GetComponent<GridOccupantComponent>();
+    grid.GridX = 0;
+    grid.GridY = 0;
+    grid.FootprintWidth = 1;
+    grid.FootprintHeight = 1;
+
+    Type resolverType = typeof(BattleEntity).Assembly.GetType(
+        "Rpg.Presentation.World.Sites.BattleRuntimeHeroSkillTargetPresentation",
+        throwOnError: true)!;
+    System.Reflection.MethodInfo method = resolverType.GetMethod(
+        "BuildAreaPreviewCells",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+        new[]
+        {
+            typeof(BattleSkillTargetingSnapshot),
+            typeof(BattleEntity),
+            typeof(GridPosition),
+            typeof(GridPosition),
+            typeof(BattleGridMap)
+        })!;
+
+    AssertTrue(method != null, "directional area helper should expose an overload with an explicit source preview anchor");
+
+    BattleSkillTargetingSnapshot targeting = new()
+    {
+        InputFlow = BattleSkillInputFlow.SelectDirectionArea,
+        TargetKind = BattleSkillTargetKind.Direction,
+        AreaShape = BattleSkillAreaShape.GridRadius,
+        AreaRadius = 1
+    };
+    var cells = ((IEnumerable<GridPosition>)method.Invoke(null, new object?[]
+    {
+        targeting,
+        source,
+        new GridPosition(1, 0),
+        new GridPosition(5, 0),
+        null
+    })!).ToHashSet();
+
+    AssertTrue(cells.Contains(new GridPosition(4, 0)), "moving-caster directional preview should advance with the destination anchor");
+    AssertTrue(!cells.Contains(new GridPosition(1, 0)), "moving-caster directional preview should not stay centered on the departed anchor");
+}
+
 internal static void WorldSiteBattleRuntimeHeroSkillTargetClickBuildsCasterScopedCommand()
 {
     string rootSource = ReadWorldSiteRootSource();
@@ -323,11 +398,11 @@ internal static void WorldSiteBattleRuntimeHeroSkillTargetClickBuildsCasterScope
         "hero skill command request should carry the selected visible caster actor id");
     AssertTrue(
         refreshBody.Contains("BuildBattleRuntimeHeroSkillSourceEntity", StringComparison.Ordinal) &&
-        refreshBody.Contains("BuildBattleRuntimeHeroSkillRangeCells(source)", StringComparison.Ordinal),
+        refreshBody.Contains("BuildBattleRuntimeHeroSkillRangeCells(source, previewAnchor)", StringComparison.Ordinal),
         "target preview should build skill range from the same visible caster submitted to runtime");
     AssertTrue(
         rootSource.Contains("ResolveBattleRuntimeHeroSkillRange", StringComparison.Ordinal) &&
-        rootSource.Contains("BattleRuntimeHeroSkillTargetPresentation.BuildRangeCells(source, _activeGridMap, ResolveBattleRuntimeHeroSkillRange())", StringComparison.Ordinal),
+        rootSource.Contains("BattleRuntimeHeroSkillTargetPresentation.BuildRangeCells(source, sourceAnchor, _activeGridMap, ResolveBattleRuntimeHeroSkillRange())", StringComparison.Ordinal),
         "target preview should read the selected skill range from runtime snapshots before drawing range cells");
     AssertTrue(
         !File.ReadAllText(Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites", "BattleRuntimeHeroSkillTargetPresentation.cs"))
@@ -377,10 +452,12 @@ internal static void BattleRuntimeHeroSkillTargetSelectionMatchesPreviewRange()
         throwOnError: true)!;
     System.Reflection.MethodInfo targetRangeMethod = resolverType.GetMethod(
         "IsTargetInRange",
-        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+        new[] { typeof(BattleEntity), typeof(BattleEntity), typeof(int) })!;
     System.Reflection.MethodInfo cellRangeMethod = resolverType.GetMethod(
         "IsCellInRange",
-        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static,
+        new[] { typeof(BattleEntity), typeof(GridPosition), typeof(int) })!;
 
     AssertTrue(targetRangeMethod != null, "target presentation helper should expose actor target range matching the preview diamond");
     AssertTrue(cellRangeMethod != null, "target presentation helper should expose cell target range matching the preview diamond");
