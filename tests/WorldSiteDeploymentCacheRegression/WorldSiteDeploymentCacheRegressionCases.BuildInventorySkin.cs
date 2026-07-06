@@ -5,8 +5,8 @@ internal static void WorldBuildingOptionCardUsesReversibleInventoryPreviewSkin()
     string root = ProjectRoot();
     string cardScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldBuildingOptionCard.tscn");
     string hudScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn");
-    string themePath = Path.Combine(root, "assets", "themes", "game-ui-skin", "build_inventory_preview_theme.tres");
-    string basicThemePath = Path.Combine(root, "assets", "themes", "game-ui-skin", "basic_ui_1_theme.tres");
+    string themePath = Path.Combine(root, "resource", "ui", "themes", "game-ui-skin", "build_inventory_preview_theme.tres");
+    string basicThemePath = Path.Combine(root, "resource", "ui", "themes", "game-ui-skin", "basic_ui_1_theme.tres");
     string textureAtlasPath = Path.Combine(root, "assets", "textures", "ui", "build-inventory-preview", "bestiary_details.png");
     string textureAtlasImportPath = textureAtlasPath + ".import";
     string[] styleResources =
@@ -30,7 +30,7 @@ internal static void WorldBuildingOptionCardUsesReversibleInventoryPreviewSkin()
         rootBlock.Contains("[node name=\"WorldBuildingOptionCard\" type=\"Button\"", StringComparison.Ordinal) &&
         rootBlock.Contains("theme = ExtResource(\"1_theme\")", StringComparison.Ordinal) &&
         rootBlock.Contains("theme_type_variation = &\"WorldBuildingOptionCard\"", StringComparison.Ordinal) &&
-        cardScene.Contains("res://assets/themes/game-ui-skin/build_inventory_preview_theme.tres", StringComparison.Ordinal),
+        cardScene.Contains("res://resource/ui/themes/game-ui-skin/build_inventory_preview_theme.tres", StringComparison.Ordinal),
         "building option card should swap only its theme resource and named variation");
     AssertTrue(
         rootBlock.Contains("custom_minimum_size = Vector2(116, 112)", StringComparison.Ordinal) &&
@@ -48,8 +48,8 @@ internal static void WorldBuildingOptionCardUsesReversibleInventoryPreviewSkin()
         cardScene.Contains("offset_bottom = -6.0", StringComparison.Ordinal) &&
         cardScene.Contains("custom_minimum_size = Vector2(96, 70)", StringComparison.Ordinal) &&
         cardScene.Contains("custom_minimum_size = Vector2(96, 18)", StringComparison.Ordinal) &&
-        cardScene.Contains("theme_override_colors/font_color = Color(0.33, 0.17, 0.08, 1)", StringComparison.Ordinal),
-        "building option card content should be proportioned and colored for a beige inventory slot");
+        cardScene.Contains("theme_override_colors/font_color = Color(0.96, 0.78, 0.62, 1)", StringComparison.Ordinal),
+        "building option card content should be proportioned and keep readable text on the dark ManaSoul panel");
     AssertTrue(
         !rootBlock.Contains("theme_override_styles/normal", StringComparison.Ordinal) &&
         !rootBlock.Contains("theme_override_styles/hover", StringComparison.Ordinal) &&
@@ -61,15 +61,15 @@ internal static void WorldBuildingOptionCardUsesReversibleInventoryPreviewSkin()
     AssertTrue(
         themeSource.Contains("[gd_resource type=\"Theme\"", StringComparison.Ordinal) &&
         themeSource.Contains("WorldBuildingOptionCard/base_type = &\"Button\"", StringComparison.Ordinal) &&
-        themeSource.Contains("WorldBuildingOptionCard/styles/normal = ExtResource(", StringComparison.Ordinal) &&
-        themeSource.Contains("WorldBuildingOptionCard/styles/hover = ExtResource(", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldBuildingOptionCard/styles/normal = ExtResource(\"2_hover\")", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldBuildingOptionCard/styles/hover = ExtResource(\"1_normal\")", StringComparison.Ordinal) &&
         themeSource.Contains("WorldBuildingOptionCard/styles/pressed = ExtResource(", StringComparison.Ordinal) &&
         themeSource.Contains("WorldBuildingOptionCard/styles/disabled = ExtResource(", StringComparison.Ordinal),
-        "building inventory preview theme should define one reversible Button type variation");
+        "building inventory preview theme should define one reversible Button type variation and intentionally swap normal/hover visuals");
 
     foreach (string fileName in styleResources)
     {
-        string path = Path.Combine(root, "assets", "themes", "game-ui-skin", fileName);
+        string path = Path.Combine(root, "resource", "ui", "themes", "game-ui-skin", fileName);
         AssertTrue(File.Exists(path), $"building inventory preview StyleBoxTexture should exist path={path}");
         string source = File.ReadAllText(path);
         AssertTrue(
@@ -97,7 +97,10 @@ internal static void WorldBuildingOptionCardUsesReversibleInventoryPreviewSkin()
     string basicTheme = File.ReadAllText(basicThemePath);
     AssertTrue(
         !basicTheme.Contains("build_inventory_preview", StringComparison.Ordinal) &&
-        !basicTheme.Contains("WorldBuildingOptionCard", StringComparison.Ordinal),
-        "preview skin should be removable by changing the card scene back to the existing basic UI theme");
+        !basicTheme.Contains("WorldBuildingOptionCard", StringComparison.Ordinal) &&
+        basicTheme.Contains("[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_popup_panel\"]", StringComparison.Ordinal) &&
+        basicTheme.Contains("PopupPanel/styles/panel = SubResource(\"StyleBoxEmpty_popup_panel\")", StringComparison.Ordinal) &&
+        basicTheme.Contains("TooltipPanel/styles/panel = SubResource(\"StyleBoxEmpty_popup_panel\")", StringComparison.Ordinal),
+        "preview skin should be removable by changing the card scene back to the existing basic UI theme while shared custom tooltip shells stay transparent");
 }
 }

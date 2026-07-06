@@ -1,0 +1,157 @@
+[gd_resource type="BehaviorTree" load_steps=36 format=3]
+
+[ext_resource type="Script" path="res://src/Runtime/Battle/AI/LimboTasks/select_battle_target.gd" id="1_select"]
+[ext_resource type="Script" path="res://src/Runtime/Battle/AI/LimboTasks/has_battle_command.gd" id="2_command"]
+[ext_resource type="Script" path="res://src/Runtime/Battle/AI/LimboTasks/can_strike_battle_target.gd" id="3_canstrike"]
+[ext_resource type="Script" path="res://src/Runtime/Battle/AI/LimboTasks/emit_battle_intent.gd" id="4_emit"]
+[ext_resource type="Script" path="res://src/Runtime/Battle/AI/LimboTasks/has_ranged_battle_ability.gd" id="5_ranged"]
+
+[sub_resource type="BlackboardPlan" id="BlackboardPlan_corps_commanded"]
+var/target_id/name = &"target_id"
+var/target_id/type = 4
+var/target_id/value = ""
+var/ability_id/name = &"ability_id"
+var/ability_id/type = 4
+var/ability_id/value = ""
+var/intent_power/name = &"intent_power"
+var/intent_power/type = 2
+var/intent_power/value = 0
+var/command/name = &"command"
+var/command/type = 4
+var/command/value = ""
+
+[sub_resource type="BTCondition" id="BTCondition_command_hold"]
+script = ExtResource("2_command")
+expected_command = "HoldLine"
+
+[sub_resource type="BTAction" id="BTAction_select_hold"]
+script = ExtResource("1_select")
+mode = "nearest_hostile"
+target_var = &"target_id"
+
+[sub_resource type="BTCondition" id="BTCondition_hold_can_strike"]
+script = ExtResource("3_canstrike")
+target_var = &"target_id"
+ability_var = &"ability_id"
+
+[sub_resource type="BTAction" id="BTAction_emit_hold_strike"]
+script = ExtResource("4_emit")
+template_id = &"direct_strike"
+power_var = &"intent_power"
+
+[sub_resource type="BTSequence" id="BTSequence_hold_strike"]
+custom_name = "Hold line strike in range"
+children = [SubResource("BTCondition_hold_can_strike"), SubResource("BTAction_emit_hold_strike")]
+
+[sub_resource type="BTAction" id="BTAction_emit_hold_position"]
+script = ExtResource("4_emit")
+template_id = &"hold"
+power_var = &"intent_power"
+reason = "HoldLine"
+
+[sub_resource type="BTSelector" id="BTSelector_hold_action"]
+custom_name = "Hold line action"
+children = [SubResource("BTSequence_hold_strike"), SubResource("BTAction_emit_hold_position")]
+
+[sub_resource type="BTSequence" id="BTSequence_hold_line"]
+custom_name = "HoldLine command"
+children = [SubResource("BTCondition_command_hold"), SubResource("BTAction_select_hold"), SubResource("BTSelector_hold_action")]
+
+[sub_resource type="BTCondition" id="BTCondition_command_focus"]
+script = ExtResource("2_command")
+expected_command = "FocusFire"
+
+[sub_resource type="BTAction" id="BTAction_select_focus"]
+script = ExtResource("1_select")
+mode = "lowest_health_hostile"
+target_var = &"target_id"
+
+[sub_resource type="BTCondition" id="BTCondition_focus_can_strike"]
+script = ExtResource("3_canstrike")
+target_var = &"target_id"
+ability_var = &"ability_id"
+
+[sub_resource type="BTAction" id="BTAction_emit_focus_strike"]
+script = ExtResource("4_emit")
+template_id = &"focus_strike"
+power_var = &"intent_power"
+
+[sub_resource type="BTSequence" id="BTSequence_focus_strike"]
+custom_name = "Focus strike in range"
+children = [SubResource("BTCondition_focus_can_strike"), SubResource("BTAction_emit_focus_strike")]
+
+[sub_resource type="BTAction" id="BTAction_emit_focus_pressure"]
+script = ExtResource("4_emit")
+template_id = &"focus_pressure"
+power_var = &"intent_power"
+
+[sub_resource type="BTSelector" id="BTSelector_focus_action"]
+custom_name = "Focus fire action"
+children = [SubResource("BTSequence_focus_strike"), SubResource("BTAction_emit_focus_pressure")]
+
+[sub_resource type="BTSequence" id="BTSequence_focus_fire"]
+custom_name = "FocusFire command"
+children = [SubResource("BTCondition_command_focus"), SubResource("BTAction_select_focus"), SubResource("BTSelector_focus_action")]
+
+[sub_resource type="BTCondition" id="BTCondition_command_assault"]
+script = ExtResource("2_command")
+expected_command = "Assault"
+
+[sub_resource type="BTAction" id="BTAction_select_assault"]
+script = ExtResource("1_select")
+mode = "nearest_hostile"
+target_var = &"target_id"
+
+[sub_resource type="BTCondition" id="BTCondition_assault_ranged"]
+script = ExtResource("5_ranged")
+ability_var = &"ability_id"
+
+[sub_resource type="BTAction" id="BTAction_emit_assault_ranged"]
+script = ExtResource("4_emit")
+template_id = &"ranged_pressure"
+power_var = &"intent_power"
+
+[sub_resource type="BTSequence" id="BTSequence_assault_ranged"]
+custom_name = "Assault ranged pressure"
+children = [SubResource("BTCondition_assault_ranged"), SubResource("BTAction_emit_assault_ranged")]
+
+[sub_resource type="BTCondition" id="BTCondition_assault_can_strike"]
+script = ExtResource("3_canstrike")
+target_var = &"target_id"
+ability_var = &"ability_id"
+
+[sub_resource type="BTAction" id="BTAction_emit_assault_direct"]
+script = ExtResource("4_emit")
+template_id = &"direct_strike"
+power_var = &"intent_power"
+
+[sub_resource type="BTSequence" id="BTSequence_assault_direct"]
+custom_name = "Assault direct strike"
+children = [SubResource("BTCondition_assault_can_strike"), SubResource("BTAction_emit_assault_direct")]
+
+[sub_resource type="BTAction" id="BTAction_emit_assault_pressure"]
+script = ExtResource("4_emit")
+template_id = &"melee_pressure"
+power_var = &"intent_power"
+
+[sub_resource type="BTSelector" id="BTSelector_assault_action"]
+custom_name = "Assault action"
+children = [SubResource("BTSequence_assault_ranged"), SubResource("BTSequence_assault_direct"), SubResource("BTAction_emit_assault_pressure")]
+
+[sub_resource type="BTSequence" id="BTSequence_assault"]
+custom_name = "Assault command"
+children = [SubResource("BTCondition_command_assault"), SubResource("BTAction_select_assault"), SubResource("BTSelector_assault_action")]
+
+[sub_resource type="BTAction" id="BTAction_emit_fallback_hold"]
+script = ExtResource("4_emit")
+template_id = &"hold"
+reason = "No allied command target"
+
+[sub_resource type="BTSelector" id="BTSelector_root"]
+custom_name = "Commanded corps intent"
+children = [SubResource("BTSequence_hold_line"), SubResource("BTSequence_focus_fire"), SubResource("BTSequence_assault"), SubResource("BTAction_emit_fallback_hold")]
+
+[resource]
+description = "Project-authored LimboAI tree for corps command intent selection. It mirrors HoldLine, FocusFire, and Assault planner branches while C# validates and resolves actions."
+blackboard_plan = SubResource("BlackboardPlan_corps_commanded")
+root_task = SubResource("BTSelector_root")

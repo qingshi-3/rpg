@@ -50,6 +50,10 @@ folder_colors={
 "res://tools/": "purple"
 }
 
+[gui]
+
+theme/custom="res://resource/ui/themes/game-ui-focus_defaults.tres"
+
 [input]
 
 camera_move_left={

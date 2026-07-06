@@ -1,0 +1,88 @@
+[gd_resource type="Theme" load_steps=21 format=3]
+
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_sheet.tres" id="1_panel_sheet"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_card.tres" id="2_panel_card"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_button_action.tres" id="3_button_action"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_button_action_hover.tres" id="4_button_action_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_button_action_pressed.tres" id="5_button_action_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_button_action_disabled.tres" id="6_button_action_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_topbar.tres" id="7_panel_topbar"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_button_compact.tres" id="8_button_compact"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_button_compact_hover.tres" id="9_button_compact_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_button_compact_pressed.tres" id="10_button_compact_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_button_compact_disabled.tres" id="11_button_compact_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track_horizontal.tres" id="12_scroll_track_h"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_normal.tres" id="13_scroll_grabber_h_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_hover.tres" id="14_scroll_grabber_h_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_pressed.tres" id="15_scroll_grabber_h_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track.tres" id="16_scroll_track_v"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_normal.tres" id="17_scroll_grabber_v_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_hover.tres" id="18_scroll_grabber_v_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_pressed.tres" id="19_scroll_grabber_v_pressed"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_popup_panel"]
+
+[resource]
+PopupPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+TooltipPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+HScrollBar/styles/scroll = ExtResource("12_scroll_track_h")
+HScrollBar/styles/scroll_focus = ExtResource("12_scroll_track_h")
+HScrollBar/styles/grabber = ExtResource("13_scroll_grabber_h_normal")
+HScrollBar/styles/grabber_highlight = ExtResource("14_scroll_grabber_h_hover")
+HScrollBar/styles/grabber_pressed = ExtResource("15_scroll_grabber_h_pressed")
+VScrollBar/styles/scroll = ExtResource("16_scroll_track_v")
+VScrollBar/styles/scroll_focus = ExtResource("16_scroll_track_v")
+VScrollBar/styles/grabber = ExtResource("17_scroll_grabber_v_normal")
+VScrollBar/styles/grabber_highlight = ExtResource("18_scroll_grabber_v_hover")
+VScrollBar/styles/grabber_pressed = ExtResource("19_scroll_grabber_v_pressed")
+WorldContextSheet/base_type = &"PanelContainer"
+WorldContextSheet/styles/panel = ExtResource("1_panel_sheet")
+WorldContextCard/base_type = &"PanelContainer"
+WorldContextCard/styles/panel = ExtResource("2_panel_card")
+WorldHoverInfoPanel/base_type = &"PanelContainer"
+WorldHoverInfoPanel/styles/panel = ExtResource("1_panel_sheet")
+WorldTopStatusPanel/base_type = &"PanelContainer"
+WorldTopStatusPanel/styles/panel = ExtResource("7_panel_topbar")
+WorldPrimaryActionButton/base_type = &"Button"
+WorldPrimaryActionButton/colors/font_color = Color(0.96, 0.9, 0.72, 1)
+WorldPrimaryActionButton/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+WorldPrimaryActionButton/colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+WorldPrimaryActionButton/styles/disabled = ExtResource("6_button_action_disabled")
+WorldPrimaryActionButton/styles/hover = ExtResource("4_button_action_hover")
+WorldPrimaryActionButton/styles/normal = ExtResource("3_button_action")
+WorldPrimaryActionButton/styles/pressed = ExtResource("5_button_action_pressed")
+WorldSecondaryActionButton/base_type = &"Button"
+WorldSecondaryActionButton/colors/font_color = Color(0.88, 0.82, 0.68, 1)
+WorldSecondaryActionButton/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+WorldSecondaryActionButton/colors/font_pressed_color = Color(0.72, 0.62, 0.48, 1)
+WorldSecondaryActionButton/styles/disabled = ExtResource("6_button_action_disabled")
+WorldSecondaryActionButton/styles/hover = ExtResource("4_button_action_hover")
+WorldSecondaryActionButton/styles/normal = ExtResource("3_button_action")
+WorldSecondaryActionButton/styles/pressed = ExtResource("5_button_action_pressed")
+WorldCompactActionButton/base_type = &"Button"
+WorldCompactActionButton/colors/font_color = Color(0.96, 0.9, 0.72, 1)
+WorldCompactActionButton/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+WorldCompactActionButton/colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+WorldCompactActionButton/styles/disabled = ExtResource("11_button_compact_disabled")
+WorldCompactActionButton/styles/hover = ExtResource("9_button_compact_hover")
+WorldCompactActionButton/styles/hover_pressed = ExtResource("10_button_compact_pressed")
+WorldCompactActionButton/styles/normal = ExtResource("8_button_compact")
+WorldCompactActionButton/styles/pressed = ExtResource("10_button_compact_pressed")
+WorldCompactTabButton/base_type = &"Button"
+WorldCompactTabButton/colors/font_color = Color(0.96, 0.9, 0.72, 1)
+WorldCompactTabButton/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+WorldCompactTabButton/colors/font_pressed_color = Color(0.96, 0.9, 0.72, 1)
+WorldCompactTabButton/styles/disabled = ExtResource("11_button_compact_disabled")
+WorldCompactTabButton/styles/hover = ExtResource("9_button_compact_hover")
+WorldCompactTabButton/styles/hover_pressed = ExtResource("9_button_compact_hover")
+WorldCompactTabButton/styles/normal = ExtResource("8_button_compact")
+WorldCompactTabButton/styles/pressed = ExtResource("8_button_compact")
+WorldTravelBookCardButton/base_type = &"Button"
+WorldTravelBookCardButton/colors/font_color = Color(0.96, 0.78, 0.62, 1)
+WorldTravelBookCardButton/colors/font_hover_color = Color(1, 0.88, 0.68, 1)
+WorldTravelBookCardButton/colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+WorldTravelBookCardButton/colors/font_disabled_color = Color(0.52, 0.43, 0.41, 1)
+WorldTravelBookCardButton/styles/disabled = ExtResource("6_button_action_disabled")
+WorldTravelBookCardButton/styles/hover = ExtResource("4_button_action_hover")
+WorldTravelBookCardButton/styles/normal = ExtResource("3_button_action")
+WorldTravelBookCardButton/styles/pressed = ExtResource("5_button_action_pressed")

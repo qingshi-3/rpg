@@ -8,7 +8,7 @@ namespace Rpg.Presentation.Battle;
 
 public partial class BattleDeploymentZoneOverlay : Node2D
 {
-    private const string DeploymentZoneShaderPath = "res://assets/battle/shaders/deployment_zone_highlight.gdshader";
+    private const string DeploymentZoneShaderPath = "res://resource/shaders/battle/deployment_zone_highlight.gdshader";
     private static readonly StringName PulseSpeedParameter = "pulse_speed";
     private static readonly StringName PulseStrengthParameter = "pulse_strength";
     private static readonly StringName GlowBoostParameter = "glow_boost";

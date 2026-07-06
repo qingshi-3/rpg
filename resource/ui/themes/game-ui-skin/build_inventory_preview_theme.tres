@@ -1,0 +1,38 @@
+[gd_resource type="Theme" load_steps=14 format=3]
+
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/build_inventory_preview_card_normal.tres" id="1_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/build_inventory_preview_card_hover.tres" id="2_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/build_inventory_preview_card_pressed.tres" id="3_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/build_inventory_preview_card_disabled.tres" id="4_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track_horizontal.tres" id="5_scroll_track_h"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_normal.tres" id="6_scroll_grabber_h_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_hover.tres" id="7_scroll_grabber_h_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_pressed.tres" id="8_scroll_grabber_h_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track.tres" id="9_scroll_track_v"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_normal.tres" id="10_scroll_grabber_v_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_hover.tres" id="11_scroll_grabber_v_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_pressed.tres" id="12_scroll_grabber_v_pressed"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_popup_panel"]
+
+[resource]
+PopupPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+TooltipPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+HScrollBar/styles/scroll = ExtResource("5_scroll_track_h")
+HScrollBar/styles/scroll_focus = ExtResource("5_scroll_track_h")
+HScrollBar/styles/grabber = ExtResource("6_scroll_grabber_h_normal")
+HScrollBar/styles/grabber_highlight = ExtResource("7_scroll_grabber_h_hover")
+HScrollBar/styles/grabber_pressed = ExtResource("8_scroll_grabber_h_pressed")
+VScrollBar/styles/scroll = ExtResource("9_scroll_track_v")
+VScrollBar/styles/scroll_focus = ExtResource("9_scroll_track_v")
+VScrollBar/styles/grabber = ExtResource("10_scroll_grabber_v_normal")
+VScrollBar/styles/grabber_highlight = ExtResource("11_scroll_grabber_v_hover")
+VScrollBar/styles/grabber_pressed = ExtResource("12_scroll_grabber_v_pressed")
+WorldBuildingOptionCard/base_type = &"Button"
+WorldBuildingOptionCard/colors/font_color = Color(0.33, 0.17, 0.08, 1)
+WorldBuildingOptionCard/colors/font_hover_color = Color(0.22, 0.1, 0.04, 1)
+WorldBuildingOptionCard/colors/font_pressed_color = Color(0.42, 0.24, 0.12, 1)
+WorldBuildingOptionCard/styles/disabled = ExtResource("4_disabled")
+WorldBuildingOptionCard/styles/hover = ExtResource("1_normal")
+WorldBuildingOptionCard/styles/normal = ExtResource("2_hover")
+WorldBuildingOptionCard/styles/pressed = ExtResource("3_pressed")

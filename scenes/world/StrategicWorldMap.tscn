@@ -1,6 +1,6 @@
 [gd_scene load_steps=6 format=4 uid="uid://26d5tlg0xdwq"]
 
-[ext_resource type="TileSet" uid="uid://cet1hbie4lq3w" path="res://assets/tilesets/world/StrategicWorldRoot.tres" id="1_dl37t"]
+[ext_resource type="TileSet" uid="uid://cet1hbie4lq3w" path="res://resource/tilesets/world/StrategicWorldRoot.tres" id="1_dl37t"]
 [ext_resource type="Texture2D" uid="uid://bxhto703te5wn" path="res://assets/textures/world/Map_tiles_2.png" id="2_m5ymu"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_4p8vo"]

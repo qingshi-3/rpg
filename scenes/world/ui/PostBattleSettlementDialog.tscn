@@ -1,8 +1,8 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/PostBattleSettlementDialog.cs" id="1_dialog"]
-[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
-[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_large.tres" id="3_panel_large"]
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_large.tres" id="3_panel_large"]
 
 [node name="PostBattleSettlementDialog" type="Control"]
 visible = false

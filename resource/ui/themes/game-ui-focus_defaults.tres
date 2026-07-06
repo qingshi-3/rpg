@@ -1,0 +1,28 @@
+[gd_resource type="Theme" load_steps=11 format=3]
+
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track_horizontal.tres" id="1_scroll_track_h"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_normal.tres" id="2_scroll_grabber_h_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_hover.tres" id="3_scroll_grabber_h_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_pressed.tres" id="4_scroll_grabber_h_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track.tres" id="5_scroll_track_v"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_normal.tres" id="6_scroll_grabber_v_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_hover.tres" id="7_scroll_grabber_v_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_pressed.tres" id="8_scroll_grabber_v_pressed"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_button_focus"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_popup_panel"]
+
+[resource]
+PopupPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+TooltipPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+Button/styles/focus = SubResource("StyleBoxEmpty_button_focus")
+HScrollBar/styles/scroll = ExtResource("1_scroll_track_h")
+HScrollBar/styles/scroll_focus = ExtResource("1_scroll_track_h")
+HScrollBar/styles/grabber = ExtResource("2_scroll_grabber_h_normal")
+HScrollBar/styles/grabber_highlight = ExtResource("3_scroll_grabber_h_hover")
+HScrollBar/styles/grabber_pressed = ExtResource("4_scroll_grabber_h_pressed")
+VScrollBar/styles/scroll = ExtResource("5_scroll_track_v")
+VScrollBar/styles/scroll_focus = ExtResource("5_scroll_track_v")
+VScrollBar/styles/grabber = ExtResource("6_scroll_grabber_v_normal")
+VScrollBar/styles/grabber_highlight = ExtResource("7_scroll_grabber_v_hover")
+VScrollBar/styles/grabber_pressed = ExtResource("8_scroll_grabber_v_pressed")

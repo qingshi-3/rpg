@@ -1,0 +1,526 @@
+[gd_resource type="Theme" load_steps=152 format=3]
+
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_panel_a.tres" id="1_mana_soul_panel_a"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_a_normal.tres" id="2_mana_soul_button_a_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_a_hover.tres" id="3_mana_soul_button_a_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_a_pressed.tres" id="4_mana_soul_button_a_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_a_disabled.tres" id="5_mana_soul_button_a_disabled"]
+[ext_resource type="Texture2D" path="res://resource/ui/themes/mana-soul-gui/mana_soul_down_arrow_icon_normal.tres" id="6_mana_soul_down_arrow_icon_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_b_normal.tres" id="7_mana_soul_button_b_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_b_hover.tres" id="8_mana_soul_button_b_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_b_pressed.tres" id="9_mana_soul_button_b_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_b_disabled.tres" id="10_mana_soul_button_b_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_bar_a_frame.tres" id="11_mana_soul_bar_a_frame"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_bar_a_fill.tres" id="12_mana_soul_bar_a_fill"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_panel_b.tres" id="13_mana_soul_panel_b"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_panel_c.tres" id="14_mana_soul_panel_c"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_panel_d.tres" id="15_mana_soul_panel_d"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_panel_e.tres" id="16_mana_soul_panel_e"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_panel_f.tres" id="17_mana_soul_panel_f"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_header_a.tres" id="18_mana_soul_header_a"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_header_b.tres" id="19_mana_soul_header_b"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_c_normal.tres" id="20_mana_soul_button_c_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_c_hover.tres" id="21_mana_soul_button_c_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_c_pressed.tres" id="22_mana_soul_button_c_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_button_c_disabled.tres" id="23_mana_soul_button_c_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_item_frame_normal.tres" id="24_mana_soul_item_frame_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_item_frame_hover.tres" id="25_mana_soul_item_frame_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_item_frame_pressed.tres" id="26_mana_soul_item_frame_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_item_frame_disabled.tres" id="27_mana_soul_item_frame_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_item_tall_frame_normal.tres" id="28_mana_soul_item_tall_frame_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_item_tall_frame_hover.tres" id="29_mana_soul_item_tall_frame_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_item_tall_frame_pressed.tres" id="30_mana_soul_item_tall_frame_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_item_tall_frame_disabled.tres" id="31_mana_soul_item_tall_frame_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_c_normal.tres" id="32_mana_soul_tab_c_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_c_hover.tres" id="33_mana_soul_tab_c_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_c_pressed.tres" id="34_mana_soul_tab_c_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_c_disabled.tres" id="35_mana_soul_tab_c_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_d_normal.tres" id="36_mana_soul_tab_d_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_d_hover.tres" id="37_mana_soul_tab_d_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_d_pressed.tres" id="38_mana_soul_tab_d_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_d_disabled.tres" id="39_mana_soul_tab_d_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_e_normal.tres" id="40_mana_soul_tab_e_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_e_hover.tres" id="41_mana_soul_tab_e_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_e_pressed.tres" id="42_mana_soul_tab_e_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_e_disabled.tres" id="43_mana_soul_tab_e_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_f_normal.tres" id="44_mana_soul_tab_f_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_f_hover.tres" id="45_mana_soul_tab_f_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_f_pressed.tres" id="46_mana_soul_tab_f_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_f_disabled.tres" id="47_mana_soul_tab_f_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_g_normal.tres" id="48_mana_soul_tab_g_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_g_hover.tres" id="49_mana_soul_tab_g_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_g_pressed.tres" id="50_mana_soul_tab_g_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_tab_g_disabled.tres" id="51_mana_soul_tab_g_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_close_button_normal.tres" id="52_mana_soul_close_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_close_button_hover.tres" id="53_mana_soul_close_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_close_button_pressed.tres" id="54_mana_soul_close_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_close_button_disabled.tres" id="55_mana_soul_close_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_exit_button_normal.tres" id="56_mana_soul_exit_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_exit_button_hover.tres" id="57_mana_soul_exit_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_exit_button_pressed.tres" id="58_mana_soul_exit_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_exit_button_disabled.tres" id="59_mana_soul_exit_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_options_button_normal.tres" id="60_mana_soul_options_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_options_button_hover.tres" id="61_mana_soul_options_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_options_button_pressed.tres" id="62_mana_soul_options_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_options_button_disabled.tres" id="63_mana_soul_options_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_help_button_normal.tres" id="64_mana_soul_help_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_help_button_hover.tres" id="65_mana_soul_help_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_help_button_pressed.tres" id="66_mana_soul_help_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_help_button_disabled.tres" id="67_mana_soul_help_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_more_button_normal.tres" id="68_mana_soul_more_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_more_button_hover.tres" id="69_mana_soul_more_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_more_button_pressed.tres" id="70_mana_soul_more_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_more_button_disabled.tres" id="71_mana_soul_more_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_less_button_normal.tres" id="72_mana_soul_less_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_less_button_hover.tres" id="73_mana_soul_less_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_less_button_pressed.tres" id="74_mana_soul_less_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_less_button_disabled.tres" id="75_mana_soul_less_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_left_arrow_button_normal.tres" id="76_mana_soul_left_arrow_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_left_arrow_button_hover.tres" id="77_mana_soul_left_arrow_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_left_arrow_button_pressed.tres" id="78_mana_soul_left_arrow_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_left_arrow_button_disabled.tres" id="79_mana_soul_left_arrow_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_right_arrow_button_normal.tres" id="80_mana_soul_right_arrow_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_right_arrow_button_hover.tres" id="81_mana_soul_right_arrow_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_right_arrow_button_pressed.tres" id="82_mana_soul_right_arrow_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_right_arrow_button_disabled.tres" id="83_mana_soul_right_arrow_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_down_arrow_button_normal.tres" id="84_mana_soul_down_arrow_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_down_arrow_button_hover.tres" id="85_mana_soul_down_arrow_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_down_arrow_button_pressed.tres" id="86_mana_soul_down_arrow_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_down_arrow_button_disabled.tres" id="87_mana_soul_down_arrow_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_up_arrow_button_normal.tres" id="88_mana_soul_up_arrow_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_up_arrow_button_hover.tres" id="89_mana_soul_up_arrow_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_up_arrow_button_pressed.tres" id="90_mana_soul_up_arrow_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_up_arrow_button_disabled.tres" id="91_mana_soul_up_arrow_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_head_normal.tres" id="92_mana_soul_equipment_head_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_head_hover.tres" id="93_mana_soul_equipment_head_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_head_pressed.tres" id="94_mana_soul_equipment_head_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_head_disabled.tres" id="95_mana_soul_equipment_head_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_head_selected.tres" id="96_mana_soul_equipment_head_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_neck_normal.tres" id="97_mana_soul_equipment_neck_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_neck_hover.tres" id="98_mana_soul_equipment_neck_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_neck_pressed.tres" id="99_mana_soul_equipment_neck_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_neck_disabled.tres" id="100_mana_soul_equipment_neck_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_neck_selected.tres" id="101_mana_soul_equipment_neck_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_chest_normal.tres" id="102_mana_soul_equipment_chest_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_chest_hover.tres" id="103_mana_soul_equipment_chest_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_chest_pressed.tres" id="104_mana_soul_equipment_chest_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_chest_disabled.tres" id="105_mana_soul_equipment_chest_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_chest_selected.tres" id="106_mana_soul_equipment_chest_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_pants_normal.tres" id="107_mana_soul_equipment_pants_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_pants_hover.tres" id="108_mana_soul_equipment_pants_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_pants_pressed.tres" id="109_mana_soul_equipment_pants_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_pants_disabled.tres" id="110_mana_soul_equipment_pants_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_pants_selected.tres" id="111_mana_soul_equipment_pants_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_boots_normal.tres" id="112_mana_soul_equipment_boots_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_boots_hover.tres" id="113_mana_soul_equipment_boots_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_boots_pressed.tres" id="114_mana_soul_equipment_boots_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_boots_disabled.tres" id="115_mana_soul_equipment_boots_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_boots_selected.tres" id="116_mana_soul_equipment_boots_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_weapon_normal.tres" id="117_mana_soul_equipment_weapon_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_weapon_hover.tres" id="118_mana_soul_equipment_weapon_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_weapon_pressed.tres" id="119_mana_soul_equipment_weapon_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_weapon_disabled.tres" id="120_mana_soul_equipment_weapon_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_weapon_selected.tres" id="121_mana_soul_equipment_weapon_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_shield_normal.tres" id="122_mana_soul_equipment_shield_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_shield_hover.tres" id="123_mana_soul_equipment_shield_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_shield_pressed.tres" id="124_mana_soul_equipment_shield_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_shield_disabled.tres" id="125_mana_soul_equipment_shield_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_shield_selected.tres" id="126_mana_soul_equipment_shield_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_ring_normal.tres" id="127_mana_soul_equipment_ring_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_ring_hover.tres" id="128_mana_soul_equipment_ring_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_ring_pressed.tres" id="129_mana_soul_equipment_ring_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_ring_disabled.tres" id="130_mana_soul_equipment_ring_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_ring_selected.tres" id="131_mana_soul_equipment_ring_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_empty_normal.tres" id="132_mana_soul_equipment_empty_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_empty_hover.tres" id="133_mana_soul_equipment_empty_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_empty_pressed.tres" id="134_mana_soul_equipment_empty_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_empty_disabled.tres" id="135_mana_soul_equipment_empty_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_equipment_empty_selected.tres" id="136_mana_soul_equipment_empty_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_bar_b_frame.tres" id="137_mana_soul_bar_b_frame"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_bar_b_fill.tres" id="138_mana_soul_bar_b_fill"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_bar_c_frame.tres" id="139_mana_soul_bar_c_frame"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_bar_c_fill.tres" id="140_mana_soul_bar_c_fill"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_minimap_frame.tres" id="141_mana_soul_minimap_frame"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/mana-soul-gui/mana_soul_portrait_frame.tres" id="142_mana_soul_portrait_frame"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track_horizontal.tres" id="143_scroll_track_h"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_normal.tres" id="144_scroll_grabber_h_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_hover.tres" id="145_scroll_grabber_h_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_pressed.tres" id="146_scroll_grabber_h_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track.tres" id="147_scroll_track_v"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_normal.tres" id="148_scroll_grabber_v_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_hover.tres" id="149_scroll_grabber_v_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_pressed.tres" id="150_scroll_grabber_v_pressed"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_popup_panel"]
+
+[resource]
+PopupPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+TooltipPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+HScrollBar/styles/scroll = ExtResource("143_scroll_track_h")
+HScrollBar/styles/scroll_focus = ExtResource("143_scroll_track_h")
+HScrollBar/styles/grabber = ExtResource("144_scroll_grabber_h_normal")
+HScrollBar/styles/grabber_highlight = ExtResource("145_scroll_grabber_h_hover")
+HScrollBar/styles/grabber_pressed = ExtResource("146_scroll_grabber_h_pressed")
+VScrollBar/styles/scroll = ExtResource("147_scroll_track_v")
+VScrollBar/styles/scroll_focus = ExtResource("147_scroll_track_v")
+VScrollBar/styles/grabber = ExtResource("148_scroll_grabber_v_normal")
+VScrollBar/styles/grabber_highlight = ExtResource("149_scroll_grabber_v_hover")
+VScrollBar/styles/grabber_pressed = ExtResource("150_scroll_grabber_v_pressed")
+PanelContainer/styles/panel = ExtResource("1_mana_soul_panel_a")
+Label/colors/font_color = Color(0.94, 0.86, 0.70, 1)
+Button/colors/font_color = Color(0.96, 0.88, 0.70, 1)
+Button/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+Button/colors/font_pressed_color = Color(0.72, 0.62, 0.88, 1)
+Button/colors/font_disabled_color = Color(0.48, 0.46, 0.62, 1)
+Button/constants/h_separation = 5
+Button/styles/normal = ExtResource("2_mana_soul_button_a_normal")
+Button/styles/hover = ExtResource("3_mana_soul_button_a_hover")
+Button/styles/pressed = ExtResource("4_mana_soul_button_a_pressed")
+Button/styles/disabled = ExtResource("5_mana_soul_button_a_disabled")
+Button/styles/focus = ExtResource("3_mana_soul_button_a_hover")
+OptionButton/icons/arrow = ExtResource("6_mana_soul_down_arrow_icon_normal")
+OptionButton/styles/normal = ExtResource("7_mana_soul_button_b_normal")
+OptionButton/styles/hover = ExtResource("8_mana_soul_button_b_hover")
+OptionButton/styles/pressed = ExtResource("9_mana_soul_button_b_pressed")
+OptionButton/styles/disabled = ExtResource("10_mana_soul_button_b_disabled")
+ProgressBar/styles/background = ExtResource("11_mana_soul_bar_a_frame")
+ProgressBar/styles/fill = ExtResource("12_mana_soul_bar_a_fill")
+ManaSoulPanelA/base_type = &"PanelContainer"
+ManaSoulPanelA/styles/panel = ExtResource("1_mana_soul_panel_a")
+ManaSoulPanelB/base_type = &"PanelContainer"
+ManaSoulPanelB/styles/panel = ExtResource("13_mana_soul_panel_b")
+ManaSoulPanelC/base_type = &"PanelContainer"
+ManaSoulPanelC/styles/panel = ExtResource("14_mana_soul_panel_c")
+ManaSoulPanelD/base_type = &"PanelContainer"
+ManaSoulPanelD/styles/panel = ExtResource("15_mana_soul_panel_d")
+ManaSoulPanelE/base_type = &"PanelContainer"
+ManaSoulPanelE/styles/panel = ExtResource("16_mana_soul_panel_e")
+ManaSoulPanelF/base_type = &"PanelContainer"
+ManaSoulPanelF/styles/panel = ExtResource("17_mana_soul_panel_f")
+ManaSoulHeaderA/base_type = &"PanelContainer"
+ManaSoulHeaderA/styles/panel = ExtResource("18_mana_soul_header_a")
+ManaSoulHeaderB/base_type = &"PanelContainer"
+ManaSoulHeaderB/styles/panel = ExtResource("19_mana_soul_header_b")
+ManaSoulButtonA/base_type = &"Button"
+ManaSoulButtonA/colors/font_color = Color(0.96, 0.88, 0.70, 1)
+ManaSoulButtonA/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+ManaSoulButtonA/colors/font_pressed_color = Color(0.72, 0.62, 0.88, 1)
+ManaSoulButtonA/colors/font_disabled_color = Color(0.48, 0.46, 0.62, 1)
+ManaSoulButtonA/styles/normal = ExtResource("2_mana_soul_button_a_normal")
+ManaSoulButtonA/styles/hover = ExtResource("3_mana_soul_button_a_hover")
+ManaSoulButtonA/styles/pressed = ExtResource("4_mana_soul_button_a_pressed")
+ManaSoulButtonA/styles/disabled = ExtResource("5_mana_soul_button_a_disabled")
+ManaSoulButtonA/styles/focus = ExtResource("3_mana_soul_button_a_hover")
+ManaSoulButtonB/base_type = &"Button"
+ManaSoulButtonB/colors/font_color = Color(0.96, 0.88, 0.70, 1)
+ManaSoulButtonB/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+ManaSoulButtonB/colors/font_pressed_color = Color(0.72, 0.62, 0.88, 1)
+ManaSoulButtonB/colors/font_disabled_color = Color(0.48, 0.46, 0.62, 1)
+ManaSoulButtonB/styles/normal = ExtResource("7_mana_soul_button_b_normal")
+ManaSoulButtonB/styles/hover = ExtResource("8_mana_soul_button_b_hover")
+ManaSoulButtonB/styles/pressed = ExtResource("9_mana_soul_button_b_pressed")
+ManaSoulButtonB/styles/disabled = ExtResource("10_mana_soul_button_b_disabled")
+ManaSoulButtonB/styles/focus = ExtResource("8_mana_soul_button_b_hover")
+ManaSoulButtonC/base_type = &"Button"
+ManaSoulButtonC/colors/font_color = Color(0.96, 0.88, 0.70, 1)
+ManaSoulButtonC/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+ManaSoulButtonC/colors/font_pressed_color = Color(0.72, 0.62, 0.88, 1)
+ManaSoulButtonC/colors/font_disabled_color = Color(0.48, 0.46, 0.62, 1)
+ManaSoulButtonC/styles/normal = ExtResource("20_mana_soul_button_c_normal")
+ManaSoulButtonC/styles/hover = ExtResource("21_mana_soul_button_c_hover")
+ManaSoulButtonC/styles/pressed = ExtResource("22_mana_soul_button_c_pressed")
+ManaSoulButtonC/styles/disabled = ExtResource("23_mana_soul_button_c_disabled")
+ManaSoulButtonC/styles/focus = ExtResource("21_mana_soul_button_c_hover")
+ManaSoulItemFrameButton/base_type = &"Button"
+ManaSoulItemFrameButton/colors/font_color = Color(0.30, 0.16, 0.22, 1)
+ManaSoulItemFrameButton/colors/font_hover_color = Color(0.18, 0.08, 0.14, 1)
+ManaSoulItemFrameButton/colors/font_disabled_color = Color(0.48, 0.42, 0.55, 1)
+ManaSoulItemFrameButton/styles/normal = ExtResource("24_mana_soul_item_frame_normal")
+ManaSoulItemFrameButton/styles/hover = ExtResource("25_mana_soul_item_frame_hover")
+ManaSoulItemFrameButton/styles/pressed = ExtResource("26_mana_soul_item_frame_pressed")
+ManaSoulItemFrameButton/styles/disabled = ExtResource("27_mana_soul_item_frame_disabled")
+ManaSoulItemFrameButton/styles/focus = ExtResource("25_mana_soul_item_frame_hover")
+ManaSoulItemTallFrameButton/base_type = &"Button"
+ManaSoulItemTallFrameButton/colors/font_color = Color(0.30, 0.16, 0.22, 1)
+ManaSoulItemTallFrameButton/colors/font_hover_color = Color(0.18, 0.08, 0.14, 1)
+ManaSoulItemTallFrameButton/colors/font_disabled_color = Color(0.48, 0.42, 0.55, 1)
+ManaSoulItemTallFrameButton/styles/normal = ExtResource("28_mana_soul_item_tall_frame_normal")
+ManaSoulItemTallFrameButton/styles/hover = ExtResource("29_mana_soul_item_tall_frame_hover")
+ManaSoulItemTallFrameButton/styles/pressed = ExtResource("30_mana_soul_item_tall_frame_pressed")
+ManaSoulItemTallFrameButton/styles/disabled = ExtResource("31_mana_soul_item_tall_frame_disabled")
+ManaSoulItemTallFrameButton/styles/focus = ExtResource("29_mana_soul_item_tall_frame_hover")
+ManaSoulTabCButton/base_type = &"Button"
+ManaSoulTabCButton/colors/font_color = Color(0.30, 0.16, 0.22, 1)
+ManaSoulTabCButton/colors/font_hover_color = Color(0.18, 0.08, 0.14, 1)
+ManaSoulTabCButton/colors/font_disabled_color = Color(0.48, 0.42, 0.55, 1)
+ManaSoulTabCButton/styles/normal = ExtResource("32_mana_soul_tab_c_normal")
+ManaSoulTabCButton/styles/hover = ExtResource("33_mana_soul_tab_c_hover")
+ManaSoulTabCButton/styles/pressed = ExtResource("34_mana_soul_tab_c_pressed")
+ManaSoulTabCButton/styles/disabled = ExtResource("35_mana_soul_tab_c_disabled")
+ManaSoulTabCButton/styles/focus = ExtResource("33_mana_soul_tab_c_hover")
+ManaSoulTabDButton/base_type = &"Button"
+ManaSoulTabDButton/colors/font_color = Color(0.30, 0.16, 0.22, 1)
+ManaSoulTabDButton/colors/font_hover_color = Color(0.18, 0.08, 0.14, 1)
+ManaSoulTabDButton/colors/font_disabled_color = Color(0.48, 0.42, 0.55, 1)
+ManaSoulTabDButton/styles/normal = ExtResource("36_mana_soul_tab_d_normal")
+ManaSoulTabDButton/styles/hover = ExtResource("37_mana_soul_tab_d_hover")
+ManaSoulTabDButton/styles/pressed = ExtResource("38_mana_soul_tab_d_pressed")
+ManaSoulTabDButton/styles/disabled = ExtResource("39_mana_soul_tab_d_disabled")
+ManaSoulTabDButton/styles/focus = ExtResource("37_mana_soul_tab_d_hover")
+ManaSoulTabEButton/base_type = &"Button"
+ManaSoulTabEButton/colors/font_color = Color(0.30, 0.16, 0.22, 1)
+ManaSoulTabEButton/colors/font_hover_color = Color(0.18, 0.08, 0.14, 1)
+ManaSoulTabEButton/colors/font_disabled_color = Color(0.48, 0.42, 0.55, 1)
+ManaSoulTabEButton/styles/normal = ExtResource("40_mana_soul_tab_e_normal")
+ManaSoulTabEButton/styles/hover = ExtResource("41_mana_soul_tab_e_hover")
+ManaSoulTabEButton/styles/pressed = ExtResource("42_mana_soul_tab_e_pressed")
+ManaSoulTabEButton/styles/disabled = ExtResource("43_mana_soul_tab_e_disabled")
+ManaSoulTabEButton/styles/focus = ExtResource("41_mana_soul_tab_e_hover")
+ManaSoulTabFButton/base_type = &"Button"
+ManaSoulTabFButton/colors/font_color = Color(0.30, 0.16, 0.22, 1)
+ManaSoulTabFButton/colors/font_hover_color = Color(0.18, 0.08, 0.14, 1)
+ManaSoulTabFButton/colors/font_disabled_color = Color(0.48, 0.42, 0.55, 1)
+ManaSoulTabFButton/styles/normal = ExtResource("44_mana_soul_tab_f_normal")
+ManaSoulTabFButton/styles/hover = ExtResource("45_mana_soul_tab_f_hover")
+ManaSoulTabFButton/styles/pressed = ExtResource("46_mana_soul_tab_f_pressed")
+ManaSoulTabFButton/styles/disabled = ExtResource("47_mana_soul_tab_f_disabled")
+ManaSoulTabFButton/styles/focus = ExtResource("45_mana_soul_tab_f_hover")
+ManaSoulTabGButton/base_type = &"Button"
+ManaSoulTabGButton/colors/font_color = Color(0.30, 0.16, 0.22, 1)
+ManaSoulTabGButton/colors/font_hover_color = Color(0.18, 0.08, 0.14, 1)
+ManaSoulTabGButton/colors/font_disabled_color = Color(0.48, 0.42, 0.55, 1)
+ManaSoulTabGButton/styles/normal = ExtResource("48_mana_soul_tab_g_normal")
+ManaSoulTabGButton/styles/hover = ExtResource("49_mana_soul_tab_g_hover")
+ManaSoulTabGButton/styles/pressed = ExtResource("50_mana_soul_tab_g_pressed")
+ManaSoulTabGButton/styles/disabled = ExtResource("51_mana_soul_tab_g_disabled")
+ManaSoulTabGButton/styles/focus = ExtResource("49_mana_soul_tab_g_hover")
+ManaSoulCloseButton/base_type = &"Button"
+ManaSoulCloseButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulCloseButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulCloseButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulCloseButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulCloseButton/styles/normal = ExtResource("52_mana_soul_close_button_normal")
+ManaSoulCloseButton/styles/hover = ExtResource("53_mana_soul_close_button_hover")
+ManaSoulCloseButton/styles/pressed = ExtResource("54_mana_soul_close_button_pressed")
+ManaSoulCloseButton/styles/disabled = ExtResource("55_mana_soul_close_button_disabled")
+ManaSoulCloseButton/styles/focus = ExtResource("53_mana_soul_close_button_hover")
+ManaSoulExitButton/base_type = &"Button"
+ManaSoulExitButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulExitButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulExitButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulExitButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulExitButton/styles/normal = ExtResource("56_mana_soul_exit_button_normal")
+ManaSoulExitButton/styles/hover = ExtResource("57_mana_soul_exit_button_hover")
+ManaSoulExitButton/styles/pressed = ExtResource("58_mana_soul_exit_button_pressed")
+ManaSoulExitButton/styles/disabled = ExtResource("59_mana_soul_exit_button_disabled")
+ManaSoulExitButton/styles/focus = ExtResource("57_mana_soul_exit_button_hover")
+ManaSoulOptionsButton/base_type = &"Button"
+ManaSoulOptionsButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulOptionsButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulOptionsButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulOptionsButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulOptionsButton/styles/normal = ExtResource("60_mana_soul_options_button_normal")
+ManaSoulOptionsButton/styles/hover = ExtResource("61_mana_soul_options_button_hover")
+ManaSoulOptionsButton/styles/pressed = ExtResource("62_mana_soul_options_button_pressed")
+ManaSoulOptionsButton/styles/disabled = ExtResource("63_mana_soul_options_button_disabled")
+ManaSoulOptionsButton/styles/focus = ExtResource("61_mana_soul_options_button_hover")
+ManaSoulHelpButton/base_type = &"Button"
+ManaSoulHelpButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulHelpButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulHelpButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulHelpButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulHelpButton/styles/normal = ExtResource("64_mana_soul_help_button_normal")
+ManaSoulHelpButton/styles/hover = ExtResource("65_mana_soul_help_button_hover")
+ManaSoulHelpButton/styles/pressed = ExtResource("66_mana_soul_help_button_pressed")
+ManaSoulHelpButton/styles/disabled = ExtResource("67_mana_soul_help_button_disabled")
+ManaSoulHelpButton/styles/focus = ExtResource("65_mana_soul_help_button_hover")
+ManaSoulMoreButton/base_type = &"Button"
+ManaSoulMoreButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulMoreButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulMoreButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulMoreButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulMoreButton/styles/normal = ExtResource("68_mana_soul_more_button_normal")
+ManaSoulMoreButton/styles/hover = ExtResource("69_mana_soul_more_button_hover")
+ManaSoulMoreButton/styles/pressed = ExtResource("70_mana_soul_more_button_pressed")
+ManaSoulMoreButton/styles/disabled = ExtResource("71_mana_soul_more_button_disabled")
+ManaSoulMoreButton/styles/focus = ExtResource("69_mana_soul_more_button_hover")
+ManaSoulLessButton/base_type = &"Button"
+ManaSoulLessButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulLessButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulLessButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulLessButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulLessButton/styles/normal = ExtResource("72_mana_soul_less_button_normal")
+ManaSoulLessButton/styles/hover = ExtResource("73_mana_soul_less_button_hover")
+ManaSoulLessButton/styles/pressed = ExtResource("74_mana_soul_less_button_pressed")
+ManaSoulLessButton/styles/disabled = ExtResource("75_mana_soul_less_button_disabled")
+ManaSoulLessButton/styles/focus = ExtResource("73_mana_soul_less_button_hover")
+ManaSoulLeftArrowButton/base_type = &"Button"
+ManaSoulLeftArrowButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulLeftArrowButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulLeftArrowButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulLeftArrowButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulLeftArrowButton/styles/normal = ExtResource("76_mana_soul_left_arrow_button_normal")
+ManaSoulLeftArrowButton/styles/hover = ExtResource("77_mana_soul_left_arrow_button_hover")
+ManaSoulLeftArrowButton/styles/pressed = ExtResource("78_mana_soul_left_arrow_button_pressed")
+ManaSoulLeftArrowButton/styles/disabled = ExtResource("79_mana_soul_left_arrow_button_disabled")
+ManaSoulLeftArrowButton/styles/focus = ExtResource("77_mana_soul_left_arrow_button_hover")
+ManaSoulRightArrowButton/base_type = &"Button"
+ManaSoulRightArrowButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulRightArrowButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulRightArrowButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulRightArrowButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulRightArrowButton/styles/normal = ExtResource("80_mana_soul_right_arrow_button_normal")
+ManaSoulRightArrowButton/styles/hover = ExtResource("81_mana_soul_right_arrow_button_hover")
+ManaSoulRightArrowButton/styles/pressed = ExtResource("82_mana_soul_right_arrow_button_pressed")
+ManaSoulRightArrowButton/styles/disabled = ExtResource("83_mana_soul_right_arrow_button_disabled")
+ManaSoulRightArrowButton/styles/focus = ExtResource("81_mana_soul_right_arrow_button_hover")
+ManaSoulDownArrowButton/base_type = &"Button"
+ManaSoulDownArrowButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulDownArrowButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulDownArrowButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulDownArrowButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulDownArrowButton/styles/normal = ExtResource("84_mana_soul_down_arrow_button_normal")
+ManaSoulDownArrowButton/styles/hover = ExtResource("85_mana_soul_down_arrow_button_hover")
+ManaSoulDownArrowButton/styles/pressed = ExtResource("86_mana_soul_down_arrow_button_pressed")
+ManaSoulDownArrowButton/styles/disabled = ExtResource("87_mana_soul_down_arrow_button_disabled")
+ManaSoulDownArrowButton/styles/focus = ExtResource("85_mana_soul_down_arrow_button_hover")
+ManaSoulUpArrowButton/base_type = &"Button"
+ManaSoulUpArrowButton/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulUpArrowButton/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulUpArrowButton/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulUpArrowButton/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulUpArrowButton/styles/normal = ExtResource("88_mana_soul_up_arrow_button_normal")
+ManaSoulUpArrowButton/styles/hover = ExtResource("89_mana_soul_up_arrow_button_hover")
+ManaSoulUpArrowButton/styles/pressed = ExtResource("90_mana_soul_up_arrow_button_pressed")
+ManaSoulUpArrowButton/styles/disabled = ExtResource("91_mana_soul_up_arrow_button_disabled")
+ManaSoulUpArrowButton/styles/focus = ExtResource("89_mana_soul_up_arrow_button_hover")
+ManaSoulEquipmentHeadSlot/base_type = &"Button"
+ManaSoulEquipmentHeadSlot/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentHeadSlot/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentHeadSlot/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentHeadSlot/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentHeadSlot/styles/normal = ExtResource("92_mana_soul_equipment_head_normal")
+ManaSoulEquipmentHeadSlot/styles/hover = ExtResource("93_mana_soul_equipment_head_hover")
+ManaSoulEquipmentHeadSlot/styles/pressed = ExtResource("94_mana_soul_equipment_head_pressed")
+ManaSoulEquipmentHeadSlot/styles/disabled = ExtResource("95_mana_soul_equipment_head_disabled")
+ManaSoulEquipmentHeadSlot/styles/focus = ExtResource("96_mana_soul_equipment_head_selected")
+ManaSoulEquipmentHeadSlotSelected/base_type = &"PanelContainer"
+ManaSoulEquipmentHeadSlotSelected/styles/panel = ExtResource("96_mana_soul_equipment_head_selected")
+ManaSoulEquipmentNeckSlot/base_type = &"Button"
+ManaSoulEquipmentNeckSlot/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentNeckSlot/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentNeckSlot/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentNeckSlot/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentNeckSlot/styles/normal = ExtResource("97_mana_soul_equipment_neck_normal")
+ManaSoulEquipmentNeckSlot/styles/hover = ExtResource("98_mana_soul_equipment_neck_hover")
+ManaSoulEquipmentNeckSlot/styles/pressed = ExtResource("99_mana_soul_equipment_neck_pressed")
+ManaSoulEquipmentNeckSlot/styles/disabled = ExtResource("100_mana_soul_equipment_neck_disabled")
+ManaSoulEquipmentNeckSlot/styles/focus = ExtResource("101_mana_soul_equipment_neck_selected")
+ManaSoulEquipmentNeckSlotSelected/base_type = &"PanelContainer"
+ManaSoulEquipmentNeckSlotSelected/styles/panel = ExtResource("101_mana_soul_equipment_neck_selected")
+ManaSoulEquipmentChestSlot/base_type = &"Button"
+ManaSoulEquipmentChestSlot/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentChestSlot/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentChestSlot/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentChestSlot/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentChestSlot/styles/normal = ExtResource("102_mana_soul_equipment_chest_normal")
+ManaSoulEquipmentChestSlot/styles/hover = ExtResource("103_mana_soul_equipment_chest_hover")
+ManaSoulEquipmentChestSlot/styles/pressed = ExtResource("104_mana_soul_equipment_chest_pressed")
+ManaSoulEquipmentChestSlot/styles/disabled = ExtResource("105_mana_soul_equipment_chest_disabled")
+ManaSoulEquipmentChestSlot/styles/focus = ExtResource("106_mana_soul_equipment_chest_selected")
+ManaSoulEquipmentChestSlotSelected/base_type = &"PanelContainer"
+ManaSoulEquipmentChestSlotSelected/styles/panel = ExtResource("106_mana_soul_equipment_chest_selected")
+ManaSoulEquipmentPantsSlot/base_type = &"Button"
+ManaSoulEquipmentPantsSlot/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentPantsSlot/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentPantsSlot/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentPantsSlot/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentPantsSlot/styles/normal = ExtResource("107_mana_soul_equipment_pants_normal")
+ManaSoulEquipmentPantsSlot/styles/hover = ExtResource("108_mana_soul_equipment_pants_hover")
+ManaSoulEquipmentPantsSlot/styles/pressed = ExtResource("109_mana_soul_equipment_pants_pressed")
+ManaSoulEquipmentPantsSlot/styles/disabled = ExtResource("110_mana_soul_equipment_pants_disabled")
+ManaSoulEquipmentPantsSlot/styles/focus = ExtResource("111_mana_soul_equipment_pants_selected")
+ManaSoulEquipmentPantsSlotSelected/base_type = &"PanelContainer"
+ManaSoulEquipmentPantsSlotSelected/styles/panel = ExtResource("111_mana_soul_equipment_pants_selected")
+ManaSoulEquipmentBootsSlot/base_type = &"Button"
+ManaSoulEquipmentBootsSlot/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentBootsSlot/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentBootsSlot/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentBootsSlot/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentBootsSlot/styles/normal = ExtResource("112_mana_soul_equipment_boots_normal")
+ManaSoulEquipmentBootsSlot/styles/hover = ExtResource("113_mana_soul_equipment_boots_hover")
+ManaSoulEquipmentBootsSlot/styles/pressed = ExtResource("114_mana_soul_equipment_boots_pressed")
+ManaSoulEquipmentBootsSlot/styles/disabled = ExtResource("115_mana_soul_equipment_boots_disabled")
+ManaSoulEquipmentBootsSlot/styles/focus = ExtResource("116_mana_soul_equipment_boots_selected")
+ManaSoulEquipmentBootsSlotSelected/base_type = &"PanelContainer"
+ManaSoulEquipmentBootsSlotSelected/styles/panel = ExtResource("116_mana_soul_equipment_boots_selected")
+ManaSoulEquipmentWeaponSlot/base_type = &"Button"
+ManaSoulEquipmentWeaponSlot/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentWeaponSlot/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentWeaponSlot/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentWeaponSlot/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentWeaponSlot/styles/normal = ExtResource("117_mana_soul_equipment_weapon_normal")
+ManaSoulEquipmentWeaponSlot/styles/hover = ExtResource("118_mana_soul_equipment_weapon_hover")
+ManaSoulEquipmentWeaponSlot/styles/pressed = ExtResource("119_mana_soul_equipment_weapon_pressed")
+ManaSoulEquipmentWeaponSlot/styles/disabled = ExtResource("120_mana_soul_equipment_weapon_disabled")
+ManaSoulEquipmentWeaponSlot/styles/focus = ExtResource("121_mana_soul_equipment_weapon_selected")
+ManaSoulEquipmentWeaponSlotSelected/base_type = &"PanelContainer"
+ManaSoulEquipmentWeaponSlotSelected/styles/panel = ExtResource("121_mana_soul_equipment_weapon_selected")
+ManaSoulEquipmentShieldSlot/base_type = &"Button"
+ManaSoulEquipmentShieldSlot/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentShieldSlot/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentShieldSlot/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentShieldSlot/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentShieldSlot/styles/normal = ExtResource("122_mana_soul_equipment_shield_normal")
+ManaSoulEquipmentShieldSlot/styles/hover = ExtResource("123_mana_soul_equipment_shield_hover")
+ManaSoulEquipmentShieldSlot/styles/pressed = ExtResource("124_mana_soul_equipment_shield_pressed")
+ManaSoulEquipmentShieldSlot/styles/disabled = ExtResource("125_mana_soul_equipment_shield_disabled")
+ManaSoulEquipmentShieldSlot/styles/focus = ExtResource("126_mana_soul_equipment_shield_selected")
+ManaSoulEquipmentShieldSlotSelected/base_type = &"PanelContainer"
+ManaSoulEquipmentShieldSlotSelected/styles/panel = ExtResource("126_mana_soul_equipment_shield_selected")
+ManaSoulEquipmentRingSlot/base_type = &"Button"
+ManaSoulEquipmentRingSlot/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentRingSlot/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentRingSlot/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentRingSlot/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentRingSlot/styles/normal = ExtResource("127_mana_soul_equipment_ring_normal")
+ManaSoulEquipmentRingSlot/styles/hover = ExtResource("128_mana_soul_equipment_ring_hover")
+ManaSoulEquipmentRingSlot/styles/pressed = ExtResource("129_mana_soul_equipment_ring_pressed")
+ManaSoulEquipmentRingSlot/styles/disabled = ExtResource("130_mana_soul_equipment_ring_disabled")
+ManaSoulEquipmentRingSlot/styles/focus = ExtResource("131_mana_soul_equipment_ring_selected")
+ManaSoulEquipmentRingSlotSelected/base_type = &"PanelContainer"
+ManaSoulEquipmentRingSlotSelected/styles/panel = ExtResource("131_mana_soul_equipment_ring_selected")
+ManaSoulEquipmentEmptySlot/base_type = &"Button"
+ManaSoulEquipmentEmptySlot/colors/font_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentEmptySlot/colors/font_hover_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentEmptySlot/colors/font_pressed_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentEmptySlot/colors/font_disabled_color = Color(1, 1, 1, 0)
+ManaSoulEquipmentEmptySlot/styles/normal = ExtResource("132_mana_soul_equipment_empty_normal")
+ManaSoulEquipmentEmptySlot/styles/hover = ExtResource("133_mana_soul_equipment_empty_hover")
+ManaSoulEquipmentEmptySlot/styles/pressed = ExtResource("134_mana_soul_equipment_empty_pressed")
+ManaSoulEquipmentEmptySlot/styles/disabled = ExtResource("135_mana_soul_equipment_empty_disabled")
+ManaSoulEquipmentEmptySlot/styles/focus = ExtResource("136_mana_soul_equipment_empty_selected")
+ManaSoulEquipmentEmptySlotSelected/base_type = &"PanelContainer"
+ManaSoulEquipmentEmptySlotSelected/styles/panel = ExtResource("136_mana_soul_equipment_empty_selected")
+ManaSoulABar/base_type = &"ProgressBar"
+ManaSoulABar/styles/background = ExtResource("11_mana_soul_bar_a_frame")
+ManaSoulABar/styles/fill = ExtResource("12_mana_soul_bar_a_fill")
+ManaSoulBBar/base_type = &"ProgressBar"
+ManaSoulBBar/styles/background = ExtResource("137_mana_soul_bar_b_frame")
+ManaSoulBBar/styles/fill = ExtResource("138_mana_soul_bar_b_fill")
+ManaSoulCBar/base_type = &"ProgressBar"
+ManaSoulCBar/styles/background = ExtResource("139_mana_soul_bar_c_frame")
+ManaSoulCBar/styles/fill = ExtResource("140_mana_soul_bar_c_fill")
+ManaSoulHealthBar/base_type = &"ProgressBar"
+ManaSoulHealthBar/styles/background = ExtResource("11_mana_soul_bar_a_frame")
+ManaSoulHealthBar/styles/fill = ExtResource("12_mana_soul_bar_a_fill")
+ManaSoulManaBar/base_type = &"ProgressBar"
+ManaSoulManaBar/styles/background = ExtResource("137_mana_soul_bar_b_frame")
+ManaSoulManaBar/styles/fill = ExtResource("138_mana_soul_bar_b_fill")
+ManaSoulExpBar/base_type = &"ProgressBar"
+ManaSoulExpBar/styles/background = ExtResource("139_mana_soul_bar_c_frame")
+ManaSoulExpBar/styles/fill = ExtResource("140_mana_soul_bar_c_fill")
+ManaSoulMinimapFrame/base_type = &"PanelContainer"
+ManaSoulMinimapFrame/styles/panel = ExtResource("141_mana_soul_minimap_frame")
+ManaSoulPortraitFrame/base_type = &"PanelContainer"
+ManaSoulPortraitFrame/styles/panel = ExtResource("142_mana_soul_portrait_frame")

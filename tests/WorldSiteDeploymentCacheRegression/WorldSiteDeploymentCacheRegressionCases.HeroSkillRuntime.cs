@@ -80,8 +80,8 @@ internal static void BattleSkillDefinitionsLiveInContentLayerAndMapToSnapshots()
         skillIndexSource.Contains("skill_shield_barrier", StringComparison.Ordinal) &&
         skillIndexSource.Contains("skill_sun_piercer", StringComparison.Ordinal) &&
         skillIndexSource.Contains("skill_thunder_tag_throw", StringComparison.Ordinal) &&
-        File.Exists(Path.Combine(root, "assets", "battle", "skills", "skill_shield_barrier.tres")) &&
-        File.Exists(Path.Combine(root, "assets", "battle", "skills", "skill_thunder_spiral_break.tres")),
+        File.Exists(Path.Combine(root, "resource", "battle", "skills", "skill_shield_barrier.tres")) &&
+        File.Exists(Path.Combine(root, "resource", "battle", "skills", "skill_thunder_spiral_break.tres")),
         "first-slice hero skill data should be authored as indexed battle skill resources");
     AssertTrue(
         compilerSource.Contains("BattleSkillDefinitionResource", StringComparison.Ordinal) &&

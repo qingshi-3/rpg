@@ -3,6 +3,7 @@ using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.Config;
 using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.StrategicManagement;
+using Rpg.Application.World;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
 
@@ -80,13 +81,13 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual("训练场", trainingGround.DisplayName, "training ground display name should come from config");
         AssertEqual(StrategicManagementIds.BuildingCategoryMilitary, trainingGround.CategoryId, "training ground should be military");
         AssertTrue(
-            trainingIconPath == "res://assets/textures/world/Buildings/Foundation/training_ground_icon.tres" &&
-            farmIconPath == "res://assets/textures/world/Buildings/Foundation/farm_icon.tres",
+            trainingIconPath == "res://resource/ui/icons/buildings/foundation/training_ground_icon.tres" &&
+            farmIconPath == "res://resource/ui/icons/buildings/foundation/farm_icon.tres",
             "first-slice building icons should use focused AtlasTexture resources instead of whole building sprite sheets");
         foreach (StrategicBuildingDefinition building in definitions.Buildings.Values)
         {
             AssertTrue(
-                building.IconPath.StartsWith("res://assets/textures/world/Buildings/Foundation/", StringComparison.Ordinal) &&
+                building.IconPath.StartsWith("res://resource/ui/icons/buildings/foundation/", StringComparison.Ordinal) &&
                 building.IconPath.EndsWith("_icon.tres", StringComparison.Ordinal),
                 $"building icon should point at a single authored atlas texture resource id={building.BuildingDefinitionId} path={building.IconPath}");
             string localIconPath = Path.Combine(root, building.IconPath["res://".Length..].Replace('/', Path.DirectorySeparatorChar));
@@ -500,6 +501,78 @@ internal static partial class StrategicManagementRegressionCases
                 company.HeroId == StrategicManagementIds.HeroCavalryCaptain &&
                 company.CorpsDefinitionId == StrategicManagementIds.CorpsCavalryLine),
             "cavalry captain should start with the cavalry company");
+    }
+
+    internal static void StrategicManagementDashboardCarriesMilitaryPreviewBattleUnitIds()
+    {
+        string root = ProjectRoot();
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementDashboardViewModel dashboard = new StrategicManagementViewModelService(
+                definitions,
+                new StrategicManagementRules(definitions))
+            .BuildDashboard(
+                state,
+                StrategicManagementIds.FactionPlayer,
+                StrategicManagementIds.LocationPlainsCity);
+
+        AssertTrue(
+            typeof(StrategicHeroDefinition).GetProperty("BattleUnitId") != null &&
+            typeof(StrategicHeroDefinition).GetProperty("IconPath") == null &&
+            typeof(StrategicCorpsDefinition).GetProperty("BattleUnitId") != null &&
+            typeof(StrategicCorpsDefinition).GetProperty("IconPath") == null &&
+            typeof(StrategicHeroAssignmentViewModel).GetProperty("BattleUnitId") != null &&
+            typeof(StrategicHeroAssignmentViewModel).GetProperty("IconPath") == null &&
+            typeof(StrategicMusterTemplateViewModel).GetProperty("BattleUnitId") != null &&
+            typeof(StrategicMusterTemplateViewModel).GetProperty("IconPath") == null &&
+            typeof(StrategicCorpsInstanceViewModel).GetProperty("BattleUnitId") != null &&
+            typeof(StrategicCorpsInstanceViewModel).GetProperty("IconPath") == null &&
+            typeof(StrategicHeroCompanyViewModel).GetProperty("HeroBattleUnitId") != null &&
+            typeof(StrategicHeroCompanyViewModel).GetProperty("CorpsBattleUnitId") != null,
+            "military definitions and view models should carry battle unit ids only; raw PNG icon paths are not a military preview contract");
+
+        IReadOnlyDictionary<string, string> unitDefinitionIndex = BattleUnitDefinitionIndexLoader.LoadDefaultPathIndex();
+        var expectedHeroUnitIds = new Dictionary<string, string>
+        {
+            [StrategicManagementIds.HeroOrdinaryCommander] = FirstSliceHeroCompanyIds.ShieldHeroUnit,
+            [StrategicManagementIds.HeroArcherCaptain] = FirstSliceHeroCompanyIds.ArcherHeroUnit,
+            [StrategicManagementIds.HeroCavalryCaptain] = FirstSliceHeroCompanyIds.AssaultHeroUnit
+        };
+        foreach ((string heroId, string expectedUnitId) in expectedHeroUnitIds)
+        {
+            StrategicHeroAssignmentViewModel hero = FindHero(dashboard, heroId);
+            StrategicHeroDefinition definition = definitions.Heroes[hero.HeroDefinitionId];
+            AssertEqual(expectedUnitId, definition.BattleUnitId, $"hero definition should reference the battle unit id hero={heroId}");
+            AssertEqual(expectedUnitId, GetRequiredProperty<string>(hero, "BattleUnitId"), $"hero dashboard card should expose the preview battle unit id hero={heroId}");
+            AssertPreviewUnitResourceExists(root, unitDefinitionIndex, expectedUnitId, $"hero preview unit should resolve through the battle unit index hero={heroId}");
+            AssertTrue(
+                dashboard.SelectedCity.HeroCompanies.Any(company =>
+                    company.HeroId == heroId &&
+                    GetRequiredProperty<string>(company, "HeroBattleUnitId") == expectedUnitId),
+                $"hero company view model should expose hero preview unit id hero={heroId}");
+        }
+
+        var expectedCorpsUnitIds = new Dictionary<string, string>
+        {
+            [StrategicManagementIds.CorpsShieldLine] = FirstSliceHeroCompanyIds.ShieldCorpsUnit,
+            [StrategicManagementIds.CorpsArcherLine] = FirstSliceHeroCompanyIds.ArcherCorpsUnit,
+            [StrategicManagementIds.CorpsCavalryLine] = FirstSliceHeroCompanyIds.AssaultCorpsUnit
+        };
+        foreach ((string corpsDefinitionId, string expectedUnitId) in expectedCorpsUnitIds)
+        {
+            StrategicMusterTemplateViewModel template = FindMusterTemplate(dashboard, corpsDefinitionId);
+            StrategicCorpsInstanceViewModel corps = dashboard.SelectedCity.CorpsInstances
+                .First(item => item.CorpsDefinitionId == corpsDefinitionId);
+            AssertEqual(expectedUnitId, definitions.Corps[corpsDefinitionId].BattleUnitId, $"corps definition should reference the battle unit id id={corpsDefinitionId}");
+            AssertEqual(expectedUnitId, GetRequiredProperty<string>(template, "BattleUnitId"), $"muster template should expose preview battle unit id={corpsDefinitionId}");
+            AssertEqual(expectedUnitId, GetRequiredProperty<string>(corps, "BattleUnitId"), $"corps row should expose preview battle unit id={corpsDefinitionId}");
+            AssertPreviewUnitResourceExists(root, unitDefinitionIndex, expectedUnitId, $"corps preview unit should resolve through the battle unit index id={corpsDefinitionId}");
+            AssertTrue(
+                dashboard.SelectedCity.HeroCompanies.Any(company =>
+                    company.CorpsDefinitionId == corpsDefinitionId &&
+                    GetRequiredProperty<string>(company, "CorpsBattleUnitId") == expectedUnitId),
+                $"hero company view model should expose corps preview unit id id={corpsDefinitionId}");
+        }
     }
 
     internal static void StrategicManagementResolvesMapSiteIdsWithoutSilentCityFallback()

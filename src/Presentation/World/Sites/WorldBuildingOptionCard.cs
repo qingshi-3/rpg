@@ -1,4 +1,5 @@
 using Godot;
+using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.World.Sites;
 
@@ -10,11 +11,12 @@ public partial class WorldBuildingOptionCard : Button
     private TextureRect _icon;
     private Label _nameLabel;
     private string _buildingDefinitionId = "";
-    private string _displayName = "";
+    private string _displayName = "建筑";
     private string _iconPath = "";
     private int _footprintWidth = 1;
     private int _footprintHeight = 1;
     private string _costText = "";
+    private string _disabledReason = "";
     private bool _selectable;
 
     public override void _Ready()
@@ -38,7 +40,8 @@ public partial class WorldBuildingOptionCard : Button
         int footprintWidth,
         int footprintHeight,
         string costText,
-        bool selectable)
+        bool selectable,
+        string disabledReason = "")
     {
         _buildingDefinitionId = buildingDefinitionId ?? "";
         _displayName = string.IsNullOrWhiteSpace(displayName) ? "建筑" : displayName.Trim();
@@ -47,13 +50,38 @@ public partial class WorldBuildingOptionCard : Button
         _footprintHeight = System.Math.Max(1, footprintHeight);
         _costText = string.IsNullOrWhiteSpace(costText) ? "无" : costText.Trim();
         _selectable = selectable;
+        _disabledReason = string.IsNullOrWhiteSpace(disabledReason) ? "未知原因" : disabledReason.Trim();
         ApplyBinding();
+    }
+
+    // Keep the inventory card compact; construction details live in the hover panel.
+    public override Control _MakeCustomTooltip(string forText)
+    {
+        if (string.IsNullOrWhiteSpace(forText))
+        {
+            return null;
+        }
+
+        WorldBuildingOptionTooltip tooltip = GameUiSceneFactory.CreateWorldBuildingOptionTooltip(nameof(WorldBuildingOptionCard));
+        if (tooltip == null)
+        {
+            return null;
+        }
+
+        tooltip.Bind(
+            _displayName,
+            $"占地 {_footprintWidth}x{_footprintHeight}",
+            $"成本 {_costText}",
+            _selectable ? "" : _disabledReason);
+        return tooltip;
     }
 
     private void ApplyBinding()
     {
-        Disabled = !_selectable;
-        TooltipText = $"占地 {_footprintWidth}x{_footprintHeight}\n成本 {_costText}";
+        // Unavailable cards still need hover detail to explain costs and failure reasons.
+        // Selection authority stays in OnPressed via _selectable instead of BaseButton.Disabled.
+        Disabled = false;
+        TooltipText = _displayName;
         SelfModulate = _selectable
             ? Colors.White
             : new Color(1.0f, 1.0f, 1.0f, 0.62f);

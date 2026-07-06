@@ -72,7 +72,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
 
         if (_selectionLabel != null)
         {
-            _selectionLabel.Text = $"{city.CityIdentityDisplayName}    预备兵 {city.ReserveForces}    兵力 {city.ActiveForces + city.ReserveForces}/{city.CityForceCapacity}";
+            _selectionLabel.Text = $"兵力 {city.ActiveForces + city.ReserveForces}/{city.CityForceCapacity}    预备 {city.ReserveForces}    剩余 {city.RemainingForceCapacity}";
         }
 
         BindBuildings(city);
@@ -109,7 +109,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
         ClearChildren(_buildingList);
         if (city.Buildings.Count == 0)
         {
-            AddMutedLine(_buildingList, "当前城市还没有已建建筑。");
+            AddMutedLine(_buildingList, "暂无建筑");
         }
         else
         {
@@ -118,22 +118,20 @@ internal sealed class StrategicManagementDashboardPanelBinder
                 string state = building.IsConstructed ? "已建成" : "建设中";
                 AddMutedLine(
                     _buildingList,
-                    $"{building.DisplayName}\n区域 {building.RegionDisplayName}    坐标 {building.GridX},{building.GridY}    占地 {building.FootprintWidth}x{building.FootprintHeight}    {state}");
+                    $"{building.DisplayName} · {building.RegionDisplayName} · {building.FootprintWidth}x{building.FootprintHeight} · {state}");
             }
         }
 
         if (city.ConstructionRegions.Count == 0)
         {
-            AddMutedLine(_buildingList, "当前城市没有开放建设区域。");
+            AddMutedLine(_buildingList, "暂无开放建设区");
             return;
         }
 
-        AddMutedLine(_buildingList, "建设区域");
+        AddMutedLine(_buildingList, "建设区");
         foreach (StrategicConstructionRegionViewModel region in city.ConstructionRegions)
         {
-            AddMutedLine(
-                _buildingList,
-                $"{region.DisplayName}\n范围 {region.OriginX},{region.OriginY} / {region.Width}x{region.Height}");
+            AddMutedLine(_buildingList, $"{region.DisplayName} · {region.Width}x{region.Height}");
         }
     }
 
@@ -142,7 +140,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
         ClearChildren(_buildingBuildList);
         if (_buildingBuildTitle != null)
         {
-            _buildingBuildTitle.Text = "可建建筑";
+            _buildingBuildTitle.Text = "可建设建筑";
         }
 
         if (city.BuildingOptions.Count == 0)
@@ -167,7 +165,8 @@ internal sealed class StrategicManagementDashboardPanelBinder
                 option.FootprintWidth,
                 option.FootprintHeight,
                 FormatCostsForPresentation(option.BuildCost),
-                option.CanBuild);
+                option.CanBuild,
+                option.CanBuild ? "" : FormatReasonsForPresentation(option.DisabledReason));
             if (option.CanBuild)
             {
                 card.Selected += _ => _selectBuildingForPlacement?.Invoke(buildingDefinitionId);
@@ -180,44 +179,21 @@ internal sealed class StrategicManagementDashboardPanelBinder
     private void BindConscription(StrategicConscriptionViewModel conscription)
     {
         ClearChildren(_conscriptionList);
-        StrategicConscriptionViewModel safeConscription = conscription ?? new StrategicConscriptionViewModel();
-        AddMutedLine(
-            _conscriptionList,
-            $"兵力：现役 {safeConscription.ActiveForces} / 预备 {safeConscription.ReserveForces} / 容量 {safeConscription.CityForceCapacity} / 剩余 {safeConscription.RemainingForceCapacity}");
-
-        StrategicConscriptionManualOptionViewModel manual = safeConscription.ManualOption ?? new StrategicConscriptionManualOptionViewModel();
-        string manualLine = $"手动征兵\n预备兵 +{manual.ReserveGain}    成本 {FormatCostsForPresentation(manual.Cost)}";
-        if (!manual.CanConscript)
+        if (_conscriptionList == null)
         {
-            manualLine = $"{manualLine}\n不可执行：{FormatReasonsForPresentation(manual.DisabledReason)}";
+            return;
         }
 
-        AddActionButton(
-            _conscriptionList,
-            manualLine,
-            !manual.CanConscript,
-            () => _manualConscript?.Invoke());
-
-        AddMutedLine(_conscriptionList, "自动征兵力度");
-        foreach (StrategicConscriptionIntensityOptionViewModel option in safeConscription.IntensityOptions)
+        WorldConscriptionPanel panel = GameUiSceneFactory.CreateWorldConscriptionPanel(nameof(StrategicManagementDashboardPanelBinder));
+        if (panel == null)
         {
-            string currentText = option.IsCurrent ? "当前" : "可选择";
-            string requirementText = option.RequiresTrainingGround ? "需要训练场" : "无需训练场";
-            string optionLine =
-                $"{option.DisplayName}    {currentText}\n每次大地图结算：预备兵 +{option.ReserveGain}    成本 {FormatCostsForPresentation(option.Cost)}    {requirementText}";
-            bool disabled = option.IsCurrent || !option.CanSelect;
-            if (!option.CanSelect && !option.IsCurrent)
-            {
-                optionLine = $"{optionLine}\n不可选择：{FormatReasonsForPresentation(option.DisabledReason)}";
-            }
-
-            string intensityId = option.IntensityId;
-            AddActionButton(
-                _conscriptionList,
-                optionLine,
-                disabled,
-                () => _setAutoConscriptionIntensity?.Invoke(intensityId));
+            return;
         }
+
+        panel.Bind(conscription ?? new StrategicConscriptionViewModel());
+        panel.ManualConscriptRequested += () => _manualConscript?.Invoke();
+        panel.AutoConscriptionIntensityRequested += intensityId => _setAutoConscriptionIntensity?.Invoke(intensityId);
+        _conscriptionList.AddChild(panel);
     }
 
     private void BindCorpsAndHeroes(
@@ -225,52 +201,67 @@ internal sealed class StrategicManagementDashboardPanelBinder
         StrategicCityManagementViewModel city)
     {
         ClearChildren(_corpsList);
+        if (_corpsList == null)
+        {
+            return;
+        }
+
         AddMutedLine(_corpsList, "现有编制");
         if (city.CorpsInstances.Count == 0)
         {
-            AddMutedLine(_corpsList, "当前城市还没有已创建的编制实例。");
+            AddMutedLine(_corpsList, "当前城市还没有已创建的编制。");
         }
 
         foreach (StrategicCorpsInstanceViewModel corps in city.CorpsInstances)
         {
-            string replenishLine = corps.Strength >= 100
-                ? "无需补员"
-                : corps.CanReplenish
-                    ? $"可补员    预备兵 {corps.ReplenishReserveCost}    成本 {FormatCostsForPresentation(corps.ReplenishCost)}"
-                    : $"不可补员：{FormatReasonsForPresentation(corps.ReplenishDisabledReason)}";
             string corpsInstanceId = corps.CorpsInstanceId;
-            AddActionButton(
-                _corpsList,
-                $"{corps.DisplayName}\n强度 {corps.Strength}/100    等级 {corps.Level}    装备 {corps.EquipmentLevel}    状态 {FormatCorpsStatus(corps.Status)}\n{replenishLine}",
-                corps.Strength >= 100 || !corps.CanReplenish,
-                () => _replenishCorps?.Invoke(corpsInstanceId));
+            WorldCorpsInstanceRow row = GameUiSceneFactory.CreateWorldCorpsInstanceRow(nameof(StrategicManagementDashboardPanelBinder));
+            if (row == null)
+            {
+                continue;
+            }
+
+            row.Bind(
+                corpsInstanceId,
+                corps.DisplayName,
+                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(corps.BattleUnitId),
+                corps.Strength,
+                corps.Level,
+                corps.EquipmentLevel,
+                FormatCorpsStatus(corps.Status),
+                corps.Strength < 100 && corps.CanReplenish,
+                corps.ReplenishReserveCost,
+                FormatCostsForPresentation(corps.ReplenishCost),
+                FormatReasonsForPresentation(corps.ReplenishDisabledReason));
+            row.ReplenishRequested += requestedCorpsInstanceId => _replenishCorps?.Invoke(requestedCorpsInstanceId);
+            _corpsList.AddChild(row);
         }
 
         AddMutedLine(_corpsList, "英雄编制");
-        bool hasAvailableCorps = city.CorpsInstances.Any(corps =>
-            corps.Status == StrategicCorpsInstanceStatus.Garrisoned &&
-            string.IsNullOrWhiteSpace(corps.AssignedHeroId));
         foreach (StrategicHeroAssignmentViewModel hero in dashboard.Heroes)
         {
             string heroId = hero.HeroId;
-            bool disabled = !hero.HasAssignedCorps && !hasAvailableCorps;
-            string assignmentLine = hero.HasAssignedCorps
-                ? $"解除编制：{hero.AssignedCorpsDisplayName}    适性 {hero.AptitudeGrade}"
-                : hasAvailableCorps
-                    ? "分配当前城市可用编制"
-                    : "当前城市没有可用驻守编制";
-            AddActionButton(
-                _corpsList,
-                $"{hero.DisplayName}\n{assignmentLine}",
-                disabled,
-                () => _toggleHeroAssignment?.Invoke(heroId));
+            WorldMilitaryHeroCard card = GameUiSceneFactory.CreateWorldMilitaryHeroCard(nameof(StrategicManagementDashboardPanelBinder));
+            if (card == null)
+            {
+                continue;
+            }
+
+            card.Bind(
+                heroId,
+                hero.DisplayName,
+                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(hero.BattleUnitId),
+                hero.AssignedCorpsDisplayName,
+                selected: false);
+            card.Selected += _ => _toggleHeroAssignment?.Invoke(heroId);
+            _corpsList.AddChild(card);
         }
     }
 
     private void BindLocationReadOnlyLists(StrategicLocationDashboardViewModel location)
     {
         ClearChildren(_buildingList);
-        AddMutedLine(_buildingList, "非城市地点没有城市建设区域。");
+        AddMutedLine(_buildingList, "非城市地点没有城市建设区。");
         if (location.ProductionPerWorldTimePulse.Count > 0)
         {
             AddMutedLine(_buildingList, $"大地图时间产出：{location.ProductionDisplayText}");
@@ -307,13 +298,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
             return "战略经营城市未初始化。";
         }
 
-        return string.Join(
-            "\n",
-            city.DisplayName,
-            $"城市底色：{city.CityIdentityDisplayName}",
-            $"兵力：现役 {city.ActiveForces} / 预备 {city.ReserveForces} / 容量 {city.CityForceCapacity} / 剩余 {city.RemainingForceCapacity}",
-            $"建筑：{city.Buildings.Count} 项    建设区域：{city.ConstructionRegions.Count}",
-            $"可创建编制：{city.MusterTemplates.Count(item => item.CanCreate)}/{city.MusterTemplates.Count}    已有编制：{city.CorpsInstances.Count}");
+        return $"{city.DisplayName} · {city.CityIdentityDisplayName}";
     }
 
     private static string BuildLocationOverviewText(StrategicLocationDashboardViewModel location)
@@ -323,15 +308,10 @@ internal sealed class StrategicManagementDashboardPanelBinder
             return "战略经营地点未初始化。";
         }
 
-        return string.Join(
-            "\n",
-            location.DisplayName,
-            $"地点类型：{location.KindDisplayName}",
-            $"控制状态：{location.ControlStateDisplayName}",
-            $"所属势力：{FormatFactionId(location.OwnerFactionId)}",
-            $"来源权限：{(string.IsNullOrWhiteSpace(location.SourcePermissionDisplayText) ? "无" : location.SourcePermissionDisplayText)}",
-            $"大地图时间产出：{(string.IsNullOrWhiteSpace(location.ProductionDisplayText) ? "无" : location.ProductionDisplayText)}",
-            location.CanManageCity ? "该地点可进入城市经营。" : "该地点不是城市，不开放城市经营命令。");
+        string production = string.IsNullOrWhiteSpace(location.ProductionDisplayText)
+            ? "无产出"
+            : location.ProductionDisplayText;
+        return $"{location.DisplayName} · {location.KindDisplayName} · {location.ControlStateDisplayName} · {production}";
     }
 
     private static string BuildResourceLine(IReadOnlyList<StrategicResourceViewModel> resources)
@@ -427,18 +407,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
         };
     }
 
-    private static string FormatFactionId(string factionId)
-    {
-        return factionId switch
-        {
-            StrategicManagementIds.FactionPlayer => "玩家势力",
-            StrategicManagementIds.FactionEnemy => "敌对势力",
-            "" => "未知",
-            null => "未知",
-            _ => factionId
-        };
-    }
-
     private static void AddMutedLine(Container parent, string text)
     {
         if (parent == null)
@@ -454,29 +422,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
 
         label.Text = text;
         parent.AddChild(label);
-    }
-
-    private static void AddActionButton(Container parent, string text, bool disabled, Action pressed)
-    {
-        if (parent == null)
-        {
-            return;
-        }
-
-        Button button = GameUiSceneFactory.CreateWorldPrimaryActionButton(nameof(StrategicManagementDashboardPanelBinder));
-        if (button == null)
-        {
-            return;
-        }
-
-        button.Text = text;
-        button.Disabled = disabled;
-        if (!disabled)
-        {
-            button.Pressed += () => pressed?.Invoke();
-        }
-
-        parent.AddChild(button);
     }
 
     private static void ClearChildren(Node node)

@@ -1,0 +1,21 @@
+[gd_resource type="SpriteFrames" load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01b_1.png" id="1_frame"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01b_2.png" id="2_frame"]
+
+[resource]
+animations = [{
+"frames": [
+{
+"duration": 1.0,
+"texture": ExtResource("1_frame")
+},
+{
+"duration": 1.0,
+"texture": ExtResource("2_frame")
+}
+],
+"loop": false,
+"name": &"click_pointer",
+"speed": 12.0
+}]

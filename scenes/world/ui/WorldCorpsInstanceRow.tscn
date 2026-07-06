@@ -1,0 +1,96 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/WorldCorpsInstanceRow.cs" id="2_row_script"]
+[ext_resource type="StyleBoxTexture" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_slot.tres" id="3_panel_slot"]
+
+[node name="WorldCorpsInstanceRow" type="Button"]
+custom_minimum_size = Vector2(458, 82)
+size_flags_horizontal = 3
+focus_mode = 2
+theme = ExtResource("1_theme")
+theme_type_variation = &"WorldTravelBookCardButton"
+script = ExtResource("2_row_script")
+
+[node name="Content" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = 8.0
+offset_right = -10.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="IconFrame" type="PanelContainer" parent="Content"]
+custom_minimum_size = Vector2(58, 58)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = ExtResource("3_panel_slot")
+
+[node name="Icon" type="TextureRect" parent="Content/IconFrame"]
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TextStack" type="VBoxContainer" parent="Content"]
+custom_minimum_size = Vector2(144, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="NameLabel" type="Label" parent="Content/TextStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.96, 0.78, 0.62, 1)
+theme_override_font_sizes/font_size = 16
+text = "编制"
+clip_text = true
+
+[node name="StatusLabel" type="Label" parent="Content/TextStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.82, 0.72, 0.62, 1)
+theme_override_font_sizes/font_size = 13
+text = "驻守"
+clip_text = true
+
+[node name="StrengthStack" type="VBoxContainer" parent="Content"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 5
+
+[node name="StrengthLabel" type="Label" parent="Content/StrengthStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+text = "100/100"
+horizontal_alignment = 2
+
+[node name="StrengthBar" type="ProgressBar" parent="Content/StrengthStack"]
+custom_minimum_size = Vector2(160, 14)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+value = 100.0
+show_percentage = false
+
+[node name="MetaLabel" type="Label" parent="Content/StrengthStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.82, 0.72, 0.62, 1)
+theme_override_font_sizes/font_size = 12
+text = "Lv.1  装备 1"
+horizontal_alignment = 2

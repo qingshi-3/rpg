@@ -2,7 +2,7 @@
   "buildings": [
     {
       "buildingDefinitionId": "building_farm",
-      "iconPath": "res://assets/textures/world/Buildings/Foundation/farm_icon.tres",
+      "iconPath": "res://resource/ui/icons/buildings/foundation/farm_icon.tres",
       "displayName": "农田",
       "categoryId": "building_category_economy",
       "footprintWidth": 2,
@@ -19,7 +19,7 @@
     },
     {
       "buildingDefinitionId": "building_market",
-      "iconPath": "res://assets/textures/world/Buildings/Foundation/market_icon.tres",
+      "iconPath": "res://resource/ui/icons/buildings/foundation/market_icon.tres",
       "displayName": "集市",
       "categoryId": "building_category_economy",
       "footprintWidth": 2,
@@ -36,7 +36,7 @@
     },
     {
       "buildingDefinitionId": "building_lumber_camp",
-      "iconPath": "res://assets/textures/world/Buildings/Foundation/lumber_camp_icon.tres",
+      "iconPath": "res://resource/ui/icons/buildings/foundation/lumber_camp_icon.tres",
       "displayName": "伐木场",
       "categoryId": "building_category_economy",
       "footprintWidth": 2,
@@ -53,7 +53,7 @@
     },
     {
       "buildingDefinitionId": "building_mine",
-      "iconPath": "res://assets/textures/world/Buildings/Foundation/mine_icon.tres",
+      "iconPath": "res://resource/ui/icons/buildings/foundation/mine_icon.tres",
       "displayName": "矿场",
       "categoryId": "building_category_economy",
       "footprintWidth": 2,
@@ -70,7 +70,7 @@
     },
     {
       "buildingDefinitionId": "building_training_ground",
-      "iconPath": "res://assets/textures/world/Buildings/Foundation/training_ground_icon.tres",
+      "iconPath": "res://resource/ui/icons/buildings/foundation/training_ground_icon.tres",
       "displayName": "训练场",
       "categoryId": "building_category_military",
       "footprintWidth": 3,
@@ -83,7 +83,7 @@
     },
     {
       "buildingDefinitionId": "building_tavern",
-      "iconPath": "res://assets/textures/world/Buildings/Foundation/tavern_icon.tres",
+      "iconPath": "res://resource/ui/icons/buildings/foundation/tavern_icon.tres",
       "displayName": "酒馆",
       "categoryId": "building_category_hero",
       "footprintWidth": 2,
@@ -95,7 +95,7 @@
     },
     {
       "buildingDefinitionId": "building_arrow_tower",
-      "iconPath": "res://assets/textures/world/Buildings/Foundation/arrow_tower_icon.tres",
+      "iconPath": "res://resource/ui/icons/buildings/foundation/arrow_tower_icon.tres",
       "displayName": "箭塔",
       "categoryId": "building_category_defense",
       "footprintWidth": 1,
@@ -108,7 +108,7 @@
     },
     {
       "buildingDefinitionId": "building_medical_shrine",
-      "iconPath": "res://assets/textures/world/Buildings/Foundation/medical_shrine_icon.tres",
+      "iconPath": "res://resource/ui/icons/buildings/foundation/medical_shrine_icon.tres",
       "displayName": "医所",
       "categoryId": "building_category_support",
       "footprintWidth": 2,

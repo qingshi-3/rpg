@@ -9,6 +9,8 @@ internal sealed class BattleRuntimeCommandGroupView
     public string DisplayName { get; init; } = "";
     public string HeroName { get; init; } = "";
     public string CorpsSummary { get; init; } = "";
+    public string HeroBattleUnitId { get; init; } = "";
+    public string CorpsBattleUnitId { get; init; } = "";
     public string DefaultFormationId { get; init; } = "";
     public IReadOnlyList<BattleForceRequest> Forces { get; init; } = System.Array.Empty<BattleForceRequest>();
 }

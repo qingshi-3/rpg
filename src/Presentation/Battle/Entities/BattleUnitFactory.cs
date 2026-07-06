@@ -15,7 +15,7 @@ namespace Rpg.Presentation.Battle.Entities;
 public sealed class BattleUnitFactory
 {
     private const string DefaultUnitEntityScenePath = "res://scenes/battle/entities/units/BattleUnitBase.tscn";
-    private const string UnitDefinitionRootPath = "res://assets/battle/units";
+    private const string UnitDefinitionRootPath = "res://resource/battle/units";
     private const string UnitDefinitionIndexPath = BattleUnitDefinitionIndexLoader.DefaultConfigPath;
     private static readonly Dictionary<string, BattleUnitDefinition> SharedDefinitions = new(StringComparer.Ordinal);
     private static readonly Dictionary<string, string> SharedDefinitionPathIndex = new(StringComparer.Ordinal);

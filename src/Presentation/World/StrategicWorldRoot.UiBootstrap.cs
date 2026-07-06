@@ -48,6 +48,7 @@ public partial class StrategicWorldRoot
             GameUiSceneFactory.WorldCompactMarkerButtonScenePath,
             GameUiSceneFactory.WorldExpeditionCountRowScenePath,
             GameUiSceneFactory.WorldResourceFloatTextScenePath,
+            GameUiSceneFactory.StrategicBattleGateForcePreviewCardScenePath,
             GameUiSceneFactory.PreBattleDialogScenePath);
 
         Node warmupRoot = new() { Name = "StrategicUiWarmup" };
@@ -59,6 +60,7 @@ public partial class StrategicWorldRoot
         AddWarmupNode(warmupRoot, GameUiSceneFactory.CreateWorldSecondaryActionButton(nameof(StrategicWorldRoot)));
         AddWarmupNode(warmupRoot, GameUiSceneFactory.CreateWorldCompactMarkerButton(nameof(StrategicWorldRoot)));
         AddWarmupNode(warmupRoot, GameUiSceneFactory.CreateWorldExpeditionCountRow(nameof(StrategicWorldRoot)));
+        AddWarmupNode(warmupRoot, GameUiSceneFactory.CreateStrategicBattleGateForcePreviewCard(nameof(StrategicWorldRoot)));
         AddWarmupNode(warmupRoot, GameUiSceneFactory.CreateWorldResourceFloatText(nameof(StrategicWorldRoot)));
         warmupRoot.QueueFree();
     }

@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://be8o2v2qkn51v"]
 
 [ext_resource type="Script" uid="uid://c1m5ot6re8xh2" path="res://src/Presentation/World/WorldSiteHoverSummaryPanel.cs" id="1_panel"]
-[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_hover_title"]
 font_size = 16
@@ -17,7 +17,7 @@ z_index = 130
 custom_minimum_size = Vector2(260, 78)
 mouse_filter = 2
 theme = ExtResource("2_theme")
-theme_type_variation = &"WorldContextCard"
+theme_type_variation = &"WorldHoverInfoPanel"
 script = ExtResource("1_panel")
 
 [node name="Margin" type="MarginContainer" parent="."]

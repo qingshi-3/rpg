@@ -156,7 +156,6 @@ public static class StrategicManagementContentConfigLoader
         {
             RequireNonEmpty(corps.CorpsDefinitionId, "corpsDefinitionId", path);
             RequireNonEmpty(corps.DisplayName, "displayName", path);
-            RequireNonEmpty(corps.IconPath, "iconPath", path);
             RequireNonEmpty(corps.BattleUnitId, "battleUnitId", path);
             if (!ids.Add(corps.CorpsDefinitionId))
             {

@@ -1,0 +1,1863 @@
+{
+  "name": "travel-book-lite-theme",
+  "style": "TravelBookLite parchment/book pixel UI, adapted as reusable Godot UI theme resources.",
+  "assets_root": "res://assets/textures/ui/travel-book-lite",
+  "resource_root": "res://resource/ui/themes/travel-book-lite",
+  "theme": "res://resource/ui/themes/travel-book-lite/travel_book_lite_theme.tres",
+  "constraints": [
+    "Original panel and popup textures are used; panel centers remain flat color.",
+    "Book cover and book page textures are kept available as fixed TextureRect assets and optional StyleBoxTexture resources.",
+    "PNG imports are lossless with mipmaps disabled for crisp pixel UI.",
+    "Button01a frame files are treated as Button state artwork, not timeline animation frames.",
+    "Mouse cursor click frames are provided as SpriteFrames for UI-layer cursor or click feedback."
+  ],
+  "source": {
+    "asset_pack": "Complete UI Book Styles Pack",
+    "style_folder": "01_TravelBookLite",
+    "author": "Crusenho Agus Hennihuno",
+    "author_url": "https://crusenho.itch.io",
+    "product_url": "https://crusenho.itch.io/complete-ui-book-styles-pack",
+    "product_date": "2025-03-02",
+    "license_summary": [
+      "Commercial and personal use are allowed.",
+      "Modification and redistribution inside a game are allowed.",
+      "Do not resell or publish the original or adapted material as an asset pack.",
+      "NFT or similar uses are forbidden.",
+      "Credit or product link is required, and changes should be indicated."
+    ],
+    "local_source_folder": "01_TravelBookLite"
+  },
+  "raw_textures": {
+    "sprites/UI_TravelBook_Alert01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Alert01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Alert01a.png",
+      "size": [
+        3,
+        6
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Bar01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Bar01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Bar01a.png",
+      "size": [
+        62,
+        4
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_BookCover01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_BookCover01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_BookCover01a.png",
+      "size": [
+        224,
+        160
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_BookPageLeft01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_BookPageLeft01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_BookPageLeft01a.png",
+      "size": [
+        104,
+        147
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_BookPageRight01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_BookPageRight01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_BookPageRight01a.png",
+      "size": [
+        104,
+        147
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_ButtonValue01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_ButtonValue01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_ButtonValue01a.png",
+      "size": [
+        8,
+        6
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_ButtonValue01b.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_ButtonValue01b.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_ButtonValue01b.png",
+      "size": [
+        8,
+        6
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_CommandDirection01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_CommandDirection01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_CommandDirection01a.png",
+      "size": [
+        5,
+        7
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_CommandHold01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_CommandHold01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_CommandHold01a.png",
+      "size": [
+        9,
+        11
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_CommandPress01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_CommandPress01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_CommandPress01a.png",
+      "size": [
+        5,
+        9
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Cursor01c.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Cursor01c.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Cursor01c.png",
+      "size": [
+        14,
+        16
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Cursor01d.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Cursor01d.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Cursor01d.png",
+      "size": [
+        14,
+        16
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Fill01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Fill01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Fill01a.png",
+      "size": [
+        30,
+        2
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Fill01b.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Fill01b.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Fill01b.png",
+      "size": [
+        30,
+        2
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Frame01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Frame01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Frame01a.png",
+      "size": [
+        62,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_FrameSelect01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_FrameSelect01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_FrameSelect01a.png",
+      "size": [
+        62,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_FrameSelect01b.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_FrameSelect01b.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_FrameSelect01b.png",
+      "size": [
+        62,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadA01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadA01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadA01a.png",
+      "size": [
+        9,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadB01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadB01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadB01a.png",
+      "size": [
+        9,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadDPadDown01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadDPadDown01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadDPadDown01a.png",
+      "size": [
+        8,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadDPadLeft01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadDPadLeft01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadDPadLeft01a.png",
+      "size": [
+        8,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadDPadRight01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadDPadRight01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadDPadRight01a.png",
+      "size": [
+        8,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadDPadUp01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadDPadUp01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadDPadUp01a.png",
+      "size": [
+        8,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadL01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadL01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadL01a.png",
+      "size": [
+        9,
+        9
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadL301a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadL301a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadL301a.png",
+      "size": [
+        11,
+        9
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadLB01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadLB01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadLB01a.png",
+      "size": [
+        15,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadLT01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadLT01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadLT01a.png",
+      "size": [
+        15,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadMenu01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadMenu01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadMenu01a.png",
+      "size": [
+        9,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadR01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadR01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadR01a.png",
+      "size": [
+        9,
+        9
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadR301a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadR301a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadR301a.png",
+      "size": [
+        11,
+        9
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadRB01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadRB01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadRB01a.png",
+      "size": [
+        15,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadRT01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadRT01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadRT01a.png",
+      "size": [
+        15,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadShare01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadShare01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadShare01a.png",
+      "size": [
+        9,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadView01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadView01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadView01a.png",
+      "size": [
+        9,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadX01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadX01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadX01a.png",
+      "size": [
+        9,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_GamepadY01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_GamepadY01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_GamepadY01a.png",
+      "size": [
+        9,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Handle03a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Handle03a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Handle03a.png",
+      "size": [
+        7,
+        8
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_HandleDropdown01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_HandleDropdown01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_HandleDropdown01a.png",
+      "size": [
+        9,
+        6
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconArrow01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconArrow01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconArrow01a.png",
+      "size": [
+        16,
+        13
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconCoin01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconCoin01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconCoin01a.png",
+      "size": [
+        11,
+        12
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconCross01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconCross01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconCross01a.png",
+      "size": [
+        14,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconEnergy01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconEnergy01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconEnergy01a.png",
+      "size": [
+        12,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconEnergy01d.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconEnergy01d.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconEnergy01d.png",
+      "size": [
+        12,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconEnergy01g.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconEnergy01g.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconEnergy01g.png",
+      "size": [
+        12,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconGear01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconGear01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconGear01a.png",
+      "size": [
+        14,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconHeart01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconHeart01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconHeart01a.png",
+      "size": [
+        13,
+        10
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconHeart01e.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconHeart01e.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconHeart01e.png",
+      "size": [
+        13,
+        10
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconHeart01i.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconHeart01i.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconHeart01i.png",
+      "size": [
+        13,
+        10
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconHome01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconHome01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconHome01a.png",
+      "size": [
+        14,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconPause01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconPause01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconPause01a.png",
+      "size": [
+        10,
+        13
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconPlay01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconPlay01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconPlay01a.png",
+      "size": [
+        9,
+        13
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconRestart01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconRestart01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconRestart01a.png",
+      "size": [
+        11,
+        13
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconStar01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconStar01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconStar01a.png",
+      "size": [
+        12,
+        11
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconStar01c.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconStar01c.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconStar01c.png",
+      "size": [
+        12,
+        11
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconStar01e.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconStar01e.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconStar01e.png",
+      "size": [
+        12,
+        11
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_IconTick01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconTick01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_IconTick01a.png",
+      "size": [
+        15,
+        12
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Line01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Line01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Line01a.png",
+      "size": [
+        30,
+        2
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Marker01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Marker01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Marker01a.png",
+      "size": [
+        20,
+        14
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Point01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Point01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Point01a.png",
+      "size": [
+        5,
+        5
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Point02a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Point02a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Point02a.png",
+      "size": [
+        5,
+        3
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Popup01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Popup01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Popup01a.png",
+      "size": [
+        62,
+        30
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Select01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Select01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Select01a.png",
+      "size": [
+        30,
+        30
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Slot01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Slot01a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Slot01a.png",
+      "size": [
+        30,
+        30
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Slot01b.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Slot01b.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Slot01b.png",
+      "size": [
+        30,
+        30
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Slot01c.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Slot01c.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Slot01c.png",
+      "size": [
+        30,
+        30
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Toggle03a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Toggle03a.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Toggle03a.png",
+      "size": [
+        10,
+        6
+      ],
+      "alpha": true
+    },
+    "sprites/UI_TravelBook_Toggle03b.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Toggle03b.png",
+      "source_set": "Sprites",
+      "source_name": "UI_TravelBook_Toggle03b.png",
+      "size": [
+        10,
+        6
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Alert01a_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Alert01a_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Alert01a_1.png",
+      "size": [
+        4,
+        7
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Alert01a_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Alert01a_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Alert01a_2.png",
+      "size": [
+        4,
+        7
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Alert01a_3.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Alert01a_3.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Alert01a_3.png",
+      "size": [
+        4,
+        7
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Alert01a_4.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Alert01a_4.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Alert01a_4.png",
+      "size": [
+        4,
+        7
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Button01a_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Button01a_1.png",
+      "size": [
+        30,
+        31
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Button01a_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Button01a_2.png",
+      "size": [
+        30,
+        31
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Button01a_3.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_3.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Button01a_3.png",
+      "size": [
+        30,
+        31
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Button01a_4.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_4.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Button01a_4.png",
+      "size": [
+        30,
+        31
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Button01a_5.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_5.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Button01a_5.png",
+      "size": [
+        30,
+        31
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionDirect01a_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionDirect01a_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionDirect01a_1.png",
+      "size": [
+        5,
+        10
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionDirect01a_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionDirect01a_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionDirect01a_2.png",
+      "size": [
+        5,
+        10
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionDirect01a_3.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionDirect01a_3.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionDirect01a_3.png",
+      "size": [
+        5,
+        10
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionDirect01a_4.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionDirect01a_4.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionDirect01a_4.png",
+      "size": [
+        5,
+        10
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionHold01a_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionHold01a_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionHold01a_1.png",
+      "size": [
+        9,
+        14
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionHold01a_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionHold01a_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionHold01a_2.png",
+      "size": [
+        9,
+        14
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionHold01a_3.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionHold01a_3.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionHold01a_3.png",
+      "size": [
+        9,
+        14
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionHold01a_4.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionHold01a_4.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionHold01a_4.png",
+      "size": [
+        9,
+        14
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionHold01a_5.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionHold01a_5.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionHold01a_5.png",
+      "size": [
+        9,
+        14
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionHold01a_6.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionHold01a_6.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionHold01a_6.png",
+      "size": [
+        9,
+        14
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionPress01a_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionPress01a_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionPress01a_1.png",
+      "size": [
+        5,
+        12
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionPress01a_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionPress01a_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionPress01a_2.png",
+      "size": [
+        5,
+        12
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionPress01a_3.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionPress01a_3.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionPress01a_3.png",
+      "size": [
+        5,
+        12
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_CommandActionPress01a_4.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_CommandActionPress01a_4.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_CommandActionPress01a_4.png",
+      "size": [
+        5,
+        12
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Marker01aHide_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aHide_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Marker01aHide_1.png",
+      "size": [
+        20,
+        15
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Marker01aHide_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aHide_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Marker01aHide_2.png",
+      "size": [
+        20,
+        15
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Marker01aHide_3.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aHide_3.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Marker01aHide_3.png",
+      "size": [
+        20,
+        15
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Marker01aHide_4.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aHide_4.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Marker01aHide_4.png",
+      "size": [
+        20,
+        15
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Marker01aShow_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aShow_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Marker01aShow_1.png",
+      "size": [
+        20,
+        15
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Marker01aShow_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aShow_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Marker01aShow_2.png",
+      "size": [
+        20,
+        15
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Marker01aShow_3.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aShow_3.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Marker01aShow_3.png",
+      "size": [
+        20,
+        15
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Marker01aShow_4.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aShow_4.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Marker01aShow_4.png",
+      "size": [
+        20,
+        15
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_MouseCursorClick01a_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01a_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_MouseCursorClick01a_1.png",
+      "size": [
+        21,
+        21
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_MouseCursorClick01a_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01a_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_MouseCursorClick01a_2.png",
+      "size": [
+        21,
+        21
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_MouseCursorClick01a_3.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01a_3.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_MouseCursorClick01a_3.png",
+      "size": [
+        21,
+        21
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_MouseCursorClick01a_4.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01a_4.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_MouseCursorClick01a_4.png",
+      "size": [
+        21,
+        21
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_MouseCursorClick01b_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01b_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_MouseCursorClick01b_1.png",
+      "size": [
+        14,
+        16
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_MouseCursorClick01b_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01b_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_MouseCursorClick01b_2.png",
+      "size": [
+        14,
+        16
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Point01a_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Point01a_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Point01a_1.png",
+      "size": [
+        5,
+        6
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Point01a_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Point01a_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Point01a_2.png",
+      "size": [
+        5,
+        6
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Point02a_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Point02a_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Point02a_1.png",
+      "size": [
+        6,
+        3
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_Point02a_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Point02a_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_Point02a_2.png",
+      "size": [
+        6,
+        3
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_SlotCursor01a_1.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_SlotCursor01a_1.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_SlotCursor01a_1.png",
+      "size": [
+        30,
+        30
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_SlotCursor01a_2.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_SlotCursor01a_2.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_SlotCursor01a_2.png",
+      "size": [
+        30,
+        30
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_SlotCursor01a_3.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_SlotCursor01a_3.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_SlotCursor01a_3.png",
+      "size": [
+        30,
+        30
+      ],
+      "alpha": true
+    },
+    "animated/UI_TravelBook_SlotCursor01a_4.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_SlotCursor01a_4.png",
+      "source_set": "Sprites Animated",
+      "source_name": "UI_TravelBook_SlotCursor01a_4.png",
+      "size": [
+        30,
+        30
+      ],
+      "alpha": true
+    },
+    "spritesheet/UI_TravelBook_Spritesheet01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/spritesheet/UI_TravelBook_Spritesheet01a.png",
+      "source_set": "Spritesheet",
+      "source_name": "UI_TravelBook_Spritesheet01a.png",
+      "size": [
+        608,
+        880
+      ],
+      "alpha": true
+    },
+    "spritesheet/UI_TravelBook_SpritesheetInfo01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/spritesheet/UI_TravelBook_SpritesheetInfo01a.png",
+      "source_set": "Spritesheet",
+      "source_name": "UI_TravelBook_SpritesheetInfo01a.png",
+      "size": [
+        608,
+        880
+      ],
+      "alpha": true
+    },
+    "spritesheet/UI_TravelBookAnimated_Spritesheet01a.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/spritesheet/UI_TravelBookAnimated_Spritesheet01a.png",
+      "source_set": "Spritesheet",
+      "source_name": "UI_TravelBookAnimated_Spritesheet01a.png",
+      "size": [
+        192,
+        384
+      ],
+      "alpha": true
+    },
+    "travel_book_lite_theme_preview.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/travel_book_lite_theme_preview.png",
+      "source_set": "generated_preview",
+      "source_name": "travel_book_lite_theme_preview.png",
+      "size": [
+        960,
+        540
+      ],
+      "alpha": true
+    },
+    "travel_book_lite_interaction_preview.png": {
+      "path": "res://assets/textures/ui/travel-book-lite/travel_book_lite_interaction_preview.png",
+      "source_set": "generated_preview",
+      "source_name": "travel_book_lite_interaction_preview.png",
+      "size": [
+        720,
+        360
+      ],
+      "alpha": true
+    }
+  },
+  "styleboxes": {
+    "travel_book_cover_panel": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_cover_panel.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_BookCover01a.png",
+      "texture_margin": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "content_margin": [
+        12,
+        12,
+        12,
+        12
+      ],
+      "role": "large red book-cover panel"
+    },
+    "travel_book_page_left_panel": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_page_left_panel.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_BookPageLeft01a.png",
+      "texture_margin": [
+        6,
+        6,
+        6,
+        10
+      ],
+      "content_margin": [
+        10,
+        10,
+        10,
+        14
+      ],
+      "role": "left parchment page panel"
+    },
+    "travel_book_page_right_panel": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_page_right_panel.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_BookPageRight01a.png",
+      "texture_margin": [
+        6,
+        6,
+        6,
+        10
+      ],
+      "content_margin": [
+        10,
+        10,
+        10,
+        14
+      ],
+      "role": "right parchment page panel"
+    },
+    "travel_book_popup_panel": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_popup_panel.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Popup01a.png",
+      "texture_margin": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "content_margin": [
+        9,
+        8,
+        9,
+        8
+      ],
+      "role": "plain parchment popup or text field"
+    },
+    "travel_book_header": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_header.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Frame01a.png",
+      "texture_margin": [
+        6,
+        4,
+        6,
+        4
+      ],
+      "content_margin": [
+        8,
+        4,
+        8,
+        4
+      ],
+      "role": "thin parchment header strip"
+    },
+    "travel_book_selection": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_selection.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_FrameSelect01a.png",
+      "texture_margin": [
+        6,
+        4,
+        6,
+        4
+      ],
+      "content_margin": [
+        8,
+        4,
+        8,
+        4
+      ],
+      "role": "selection highlight"
+    },
+    "travel_book_selection_active": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_selection_active.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_FrameSelect01b.png",
+      "texture_margin": [
+        6,
+        4,
+        6,
+        4
+      ],
+      "content_margin": [
+        8,
+        4,
+        8,
+        4
+      ],
+      "role": "active selection highlight"
+    },
+    "travel_book_wide_button_normal": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_wide_button_normal.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Popup01a.png",
+      "texture_margin": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "content_margin": [
+        10,
+        7,
+        10,
+        7
+      ],
+      "role": "wide text button normal"
+    },
+    "travel_book_wide_button_hover": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_wide_button_hover.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_FrameSelect01a.png",
+      "texture_margin": [
+        6,
+        4,
+        6,
+        4
+      ],
+      "content_margin": [
+        10,
+        5,
+        10,
+        5
+      ],
+      "role": "wide text button hover"
+    },
+    "travel_book_wide_button_pressed": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_wide_button_pressed.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_FrameSelect01b.png",
+      "texture_margin": [
+        6,
+        4,
+        6,
+        4
+      ],
+      "content_margin": [
+        10,
+        5,
+        10,
+        5
+      ],
+      "role": "wide text button pressed"
+    },
+    "travel_book_wide_button_disabled": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_wide_button_disabled.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Frame01a.png",
+      "texture_margin": [
+        6,
+        4,
+        6,
+        4
+      ],
+      "content_margin": [
+        10,
+        5,
+        10,
+        5
+      ],
+      "role": "wide text button disabled"
+    },
+    "travel_book_button_normal": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_button_normal.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_1.png",
+      "texture_margin": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "content_margin": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "role": "square button normal state"
+    },
+    "travel_book_button_hover": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_button_hover.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_2.png",
+      "texture_margin": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "content_margin": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "role": "square button hover state"
+    },
+    "travel_book_button_pressed": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_button_pressed.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_3.png",
+      "texture_margin": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "content_margin": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "role": "square button pressed state"
+    },
+    "travel_book_button_focus": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_button_focus.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_4.png",
+      "texture_margin": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "content_margin": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "role": "square button keyboard or gamepad focus state"
+    },
+    "travel_book_button_disabled": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_button_disabled.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Button01a_5.png",
+      "texture_margin": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "content_margin": [
+        6,
+        6,
+        6,
+        6
+      ],
+      "role": "square button disabled state"
+    },
+    "travel_book_slot_normal": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_slot_normal.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Slot01a.png",
+      "texture_margin": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "content_margin": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "role": "inventory or skill slot normal"
+    },
+    "travel_book_slot_selected": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_slot_selected.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Slot01b.png",
+      "texture_margin": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "content_margin": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "role": "inventory or skill slot selected"
+    },
+    "travel_book_slot_disabled": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_slot_disabled.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Slot01c.png",
+      "texture_margin": [
+        8,
+        8,
+        8,
+        8
+      ],
+      "content_margin": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "role": "inventory or skill slot disabled"
+    },
+    "travel_book_slot_cursor": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_slot_cursor.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Select01a.png",
+      "texture_margin": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "content_margin": [
+        3,
+        3,
+        3,
+        3
+      ],
+      "role": "slot cursor overlay"
+    },
+    "travel_book_marker": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_marker.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Marker01a.png",
+      "texture_margin": [
+        5,
+        5,
+        5,
+        5
+      ],
+      "content_margin": [
+        3,
+        3,
+        3,
+        3
+      ],
+      "role": "small marker frame"
+    },
+    "travel_book_bar_frame": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_bar_frame.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Bar01a.png",
+      "texture_margin": [
+        8,
+        1,
+        8,
+        1
+      ],
+      "content_margin": [
+        4,
+        1,
+        4,
+        1
+      ],
+      "role": "thin progress bar frame"
+    },
+    "travel_book_bar_fill_gold": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_bar_fill_gold.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Fill01a.png",
+      "texture_margin": [
+        4,
+        1,
+        4,
+        1
+      ],
+      "content_margin": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "role": "gold progress fill"
+    },
+    "travel_book_bar_fill_muted": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_bar_fill_muted.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Fill01b.png",
+      "texture_margin": [
+        4,
+        1,
+        4,
+        1
+      ],
+      "content_margin": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "role": "muted progress fill"
+    },
+    "travel_book_scroll_track": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_scroll_track.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Line01a.png",
+      "texture_margin": [
+        4,
+        1,
+        4,
+        1
+      ],
+      "content_margin": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "role": "thin scrollbar track"
+    },
+    "travel_book_scroll_grabber": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_scroll_grabber.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Handle03a.png",
+      "texture_margin": [
+        2,
+        2,
+        2,
+        2
+      ],
+      "content_margin": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "role": "small scrollbar grabber"
+    },
+    "travel_book_toggle_off": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_toggle_off.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Toggle03a.png",
+      "texture_margin": [
+        3,
+        2,
+        3,
+        2
+      ],
+      "content_margin": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "role": "toggle off backing"
+    },
+    "travel_book_toggle_on": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_toggle_on.tres",
+      "texture": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Toggle03b.png",
+      "texture_margin": [
+        3,
+        2,
+        3,
+        2
+      ],
+      "content_margin": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "role": "toggle on backing"
+    }
+  },
+  "animations": {
+    "travel_book_mouse_cursor_click_ring_frames": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_mouse_cursor_click_ring_frames.tres",
+      "animation_name": "click_ring",
+      "frames": [
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01a_1.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01a_2.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01a_3.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01a_4.png"
+      ],
+      "speed": 18.0,
+      "loop": false,
+      "role": "UI-layer click burst at the mouse position; not usable as an OS cursor animation."
+    },
+    "travel_book_mouse_cursor_click_pointer_frames": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_mouse_cursor_click_pointer_frames.tres",
+      "animation_name": "click_pointer",
+      "frames": [
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01b_1.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_MouseCursorClick01b_2.png"
+      ],
+      "speed": 12.0,
+      "loop": false,
+      "role": "Two-frame pointer click accent for UI feedback."
+    },
+    "travel_book_slot_cursor_frames": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_slot_cursor_frames.tres",
+      "animation_name": "slot_cursor",
+      "frames": [
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_SlotCursor01a_1.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_SlotCursor01a_2.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_SlotCursor01a_3.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_SlotCursor01a_4.png"
+      ],
+      "speed": 10.0,
+      "loop": true,
+      "role": "Looping slot cursor highlight for selected inventory or skill cells."
+    },
+    "travel_book_marker_show_frames": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_marker_show_frames.tres",
+      "animation_name": "marker_show",
+      "frames": [
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aShow_1.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aShow_2.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aShow_3.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aShow_4.png"
+      ],
+      "speed": 12.0,
+      "loop": false,
+      "role": "Marker appear animation."
+    },
+    "travel_book_marker_hide_frames": {
+      "resource": "res://resource/ui/themes/travel-book-lite/travel_book_marker_hide_frames.tres",
+      "animation_name": "marker_hide",
+      "frames": [
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aHide_1.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aHide_2.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aHide_3.png",
+        "res://assets/textures/ui/travel-book-lite/animated/UI_TravelBook_Marker01aHide_4.png"
+      ],
+      "speed": 12.0,
+      "loop": false,
+      "role": "Marker disappear animation."
+    }
+  },
+  "button_state_mapping": {
+    "resource_type": "Theme Button state StyleBoxTexture",
+    "note": "These source files are state artwork for Button theme states, not a SpriteFrames timeline.",
+    "normal": "res://resource/ui/themes/travel-book-lite/travel_book_button_normal.tres",
+    "hover": "res://resource/ui/themes/travel-book-lite/travel_book_button_hover.tres",
+    "pressed": "res://resource/ui/themes/travel-book-lite/travel_book_button_pressed.tres",
+    "focus": "res://resource/ui/themes/travel-book-lite/travel_book_button_focus.tres",
+    "disabled": "res://resource/ui/themes/travel-book-lite/travel_book_button_disabled.tres",
+    "recommended_minimum_size": [
+      30,
+      31
+    ]
+  },
+  "theme_types": {
+    "TravelBookCoverPanel": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_cover_panel"
+    },
+    "TravelBookPageLeft": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_page_left_panel"
+    },
+    "TravelBookPageRight": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_page_right_panel"
+    },
+    "TravelBookPopup": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_popup_panel"
+    },
+    "TravelBookHeader": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_header"
+    },
+    "TravelBookSelection": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_selection"
+    },
+    "TravelBookSelectionActive": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_selection_active"
+    },
+    "TravelBookSlot": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_slot_normal"
+    },
+    "TravelBookSlotSelected": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_slot_selected"
+    },
+    "TravelBookSlotDisabled": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_slot_disabled"
+    },
+    "TravelBookSlotCursor": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_slot_cursor"
+    },
+    "TravelBookMarker": {
+      "base_type": "PanelContainer",
+      "stylebox": "travel_book_marker"
+    },
+    "TravelBookWideButton": {
+      "base_type": "Button",
+      "normal": "travel_book_wide_button_normal",
+      "hover": "travel_book_wide_button_hover",
+      "pressed": "travel_book_wide_button_pressed",
+      "focus": "travel_book_selection_active",
+      "disabled": "travel_book_wide_button_disabled"
+    },
+    "TravelBookButton": {
+      "base_type": "Button",
+      "normal": "travel_book_button_normal",
+      "hover": "travel_book_button_hover",
+      "pressed": "travel_book_button_pressed",
+      "focus": "travel_book_button_focus",
+      "disabled": "travel_book_button_disabled"
+    },
+    "TravelBookIconButton": {
+      "base_type": "Button",
+      "normal": "travel_book_button_normal",
+      "hover": "travel_book_button_hover",
+      "pressed": "travel_book_button_pressed",
+      "focus": "travel_book_button_focus",
+      "disabled": "travel_book_button_disabled"
+    },
+    "TravelBookProgressBar": {
+      "base_type": "ProgressBar",
+      "background": "travel_book_bar_frame",
+      "fill": "travel_book_bar_fill_gold"
+    },
+    "TravelBookMutedBar": {
+      "base_type": "ProgressBar",
+      "background": "travel_book_bar_frame",
+      "fill": "travel_book_bar_fill_muted"
+    }
+  },
+  "icons": {
+    "toggle_off": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Toggle03a.png",
+    "toggle_on": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Toggle03b.png",
+    "dropdown_arrow": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_HandleDropdown01a.png",
+    "slider_grabber": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Handle03a.png",
+    "plus": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_ButtonValue01a.png",
+    "minus": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_ButtonValue01b.png",
+    "icon_tick": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconTick01a.png",
+    "icon_cross": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconCross01a.png",
+    "icon_heart": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconHeart01a.png",
+    "icon_energy": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconEnergy01a.png",
+    "icon_coin": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconCoin01a.png",
+    "icon_star": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconStar01a.png",
+    "icon_gear": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconGear01a.png",
+    "icon_home": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconHome01a.png",
+    "icon_play": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconPlay01a.png",
+    "icon_pause": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconPause01a.png",
+    "icon_restart": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconRestart01a.png",
+    "cursor_default": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Cursor01c.png",
+    "cursor_select": "res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Cursor01d.png"
+  }
+}

@@ -3,7 +3,6 @@
     {
       "corpsDefinitionId": "corps_shield_line",
       "displayName": "盾卫队",
-      "iconPath": "res://assets/textures/ui/basic-ui/3/Elements/element_0039_shield.png",
       "battleUnitId": "f1_azuritelion",
       "battleUnitCount": 3,
       "soldierCapacityCost": 30,
@@ -21,7 +20,6 @@
     {
       "corpsDefinitionId": "corps_archer_line",
       "displayName": "穿杨弓手",
-      "iconPath": "res://assets/textures/ui/basic-ui/2/interface_game/ico_7.png",
       "battleUnitId": "f1_backlinearcher",
       "battleUnitCount": 3,
       "soldierCapacityCost": 30,
@@ -39,7 +37,6 @@
     {
       "corpsDefinitionId": "corps_cavalry_line",
       "displayName": "辉光龙骑",
-      "iconPath": "res://assets/textures/ui/basic-ui/2/interface_game/button_unit.png",
       "battleUnitId": "f1_radiantdragoon",
       "battleUnitCount": 3,
       "soldierCapacityCost": 40,

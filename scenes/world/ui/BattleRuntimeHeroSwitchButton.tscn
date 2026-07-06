@@ -1,21 +1,13 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleRuntimeHeroSwitchButton.cs" id="1_switch"]
-[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_compact.tres" id="2_button_compact"]
-[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_compact_hover.tres" id="3_button_compact_hover"]
-[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_compact_pressed.tres" id="4_button_compact_pressed"]
-[ext_resource type="StyleBoxTexture" path="res://assets/themes/game-ui-skin/basic_ui_1_button_compact_disabled.tres" id="5_button_compact_disabled"]
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
 
 [node name="BattleRuntimeHeroSwitchButton" type="Button"]
 custom_minimum_size = Vector2(76, 54)
 mouse_filter = 0
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_colors/font_hover_color = Color(1, 0.96, 0.78, 1)
-theme_override_colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
-theme_override_styles/normal = ExtResource("2_button_compact")
-theme_override_styles/hover = ExtResource("3_button_compact_hover")
-theme_override_styles/pressed = ExtResource("4_button_compact_pressed")
-theme_override_styles/disabled = ExtResource("5_button_compact_disabled")
+theme = ExtResource("2_theme")
+theme_type_variation = &"WorldCompactActionButton"
 text = "英雄"
 focus_mode = 0
 script = ExtResource("1_switch")

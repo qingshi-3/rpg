@@ -16,14 +16,14 @@ internal static void ResourceDirectoryTaxonomyKeepsAssetsRawAndResourcesAuthored
 
     Dictionary<string, int> expectedLegacyBuckets = new()
     {
-        ["LimboAI behavior trees"] = 2,
-        ["Battle skill definitions"] = 5,
-        ["UI themes/styleboxes"] = 23,
-        ["TileSets"] = 3,
-        ["Shaders"] = 5,
-        ["Building AtlasTexture icons"] = 8,
-        ["Unit definitions"] = 697,
-        ["Unit visual definitions"] = 697,
+        ["LimboAI behavior trees"] = 0,
+        ["Battle skill definitions"] = 0,
+        ["UI themes/styleboxes"] = 0,
+        ["TileSets"] = 0,
+        ["Shaders"] = 0,
+        ["Building AtlasTexture icons"] = 0,
+        ["Unit definitions"] = 0,
+        ["Unit visual definitions"] = 0,
         ["Unit audio definitions"] = 2,
         ["Legacy unit visual support resources"] = 3,
         ["SpriteFrames preview packages"] = 904

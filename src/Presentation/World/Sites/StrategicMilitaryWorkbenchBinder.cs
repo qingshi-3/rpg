@@ -9,29 +9,41 @@ namespace Rpg.Presentation.World.Sites;
 internal sealed class StrategicMilitaryWorkbenchBinder
 {
     private readonly Control _panel;
+    private readonly Control _backdrop;
     private readonly VBoxContainer _heroList;
     private readonly GridContainer _musterGrid;
     private readonly Label _heroSummaryLabel;
     private readonly Label _noticeLabel;
+    private readonly TextureRect _selectedHeroPortrait;
+    private readonly Label _selectedHeroNameLabel;
+    private readonly Label _selectedHeroCorpsLabel;
     private readonly Button _backButton;
     private readonly Action<string> _selectHero;
     private readonly Action<string> _recruitCorps;
 
     public StrategicMilitaryWorkbenchBinder(
         Control panel,
+        Control backdrop,
         VBoxContainer heroList,
         GridContainer musterGrid,
         Label heroSummaryLabel,
         Label noticeLabel,
+        TextureRect selectedHeroPortrait,
+        Label selectedHeroNameLabel,
+        Label selectedHeroCorpsLabel,
         Button backButton,
         Action<string> selectHero,
         Action<string> recruitCorps)
     {
         _panel = panel;
+        _backdrop = backdrop;
         _heroList = heroList;
         _musterGrid = musterGrid;
         _heroSummaryLabel = heroSummaryLabel;
         _noticeLabel = noticeLabel;
+        _selectedHeroPortrait = selectedHeroPortrait;
+        _selectedHeroNameLabel = selectedHeroNameLabel;
+        _selectedHeroCorpsLabel = selectedHeroCorpsLabel;
         _backButton = backButton;
         _selectHero = selectHero;
         _recruitCorps = recruitCorps;
@@ -47,14 +59,19 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         {
             _panel.Visible = true;
         }
+        if (_backdrop != null)
+        {
+            _backdrop.Visible = true;
+        }
 
-        if (string.IsNullOrWhiteSpace(selectedHeroId))
+        string resolvedHeroId = ResolveSelectedHeroId(safeDashboard, selectedHeroId);
+        if (string.IsNullOrWhiteSpace(resolvedHeroId))
         {
             BindHeroSelectionStep(safeDashboard, notice);
             return;
         }
 
-        BindCorpsAdjustmentStep(safeDashboard, selectedHeroId, notice);
+        BindCorpsAdjustmentStep(safeDashboard, resolvedHeroId, notice);
     }
 
     public void Hide()
@@ -63,6 +80,23 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         {
             _panel.Visible = false;
         }
+        if (_backdrop != null)
+        {
+            _backdrop.Visible = false;
+        }
+    }
+
+    private static string ResolveSelectedHeroId(
+        StrategicManagementDashboardViewModel dashboard,
+        string selectedHeroId)
+    {
+        if (!string.IsNullOrWhiteSpace(selectedHeroId) &&
+            dashboard.Heroes.Any(hero => string.Equals(hero.HeroId, selectedHeroId, StringComparison.Ordinal)))
+        {
+            return selectedHeroId;
+        }
+
+        return dashboard.Heroes.FirstOrDefault()?.HeroId ?? "";
     }
 
     private void BindHeroSelectionStep(
@@ -71,15 +105,16 @@ internal sealed class StrategicMilitaryWorkbenchBinder
     {
         ClearChildren(_heroList);
         ClearChildren(_musterGrid);
+        BindSelectedHeroPanel(new StrategicHeroAssignmentViewModel());
         if (_heroSummaryLabel != null)
         {
-            _heroSummaryLabel.Text = "选择要调整编制的英雄";
+            _heroSummaryLabel.Text = "英雄编制";
         }
 
         if (_noticeLabel != null)
         {
             _noticeLabel.Text = string.IsNullOrWhiteSpace(notice)
-                ? "先选择英雄，再为该英雄招募或替换主编制。"
+                ? "当前没有可调整的英雄。"
                 : notice.Trim();
         }
 
@@ -103,25 +138,23 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         ClearChildren(_musterGrid);
         StrategicHeroAssignmentViewModel hero = dashboard.Heroes.FirstOrDefault(item =>
             string.Equals(item.HeroId, selectedHeroId, StringComparison.Ordinal)) ?? new StrategicHeroAssignmentViewModel();
+        BindSelectedHeroPanel(hero);
 
         if (_heroSummaryLabel != null)
         {
-            string corpsName = string.IsNullOrWhiteSpace(hero.AssignedCorpsDisplayName)
-                ? "未配置编制"
-                : hero.AssignedCorpsDisplayName;
-            _heroSummaryLabel.Text = $"{hero.DisplayName}    当前编制：{corpsName}";
+            _heroSummaryLabel.Text = "英雄编制";
         }
 
         if (_noticeLabel != null)
         {
             _noticeLabel.Text = string.IsNullOrWhiteSpace(notice)
-                ? "选择一个编制模板后，会消耗资源和预备兵，并绑定到当前英雄。"
+                ? "选择一个兵种后，会消耗资源和预备兵，并绑定到当前英雄。"
                 : notice.Trim();
         }
 
         if (_backButton != null)
         {
-            _backButton.Disabled = false;
+            _backButton.Disabled = true;
         }
 
         foreach (StrategicHeroAssignmentViewModel option in dashboard.Heroes)
@@ -141,7 +174,7 @@ internal sealed class StrategicMilitaryWorkbenchBinder
             card.Bind(
                 corpsDefinitionId,
                 template.DisplayName,
-                template.IconPath,
+                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(template.BattleUnitId),
                 template.ReserveForceCost,
                 StrategicManagementDashboardPanelBinder.FormatCostsForPresentation(template.CreationCost),
                 template.CanCreate,
@@ -155,9 +188,32 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         }
     }
 
+    private void BindSelectedHeroPanel(StrategicHeroAssignmentViewModel hero)
+    {
+        string displayName = string.IsNullOrWhiteSpace(hero?.DisplayName) ? "英雄" : hero.DisplayName.Trim();
+        string corpsName = string.IsNullOrWhiteSpace(hero?.AssignedCorpsDisplayName) ? "未配置编制" : hero.AssignedCorpsDisplayName.Trim();
+
+        if (_selectedHeroPortrait != null)
+        {
+            _selectedHeroPortrait.Texture = string.IsNullOrWhiteSpace(hero?.BattleUnitId)
+                ? null
+                : BattleUnitPreviewTextureResolver.ResolvePreviewTexture(hero.BattleUnitId);
+        }
+
+        if (_selectedHeroNameLabel != null)
+        {
+            _selectedHeroNameLabel.Text = displayName;
+        }
+
+        if (_selectedHeroCorpsLabel != null)
+        {
+            _selectedHeroCorpsLabel.Text = $"当前：{corpsName}";
+        }
+    }
+
     private void AddHeroCard(StrategicHeroAssignmentViewModel hero, string selectedHeroId)
     {
-        WorldMilitaryHeroCard card = GameUiSceneFactory.CreateWorldMilitaryHeroCard(nameof(StrategicMilitaryWorkbenchBinder));
+        WorldMilitaryHeroCard card = GameUiSceneFactory.CreateWorldMilitaryWorkbenchHeroCard(nameof(StrategicMilitaryWorkbenchBinder));
         if (card == null)
         {
             return;
@@ -166,6 +222,7 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         card.Bind(
             hero.HeroId,
             hero.DisplayName,
+            BattleUnitPreviewTextureResolver.ResolvePreviewTexture(hero.BattleUnitId),
             hero.AssignedCorpsDisplayName,
             string.Equals(hero.HeroId, selectedHeroId, StringComparison.Ordinal));
         card.Selected += selectedHeroIdFromCard => _selectHero?.Invoke(selectedHeroIdFromCard);

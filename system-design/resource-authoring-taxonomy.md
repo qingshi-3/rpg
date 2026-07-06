@@ -15,7 +15,7 @@ This document owns repository-level directory boundaries for:
 - PackedScene authoring;
 - source code and narrow plugin adapters;
 - plain text indexes and mappings;
-- staged migration rules for existing mixed directories.
+- resource-migration and exception rules for existing mixed directories.
 
 ## Does Not Own
 
@@ -63,7 +63,7 @@ Temporary exception: `frames.tres` may remain beside unit and VFX PNG/PLIST sour
 - `.gdshader` shader files;
 - reusable material or presentation resources that are not source media.
 
-Recommended top-level shape:
+Current top-level shape:
 
 ```text
 resource/
@@ -104,16 +104,19 @@ GDScript adapter placement must follow system ownership. For example, LimboAI cu
 - Keep `frames.tres` in place until a later accepted proposal changes the visual-content pipeline.
 - Do not use compatibility duplicate files as a hidden fallback. If a path changes, update the authoritative reference and fail explicitly on stale paths.
 
-## Initial Migration Order
+## Current Migrated Families
 
-Recommended order:
+The completed `resource/` migration makes these families resource-rooted:
 
-1. Establish `resource/` and taxonomy guards.
-2. Migrate small authored resources such as behavior trees and LimboAI task adapter references.
-3. Migrate UI theme/stylebox resources.
-4. Migrate shaders, tilesets, and AtlasTexture icon resources in focused batches.
-5. Pilot unit `unit.tres` and `visual.tres` migration on first-slice indexed units.
-6. Migrate the broader unit definition and visual-definition library only after the pilot passes.
+- battle behavior-tree resources under `resource/battle/ai/`;
+- battle skill definition resources under `resource/battle/skills/`;
+- battle unit `unit.tres` and `visual.tres` definitions under `resource/battle/units/`;
+- UI theme/stylebox resources under `resource/ui/themes/`;
+- reusable AtlasTexture UI icons under `resource/ui/icons/`;
+- TileSet resources under `resource/tilesets/`;
+- shader resources under `resource/shaders/`.
+
+Known remaining exceptions under `assets/` are raw/source media, `.import` sidecars, source package files, unit `frames.tres` preview resources, and the current unit audio profiles. New authored resource families should not treat those exceptions as precedent.
 
 ## Failure Rules
 
@@ -129,5 +132,5 @@ This taxonomy is acceptable when:
 - future agents can identify whether a file belongs in `assets/`, `resource/`, `scenes/`, `src/`, or `config/`;
 - raw media remains convenient for preview and import workflows;
 - authored Godot resources have a stable root outside `assets/`;
-- existing scene/resource references are migrated only through staged, verified batches;
+- future scene/resource path moves happen only through staged, verified batches;
 - `frames.tres` remains an explicit temporary exception instead of an accidental precedent.

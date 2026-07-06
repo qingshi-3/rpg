@@ -71,10 +71,15 @@ dotnet build rpg.sln
 后续开发可按以下结构逐步整理：
 
 ```text
-assets/      美术、音频、字体、Godot Resource 与导入资源
+assets/      美术、音频、字体、源动画包与导入素材
+resource/    Godot 作者资源、数据资源、主题、TileSet 与 Shader
 scenes/      Godot 场景文件
-src/         C# 源码
-docs/        设计文档、技术变更与测试说明
+src/         C# 源码与窄 GDScript 适配器
+config/      JSON 等纯文本索引与映射
+gameplay-design/    玩法设计权威文档
+system-design/      系统架构权威文档
+design-proposals/   架构/设计变更提案
+gameplay-alignment/ 对齐缺口、实施提案与验收记录
 ```
 
 ## 项目文档
@@ -85,6 +90,7 @@ docs/        设计文档、技术变更与测试说明
 - 系统架构入口：`system-design/README.md`
 - 战斗运行时与 AI 边界：`system-design/battle-runtime-architecture.md`、`system-design/battle-ai-boundary-architecture.md`
 - 小队战术区域架构：`system-design/battle-group-tactical-region-architecture.md`
+- 资源、场景、代码与配置目录边界：`system-design/resource-authoring-taxonomy.md`
 - 对齐缺口与实现提案：`gameplay-alignment/gap-register.md`、`gameplay-alignment/implementation-proposals/`
 
 ## 开发原则

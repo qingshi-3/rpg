@@ -117,11 +117,15 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Control _siteConscriptionSection;
 	private Control _siteCorpsSection;
 	private Control _siteOverviewSection;
+	private Control _militaryWorkbenchBackdrop;
 	private Control _militaryWorkbenchPanel;
 	private VBoxContainer _militaryHeroList;
 	private GridContainer _militaryMusterGrid;
 	private Label _militaryHeroSummaryLabel;
 	private Label _militaryNoticeLabel;
+	private TextureRect _militarySelectedHeroPortrait;
+	private Label _militarySelectedHeroNameLabel;
+	private Label _militarySelectedHeroCorpsLabel;
 	private Button _militaryBackButton;
 	private Button _militaryCloseButton;
 	private Label _siteBuildingBuildTitle;
@@ -413,6 +417,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 	public override void _Process(double delta)
 	{
+		GameUiSkin.UpdateCursorAnimation();
+
 		WorldSiteRuntimeMode runtimeMode = RuntimeMode;
 		if (runtimeMode == WorldSiteRuntimeMode.Management)
 		{
@@ -428,6 +434,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 	public override void _Input(InputEvent @event)
 	{
+		GameUiSkin.HandleCursorInput(@event);
+
 		WorldSiteRuntimeMode runtimeMode = RuntimeMode;
 		if (runtimeMode == WorldSiteRuntimeMode.Battle)
 		{

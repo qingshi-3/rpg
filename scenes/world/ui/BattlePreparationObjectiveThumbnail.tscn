@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattlePreparationObjectiveThumbnail.cs" id="1_thumbnail_script"]
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_preview_script"]
-[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="3_theme"]
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="3_theme"]
 
 [node name="BattlePreparationObjectiveThumbnail" type="PanelContainer"]
 custom_minimum_size = Vector2(250, 188)

@@ -33,11 +33,15 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
     internal Control SiteConscriptionSection { get; private init; }
     internal Control SiteCorpsSection { get; private init; }
     internal Control SiteOverviewSection { get; private init; }
+    internal Control MilitaryWorkbenchBackdrop { get; private init; }
     internal Control MilitaryWorkbenchPanel { get; private init; }
     internal VBoxContainer MilitaryHeroList { get; private init; }
     internal GridContainer MilitaryMusterGrid { get; private init; }
     internal Label MilitaryHeroSummaryLabel { get; private init; }
     internal Label MilitaryNoticeLabel { get; private init; }
+    internal TextureRect MilitarySelectedHeroPortrait { get; private init; }
+    internal Label MilitarySelectedHeroNameLabel { get; private init; }
+    internal Label MilitarySelectedHeroCorpsLabel { get; private init; }
     internal Button MilitaryBackButton { get; private init; }
     internal Button MilitaryCloseButton { get; private init; }
     internal Label SiteHudBody { get; private init; }
@@ -96,6 +100,7 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
             SiteConscriptionSection = Get<Control>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection", ownerName),
             SiteCorpsSection = Get<Control>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteCorpsSection", ownerName),
             SiteOverviewSection = Get<Control>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection", ownerName),
+            MilitaryWorkbenchBackdrop = Get<Control>(root, "ModalHost/MilitaryWorkbenchBackdrop", ownerName),
             SiteHudBody = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteHudBody", ownerName),
             SiteSelectionLabel = Get<Label>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteSelectionLabel", ownerName),
             BattlePreparationRosterDock = Get<Control>(root, "OverlayHost/BattlePreparationRosterDock", ownerName),
@@ -115,9 +120,12 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
             SiteConscriptionList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection/SiteConscriptionList", ownerName),
             MilitaryWorkbenchPanel = Get<Control>(root, "ModalHost/MilitaryWorkbenchPanel", ownerName),
             MilitaryHeroList = Get<VBoxContainer>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryHeroScroll/MilitaryHeroList", ownerName),
-            MilitaryMusterGrid = Get<GridContainer>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryMusterScroll/MilitaryMusterGrid", ownerName),
+            MilitaryMusterGrid = Get<GridContainer>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/MilitaryMusterScroll/MilitaryMusterGrid", ownerName),
             MilitaryHeroSummaryLabel = Get<Label>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryHeader/MilitaryHeroSummaryLabel", ownerName),
             MilitaryNoticeLabel = Get<Label>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryNoticeLabel", ownerName),
+            MilitarySelectedHeroPortrait = Get<TextureRect>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame/SelectedHeroPortrait", ownerName),
+            MilitarySelectedHeroNameLabel = Get<Label>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroTextStack/SelectedHeroNameLabel", ownerName),
+            MilitarySelectedHeroCorpsLabel = Get<Label>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroTextStack/SelectedHeroCorpsLabel", ownerName),
             MilitaryBackButton = Get<Button>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryHeader/MilitaryBackButton", ownerName),
             MilitaryCloseButton = Get<Button>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryHeader/MilitaryCloseButton", ownerName),
             SiteBuildingList = Get<VBoxContainer>(root, "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteBuildingList", ownerName),

@@ -9,7 +9,7 @@ namespace Rpg.Presentation.World;
 
 public partial class StrategicWorldFogOverlay : Control
 {
-	private const string FogShaderPath = "res://assets/world/shaders/strategic_fog_of_war.gdshader";
+	private const string FogShaderPath = "res://resource/shaders/world/strategic_fog_of_war.gdshader";
 	private const int MaxVisibleCircles = 32;
 	private const int MinExploredMaskResolution = 256;
 	private const int MaxExploredMaskResolution = 1024;

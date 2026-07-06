@@ -136,7 +136,6 @@ public sealed class StrategicCorpsDefinition
 {
     public string CorpsDefinitionId { get; set; } = "";
     public string DisplayName { get; set; } = "";
-    public string IconPath { get; set; } = "";
     public string BattleUnitId { get; set; } = "";
     public int BattleUnitCount { get; set; } = 1;
     public int SoldierCapacityCost { get; set; } = 30;

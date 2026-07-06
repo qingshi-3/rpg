@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dfevlaghvwjr5" path="res://src/Presentation/Battle/BattleMapView.cs" id="1_battle_map_view"]
 [ext_resource type="Script" uid="uid://c4x18hxm1w8qv" path="res://src/Presentation/Battle/BattleMapLayer.cs" id="2_battle_map_layer"]
-[ext_resource type="TileSet" uid="uid://b7cybsj52b1m6" path="res://assets/tilesets/battle/bone/ground.tres" id="3_ground"]
+[ext_resource type="TileSet" uid="uid://b7cybsj52b1m6" path="res://resource/tilesets/battle/bone/ground.tres" id="3_ground"]
 
 [node name="PlainsCityBase" type="Node2D"]
 script = ExtResource("1_battle_map_view")

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="BattleUnitDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://8cgtvlv57kfn" path="res://src/Definitions/Battle/BattleUnitDefinition.cs" id="1_definition"]
+[ext_resource type="Resource" path="res://resource/battle/units/青鳞萨盟/f5_异界Kujata/visual.tres" id="2_visual"]
+
+
+[resource]
+script = ExtResource("1_definition")
+Id = "f5_kujata"
+DisplayName = "库加塔"
+Visual = ExtResource("2_visual")
+DebugMarkerColor = Color(0.55, 0.8, 0.95, 0.95)
+MaxHp = 12
+MoveRange = 3
+AttackDamage = 4
+AttackRange = 1
+BlocksMovement = true
+IsTargetable = true

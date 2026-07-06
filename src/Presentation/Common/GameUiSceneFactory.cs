@@ -28,9 +28,15 @@ public static class GameUiSceneFactory
     public const string WorldSecondaryActionButtonScenePath = "res://scenes/world/ui/WorldSecondaryActionButton.tscn";
     public const string WorldCompactMarkerButtonScenePath = "res://scenes/world/ui/WorldCompactMarkerButton.tscn";
     public const string WorldBuildingOptionCardScenePath = "res://scenes/world/ui/WorldBuildingOptionCard.tscn";
+    public const string WorldBuildingOptionTooltipScenePath = "res://scenes/world/ui/WorldBuildingOptionTooltip.tscn";
+    public const string WorldConscriptionPanelScenePath = "res://scenes/world/ui/WorldConscriptionPanel.tscn";
     public const string WorldMusterOptionCardScenePath = "res://scenes/world/ui/WorldMusterOptionCard.tscn";
+    public const string WorldMusterOptionTooltipScenePath = "res://scenes/world/ui/WorldMusterOptionTooltip.tscn";
     public const string WorldMilitaryHeroCardScenePath = "res://scenes/world/ui/WorldMilitaryHeroCard.tscn";
+    public const string WorldMilitaryWorkbenchHeroCardScenePath = "res://scenes/world/ui/WorldMilitaryWorkbenchHeroCard.tscn";
+    public const string WorldCorpsInstanceRowScenePath = "res://scenes/world/ui/WorldCorpsInstanceRow.tscn";
     public const string WorldExpeditionCountRowScenePath = "res://scenes/world/ui/WorldExpeditionCountRow.tscn";
+    public const string StrategicBattleGateForcePreviewCardScenePath = "res://scenes/world/ui/StrategicBattleGateForcePreviewCard.tscn";
     public const string WorldResourceFloatTextScenePath = "res://scenes/world/ui/WorldResourceFloatText.tscn";
     public const string WorldOpportunityDetailPanelScenePath = "res://scenes/world/ui/WorldOpportunityDetailPanel.tscn";
     public const string BattleIntentMarkerScenePath = "res://scenes/battle/intents/BattleIntentMarker.tscn";
@@ -51,6 +57,10 @@ public static class GameUiSceneFactory
         if (node == null)
         {
             GameLog.Warn(nameof(GameUiSceneFactory), $"UI scene type mismatch owner={ownerName} path={scenePath} expected={typeof(T).Name}");
+        }
+        else
+        {
+            GameUiSkin.ApplyProjectFocusStyle(node);
         }
 
         return node;
@@ -144,9 +154,24 @@ public static class GameUiSceneFactory
         return Instantiate<WorldBuildingOptionCard>(WorldBuildingOptionCardScenePath, ownerName);
     }
 
+    public static WorldBuildingOptionTooltip CreateWorldBuildingOptionTooltip(string ownerName)
+    {
+        return Instantiate<WorldBuildingOptionTooltip>(WorldBuildingOptionTooltipScenePath, ownerName);
+    }
+
+    public static WorldConscriptionPanel CreateWorldConscriptionPanel(string ownerName)
+    {
+        return Instantiate<WorldConscriptionPanel>(WorldConscriptionPanelScenePath, ownerName);
+    }
+
     public static WorldMusterOptionCard CreateWorldMusterOptionCard(string ownerName)
     {
         return Instantiate<WorldMusterOptionCard>(WorldMusterOptionCardScenePath, ownerName);
+    }
+
+    public static WorldMusterOptionTooltip CreateWorldMusterOptionTooltip(string ownerName)
+    {
+        return Instantiate<WorldMusterOptionTooltip>(WorldMusterOptionTooltipScenePath, ownerName);
     }
 
     public static WorldMilitaryHeroCard CreateWorldMilitaryHeroCard(string ownerName)
@@ -154,9 +179,24 @@ public static class GameUiSceneFactory
         return Instantiate<WorldMilitaryHeroCard>(WorldMilitaryHeroCardScenePath, ownerName);
     }
 
-    public static HBoxContainer CreateWorldExpeditionCountRow(string ownerName)
+    public static WorldMilitaryHeroCard CreateWorldMilitaryWorkbenchHeroCard(string ownerName)
     {
-        return Instantiate<HBoxContainer>(WorldExpeditionCountRowScenePath, ownerName);
+        return Instantiate<WorldMilitaryHeroCard>(WorldMilitaryWorkbenchHeroCardScenePath, ownerName);
+    }
+
+    public static WorldCorpsInstanceRow CreateWorldCorpsInstanceRow(string ownerName)
+    {
+        return Instantiate<WorldCorpsInstanceRow>(WorldCorpsInstanceRowScenePath, ownerName);
+    }
+
+    public static WorldExpeditionCountRow CreateWorldExpeditionCountRow(string ownerName)
+    {
+        return Instantiate<WorldExpeditionCountRow>(WorldExpeditionCountRowScenePath, ownerName);
+    }
+
+    public static StrategicBattleGateForcePreviewCard CreateStrategicBattleGateForcePreviewCard(string ownerName)
+    {
+        return Instantiate<StrategicBattleGateForcePreviewCard>(StrategicBattleGateForcePreviewCardScenePath, ownerName);
     }
 
     public static WorldResourceFloatText CreateWorldResourceFloatText(string ownerName)

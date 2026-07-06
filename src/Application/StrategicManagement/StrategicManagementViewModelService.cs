@@ -432,7 +432,7 @@ public sealed class StrategicManagementViewModelService
                 {
                     CorpsDefinitionId = availability.CorpsDefinitionId,
                     DisplayName = corps?.DisplayName ?? availability.CorpsDefinitionId,
-                    IconPath = corps?.IconPath ?? "",
+                    BattleUnitId = corps?.BattleUnitId ?? "",
                     ReserveForceCost = System.Math.Max(0, corps?.SoldierCapacityCost ?? 0),
                     CanCreate = availability.IsAvailable,
                     DisabledReasons = new List<string>(availability.FailureReasons),
@@ -469,6 +469,7 @@ public sealed class StrategicManagementViewModelService
                     CorpsInstanceId = corps.CorpsInstanceId,
                     CorpsDefinitionId = corps.CorpsDefinitionId,
                     DisplayName = definition?.DisplayName ?? corps.CorpsDefinitionId,
+                    BattleUnitId = definition?.BattleUnitId ?? "",
                     HomeCityId = corps.HomeCityId,
                     Strength = corps.Strength,
                     Level = corps.Level,
@@ -545,9 +546,11 @@ public sealed class StrategicManagementViewModelService
             HeroId = hero.HeroId,
             HeroDefinitionId = hero.HeroDefinitionId,
             HeroDisplayName = heroDefinition?.DisplayName ?? hero.HeroDefinitionId,
+            HeroBattleUnitId = heroDefinition?.BattleUnitId ?? "",
             CorpsInstanceId = corps?.CorpsInstanceId ?? "",
             CorpsDefinitionId = corps?.CorpsDefinitionId ?? "",
             CorpsDisplayName = corpsDefinition?.DisplayName ?? corps?.CorpsDefinitionId ?? "",
+            CorpsBattleUnitId = corpsDefinition?.BattleUnitId ?? "",
             SourceCityId = cityId ?? "",
             Strength = corps?.Strength ?? 0,
             Level = corps?.Level ?? 0,
@@ -570,6 +573,7 @@ public sealed class StrategicManagementViewModelService
             HeroId = hero.HeroId,
             HeroDefinitionId = hero.HeroDefinitionId,
             DisplayName = heroDefinition?.DisplayName ?? hero.HeroDefinitionId,
+            BattleUnitId = heroDefinition?.BattleUnitId ?? "",
             AssignedCorpsInstanceId = hero.AssignedCorpsInstanceId
         };
 

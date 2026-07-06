@@ -196,7 +196,7 @@ public sealed class StrategicMusterTemplateViewModel
 {
     public string CorpsDefinitionId { get; set; } = "";
     public string DisplayName { get; set; } = "";
-    public string IconPath { get; set; } = "";
+    public string BattleUnitId { get; set; } = "";
     public int ReserveForceCost { get; set; }
     public bool CanCreate { get; set; }
     public List<string> DisabledReasons { get; set; } = new();
@@ -208,6 +208,7 @@ public sealed class StrategicCorpsInstanceViewModel
     public string CorpsInstanceId { get; set; } = "";
     public string CorpsDefinitionId { get; set; } = "";
     public string DisplayName { get; set; } = "";
+    public string BattleUnitId { get; set; } = "";
     public string HomeCityId { get; set; } = "";
     public int Strength { get; set; }
     public int Level { get; set; }
@@ -226,6 +227,7 @@ public sealed class StrategicHeroAssignmentViewModel
     public string HeroId { get; set; } = "";
     public string HeroDefinitionId { get; set; } = "";
     public string DisplayName { get; set; } = "";
+    public string BattleUnitId { get; set; } = "";
     public bool HasAssignedCorps { get; set; }
     public string AssignedCorpsInstanceId { get; set; } = "";
     public string AssignedCorpsDefinitionId { get; set; } = "";
@@ -238,9 +240,11 @@ public sealed class StrategicHeroCompanyViewModel
     public string HeroId { get; set; } = "";
     public string HeroDefinitionId { get; set; } = "";
     public string HeroDisplayName { get; set; } = "";
+    public string HeroBattleUnitId { get; set; } = "";
     public string CorpsInstanceId { get; set; } = "";
     public string CorpsDefinitionId { get; set; } = "";
     public string CorpsDisplayName { get; set; } = "";
+    public string CorpsBattleUnitId { get; set; } = "";
     public string SourceCityId { get; set; } = "";
     public int Strength { get; set; }
     public int Level { get; set; }

@@ -1,0 +1,48 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="1_theme"]
+[ext_resource type="StyleBoxTexture" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_card.tres" id="2_panel_card"]
+[ext_resource type="Script" path="res://src/Presentation/World/StrategicBattleGateForcePreviewCard.cs" id="3_card_script"]
+
+[node name="StrategicBattleGateForcePreviewCard" type="PanelContainer"]
+custom_minimum_size = Vector2(188, 74)
+size_flags_horizontal = 3
+theme = ExtResource("1_theme")
+theme_override_styles/panel = ExtResource("2_panel_card")
+script = ExtResource("3_card_script")
+
+[node name="Content" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="Preview" type="TextureRect" parent="Content"]
+custom_minimum_size = Vector2(54, 54)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TextStack" type="VBoxContainer" parent="Content"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="NameLabel" type="Label" parent="Content/TextStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.92, 0.9, 0.78, 1)
+text = "部队"
+vertical_alignment = 1
+clip_text = true
+
+[node name="CountLabel" type="Label" parent="Content/TextStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.75, 0.7, 0.56, 1)
+text = "x1"
+vertical_alignment = 1
+clip_text = true

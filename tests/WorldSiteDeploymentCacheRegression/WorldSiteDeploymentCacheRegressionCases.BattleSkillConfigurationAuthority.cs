@@ -69,7 +69,7 @@ internal static void BattleSkillAuthorityUsesResourceIndexAndGrantArrays()
     string root = ProjectRoot();
     string indexPath = Path.Combine(root, "config", "battle", "battle_skill_definitions.json");
     string companyConfigPath = Path.Combine(root, "config", "battle", "first_slice_hero_companies.json");
-    string resourceDir = Path.Combine(root, "assets", "battle", "skills");
+    string resourceDir = Path.Combine(root, "resource", "battle", "skills");
 
     AssertTrue(File.Exists(indexPath), "battle skill definitions should be indexed from config/battle");
     string indexSource = File.ReadAllText(indexPath);

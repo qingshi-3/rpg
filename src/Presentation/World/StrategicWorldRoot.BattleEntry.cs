@@ -603,8 +603,62 @@ public partial class StrategicWorldRoot
             Title = "触发战斗",
             BriefText = BuildPreBattleBriefText(request),
             DetailTitle = $"{battleKind}详情",
-            DetailText = BuildPreBattleText(request)
+            DetailText = BuildPreBattleText(request),
+            ForcePreviews = BuildPreBattleForcePreviewData(request)
         };
+    }
+
+    private IReadOnlyList<StrategicBattleGateForcePreviewData> BuildPreBattleForcePreviewData(BattleStartRequest request)
+    {
+        List<StrategicBattleGateForcePreviewData> previews = new();
+        AddPreBattleForcePreviewData(previews, request?.PlayerForces, "我方");
+        AddPreBattleForcePreviewData(previews, request?.EnemyForces, "敌方");
+        return previews;
+    }
+
+    private void AddPreBattleForcePreviewData(
+        List<StrategicBattleGateForcePreviewData> previews,
+        IReadOnlyCollection<BattleForceRequest> forces,
+        string sideLabel)
+    {
+        if (previews == null || forces == null)
+        {
+            return;
+        }
+
+        foreach (BattleForceRequest force in forces.Where(force => force != null && force.Count > 0))
+        {
+            string battleUnitId = ResolvePreBattleForcePreviewBattleUnitId(force);
+            if (string.IsNullOrWhiteSpace(battleUnitId))
+            {
+                continue;
+            }
+
+            previews.Add(new StrategicBattleGateForcePreviewData
+            {
+                BattleUnitId = battleUnitId,
+                DisplayName = GetUnitLabel(battleUnitId),
+                SideLabel = sideLabel,
+                Count = force.Count
+            });
+        }
+    }
+
+    private static string ResolvePreBattleForcePreviewBattleUnitId(BattleForceRequest force)
+    {
+        if (!string.IsNullOrWhiteSpace(force?.UnitDefinitionId))
+        {
+            return force.UnitDefinitionId.Trim();
+        }
+
+        // Strategic bridge adapters may carry participant preview ids even when a
+        // legacy force row does not have a standalone battle unit id yet.
+        if (!string.IsNullOrWhiteSpace(force?.StrategicHeroBattleUnitId))
+        {
+            return force.StrategicHeroBattleUnitId.Trim();
+        }
+
+        return force?.StrategicCorpsBattleUnitId?.Trim() ?? "";
     }
 
     private string BuildPreBattleBriefText(BattleStartRequest request)

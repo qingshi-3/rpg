@@ -59,54 +59,73 @@ internal static void PresentationUiAuthoringStaysResourceBacked()
         $"battle preparation dynamic UI rows should be created through GameUiSceneFactory file={battlePreparationHudPath}");
 }
 
-internal static void StrategicWorldUiUsesBasicUi1TextureSkin()
+internal static void StrategicWorldUiUsesManaSoulGuiSkin()
 {
     string root = ProjectRoot();
-    string skinDir = Path.Combine(root, "assets", "themes", "game-ui-skin");
+    string skinDir = Path.Combine(root, "resource", "ui", "themes", "game-ui-skin");
     string themePath = Path.Combine(skinDir, "basic_ui_1_theme.tres");
-    string[] styleResources =
+    (string fileName, string textureName)[] panelStyleResources =
     {
-        "basic_ui_1_panel_large.tres",
-        "basic_ui_1_panel_sheet.tres",
-        "basic_ui_1_panel_topbar.tres",
-        "basic_ui_1_panel_card.tres",
-        "basic_ui_1_panel_slot.tres",
-        "basic_ui_1_button_primary.tres",
-        "basic_ui_1_button_primary_hover.tres",
-        "basic_ui_1_button_primary_pressed.tres",
-        "basic_ui_1_button_disabled.tres",
-        "basic_ui_1_button_action.tres",
-        "basic_ui_1_button_action_hover.tres",
-        "basic_ui_1_button_action_pressed.tres",
-        "basic_ui_1_button_action_disabled.tres",
-        "basic_ui_1_button_compact.tres",
-        "basic_ui_1_button_compact_hover.tres",
-        "basic_ui_1_button_compact_pressed.tres",
-        "basic_ui_1_button_compact_disabled.tres"
+        ("basic_ui_1_panel_large.tres", "20250420manaSoul9SlicesC-Sheet.png"),
+        ("basic_ui_1_panel_sheet.tres", "20250420manaSoul9SlicesA-Sheet.png"),
+        ("basic_ui_1_panel_topbar.tres", "20250420manaSoul9SlicesE-Sheet.png"),
+        ("basic_ui_1_panel_card.tres", "20250420manaSoul9SlicesB-Sheet.png")
     };
 
-    foreach (string fileName in styleResources)
+    foreach ((string fileName, string textureName) in panelStyleResources)
     {
         string path = Path.Combine(skinDir, fileName);
-        AssertTrue(File.Exists(path), $"strategic UI texture skin resource should exist path={path}");
+        AssertTrue(File.Exists(path), $"strategic UI panel skin resource should exist path={path}");
         string source = File.ReadAllText(path);
         AssertTrue(
             source.Contains("[gd_resource type=\"StyleBoxTexture\"", StringComparison.Ordinal),
-            $"strategic UI skin resource should be a StyleBoxTexture path={path}");
+            $"strategic UI panel skin resource should be a StyleBoxTexture path={path}");
         AssertTrue(
-            source.Contains("assets/textures/ui/basic-ui/1/", StringComparison.Ordinal),
-            $"strategic UI skin resource should use only the first basic UI pack path={path}");
+            source.Contains($"assets/textures/ui/tinyrpg_manasoulgui_v_1_0/{textureName}", StringComparison.Ordinal) &&
+            source.Contains("region = Rect2(0, 0, 96, 96)", StringComparison.Ordinal),
+            $"strategic UI outer panel skin resource should use a ManaSoul 9-slice texture={textureName} path={path}");
         AssertTrue(
             !source.Contains("assets/textures/ui/basic-ui/2/", StringComparison.Ordinal) &&
             !source.Contains("assets/textures/ui/basic-ui/3/", StringComparison.Ordinal) &&
-            !source.Contains("assets/textures/ui/basic-ui/need-human/", StringComparison.Ordinal),
-            $"strategic UI skin resource should not mix UI packs path={path}");
+            !source.Contains("assets/textures/ui/basic-ui/need-human/", StringComparison.Ordinal) &&
+            !source.Contains("assets/textures/ui/travel-book-lite/", StringComparison.Ordinal),
+            $"strategic UI outer panel skin resource should not mix legacy UI packs path={path}");
         AssertTrue(
             source.Contains("texture_margin_left", StringComparison.Ordinal) &&
             source.Contains("texture_margin_top", StringComparison.Ordinal) &&
             source.Contains("texture_margin_right", StringComparison.Ordinal) &&
             source.Contains("texture_margin_bottom", StringComparison.Ordinal),
-            $"strategic UI skin resource should define nine-patch margins path={path}");
+            $"strategic UI panel skin resource should define nine-patch margins path={path}");
+    }
+
+    string slotPath = Path.Combine(skinDir, "basic_ui_1_panel_slot.tres");
+    AssertTrue(File.Exists(slotPath), $"strategic UI inner slot skin resource should exist path={slotPath}");
+    string slotSource = File.ReadAllText(slotPath);
+    AssertTrue(
+        slotSource.Contains("assets/textures/ui/basic-ui/1/", StringComparison.Ordinal) &&
+        !slotSource.Contains("assets/textures/ui/tinyrpg_manasoulgui_v_1_0/20250420manaSoul9Slices", StringComparison.Ordinal),
+        $"strategic UI inner slot skin can stay on the prior compact slot resource while outer panels move to ManaSoul path={slotPath}");
+
+    (string fileName, string sheetName, float regionX)[] buttonStyleResources =
+    {
+        ("basic_ui_1_button_primary.tres", "20250421manaSoulButtonB-Sheet.png", 0f),
+        ("basic_ui_1_button_primary_hover.tres", "20250421manaSoulButtonB-Sheet.png", 96f),
+        ("basic_ui_1_button_primary_pressed.tres", "20250421manaSoulButtonB-Sheet.png", 192f),
+        ("basic_ui_1_button_disabled.tres", "20250421manaSoulButtonB-Sheet.png", 288f),
+        ("basic_ui_1_button_action.tres", "20250421manaSoulButtonB-Sheet.png", 0f),
+        ("basic_ui_1_button_action_hover.tres", "20250421manaSoulButtonB-Sheet.png", 96f),
+        ("basic_ui_1_button_action_pressed.tres", "20250421manaSoulButtonB-Sheet.png", 192f),
+        ("basic_ui_1_button_action_disabled.tres", "20250421manaSoulButtonB-Sheet.png", 288f),
+        ("basic_ui_1_button_compact.tres", "20250421manaSoulButtonA-Sheet.png", 0f),
+        ("basic_ui_1_button_compact_hover.tres", "20250421manaSoulButtonA-Sheet.png", 96f),
+        ("basic_ui_1_button_compact_pressed.tres", "20250421manaSoulButtonA-Sheet.png", 192f),
+        ("basic_ui_1_button_compact_disabled.tres", "20250421manaSoulButtonA-Sheet.png", 288f)
+    };
+
+    foreach ((string fileName, string sheetName, float regionX) in buttonStyleResources)
+    {
+        string path = Path.Combine(skinDir, fileName);
+        AssertManaSoulButtonStyleResource(path, sheetName, regionX, "strategic UI button skin");
     }
 
     AssertTrue(File.Exists(themePath), $"strategic UI shared theme should exist path={themePath}");
@@ -119,13 +138,21 @@ internal static void StrategicWorldUiUsesBasicUi1TextureSkin()
         themeSource.Contains("basic_ui_1_button_action.tres", StringComparison.Ordinal) &&
         themeSource.Contains("basic_ui_1_button_action_hover.tres", StringComparison.Ordinal) &&
         themeSource.Contains("basic_ui_1_button_action_pressed.tres", StringComparison.Ordinal) &&
-        themeSource.Contains("basic_ui_1_button_action_disabled.tres", StringComparison.Ordinal),
+        themeSource.Contains("basic_ui_1_button_action_disabled.tres", StringComparison.Ordinal) &&
+        themeSource.Contains("basic_ui_1_button_compact.tres", StringComparison.Ordinal) &&
+        themeSource.Contains("basic_ui_1_button_compact_hover.tres", StringComparison.Ordinal) &&
+        themeSource.Contains("basic_ui_1_button_compact_pressed.tres", StringComparison.Ordinal) &&
+        themeSource.Contains("basic_ui_1_button_compact_disabled.tres", StringComparison.Ordinal),
         $"strategic UI shared theme should centralize context sheet and action button skin resources path={themePath}");
     AssertTrue(
         themeSource.Contains("WorldContextSheet/base_type = &\"PanelContainer\"", StringComparison.Ordinal) &&
         themeSource.Contains("WorldContextSheet/styles/panel = ExtResource(", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldHoverInfoPanel/base_type = &\"PanelContainer\"", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldHoverInfoPanel/styles/panel = ExtResource(\"1_panel_sheet\")", StringComparison.Ordinal) &&
         themeSource.Contains("WorldPrimaryActionButton/base_type = &\"Button\"", StringComparison.Ordinal) &&
-        themeSource.Contains("WorldSecondaryActionButton/base_type = &\"Button\"", StringComparison.Ordinal),
+        themeSource.Contains("WorldSecondaryActionButton/base_type = &\"Button\"", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactActionButton/base_type = &\"Button\"", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactTabButton/base_type = &\"Button\"", StringComparison.Ordinal),
         $"strategic UI shared theme should expose named type variations for authored UI roles path={themePath}");
 
     string[] targetScenes =
@@ -136,10 +163,13 @@ internal static void StrategicWorldUiUsesBasicUi1TextureSkin()
         Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeSkillSlot.tscn"),
         Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeHeroSwitchButton.tscn"),
         Path.Combine(root, "scenes", "world", "ui", "BattlePreparationObjectiveThumbnail.tscn"),
-        Path.Combine(root, "scenes", "world", "ui", "BattleObjectiveMapDialog.tscn"),
         Path.Combine(root, "scenes", "world", "ui", "WorldSiteHoverSummaryPanel.tscn"),
         Path.Combine(root, "scenes", "world", "ui", "WorldPrimaryActionButton.tscn"),
-        Path.Combine(root, "scenes", "world", "ui", "WorldSecondaryActionButton.tscn")
+        Path.Combine(root, "scenes", "world", "ui", "WorldSecondaryActionButton.tscn"),
+        Path.Combine(root, "scenes", "world", "ui", "WorldCompactMarkerButton.tscn"),
+        Path.Combine(root, "scenes", "world", "ui", "WorldDeploymentMarkerButton.tscn"),
+        Path.Combine(root, "scenes", "world", "ui", "WorldExpeditionCountRow.tscn"),
+        Path.Combine(root, "scenes", "world", "ui", "WorldOpportunityDetailPanel.tscn")
     };
 
     foreach (string scenePath in targetScenes)
@@ -147,8 +177,8 @@ internal static void StrategicWorldUiUsesBasicUi1TextureSkin()
         AssertTrue(File.Exists(scenePath), $"strategic UI scene should exist path={scenePath}");
         string scene = File.ReadAllText(scenePath);
         AssertTrue(
-            scene.Contains("res://assets/themes/game-ui-skin/basic_ui_1_", StringComparison.Ordinal),
-            $"strategic UI scene should use shared basic-ui/1 texture skin resources path={scenePath}");
+            scene.Contains("res://resource/ui/themes/game-ui-skin/basic_ui_1_", StringComparison.Ordinal),
+            $"strategic UI scene should use shared game UI skin resources path={scenePath}");
         AssertTrue(
             !scene.Contains("StyleBoxFlat", StringComparison.Ordinal),
             $"strategic UI visual validation target should not use local StyleBoxFlat blocks path={scenePath}");
@@ -156,8 +186,8 @@ internal static void StrategicWorldUiUsesBasicUi1TextureSkin()
 
     string strategicHud = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "StrategicWorldHud.tscn"));
     AssertTrue(
-        strategicHud.Contains("res://assets/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal),
-        "strategic world HUD should attach the shared basic-ui/1 Theme instead of styling key panels independently");
+        strategicHud.Contains("res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal),
+        "strategic world HUD should attach the shared world UI Theme instead of styling key panels independently");
     AssertTrue(
         strategicHud.Contains("button_pause.png", StringComparison.Ordinal) &&
         strategicHud.Contains("button_pause_hover.png", StringComparison.Ordinal) &&
@@ -178,10 +208,10 @@ internal static void StrategicWorldUiUsesBasicUi1TextureSkin()
     string hoverSummary = File.ReadAllText(hoverSummaryScenePath);
     string hoverSummaryRootBlock = ExtractSceneNodeBlock(hoverSummary, "[node name=\"WorldSiteHoverSummaryPanel\"");
     AssertTrue(
-        hoverSummary.Contains("res://assets/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal) &&
-        hoverSummaryRootBlock.Contains("theme_type_variation = &\"WorldContextCard\"", StringComparison.Ordinal) &&
+        hoverSummary.Contains("res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal) &&
+        hoverSummaryRootBlock.Contains("theme_type_variation = &\"WorldHoverInfoPanel\"", StringComparison.Ordinal) &&
         !hoverSummaryRootBlock.Contains("theme_override_styles/panel", StringComparison.Ordinal),
-        "strategic-world hover summary should use the shared context-card Theme variation instead of a local panel style");
+        "strategic-world hover summary should use the shared hover info Theme variation instead of a local panel style");
     string gameUiSceneFactorySource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs"));
     AssertTrue(
         gameUiSceneFactorySource.Contains("WorldSiteHoverSummaryPanelScenePath = \"res://scenes/world/ui/WorldSiteHoverSummaryPanel.tscn\"", StringComparison.Ordinal) &&
@@ -198,7 +228,7 @@ internal static void StrategicWorldUiUsesBasicUi1TextureSkin()
     string siteHud = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
     string activeObjectiveThumbnailBlock = ExtractSceneNodeBlock(siteHud, "[node name=\"BattlePreparationObjectiveThumbnail\" type=\"PanelContainer\" parent=\"MinimapHost/BattlePreparationObjectiveThumbnailDock\"");
     AssertTrue(
-        siteHud.Contains("res://assets/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal) &&
+        siteHud.Contains("res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal) &&
         activeObjectiveThumbnailBlock.Contains("theme = ExtResource(\"14_theme\")", StringComparison.Ordinal) &&
         activeObjectiveThumbnailBlock.Contains("theme_type_variation = &\"WorldContextCard\"", StringComparison.Ordinal) &&
         !activeObjectiveThumbnailBlock.Contains("theme_override_styles/panel", StringComparison.Ordinal),
@@ -212,9 +242,12 @@ internal static void StrategicWorldUiUsesBasicUi1TextureSkin()
     string doneButtonBlock = ExtractSceneNodeBlock(objectiveDialog, "[node name=\"DoneButton\"");
     string mapPreviewBlock = ExtractSceneNodeBlock(objectiveDialog, "[node name=\"MapPreview\"");
     AssertTrue(
+        objectiveDialog.Contains("res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal),
+        "battle objective map dialog should use the shared game UI Theme while keeping the same authored role variations");
+    AssertTrue(
         dialogPanelBlock.Contains("theme_type_variation = &\"WorldContextSheet\"", StringComparison.Ordinal) &&
         !dialogPanelBlock.Contains("theme_override_styles/panel", StringComparison.Ordinal),
-        "battle objective map dialog shell should use the shared context-sheet Theme variation");
+        "battle objective map dialog shell should use the context-sheet Theme variation");
     AssertTrue(
         companyPanelBlock.Contains("theme_type_variation = &\"WorldContextCard\"", StringComparison.Ordinal) &&
         previewPanelBlock.Contains("theme_type_variation = &\"WorldContextCard\"", StringComparison.Ordinal) &&
@@ -249,13 +282,272 @@ internal static void StrategicWorldUiUsesBasicUi1TextureSkin()
         doneButtonHeight;
     AssertTrue(
         dialogHeight >= requiredDialogHeight,
-        $"battle objective map dialog should budget enough height for the shared Theme margins and controls height={dialogHeight} required={requiredDialogHeight}");
+        $"battle objective map dialog should budget enough height for the modal Theme margins and controls height={dialogHeight} required={requiredDialogHeight}");
+}
+
+internal static void UiThemesKeepPopupShellsTransparent()
+{
+    string root = ProjectRoot();
+    string themesRoot = Path.Combine(root, "resource", "ui", "themes");
+    AssertTrue(Directory.Exists(themesRoot), $"UI theme root should exist path={themesRoot}");
+
+    List<string> themePaths = Directory
+        .GetFiles(themesRoot, "*.tres", SearchOption.AllDirectories)
+        .Where(path => File.ReadAllText(path).Contains("[gd_resource type=\"Theme\"", StringComparison.Ordinal))
+        .OrderBy(path => path)
+        .ToList();
+    AssertTrue(themePaths.Count > 0, $"UI theme scan should find Godot Theme resources root={themesRoot}");
+
+    foreach (string themePath in themePaths)
+    {
+        string source = File.ReadAllText(themePath);
+        string relativePath = Path.GetRelativePath(root, themePath);
+        AssertTrue(
+            source.Contains("[sub_resource type=\"StyleBoxEmpty\" id=\"StyleBoxEmpty_popup_panel\"]", StringComparison.Ordinal) &&
+            source.Contains("PopupPanel/styles/panel = SubResource(\"StyleBoxEmpty_popup_panel\")", StringComparison.Ordinal) &&
+            source.Contains("TooltipPanel/styles/panel = SubResource(\"StyleBoxEmpty_popup_panel\")", StringComparison.Ordinal),
+            $"UI Theme should keep native popup and tooltip shells transparent so authored panels provide the only visible frame path={relativePath}");
+        AssertThemeUsesUnifiedScrollbarSkin(source, relativePath);
+    }
+}
+
+internal static void RecruitmentUiV1AssetsAreGeneratedAsResourceBackedThemeCandidates()
+{
+    string root = ProjectRoot();
+    string textureDir = Path.Combine(root, "assets", "textures", "ui", "recruitment-ui-v1");
+    string themeDir = Path.Combine(root, "resource", "ui", "themes", "recruitment-ui-v1");
+    string themePath = Path.Combine(themeDir, "recruitment_ui_v1_theme.tres");
+
+    AssertTrue(Directory.Exists(textureDir), $"recruitment UI v1 texture directory should exist path={textureDir}");
+    AssertTrue(Directory.Exists(themeDir), $"recruitment UI v1 theme directory should exist path={themeDir}");
+
+    string[] textureNames =
+    {
+        "recruitment_modal_panel.png",
+        "recruitment_card_normal.png",
+        "recruitment_card_hover.png",
+        "recruitment_card_pressed.png",
+        "recruitment_card_selected.png",
+        "recruitment_card_disabled.png",
+        "recruitment_unit_plinth_normal.png",
+        "recruitment_unit_plinth_hover.png",
+        "recruitment_unit_plinth_pressed.png",
+        "recruitment_unit_plinth_selected.png",
+        "recruitment_unit_plinth_disabled.png",
+        "recruitment_nameplate_normal.png",
+        "recruitment_nameplate_selected.png",
+        "recruitment_nameplate_pressed.png",
+        "recruitment_nameplate_disabled.png",
+        "recruitment_text_button_normal.png",
+        "recruitment_text_button_hover.png",
+        "recruitment_text_button_pressed.png",
+        "recruitment_text_button_disabled.png",
+        "recruitment_icon_button_normal.png",
+        "recruitment_icon_button_hover.png",
+        "recruitment_icon_button_pressed.png",
+        "recruitment_icon_button_disabled.png",
+        "recruitment_tooltip_panel.png",
+        "recruitment_divider_purple.png",
+        "recruitment_divider_blue.png",
+        "recruitment_resource_chip_normal.png",
+        "recruitment_resource_chip_selected.png",
+        "recruitment_resource_chip_pressed.png",
+        "recruitment_resource_chip_disabled.png",
+        "recruitment_socket_circle_gold.png",
+        "recruitment_socket_diamond_gold.png",
+        "recruitment_scroll_track_bar_b.png",
+        "recruitment_scroll_grabber_normal.png",
+        "recruitment_scroll_grabber_hover.png",
+        "recruitment_scroll_grabber_pressed.png",
+        "recruitment_scroll_track_bar_b_horizontal.png",
+        "recruitment_scroll_grabber_horizontal_normal.png",
+        "recruitment_scroll_grabber_horizontal_hover.png",
+        "recruitment_scroll_grabber_horizontal_pressed.png"
+    };
+
+    foreach (string textureName in textureNames)
+    {
+        string path = Path.Combine(textureDir, textureName);
+        AssertTrue(File.Exists(path), $"recruitment UI v1 texture should exist texture={textureName} path={path}");
+        AssertTrue(
+            new FileInfo(path).Length > 0,
+            $"recruitment UI v1 texture should not be empty texture={textureName} path={path}");
+        if (textureName.StartsWith("recruitment_scroll_", StringComparison.Ordinal))
+        {
+            (int width, int height) = ReadPngDimensions(path);
+            bool isHorizontal = textureName.Contains("_horizontal", StringComparison.Ordinal);
+            if (isHorizontal)
+            {
+                (int minY, int maxY) = ReadPngAlphaYBounds(path);
+                int visibleHeight = maxY - minY + 1;
+                AssertTrue(
+                    height >= 28,
+                    $"recruitment UI v1 horizontal scrollbar textures should have a tall transparent gutter for layout and input texture={textureName} height={height} path={path}");
+                AssertTrue(
+                    visibleHeight <= 18,
+                    $"recruitment UI v1 horizontal scrollbar textures should keep the ManaSoul visible art narrow instead of stretching it texture={textureName} visibleHeight={visibleHeight} path={path}");
+                AssertTrue(
+                    minY >= 4 && maxY <= height - 5,
+                    $"recruitment UI v1 horizontal scrollbar visible art should sit inside the transparent gutter texture={textureName} minY={minY} maxY={maxY} height={height} path={path}");
+                continue;
+            }
+
+            (int minX, int maxX) = ReadPngAlphaXBounds(path);
+            int visibleWidth = maxX - minX + 1;
+            AssertTrue(
+                width >= 28,
+                $"recruitment UI v1 scrollbar textures should have a wide transparent gutter for layout and input texture={textureName} width={width} path={path}");
+            AssertTrue(
+                visibleWidth <= 18,
+                $"recruitment UI v1 scrollbar textures should keep the ManaSoul visible art narrow instead of stretching it texture={textureName} visibleWidth={visibleWidth} path={path}");
+            AssertTrue(
+                minX >= 4 && maxX <= width - 5,
+                $"recruitment UI v1 scrollbar visible art should sit inside the transparent gutter texture={textureName} minX={minX} maxX={maxX} width={width} path={path}");
+            if (textureName.StartsWith("recruitment_scroll_grabber_", StringComparison.Ordinal))
+            {
+                bool hasUpperLeftAccent = PngRegionContainsColor(
+                    path,
+                    minX,
+                    minX + 1,
+                    Math.Min(8, height - 1),
+                    Math.Min(12, height - 1),
+                    IsBrightScrollbarEdgeAccent);
+                bool hasLowerRightAccent = PngRegionContainsColor(
+                    path,
+                    maxX - 1,
+                    maxX,
+                    Math.Max(0, height - 12),
+                    Math.Max(0, height - 7),
+                    IsOrangeScrollbarEdgeAccent);
+                AssertTrue(
+                    !hasUpperLeftAccent && !hasLowerRightAccent,
+                    $"recruitment UI v1 scrollbar grabber should keep accent pixels inside the thumb body instead of on the outer edge texture={textureName} path={path}");
+            }
+        }
+    }
+
+    string[] styleResourceNames =
+    {
+        "recruitment_modal_panel.tres",
+        "recruitment_card_normal.tres",
+        "recruitment_card_hover.tres",
+        "recruitment_card_pressed.tres",
+        "recruitment_card_selected.tres",
+        "recruitment_card_disabled.tres",
+        "recruitment_nameplate_normal.tres",
+        "recruitment_nameplate_selected.tres",
+        "recruitment_nameplate_pressed.tres",
+        "recruitment_nameplate_disabled.tres",
+        "recruitment_text_button_normal.tres",
+        "recruitment_text_button_hover.tres",
+        "recruitment_text_button_pressed.tres",
+        "recruitment_text_button_disabled.tres",
+        "recruitment_icon_button_normal.tres",
+        "recruitment_icon_button_hover.tres",
+        "recruitment_icon_button_pressed.tres",
+        "recruitment_icon_button_disabled.tres",
+        "recruitment_tooltip_panel.tres",
+        "recruitment_scroll_track.tres",
+        "recruitment_scroll_grabber_normal.tres",
+        "recruitment_scroll_grabber_hover.tres",
+        "recruitment_scroll_grabber_pressed.tres",
+        "recruitment_scroll_track_horizontal.tres",
+        "recruitment_scroll_grabber_horizontal_normal.tres",
+        "recruitment_scroll_grabber_horizontal_hover.tres",
+        "recruitment_scroll_grabber_horizontal_pressed.tres"
+    };
+
+    foreach (string resourceName in styleResourceNames)
+    {
+        string path = Path.Combine(themeDir, resourceName);
+        AssertTrue(File.Exists(path), $"recruitment UI v1 StyleBox resource should exist resource={resourceName} path={path}");
+        string source = File.ReadAllText(path);
+        AssertTrue(
+            source.Contains("[gd_resource type=\"StyleBoxTexture\"", StringComparison.Ordinal) &&
+            source.Contains("assets/textures/ui/recruitment-ui-v1/", StringComparison.Ordinal) &&
+            source.Contains("texture_margin_left", StringComparison.Ordinal) &&
+            source.Contains("content_margin_left", StringComparison.Ordinal),
+            $"recruitment UI v1 StyleBox resource should be texture-backed with margins resource={resourceName} path={path}");
+        AssertTrue(
+            !source.Contains("assets/textures/ui/basic-ui/", StringComparison.Ordinal) &&
+            !source.Contains("assets/textures/ui/tinyrpg_manasoulgui_v_1_0/", StringComparison.Ordinal) &&
+            !source.Contains("assets/textures/ui/travel-book-lite/", StringComparison.Ordinal),
+            $"recruitment UI v1 StyleBox resource should stay isolated from older UI packs resource={resourceName} path={path}");
+        if (resourceName.StartsWith("recruitment_scroll_", StringComparison.Ordinal))
+        {
+            bool isHorizontal = resourceName.Contains("_horizontal", StringComparison.Ordinal);
+            if (isHorizontal)
+            {
+                float topMargin = ReadResourceFloat(source, "content_margin_top");
+                float bottomMargin = ReadResourceFloat(source, "content_margin_bottom");
+                AssertTrue(
+                    topMargin + bottomMargin >= 24f,
+                    $"recruitment UI v1 horizontal scrollbar StyleBox should reserve a usable bar height resource={resourceName} height={topMargin + bottomMargin} path={path}");
+            }
+            else
+            {
+                float leftMargin = ReadResourceFloat(source, "content_margin_left");
+                float rightMargin = ReadResourceFloat(source, "content_margin_right");
+                AssertTrue(
+                    leftMargin + rightMargin >= 24f,
+                    $"recruitment UI v1 scrollbar StyleBox should reserve a usable vertical bar width resource={resourceName} width={leftMargin + rightMargin} path={path}");
+            }
+        }
+    }
+
+    AssertTrue(File.Exists(themePath), $"recruitment UI v1 Theme resource should exist path={themePath}");
+    string themeSource = File.ReadAllText(themePath);
+    AssertTrue(
+        themeSource.Contains("[gd_resource type=\"Theme\"", StringComparison.Ordinal) &&
+        themeSource.Contains("PopupPanel/styles/panel = SubResource(\"StyleBoxEmpty_popup_panel\")", StringComparison.Ordinal) &&
+        themeSource.Contains("TooltipPanel/styles/panel = SubResource(\"StyleBoxEmpty_popup_panel\")", StringComparison.Ordinal),
+        $"recruitment UI v1 Theme should be a Godot Theme and keep popup shells transparent path={themePath}");
+    AssertTrue(
+        themeSource.Contains("RecruitmentModalPanel/base_type = &\"PanelContainer\"", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentCardButton/base_type = &\"Button\"", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentSelectableCardButton/base_type = &\"Button\"", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentTextButton/base_type = &\"Button\"", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentIconButton/base_type = &\"Button\"", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentNameplatePanel/base_type = &\"PanelContainer\"", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentTooltipPanel/base_type = &\"PanelContainer\"", StringComparison.Ordinal),
+        $"recruitment UI v1 Theme should expose reusable type variations for the candidate recruitment UI kit path={themePath}");
+    AssertTrue(
+        themeSource.Contains("RecruitmentCardButton/styles/hover_pressed = ExtResource(\"4_card_pressed\")", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentCardButton/styles/normal = ExtResource(\"3_card_hover\")", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentCardButton/styles/hover = ExtResource(\"2_card_normal\")", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentCardButton/styles/pressed = ExtResource(\"4_card_pressed\")", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentSelectableCardButton/styles/normal = ExtResource(\"3_card_hover\")", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentSelectableCardButton/styles/hover = ExtResource(\"2_card_normal\")", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentSelectableCardButton/styles/pressed = ExtResource(\"5_card_selected\")", StringComparison.Ordinal) &&
+        themeSource.Contains("RecruitmentSelectableCardButton/styles/hover_pressed = ExtResource(\"5_card_selected\")", StringComparison.Ordinal) &&
+        !themeSource.Contains("RecruitmentSelectableCardButton/styles/hover_pressed = ExtResource(\"4_card_pressed\")", StringComparison.Ordinal),
+        $"recruitment card themes should swap normal/hover visuals while toggleable hero cards keep selected-hover on the selected frame instead of the dark click frame path={themePath}");
+    AssertTrue(
+        themeSource.Contains("VScrollBar/styles/scroll = ExtResource(\"20_scroll_track\")", StringComparison.Ordinal) &&
+        themeSource.Contains("VScrollBar/styles/scroll_focus = ExtResource(\"20_scroll_track\")", StringComparison.Ordinal) &&
+        themeSource.Contains("VScrollBar/styles/grabber = ExtResource(\"21_scroll_grabber_normal\")", StringComparison.Ordinal) &&
+        themeSource.Contains("VScrollBar/styles/grabber_highlight = ExtResource(\"22_scroll_grabber_hover\")", StringComparison.Ordinal) &&
+        themeSource.Contains("VScrollBar/styles/grabber_pressed = ExtResource(\"23_scroll_grabber_pressed\")", StringComparison.Ordinal),
+        $"recruitment modal scroll containers should use the ManaSoul-compatible vertical scrollbar skin instead of Godot defaults path={themePath}");
+
+    string worldSiteHudScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn");
+    string worldSiteHudScene = File.ReadAllText(worldSiteHudScenePath);
+    string heroScrollBlock = ExtractSceneNodeBlock(worldSiteHudScene, "[node name=\"MilitaryHeroScroll\"");
+    string musterScrollBlock = ExtractSceneNodeBlock(worldSiteHudScene, "[node name=\"MilitaryMusterScroll\"");
+    (float heroScrollWidth, _) = ReadSceneNodeMinimumSize(heroScrollBlock, "MilitaryHeroScroll", worldSiteHudScenePath);
+    AssertTrue(
+        heroScrollWidth >= 384f,
+        $"recruitment hero list should reserve enough layout width for full-size hero cards plus the themed scrollbar path={worldSiteHudScenePath}");
+    AssertTrue(
+        heroScrollBlock.Contains("vertical_scroll_mode = 4", StringComparison.Ordinal) &&
+        musterScrollBlock.Contains("vertical_scroll_mode = 4", StringComparison.Ordinal),
+        $"recruitment scroll containers should reserve vertical scrollbar space so content and the visible bar do not fight for the same pixels path={worldSiteHudScenePath}");
 }
 
 internal static void StrategicWorldUiButtonSkinsFitAuthoredButtonSizes()
 {
     string root = ProjectRoot();
-    string skinDir = Path.Combine(root, "assets", "themes", "game-ui-skin");
+    string skinDir = Path.Combine(root, "resource", "ui", "themes", "game-ui-skin");
     string[] compactStyles =
     {
         "basic_ui_1_button_compact.tres",
@@ -267,25 +559,29 @@ internal static void StrategicWorldUiButtonSkinsFitAuthoredButtonSizes()
     foreach (string fileName in compactStyles)
     {
         string path = Path.Combine(skinDir, fileName);
-        AssertTrue(File.Exists(path), $"compact button texture skin resource should exist path={path}");
-        string source = File.ReadAllText(path);
-        AssertTrue(
-            source.Contains("button_empty_2_compact.png", StringComparison.Ordinal),
-            $"compact button skin should use the scaled compact derivative, not the full-size long button texture path={path}");
+        float regionX = fileName switch
+        {
+            "basic_ui_1_button_compact_hover.tres" => 96f,
+            "basic_ui_1_button_compact_pressed.tres" => 192f,
+            "basic_ui_1_button_compact_disabled.tres" => 288f,
+            _ => 0f
+        };
+        string source = AssertManaSoulButtonStyleResource(path, "20250421manaSoulButtonA-Sheet.png", regionX, "compact button skin");
 
         float left = ReadResourceFloat(source, "texture_margin_left");
         float top = ReadResourceFloat(source, "texture_margin_top");
         float right = ReadResourceFloat(source, "texture_margin_right");
         float bottom = ReadResourceFloat(source, "texture_margin_bottom");
         AssertTrue(
-            left == top && top == right && right == bottom,
-            $"compact button skin margins should preserve the 45-degree corner geometry equally on all sides path={path}");
+            left == 18f && right == 18f,
+            $"compact button skin should preserve ManaSoul ButtonA horizontal end caps path={path}");
         AssertTrue(
-            left == 18f,
-            $"compact button skin should use the half-scale 45-degree corner projection margin path={path}");
+            top == 0f && bottom == 0f,
+            $"compact button skin should use ManaSoul ButtonA as a horizontal three-slice path={path}");
     }
 
-    float compactMargin = 18f;
+    float compactHorizontalPadding = 18f;
+    float compactVerticalPadding = 5f;
     string[] actionStyles =
     {
         "basic_ui_1_button_action.tres",
@@ -297,12 +593,14 @@ internal static void StrategicWorldUiButtonSkinsFitAuthoredButtonSizes()
     foreach (string fileName in actionStyles)
     {
         string path = Path.Combine(skinDir, fileName);
-        AssertTrue(File.Exists(path), $"action button texture skin resource should exist path={path}");
-        string source = File.ReadAllText(path);
-        AssertTrue(
-            source.Contains("normal_window.png", StringComparison.Ordinal) &&
-            !source.Contains("button_empty_2.png", StringComparison.Ordinal),
-            $"action buttons should use the regular bordered control skin, not the ornamental plaque button path={path}");
+        float regionX = fileName switch
+        {
+            "basic_ui_1_button_action_hover.tres" => 96f,
+            "basic_ui_1_button_action_pressed.tres" => 192f,
+            "basic_ui_1_button_action_disabled.tres" => 288f,
+            _ => 0f
+        };
+        AssertManaSoulButtonStyleResource(path, "20250421manaSoulButtonB-Sheet.png", regionX, "action button skin");
     }
 
     string strategicHudPath = Path.Combine(root, "scenes", "world", "ui", "StrategicWorldHud.tscn");
@@ -329,18 +627,87 @@ internal static void StrategicWorldUiButtonSkinsFitAuthoredButtonSizes()
         "top-bar reset button should use an authored reset TextureButton instead of a flat Button icon");
 
     string siteHudPath = Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "BattleRuntimeRegroupButton", "runtime regroup button is narrower than the large ornamental button skin", compactMargin);
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "MoveFirstRuleButton", "battle-preparation rule button is a compact control", compactMargin);
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "AttackFirstRuleButton", "battle-preparation rule button is a compact control", compactMargin);
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "HoldRuleButton", "battle-preparation rule button is a compact control", compactMargin);
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "BattlePreparationStartButton", "battle-preparation start button is a compact control", compactMargin);
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "ReturnMapButton", "site top-bar return button is a compact control", compactMargin);
+    string themeSource = File.ReadAllText(Path.Combine(skinDir, "basic_ui_1_theme.tres"));
+    AssertTrue(
+        themeSource.Contains("WorldCompactActionButton/styles/normal = ExtResource(\"8_button_compact\")", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactActionButton/styles/hover = ExtResource(\"9_button_compact_hover\")", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactActionButton/styles/hover_pressed = ExtResource(\"10_button_compact_pressed\")", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactActionButton/styles/pressed = ExtResource(\"10_button_compact_pressed\")", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactActionButton/styles/disabled = ExtResource(\"11_button_compact_disabled\")", StringComparison.Ordinal),
+        "compact action buttons should get all state skins from the shared Theme variation");
+    AssertTrue(
+        themeSource.Contains("WorldCompactTabButton/styles/normal = ExtResource(\"8_button_compact\")", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactTabButton/styles/hover = ExtResource(\"9_button_compact_hover\")", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactTabButton/styles/hover_pressed = ExtResource(\"9_button_compact_hover\")", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactTabButton/styles/pressed = ExtResource(\"8_button_compact\")", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldCompactTabButton/styles/disabled = ExtResource(\"11_button_compact_disabled\")", StringComparison.Ordinal),
+        "compact tab buttons should use a reusable Theme variation whose selected state keeps the ManaSoul normal frame");
+
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "BattleRuntimeRegroupButton", "runtime regroup button is narrower than the large ornamental button skin", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "MoveFirstRuleButton", "battle-preparation rule button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "AttackFirstRuleButton", "battle-preparation rule button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "HoldRuleButton", "battle-preparation rule button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "BattlePreparationStartButton", "battle-preparation start button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
+    AssertSceneButtonUsesRecruitmentStyle(siteHudPath, "MilitaryBackButton", "RecruitmentTextButton", "military workbench back button belongs to the focused recruitment modal skin");
+    AssertSceneButtonUsesRecruitmentStyle(siteHudPath, "MilitaryCloseButton", "RecruitmentTextButton", "military workbench close button belongs to the focused recruitment modal skin");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "ReturnMapButton", "site top-bar return button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "BuildTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "ConscriptionTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "RecruitTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "CorpsTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "OverviewTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
 
     AssertSceneButtonUsesCompactStyle(
         Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeHeroSwitchButton.tscn"),
         "BattleRuntimeHeroSwitchButton",
         "battle runtime hero switch button is narrower than the large ornamental button skin",
-        compactMargin);
+        compactHorizontalPadding,
+        compactVerticalPadding,
+        "WorldCompactActionButton");
+
+    AssertSceneButtonUsesRecruitmentStyle(
+        Path.Combine(root, "scenes", "world", "ui", "WorldMusterOptionCard.tscn"),
+        "WorldMusterOptionCard",
+        "RecruitmentCardButton",
+        "muster option card belongs to the focused recruitment modal skin");
+    AssertSceneButtonUsesSharedCardSkin(
+        Path.Combine(root, "scenes", "world", "ui", "WorldMilitaryHeroCard.tscn"),
+        "WorldMilitaryHeroCard",
+        "military hero card can still be reused by non-modal management tabs without adopting the recruitment modal skin");
+    AssertSceneButtonUsesRecruitmentStyle(
+        Path.Combine(root, "scenes", "world", "ui", "WorldMilitaryWorkbenchHeroCard.tscn"),
+        "WorldMilitaryHeroCard",
+        "RecruitmentSelectableCardButton",
+        "military workbench hero card belongs to the focused recruitment modal skin");
+    AssertSceneButtonUsesThemeVariation(
+        Path.Combine(root, "scenes", "world", "ui", "WorldCompactMarkerButton.tscn"),
+        "WorldCompactMarkerButton",
+        "WorldTravelBookCardButton",
+        "compact world marker is a visible map UI button");
+    AssertSceneButtonUsesThemeVariation(
+        Path.Combine(root, "scenes", "world", "ui", "WorldDeploymentMarkerButton.tscn"),
+        "WorldDeploymentMarkerButton",
+        "WorldTravelBookCardButton",
+        "deployment marker is a visible map UI button");
+    AssertSceneButtonUsesThemeVariation(
+        Path.Combine(root, "scenes", "world", "ui", "WorldExpeditionCountRow.tscn"),
+        "MinusButton",
+        "WorldTravelBookCardButton",
+        "expedition count minus control is a visible UI button");
+    AssertSceneButtonUsesThemeVariation(
+        Path.Combine(root, "scenes", "world", "ui", "WorldExpeditionCountRow.tscn"),
+        "PlusButton",
+        "WorldTravelBookCardButton",
+        "expedition count plus control is a visible UI button");
+    AssertSceneButtonUsesThemeVariation(
+        Path.Combine(root, "scenes", "world", "ui", "WorldOpportunityDetailPanel.tscn"),
+        "CompleteButton",
+        "WorldPrimaryActionButton",
+        "opportunity completion action is a visible UI button");
+    AssertSceneButtonStaysFlatInputHotspot(
+        Path.Combine(root, "scenes", "world", "ui", "WorldSiteHitButton.tscn"),
+        "WorldSiteHitButton",
+        "world site hit button is an invisible input hotspot, not a visible UI button");
 
     string worldClockSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.WorldClock.cs"));
     AssertTrue(
@@ -548,7 +915,7 @@ internal static void StrategicWorldHudUsesFullscreenOverlayContextLayout()
         scene.Contains("[node name=\"ActionCard\"", StringComparison.Ordinal),
         "selected city popup should be a compact context/action sheet, not a four-column information board");
     AssertTrue(
-        scene.Contains("res://assets/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal) &&
+        scene.Contains("res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal) &&
         panelBlock.Contains("theme_type_variation = &\"WorldContextSheet\"", StringComparison.Ordinal) &&
         !panelBlock.Contains("theme_override_styles/panel", StringComparison.Ordinal),
         "selected city detail popup should use the shared Theme's WorldContextSheet variation instead of an independent panel style override");
@@ -736,25 +1103,187 @@ static void AssertSceneTextureButtonUsesStateTextures(
         $"{reason}; top-bar TextureButtons should not carry visible text node={buttonName} path={scenePath}");
 }
 
-static void AssertSceneButtonUsesCompactStyle(string scenePath, string buttonName, string reason, float textureMargin)
+static string AssertManaSoulButtonStyleResource(string path, string sheetName, float regionX, string reason)
+{
+    AssertTrue(File.Exists(path), $"{reason} resource should exist path={path}");
+    string source = File.ReadAllText(path);
+    AssertTrue(
+        source.Contains("[gd_resource type=\"StyleBoxTexture\"", StringComparison.Ordinal),
+        $"{reason} should be a StyleBoxTexture path={path}");
+    AssertTrue(
+        source.Contains($"assets/textures/ui/tinyrpg_manasoulgui_v_1_0/{sheetName}", StringComparison.Ordinal) &&
+        source.Contains($"region = Rect2({regionX:0}, 0, 96, 22)", StringComparison.Ordinal),
+        $"{reason} should reference ManaSoul state sheet={sheetName} regionX={regionX} path={path}");
+    AssertTrue(
+        !source.Contains("assets/textures/ui/basic-ui/", StringComparison.Ordinal) &&
+        !source.Contains("assets/textures/ui/travel-book-lite/", StringComparison.Ordinal) &&
+        !source.Contains("normal_window.png", StringComparison.Ordinal) &&
+        !source.Contains("button_empty_2", StringComparison.Ordinal),
+        $"{reason} should not keep previous basic-ui or TravelBookLite button textures path={path}");
+    AssertTrue(
+        source.Contains("texture_margin_left", StringComparison.Ordinal) &&
+        source.Contains("texture_margin_top", StringComparison.Ordinal) &&
+        source.Contains("texture_margin_right", StringComparison.Ordinal) &&
+        source.Contains("texture_margin_bottom", StringComparison.Ordinal),
+        $"{reason} should define nine-patch margins path={path}");
+    return source;
+}
+
+static void AssertThemeUsesUnifiedScrollbarSkin(string source, string relativePath)
+{
+    string[] requiredResources =
+    {
+        "res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track.tres",
+        "res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_normal.tres",
+        "res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_hover.tres",
+        "res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_pressed.tres",
+        "res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track_horizontal.tres",
+        "res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_normal.tres",
+        "res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_hover.tres",
+        "res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_pressed.tres"
+    };
+
+    foreach (string requiredResource in requiredResources)
+    {
+        AssertTrue(
+            source.Contains(requiredResource, StringComparison.Ordinal),
+            $"UI Theme should reuse the shared recruitment scrollbar StyleBoxes instead of owning a separate scrollbar skin resource={requiredResource} path={relativePath}");
+    }
+
+    string[] requiredAssignments =
+    {
+        "HScrollBar/styles/scroll = ExtResource(",
+        "HScrollBar/styles/scroll_focus = ExtResource(",
+        "HScrollBar/styles/grabber = ExtResource(",
+        "HScrollBar/styles/grabber_highlight = ExtResource(",
+        "HScrollBar/styles/grabber_pressed = ExtResource(",
+        "VScrollBar/styles/scroll = ExtResource(",
+        "VScrollBar/styles/scroll_focus = ExtResource(",
+        "VScrollBar/styles/grabber = ExtResource(",
+        "VScrollBar/styles/grabber_highlight = ExtResource(",
+        "VScrollBar/styles/grabber_pressed = ExtResource("
+    };
+
+    foreach (string requiredAssignment in requiredAssignments)
+    {
+        AssertTrue(
+            source.Contains(requiredAssignment, StringComparison.Ordinal),
+            $"UI Theme should explicitly style every scrollbar state assignment={requiredAssignment} path={relativePath}");
+    }
+}
+
+static void AssertSceneButtonUsesSharedCardSkin(string scenePath, string buttonName, string reason)
+{
+    AssertTrue(File.Exists(scenePath), $"button card scene should exist path={scenePath}");
+    string scene = File.ReadAllText(scenePath);
+    string nodeBlock = ExtractSceneNodeBlock(scene, $"[node name=\"{buttonName}\"");
+    AssertTrue(
+        nodeBlock.Contains($"[node name=\"{buttonName}\" type=\"Button\"", StringComparison.Ordinal),
+        $"{reason}; card root should remain a Button node={buttonName} path={scenePath}");
+    AssertTrue(
+        scene.Contains("res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal) &&
+        nodeBlock.Contains("theme = ExtResource(\"1_theme\")", StringComparison.Ordinal) &&
+        nodeBlock.Contains("theme_type_variation = &\"WorldTravelBookCardButton\"", StringComparison.Ordinal),
+        $"{reason}; card should use the shared world UI Theme variation node={buttonName} path={scenePath}");
+    AssertTrue(
+        !scene.Contains("res://resource/ui/themes/game-ui-skin/build_inventory_preview_theme.tres", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_type_variation = &\"WorldBuildingOptionCard\"", StringComparison.Ordinal),
+        $"{reason}; card should not reuse the excluded building picker skin node={buttonName} path={scenePath}");
+    AssertTrue(
+        !nodeBlock.Contains("theme_override_styles/normal", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/hover", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/pressed", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/disabled", StringComparison.Ordinal),
+        $"{reason}; card should stay theme-driven instead of carrying local style overrides node={buttonName} path={scenePath}");
+}
+
+static void AssertSceneButtonUsesRecruitmentStyle(string scenePath, string buttonName, string variationName, string reason)
+{
+    AssertTrue(File.Exists(scenePath), $"recruitment button scene should exist path={scenePath}");
+    string scene = File.ReadAllText(scenePath);
+    string nodeBlock = ExtractSceneNodeBlock(scene, $"[node name=\"{buttonName}\"");
+    AssertTrue(
+        nodeBlock.Contains($"[node name=\"{buttonName}\" type=\"Button\"", StringComparison.Ordinal),
+        $"{reason}; node should remain a Button node={buttonName} path={scenePath}");
+    AssertTrue(
+        scene.Contains("res://resource/ui/themes/recruitment-ui-v1/recruitment_ui_v1_theme.tres", StringComparison.Ordinal) &&
+        nodeBlock.Contains($"theme_type_variation = &\"{variationName}\"", StringComparison.Ordinal),
+        $"{reason}; node should use recruitment Theme variation={variationName} node={buttonName} path={scenePath}");
+    AssertTrue(
+        !nodeBlock.Contains("theme_override_styles/normal", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/hover", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/pressed", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/disabled", StringComparison.Ordinal),
+        $"{reason}; node should inherit recruitment state styles from the Theme node={buttonName} path={scenePath}");
+}
+
+static void AssertSceneButtonUsesThemeVariation(string scenePath, string buttonName, string variationName, string reason)
 {
     AssertTrue(File.Exists(scenePath), $"button scene should exist path={scenePath}");
     string scene = File.ReadAllText(scenePath);
     string nodeBlock = ExtractSceneNodeBlock(scene, $"[node name=\"{buttonName}\"");
     AssertTrue(
-        nodeBlock.Contains("theme_override_styles/normal = ExtResource(\"", StringComparison.Ordinal),
-        $"button should define an authored normal style node={buttonName} path={scenePath}");
+        nodeBlock.Contains($"[node name=\"{buttonName}\" type=\"Button\"", StringComparison.Ordinal),
+        $"{reason}; node should remain a Button node={buttonName} path={scenePath}");
     AssertTrue(
-        nodeBlock.Contains("button_compact", StringComparison.Ordinal),
-        $"{reason}; small buttons should use compact scaled texture skin instead of the full-size primary button skin node={buttonName} path={scenePath}");
+        scene.Contains("res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal) &&
+        nodeBlock.Contains($"theme_type_variation = &\"{variationName}\"", StringComparison.Ordinal),
+        $"{reason}; visible button should use shared ManaSoul-backed Theme variation={variationName} node={buttonName} path={scenePath}");
+    AssertTrue(
+        !scene.Contains("res://resource/ui/themes/game-ui-skin/build_inventory_preview_theme.tres", StringComparison.Ordinal),
+        $"{reason}; visible button should not reuse the excluded building picker skin node={buttonName} path={scenePath}");
+    AssertTrue(
+        !nodeBlock.Contains("theme_override_styles/normal", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/hover", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/pressed", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/disabled", StringComparison.Ordinal),
+        $"{reason}; visible button should inherit state styles from the shared Theme node={buttonName} path={scenePath}");
+}
+
+static void AssertSceneButtonStaysFlatInputHotspot(string scenePath, string buttonName, string reason)
+{
+    AssertTrue(File.Exists(scenePath), $"button scene should exist path={scenePath}");
+    string scene = File.ReadAllText(scenePath);
+    string nodeBlock = ExtractSceneNodeBlock(scene, $"[node name=\"{buttonName}\"");
+    AssertTrue(
+        nodeBlock.Contains($"[node name=\"{buttonName}\" type=\"Button\"", StringComparison.Ordinal) &&
+        nodeBlock.Contains("flat = true", StringComparison.Ordinal) &&
+        nodeBlock.Contains("text = \"\"", StringComparison.Ordinal),
+        $"{reason}; hotspot should remain a flat empty Button node={buttonName} path={scenePath}");
+    AssertTrue(
+        !scene.Contains("basic_ui_1_theme.tres", StringComparison.Ordinal) &&
+        !scene.Contains("build_inventory_preview_theme.tres", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_type_variation", StringComparison.Ordinal),
+        $"{reason}; hotspot should not draw a themed visual skin node={buttonName} path={scenePath}");
+}
+
+static void AssertSceneButtonUsesCompactStyle(string scenePath, string buttonName, string reason, float horizontalPadding, float verticalPadding, string variationName)
+{
+    AssertTrue(File.Exists(scenePath), $"button scene should exist path={scenePath}");
+    string scene = File.ReadAllText(scenePath);
+    string nodeBlock = ExtractSceneNodeBlock(scene, $"[node name=\"{buttonName}\"");
+    AssertTrue(
+        nodeBlock.Contains($"[node name=\"{buttonName}\" type=\"Button\"", StringComparison.Ordinal),
+        $"{reason}; compact control should remain a Button node={buttonName} path={scenePath}");
+    AssertTrue(
+        scene.Contains("res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres", StringComparison.Ordinal) &&
+        nodeBlock.Contains($"theme_type_variation = &\"{variationName}\"", StringComparison.Ordinal),
+        $"{reason}; compact buttons should use the shared Theme variation={variationName} instead of local state StyleBoxes node={buttonName} path={scenePath}");
+    AssertTrue(
+        !nodeBlock.Contains("theme_override_styles/normal", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/hover", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/pressed", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("theme_override_styles/disabled", StringComparison.Ordinal) &&
+        !nodeBlock.Contains("button_compact", StringComparison.Ordinal),
+        $"{reason}; compact buttons should inherit state styles from the shared Theme node={buttonName} path={scenePath}");
 
     (float width, float height) minimumSize = ReadSceneNodeMinimumSize(nodeBlock, buttonName, scenePath);
     string text = ReadSceneNodeText(nodeBlock);
     AssertTrue(
         !text.Contains('\n'),
         $"{reason}; compact text buttons should keep labels on one line node={buttonName} path={scenePath}");
-    float requiredWidth = (textureMargin * 2f) + EstimateButtonTextWidth(text);
-    float requiredHeight = (textureMargin * 2f) + EstimateButtonTextHeight(text);
+    float requiredWidth = (horizontalPadding * 2f) + EstimateButtonTextWidth(text);
+    float requiredHeight = (verticalPadding * 2f) + EstimateButtonTextHeight(text);
     AssertTrue(
         minimumSize.width >= requiredWidth,
         $"{reason}; button width should fit both protected corner margins and text node={buttonName} path={scenePath} width={minimumSize.width} required={requiredWidth}");
@@ -796,6 +1325,244 @@ static float ReadResourceFloat(string resource, string key)
     }
 
     throw new InvalidOperationException($"resource value missing key={key}");
+}
+
+static (int width, int height) ReadPngDimensions(string path)
+{
+    using FileStream stream = File.OpenRead(path);
+    Span<byte> header = stackalloc byte[24];
+    int bytesRead = stream.Read(header);
+    AssertTrue(bytesRead == header.Length, $"PNG should contain a full header path={path}");
+    AssertTrue(
+        header[0] == 0x89 &&
+        header[1] == 0x50 &&
+        header[2] == 0x4E &&
+        header[3] == 0x47,
+        $"file should be a PNG path={path}");
+
+    int width =
+        (header[16] << 24) |
+        (header[17] << 16) |
+        (header[18] << 8) |
+        header[19];
+    int height =
+        (header[20] << 24) |
+        (header[21] << 16) |
+        (header[22] << 8) |
+        header[23];
+    return (width, height);
+}
+
+static (int minX, int maxX) ReadPngAlphaXBounds(string path)
+{
+    (int width, int height, int bytesPerPixel, byte[] pixels) = ReadPngPixels(path);
+    int stride = width * bytesPerPixel;
+    int minX = width;
+    int maxX = -1;
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            int index = (y * stride) + (x * bytesPerPixel);
+            byte alpha = bytesPerPixel == 4 ? pixels[index + 3] : byte.MaxValue;
+            if (alpha == 0)
+            {
+                continue;
+            }
+
+            minX = Math.Min(minX, x);
+            maxX = Math.Max(maxX, x);
+        }
+    }
+
+    AssertTrue(maxX >= minX, $"PNG should contain visible pixels path={path}");
+    return (minX, maxX);
+}
+
+static (int minY, int maxY) ReadPngAlphaYBounds(string path)
+{
+    (int width, int height, int bytesPerPixel, byte[] pixels) = ReadPngPixels(path);
+    int stride = width * bytesPerPixel;
+    int minY = height;
+    int maxY = -1;
+    for (int y = 0; y < height; y++)
+    {
+        for (int x = 0; x < width; x++)
+        {
+            int index = (y * stride) + (x * bytesPerPixel);
+            byte alpha = bytesPerPixel == 4 ? pixels[index + 3] : byte.MaxValue;
+            if (alpha == 0)
+            {
+                continue;
+            }
+
+            minY = Math.Min(minY, y);
+            maxY = Math.Max(maxY, y);
+        }
+    }
+
+    AssertTrue(maxY >= minY, $"PNG should contain visible pixels path={path}");
+    return (minY, maxY);
+}
+
+static bool PngRegionContainsColor(
+    string path,
+    int minX,
+    int maxX,
+    int minY,
+    int maxY,
+    Func<byte, byte, byte, byte, bool> predicate)
+{
+    (int width, int height, int bytesPerPixel, byte[] pixels) = ReadPngPixels(path);
+    int startX = Math.Clamp(minX, 0, width - 1);
+    int endX = Math.Clamp(maxX, 0, width - 1);
+    int startY = Math.Clamp(minY, 0, height - 1);
+    int endY = Math.Clamp(maxY, 0, height - 1);
+    if (startX > endX || startY > endY)
+    {
+        return false;
+    }
+
+    int stride = width * bytesPerPixel;
+    for (int y = startY; y <= endY; y++)
+    {
+        for (int x = startX; x <= endX; x++)
+        {
+            int index = (y * stride) + (x * bytesPerPixel);
+            byte red = pixels[index];
+            byte green = pixels[index + 1];
+            byte blue = pixels[index + 2];
+            byte alpha = bytesPerPixel == 4 ? pixels[index + 3] : byte.MaxValue;
+            if (predicate(red, green, blue, alpha))
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static bool IsBrightScrollbarEdgeAccent(byte red, byte green, byte blue, byte alpha)
+{
+    return alpha > 0 && red >= 240 && green >= 190 && blue <= 150;
+}
+
+static bool IsOrangeScrollbarEdgeAccent(byte red, byte green, byte blue, byte alpha)
+{
+    return alpha > 0 && red >= 180 && green >= 80 && green <= 160 && blue <= 90;
+}
+
+static (int width, int height, int bytesPerPixel, byte[] pixels) ReadPngPixels(string path)
+{
+    byte[] png = File.ReadAllBytes(path);
+    AssertTrue(png.Length >= 24, $"PNG should contain a full header path={path}");
+    AssertTrue(
+        png[0] == 0x89 &&
+        png[1] == 0x50 &&
+        png[2] == 0x4E &&
+        png[3] == 0x47,
+        $"file should be a PNG path={path}");
+
+    int width = ReadBigEndianInt32(png, 16);
+    int height = ReadBigEndianInt32(png, 20);
+    int bitDepth = png[24];
+    int colorType = png[25];
+    AssertTrue(bitDepth == 8, $"scrollbar PNG alpha scan expects 8-bit channels path={path}");
+
+    int bytesPerPixel = colorType switch
+    {
+        6 => 4,
+        2 => 3,
+        _ => throw new InvalidOperationException($"unsupported PNG color type for alpha scan path={path} colorType={colorType}")
+    };
+
+    using var idatStream = new MemoryStream();
+    int offset = 8;
+    while (offset + 12 <= png.Length)
+    {
+        int chunkLength = ReadBigEndianInt32(png, offset);
+        string chunkType = System.Text.Encoding.ASCII.GetString(png, offset + 4, 4);
+        int chunkDataOffset = offset + 8;
+        if (chunkType == "IDAT")
+        {
+            idatStream.Write(png, chunkDataOffset, chunkLength);
+        }
+        else if (chunkType == "IEND")
+        {
+            break;
+        }
+
+        offset = chunkDataOffset + chunkLength + 4;
+    }
+
+    using var compressed = new MemoryStream(idatStream.ToArray());
+    using var zlib = new System.IO.Compression.ZLibStream(compressed, System.IO.Compression.CompressionMode.Decompress);
+    using var rawStream = new MemoryStream();
+    zlib.CopyTo(rawStream);
+    byte[] raw = rawStream.ToArray();
+
+    int stride = width * bytesPerPixel;
+    byte[] previous = new byte[stride];
+    byte[] current = new byte[stride];
+    byte[] pixels = new byte[stride * height];
+    int rawOffset = 0;
+    for (int y = 0; y < height; y++)
+    {
+        int filterType = raw[rawOffset++];
+        Array.Copy(raw, rawOffset, current, 0, stride);
+        rawOffset += stride;
+        UnfilterPngScanline(current, previous, bytesPerPixel, filterType);
+        Array.Copy(current, 0, pixels, y * stride, stride);
+
+        (previous, current) = (current, previous);
+    }
+
+    return (width, height, bytesPerPixel, pixels);
+}
+
+static int ReadBigEndianInt32(byte[] bytes, int offset)
+{
+    return
+        (bytes[offset] << 24) |
+        (bytes[offset + 1] << 16) |
+        (bytes[offset + 2] << 8) |
+        bytes[offset + 3];
+}
+
+static void UnfilterPngScanline(byte[] current, byte[] previous, int bytesPerPixel, int filterType)
+{
+    for (int i = 0; i < current.Length; i++)
+    {
+        int left = i >= bytesPerPixel ? current[i - bytesPerPixel] : 0;
+        int up = previous[i];
+        int upLeft = i >= bytesPerPixel ? previous[i - bytesPerPixel] : 0;
+        int predictor = filterType switch
+        {
+            0 => 0,
+            1 => left,
+            2 => up,
+            3 => (left + up) / 2,
+            4 => PngPaethPredictor(left, up, upLeft),
+            _ => throw new InvalidOperationException($"unsupported PNG filter type={filterType}")
+        };
+
+        current[i] = unchecked((byte)(current[i] + predictor));
+    }
+}
+
+static int PngPaethPredictor(int left, int up, int upLeft)
+{
+    int p = left + up - upLeft;
+    int pa = Math.Abs(p - left);
+    int pb = Math.Abs(p - up);
+    int pc = Math.Abs(p - upLeft);
+    if (pa <= pb && pa <= pc)
+    {
+        return left;
+    }
+
+    return pb <= pc ? up : upLeft;
 }
 
 static (float width, float height) ReadSceneNodeMinimumSize(string nodeBlock, string buttonName, string scenePath)

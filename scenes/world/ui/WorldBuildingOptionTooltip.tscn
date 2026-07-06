@@ -1,0 +1,56 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/WorldBuildingOptionTooltip.cs" id="1_tooltip_script"]
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_tooltip_title"]
+font_size = 16
+font_color = Color(1, 0.91, 0.62, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_tooltip_body"]
+font_size = 14
+font_color = Color(0.91, 0.89, 0.82, 1)
+
+[node name="WorldBuildingOptionTooltip" type="PanelContainer"]
+custom_minimum_size = Vector2(240, 104)
+mouse_filter = 2
+theme = ExtResource("2_theme")
+theme_type_variation = &"WorldHoverInfoPanel"
+script = ExtResource("1_tooltip_script")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 9
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 9
+
+[node name="Root" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="TitleLabel" type="Label" parent="Margin/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "建筑"
+label_settings = SubResource("LabelSettings_tooltip_title")
+
+[node name="FootprintLabel" type="Label" parent="Margin/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "占地 1x1"
+label_settings = SubResource("LabelSettings_tooltip_body")
+
+[node name="CostLabel" type="Label" parent="Margin/Root"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "成本 无"
+label_settings = SubResource("LabelSettings_tooltip_body")
+
+[node name="DisabledReasonLabel" type="Label" parent="Margin/Root"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "不可建造：资源不足"
+autowrap_mode = 3
+label_settings = SubResource("LabelSettings_tooltip_body")

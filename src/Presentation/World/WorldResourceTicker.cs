@@ -173,6 +173,7 @@ public partial class WorldResourceTicker : Control
 
     private static void PrepareLabel(Label label)
     {
+        label.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.TopLeft);
         label.MouseFilter = MouseFilterEnum.Ignore;
         label.ClipText = false;
         label.VerticalAlignment = VerticalAlignment.Center;

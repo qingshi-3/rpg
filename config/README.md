@@ -2,7 +2,7 @@
 
 This directory stores gameplay configuration indexes and mappings.
 
-Config files may reference resource ids and `res://` resource paths, but they do not contain Godot-authored resources, imported art, scenes, themes, shaders, SpriteFrames, or `.tres` resource bodies. Actual authored resources remain under `assets/`, `scenes/`, and other resource directories.
+Config files may reference resource ids and `res://` resource paths, but they do not contain Godot-authored resources, imported art, scenes, themes, shaders, SpriteFrames, or `.tres` resource bodies. Godot-authored resources live under `resource/`, scene authoring lives under `scenes/`, and raw imported media remains under `assets/`.
 
 Current entries:
 

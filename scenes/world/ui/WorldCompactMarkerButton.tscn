@@ -1,6 +1,10 @@
-[gd_scene format=3]
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="1_theme"]
 
 [node name="WorldCompactMarkerButton" type="Button"]
 custom_minimum_size = Vector2(96, 42)
 focus_mode = 0
 autowrap_mode = 3
+theme = ExtResource("1_theme")
+theme_type_variation = &"WorldTravelBookCardButton"

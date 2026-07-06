@@ -2,10 +2,12 @@ internal static partial class BattleHitFeedbackRegressionCases
 {
 internal static void LimboAiAuthoredResourcesMirrorPlannerBranches()
 {
-    string enemyTreePath = Path.Combine("assets", "ai", "battle", "battle_enemy_basic.tres");
-    string alliedTreePath = Path.Combine("assets", "ai", "battle", "battle_corps_commanded.tres");
-    string commandTaskPath = Path.Combine("scripts", "ai", "limbo_tasks", "battle", "has_battle_command.gd");
-    string rangedTaskPath = Path.Combine("scripts", "ai", "limbo_tasks", "battle", "has_ranged_battle_ability.gd");
+    string aiResourceRoot = Path.Combine("resource", "battle", "ai");
+    string taskRoot = Path.Combine("src", "Runtime", "Battle", "AI", "LimboTasks");
+    string enemyTreePath = Path.Combine(aiResourceRoot, "battle_enemy_basic.tres");
+    string alliedTreePath = Path.Combine(aiResourceRoot, "battle_corps_commanded.tres");
+    string commandTaskPath = Path.Combine(taskRoot, "has_battle_command.gd");
+    string rangedTaskPath = Path.Combine(taskRoot, "has_ranged_battle_ability.gd");
     string facadePath = Path.Combine("src", "Presentation", "Battle", "AI", "BattleAiFacade.cs");
 
     AssertTrue(File.Exists(enemyTreePath), "enemy battle tree should stay authored as a LimboAI resource");

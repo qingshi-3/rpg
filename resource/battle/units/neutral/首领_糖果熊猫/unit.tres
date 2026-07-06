@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="BattleUnitDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Definitions/Battle/BattleUnitDefinition.cs" id="1_definition"]
+[ext_resource type="Resource" path="res://resource/battle/units/neutral/首领_糖果熊猫/visual.tres" id="2_visual"]
+
+[resource]
+script = ExtResource("1_definition")
+Id = "boss_candypanda"
+DisplayName = "糖果熊猫"
+Visual = ExtResource("2_visual")
+DebugMarkerColor = Color(0.9, 0.28, 0.22, 0.95)
+MaxHp = 36
+MoveRange = 3
+AttackDamage = 8
+AttackRange = 1
+BlocksMovement = true
+IsTargetable = true

@@ -96,11 +96,15 @@ public partial class WorldSiteRoot
         _siteConscriptionSection = hudRefs.SiteConscriptionSection;
         _siteCorpsSection = hudRefs.SiteCorpsSection;
         _siteOverviewSection = hudRefs.SiteOverviewSection;
+        _militaryWorkbenchBackdrop = hudRefs.MilitaryWorkbenchBackdrop;
         _militaryWorkbenchPanel = hudRefs.MilitaryWorkbenchPanel;
         _militaryHeroList = hudRefs.MilitaryHeroList;
         _militaryMusterGrid = hudRefs.MilitaryMusterGrid;
         _militaryHeroSummaryLabel = hudRefs.MilitaryHeroSummaryLabel;
         _militaryNoticeLabel = hudRefs.MilitaryNoticeLabel;
+        _militarySelectedHeroPortrait = hudRefs.MilitarySelectedHeroPortrait;
+        _militarySelectedHeroNameLabel = hudRefs.MilitarySelectedHeroNameLabel;
+        _militarySelectedHeroCorpsLabel = hudRefs.MilitarySelectedHeroCorpsLabel;
         _militaryBackButton = hudRefs.MilitaryBackButton;
         _militaryCloseButton = hudRefs.MilitaryCloseButton;
         _siteHudBody = hudRefs.SiteHudBody;
@@ -138,10 +142,14 @@ public partial class WorldSiteRoot
             OnStrategicHeroAssignmentPressed);
         _strategicMilitaryWorkbenchBinder = new StrategicMilitaryWorkbenchBinder(
             _militaryWorkbenchPanel,
+            _militaryWorkbenchBackdrop,
             _militaryHeroList,
             _militaryMusterGrid,
             _militaryHeroSummaryLabel,
             _militaryNoticeLabel,
+            _militarySelectedHeroPortrait,
+            _militarySelectedHeroNameLabel,
+            _militarySelectedHeroCorpsLabel,
             _militaryBackButton,
             OnStrategicMilitaryHeroSelected,
             OnStrategicRecruitCorpsForHeroPressed);
@@ -495,7 +503,6 @@ public partial class WorldSiteRoot
         _siteHudRoot.OffsetRight = 0.0f;
         _siteHudRoot.OffsetBottom = 0.0f;
         _siteHudRoot.Position = Vector2.Zero;
-        _siteHudRoot.Size = GetViewportRect().Size;
         _battlePreparationHudRestPositions.Clear();
         ApplySitePeacetimePanelLayout();
         UpdateMainWorldViewportLayout(reason);
@@ -880,6 +887,12 @@ public partial class WorldSiteRoot
         StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
             StrategicManagementIds.FactionPlayer,
             cityId);
+        if (string.IsNullOrWhiteSpace(_selectedMilitaryWorkbenchHeroId) ||
+            !dashboard.Heroes.Any(hero => hero.HeroId == _selectedMilitaryWorkbenchHeroId))
+        {
+            _selectedMilitaryWorkbenchHeroId = dashboard.Heroes.FirstOrDefault()?.HeroId ?? "";
+        }
+
         _strategicMilitaryWorkbenchBinder?.Bind(dashboard, _selectedMilitaryWorkbenchHeroId, notice);
     }
 
@@ -939,36 +952,14 @@ public partial class WorldSiteRoot
 
     private void OnStrategicHeroAssignmentPressed(string heroId)
     {
-        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
+        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out _))
         {
             RefreshSiteManagementUi(BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId));
             return;
         }
 
-        StrategicManagementRuntime.EnsureInitialized();
-        StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
-            StrategicManagementIds.FactionPlayer,
-            cityId);
-        StrategicHeroAssignmentViewModel hero = dashboard.Heroes.FirstOrDefault(item => item.HeroId == heroId);
-
-        StrategicCommandResult result;
-        if (hero?.HasAssignedCorps == true)
-        {
-            result = StrategicManagementRuntime.Commands.UnassignCorpsFromHero(
-                StrategicManagementRuntime.State,
-                heroId);
-            HandleStrategicManagementCommandResult("解除英雄编制", result);
-            return;
-        }
-
-        StrategicCorpsInstanceViewModel availableCorps = dashboard.SelectedCity.CorpsInstances.FirstOrDefault(corps =>
-            corps.Status == StrategicCorpsInstanceStatus.Garrisoned &&
-            string.IsNullOrWhiteSpace(corps.AssignedHeroId));
-        result = StrategicManagementRuntime.Commands.AssignCorpsToHero(
-            StrategicManagementRuntime.State,
-            heroId,
-            availableCorps?.CorpsInstanceId ?? "");
-        HandleStrategicManagementCommandResult("分配英雄编制", result);
+        _selectedMilitaryWorkbenchHeroId = heroId ?? "";
+        BindStrategicMilitaryWorkbench();
     }
 
     private void HandleStrategicManagementCommandResult(string actionName, StrategicCommandResult result)

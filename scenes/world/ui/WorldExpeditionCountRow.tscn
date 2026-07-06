@@ -1,18 +1,40 @@
-[gd_scene format=3]
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://src/Presentation/World/WorldExpeditionCountRow.cs" id="2_row_script"]
 
 [node name="WorldExpeditionCountRow" type="HBoxContainer"]
+custom_minimum_size = Vector2(0, 42)
 size_flags_horizontal = 3
+theme = ExtResource("1_theme")
 theme_override_constants/separation = 8
+script = ExtResource("2_row_script")
 
 [node name="MinusButton" type="Button" parent="."]
 custom_minimum_size = Vector2(40, 34)
 layout_mode = 2
 text = "-"
 focus_mode = 2
+theme_type_variation = &"WorldTravelBookCardButton"
+
+[node name="HeroPreview" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="CorpsPreview" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(36, 36)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="CountLabel" type="Label" parent="."]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.33, 0.17, 0.08, 1)
 vertical_alignment = 1
 
 [node name="PlusButton" type="Button" parent="."]
@@ -20,3 +42,4 @@ custom_minimum_size = Vector2(40, 34)
 layout_mode = 2
 text = "+"
 focus_mode = 2
+theme_type_variation = &"WorldTravelBookCardButton"

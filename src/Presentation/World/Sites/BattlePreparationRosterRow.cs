@@ -19,12 +19,13 @@ public partial class BattlePreparationRosterRow : PanelContainer
     [Signal]
     public delegate void DragStartedEventHandler(string groupKey);
 
-    private ColorRect _avatarSwatch;
+    private TextureRect _avatar;
     private Label _nameLabel;
     private Label _statusLabel;
     private string _groupKey = "";
     private string _pendingGroupKey = "";
     private string _pendingDisplayName = "";
+    private Texture2D _previewTexture;
     private BattlePreparationCompanyPlanStatus _pendingStatus = BattlePreparationCompanyPlanStatus.Missing;
     private bool _pendingSelected;
     private bool _pressed;
@@ -34,7 +35,7 @@ public partial class BattlePreparationRosterRow : PanelContainer
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        _avatarSwatch = GetNodeOrNull<ColorRect>("Row/Avatar");
+        _avatar = GetNodeOrNull<TextureRect>("Row/Avatar");
         _nameLabel = GetNodeOrNull<Label>("Row/Name");
         _statusLabel = GetNodeOrNull<Label>("Row/Status");
         ApplyBinding();
@@ -43,11 +44,13 @@ public partial class BattlePreparationRosterRow : PanelContainer
     public void Bind(
         string groupKey,
         string displayName,
+        Texture2D previewTexture,
         BattlePreparationCompanyPlanStatus status,
         bool selected)
     {
         _pendingGroupKey = groupKey ?? "";
         _pendingDisplayName = displayName ?? "";
+        _previewTexture = previewTexture;
         _pendingStatus = status;
         _pendingSelected = selected;
         _groupKey = _pendingGroupKey;
@@ -73,11 +76,12 @@ public partial class BattlePreparationRosterRow : PanelContainer
             };
         }
 
-        if (_avatarSwatch != null)
+        if (_avatar != null)
         {
-            _avatarSwatch.Color = _pendingSelected
-                ? new Color(0.98f, 0.78f, 0.32f, 1.0f)
-                : new Color(0.36f, 0.48f, 0.44f, 1.0f);
+            _avatar.Texture = _previewTexture;
+            _avatar.SelfModulate = _pendingSelected
+                ? Colors.White
+                : new Color(1.0f, 1.0f, 1.0f, 0.82f);
         }
 
         SelfModulate = _pendingSelected ? Colors.White : new Color(1.0f, 1.0f, 1.0f, 0.86f);

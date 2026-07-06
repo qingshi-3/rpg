@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Rpg.Presentation.Common;
 
@@ -17,6 +19,8 @@ public partial class StrategicBattleGateDialog : Control
     private Label _briefBodyLabel;
     private Label _detailTitleLabel;
     private Label _detailBodyLabel;
+    private Container _briefPreviewList;
+    private Container _detailPreviewList;
     private Button _briefEnterButton;
     private Button _briefDetailsButton;
     private Button _briefDeferButton;
@@ -36,7 +40,9 @@ public partial class StrategicBattleGateDialog : Control
         _detailPanel = GameUiSceneFactory.GetRequiredNode<Control>(this, "DetailPanel", nameof(StrategicBattleGateDialog));
         _briefTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(this, "BriefPanel/BriefMargin/BriefStack/BriefTitle", nameof(StrategicBattleGateDialog));
         _briefBodyLabel = GameUiSceneFactory.GetRequiredNode<Label>(this, "BriefPanel/BriefMargin/BriefStack/BriefBody", nameof(StrategicBattleGateDialog));
+        _briefPreviewList = GameUiSceneFactory.GetRequiredNode<Container>(this, "BriefPanel/BriefMargin/BriefStack/BriefPreviewList", nameof(StrategicBattleGateDialog));
         _detailTitleLabel = GameUiSceneFactory.GetRequiredNode<Label>(this, "DetailPanel/DetailMargin/DetailStack/DetailTitle", nameof(StrategicBattleGateDialog));
+        _detailPreviewList = GameUiSceneFactory.GetRequiredNode<Container>(this, "DetailPanel/DetailMargin/DetailStack/DetailPreviewList", nameof(StrategicBattleGateDialog));
         _detailBodyLabel = GameUiSceneFactory.GetRequiredNode<Label>(this, "DetailPanel/DetailMargin/DetailStack/DetailScroll/DetailBody", nameof(StrategicBattleGateDialog));
         _briefEnterButton = GameUiSceneFactory.GetRequiredNode<Button>(this, "BriefPanel/BriefMargin/BriefStack/BriefActions/BriefEnterButton", nameof(StrategicBattleGateDialog));
         _briefDetailsButton = GameUiSceneFactory.GetRequiredNode<Button>(this, "BriefPanel/BriefMargin/BriefStack/BriefActions/BriefDetailsButton", nameof(StrategicBattleGateDialog));
@@ -103,6 +109,8 @@ public partial class StrategicBattleGateDialog : Control
         SetLabelText(_briefBodyLabel, _data.BriefText);
         SetLabelText(_detailTitleLabel, _data.DetailTitle);
         SetLabelText(_detailBodyLabel, _data.DetailText);
+        BindPreviewList(_briefPreviewList, _data.ForcePreviews);
+        BindPreviewList(_detailPreviewList, _data.ForcePreviews);
     }
 
     private void ApplyState()
@@ -132,6 +140,41 @@ public partial class StrategicBattleGateDialog : Control
         }
     }
 
+    private static void BindPreviewList(
+        Container previewList,
+        IReadOnlyList<StrategicBattleGateForcePreviewData> items)
+    {
+        if (previewList == null)
+        {
+            return;
+        }
+
+        ClearChildren(previewList);
+        foreach (StrategicBattleGateForcePreviewData item in (items ?? System.Array.Empty<StrategicBattleGateForcePreviewData>()).Where(item => item != null))
+        {
+            StrategicBattleGateForcePreviewCard card = GameUiSceneFactory.CreateStrategicBattleGateForcePreviewCard(nameof(StrategicBattleGateDialog));
+            if (card == null)
+            {
+                continue;
+            }
+
+            card.Bind(
+                item.DisplayName,
+                item.CountText,
+                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(item.BattleUnitId));
+            previewList.AddChild(card);
+        }
+    }
+
+    private static void ClearChildren(Node parent)
+    {
+        foreach (Node child in parent.GetChildren().ToArray())
+        {
+            parent.RemoveChild(child);
+            child.QueueFree();
+        }
+    }
+
     private static void GrabButtonFocus(Button button)
     {
         if (button != null)
@@ -147,4 +190,17 @@ public sealed class StrategicBattleGateDialogData
     public string BriefText { get; set; } = "";
     public string DetailTitle { get; set; } = "";
     public string DetailText { get; set; } = "";
+    public IReadOnlyList<StrategicBattleGateForcePreviewData> ForcePreviews { get; set; } = System.Array.Empty<StrategicBattleGateForcePreviewData>();
+}
+
+public sealed class StrategicBattleGateForcePreviewData
+{
+    public string BattleUnitId { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public string SideLabel { get; set; } = "";
+    public int Count { get; set; }
+
+    public string CountText => string.IsNullOrWhiteSpace(SideLabel)
+        ? $"x{System.Math.Max(0, Count)}"
+        : $"{SideLabel} x{System.Math.Max(0, Count)}";
 }

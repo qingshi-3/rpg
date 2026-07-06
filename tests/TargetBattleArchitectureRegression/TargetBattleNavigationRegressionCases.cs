@@ -24,8 +24,8 @@ internal static class TargetBattleNavigationRegressionCases
 
     public static void BattleTileSetsOnlyExposeWalkableNavigationCustomData()
     {
-        string ground = File.ReadAllText(Path.Combine(ProjectRoot(), "assets", "tilesets", "battle", "bone", "ground.tres"));
-        string objects = File.ReadAllText(Path.Combine(ProjectRoot(), "assets", "tilesets", "battle", "bone", "objects.tres"));
+        string ground = File.ReadAllText(Path.Combine(ProjectRoot(), "resource", "tilesets", "battle", "bone", "ground.tres"));
+        string objects = File.ReadAllText(Path.Combine(ProjectRoot(), "resource", "tilesets", "battle", "bone", "objects.tres"));
 
         AssertTrue(!ground.Contains("custom_data_layer_2/name = \"MoveCost\"", StringComparison.Ordinal), "ground tileset should not expose MoveCost layer");
         AssertTrue(!ground.Contains("custom_data_layer_3/name = \"CanStandOn\"", StringComparison.Ordinal), "ground tileset should not expose CanStandOn layer");

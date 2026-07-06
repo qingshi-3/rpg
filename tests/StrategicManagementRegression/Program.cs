@@ -12,6 +12,7 @@ Run("strategic management runtime repairs captured city company ownership on loa
 Run("first city initializes construction regions reserve and force capacity", StrategicManagementRegressionCases.FirstCityInitializesConstructionRegionsReserveAndForceCapacity);
 Run("first city initializes conscription policy off", StrategicManagementRegressionCases.FirstCityInitializesConscriptionPolicyOff);
 Run("first playable starts with three dispatchable battle groups", StrategicManagementRegressionCases.FirstPlayableStartsWithThreeDispatchableHeroCompanies);
+Run("strategic management dashboard carries military preview unit ids", StrategicManagementRegressionCases.StrategicManagementDashboardCarriesMilitaryPreviewBattleUnitIds);
 Run("strategic management resolves map site ids without silent city fallback", StrategicManagementRegressionCases.StrategicManagementResolvesMapSiteIdsWithoutSilentCityFallback);
 Run("strategic management has no strategic battle preparation choice system", StrategicManagementRegressionCases.StrategicManagementHasNoStrategicBattlePreparationChoiceSystem);
 Run("strategic management dashboard hides strategic battle preparation options", StrategicManagementRegressionCases.StrategicManagementDashboardHidesStrategicBattlePreparationOptions);

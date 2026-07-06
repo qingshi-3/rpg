@@ -1,6 +1,6 @@
-[gd_scene load_steps=13 format=3 uid="uid://b0jkn47t51ide"]
+[gd_scene load_steps=17 format=3 uid="uid://b0jkn47t51ide"]
 
-[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="1_theme"]
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="1_theme"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/basic-ui/1/button_pause.png" id="11_pause_icon"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/basic-ui/1/button_quick.png" id="12_quick_icon"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/basic-ui/1/button_reset.png" id="13_reset_icon"]
@@ -11,6 +11,10 @@
 [ext_resource type="Texture2D" path="res://assets/textures/ui/basic-ui/1/button_reset_hover.png" id="18_reset_hover_icon"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/basic-ui/1/button_reset_pressed.png" id="19_reset_pressed_icon"]
 [ext_resource type="Script" path="res://src/Presentation/World/WorldResourceTicker.cs" id="20_resource_ticker"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/resource-icons/resource_food_icon_ai.png" id="21_food_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/resource-icons/resource_money_icon_ai.png" id="22_money_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/resource-icons/resource_ore_icon_ai.png" id="23_ore_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/resource-icons/resource_wood_icon_ai.png" id="24_wood_icon"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_top_bar"]
 
@@ -142,13 +146,13 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 4
 
-[node name="FoodNameLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot"]
+[node name="FoodIcon" type="TextureRect" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot"]
+custom_minimum_size = Vector2(24, 24)
 layout_mode = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-theme_override_font_sizes/font_size = 16
-text = "粮食"
-vertical_alignment = 1
+texture = ExtResource("21_food_icon")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="FoodAmountTicker" type="Control" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot"]
 clip_contents = true
@@ -190,13 +194,13 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 4
 
-[node name="MoneyNameLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/MoneySlot"]
+[node name="MoneyIcon" type="TextureRect" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/MoneySlot"]
+custom_minimum_size = Vector2(24, 24)
 layout_mode = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-theme_override_font_sizes/font_size = 16
-text = "资金"
-vertical_alignment = 1
+texture = ExtResource("22_money_icon")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="MoneyAmountTicker" type="Control" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/MoneySlot"]
 clip_contents = true
@@ -238,13 +242,13 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 4
 
-[node name="OreNameLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/OreSlot"]
+[node name="OreIcon" type="TextureRect" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/OreSlot"]
+custom_minimum_size = Vector2(24, 24)
 layout_mode = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-theme_override_font_sizes/font_size = 16
-text = "矿石"
-vertical_alignment = 1
+texture = ExtResource("23_ore_icon")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="OreAmountTicker" type="Control" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/OreSlot"]
 clip_contents = true
@@ -286,13 +290,13 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 4
 
-[node name="WoodNameLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/WoodSlot"]
+[node name="WoodIcon" type="TextureRect" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/WoodSlot"]
+custom_minimum_size = Vector2(24, 24)
 layout_mode = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-theme_override_font_sizes/font_size = 16
-text = "木材"
-vertical_alignment = 1
+texture = ExtResource("24_wood_icon")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="WoodAmountTicker" type="Control" parent="TopBarHost/TopLeftStatus/Margin/ResourceStrip/WoodSlot"]
 clip_contents = true

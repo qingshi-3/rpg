@@ -1,9 +1,11 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" uid="uid://z8y93yh7c75x" path="res://src/Presentation/World/WorldOpportunityDetailPanel.cs" id="1_panel"]
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
 
 [node name="WorldOpportunityDetailPanel" type="VBoxContainer"]
 size_flags_horizontal = 3
+theme = ExtResource("2_theme")
 theme_override_constants/separation = 10
 script = ExtResource("1_panel")
 
@@ -78,5 +80,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 focus_mode = 2
 mouse_default_cursor_shape = 2
+theme_type_variation = &"WorldPrimaryActionButton"
 text = "处理机会"
 autowrap_mode = 3

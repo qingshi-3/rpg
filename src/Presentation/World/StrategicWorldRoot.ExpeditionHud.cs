@@ -29,6 +29,8 @@ public partial class StrategicWorldRoot
                     : $"{company.HeroDisplayName} + {company.CorpsDisplayName}\n{FormatStrategicExpeditionFailureReason(company.DisabledReason)}";
                 AddExpeditionCountRow(
                     status,
+                    BattleUnitPreviewTextureResolver.ResolvePreviewTexture(company.HeroBattleUnitId),
+                    BattleUnitPreviewTextureResolver.ResolvePreviewTexture(company.CorpsBattleUnitId),
                     selected ? 1 : 0,
                     company.CanCreateExpedition &&
                     (selected || _expeditionHeroIds.Count < StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition)
@@ -123,23 +125,23 @@ public partial class StrategicWorldRoot
 
     private void AddExpeditionCountRow(
         string label,
+        Texture2D heroPreviewTexture,
+        Texture2D corpsPreviewTexture,
         int selected,
         int available,
         System.Action<int> adjust)
     {
-        HBoxContainer countRow = GameUiSceneFactory.CreateWorldExpeditionCountRow(nameof(StrategicWorldRoot));
+        WorldExpeditionCountRow countRow = GameUiSceneFactory.CreateWorldExpeditionCountRow(nameof(StrategicWorldRoot));
         if (countRow == null)
         {
             return;
         }
 
+        countRow.Bind(label, heroPreviewTexture, corpsPreviewTexture, selected, available);
+
         Button minusButton = GameUiSceneFactory.GetRequiredNode<Button>(
             countRow,
             "MinusButton",
-            nameof(StrategicWorldRoot));
-        Label countLabel = GameUiSceneFactory.GetRequiredNode<Label>(
-            countRow,
-            "CountLabel",
             nameof(StrategicWorldRoot));
         Button plusButton = GameUiSceneFactory.GetRequiredNode<Button>(
             countRow,
@@ -150,11 +152,6 @@ public partial class StrategicWorldRoot
         {
             minusButton.Disabled = selected <= 0;
             minusButton.Pressed += () => adjust?.Invoke(-1);
-        }
-
-        if (countLabel != null)
-        {
-            countLabel.Text = $"{label} {selected}/{available}";
         }
 
         if (plusButton != null)

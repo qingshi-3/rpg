@@ -640,6 +640,30 @@ internal static partial class StrategicManagementRegressionCases
         }
     }
 
+    private static void AssertResPathExists(string projectRoot, string resPath, string message)
+    {
+        AssertTrue(resPath.StartsWith("res://", StringComparison.Ordinal), $"{message}. Expected a res:// path, actual={resPath}");
+        string localPath = Path.Combine(projectRoot, resPath["res://".Length..].Replace('/', Path.DirectorySeparatorChar));
+        AssertTrue(File.Exists(localPath), $"{message}. Missing file path={localPath}");
+    }
+
+    private static void AssertPreviewUnitResourceExists(
+        string projectRoot,
+        IReadOnlyDictionary<string, string> unitDefinitionIndex,
+        string battleUnitId,
+        string message)
+    {
+        AssertTrue(!battleUnitId.StartsWith("res://", StringComparison.Ordinal), $"{message}. Expected a battle unit id, actual={battleUnitId}");
+        AssertTrue(!battleUnitId.EndsWith(".png", StringComparison.OrdinalIgnoreCase), $"{message}. Expected a battle unit id, not a raw PNG path");
+        AssertTrue(unitDefinitionIndex.TryGetValue(battleUnitId, out string? unitResourcePath), $"{message}. Missing battle unit index entry id={battleUnitId}");
+        unitResourcePath ??= "";
+        AssertTrue(
+            unitResourcePath.StartsWith("res://resource/battle/units/", StringComparison.Ordinal) &&
+            unitResourcePath.EndsWith("/unit.tres", StringComparison.Ordinal),
+            $"{message}. Expected authored battle unit resource path, actual={unitResourcePath}");
+        AssertResPathExists(projectRoot, unitResourcePath, message);
+    }
+
     private static void AssertNoLegacyWorldReferences(Type type)
     {
         foreach (Type referenced in EnumerateReferencedTypes(type))

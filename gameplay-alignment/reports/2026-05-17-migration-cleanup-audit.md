@@ -45,7 +45,7 @@ Remaining matches for these names are primarily regression guardrails in `tests/
 
 All non-test `res://` references in `.tscn`, `.tres`, `.gdshader`, `.cs`, `.gd`, and `.import` files resolve to existing project files.
 
-The earlier suspected mojibake resource paths were a PowerShell default-decoding false positive. Reading the same files as UTF-8 shows valid paths such as `res://assets/battle/units/莱昂纳王国/f1_Baast冠军/visual.tres`.
+The earlier suspected mojibake resource paths were a PowerShell default-decoding false positive. Reading the same files as UTF-8 shows valid paths such as `res://resource/battle/units/莱昂纳王国/f1_Baast冠军/visual.tres`.
 
 ### Build And Regression
 

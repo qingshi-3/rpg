@@ -1,9 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://oxeim6qbsyi4"]
+[gd_scene load_steps=4 format=3 uid="uid://oxeim6qbsyi4"]
 
 [ext_resource type="Script" path="res://src/Presentation/World/StrategicBattleGateDialog.cs" id="1_dialog"]
-[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
-[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_large.tres" id="3_panel_large"]
-[ext_resource type="StyleBox" path="res://assets/themes/game-ui-skin/basic_ui_1_panel_card.tres" id="4_panel_card"]
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="2_theme"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_large.tres" id="3_panel_large"]
 
 [node name="PreBattleDialog" type="Control"]
 visible = false
@@ -29,16 +28,16 @@ mouse_filter = 0
 color = Color(0.02, 0.018, 0.012, 0.54)
 
 [node name="BriefPanel" type="PanelContainer" parent="."]
-custom_minimum_size = Vector2(500, 220)
+custom_minimum_size = Vector2(560, 320)
 layout_mode = 1
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -250.0
-offset_top = -110.0
-offset_right = 250.0
-offset_bottom = 110.0
+offset_left = -280.0
+offset_top = -160.0
+offset_right = 280.0
+offset_bottom = 160.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
@@ -66,10 +65,9 @@ text = "触发战斗"
 horizontal_alignment = 1
 
 [node name="BriefBody" type="Label" parent="BriefPanel/BriefMargin/BriefStack"]
-custom_minimum_size = Vector2(0, 78)
+custom_minimum_size = Vector2(0, 62)
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
 theme_override_colors/font_color = Color(0.9, 0.94, 0.86, 1)
 text = "目标：敌方城池
 我方：出征部队
@@ -77,6 +75,13 @@ text = "目标：敌方城池
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 3
+
+[node name="BriefPreviewList" type="HBoxContainer" parent="BriefPanel/BriefMargin/BriefStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+alignment = 1
 
 [node name="BriefActions" type="HBoxContainer" parent="BriefPanel/BriefMargin/BriefStack"]
 layout_mode = 2
@@ -145,6 +150,13 @@ theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 24
 text = "战斗详情"
 horizontal_alignment = 1
+
+[node name="DetailPreviewList" type="GridContainer" parent="DetailPanel/DetailMargin/DetailStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 10
+theme_override_constants/v_separation = 8
+columns = 2
 
 [node name="DetailScroll" type="ScrollContainer" parent="DetailPanel/DetailMargin/DetailStack"]
 layout_mode = 2

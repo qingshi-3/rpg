@@ -1,0 +1,124 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="1_theme"]
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/WorldConscriptionPanel.cs" id="2_script"]
+
+[node name="WorldConscriptionPanel" type="VBoxContainer"]
+size_flags_horizontal = 3
+theme = ExtResource("1_theme")
+script = ExtResource("2_script")
+theme_override_constants/separation = 8
+
+[node name="ReserveSummaryPanel" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(0, 104)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"WorldContextCard"
+
+[node name="SummaryMargin" type="MarginContainer" parent="ReserveSummaryPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="SummaryStack" type="VBoxContainer" parent="ReserveSummaryPanel/SummaryMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 7
+
+[node name="ReserveHeaderRow" type="HBoxContainer" parent="ReserveSummaryPanel/SummaryMargin/SummaryStack"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ReserveLabel" type="Label" parent="ReserveSummaryPanel/SummaryMargin/SummaryStack/ReserveHeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+text = "预备兵"
+vertical_alignment = 1
+
+[node name="ReserveValueLabel" type="Label" parent="ReserveSummaryPanel/SummaryMargin/SummaryStack/ReserveHeaderRow"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.78, 1)
+theme_override_font_sizes/font_size = 24
+text = "0"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="ReserveFill" type="ProgressBar" parent="ReserveSummaryPanel/SummaryMargin/SummaryStack"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+max_value = 1.0
+show_percentage = false
+
+[node name="CapacityUsageLabel" type="Label" parent="ReserveSummaryPanel/SummaryMargin/SummaryStack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.72, 0.62, 1)
+text = "兵力 0/0 · 剩余 0"
+
+[node name="ManualConscriptButton" type="Button" parent="."]
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 2
+theme_type_variation = &"WorldPrimaryActionButton"
+text = "手动征兵"
+
+[node name="IntensityTitleLabel" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 17
+text = "自动征兵"
+
+[node name="CurrentIntensityPanel" type="PanelContainer" parent="."]
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"WorldContextCard"
+
+[node name="CurrentIntensityMargin" type="MarginContainer" parent="CurrentIntensityPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="CurrentIntensityRow" type="HBoxContainer" parent="CurrentIntensityPanel/CurrentIntensityMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CurrentIntensityTextStack" type="VBoxContainer" parent="CurrentIntensityPanel/CurrentIntensityMargin/CurrentIntensityRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="CurrentIntensityCaptionLabel" type="Label" parent="CurrentIntensityPanel/CurrentIntensityMargin/CurrentIntensityRow/CurrentIntensityTextStack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.72, 0.62, 1)
+theme_override_font_sizes/font_size = 13
+text = "当前模式"
+
+[node name="CurrentIntensityNameLabel" type="Label" parent="CurrentIntensityPanel/CurrentIntensityMargin/CurrentIntensityRow/CurrentIntensityTextStack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.78, 1)
+theme_override_font_sizes/font_size = 18
+text = "关闭"
+
+[node name="CurrentIntensityGainLabel" type="Label" parent="CurrentIntensityPanel/CurrentIntensityMargin/CurrentIntensityRow"]
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.88, 0.72, 1)
+text = "每次 +0"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="IntensityOptionGrid" type="GridContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8

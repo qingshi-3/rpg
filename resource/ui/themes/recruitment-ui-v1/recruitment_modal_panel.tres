@@ -1,0 +1,16 @@
+[gd_resource type="StyleBoxTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/ui/recruitment-ui-v1/recruitment_modal_panel.png" id="1_texture"]
+
+[resource]
+content_margin_left = 48.0
+content_margin_top = 40.0
+content_margin_right = 48.0
+content_margin_bottom = 40.0
+texture = ExtResource("1_texture")
+texture_margin_left = 42.0
+texture_margin_top = 34.0
+texture_margin_right = 42.0
+texture_margin_bottom = 34.0
+axis_stretch_horizontal = 0
+axis_stretch_vertical = 0

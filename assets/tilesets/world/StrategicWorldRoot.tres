@@ -1,4 +1,4 @@
-[gd_resource type="TileSet" load_steps=18 format=3 uid="uid://cet1hbie4lq3w"]
+[gd_resource type="TileSet" load_steps=18 format=3 uid="uid://c6dtneunwc6uq"]
 
 [ext_resource type="Texture2D" uid="uid://csgsmkyolcu6x" path="res://assets/textures/world/Map_tiles.png" id="1_wbnob"]
 [ext_resource type="Texture2D" uid="uid://bxhto703te5wn" path="res://assets/textures/world/Map_tiles_2.png" id="2_8w177"]

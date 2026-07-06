@@ -1,0 +1,95 @@
+[gd_resource type="Theme" load_steps=29 format=3]
+
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_modal_panel.tres" id="1_modal_panel"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_card_normal.tres" id="2_card_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_card_hover.tres" id="3_card_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_card_pressed.tres" id="4_card_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_card_selected.tres" id="5_card_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_card_disabled.tres" id="6_card_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_nameplate_normal.tres" id="7_nameplate_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_nameplate_selected.tres" id="8_nameplate_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_nameplate_pressed.tres" id="9_nameplate_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_nameplate_disabled.tres" id="10_nameplate_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_text_button_normal.tres" id="11_text_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_text_button_hover.tres" id="12_text_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_text_button_pressed.tres" id="13_text_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_text_button_disabled.tres" id="14_text_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_icon_button_normal.tres" id="15_icon_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_icon_button_hover.tres" id="16_icon_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_icon_button_pressed.tres" id="17_icon_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_icon_button_disabled.tres" id="18_icon_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_tooltip_panel.tres" id="19_tooltip_panel"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track.tres" id="20_scroll_track"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_normal.tres" id="21_scroll_grabber_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_hover.tres" id="22_scroll_grabber_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_pressed.tres" id="23_scroll_grabber_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track_horizontal.tres" id="24_scroll_track_horizontal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_normal.tres" id="25_scroll_grabber_horizontal_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_hover.tres" id="26_scroll_grabber_horizontal_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_pressed.tres" id="27_scroll_grabber_horizontal_pressed"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_popup_panel"]
+
+[resource]
+PopupPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+TooltipPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+RecruitmentModalPanel/base_type = &"PanelContainer"
+RecruitmentModalPanel/styles/panel = ExtResource("1_modal_panel")
+RecruitmentCardPanel/base_type = &"PanelContainer"
+RecruitmentCardPanel/styles/panel = ExtResource("2_card_normal")
+RecruitmentSelectedCardPanel/base_type = &"PanelContainer"
+RecruitmentSelectedCardPanel/styles/panel = ExtResource("5_card_selected")
+RecruitmentCardButton/base_type = &"Button"
+RecruitmentCardButton/colors/font_color = Color(0.96, 0.9, 0.74, 1)
+RecruitmentCardButton/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+RecruitmentCardButton/colors/font_pressed_color = Color(1, 0.86, 0.52, 1)
+RecruitmentCardButton/colors/font_disabled_color = Color(0.58, 0.58, 0.64, 1)
+RecruitmentCardButton/styles/disabled = ExtResource("6_card_disabled")
+RecruitmentCardButton/styles/hover = ExtResource("2_card_normal")
+RecruitmentCardButton/styles/hover_pressed = ExtResource("4_card_pressed")
+RecruitmentCardButton/styles/normal = ExtResource("3_card_hover")
+RecruitmentCardButton/styles/pressed = ExtResource("4_card_pressed")
+RecruitmentSelectableCardButton/base_type = &"Button"
+RecruitmentSelectableCardButton/colors/font_color = Color(0.96, 0.9, 0.74, 1)
+RecruitmentSelectableCardButton/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+RecruitmentSelectableCardButton/colors/font_pressed_color = Color(1, 0.86, 0.52, 1)
+RecruitmentSelectableCardButton/colors/font_disabled_color = Color(0.58, 0.58, 0.64, 1)
+RecruitmentSelectableCardButton/styles/disabled = ExtResource("6_card_disabled")
+RecruitmentSelectableCardButton/styles/hover = ExtResource("2_card_normal")
+RecruitmentSelectableCardButton/styles/hover_pressed = ExtResource("5_card_selected")
+RecruitmentSelectableCardButton/styles/normal = ExtResource("3_card_hover")
+RecruitmentSelectableCardButton/styles/pressed = ExtResource("5_card_selected")
+RecruitmentNameplatePanel/base_type = &"PanelContainer"
+RecruitmentNameplatePanel/styles/panel = ExtResource("7_nameplate_normal")
+RecruitmentSelectedNameplatePanel/base_type = &"PanelContainer"
+RecruitmentSelectedNameplatePanel/styles/panel = ExtResource("8_nameplate_selected")
+RecruitmentPressedNameplatePanel/base_type = &"PanelContainer"
+RecruitmentPressedNameplatePanel/styles/panel = ExtResource("9_nameplate_pressed")
+RecruitmentDisabledNameplatePanel/base_type = &"PanelContainer"
+RecruitmentDisabledNameplatePanel/styles/panel = ExtResource("10_nameplate_disabled")
+RecruitmentTextButton/base_type = &"Button"
+RecruitmentTextButton/colors/font_color = Color(0.96, 0.9, 0.74, 1)
+RecruitmentTextButton/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+RecruitmentTextButton/colors/font_pressed_color = Color(0.78, 0.68, 0.52, 1)
+RecruitmentTextButton/colors/font_disabled_color = Color(0.58, 0.58, 0.64, 1)
+RecruitmentTextButton/styles/disabled = ExtResource("14_text_button_disabled")
+RecruitmentTextButton/styles/hover = ExtResource("12_text_button_hover")
+RecruitmentTextButton/styles/normal = ExtResource("11_text_button_normal")
+RecruitmentTextButton/styles/pressed = ExtResource("13_text_button_pressed")
+RecruitmentIconButton/base_type = &"Button"
+RecruitmentIconButton/styles/disabled = ExtResource("18_icon_button_disabled")
+RecruitmentIconButton/styles/hover = ExtResource("16_icon_button_hover")
+RecruitmentIconButton/styles/normal = ExtResource("15_icon_button_normal")
+RecruitmentIconButton/styles/pressed = ExtResource("17_icon_button_pressed")
+RecruitmentTooltipPanel/base_type = &"PanelContainer"
+RecruitmentTooltipPanel/styles/panel = ExtResource("19_tooltip_panel")
+HScrollBar/styles/scroll = ExtResource("24_scroll_track_horizontal")
+HScrollBar/styles/scroll_focus = ExtResource("24_scroll_track_horizontal")
+HScrollBar/styles/grabber = ExtResource("25_scroll_grabber_horizontal_normal")
+HScrollBar/styles/grabber_highlight = ExtResource("26_scroll_grabber_horizontal_hover")
+HScrollBar/styles/grabber_pressed = ExtResource("27_scroll_grabber_horizontal_pressed")
+VScrollBar/styles/scroll = ExtResource("20_scroll_track")
+VScrollBar/styles/scroll_focus = ExtResource("20_scroll_track")
+VScrollBar/styles/grabber = ExtResource("21_scroll_grabber_normal")
+VScrollBar/styles/grabber_highlight = ExtResource("22_scroll_grabber_hover")
+VScrollBar/styles/grabber_pressed = ExtResource("23_scroll_grabber_pressed")

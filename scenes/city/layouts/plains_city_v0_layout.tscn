@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" path="res://scenes/city/base/plains_city_base.tscn" id="1_base"]
 [ext_resource type="Script" path="res://src/Presentation/Battle/BattleMapLayer.cs" id="2_battle_map_layer"]
-[ext_resource type="TileSet" path="res://assets/tilesets/battle/bone/ground.tres" id="3_ground"]
+[ext_resource type="TileSet" path="res://resource/tilesets/battle/bone/ground.tres" id="3_ground"]
 [ext_resource type="Script" path="res://src/Presentation/Battle/BattleMapConnectionConfig.cs" id="4_connection_config"]
 [ext_resource type="Script" path="res://src/Definitions/Maps/BattleMapConnection.cs" id="5_connection"]
 [ext_resource type="Script" path="res://src/Definitions/Maps/BattleMapConnectionSide.cs" id="6_connection_side"]

@@ -10,7 +10,8 @@ Use this directory only after the relevant accepted authority is current. If imp
 
 | Proposal | Status | Reason Kept Active |
 |---|---|---|
-| `2026-07-05-resource-directory-migration.md` | In Progress - Batch 0 Complete, No Resource Moves Yet | Staged migration plan for moving Godot-authored resources from mixed `assets/` storage into `resource/` without breaking scene/config/code references. |
+| `2026-07-05-unit-idle-preview-presentation-contract.md` | Implemented - Pending Manual QA | Shared Presentation contract and current military UI adoption are implemented; keep active until the user verifies the in-game visual result. |
+| `2026-07-05-ui-hover-presentation-contract.md` | Implemented - Focused Guard Passing, Full Suite Blocked By Unrelated Taxonomy Guard | Keeps UI-HOVER-001 open until the unrelated resource taxonomy guard is cleared or formally accepted as out of scope for final implementation acceptance. |
 | `2026-06-19-site-map-layout-first-city.md` | Paused - Scaffold Verified, Detailed Authoring Deferred | Keeps the SMLA-001 city-map scaffold and bridge marker contract, but defers detailed TileMapLayer/map-content authoring until the operational loop is validated on `DemoSite`. |
 
 ## Archived Implementation Proposals

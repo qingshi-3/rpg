@@ -2,27 +2,27 @@
   "skills": [
     {
       "skillDefinitionId": "skill_shield_barrier",
-      "resourcePath": "res://assets/battle/skills/skill_shield_barrier.tres",
+      "resourcePath": "res://resource/battle/skills/skill_shield_barrier.tres",
       "aliases": [ "first_slice_skill_shield_barrier" ]
     },
     {
       "skillDefinitionId": "skill_sun_piercer",
-      "resourcePath": "res://assets/battle/skills/skill_sun_piercer.tres",
+      "resourcePath": "res://resource/battle/skills/skill_sun_piercer.tres",
       "aliases": [ "first_slice_skill_sun_piercer" ]
     },
     {
       "skillDefinitionId": "skill_thunder_tag_throw",
-      "resourcePath": "res://assets/battle/skills/skill_thunder_tag_throw.tres",
+      "resourcePath": "res://resource/battle/skills/skill_thunder_tag_throw.tres",
       "aliases": [ "first_slice_skill_thunder_tag_throw" ]
     },
     {
       "skillDefinitionId": "skill_thunder_mark_fold",
-      "resourcePath": "res://assets/battle/skills/skill_thunder_mark_fold.tres",
+      "resourcePath": "res://resource/battle/skills/skill_thunder_mark_fold.tres",
       "aliases": [ "first_slice_skill_thunder_mark_fold" ]
     },
     {
       "skillDefinitionId": "skill_thunder_spiral_break",
-      "resourcePath": "res://assets/battle/skills/skill_thunder_spiral_break.tres",
+      "resourcePath": "res://resource/battle/skills/skill_thunder_spiral_break.tres",
       "aliases": [ "first_slice_skill_thunder_spiral_break" ]
     }
   ]

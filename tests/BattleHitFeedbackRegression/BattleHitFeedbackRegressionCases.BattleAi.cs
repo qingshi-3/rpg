@@ -111,13 +111,14 @@ internal static void LimboAiBattleDecisionTreeMirrorsAlliedCommandBranches()
 
 internal static void LimboAiBattleResourceBoundaryIsAuthored()
 {
-    string treePath = Path.Combine("assets", "ai", "battle", "battle_enemy_basic.tres");
+    string treePath = Path.Combine("resource", "battle", "ai", "battle_enemy_basic.tres");
     string hostPath = Path.Combine("scenes", "ai", "battle", "BattleAiAgentHost.tscn");
-    string selectTaskPath = Path.Combine("scripts", "ai", "limbo_tasks", "battle", "select_battle_target.gd");
-    string strikeConditionPath = Path.Combine("scripts", "ai", "limbo_tasks", "battle", "can_strike_battle_target.gd");
-    string emitTaskPath = Path.Combine("scripts", "ai", "limbo_tasks", "battle", "emit_battle_intent.gd");
+    string taskRoot = Path.Combine("src", "Runtime", "Battle", "AI", "LimboTasks");
+    string selectTaskPath = Path.Combine(taskRoot, "select_battle_target.gd");
+    string strikeConditionPath = Path.Combine(taskRoot, "can_strike_battle_target.gd");
+    string emitTaskPath = Path.Combine(taskRoot, "emit_battle_intent.gd");
 
-    AssertTrue(File.Exists(treePath), "LimboAI battle enemy tree resource should be authored under assets/ai/battle");
+    AssertTrue(File.Exists(treePath), "LimboAI battle enemy tree resource should be authored under resource/battle/ai");
     AssertTrue(File.Exists(hostPath), "LimboAI battle host scene should be authored under scenes/ai/battle");
     AssertTrue(File.Exists(selectTaskPath), "LimboAI target selection task should exist");
     AssertTrue(File.Exists(strikeConditionPath), "LimboAI strike condition task should exist");
@@ -251,9 +252,10 @@ internal static void LimboAiBattleFacadeExposesLocalCombatObservationsReadOnly()
 internal static void LimboAiBattleTasksPassBlackboardThroughFacade()
 {
     string host = File.ReadAllText(Path.Combine("scenes", "ai", "battle", "BattleAiAgentHost.tscn"));
-    string selectTask = File.ReadAllText(Path.Combine("scripts", "ai", "limbo_tasks", "battle", "select_battle_target.gd"));
-    string strikeCondition = File.ReadAllText(Path.Combine("scripts", "ai", "limbo_tasks", "battle", "can_strike_battle_target.gd"));
-    string emitTask = File.ReadAllText(Path.Combine("scripts", "ai", "limbo_tasks", "battle", "emit_battle_intent.gd"));
+    string taskRoot = Path.Combine("src", "Runtime", "Battle", "AI", "LimboTasks");
+    string selectTask = File.ReadAllText(Path.Combine(taskRoot, "select_battle_target.gd"));
+    string strikeCondition = File.ReadAllText(Path.Combine(taskRoot, "can_strike_battle_target.gd"));
+    string emitTask = File.ReadAllText(Path.Combine(taskRoot, "emit_battle_intent.gd"));
 
     AssertTrue(
         host.Contains("BattleAiFacade.cs", StringComparison.Ordinal),

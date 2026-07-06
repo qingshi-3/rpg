@@ -36,9 +36,56 @@ internal static class BattleRuntimeCommandHudModel
             DisplayName = string.IsNullOrWhiteSpace(heroName) ? groupKey ?? "参战英雄" : heroName,
             HeroName = string.IsNullOrWhiteSpace(heroName) ? "英雄：参战英雄" : $"英雄：{heroName}",
             CorpsSummary = BuildCorpsSummary(forces, heroForce, resolveUnitDisplayName),
+            HeroBattleUnitId = ResolveHeroBattleUnitId(forces, heroForce),
+            CorpsBattleUnitId = ResolveCorpsBattleUnitId(forces, heroForce),
             DefaultFormationId = BattlePreparationPlanUiModel.ResolveDefaultFormationId(forces),
             Forces = forces?.ToArray() ?? Array.Empty<BattleForceRequest>()
         };
+    }
+
+    internal static string ResolveHeroBattleUnitId(
+        IReadOnlyList<BattleForceRequest> forces,
+        BattleForceRequest heroForce)
+    {
+        string strategicHeroUnitId = FirstNonEmpty(
+            heroForce?.StrategicHeroBattleUnitId,
+            forces?.Select(force => force?.StrategicHeroBattleUnitId).FirstOrDefault(id => !string.IsNullOrWhiteSpace(id)));
+        if (!string.IsNullOrWhiteSpace(strategicHeroUnitId))
+        {
+            return strategicHeroUnitId;
+        }
+
+        return IsLikelyHeroForce(heroForce) ? heroForce?.UnitDefinitionId ?? "" : "";
+    }
+
+    internal static string ResolveCorpsBattleUnitId(
+        IReadOnlyList<BattleForceRequest> forces,
+        BattleForceRequest heroForce)
+    {
+        string strategicCorpsUnitId = FirstNonEmpty(
+            heroForce?.StrategicCorpsBattleUnitId,
+            forces?.Select(force => force?.StrategicCorpsBattleUnitId).FirstOrDefault(id => !string.IsNullOrWhiteSpace(id)));
+        if (!string.IsNullOrWhiteSpace(strategicCorpsUnitId))
+        {
+            return strategicCorpsUnitId;
+        }
+
+        BattleForceRequest corpsForce = (forces ?? Array.Empty<BattleForceRequest>())
+            .FirstOrDefault(force => force != null && !ReferenceEquals(force, heroForce) && !IsLikelyHeroForce(force));
+        return corpsForce?.UnitDefinitionId ?? "";
+    }
+
+    private static string FirstNonEmpty(params string[] values)
+    {
+        foreach (string value in values ?? Array.Empty<string>())
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value.Trim();
+            }
+        }
+
+        return "";
     }
 
     internal static string BuildCorpsSummary(

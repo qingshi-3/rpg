@@ -1,4 +1,5 @@
 using Godot;
+using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.World.Sites;
 
@@ -11,7 +12,7 @@ public partial class WorldMusterOptionCard : Button
     private Label _nameLabel;
     private string _corpsDefinitionId = "";
     private string _displayName = "";
-    private string _iconPath = "";
+    private Texture2D _previewTexture;
     private int _reserveCost;
     private string _costText = "";
     private string _disabledReason = "";
@@ -20,8 +21,8 @@ public partial class WorldMusterOptionCard : Button
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        _icon = GetNodeOrNull<TextureRect>("Content/Icon");
-        _nameLabel = GetNodeOrNull<Label>("Content/NameLabel");
+        _icon = GetNodeOrNull<TextureRect>("PreviewLayer/Icon") ?? GetNodeOrNull<TextureRect>("Content/Icon");
+        _nameLabel = GetNodeOrNull<Label>("Nameplate/NameLabel") ?? GetNodeOrNull<Label>("Content/NameLabel");
         Pressed += OnPressed;
         ApplyBinding();
     }
@@ -34,7 +35,7 @@ public partial class WorldMusterOptionCard : Button
     public void Bind(
         string corpsDefinitionId,
         string displayName,
-        string iconPath,
+        Texture2D previewTexture,
         int reserveCost,
         string costText,
         bool selectable,
@@ -42,7 +43,7 @@ public partial class WorldMusterOptionCard : Button
     {
         _corpsDefinitionId = corpsDefinitionId ?? "";
         _displayName = string.IsNullOrWhiteSpace(displayName) ? "编制" : displayName.Trim();
-        _iconPath = iconPath ?? "";
+        _previewTexture = previewTexture;
         _reserveCost = System.Math.Max(0, reserveCost);
         _costText = string.IsNullOrWhiteSpace(costText) ? "无" : costText.Trim();
         _selectable = selectable;
@@ -50,12 +51,33 @@ public partial class WorldMusterOptionCard : Button
         ApplyBinding();
     }
 
+    public override Control _MakeCustomTooltip(string forText)
+    {
+        if (string.IsNullOrWhiteSpace(forText))
+        {
+            return null;
+        }
+
+        WorldMusterOptionTooltip tooltip = GameUiSceneFactory.CreateWorldMusterOptionTooltip(nameof(WorldMusterOptionCard));
+        if (tooltip == null)
+        {
+            return null;
+        }
+
+        tooltip.Bind(
+            _displayName,
+            $"预备兵 {_reserveCost}",
+            $"成本 {_costText}",
+            _selectable ? "" : _disabledReason);
+        return tooltip;
+    }
+
     private void ApplyBinding()
     {
-        Disabled = !_selectable;
-        TooltipText = _selectable
-            ? $"预备兵 {_reserveCost}\n成本 {_costText}"
-            : $"预备兵 {_reserveCost}\n成本 {_costText}\n不可招募：{_disabledReason}";
+        // Keep disabled options hoverable so the custom tooltip can explain cost
+        // and unavailable reasons; click authority stays gated in OnPressed.
+        Disabled = false;
+        TooltipText = _displayName;
         SelfModulate = _selectable
             ? Colors.White
             : new Color(1.0f, 1.0f, 1.0f, 0.62f);
@@ -67,9 +89,7 @@ public partial class WorldMusterOptionCard : Button
 
         if (_icon != null)
         {
-            _icon.Texture = string.IsNullOrWhiteSpace(_iconPath)
-                ? null
-                : GD.Load<Texture2D>(_iconPath);
+            _icon.Texture = _previewTexture;
         }
     }
 

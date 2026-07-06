@@ -10,7 +10,7 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
     private const string ActiveOutlineEnabledParameter = "active_outline_enabled";
     private const string ActiveOutlineColorParameter = "active_outline_color";
     private const string ActiveOutlineWidthParameter = "active_outline_width";
-    private const string UnitBodyOutlineShaderPath = "res://assets/battle/shaders/unit_body_outline.gdshader";
+    private const string UnitBodyOutlineShaderPath = "res://resource/shaders/battle/unit_body_outline.gdshader";
 
     [Export]
     public NodePath AnimatedSpritePath { get; set; } = "VisualRoot/AnimatedSprite2D";

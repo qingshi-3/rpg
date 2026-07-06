@@ -1,4 +1,4 @@
-[gd_resource type="TileSet" load_steps=7 format=3 uid="uid://b7cybsj52b1m6"]
+[gd_resource type="TileSet" load_steps=7 format=3 uid="uid://blgr37hq7o8yj"]
 
 [ext_resource type="Texture2D" uid="uid://d21xnfpbyb1g8" path="res://assets/textures/tiles/亡灵_undead-tileset/Ground_rocks.png" id="1_18xgi"]
 [ext_resource type="Texture2D" uid="uid://cexyo80f7w6qd" path="res://assets/textures/tiles/亡灵_undead-tileset/water_coasts.png" id="2_ype1g"]

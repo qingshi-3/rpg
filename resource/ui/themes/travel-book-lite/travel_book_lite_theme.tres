@@ -1,0 +1,161 @@
+[gd_resource type="Theme" load_steps=55 format=3]
+
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_cover_panel.tres" id="1_travel_book_cover_panel"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_page_left_panel.tres" id="2_travel_book_page_left_panel"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_page_right_panel.tres" id="3_travel_book_page_right_panel"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_popup_panel.tres" id="4_travel_book_popup_panel"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_header.tres" id="5_travel_book_header"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_selection.tres" id="6_travel_book_selection"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_selection_active.tres" id="7_travel_book_selection_active"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_wide_button_normal.tres" id="8_travel_book_wide_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_wide_button_hover.tres" id="9_travel_book_wide_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_wide_button_pressed.tres" id="10_travel_book_wide_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_wide_button_disabled.tres" id="11_travel_book_wide_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_button_normal.tres" id="12_travel_book_button_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_button_hover.tres" id="13_travel_book_button_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_button_pressed.tres" id="14_travel_book_button_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_button_focus.tres" id="15_travel_book_button_focus"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_button_disabled.tres" id="16_travel_book_button_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_slot_normal.tres" id="17_travel_book_slot_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_slot_selected.tres" id="18_travel_book_slot_selected"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_slot_disabled.tres" id="19_travel_book_slot_disabled"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_slot_cursor.tres" id="20_travel_book_slot_cursor"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_marker.tres" id="21_travel_book_marker"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_bar_frame.tres" id="22_travel_book_bar_frame"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_bar_fill_gold.tres" id="23_travel_book_bar_fill_gold"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_bar_fill_muted.tres" id="24_travel_book_bar_fill_muted"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track.tres" id="25_travel_book_scroll_track"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_normal.tres" id="26_travel_book_scroll_grabber"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_toggle_off.tres" id="27_travel_book_toggle_off"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/travel-book-lite/travel_book_toggle_on.tres" id="28_travel_book_toggle_on"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Toggle03a.png" id="29_toggle_off"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Toggle03b.png" id="30_toggle_on"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_HandleDropdown01a.png" id="31_dropdown_arrow"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Handle03a.png" id="32_slider_grabber"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_ButtonValue01a.png" id="33_plus"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_ButtonValue01b.png" id="34_minus"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconTick01a.png" id="35_icon_tick"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconCross01a.png" id="36_icon_cross"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconHeart01a.png" id="37_icon_heart"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconEnergy01a.png" id="38_icon_energy"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconCoin01a.png" id="39_icon_coin"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconStar01a.png" id="40_icon_star"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconGear01a.png" id="41_icon_gear"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconHome01a.png" id="42_icon_home"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconPlay01a.png" id="43_icon_play"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconPause01a.png" id="44_icon_pause"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconRestart01a.png" id="45_icon_restart"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Cursor01c.png" id="46_cursor_default"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_Cursor01d.png" id="47_cursor_select"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_hover.tres" id="48_scroll_grabber_v_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_pressed.tres" id="49_scroll_grabber_v_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_track_horizontal.tres" id="50_scroll_track_h"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_normal.tres" id="51_scroll_grabber_h_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_hover.tres" id="52_scroll_grabber_h_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_pressed.tres" id="53_scroll_grabber_h_pressed"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_popup_panel"]
+
+[resource]
+PopupPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+TooltipPanel/styles/panel = SubResource("StyleBoxEmpty_popup_panel")
+PanelContainer/styles/panel = ExtResource("4_travel_book_popup_panel")
+Button/colors/font_color = Color(0.24, 0.13, 0.12, 1)
+Button/colors/font_hover_color = Color(0.16, 0.08, 0.08, 1)
+Button/colors/font_pressed_color = Color(0.39, 0.18, 0.16, 1)
+Button/colors/font_disabled_color = Color(0.48, 0.37, 0.35, 1)
+Button/constants/h_separation = 5
+Button/styles/normal = ExtResource("8_travel_book_wide_button_normal")
+Button/styles/hover = ExtResource("9_travel_book_wide_button_hover")
+Button/styles/pressed = ExtResource("10_travel_book_wide_button_pressed")
+Button/styles/disabled = ExtResource("11_travel_book_wide_button_disabled")
+Button/styles/focus = ExtResource("7_travel_book_selection_active")
+LineEdit/styles/normal = ExtResource("4_travel_book_popup_panel")
+LineEdit/styles/focus = ExtResource("7_travel_book_selection_active")
+LineEdit/styles/read_only = ExtResource("5_travel_book_header")
+LineEdit/colors/font_color = Color(0.22, 0.12, 0.11, 1)
+Label/colors/font_color = Color(0.25, 0.14, 0.12, 1)
+ProgressBar/styles/background = ExtResource("22_travel_book_bar_frame")
+ProgressBar/styles/fill = ExtResource("23_travel_book_bar_fill_gold")
+HScrollBar/styles/scroll = ExtResource("50_scroll_track_h")
+HScrollBar/styles/scroll_focus = ExtResource("50_scroll_track_h")
+HScrollBar/styles/grabber = ExtResource("51_scroll_grabber_h_normal")
+HScrollBar/styles/grabber_highlight = ExtResource("52_scroll_grabber_h_hover")
+HScrollBar/styles/grabber_pressed = ExtResource("53_scroll_grabber_h_pressed")
+VScrollBar/styles/scroll = ExtResource("25_travel_book_scroll_track")
+VScrollBar/styles/scroll_focus = ExtResource("25_travel_book_scroll_track")
+VScrollBar/styles/grabber = ExtResource("26_travel_book_scroll_grabber")
+VScrollBar/styles/grabber_highlight = ExtResource("48_scroll_grabber_v_hover")
+VScrollBar/styles/grabber_pressed = ExtResource("49_scroll_grabber_v_pressed")
+HSlider/styles/slider = ExtResource("22_travel_book_bar_frame")
+HSlider/styles/grabber_area = ExtResource("23_travel_book_bar_fill_gold")
+HSlider/styles/grabber_area_highlight = ExtResource("23_travel_book_bar_fill_gold")
+HSlider/icons/grabber = ExtResource("32_slider_grabber")
+HSlider/icons/grabber_highlight = ExtResource("32_slider_grabber")
+OptionButton/icons/arrow = ExtResource("31_dropdown_arrow")
+OptionButton/styles/normal = ExtResource("8_travel_book_wide_button_normal")
+OptionButton/styles/hover = ExtResource("9_travel_book_wide_button_hover")
+OptionButton/styles/pressed = ExtResource("10_travel_book_wide_button_pressed")
+CheckBox/icons/unchecked = ExtResource("29_toggle_off")
+CheckBox/icons/checked = ExtResource("30_toggle_on")
+CheckBox/icons/unchecked_disabled = ExtResource("29_toggle_off")
+CheckBox/icons/checked_disabled = ExtResource("30_toggle_on")
+CheckButton/icons/off = ExtResource("29_toggle_off")
+CheckButton/icons/on = ExtResource("30_toggle_on")
+TravelBookCoverPanel/base_type = &"PanelContainer"
+TravelBookCoverPanel/styles/panel = ExtResource("1_travel_book_cover_panel")
+TravelBookPageLeft/base_type = &"PanelContainer"
+TravelBookPageLeft/styles/panel = ExtResource("2_travel_book_page_left_panel")
+TravelBookPageRight/base_type = &"PanelContainer"
+TravelBookPageRight/styles/panel = ExtResource("3_travel_book_page_right_panel")
+TravelBookPopup/base_type = &"PanelContainer"
+TravelBookPopup/styles/panel = ExtResource("4_travel_book_popup_panel")
+TravelBookHeader/base_type = &"PanelContainer"
+TravelBookHeader/styles/panel = ExtResource("5_travel_book_header")
+TravelBookSelection/base_type = &"PanelContainer"
+TravelBookSelection/styles/panel = ExtResource("6_travel_book_selection")
+TravelBookSelectionActive/base_type = &"PanelContainer"
+TravelBookSelectionActive/styles/panel = ExtResource("7_travel_book_selection_active")
+TravelBookSlot/base_type = &"PanelContainer"
+TravelBookSlot/styles/panel = ExtResource("17_travel_book_slot_normal")
+TravelBookSlotSelected/base_type = &"PanelContainer"
+TravelBookSlotSelected/styles/panel = ExtResource("18_travel_book_slot_selected")
+TravelBookSlotDisabled/base_type = &"PanelContainer"
+TravelBookSlotDisabled/styles/panel = ExtResource("19_travel_book_slot_disabled")
+TravelBookSlotCursor/base_type = &"PanelContainer"
+TravelBookSlotCursor/styles/panel = ExtResource("20_travel_book_slot_cursor")
+TravelBookMarker/base_type = &"PanelContainer"
+TravelBookMarker/styles/panel = ExtResource("21_travel_book_marker")
+TravelBookWideButton/base_type = &"Button"
+TravelBookWideButton/colors/font_color = Color(0.24, 0.13, 0.12, 1)
+TravelBookWideButton/colors/font_hover_color = Color(0.16, 0.08, 0.08, 1)
+TravelBookWideButton/colors/font_disabled_color = Color(0.52, 0.43, 0.41, 1)
+TravelBookWideButton/styles/normal = ExtResource("8_travel_book_wide_button_normal")
+TravelBookWideButton/styles/hover = ExtResource("9_travel_book_wide_button_hover")
+TravelBookWideButton/styles/pressed = ExtResource("10_travel_book_wide_button_pressed")
+TravelBookWideButton/styles/disabled = ExtResource("11_travel_book_wide_button_disabled")
+TravelBookWideButton/styles/focus = ExtResource("7_travel_book_selection_active")
+TravelBookButton/base_type = &"Button"
+TravelBookButton/colors/font_color = Color(0.96, 0.78, 0.62, 1)
+TravelBookButton/colors/font_hover_color = Color(1, 0.88, 0.68, 1)
+TravelBookButton/colors/font_disabled_color = Color(0.52, 0.43, 0.41, 1)
+TravelBookButton/styles/normal = ExtResource("12_travel_book_button_normal")
+TravelBookButton/styles/hover = ExtResource("13_travel_book_button_hover")
+TravelBookButton/styles/pressed = ExtResource("14_travel_book_button_pressed")
+TravelBookButton/styles/disabled = ExtResource("16_travel_book_button_disabled")
+TravelBookButton/styles/focus = ExtResource("15_travel_book_button_focus")
+TravelBookIconButton/base_type = &"Button"
+TravelBookIconButton/colors/font_color = Color(0.96, 0.78, 0.62, 1)
+TravelBookIconButton/colors/font_hover_color = Color(1, 0.88, 0.68, 1)
+TravelBookIconButton/colors/font_disabled_color = Color(0.52, 0.43, 0.41, 1)
+TravelBookIconButton/styles/normal = ExtResource("12_travel_book_button_normal")
+TravelBookIconButton/styles/hover = ExtResource("13_travel_book_button_hover")
+TravelBookIconButton/styles/pressed = ExtResource("14_travel_book_button_pressed")
+TravelBookIconButton/styles/disabled = ExtResource("16_travel_book_button_disabled")
+TravelBookIconButton/styles/focus = ExtResource("15_travel_book_button_focus")
+TravelBookProgressBar/base_type = &"ProgressBar"
+TravelBookProgressBar/styles/background = ExtResource("22_travel_book_bar_frame")
+TravelBookProgressBar/styles/fill = ExtResource("23_travel_book_bar_fill_gold")
+TravelBookMutedBar/base_type = &"ProgressBar"
+TravelBookMutedBar/styles/background = ExtResource("22_travel_book_bar_frame")
+TravelBookMutedBar/styles/fill = ExtResource("24_travel_book_bar_fill_muted")

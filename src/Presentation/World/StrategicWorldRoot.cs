@@ -241,6 +241,8 @@ public partial class StrategicWorldRoot : Control
 
 	public override void _Process(double delta)
 	{
+		GameUiSkin.UpdateCursorAnimation();
+
 		if (!EnsureStrategicRuntimeReady())
 		{
 			UpdateWorldCameraView();
@@ -251,6 +253,11 @@ public partial class StrategicWorldRoot : Control
 		UpdateWorldClock(delta);
 
 		UpdateWorldCameraView();
+	}
+
+	public override void _Input(InputEvent @event)
+	{
+		GameUiSkin.HandleCursorInput(@event);
 	}
 
 	public override void _GuiInput(InputEvent @event)

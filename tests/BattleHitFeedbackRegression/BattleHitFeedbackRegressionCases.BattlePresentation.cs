@@ -501,7 +501,7 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
     string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
     string hitFeedbackPresenter = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitHitFeedbackPresenter.cs"));
     string presentation = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitPresentationComponent.cs"));
-    string shaderPath = Path.Combine("assets", "battle", "shaders", "unit_body_outline.gdshader");
+    string shaderPath = Path.Combine("resource", "shaders", "battle", "unit_body_outline.gdshader");
     string shader = File.Exists(shaderPath) ? File.ReadAllText(shaderPath) : "";
     string normalizedPresentation = NormalizeWhitespace(presentation);
 
@@ -586,7 +586,7 @@ internal static void BattleRuntimeCommandSelectionSpotlightsOnlySelectedHero()
 
 internal static void DeploymentZonesUseDedicatedOverlayShader()
 {
-    string shaderPath = Path.Combine("assets", "battle", "shaders", "deployment_zone_highlight.gdshader");
+    string shaderPath = Path.Combine("resource", "shaders", "battle", "deployment_zone_highlight.gdshader");
     string deploymentOverlayPath = Path.Combine("src", "Presentation", "Battle", "BattleDeploymentZoneOverlay.cs");
     string overlay = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "BattleGridHighlightOverlay.cs"));
     string tileLayerRenderer = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Highlights", "BattleGridHighlightTileLayerRenderer.cs"));
@@ -1117,21 +1117,25 @@ internal static void BattleUnitPreviewWorkbenchIsVisualResourceMirror()
 
 internal static void StarterUnitDefinitionsReferenceAudioProfiles()
 {
-    Dictionary<string, string> unitDirs = new()
+    Dictionary<string, (string UnitDir, string AudioDir)> unitDirs = new()
     {
-        ["f1_shieldforger"] = Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_盾牌铸造者"),
-        ["f1_scintilla"] = Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_闪烁")
+        ["f1_shieldforger"] = (
+            Path.Combine("resource", "battle", "units", "莱昂纳王国", "f1_盾牌铸造者"),
+            Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_盾牌铸造者")),
+        ["f1_scintilla"] = (
+            Path.Combine("resource", "battle", "units", "莱昂纳王国", "f1_闪烁"),
+            Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_闪烁"))
     };
 
-    foreach ((string unitId, string unitDir) in unitDirs)
+    foreach ((string unitId, (string unitDir, string audioDir)) in unitDirs)
     {
         string unitPath = Path.Combine(unitDir, "unit.tres");
-        string resourceDir = unitDir.Replace(Path.DirectorySeparatorChar, '/');
+        string resourceDir = audioDir.Replace(Path.DirectorySeparatorChar, '/');
         string audioPath = $"res://{resourceDir}/audio/audio.tres";
         string text = File.ReadAllText(unitPath);
         AssertTrue(text.Contains(audioPath, StringComparison.Ordinal), $"{unitId} should reference its audio profile");
 
-        string audioText = File.ReadAllText(Path.Combine(unitDir, "audio", "audio.tres"));
+        string audioText = File.ReadAllText(Path.Combine(audioDir, "audio", "audio.tres"));
         foreach (string cue in new[] { "deploy", "move", "attack", "attack_impact", "hit", "defeated" })
         {
             AssertTrue(
@@ -1171,8 +1175,8 @@ internal static void StarterUnitDisplayNamesUseSourceVisualTranslations()
 {
     Dictionary<string, (string UnitDir, string ExpectedName)> expectedNames = new()
     {
-        ["f1_shieldforger"] = (Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_盾牌铸造者"), "盾牌铸造者"),
-        ["f1_scintilla"] = (Path.Combine("assets", "battle", "units", "莱昂纳王国", "f1_闪烁"), "闪烁术士")
+        ["f1_shieldforger"] = (Path.Combine("resource", "battle", "units", "莱昂纳王国", "f1_盾牌铸造者"), "盾牌铸造者"),
+        ["f1_scintilla"] = (Path.Combine("resource", "battle", "units", "莱昂纳王国", "f1_闪烁"), "闪烁术士")
     };
 
     foreach ((string unitId, (string unitDir, string expectedName)) in expectedNames)

@@ -58,24 +58,24 @@ internal static void FirstSliceHeroCompaniesUseAuthoredUnitResources()
         companyConfig.Contains("\"skill_thunder_spiral_break\"", StringComparison.Ordinal) &&
         !companyConfig.Contains("\"first_slice_skill_whirling_break\"", StringComparison.Ordinal),
         "assault battle group should advertise the configured thunder demo skill grant list instead of the old placeholder");
-    AssertConfiguredUnitPath(unitIndex, "assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", "shield hero index path");
-    AssertConfiguredUnitPath(unitIndex, "assets/battle/units/莱昂纳王国/f1_风刃指挥官/unit.tres", "archer hero index path");
-    AssertConfiguredUnitPath(unitIndex, "assets/battle/units/莱昂纳王国/f1_Elyx风暴刃/unit.tres", "assault hero index path");
-    AssertConfiguredUnitPath(unitIndex, "assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", "Bonefield leader index path");
-    AssertConfiguredUnitPath(unitIndex, "assets/battle/units/霜原部盟/f6_灵魂狼/unit.tres", "Bonefield harassment index path");
-    AssertConfiguredUnitPath(unitIndex, "assets/battle/units/深渊军团/f4_Skull施法者/unit.tres", "Bonefield ranged index path");
-    AssertUnitDisplayName("assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", "曦盾执旗者", "shield hero display name");
-    AssertUnitDisplayName("assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres", "天蓝石狮卫", "shield corps display name");
-    AssertUnitDisplayName("assets/battle/units/莱昂纳王国/f1_风刃指挥官/unit.tres", "逐日号令官", "archer hero display name");
-    AssertUnitDisplayName("assets/battle/units/莱昂纳王国/f1_后排弓手/unit.tres", "穿阳弓手", "archer corps display name");
-    AssertUnitDisplayName("assets/battle/units/莱昂纳王国/f1_Elyx风暴刃/unit.tres", "裂光剑卫", "assault hero display name");
-    AssertUnitDisplayName("assets/battle/units/莱昂纳王国/f1_辉光龙骑兵/unit.tres", "辉光龙骑", "assault corps display name");
-    AssertUnitDisplayName("assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", "寒骨冢主", "Bonefield leader display name");
-    AssertUnitDisplayName("assets/battle/units/霜原部盟/f6_灵魂狼/unit.tres", "霜魂猎犬", "Bonefield harassment enemy display name");
-    AssertUnitDisplayName("assets/battle/units/深渊军团/f4_Skull施法者/unit.tres", "颅火先知", "Bonefield ranged enemy display name");
-    AssertUnitFootprint("assets/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres", 2, 1, "azurite lion corps");
-    AssertUnitFootprint("assets/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", 2, 1, "grandmaster Zir hero");
-    AssertUnitFootprint("assets/battle/units/霜原部盟/f6_Draugar领主/unit.tres", 2, 2, "draugar lord enemy hero");
+    AssertConfiguredUnitPath(unitIndex, "resource/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", "shield hero index path");
+    AssertConfiguredUnitPath(unitIndex, "resource/battle/units/莱昂纳王国/f1_风刃指挥官/unit.tres", "archer hero index path");
+    AssertConfiguredUnitPath(unitIndex, "resource/battle/units/莱昂纳王国/f1_Elyx风暴刃/unit.tres", "assault hero index path");
+    AssertConfiguredUnitPath(unitIndex, "resource/battle/units/霜原部盟/f6_Draugar领主/unit.tres", "Bonefield leader index path");
+    AssertConfiguredUnitPath(unitIndex, "resource/battle/units/霜原部盟/f6_灵魂狼/unit.tres", "Bonefield harassment index path");
+    AssertConfiguredUnitPath(unitIndex, "resource/battle/units/深渊军团/f4_Skull施法者/unit.tres", "Bonefield ranged index path");
+    AssertUnitDisplayName("resource/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", "曦盾执旗者", "shield hero display name");
+    AssertUnitDisplayName("resource/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres", "天蓝石狮卫", "shield corps display name");
+    AssertUnitDisplayName("resource/battle/units/莱昂纳王国/f1_风刃指挥官/unit.tres", "逐日号令官", "archer hero display name");
+    AssertUnitDisplayName("resource/battle/units/莱昂纳王国/f1_后排弓手/unit.tres", "穿阳弓手", "archer corps display name");
+    AssertUnitDisplayName("resource/battle/units/莱昂纳王国/f1_Elyx风暴刃/unit.tres", "裂光剑卫", "assault hero display name");
+    AssertUnitDisplayName("resource/battle/units/莱昂纳王国/f1_辉光龙骑兵/unit.tres", "辉光龙骑", "assault corps display name");
+    AssertUnitDisplayName("resource/battle/units/霜原部盟/f6_Draugar领主/unit.tres", "寒骨冢主", "Bonefield leader display name");
+    AssertUnitDisplayName("resource/battle/units/霜原部盟/f6_灵魂狼/unit.tres", "霜魂猎犬", "Bonefield harassment enemy display name");
+    AssertUnitDisplayName("resource/battle/units/深渊军团/f4_Skull施法者/unit.tres", "颅火先知", "Bonefield ranged enemy display name");
+    AssertUnitFootprint("resource/battle/units/莱昂纳王国/f1_天蓝石狮/unit.tres", 2, 1, "azurite lion corps");
+    AssertUnitFootprint("resource/battle/units/莱昂纳王国/f1_宗师Zir/unit.tres", 2, 1, "grandmaster Zir hero");
+    AssertUnitFootprint("resource/battle/units/霜原部盟/f6_Draugar领主/unit.tres", 2, 2, "draugar lord enemy hero");
 }
 
 internal static void FirstSliceAssaultRequestUsesSelectedHeroCompanyAndBonefieldRoster()

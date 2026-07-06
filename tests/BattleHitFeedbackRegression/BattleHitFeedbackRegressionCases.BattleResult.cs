@@ -57,6 +57,10 @@ internal static void BattleUnitFactoryKeepsDefinitionCachesShared()
         factory.Contains("SharedDefinitionPathIndex", StringComparison.Ordinal),
         "nested unit definition path index should be shared instead of rebuilt per scene");
     AssertTrue(
+        factory.Contains("UnitDefinitionRootPath = \"res://resource/battle/units\"", StringComparison.Ordinal) &&
+        !factory.Contains("UnitDefinitionRootPath = \"res://assets/battle/units\"", StringComparison.Ordinal),
+        "battle unit factory broad discovery should scan the authored resource unit root");
+    AssertTrue(
         !factory.Contains("private readonly Dictionary<string, BattleUnitDefinition> _definitions", StringComparison.Ordinal),
         "per-scene unit definition cache rebuilds cause world detail clicks to rescan unit resources");
 }

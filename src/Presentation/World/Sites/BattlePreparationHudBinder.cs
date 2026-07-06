@@ -42,6 +42,7 @@ internal sealed class BattlePreparationHudBinder
             row.Bind(
                 group.GroupKey,
                 group.DisplayName,
+                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(group.HeroBattleUnitId),
                 ResolveCompanyPlanStatus(group, resolvePlan?.Invoke(group.GroupKey, create: false), objectiveZones, explicitRuleGroups),
                 selected);
             row.Selected += onSelected;

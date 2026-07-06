@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Theme" path="res://assets/themes/game-ui-skin/build_inventory_preview_theme.tres" id="1_theme"]
+[ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/build_inventory_preview_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/WorldBuildingOptionCard.cs" id="2_card_script"]
 
 [node name="WorldBuildingOptionCard" type="Button"]
@@ -39,7 +39,7 @@ custom_minimum_size = Vector2(96, 18)
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.33, 0.17, 0.08, 1)
+theme_override_colors/font_color = Color(0.96, 0.78, 0.62, 1)
 text = "建筑"
 horizontal_alignment = 1
 vertical_alignment = 1

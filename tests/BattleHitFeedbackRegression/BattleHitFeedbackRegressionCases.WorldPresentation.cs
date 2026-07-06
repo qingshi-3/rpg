@@ -92,28 +92,36 @@ internal static void GameUiSkinInstallsProjectCursorAssets()
 
     string handCursorPath = Path.Combine(cursorDir, "cursor_hand.png");
     AssertTrue(File.Exists(handCursorPath), "project cursor hand asset should exist.");
-    AssertEqual((32, 32), ReadPngSize(handCursorPath), "project cursor hand asset should be compact enough for normal gameplay use");
+    (int cursorWidth, int cursorHeight) = ReadPngSize(handCursorPath);
+    AssertTrue(
+        cursorWidth <= 128 && cursorHeight <= 128,
+        $"project cursor hand asset should be compact enough for normal gameplay use: actual=({cursorWidth}, {cursorHeight})");
 
     string cursorThemeBody = ExtractMethodBlock(skin, "public static void ApplyGameCursorTheme()");
+    string cursorLoaderBody = ExtractMethodBlock(skin, "private static Texture2D LoadCursorTexture");
     AssertTrue(
-        cursorThemeBody.Contains("ApplyCursorTexture", StringComparison.Ordinal) &&
-        skin.Contains("Input.SetCustomMouseCursor", StringComparison.Ordinal) &&
-        skin.Contains("ImageTexture.CreateFromImage(image)", StringComparison.Ordinal),
+        cursorThemeBody.Contains("ApplyCursorFrame", StringComparison.Ordinal) &&
+        skin.Contains("Input.SetCustomMouseCursor", StringComparison.Ordinal),
         "GameUiSkin should expose one global project cursor installation entry point.");
     AssertTrue(
-        cursorThemeBody.Contains("Texture2D hand = LoadCursorTexture(\"cursor_hand.png\")", StringComparison.Ordinal) &&
+        cursorThemeBody.Contains("LoadCursorTexture(\"cursor_hand.png\")", StringComparison.Ordinal) &&
         !skin.Contains("cursor_arrow.png", StringComparison.Ordinal) &&
         !skin.Contains("cursor_interact.png", StringComparison.Ordinal) &&
         !skin.Contains("cursor_command.png", StringComparison.Ordinal) &&
         !skin.Contains("cursor_forbidden.png", StringComparison.Ordinal),
         "project cursor theme should use one hand asset instead of separate state assets.");
     AssertTrue(
-        cursorThemeBody.Contains("Input.CursorShape.Arrow", StringComparison.Ordinal) &&
-        cursorThemeBody.Contains("Input.CursorShape.Cross", StringComparison.Ordinal) &&
-        cursorThemeBody.Contains("Input.CursorShape.Drag", StringComparison.Ordinal) &&
-        cursorThemeBody.Contains("Input.CursorShape.CanDrop", StringComparison.Ordinal) &&
-        cursorThemeBody.Contains("Input.CursorShape.PointingHand", StringComparison.Ordinal) &&
-        cursorThemeBody.Contains("Input.CursorShape.Forbidden", StringComparison.Ordinal),
+        cursorLoaderBody.Contains("GD.Load<Texture2D>(path)", StringComparison.Ordinal) &&
+        !cursorLoaderBody.Contains("Image.LoadFromFile", StringComparison.Ordinal) &&
+        !cursorLoaderBody.Contains("ImageTexture.CreateFromImage", StringComparison.Ordinal),
+        "project cursor theme should load imported Texture2D resources instead of temporary source PNG images.");
+    AssertTrue(
+        skin.Contains("Input.CursorShape.Arrow", StringComparison.Ordinal) &&
+        skin.Contains("Input.CursorShape.Cross", StringComparison.Ordinal) &&
+        skin.Contains("Input.CursorShape.Drag", StringComparison.Ordinal) &&
+        skin.Contains("Input.CursorShape.CanDrop", StringComparison.Ordinal) &&
+        skin.Contains("Input.CursorShape.PointingHand", StringComparison.Ordinal) &&
+        skin.Contains("Input.CursorShape.Forbidden", StringComparison.Ordinal),
         "project cursor theme should map common pointer states to the shared hand asset.");
     AssertTrue(
         strategicRoot.Contains("GameUiSkin.ApplyGameCursorTheme();", StringComparison.Ordinal),

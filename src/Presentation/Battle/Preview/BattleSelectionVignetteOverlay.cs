@@ -6,7 +6,7 @@ namespace Rpg.Presentation.Battle.Preview;
 
 public partial class BattleSelectionVignetteOverlay : ColorRect
 {
-    private const string ShaderPath = "res://assets/battle/shaders/battle_selection_vignette.gdshader";
+    private const string ShaderPath = "res://resource/shaders/battle/battle_selection_vignette.gdshader";
     private const string FocusUvParameter = "focus_uv";
     private const string ViewportSizeParameter = "viewport_size";
     private const string ShadowColorParameter = "shadow_color";

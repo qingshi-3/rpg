@@ -10,7 +10,7 @@ namespace Rpg.Presentation.Battle;
 
 public partial class BattleGridHighlightOverlay : Node2D
 {
-    private const string PerceptionRangeShaderPath = "res://assets/battle/shaders/perception_range_highlight.gdshader";
+    private const string PerceptionRangeShaderPath = "res://resource/shaders/battle/perception_range_highlight.gdshader";
     private const string PerceptionPulseSpeedParameter = "pulse_speed";
     private const string PerceptionPulseStrengthParameter = "pulse_strength";
     private const string PerceptionEdgeGlowParameter = "edge_glow";

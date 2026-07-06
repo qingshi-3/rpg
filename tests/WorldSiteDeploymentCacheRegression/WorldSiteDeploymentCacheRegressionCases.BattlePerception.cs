@@ -34,9 +34,9 @@ internal static partial class WorldSiteDeploymentCacheRegressionCases
             "BattleGridHighlightTileLayerRenderer.cs"));
         string perceptionShaderPath = Path.Combine(
             root,
-            "assets",
-            "battle",
+            "resource",
             "shaders",
+            "battle",
             "perception_range_highlight.gdshader");
         string policySource = File.ReadAllText(Path.Combine(
             root,
