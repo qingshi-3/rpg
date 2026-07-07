@@ -1160,6 +1160,10 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
     string heroCardSourcePath = Path.Combine(siteRootDir, "WorldMilitaryHeroCard.cs");
     string musterCardScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldMusterOptionCard.tscn");
     string musterCardSourcePath = Path.Combine(siteRootDir, "WorldMusterOptionCard.cs");
+    string animatedPreviewScenePath = Path.Combine(root, "scenes", "ui", "common", "BattleUnitAnimatedPreview.tscn");
+    string animatedPreviewSourcePath = Path.Combine(root, "src", "Presentation", "Common", "BattleUnitAnimatedPreview.cs");
+    string plinthPreviewScenePath = Path.Combine(root, "scenes", "ui", "common", "BattleUnitPlinthPreview.tscn");
+    string plinthPreviewSourcePath = Path.Combine(root, "src", "Presentation", "Common", "BattleUnitPlinthPreview.cs");
     string musterTooltipScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldMusterOptionTooltip.tscn");
     string musterTooltipSourcePath = Path.Combine(siteRootDir, "WorldMusterOptionTooltip.cs");
     string corpsRowScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldCorpsInstanceRow.tscn");
@@ -1168,7 +1172,7 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
     string refsPath = Path.Combine(siteRootDir, "WorldSitePeacetimeHudNodeRefs.cs");
     string siteHudPath = Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs");
     string factoryPath = Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs");
-    string resolverPath = Path.Combine(root, "src", "Presentation", "Common", "BattleUnitPreviewTextureResolver.cs");
+    string resolverPath = Path.Combine(root, "src", "Presentation", "Common", "BattleUnitPreviewResolver.cs");
     string dashboardBinderPath = Path.Combine(siteRootDir, "StrategicManagementDashboardPanelBinder.cs");
     string recruitmentThemeResourcePath = "res://resource/ui/themes/recruitment-ui-v1/recruitment_ui_v1_theme.tres";
     string recruitmentPlinthResourcePath = "res://assets/textures/ui/recruitment-ui-v1/recruitment_unit_plinth_normal.png";
@@ -1179,6 +1183,10 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
     AssertTrue(File.Exists(heroCardSourcePath), $"military workbench hero card should own its binding script path={heroCardSourcePath}");
     AssertTrue(File.Exists(musterCardScenePath), $"military workbench muster card should be an authored reusable scene path={musterCardScenePath}");
     AssertTrue(File.Exists(musterCardSourcePath), $"military workbench muster card should own its binding script path={musterCardSourcePath}");
+    AssertTrue(File.Exists(animatedPreviewScenePath), $"battle-unit animated preview should be an authored common UI scene path={animatedPreviewScenePath}");
+    AssertTrue(File.Exists(animatedPreviewSourcePath), $"battle-unit animated preview should own its binding script path={animatedPreviewSourcePath}");
+    AssertTrue(File.Exists(plinthPreviewScenePath), $"battle-unit plinth preview should be an authored common UI scene path={plinthPreviewScenePath}");
+    AssertTrue(File.Exists(plinthPreviewSourcePath), $"battle-unit plinth preview should own its binding script path={plinthPreviewSourcePath}");
     AssertTrue(File.Exists(musterTooltipScenePath), $"military muster hover detail should be an authored tooltip scene path={musterTooltipScenePath}");
     AssertTrue(File.Exists(musterTooltipSourcePath), $"military muster hover detail should own its binding script path={musterTooltipSourcePath}");
     AssertTrue(File.Exists(corpsRowScenePath), $"corps tab should use an authored reusable corps row scene path={corpsRowScenePath}");
@@ -1191,6 +1199,10 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
     string heroCardSource = File.Exists(heroCardSourcePath) ? File.ReadAllText(heroCardSourcePath) : "";
     string musterCardScene = File.Exists(musterCardScenePath) ? File.ReadAllText(musterCardScenePath) : "";
     string musterCardSource = File.Exists(musterCardSourcePath) ? File.ReadAllText(musterCardSourcePath) : "";
+    string animatedPreviewScene = File.Exists(animatedPreviewScenePath) ? File.ReadAllText(animatedPreviewScenePath) : "";
+    string animatedPreviewSource = File.Exists(animatedPreviewSourcePath) ? File.ReadAllText(animatedPreviewSourcePath) : "";
+    string plinthPreviewScene = File.Exists(plinthPreviewScenePath) ? File.ReadAllText(plinthPreviewScenePath) : "";
+    string plinthPreviewSource = File.Exists(plinthPreviewSourcePath) ? File.ReadAllText(plinthPreviewSourcePath) : "";
     string musterTooltipScene = File.Exists(musterTooltipScenePath) ? File.ReadAllText(musterTooltipScenePath) : "";
     string musterTooltipSource = File.Exists(musterTooltipSourcePath) ? File.ReadAllText(musterTooltipSourcePath) : "";
     string corpsRowScene = File.Exists(corpsRowScenePath) ? File.ReadAllText(corpsRowScenePath) : "";
@@ -1206,12 +1218,12 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
     string militaryBackButtonBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryBackButton\"");
     string militaryCloseButtonBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryCloseButton\"");
     string selectedHeroPanelBlock = ExtractSceneNodeBlock(scene, "[node name=\"SelectedHeroPanel\"");
-    string selectedHeroPlinthBlock = ExtractSceneNodeBlock(scene, "[node name=\"SelectedHeroPlinth\"");
+    string selectedHeroPlinthBlock = ExtractSceneNodeBlock(scene, "[node name=\"SelectedHeroPlinthPreview\"");
     string musterGridBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryMusterGrid\"");
     string heroCardRootBlock = ExtractSceneNodeBlock(heroCardScene, "[node name=\"WorldMilitaryHeroCard\"");
-    string heroCardPlinthBlock = ExtractSceneNodeBlock(heroCardScene, "[node name=\"Plinth\"");
+    string heroCardPlinthBlock = ExtractSceneNodeBlock(heroCardScene, "[node name=\"PlinthPreview\"");
     string musterCardRootBlock = ExtractSceneNodeBlock(musterCardScene, "[node name=\"WorldMusterOptionCard\"");
-    string musterCardPlinthBlock = ExtractSceneNodeBlock(musterCardScene, "[node name=\"Plinth\"");
+    string musterCardPlinthBlock = ExtractSceneNodeBlock(musterCardScene, "[node name=\"PlinthPreview\"");
     string musterCardNameplateBlock = ExtractSceneNodeBlock(musterCardScene, "[node name=\"Nameplate\"");
     string bindCorpsBody = ExtractMethodBody(dashboardBinderSource, "private void BindCorpsAndHeroes(");
     string musterApplyBody = ExtractMethodBody(musterCardSource, "private void ApplyBinding()");
@@ -1250,49 +1262,85 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
         workbenchBackdropBlock.Contains("type=\"ColorRect\"", StringComparison.Ordinal) &&
         workbenchBackdropBlock.Contains("visible = false", StringComparison.Ordinal) &&
         workbenchBackdropBlock.Contains("color = Color(0.03, 0.04, 0.08, 0.68)", StringComparison.Ordinal) &&
-        scene.Contains("[node name=\"SelectedHeroPortrait\" type=\"TextureRect\"", StringComparison.Ordinal),
+        scene.Contains("[node name=\"SelectedHeroPlinthPreview\" parent=\"ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame\" instance=", StringComparison.Ordinal),
         "military workbench should use the recruitment modal theme, dim the map behind it, and keep enough room for a hero-first card grid");
     AssertTrue(
         militaryBackButtonBlock.Contains("theme_type_variation = &\"RecruitmentTextButton\"", StringComparison.Ordinal) &&
         militaryCloseButtonBlock.Contains("theme_type_variation = &\"RecruitmentTextButton\"", StringComparison.Ordinal) &&
         selectedHeroPanelBlock.Contains("theme_type_variation = &\"RecruitmentSelectedCardPanel\"", StringComparison.Ordinal) &&
         scene.Contains(recruitmentSelectedPlinthResourcePath, StringComparison.Ordinal) &&
-        selectedHeroPlinthBlock.Contains("texture = ExtResource(", StringComparison.Ordinal) &&
+        selectedHeroPlinthBlock.Contains("PlinthTexture = ExtResource(", StringComparison.Ordinal) &&
         musterGridBlock.Contains("columns = 3", StringComparison.Ordinal),
         "military workbench controls should reuse recruitment button/card variations and present muster cards in a three-column panel");
     AssertTrue(
-        resolverSource.Contains("BattleUnitPreviewTextureResolver", StringComparison.Ordinal) &&
+        resolverSource.Contains("BattleUnitPreviewResolver", StringComparison.Ordinal) &&
+        animatedPreviewScene.Contains("res://src/Presentation/Common/BattleUnitAnimatedPreview.cs", StringComparison.Ordinal) &&
+        animatedPreviewSource.Contains("public partial class BattleUnitAnimatedPreview", StringComparison.Ordinal) &&
+        animatedPreviewSource.Contains("BattleUnitAnimatedPreviewLayoutMode", StringComparison.Ordinal) &&
+        animatedPreviewSource.Contains("PreviewLayoutMode", StringComparison.Ordinal) &&
+        animatedPreviewSource.Contains("ApplyFrameRectLayout", StringComparison.Ordinal) &&
+        animatedPreviewSource.Contains("public void Bind(BattleUnitAnimatedPreviewModel preview)", StringComparison.Ordinal) &&
+        animatedPreviewSource.Contains("AnimatedSprite2D", StringComparison.Ordinal) &&
         resolverSource.Contains("BattleUnitDefinitionIndexLoader.LoadDefaultPathIndex", StringComparison.Ordinal) &&
         resolverSource.Contains("GD.Load<BattleUnitDefinition>", StringComparison.Ordinal) &&
         resolverSource.Contains("definition.Visual", StringComparison.Ordinal) &&
         resolverSource.Contains("SpriteFrames", StringComparison.Ordinal) &&
         resolverSource.Contains("AnimationSet?.IdleAnimation", StringComparison.Ordinal) &&
-        resolverSource.Contains("GetFrameTexture(idleAnimation, 0)", StringComparison.Ordinal) &&
+        resolverSource.Contains("BattleUnitAnimatedPreviewModel", StringComparison.Ordinal) &&
+        resolverSource.Contains("ResolveAnimatedPreview", StringComparison.Ordinal) &&
+        resolverSource.Contains("GetFrameTexture(animationName, 0)", StringComparison.Ordinal) &&
         !resolverSource.Contains("AtlasTexture", StringComparison.Ordinal) &&
         !resolverSource.Contains(".png", StringComparison.OrdinalIgnoreCase),
-        "shared unit preview resolver should load BattleUnitDefinition visual SpriteFrames and return the idle animation first frame without raw PNG cropping");
+        "shared unit preview resolver should load BattleUnitDefinition visual SpriteFrames, expose animated preview models, and keep first-frame extraction only as a legacy adapter");
+    AssertTrue(
+        plinthPreviewScene.Contains("res://src/Presentation/Common/BattleUnitPlinthPreview.cs", StringComparison.Ordinal) &&
+        plinthPreviewScene.Contains("res://assets/textures/ui/recruitment-ui-v1/recruitment_unit_plinth_normal.png", StringComparison.Ordinal) &&
+        plinthPreviewScene.Contains("res://scenes/ui/common/BattleUnitAnimatedPreview.tscn", StringComparison.Ordinal) &&
+        plinthPreviewScene.Contains("[node name=\"Plinth\" type=\"Sprite2D\" parent=\".\"]", StringComparison.Ordinal) &&
+        plinthPreviewScene.Contains("[node name=\"HeroPreview\" parent=\".\" instance=", StringComparison.Ordinal) &&
+        plinthPreviewSource.Contains("public partial class BattleUnitPlinthPreview", StringComparison.Ordinal) &&
+        plinthPreviewSource.Contains("public Texture2D PlinthTexture", StringComparison.Ordinal) &&
+        plinthPreviewSource.Contains("private static readonly Vector2 PlinthSize = new(176f, 80f);", StringComparison.Ordinal) &&
+        plinthPreviewSource.Contains("private static readonly Vector2 HeroOffset = new(0f, -39f);", StringComparison.Ordinal) &&
+        plinthPreviewSource.Contains("private static readonly Vector2 HeroMaxSize = new(188f, 130f);", StringComparison.Ordinal) &&
+        !plinthPreviewSource.Contains("[Export]\n    public Vector2 PlinthSize", StringComparison.Ordinal) &&
+        !plinthPreviewSource.Contains("[Export]\n    public Vector2 HeroOffset", StringComparison.Ordinal) &&
+        !plinthPreviewSource.Contains("[Export]\n    public Vector2 HeroMaxSize", StringComparison.Ordinal) &&
+        plinthPreviewSource.Contains("public void Bind(BattleUnitAnimatedPreviewModel preview)", StringComparison.Ordinal),
+        "shared unit plinth preview should own fixed recruitment plinth and animated hero alignment so UI surfaces only place or scale the whole display");
     AssertTrue(
         heroCardScene.Contains("WorldMilitaryHeroCard.cs", StringComparison.Ordinal) &&
-        heroCardScene.Contains("[node name=\"Avatar\" type=\"TextureRect\"", StringComparison.Ordinal) &&
+        heroCardScene.Contains("res://scenes/ui/common/BattleUnitPlinthPreview.tscn", StringComparison.Ordinal) &&
+        heroCardScene.Contains("[node name=\"PlinthPreview\" parent=\"Content/PreviewSlot\" instance=", StringComparison.Ordinal) &&
+        heroCardScene.Contains("position = Vector2(63, 78)", StringComparison.Ordinal) &&
+        heroCardScene.Contains("scale = Vector2(0.66, 0.66)", StringComparison.Ordinal) &&
+        !heroCardScene.Contains("PlinthSize =", StringComparison.Ordinal) &&
+        !heroCardScene.Contains("HeroOffset =", StringComparison.Ordinal) &&
+        !heroCardScene.Contains("HeroMaxSize =", StringComparison.Ordinal) &&
+        !heroCardScene.Contains("HeroPreviewLayoutMode =", StringComparison.Ordinal) &&
         heroCardScene.Contains(recruitmentThemeResourcePath, StringComparison.Ordinal) &&
         heroCardRootBlock.Contains("theme_type_variation = &\"RecruitmentSelectableCardButton\"", StringComparison.Ordinal) &&
         heroCardScene.Contains(recruitmentPlinthResourcePath, StringComparison.Ordinal) &&
-        heroCardPlinthBlock.Contains("texture = ExtResource(", StringComparison.Ordinal) &&
+        heroCardPlinthBlock.Contains("PlinthTexture = ExtResource(", StringComparison.Ordinal) &&
+        !heroCardScene.Contains("[node name=\"Plinth\" type=\"TextureRect\" parent=\"Content/PreviewSlot\"]", StringComparison.Ordinal) &&
+        !heroCardScene.Contains("[node name=\"AnimatedPreview\" parent=\"Content/PreviewSlot\" instance=", StringComparison.Ordinal) &&
         !heroCardScene.Contains("basic_ui_1_panel_slot.tres", StringComparison.Ordinal) &&
         heroCardSource.Contains("WorldMilitaryHeroCard : Button", StringComparison.Ordinal) &&
         heroCardSource.Contains("SelectedEventHandler", StringComparison.Ordinal) &&
-        heroCardSource.Contains("Texture2D previewTexture", StringComparison.Ordinal) &&
+        heroCardSource.Contains("BattleUnitAnimatedPreviewModel preview", StringComparison.Ordinal) &&
+        heroCardSource.Contains("BattleUnitPlinthPreview", StringComparison.Ordinal) &&
         !heroCardSource.Contains("string iconPath", StringComparison.Ordinal) &&
         !heroCardSource.Contains("_iconPath", StringComparison.Ordinal) &&
         !heroCardSource.Contains("GD.Load<Texture2D>", StringComparison.Ordinal),
-        "hero selection should use the recruitment card theme, plinth-backed preview, typed selection signal, and externally resolved idle-frame texture");
+        "hero selection should use the recruitment card theme, plinth-backed animated preview, typed selection signal, and externally resolved battle-unit preview model");
     AssertTrue(
         factorySource.Contains("WorldMilitaryWorkbenchHeroCardScenePath", StringComparison.Ordinal) &&
         factorySource.Contains("CreateWorldMilitaryWorkbenchHeroCard", StringComparison.Ordinal),
         "UI scene factory should expose the recruitment-workbench military hero card template");
     AssertTrue(
         workbenchBinderSource.Contains("internal sealed class StrategicMilitaryWorkbenchBinder", StringComparison.Ordinal) &&
-        workbenchBinderSource.Contains("BattleUnitPreviewTextureResolver", StringComparison.Ordinal) &&
+        workbenchBinderSource.Contains("BattleUnitPreviewResolver", StringComparison.Ordinal) &&
+        workbenchBinderSource.Contains("ResolveAnimatedPreview", StringComparison.Ordinal) &&
         workbenchBinderSource.Contains("CreateWorldMilitaryWorkbenchHeroCard", StringComparison.Ordinal) &&
         workbenchBinderSource.Contains("CreateWorldMusterOptionCard", StringComparison.Ordinal) &&
         workbenchBinderSource.Contains("ResolveSelectedHeroId", StringComparison.Ordinal) &&
@@ -1303,18 +1351,28 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
         !workbenchBinderSource.Contains("GD.Load<Texture2D>(hero.IconPath)", StringComparison.Ordinal) &&
         workbenchBinderSource.Contains("BindHeroSelectionStep", StringComparison.Ordinal) &&
         workbenchBinderSource.Contains("BindCorpsAdjustmentStep", StringComparison.Ordinal),
-        "military workbench binder should own the hero-first binding, resolve battle-unit idle previews, and render an RTS-style corps card grid");
+        "military workbench binder should own the hero-first binding, resolve battle-unit animated previews, and render an RTS-style corps card grid");
     AssertTrue(
         musterCardScene.Contains("[node name=\"WorldMusterOptionCard\" type=\"Button\"", StringComparison.Ordinal) &&
-        musterCardScene.Contains("[node name=\"Icon\" type=\"TextureRect\"", StringComparison.Ordinal) &&
+        musterCardScene.Contains("res://scenes/ui/common/BattleUnitPlinthPreview.tscn", StringComparison.Ordinal) &&
+        musterCardScene.Contains("[node name=\"PlinthPreview\" parent=\"PreviewLayer\" instance=", StringComparison.Ordinal) &&
+        musterCardScene.Contains("position = Vector2(84, 99)", StringComparison.Ordinal) &&
+        musterCardScene.Contains("scale = Vector2(0.84, 0.84)", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("PlinthSize =", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("HeroOffset =", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("HeroMaxSize =", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("HeroPreviewLayoutMode =", StringComparison.Ordinal) &&
         musterCardScene.Contains(recruitmentThemeResourcePath, StringComparison.Ordinal) &&
         musterCardRootBlock.Contains("theme_type_variation = &\"RecruitmentCardButton\"", StringComparison.Ordinal) &&
         musterCardScene.Contains(recruitmentPlinthResourcePath, StringComparison.Ordinal) &&
-        musterCardPlinthBlock.Contains("texture = ExtResource(", StringComparison.Ordinal) &&
+        musterCardPlinthBlock.Contains("PlinthTexture = ExtResource(", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("[node name=\"Plinth\" type=\"TextureRect\" parent=\"PreviewLayer\"]", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("[node name=\"AnimatedPreview\" parent=\"PreviewLayer\" instance=", StringComparison.Ordinal) &&
         musterCardNameplateBlock.Contains("theme_type_variation = &\"RecruitmentNameplatePanel\"", StringComparison.Ordinal) &&
         musterCardSource.Contains("_MakeCustomTooltip", StringComparison.Ordinal) &&
         musterCardSource.Contains("WorldMusterOptionTooltip", StringComparison.Ordinal) &&
-        musterCardSource.Contains("Texture2D previewTexture", StringComparison.Ordinal) &&
+        musterCardSource.Contains("BattleUnitAnimatedPreviewModel preview", StringComparison.Ordinal) &&
+        musterCardSource.Contains("BattleUnitPlinthPreview", StringComparison.Ordinal) &&
         !musterCardSource.Contains("string iconPath", StringComparison.Ordinal) &&
         !musterCardSource.Contains("_iconPath", StringComparison.Ordinal) &&
         !musterCardSource.Contains("GD.Load<Texture2D>", StringComparison.Ordinal) &&
@@ -1323,7 +1381,17 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
         !musterApplyBody.Contains("\\n", StringComparison.Ordinal) &&
         musterCustomTooltipBody.Contains("GameUiSceneFactory.CreateWorldMusterOptionTooltip", StringComparison.Ordinal) &&
         musterPressedBody.Contains("if (_selectable)", StringComparison.Ordinal),
-        "muster option cards should use recruitment card resources, stay icon-only, bind externally resolved idle-frame textures, remain hoverable when unavailable, and move cost/reason detail into an authored tooltip");
+        "muster option cards should use recruitment card resources, stay preview-only, bind externally resolved animated previews, remain hoverable when unavailable, and move cost/reason detail into an authored tooltip");
+    AssertTrue(
+        scene.Contains("[node name=\"SelectedHeroPlinthPreview\" parent=\"ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame\" instance=", StringComparison.Ordinal) &&
+        scene.Contains("position = Vector2(115, 106)", StringComparison.Ordinal) &&
+        !scene.Contains("PlinthSize =", StringComparison.Ordinal) &&
+        !scene.Contains("HeroOffset =", StringComparison.Ordinal) &&
+        !scene.Contains("HeroMaxSize =", StringComparison.Ordinal) &&
+        !scene.Contains("HeroPreviewLayoutMode =", StringComparison.Ordinal) &&
+        !scene.Contains("[node name=\"SelectedHeroPlinth\" type=\"TextureRect\"", StringComparison.Ordinal) &&
+        !scene.Contains("[node name=\"SelectedHeroPreview\" parent=\"ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame\" instance=", StringComparison.Ordinal),
+        "selected hero workbench preview should use the fixed plinth-preview display component without overriding internal alignment.");
     AssertTrue(
         musterTooltipScene.Contains("[node name=\"WorldMusterOptionTooltip\" type=\"PanelContainer\"", StringComparison.Ordinal) &&
         musterTooltipScene.Contains("theme_type_variation = &\"WorldHoverInfoPanel\"", StringComparison.Ordinal) &&
@@ -1354,7 +1422,7 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
     AssertTrue(
         bindCorpsBody.Contains("GameUiSceneFactory.CreateWorldCorpsInstanceRow", StringComparison.Ordinal) &&
         bindCorpsBody.Contains("GameUiSceneFactory.CreateWorldMilitaryHeroCard", StringComparison.Ordinal) &&
-        bindCorpsBody.Contains("BattleUnitPreviewTextureResolver", StringComparison.Ordinal) &&
+        bindCorpsBody.Contains("BattleUnitPreviewResolver", StringComparison.Ordinal) &&
         bindCorpsBody.Contains("corps.BattleUnitId", StringComparison.Ordinal) &&
         bindCorpsBody.Contains("hero.BattleUnitId", StringComparison.Ordinal) &&
         !bindCorpsBody.Contains("corps.IconPath", StringComparison.Ordinal) &&
@@ -1379,7 +1447,7 @@ internal static void UnitIdlePreviewsReachExpeditionBattleGateAndDeploymentSurfa
     string worldDir = Path.Combine(root, "src", "Presentation", "World");
     string siteRootDir = Path.Combine(worldDir, "Sites");
     string factoryPath = Path.Combine(commonDir, "GameUiSceneFactory.cs");
-    string resolverPath = Path.Combine(commonDir, "BattleUnitPreviewTextureResolver.cs");
+    string resolverPath = Path.Combine(commonDir, "BattleUnitPreviewResolver.cs");
     string commandGroupPath = Path.Combine(siteRootDir, "BattleRuntimeCommandGroupView.cs");
     string commandHudModelPath = Path.Combine(siteRootDir, "BattleRuntimeCommandHudModel.cs");
     string preparationBinderPath = Path.Combine(siteRootDir, "BattlePreparationHudBinder.cs");
@@ -1445,7 +1513,7 @@ internal static void UnitIdlePreviewsReachExpeditionBattleGateAndDeploymentSurfa
         !rosterRowScene.Contains("[node name=\"Avatar\" type=\"ColorRect\"", StringComparison.Ordinal) &&
         rosterRowSource.Contains("Texture2D previewTexture", StringComparison.Ordinal) &&
         rosterRowSource.Contains("_avatar.Texture = _previewTexture", StringComparison.Ordinal) &&
-        preparationBinderSource.Contains("BattleUnitPreviewTextureResolver.ResolvePreviewTexture(group.HeroBattleUnitId)", StringComparison.Ordinal) &&
+        preparationBinderSource.Contains("BattleUnitPreviewResolver.ResolvePreviewTexture(group.HeroBattleUnitId)", StringComparison.Ordinal) &&
         !rosterRowSource.Contains("ColorRect", StringComparison.Ordinal),
         "battle-preparation roster rows should show the selected hero idle first frame instead of a color swatch");
     AssertTrue(
@@ -1455,8 +1523,8 @@ internal static void UnitIdlePreviewsReachExpeditionBattleGateAndDeploymentSurfa
         expeditionRowSource.Contains("public partial class WorldExpeditionCountRow : HBoxContainer", StringComparison.Ordinal) &&
         expeditionRowSource.Contains("Texture2D heroPreviewTexture", StringComparison.Ordinal) &&
         expeditionRowSource.Contains("Texture2D corpsPreviewTexture", StringComparison.Ordinal) &&
-        expeditionHudSource.Contains("BattleUnitPreviewTextureResolver.ResolvePreviewTexture(company.HeroBattleUnitId)", StringComparison.Ordinal) &&
-        expeditionHudSource.Contains("BattleUnitPreviewTextureResolver.ResolvePreviewTexture(company.CorpsBattleUnitId)", StringComparison.Ordinal) &&
+        expeditionHudSource.Contains("BattleUnitPreviewResolver.ResolvePreviewTexture(company.HeroBattleUnitId)", StringComparison.Ordinal) &&
+        expeditionHudSource.Contains("BattleUnitPreviewResolver.ResolvePreviewTexture(company.CorpsBattleUnitId)", StringComparison.Ordinal) &&
         factorySource.Contains("public static WorldExpeditionCountRow CreateWorldExpeditionCountRow", StringComparison.Ordinal),
         "strategic-world expedition draft rows should preview both hero and corps idle frames through the shared resolver");
     AssertTrue(
@@ -1466,14 +1534,14 @@ internal static void UnitIdlePreviewsReachExpeditionBattleGateAndDeploymentSurfa
         battleGateCardScene.Contains("[node name=\"Preview\" type=\"TextureRect\"", StringComparison.Ordinal) &&
         battleGateCardSource.Contains("Texture2D previewTexture", StringComparison.Ordinal) &&
         battleGateDialogSource.Contains("StrategicBattleGateForcePreviewData", StringComparison.Ordinal) &&
-        battleGateDialogSource.Contains("BattleUnitPreviewTextureResolver.ResolvePreviewTexture(item.BattleUnitId)", StringComparison.Ordinal) &&
+        battleGateDialogSource.Contains("BattleUnitPreviewResolver.ResolvePreviewTexture(item.BattleUnitId)", StringComparison.Ordinal) &&
         battleEntrySource.Contains("BuildPreBattleForcePreviewData", StringComparison.Ordinal) &&
         battleEntrySource.Contains("StrategicHeroBattleUnitId", StringComparison.Ordinal) &&
         battleEntrySource.Contains("StrategicCorpsBattleUnitId", StringComparison.Ordinal) &&
         factorySource.Contains("CreateStrategicBattleGateForcePreviewCard", StringComparison.Ordinal),
         "battle trigger brief/detail modal should show authored force preview cards instead of only multiline text");
     AssertTrue(
-        resolverSource.Contains("GetFrameTexture(idleAnimation, 0)", StringComparison.Ordinal) &&
+        resolverSource.Contains("GetFrameTexture(animationName, 0)", StringComparison.Ordinal) &&
         !expeditionHudSource.Contains("GD.Load<Texture2D>", StringComparison.Ordinal) &&
         !preparationBinderSource.Contains("GD.Load<Texture2D>", StringComparison.Ordinal) &&
         !battleGateDialogSource.Contains("GD.Load<Texture2D>", StringComparison.Ordinal),

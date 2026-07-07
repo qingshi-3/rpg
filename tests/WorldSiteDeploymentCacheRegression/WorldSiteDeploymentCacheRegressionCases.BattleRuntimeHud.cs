@@ -441,4 +441,115 @@ internal static void BattleRuntimeViewportStaysFullscreenDuringHudAndPause()
         panelVisibilityBody.IndexOf("bool shouldShow", StringComparison.Ordinal),
         "site panel visibility must short-circuit during battle runtime so tactical pause cannot reopen the management panel");
 }
+
+internal static void BattleRuntimeSelectionSupportsLiveMultiSelectForBeaconCommands()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string inputBody = ExtractMethodBody(rootSource, "public override void _Input(InputEvent @event)");
+    string selectionInputBody = ExtractMethodBody(rootSource, "private bool TryHandleBattleRuntimeCommandSelectionInput(InputEvent inputEvent)");
+    string selectBody = ExtractMethodBody(rootSource, "private void SelectBattleRuntimeCommandGroup(string groupKey, bool additive)");
+    string highlightBody = ExtractMethodBody(rootSource, "private void ApplyBattleRuntimeCommandGroupHighlight()");
+
+    AssertTrue(
+        rootSource.Contains("private readonly HashSet<string> _selectedBattleRuntimeGroupKeys", StringComparison.Ordinal) &&
+        inputBody.Contains("TryHandleBattleRuntimeCommandSelectionInput(@event)", StringComparison.Ordinal) &&
+        inputBody.Contains("TryHandleBattleRuntimeDestinationBeaconInput(@event)", StringComparison.Ordinal),
+        "battle runtime input should support selecting groups and issuing beacon commands while battle is live or tactically paused.");
+    AssertTrue(
+        selectionInputBody.Contains("InputEventMouseButton", StringComparison.Ordinal) &&
+        selectionInputBody.Contains("mouseButton.ButtonIndex == MouseButton.Left", StringComparison.Ordinal) &&
+        selectionInputBody.Contains("TryGetMouseGridPosition(out GridPosition position)", StringComparison.Ordinal) &&
+        selectionInputBody.Contains("TryResolveBattleRuntimeCommandGroupKeyAtPosition(position, out string groupKey)", StringComparison.Ordinal) &&
+        selectionInputBody.Contains("IsBattleRuntimeAdditiveSelectionInput(mouseButton)", StringComparison.Ordinal) &&
+        !selectionInputBody.Contains("SetBattleRuntimeCommandPauseActive", StringComparison.Ordinal),
+        "left-click group selection should work as live input without forcing tactical pause.");
+    AssertTrue(
+        selectBody.Contains("_selectedBattleRuntimeGroupKeys.Add", StringComparison.Ordinal) &&
+        selectBody.Contains("_selectedBattleRuntimeGroupKeys.Clear", StringComparison.Ordinal) &&
+        selectBody.Contains("_selectedBattleRuntimeGroupKey", StringComparison.Ordinal) &&
+        highlightBody.Contains("BuildSelectedBattleRuntimeCommandGroupEntityIds", StringComparison.Ordinal) &&
+        highlightBody.Contains("SetCommandSelectionByEntityIds", StringComparison.Ordinal),
+        "selection state should support multi-selected battle groups while preserving the primary selected group for hero skills.");
+}
+
+internal static void BattleRuntimeRightClickSubmitsDestinationBeaconCommand()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string inputBody = ExtractMethodBody(rootSource, "public override void _Input(InputEvent @event)");
+    string destinationInputBody = ExtractMethodBody(rootSource, "private bool TryHandleBattleRuntimeDestinationBeaconInput(InputEvent inputEvent)");
+    string buildRequestBody = ExtractMethodBody(rootSource, "private CommandRequest BuildBattleRuntimeDestinationBeaconCommandRequest(");
+
+    AssertTrue(
+        inputBody.IndexOf("TryHandleBattleRuntimeHeroSkillTargetInput(@event)", StringComparison.Ordinal) <
+        inputBody.IndexOf("TryHandleBattleRuntimeDestinationBeaconInput(@event)", StringComparison.Ordinal) &&
+        inputBody.IndexOf("TryHandleBattleRuntimeDestinationBeaconInput(@event)", StringComparison.Ordinal) <
+        inputBody.IndexOf("TryHandleBattleRuntimePauseInput(@event)", StringComparison.Ordinal),
+        "runtime beacon right-click should run after active skill targeting and before pause-toggle input consumes the event.");
+    AssertTrue(
+        destinationInputBody.Contains("InputEventMouseButton", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("mouseButton.ButtonIndex == MouseButton.Right", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("mouseButton.Pressed", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("BattleRuntimeCommandHudPointerGate.ContainsPointer", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("TryGetMouseGridPosition(out GridPosition position)", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("BuildBattleRuntimeDestinationBeaconCommandRequest", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("_activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand(commandRequest)", StringComparison.Ordinal) &&
+        !destinationInputBody.Contains("MovementRangeFinder", StringComparison.Ordinal) &&
+        !destinationInputBody.Contains("SetEntityPosition", StringComparison.Ordinal) &&
+        !destinationInputBody.Contains("SnapEntity", StringComparison.Ordinal),
+        "right-click destination input should submit command intent and must not move presentation entities directly.");
+    AssertTrue(
+        buildRequestBody.Contains("Kind = CommandKind.DestinationBeacon", StringComparison.Ordinal) &&
+        buildRequestBody.Contains("Channel = CommandChannel.Combined", StringComparison.Ordinal) &&
+        buildRequestBody.Contains("HasTargetGrid = true", StringComparison.Ordinal) &&
+        buildRequestBody.Contains("BattleGroupIds.Add", StringComparison.Ordinal) &&
+        buildRequestBody.Contains("TargetGridX = target.X", StringComparison.Ordinal) &&
+        buildRequestBody.Contains("TargetGridY = target.Y", StringComparison.Ordinal),
+        "destination beacon request should carry all selected battle groups and the clicked target grid.");
+}
+
+internal static void BattleRuntimeDestinationBeaconOverlayUsesRuntimeFactsOnly()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string presentationSource = ReadWorldSitePresentationSource();
+    string overlayBody = ExtractMethodBody(rootSource, "private void RefreshBattleRuntimeDestinationBeaconOverlays()");
+
+    AssertTrue(
+        overlayBody.Contains("RuntimeController?.State?.DestinationBeacons", StringComparison.Ordinal) &&
+        overlayBody.Contains("_battleDestinationBeaconMarkerPresenter.RefreshRuntime", StringComparison.Ordinal) &&
+        overlayBody.Contains("BuildBattleRuntimePlayerGroups", StringComparison.Ordinal),
+        "destination beacon marker overlays should be rebuilt from Runtime destination-beacon facts.");
+    AssertTrue(
+        !presentationSource.Contains("BattleBeaconFlowField", StringComparison.Ordinal) &&
+        !presentationSource.Contains("BeaconFlowFields", StringComparison.Ordinal) &&
+        !presentationSource.Contains("BattleBeaconMovementPlanner", StringComparison.Ordinal),
+        "Presentation must not sample flow fields or beacon movement planners; Runtime owns pathing and movement commits.");
+}
+
+internal static void BattleRuntimeDestinationBeaconsFollowTacticalPauseVisibility()
+{
+    string rootSource = ReadWorldSiteRootSource();
+    string beaconSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.BattleRuntimeDestinationBeacon.cs"));
+    string setPauseBody = ExtractMethodBody(rootSource, "private void SetBattleRuntimeCommandPauseActive(bool paused, string reason)");
+    string destinationInputBody = ExtractMethodBody(beaconSource, "private bool TryHandleBattleRuntimeDestinationBeaconInput(InputEvent inputEvent)");
+    string visibilityBody = ExtractMethodBody(beaconSource, "private void RefreshBattleRuntimeDestinationBeaconOverlayVisibility()");
+
+    AssertTrue(
+        setPauseBody.Contains("RefreshBattleRuntimeDestinationBeaconOverlayVisibility()", StringComparison.Ordinal),
+        "tactical pause toggles should immediately refresh destination beacon visibility.");
+    AssertTrue(
+        destinationInputBody.Contains("RefreshBattleRuntimeDestinationBeaconOverlayVisibility()", StringComparison.Ordinal) &&
+        !destinationInputBody.Contains("RefreshBattleRuntimeDestinationBeaconOverlays();", StringComparison.Ordinal),
+        "right-click beacon commands should update through the pause-aware visibility entry instead of unconditionally showing beacons.");
+    AssertTrue(
+        visibilityBody.Contains("_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
+        visibilityBody.Contains("RefreshBattleRuntimeDestinationBeaconOverlays()", StringComparison.Ordinal) &&
+        visibilityBody.Contains("_battleDestinationBeaconMarkerPresenter.Clear()", StringComparison.Ordinal),
+        "runtime beacon overlays should show from Runtime facts only while tactically paused and clear when battle resumes.");
+}
 }

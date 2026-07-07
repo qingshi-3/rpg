@@ -44,6 +44,7 @@ internal static class BattleDecisionOutcomeApplier
             }
 
             if (context.TargetFact == null &&
+                context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardBeacon &&
                 context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective &&
                 context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardRegion &&
                 context.Request.Kind != BattleRuntimeAiActionKind.ReturnToObjective)
@@ -76,20 +77,25 @@ internal static class BattleDecisionOutcomeApplier
                 }
             }
             else if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                     context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon ||
                      context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
                      context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective)
             {
                 context.ActorFact.Actor.TargetActorId = "";
                 BattlePlanStateEmitter.SetPlanState(
                     stream,
-                    battleId,
-                    tick,
-                    currentTimeSeconds,
-                    context.ActorFact.Actor,
-                    BattleGroupPlanRuntimeState.AdvancingToObjective,
+                        battleId,
+                        tick,
+                        currentTimeSeconds,
+                        context.ActorFact.Actor,
+                        context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon
+                            ? BattleGroupPlanRuntimeState.AdvancingToBeacon
+                            : BattleGroupPlanRuntimeState.AdvancingToObjective,
                     context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
                         ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
-                        : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
+                        : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon
+                            ? "destination_beacon_advance"
+                            : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
                             ? context.Request.ReasonCode
                             : "objective_advance");
             }
@@ -102,6 +108,7 @@ internal static class BattleDecisionOutcomeApplier
                     currentTimeSeconds,
                     ShouldPreserveMovementSteeringForFailure(context));
                 if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardTarget ||
+                    context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon ||
                     context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
                     context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
                     context.Request.Kind == BattleRuntimeAiActionKind.JoinLocalCombat ||
@@ -122,6 +129,7 @@ internal static class BattleDecisionOutcomeApplier
             }
             else if (context.Request.Kind != BattleRuntimeAiActionKind.AttackTarget &&
                      context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget &&
+                     context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardBeacon &&
                      context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective &&
                      context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardRegion &&
                      context.Request.Kind != BattleRuntimeAiActionKind.JoinLocalCombat &&
@@ -139,6 +147,7 @@ internal static class BattleDecisionOutcomeApplier
         BattleRuntimeActor actor = context?.ActorFact.Actor;
         return actor != null &&
                (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon ||
                 context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
                 context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective) &&
                actor.MovementSteeringMode == BattleLocalSteeringMode.FollowObstacle &&

@@ -40,6 +40,15 @@ internal sealed partial class BattleMovementController
 
         return request.Request.Kind switch
         {
+            BattleRuntimeAiActionKind.AdvanceTowardBeacon => BattleBeaconAdvancePlanner.BuildBeaconAdvanceContext(
+                request.Request,
+                request.ActorFact,
+                worldInputs.NavigationGraph,
+                worldInputs.Occupancy,
+                worldInputs.CandidateReservations ?? throw new System.InvalidOperationException("beacon movement proposal reservations missing"),
+                worldInputs.BeaconFlowFieldCache,
+                worldInputs.DestinationBeacons,
+                worldInputs.PerformanceCounters),
             BattleRuntimeAiActionKind.AdvanceTowardObjective or
                 BattleRuntimeAiActionKind.ReturnToObjective => BattleObjectiveAdvancePlanner.BuildObjectiveAdvanceContext(
                     request.Request,
@@ -519,7 +528,10 @@ internal readonly record struct BattleMovementProposalWorldInputs(
     BattleDynamicOccupancy Occupancy,
     BattlePerformanceCounters PerformanceCounters,
     string BattleId,
-    int Tick);
+    int Tick,
+    BattleBeaconFlowFieldCache BeaconFlowFieldCache = null,
+    IReadOnlyList<BattleRuntimeDestinationBeacon> DestinationBeacons = null,
+    BattleMovementReservationMap CandidateReservations = null);
 
 internal readonly record struct BattleTargetMovementProposalBuildRequest(
     BattleRuntimeAiActionRequest Request,

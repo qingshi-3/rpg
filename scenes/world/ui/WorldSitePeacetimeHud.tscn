@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattlePreparationObjectiveThumbnail.cs" id="1_battle_prep_thumb"]
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_battle_objective_preview"]
@@ -8,6 +8,7 @@
 [ext_resource type="Theme" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_theme.tres" id="14_theme"]
 [ext_resource type="Theme" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_ui_v1_theme.tres" id="15_recruitment_theme"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/recruitment-ui-v1/recruitment_unit_plinth_selected.png" id="16_recruitment_plinth_selected"]
+[ext_resource type="PackedScene" path="res://scenes/ui/common/BattleUnitPlinthPreview.tscn" id="17_plinth_preview"]
 
 [node name="SitePeacetimeHudRoot" type="Control"]
 z_index = 500
@@ -249,6 +250,33 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="BattlePreparationTopPromptDock" type="Control" parent="OverlayHost"]
+visible = false
+z_index = 536
+layout_mode = 1
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -210.0
+offset_top = 18.0
+offset_right = 210.0
+offset_bottom = 58.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+
+[node name="BattlePreparationTopPromptLabel" type="Label" parent="OverlayHost/BattlePreparationTopPromptDock"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+text = "右键选择部队目的地"
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="BattlePreparationRosterDock" type="PanelContainer" parent="OverlayHost"]
 visible = false
@@ -498,38 +526,9 @@ custom_minimum_size = Vector2(230, 150)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="SelectedHeroPlinth" type="TextureRect" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame"]
-layout_mode = 1
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -88.0
-offset_top = -84.0
-offset_right = 88.0
-offset_bottom = -4.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 2
-texture = ExtResource("16_recruitment_plinth_selected")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="SelectedHeroPortrait" type="TextureRect" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame"]
-layout_mode = 1
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -94.0
-offset_top = -148.0
-offset_right = 94.0
-offset_bottom = -18.0
-grow_horizontal = 2
-grow_vertical = 0
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
+[node name="SelectedHeroPlinthPreview" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame" instance=ExtResource("17_plinth_preview")]
+position = Vector2(115, 106)
+PlinthTexture = ExtResource("16_recruitment_plinth_selected")
 
 [node name="SelectedHeroTextStack" type="VBoxContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow"]
 layout_mode = 2

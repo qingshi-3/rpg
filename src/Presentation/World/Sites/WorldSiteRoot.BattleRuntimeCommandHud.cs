@@ -42,6 +42,7 @@ public partial class WorldSiteRoot
     {
         SetBattleRuntimeCommandPauseActive(!_battleRuntimeCommandPauseActive, "pause_action_toggle");
     }
+
     private void SubmitBattleRuntimeCommand(BattleCorpsCommand command)
     {
         CommandRequest commandRequest = BuildBattleRuntimeCommandRequest(command);
@@ -120,54 +121,6 @@ public partial class WorldSiteRoot
         }
         RefreshBattleRuntimeHeroFrame();
         UpdateMainWorldViewportLayout("battle_runtime_command_pause");
-    }
-    private void SelectBattleRuntimeCommandGroup(string groupKey)
-    {
-        if (!string.Equals(groupKey ?? "", _selectedBattleRuntimeGroupKey, System.StringComparison.Ordinal))
-        {
-            CancelBattleRuntimeHeroSkillTargetPicking("group_changed");
-        }
-        _selectedBattleRuntimeGroupKey = groupKey ?? "";
-        ApplyBattleRuntimeCommandGroupHighlight();
-        RefreshBattleRuntimeHeroFrame();
-        GameLog.Info(nameof(WorldSiteRoot), $"BattleRuntimeCommandGroupSelected group={_selectedBattleRuntimeGroupKey}");
-    }
-    private void EnsureSelectedBattleRuntimeCommandGroup()
-    {
-        IReadOnlyList<BattleRuntimeCommandGroupView> groups = BuildBattleRuntimePlayerGroups();
-        if (groups.Any(group => string.Equals(group.GroupKey, _selectedBattleRuntimeGroupKey, System.StringComparison.Ordinal)))
-        {
-            ApplyBattleRuntimeCommandGroupHighlight();
-            return;
-        }
-        _selectedBattleRuntimeGroupKey = groups.FirstOrDefault()?.GroupKey ?? "";
-        ApplyBattleRuntimeCommandGroupHighlight();
-    }
-    private void ApplyBattleRuntimeCommandGroupHighlight()
-    {
-        BattleRuntimeCommandGroupView selected = ResolveSelectedBattleRuntimeGroup();
-        if (selected == null)
-        {
-            _unitRoot?.ClearCommandSelection();
-            return;
-        }
-        HashSet<string> entityIds = BuildBattleRuntimeCommandGroupEntityIds(selected);
-        HashSet<string> spotlightEntityIds = BuildBattleRuntimeCommandGroupSpotlightEntityIds(selected);
-        int highlighted = _unitRoot == null ? 0 : _unitRoot.SetCommandSelectionByEntityIds(entityIds, spotlightEntityIds);
-        GameLog.Info(
-            nameof(WorldSiteRoot),
-            $"BattleRuntimeCommandGroupHighlighted group={selected.GroupKey} entities={highlighted} spotlights={spotlightEntityIds.Count}");
-    }
-    private static HashSet<string> BuildBattleRuntimeCommandGroupEntityIds(BattleRuntimeCommandGroupView selected)
-    {
-        return BattleRuntimeHeroSkillTargetPresentation.BuildGroupEntityIds(selected?.Forces);
-    }
-    private HashSet<string> BuildBattleRuntimeCommandGroupSpotlightEntityIds(BattleRuntimeCommandGroupView selected)
-    {
-        BattleEntity source = BuildBattleRuntimeHeroSkillSourceEntity(selected);
-        return string.IsNullOrWhiteSpace(source?.EntityId)
-            ? new HashSet<string>(System.StringComparer.Ordinal)
-            : new HashSet<string>(System.StringComparer.Ordinal) { source.EntityId };
     }
     private void RefreshBattleRuntimeHeroFrame()
     {
@@ -708,10 +661,17 @@ public partial class WorldSiteRoot
             .FirstOrDefault(group => string.Equals(group.GroupKey, _selectedBattleRuntimeGroupKey, System.StringComparison.Ordinal));
         if (selected != null)
         {
+            _selectedBattleRuntimeGroupKeys.Add(selected.GroupKey);
             return selected;
         }
         selected = groups.FirstOrDefault();
         _selectedBattleRuntimeGroupKey = selected?.GroupKey ?? "";
+        if (!string.IsNullOrWhiteSpace(_selectedBattleRuntimeGroupKey))
+        {
+            _selectedBattleRuntimeGroupKeys.Add(_selectedBattleRuntimeGroupKey);
+        }
+
         return selected;
     }
+
 }

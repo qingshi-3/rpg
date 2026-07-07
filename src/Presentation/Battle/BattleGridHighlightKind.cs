@@ -13,6 +13,7 @@ public enum BattleGridHighlightKind
     FriendlyPerception,
     EnemyPerception,
     FriendlyAttack,
+    DestinationBeacon,
     Selected,
     Invalid,
     Hover

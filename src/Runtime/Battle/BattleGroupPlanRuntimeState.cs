@@ -11,6 +11,6 @@ public enum BattleGroupPlanRuntimeState
     RegroupingOrReturningToObjective = 6,
     Retreating = 7,
     Routed = 8,
-    Defeated = 9
+    Defeated = 9,
+    AdvancingToBeacon = 10
 }
-

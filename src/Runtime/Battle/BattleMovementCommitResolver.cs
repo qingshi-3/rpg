@@ -105,6 +105,7 @@ internal static class BattleMovementCommitResolver
         {
             if (context?.Result != null ||
                 context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardTarget &&
+                context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardBeacon &&
                 context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardObjective &&
                 context.Request.Kind != BattleRuntimeAiActionKind.AdvanceTowardRegion &&
                 context.Request.Kind != BattleRuntimeAiActionKind.JoinLocalCombat &&
@@ -114,10 +115,14 @@ internal static class BattleMovementCommitResolver
                 continue;
             }
 
+            bool isCommandDestinationAdvance = context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon ||
+                                               context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                                               context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                                               context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective;
             bool isObjectiveAdvance = context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
                                       context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
                                       context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective;
-            if (context.TargetFact == null && !isObjectiveAdvance)
+            if (context.TargetFact == null && !isCommandDestinationAdvance)
             {
                 context.Result = BattleRuntimeAiActionResult.Failed(context.Request, "invalid_target");
                 continue;
@@ -137,7 +142,7 @@ internal static class BattleMovementCommitResolver
                 continue;
             }
 
-            if (!isObjectiveAdvance && context.TargetFact.Value.Actor.HitPoints <= 0)
+            if (!isCommandDestinationAdvance && context.TargetFact.Value.Actor.HitPoints <= 0)
             {
                 if (!context.AllowStaleTargetRetarget ||
                     !retargetStaleAdvanceContext(

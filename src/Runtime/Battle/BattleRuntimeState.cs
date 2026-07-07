@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Runtime.Battle.Navigation;
 using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
@@ -13,7 +14,9 @@ public sealed class BattleRuntimeState
     public List<BattleRuntimeActor> Actors { get; set; } = new();
     public List<BattleObjectiveZoneSnapshot> ObjectiveZones { get; set; } = new();
     public List<BattleSkillSnapshot> SkillDefinitions { get; set; } = new();
+    public List<BattleRuntimeDestinationBeacon> DestinationBeacons { get; } = new();
     public List<BattleRuntimeSpatialMark> SpatialMarks { get; } = new();
+    internal BattleBeaconFlowFieldCache BeaconFlowFields { get; } = new();
     internal long NextAbilityOrderSequence { get; set; }
     internal BattleSkillAvailabilityState SkillAvailability { get; } = new();
     internal BattleGroupTacticalStateStore TacticalStateStore { get; set; } = BattleGroupTacticalStateStore.Empty();

@@ -121,8 +121,17 @@ public sealed class BattleRuntimeActor
     public int ActionLockTicksRemaining { get; set; }
     public string ActionLockReason { get; set; } = "";
     public string CommandId { get; set; } = "";
-    // Battle-group plans keep player intent separate from target-specific pathing,
-    // so movement can advance toward an objective without globally rescoring enemies.
+    // Destination beacon fields are derived command-execution cache. The shared
+    // beacon object remains on BattleRuntimeState; actors keep the active revision
+    // so movement continuations can stop when the selected group receives a new order.
+    public string ActiveDestinationBeaconId { get; set; } = "";
+    public int ActiveDestinationBeaconRevision { get; set; }
+    public int ActiveDestinationBeaconGridX { get; set; }
+    public int ActiveDestinationBeaconGridY { get; set; }
+    public int ActiveDestinationBeaconGridHeight { get; set; }
+    public string ActiveDestinationBeaconCommandId { get; set; } = "";
+    // Objective anchors are compatibility and AI/scenario facts. Player live
+    // movement intent comes from destination beacon commands after battle start.
     public BattleEngagementRule EngagementRule { get; set; } = BattleEngagementRule.AttackFirst;
     public BattleGroupPlanRuntimeState PlanState { get; set; } = BattleGroupPlanRuntimeState.SensingContact;
     public bool HasObjectiveAnchor { get; set; }

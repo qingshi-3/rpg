@@ -123,7 +123,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private GridContainer _militaryMusterGrid;
 	private Label _militaryHeroSummaryLabel;
 	private Label _militaryNoticeLabel;
-	private TextureRect _militarySelectedHeroPortrait;
+	private BattleUnitPlinthPreview _militarySelectedHeroPreview;
 	private Label _militarySelectedHeroNameLabel;
 	private Label _militarySelectedHeroCorpsLabel;
 	private Button _militaryBackButton;
@@ -144,6 +144,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Button _battlePreparationStartButton;
 	private Control _battlePreparationObjectiveThumbnailDock;
 	private BattlePreparationObjectiveThumbnail _battlePreparationObjectiveThumbnail;
+	private Label _battlePreparationTopPromptLabel;
 	private Button _returnMapButton;
 	private BattleObjectiveMapDialog _battleObjectiveMapDialog;
 	private PostBattleSettlementDialog _postBattleSettlementDialog;
@@ -153,6 +154,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private StrategicMilitaryWorkbenchBinder _strategicMilitaryWorkbenchBinder;
 	private readonly BattleObjectivePlanningHudBinder _battleObjectivePlanningHudBinder = new();
 	private readonly BattlePreparationHudBinder _battlePreparationHudBinder = new();
+	private readonly BattleDestinationBeaconMarkerPresenter _battleDestinationBeaconMarkerPresenter = new();
 	private readonly Dictionary<string, StrategicCityBuildingMapEntity> _cityBuildingEntities = new();
 	private readonly Dictionary<string, Node2D> _sitePlacementEntities = new();
 	private SemanticMapMarkerExtractionResult _semanticMapMarkers = new();
@@ -180,6 +182,8 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private string _selectedMilitaryWorkbenchHeroId = "";
 	private BattleCorpsCommand _selectedBattleCorpsCommand = BattleCorpsCommand.Assault;
 	private string _selectedBattleRuntimeGroupKey = "";
+	private readonly HashSet<string> _selectedBattleRuntimeGroupKeys = new(System.StringComparer.Ordinal);
+	private int _battleRuntimeDestinationBeaconCommandSequence;
 	private string _hoveredBattleRuntimeEntityId = "";
 	private SiteManagementSection _selectedSiteManagementSection = SiteManagementSection.Build;
 	private bool _battleRuntimeHeroSkillTargetPickingActive;
@@ -190,6 +194,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private string _battleRuntimeSelectedRuntimeAnchorId = "";
 	private GridSurfacePosition _battleRuntimeSelectedRuntimeAnchorSurface;
 	private string _selectedBattlePreparationPlanGroupKey = "";
+	private readonly HashSet<string> _selectedBattlePreparationPlanGroupKeys = new(System.StringComparer.Ordinal);
 	private readonly HashSet<string> _explicitBattlePreparationRuleGroups = new(System.StringComparer.Ordinal);
 	private readonly Dictionary<Node, ProcessModeEnum> _battleRuntimePauseProcessModeRestore = new();
 	private string _draggedPlacementId = "";
@@ -449,6 +454,16 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 				return;
 			}
 
+			if (TryHandleBattleRuntimeDestinationBeaconInput(@event))
+			{
+				return;
+			}
+
+			if (TryHandleBattleRuntimeCommandSelectionInput(@event))
+			{
+				return;
+			}
+
 			if (TryHandleBattleRuntimePauseInput(@event))
 			{
 				return;
@@ -463,6 +478,11 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		}
 
 		if (TryHandleSiteContextClearInput(@event))
+		{
+			return;
+		}
+
+		if (TryHandleBattlePreparationDestinationBeaconInput(@event))
 		{
 			return;
 		}
@@ -518,10 +538,11 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		else
 		{
 			CancelBattleRuntimeHeroSkillTargetPicking("pause_off");
-			_unitRoot?.ClearCommandSelection();
+			ApplyBattleRuntimeCommandGroupHighlight();
 		}
 
 		ApplyBattleRuntimeScenePause(paused, reason);
+		RefreshBattleRuntimeDestinationBeaconOverlayVisibility();
 		RefreshBattleRuntimeCommandPausePresentation();
 		GameLog.Info(
 			nameof(WorldSiteRoot),

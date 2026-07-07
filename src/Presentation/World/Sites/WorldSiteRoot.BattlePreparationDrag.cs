@@ -90,7 +90,7 @@ public partial class WorldSiteRoot
         ClearBattlePreparationCompanyPlacements(group);
         ClearDraggedBattlePreparationCompanyEntities();
         CreateBattlePreparationCompanyPreviewEntities(group, BattleFaction.Player);
-        RaiseBattlePreparationCompanyPreviewEntities();
+        RaiseBattlePreparationCompanyPreviewEntities(); BattlePreparationCommandSelectionPresenter.Apply(_unitRoot, group, group.GroupKey);
         SetBattlePreparationHudRetreated(true, "company_drag_start");
         UpdateBattlePreparationCompanyDragPreview();
         GameLog.Info(
@@ -98,6 +98,8 @@ public partial class WorldSiteRoot
             $"BattlePreparationCompanyDragStarted group={group.GroupKey} members={_draggedBattlePreparationCompanyEntities.Count}");
         GetViewport().SetInputAsHandled();
     }
+
+    private void BeginBattlePreparationCompanyPlacementFollow(string groupKey) => BeginBattlePreparationCompanyDrag(groupKey);
 
     private void HandleBattlePreparationCompanyDragInput(InputEvent @event)
     {
@@ -107,7 +109,7 @@ public partial class WorldSiteRoot
             GetViewport().SetInputAsHandled();
             return;
         }
-        if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false })
+        if (@event is not InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
         {
             return;
         }
@@ -115,9 +117,15 @@ public partial class WorldSiteRoot
         bool placed = TryCommitBattlePreparationCompanyPlacement(out string failureReason);
         if (!placed)
         {
-            RestoreBattlePreparationCompanyPlacements();
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"BattlePreparationCompanyPlacementRejected group={groupKey} reason={failureReason}");
+            RefreshBattlePreparationPlanUi(FormatPlacementFailure(failureReason), "battle_preparation_company_placement_rejected");
+            GetViewport().SetInputAsHandled();
+            return;
         }
         ClearBattlePreparationCompanyDragState();
+        SetBattlePreparationTopPrompt("右键选择部队目的地");
         RefreshBattlePreparationAfterCompanyDrag(
             groupKey,
             placed ? "部队阵型已部署。" : FormatPlacementFailure(failureReason));
@@ -223,9 +231,7 @@ public partial class WorldSiteRoot
     }
 
     private void SetBattlePreparationDragFootprintPreview(IEnumerable<GridPosition> footprintCells)
-    {
-        SetBattlePreparationDragFootprintPreview(footprintCells, valid: true);
-    }
+        => SetBattlePreparationDragFootprintPreview(footprintCells, valid: true);
 
     private void SetBattlePreparationDragFootprintPreview(IEnumerable<GridPosition> footprintCells, bool valid)
     {
@@ -242,10 +248,8 @@ public partial class WorldSiteRoot
     }
 
     private BattleRuntimeCommandGroupView FindBattlePreparationCompany(string groupKey)
-    {
-        return BuildBattlePreparationPlayerGroups()
+        => BuildBattlePreparationPlayerGroups()
             .FirstOrDefault(group => string.Equals(group.GroupKey, groupKey, System.StringComparison.Ordinal));
-    }
 
     private void CaptureBattlePreparationCompanyPlacements(BattleRuntimeCommandGroupView group)
     {

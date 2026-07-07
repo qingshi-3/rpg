@@ -40,6 +40,19 @@ internal static class BattleAiActionRequestBuilder
             }
         }
 
+        bool hasActiveBeacon = BattleBeaconAdvancePlanner.HasActiveBeacon(actorFact.Actor) &&
+                               !BattleBeaconAdvancePlanner.IsBeaconReached(actorFact);
+        if (hasActiveBeacon)
+        {
+            bool targetAlreadyInRange = targetFact != null &&
+                                        BattleCombatGeometry.GetOrthogonalAttackGap(actorFact, targetFact.Value) <=
+                                        System.Math.Max(1, actorFact.Actor.AttackRange);
+            if (!targetAlreadyInRange)
+            {
+                return BattleRuntimeAiActionRequest.AdvanceTowardBeacon(actorFact.Actor.ActorId);
+            }
+        }
+
         bool shouldAdvanceInsideCommandScope =
             targetFact == null ||
             actorFact.Actor.EngagementRule == BattleEngagementRule.MoveFirst &&

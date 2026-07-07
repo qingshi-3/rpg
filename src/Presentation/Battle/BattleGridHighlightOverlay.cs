@@ -89,6 +89,10 @@ public partial class BattleGridHighlightOverlay : Node2D
     public Color FriendlyAttackColor { get; set; } = new(1f, 0.82f, 0.12f, 0.28f);
 
     [Export]
+    // Destination beacons are accepted runtime command facts, not movement paths.
+    public Color DestinationBeaconColor { get; set; } = new(0.18f, 0.95f, 0.72f, 0.42f);
+
+    [Export]
     public Color SelectedColor { get; set; } = new(0.35f, 1f, 0.55f, 0.22f);
 
     [Export]
@@ -340,6 +344,4 @@ public partial class BattleGridHighlightOverlay : Node2D
         ApplyAllCellLayers();
         RebuildDynamicOverlay();
     }
-
-
 }

@@ -43,6 +43,12 @@ public partial class WorldSiteRoot
     private void RefreshBattlePreparationAfterCompanyDrag(string groupKey, string notice)
     {
         RebuildBattlePreparationCompanyMapEntities(groupKey);
+        // Dropping a company replaces the selected preview nodes with formal map
+        // entities, so the current command selection must be replayed onto them.
+        BattlePreparationCommandSelectionPresenter.Apply(
+            _unitRoot,
+            ResolveSelectedBattlePreparationGroup(),
+            _selectedBattlePreparationPlanGroupKey);
         RefreshBattlePreparationPlanUi(notice, "battle_preparation_company_drag");
     }
 

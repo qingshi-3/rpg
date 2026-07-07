@@ -8,11 +8,11 @@ public partial class WorldMusterOptionCard : Button
     [Signal]
     public delegate void SelectedEventHandler(string corpsDefinitionId);
 
-    private TextureRect _icon;
+    private BattleUnitPlinthPreview _preview;
     private Label _nameLabel;
     private string _corpsDefinitionId = "";
     private string _displayName = "";
-    private Texture2D _previewTexture;
+    private BattleUnitAnimatedPreviewModel _previewModel;
     private int _reserveCost;
     private string _costText = "";
     private string _disabledReason = "";
@@ -21,7 +21,7 @@ public partial class WorldMusterOptionCard : Button
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        _icon = GetNodeOrNull<TextureRect>("PreviewLayer/Icon") ?? GetNodeOrNull<TextureRect>("Content/Icon");
+        _preview = GetNodeOrNull<BattleUnitPlinthPreview>("PreviewLayer/PlinthPreview");
         _nameLabel = GetNodeOrNull<Label>("Nameplate/NameLabel") ?? GetNodeOrNull<Label>("Content/NameLabel");
         Pressed += OnPressed;
         ApplyBinding();
@@ -35,7 +35,7 @@ public partial class WorldMusterOptionCard : Button
     public void Bind(
         string corpsDefinitionId,
         string displayName,
-        Texture2D previewTexture,
+        BattleUnitAnimatedPreviewModel preview,
         int reserveCost,
         string costText,
         bool selectable,
@@ -43,7 +43,7 @@ public partial class WorldMusterOptionCard : Button
     {
         _corpsDefinitionId = corpsDefinitionId ?? "";
         _displayName = string.IsNullOrWhiteSpace(displayName) ? "编制" : displayName.Trim();
-        _previewTexture = previewTexture;
+        _previewModel = preview;
         _reserveCost = System.Math.Max(0, reserveCost);
         _costText = string.IsNullOrWhiteSpace(costText) ? "无" : costText.Trim();
         _selectable = selectable;
@@ -87,9 +87,9 @@ public partial class WorldMusterOptionCard : Button
             _nameLabel.Text = _displayName;
         }
 
-        if (_icon != null)
+        if (_preview != null)
         {
-            _icon.Texture = _previewTexture;
+            _preview.Bind(_previewModel);
         }
     }
 

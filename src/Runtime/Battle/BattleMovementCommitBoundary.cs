@@ -34,14 +34,18 @@ internal static class BattleMovementCommitBoundary
         actor.ReservedGridHeight = selectedMove.Height;
 
         BattleGroupPlanRuntimeState planState =
-            context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
-            context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
-            context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                ? BattleGroupPlanRuntimeState.AdvancingToObjective
-                : BattleGroupPlanRuntimeState.MovingToAttackSlot;
-        string transitionReason = context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
-            ? "objective_advance"
-            : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
+            context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon
+                ? BattleGroupPlanRuntimeState.AdvancingToBeacon
+                : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+                  context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
+                  context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
+                    ? BattleGroupPlanRuntimeState.AdvancingToObjective
+                    : BattleGroupPlanRuntimeState.MovingToAttackSlot;
+        string transitionReason = context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon
+            ? "destination_beacon_advance"
+            : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+                ? "objective_advance"
+                : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
                 ? context.Request.ReasonCode
                 : context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
                     ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
@@ -78,13 +82,15 @@ internal static class BattleMovementCommitBoundary
             selectedMove,
             !string.IsNullOrWhiteSpace(context.Proposal.MovementReasonCode)
                 ? context.Proposal.MovementReasonCode
-                : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
-                    ? "plan_objective_advance"
-                    : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
-                        ? context.Request.ReasonCode
-                        : context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                            ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
-                            : "auto_advance"));
+                : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon
+                    ? "destination_beacon_advance"
+                    : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
+                        ? "plan_objective_advance"
+                        : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
+                            ? context.Request.ReasonCode
+                            : context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
+                                ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
+                                : "auto_advance"));
         performanceCounters?.RecordMovementEvent(currentTimeSeconds);
     }
 
@@ -93,6 +99,11 @@ internal static class BattleMovementCommitBoundary
         if (context?.Request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion)
         {
             return context.Request.RegionMovementGoal?.RegionId ?? "";
+        }
+
+        if (context?.Request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon)
+        {
+            return context.ActorFact.Actor.ActiveDestinationBeaconId ?? "";
         }
 
         return context?.TargetFact?.Actor.ActorId ?? context?.ActorFact.Actor.ObjectiveZoneId ?? "";

@@ -75,6 +75,8 @@ internal static class BattleStaleAdvanceRetargeting
             tacticalStateStore,
             groupActionZones,
             combatZones,
+            null,
+            Array.Empty<BattleRuntimeDestinationBeacon>(),
             aiExecutor);
         if (refreshed.TargetFact == null ||
             refreshed.TargetFact.Value.Actor.HitPoints <= 0 ||

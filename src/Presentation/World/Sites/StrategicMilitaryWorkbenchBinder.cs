@@ -14,7 +14,7 @@ internal sealed class StrategicMilitaryWorkbenchBinder
     private readonly GridContainer _musterGrid;
     private readonly Label _heroSummaryLabel;
     private readonly Label _noticeLabel;
-    private readonly TextureRect _selectedHeroPortrait;
+    private readonly BattleUnitPlinthPreview _selectedHeroPreview;
     private readonly Label _selectedHeroNameLabel;
     private readonly Label _selectedHeroCorpsLabel;
     private readonly Button _backButton;
@@ -28,7 +28,7 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         GridContainer musterGrid,
         Label heroSummaryLabel,
         Label noticeLabel,
-        TextureRect selectedHeroPortrait,
+        BattleUnitPlinthPreview selectedHeroPreview,
         Label selectedHeroNameLabel,
         Label selectedHeroCorpsLabel,
         Button backButton,
@@ -41,7 +41,7 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         _musterGrid = musterGrid;
         _heroSummaryLabel = heroSummaryLabel;
         _noticeLabel = noticeLabel;
-        _selectedHeroPortrait = selectedHeroPortrait;
+        _selectedHeroPreview = selectedHeroPreview;
         _selectedHeroNameLabel = selectedHeroNameLabel;
         _selectedHeroCorpsLabel = selectedHeroCorpsLabel;
         _backButton = backButton;
@@ -174,7 +174,7 @@ internal sealed class StrategicMilitaryWorkbenchBinder
             card.Bind(
                 corpsDefinitionId,
                 template.DisplayName,
-                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(template.BattleUnitId),
+                BattleUnitPreviewResolver.ResolveAnimatedPreview(template.BattleUnitId),
                 template.ReserveForceCost,
                 StrategicManagementDashboardPanelBinder.FormatCostsForPresentation(template.CreationCost),
                 template.CanCreate,
@@ -193,11 +193,11 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         string displayName = string.IsNullOrWhiteSpace(hero?.DisplayName) ? "英雄" : hero.DisplayName.Trim();
         string corpsName = string.IsNullOrWhiteSpace(hero?.AssignedCorpsDisplayName) ? "未配置编制" : hero.AssignedCorpsDisplayName.Trim();
 
-        if (_selectedHeroPortrait != null)
+        if (_selectedHeroPreview != null)
         {
-            _selectedHeroPortrait.Texture = string.IsNullOrWhiteSpace(hero?.BattleUnitId)
+            _selectedHeroPreview.Bind(string.IsNullOrWhiteSpace(hero?.BattleUnitId)
                 ? null
-                : BattleUnitPreviewTextureResolver.ResolvePreviewTexture(hero.BattleUnitId);
+                : BattleUnitPreviewResolver.ResolveAnimatedPreview(hero.BattleUnitId));
         }
 
         if (_selectedHeroNameLabel != null)
@@ -222,7 +222,7 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         card.Bind(
             hero.HeroId,
             hero.DisplayName,
-            BattleUnitPreviewTextureResolver.ResolvePreviewTexture(hero.BattleUnitId),
+            BattleUnitPreviewResolver.ResolveAnimatedPreview(hero.BattleUnitId),
             hero.AssignedCorpsDisplayName,
             string.Equals(hero.HeroId, selectedHeroId, StringComparison.Ordinal));
         card.Selected += selectedHeroIdFromCard => _selectHero?.Invoke(selectedHeroIdFromCard);

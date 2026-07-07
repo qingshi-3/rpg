@@ -29,8 +29,8 @@ public partial class StrategicWorldRoot
                     : $"{company.HeroDisplayName} + {company.CorpsDisplayName}\n{FormatStrategicExpeditionFailureReason(company.DisabledReason)}";
                 AddExpeditionCountRow(
                     status,
-                    BattleUnitPreviewTextureResolver.ResolvePreviewTexture(company.HeroBattleUnitId),
-                    BattleUnitPreviewTextureResolver.ResolvePreviewTexture(company.CorpsBattleUnitId),
+                    BattleUnitPreviewResolver.ResolvePreviewTexture(company.HeroBattleUnitId),
+                    BattleUnitPreviewResolver.ResolvePreviewTexture(company.CorpsBattleUnitId),
                     selected ? 1 : 0,
                     company.CanCreateExpedition &&
                     (selected || _expeditionHeroIds.Count < StrategicManagementRules.FirstSliceMaxHeroCompaniesPerExpedition)

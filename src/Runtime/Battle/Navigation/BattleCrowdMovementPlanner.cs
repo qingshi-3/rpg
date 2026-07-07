@@ -4,7 +4,7 @@ using Rpg.Infrastructure.Diagnostics;
 
 namespace Rpg.Runtime.Battle.Navigation;
 
-internal static class BattleCrowdMovementPlanner
+internal static partial class BattleCrowdMovementPlanner
 {
     private const int FlowCostWeight = 100;
     private const int AxisGapPenalty = 10000;

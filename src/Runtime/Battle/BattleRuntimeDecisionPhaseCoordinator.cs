@@ -68,6 +68,8 @@ internal static class BattleRuntimeDecisionPhaseCoordinator
                 state.TacticalStateStore,
                 state.GroupActionZones,
                 state.CombatZones,
+                state.BeaconFlowFields,
+                state.DestinationBeacons,
                 aiExecutor))
             .ToList();
         BattleDecisionOutcomeApplier.Apply(
@@ -96,7 +98,9 @@ internal static class BattleRuntimeDecisionPhaseCoordinator
             navigationFailureDiagnostics,
             state.TacticalStateStore,
             state.GroupActionZones,
-            state.CombatZones));
+            state.CombatZones,
+            state.BeaconFlowFields,
+            state.DestinationBeacons));
 
         return new BattleRuntimeDecisionPhaseResult(
             hasLivingActors: true,

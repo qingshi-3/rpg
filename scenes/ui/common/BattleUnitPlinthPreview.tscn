@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Common/BattleUnitPlinthPreview.cs" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/recruitment-ui-v1/recruitment_unit_plinth_normal.png" id="2_plinth"]
+[ext_resource type="PackedScene" path="res://scenes/ui/common/BattleUnitAnimatedPreview.tscn" id="3_animated_preview"]
+
+[node name="BattleUnitPlinthPreview" type="Node2D"]
+script = ExtResource("1_script")
+PlinthTexture = ExtResource("2_plinth")
+
+[node name="Plinth" type="Sprite2D" parent="."]
+z_index = 1
+texture = ExtResource("2_plinth")
+
+[node name="HeroPreview" parent="." instance=ExtResource("3_animated_preview")]
+z_index = 2
+PreviewLayoutMode = 1

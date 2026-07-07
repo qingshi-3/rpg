@@ -176,22 +176,22 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("BindBattlePreparationCompanyRoster", StringComparison.Ordinal) &&
         rootSource.Contains("BeginBattlePreparationCompanyDrag", StringComparison.Ordinal) &&
         !rootSource.Contains("BeginBattlePreparationRosterDrag", StringComparison.Ordinal),
-        "battle preparation should expose battle groups as compact draggable roster rows, not individual force-slot buttons");
+        "battle preparation should expose battle groups as compact roster placement rows, not individual force-slot buttons");
     AssertTrue(
         rootSource.Contains("_battlePreparationStartButton", StringComparison.Ordinal) &&
         rootSource.Contains("BattlePreparationStartButton", StringComparison.Ordinal) &&
         rootSource.Contains("LaunchPreparedBattle", StringComparison.Ordinal),
         "battle preparation should show an explicit compact start battle command");
     AssertTrue(
-        rootSource.Contains("目标区域", StringComparison.Ordinal) &&
-        rootSource.Contains("SelectBattlePreparationObjectiveZone", StringComparison.Ordinal) &&
-        rootSource.Contains("BattlePreparationObjectiveSelected", StringComparison.Ordinal),
-        "battle preparation should expose an explicit objective-zone selection step before runtime activation");
+        rootSource.Contains("TryHandleBattlePreparationDestinationBeaconInput", StringComparison.Ordinal) &&
+        rootSource.Contains("ApplyBattlePreparationDestinationBeaconToPlan", StringComparison.Ordinal) &&
+        rootSource.Contains("HasInitialDestinationBeacon", StringComparison.Ordinal),
+        "battle preparation should use right-click initial destination beacons instead of objective-zone selection before runtime activation");
     AssertTrue(
         rootSource.Contains("BindBattlePreparationCompactPlanControls", StringComparison.Ordinal) &&
-        rootSource.Contains("SelectBattlePreparationEngagementRule", StringComparison.Ordinal) &&
-        rootSource.Contains("BattlePreparationEngagementRuleSelected", StringComparison.Ordinal),
-        "battle preparation should expose player-selected engagement rules in compact current-company controls");
+        !ExtractMethodBody(rootSource, "private void BindBattlePreparationPanel(")
+            .Contains("BindBattlePreparationObjectiveThumbnail", StringComparison.Ordinal),
+        "battle preparation compact controls should not bind the old objective thumbnail or posture-selection flow as mandatory steps");
     AssertTrue(
         rootSource.Contains("RegisterBattlePreparationPlacement", StringComparison.Ordinal),
         "battle placements should be registered during preparation");
@@ -211,10 +211,11 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("SyncBattlePreparationPlanToRequest(request)", StringComparison.Ordinal) &&
         rootSource.Contains("BattlePreparationPlanSynced", StringComparison.Ordinal) &&
         rootSource.Contains("PlayerBattleGroupPlan", StringComparison.Ordinal),
-        "start battle should sync the selected objective and engagement rule into the same BattleStartRequest before activating runtime");
+        "start battle should sync deployment and initial-beacon plan facts into the same BattleStartRequest before activating runtime");
     AssertTrue(
-        rootSource.Contains("_explicitBattlePreparationRuleGroups.Contains(group.GroupKey)", StringComparison.Ordinal),
-        "battle launch should require an explicit engagement-rule choice for every player company");
+        !ExtractMethodBody(rootSource, "private bool CanLaunchPreparedBattle(")
+            .Contains("_explicitBattlePreparationRuleGroups.Contains", StringComparison.Ordinal),
+        "battle launch should not require an explicit engagement-rule choice for every player company");
     AssertTrue(
         rootSource.Contains("SetBattleRuntimeEnabled(true);", StringComparison.Ordinal) &&
         rootSource.Contains("Preparation can start runtime directly after the player confirms deployment", StringComparison.Ordinal),
@@ -1273,10 +1274,25 @@ internal static void BattlePreparationHudRetreatsDuringCompanyDrag()
         "company drag should slide persistent HUD offscreen at start and return it after drop or cancel.");
 }
 
-internal static void BattlePreparationLaunchRequiresExplicitCompanyPlans()
+internal static void BattlePreparationLaunchUsesDeploymentOnlyAndDefaultsAttack()
 {
     string rootSource = ReadWorldSiteRootSource();
     string canLaunchBody = ExtractMethodBody(rootSource, "private bool CanLaunchPreparedBattle(");
+    string defaultsBody = ExtractMethodBody(rootSource, "private void EnsureBattlePreparationPlanDefaults(");
+    string binderSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "BattlePreparationHudBinder.cs"));
+    string planModelSource = File.ReadAllText(Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "BattlePreparationPlanUiModel.cs"));
 
     AssertTrue(
         canLaunchBody.Contains("BuildDeployedBattlePreparationPlayerGroups", StringComparison.Ordinal) &&
@@ -1284,8 +1300,28 @@ internal static void BattlePreparationLaunchRequiresExplicitCompanyPlans()
         !canLaunchBody.Contains("ArePlayerRequestSlotsPlaced", StringComparison.Ordinal) &&
         canLaunchBody.Contains("foreach (BattleRuntimeCommandGroupView group in deployedGroups)", StringComparison.Ordinal) &&
         canLaunchBody.Contains("IsBattlePreparationCompanyPlaced(group)", StringComparison.Ordinal) &&
-        canLaunchBody.Contains("_explicitBattlePreparationRuleGroups.Contains(group.GroupKey)", StringComparison.Ordinal),
-        "start battle should require at least one deployed player company and validate only deployed companies.");
+        canLaunchBody.Contains("HasBattlePreparationInitialDestinationBeacon", StringComparison.Ordinal) &&
+        !canLaunchBody.Contains("request.ObjectiveZones?.Count", StringComparison.Ordinal) &&
+        !canLaunchBody.Contains("ObjectiveZoneId", StringComparison.Ordinal) &&
+        !canLaunchBody.Contains("_explicitBattlePreparationRuleGroups.Contains", StringComparison.Ordinal),
+        "start battle should require at least one deployed player company with an initial beacon and no longer require objective-zone or engagement-rule choices.");
+    AssertTrue(
+        defaultsBody.Contains("plan.EngagementRule = BattleEngagementRule.AttackFirst", StringComparison.Ordinal) &&
+        !defaultsBody.Contains("_selectedBattleCorpsCommand == BattleCorpsCommand.HoldLine", StringComparison.Ordinal) &&
+        !defaultsBody.Contains("BattleEngagementRule.MoveFirst", StringComparison.Ordinal),
+        "battle preparation should default every deployed group to attack posture without asking the player to choose a state.");
+    AssertTrue(
+        binderSource.Contains("HideBattlePreparationRuleButton(moveFirstButton)", StringComparison.Ordinal) &&
+        binderSource.Contains("HideBattlePreparationRuleButton(attackFirstButton)", StringComparison.Ordinal) &&
+        binderSource.Contains("HideBattlePreparationRuleButton(holdButton)", StringComparison.Ordinal) &&
+        binderSource.Contains("button.Visible = false", StringComparison.Ordinal),
+        "battle preparation binder should hide the old posture controls from the current flow.");
+    AssertTrue(
+        planModelSource.Contains("HasInitialDestinationBeacon", StringComparison.Ordinal) &&
+        planModelSource.Contains("BattlePreparationCompanyPlanStatus.Partial", StringComparison.Ordinal) &&
+        !ExtractMethodBody(planModelSource, "public static BattlePreparationCompanyPlanStatus ResolveCompanyPlanStatus(")
+            .Contains("explicitRule", StringComparison.Ordinal),
+        "battle preparation roster status should stay partial after placement until the group has an initial destination beacon.");
 }
 
 internal static void BattlePreparationLaunchExcludesReserveGroupsBeforeRuntime()

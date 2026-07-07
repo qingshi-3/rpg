@@ -161,7 +161,7 @@ public partial class StrategicBattleGateDialog : Control
             card.Bind(
                 item.DisplayName,
                 item.CountText,
-                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(item.BattleUnitId));
+                BattleUnitPreviewResolver.ResolvePreviewTexture(item.BattleUnitId));
             previewList.AddChild(card);
         }
     }

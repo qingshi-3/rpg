@@ -540,6 +540,9 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
         presentation.Contains("BaseOutlineWidthParameter", StringComparison.Ordinal),
         "battle units should default to a one-pixel pure black normal outline before selection or hit feedback.");
     AssertTrue(
+        presentation.Contains("public float SelectionOutlineWidth { get; set; } = 1.0f;", StringComparison.Ordinal),
+        "battle unit command selection should keep a restrained active outline width because several selected units can overlap on screen.");
+    AssertTrue(
         hitFeedbackPresenter.Contains("PlayHitOutlinePulse()", StringComparison.Ordinal) &&
         !unitRoot.Contains("SetHitOutlines(hitTargets, visible: true)", StringComparison.Ordinal),
         "hit feedback should pulse the unit outline at impact instead of holding a strong shader outline for the whole attack.");

@@ -81,6 +81,8 @@ public partial class WorldSiteRoot
         _battlePreparationRequest = null;
         SetBattleRuntimeCommandPauseActive(false, "runtime_activated");
         _selectedBattleRuntimeGroupKey = "";
+        _selectedBattleRuntimeGroupKeys.Clear();
+        _battleRuntimeDestinationBeaconCommandSequence = 0;
         _battlePerformanceCounters.Reset();
         // Preparation can start runtime directly after the player confirms deployment,
         // so this boundary must own the UI transition instead of relying on launch callbacks.
@@ -128,6 +130,7 @@ public partial class WorldSiteRoot
 
         UpdateSitePeacetimePanelVisibility("battle_runtime");
         ShowBattleRuntimeCommandHud(runtimeLocked: true);
+        RefreshBattleRuntimeDestinationBeaconOverlays();
         UpdateMainWorldViewportLayout("battle_runtime_hud");
     }
 

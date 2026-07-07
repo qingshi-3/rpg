@@ -10,5 +10,6 @@ public enum BattleRuntimeAiActionKind
     JoinLocalCombat = 5,
     HoldSupport = 6,
     ReturnToObjective = 7,
-    AdvanceTowardRegion = 8
+    AdvanceTowardRegion = 8,
+    AdvanceTowardBeacon = 9
 }

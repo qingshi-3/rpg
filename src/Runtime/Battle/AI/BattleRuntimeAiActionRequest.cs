@@ -45,6 +45,11 @@ public sealed class BattleRuntimeAiActionRequest
         return new BattleRuntimeAiActionRequest(BattleRuntimeAiActionKind.AdvanceTowardObjective, actorId, "", "");
     }
 
+    public static BattleRuntimeAiActionRequest AdvanceTowardBeacon(string actorId)
+    {
+        return new BattleRuntimeAiActionRequest(BattleRuntimeAiActionKind.AdvanceTowardBeacon, actorId, "", "");
+    }
+
     public static BattleRuntimeAiActionRequest AdvanceTowardRegion(string actorId, BattleRegionMovementGoal goal)
     {
         return new BattleRuntimeAiActionRequest(

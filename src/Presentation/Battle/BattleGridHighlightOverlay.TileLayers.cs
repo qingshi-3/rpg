@@ -108,6 +108,7 @@ public partial class BattleGridHighlightOverlay
             BattleGridHighlightKind.FriendlyPerception => (FriendlyPerceptionColor, WithAlpha(FriendlyPerceptionColor, 0.18f), 0f),
             BattleGridHighlightKind.EnemyPerception => (EnemyPerceptionColor, WithAlpha(EnemyPerceptionColor, 0.17f), 0f),
             BattleGridHighlightKind.FriendlyAttack => (FriendlyAttackColor, WithAlpha(FriendlyAttackColor, 0.84f), RangeBorderWidth + 0.2f),
+            BattleGridHighlightKind.DestinationBeacon => (DestinationBeaconColor, WithAlpha(DestinationBeaconColor, 0.9f), RangeBorderWidth + 0.45f),
             BattleGridHighlightKind.Selected => (SelectedColor, WithAlpha(SelectedColor, 0.62f), RangeBorderWidth),
             BattleGridHighlightKind.Invalid => (InvalidColor, WithAlpha(InvalidColor, 0.45f), RangeBorderWidth),
             BattleGridHighlightKind.Hover => (HoverFillColor, HoverBorderColor, HoverBorderWidth),
@@ -154,6 +155,7 @@ public partial class BattleGridHighlightOverlay
         yield return BattleGridHighlightKind.FriendlyPerception;
         yield return BattleGridHighlightKind.EnemyPerception;
         yield return BattleGridHighlightKind.FriendlyAttack;
+        yield return BattleGridHighlightKind.DestinationBeacon;
         yield return BattleGridHighlightKind.Invalid;
     }
 }

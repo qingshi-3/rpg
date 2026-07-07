@@ -102,7 +102,7 @@ public partial class WorldSiteRoot
         _militaryMusterGrid = hudRefs.MilitaryMusterGrid;
         _militaryHeroSummaryLabel = hudRefs.MilitaryHeroSummaryLabel;
         _militaryNoticeLabel = hudRefs.MilitaryNoticeLabel;
-        _militarySelectedHeroPortrait = hudRefs.MilitarySelectedHeroPortrait;
+        _militarySelectedHeroPreview = hudRefs.MilitarySelectedHeroPreview;
         _militarySelectedHeroNameLabel = hudRefs.MilitarySelectedHeroNameLabel;
         _militarySelectedHeroCorpsLabel = hudRefs.MilitarySelectedHeroCorpsLabel;
         _militaryBackButton = hudRefs.MilitaryBackButton;
@@ -121,6 +121,7 @@ public partial class WorldSiteRoot
         _battlePreparationStartButton = hudRefs.BattlePreparationStartButton;
         _battlePreparationObjectiveThumbnailDock = hudRefs.BattlePreparationObjectiveThumbnailDock;
         _battlePreparationObjectiveThumbnail = hudRefs.BattlePreparationObjectiveThumbnail;
+        _battlePreparationTopPromptLabel = hudRefs.BattlePreparationTopPromptLabel;
         _siteBuildingBuildTitle = hudRefs.SiteBuildingBuildTitle;
         _siteBuildingOptionGrid = hudRefs.SiteBuildingOptionGrid;
         _siteConscriptionList = hudRefs.SiteConscriptionList;
@@ -147,7 +148,7 @@ public partial class WorldSiteRoot
             _militaryMusterGrid,
             _militaryHeroSummaryLabel,
             _militaryNoticeLabel,
-            _militarySelectedHeroPortrait,
+            _militarySelectedHeroPreview,
             _militarySelectedHeroNameLabel,
             _militarySelectedHeroCorpsLabel,
             _militaryBackButton,
@@ -669,6 +670,7 @@ public partial class WorldSiteRoot
             SetHoveredBattleRuntimeEntity("");
             _unitRoot?.ClearCommandSelection();
             ClearBattlePerceptionOverlay();
+            _battleDestinationBeaconMarkerPresenter.Clear();
             RefreshBattleRuntimeHeroFrame();
             SetBattlePreparationHudVisible(false);
 
@@ -1088,11 +1090,13 @@ public partial class WorldSiteRoot
 
         if (_battlePreparationObjectiveThumbnailDock != null)
         {
-            _battlePreparationObjectiveThumbnailDock.Visible = visible;
+            _battlePreparationObjectiveThumbnailDock.Visible = false;
         }
 
         if (!visible)
         {
+            _battleDestinationBeaconMarkerPresenter.Clear();
+            SetBattlePreparationTopPrompt("");
             SetBattlePreparationHudRetreated(false, "battle_preparation_hidden");
         }
     }
@@ -1177,6 +1181,26 @@ public partial class WorldSiteRoot
                 ? StrategicWorldRuntime.LastNotice
                 : notice.Trim();
         }
+    }
+
+    private void SetBattlePreparationTopPrompt(string text)
+    {
+        if (_battlePreparationTopPromptLabel == null)
+        {
+            return;
+        }
+
+        string prompt = text?.Trim() ?? "";
+        Control promptDock = _battlePreparationTopPromptLabel.GetParent() as Control;
+        if (promptDock != null)
+        {
+            promptDock.Visible = _isBattlePreparationActive && !string.IsNullOrWhiteSpace(prompt);
+            promptDock.MouseFilter = Control.MouseFilterEnum.Ignore;
+        }
+
+        _battlePreparationTopPromptLabel.Text = prompt;
+        _battlePreparationTopPromptLabel.Visible = !string.IsNullOrWhiteSpace(prompt);
+        _battlePreparationTopPromptLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
     }
 
 }

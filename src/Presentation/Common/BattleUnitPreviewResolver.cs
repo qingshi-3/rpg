@@ -7,17 +7,51 @@ using Rpg.Infrastructure.Logging;
 
 namespace Rpg.Presentation.Common;
 
-public static class BattleUnitPreviewTextureResolver
+public static class BattleUnitPreviewResolver
 {
     private const string DefaultIdleAnimation = "idle";
 
     private static readonly Dictionary<string, Texture2D> TextureCache = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, BattleUnitAnimatedPreviewModel> AnimatedPreviewCache = new(StringComparer.Ordinal);
     private static readonly HashSet<string> LoggedWarnings = new(StringComparer.Ordinal);
 
     private static IReadOnlyDictionary<string, string> UnitDefinitionPaths = new Dictionary<string, string>(StringComparer.Ordinal);
     private static bool UnitDefinitionPathsLoaded;
 
     public static Texture2D ResolvePreviewTexture(string battleUnitId)
+    {
+        BattleUnitAnimatedPreviewModel preview = ResolveAnimatedPreview(battleUnitId);
+        return ResolvePreviewTexture(preview);
+    }
+
+    public static Texture2D ResolvePreviewTexture(BattleUnitAnimatedPreviewModel preview)
+    {
+        if (preview == null)
+        {
+            return null;
+        }
+
+        string cacheKey = $"{preview.UnitId}:{preview.AnimationName}";
+        if (TextureCache.TryGetValue(cacheKey, out Texture2D cached))
+        {
+            return cached;
+        }
+
+        StringName animationName = preview.AnimationName;
+        Texture2D texture = preview.SpriteFrames.GetFrameTexture(animationName, 0);
+        if (texture == null)
+        {
+            WarnOnce(
+                $"missing-preview-frame:{preview.UnitId}:{preview.AnimationName}",
+                $"Battle unit preview frame texture is missing for UI preview id={preview.UnitId} animation={preview.AnimationName}");
+            return null;
+        }
+
+        TextureCache[cacheKey] = texture;
+        return texture;
+    }
+
+    public static BattleUnitAnimatedPreviewModel ResolveAnimatedPreview(string battleUnitId)
     {
         string unitId = battleUnitId?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(unitId))
@@ -43,7 +77,7 @@ public static class BattleUnitPreviewTextureResolver
             ? DefaultIdleAnimation
             : definition.Visual.AnimationSet.IdleAnimation.Trim();
         string cacheKey = $"{unitId}:{idleName}";
-        if (TextureCache.TryGetValue(cacheKey, out Texture2D cached))
+        if (AnimatedPreviewCache.TryGetValue(cacheKey, out BattleUnitAnimatedPreviewModel cached))
         {
             return cached;
         }
@@ -68,15 +102,9 @@ public static class BattleUnitPreviewTextureResolver
             return null;
         }
 
-        Texture2D texture = spriteFrames.GetFrameTexture(idleAnimation, 0);
-        if (texture == null)
-        {
-            WarnOnce($"missing-idle-frame:{unitId}:{idleName}", $"Battle unit idle frame texture is missing for UI preview id={unitId} animation={idleName}");
-            return null;
-        }
-
-        TextureCache[cacheKey] = texture;
-        return texture;
+        BattleUnitAnimatedPreviewModel preview = new(unitId, spriteFrames, idleName, definition.Visual);
+        AnimatedPreviewCache[cacheKey] = preview;
+        return preview;
     }
 
     private static bool TryResolveUnitDefinitionPath(string unitId, out string path)
@@ -113,6 +141,29 @@ public static class BattleUnitPreviewTextureResolver
             return;
         }
 
-        GameLog.Warn(nameof(BattleUnitPreviewTextureResolver), message);
+        GameLog.Warn(nameof(BattleUnitPreviewResolver), message);
     }
+}
+
+public sealed class BattleUnitAnimatedPreviewModel
+{
+    public BattleUnitAnimatedPreviewModel(
+        string unitId,
+        SpriteFrames spriteFrames,
+        string animationName,
+        BattleUnitVisualDefinition visual)
+    {
+        UnitId = unitId?.Trim() ?? "";
+        SpriteFrames = spriteFrames;
+        AnimationName = string.IsNullOrWhiteSpace(animationName) ? "idle" : animationName.Trim();
+        Visual = visual;
+    }
+
+    public string UnitId { get; }
+
+    public SpriteFrames SpriteFrames { get; }
+
+    public string AnimationName { get; }
+
+    public BattleUnitVisualDefinition Visual { get; }
 }

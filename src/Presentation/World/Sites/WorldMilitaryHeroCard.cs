@@ -1,4 +1,5 @@
 using Godot;
+using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.World.Sites;
 
@@ -7,19 +8,19 @@ public partial class WorldMilitaryHeroCard : Button
     [Signal]
     public delegate void SelectedEventHandler(string heroId);
 
-    private TextureRect _avatar;
+    private BattleUnitPlinthPreview _preview;
     private Label _nameLabel;
     private Label _corpsLabel;
     private string _heroId = "";
     private string _displayName = "";
-    private Texture2D _previewTexture;
+    private BattleUnitAnimatedPreviewModel _previewModel;
     private string _corpsText = "";
     private bool _selected;
 
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        _avatar = GetNodeOrNull<TextureRect>("Content/PreviewSlot/Avatar") ?? GetNodeOrNull<TextureRect>("Content/AvatarFrame/Avatar");
+        _preview = GetNodeOrNull<BattleUnitPlinthPreview>("Content/PreviewSlot/PlinthPreview");
         _nameLabel = GetNodeOrNull<Label>("Content/TextStack/NameLabel");
         _corpsLabel = GetNodeOrNull<Label>("Content/TextStack/CorpsLabel");
         Pressed += OnPressed;
@@ -34,13 +35,13 @@ public partial class WorldMilitaryHeroCard : Button
     public void Bind(
         string heroId,
         string displayName,
-        Texture2D previewTexture,
+        BattleUnitAnimatedPreviewModel preview,
         string corpsDisplayName,
         bool selected)
     {
         _heroId = heroId ?? "";
         _displayName = string.IsNullOrWhiteSpace(displayName) ? "英雄" : displayName.Trim();
-        _previewTexture = previewTexture;
+        _previewModel = preview;
         _corpsText = string.IsNullOrWhiteSpace(corpsDisplayName) ? "未配置编制" : $"当前：{corpsDisplayName.Trim()}";
         _selected = selected;
         ApplyBinding();
@@ -54,9 +55,9 @@ public partial class WorldMilitaryHeroCard : Button
             ? new Color(1.0f, 0.92f, 0.72f, 1.0f)
             : Colors.White;
 
-        if (_avatar != null)
+        if (_preview != null)
         {
-            _avatar.Texture = _previewTexture;
+            _preview.Bind(_previewModel);
         }
 
         if (_nameLabel != null)

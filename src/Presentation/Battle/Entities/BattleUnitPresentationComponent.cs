@@ -32,7 +32,8 @@ public partial class BattleUnitPresentationComponent : BattleEntityComponent
     public Color SelectionOutlineColor { get; set; } = new(1f, 0.92f, 0.34f, 1f);
 
     [Export(PropertyHint.Range, "0.5,6,0.25")]
-    public float SelectionOutlineWidth { get; set; } = 2.0f;
+    // Command selection can cover several overlapping units, so keep it close to normal body ink.
+    public float SelectionOutlineWidth { get; set; } = 1.0f;
 
     [Export]
     public Color HitOutlineColor { get; set; } = new(1f, 0.16f, 0.08f, 0.42f);

@@ -200,6 +200,7 @@ public sealed partial class BattleRuntimeSession
         LogNavigationRouteTopologySummary(battleId, navigationGraph);
         LogNavigationActorStarts(battleId, navigationGraph, state.Actors);
         EmitInitialCommandEvents(stream, battleId, state);
+        EmitInitialDestinationBeaconEvents(stream, battleId, state);
         EmitInitialPlanEvents(stream, battleId, state);
 
         return new BattleRuntimeSessionController(
@@ -248,7 +249,7 @@ public sealed partial class BattleRuntimeSession
             string heroBattleUnitId = ResolveHeroBattleUnitId(group);
             string corpsBattleUnitId = ResolveCorpsBattleUnitId(group);
             BattleGroupPlanSnapshot plan = ResolveBattleGroupPlan(group, snapshot?.ObjectiveZones);
-            state.Actors.Add(new BattleRuntimeActor
+            BattleRuntimeActor heroActor = new()
             {
                 ActorId = $"{group.BattleGroupId}:hero",
                 BattleGroupId = commanderGroupId,
@@ -271,8 +272,9 @@ public sealed partial class BattleRuntimeSession
                 MoveStepSeconds = moveStepSeconds,
                 AttackActionSeconds = attackActionSeconds,
                 AttackImpactDelaySeconds = attackImpactDelaySeconds
-            });
-            state.Actors.Add(new BattleRuntimeActor
+            };
+            state.Actors.Add(heroActor);
+            BattleRuntimeActor corpsActor = new()
             {
                 ActorId = $"{sourceForceId}:{sourceForceIndex + 1}",
                 BattleGroupId = commanderGroupId,
@@ -309,10 +311,59 @@ public sealed partial class BattleRuntimeSession
                 PlanState = plan.HasObjectiveAnchor
                     ? BattleGroupPlanRuntimeState.AdvancingToObjective
                     : BattleGroupPlanRuntimeState.SensingContact
-            });
+            };
+            state.Actors.Add(corpsActor);
+            if (BattleRuntimeIdentityRules.IsPlayerFaction(group.FactionId))
+            {
+                SeedInitialDestinationBeacon(state, commanderGroupId, plan);
+            }
         }
 
         return state;
+    }
+
+    private static void SeedInitialDestinationBeacon(
+        BattleRuntimeState state,
+        string battleGroupId,
+        BattleGroupPlanSnapshot plan)
+    {
+        if (state == null ||
+            string.IsNullOrWhiteSpace(battleGroupId) ||
+            plan?.HasInitialDestinationBeacon != true)
+        {
+            return;
+        }
+
+        string commandId = $"{state.BattleId}:initial_destination_beacon:{battleGroupId}";
+        BattleRuntimeDestinationBeacon beacon = new()
+        {
+            BeaconId = $"{commandId}:destination",
+            CommandId = commandId,
+            Anchor = new BattleGridCoord(
+                plan.InitialDestinationCellX,
+                plan.InitialDestinationCellY,
+                plan.InitialDestinationCellHeight),
+            Revision = 1,
+            IsValid = true
+        };
+        beacon.OwnerBattleGroupIds.Add(battleGroupId);
+        state.DestinationBeacons.Add(beacon);
+
+        foreach (BattleRuntimeActor actor in state.Actors.Where(actor =>
+                     string.Equals(actor.BattleGroupId ?? "", battleGroupId, System.StringComparison.Ordinal)))
+        {
+            actor.CommandId = commandId;
+            actor.ActiveDestinationBeaconId = beacon.BeaconId;
+            actor.ActiveDestinationBeaconRevision = beacon.Revision;
+            actor.ActiveDestinationBeaconGridX = beacon.Anchor.X;
+            actor.ActiveDestinationBeaconGridY = beacon.Anchor.Y;
+            actor.ActiveDestinationBeaconGridHeight = beacon.Anchor.Height;
+            actor.ActiveDestinationBeaconCommandId = commandId;
+            actor.PlanState = BattleGroupPlanRuntimeState.AdvancingToBeacon;
+            // The seeded beacon is the first player movement intent. Actors still
+            // wait for normal Runtime decision boundaries before committing cells.
+            BattleRuntimeActorStateMachine.ClearMovementIntentSnapshot(actor);
+        }
     }
 
     internal BattleTerminationReason ResolveAutonomousCombat(
@@ -647,7 +698,11 @@ public sealed partial class BattleRuntimeSession
             ObjectiveCellY = source.HasObjectiveAnchor ? source.ObjectiveCellY : zone?.CellY ?? 0,
             ObjectiveCellHeight = source.HasObjectiveAnchor ? source.ObjectiveCellHeight : zone?.CellHeight ?? 0,
             ObjectiveWidth = source.HasObjectiveAnchor ? source.ObjectiveWidth : zone?.Width ?? 1,
-            ObjectiveHeight = source.HasObjectiveAnchor ? source.ObjectiveHeight : zone?.Height ?? 1
+            ObjectiveHeight = source.HasObjectiveAnchor ? source.ObjectiveHeight : zone?.Height ?? 1,
+            HasInitialDestinationBeacon = source.HasInitialDestinationBeacon,
+            InitialDestinationCellX = source.InitialDestinationCellX,
+            InitialDestinationCellY = source.InitialDestinationCellY,
+            InitialDestinationCellHeight = source.InitialDestinationCellHeight
         };
 
         if (string.IsNullOrWhiteSpace(resolved.ObjectiveZoneId) && zone != null)
@@ -751,6 +806,35 @@ public sealed partial class BattleRuntimeSession
                 TargetId = actor.ObjectiveZoneId ?? "",
                 Kind = BattleEventKind.BattleGroupPlanAccepted,
                 ReasonCode = actor.EngagementRule.ToString()
+            });
+        }
+    }
+
+    internal static void EmitInitialDestinationBeaconEvents(
+        BattleEventStream stream,
+        string battleId,
+        BattleRuntimeState state)
+    {
+        foreach (BattleRuntimeDestinationBeacon beacon in state?.DestinationBeacons?.Where(item =>
+                     item != null &&
+                     item.IsValid &&
+                     item.OwnerBattleGroupIds.Count > 0 &&
+                     (item.CommandId ?? "").Contains(":initial_destination_beacon:", System.StringComparison.Ordinal)) ??
+                 Enumerable.Empty<BattleRuntimeDestinationBeacon>())
+        {
+            stream.Add(new BattleEvent
+            {
+                EventId = $"{battleId}:{beacon.BeaconId}:initial_destination_beacon_seeded",
+                BattleId = battleId,
+                BattleGroupId = string.Join(",", beacon.OwnerBattleGroupIds),
+                SourceCommandId = beacon.CommandId ?? "",
+                TargetId = beacon.BeaconId ?? "",
+                Kind = BattleEventKind.CommandAccepted,
+                ReasonCode = "initial_destination_beacon_seeded",
+                HasTargetCells = true,
+                TargetGridX = beacon.Anchor.X,
+                TargetGridY = beacon.Anchor.Y,
+                TargetGridHeight = beacon.Anchor.Height
             });
         }
     }

@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d1f7agxk3ux9m"
-path="res://.godot/imported/recruitment_scroll_track_bar_b_horizontal.png-3ddc41ef9f671581bf72af64197947b1.ctex"
+uid="uid://d1f7agxk3uyam"
+path="res://.godot/imported/recruitment_scroll_track_bar_b_horizontal.png-6f1b36a60d16d3e1871e0e6486190a05.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/textures/ui/recruitment-ui-v1/recruitment_scroll_track_bar_b_horizontal.png"
-dest_files=["res://.godot/imported/recruitment_scroll_track_bar_b_horizontal.png-3ddc41ef9f671581bf72af64197947b1.ctex"]
+dest_files=["res://.godot/imported/recruitment_scroll_track_bar_b_horizontal.png-6f1b36a60d16d3e1871e0e6486190a05.ctex"]
 
 [params]
 

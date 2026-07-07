@@ -650,6 +650,7 @@ public sealed class BattleGroupSessionProbeService
 			   (!string.IsNullOrWhiteSpace(plan.ObjectiveZoneId) ||
 				!string.IsNullOrWhiteSpace(plan.InitialFormationId) ||
 				plan.HasObjectiveAnchor ||
+				plan.HasInitialDestinationBeacon ||
 				plan.EngagementRule != BattleEngagementRule.AttackFirst);
 	}
 
@@ -688,7 +689,11 @@ public sealed class BattleGroupSessionProbeService
 			ObjectiveCellY = source.ObjectiveCellY,
 			ObjectiveCellHeight = source.ObjectiveCellHeight,
 			ObjectiveWidth = source.ObjectiveWidth,
-			ObjectiveHeight = source.ObjectiveHeight
+			ObjectiveHeight = source.ObjectiveHeight,
+			HasInitialDestinationBeacon = source.HasInitialDestinationBeacon,
+			InitialDestinationCellX = source.InitialDestinationCellX,
+			InitialDestinationCellY = source.InitialDestinationCellY,
+			InitialDestinationCellHeight = source.InitialDestinationCellHeight
 		};
 	}
 

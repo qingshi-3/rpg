@@ -224,7 +224,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
             row.Bind(
                 corpsInstanceId,
                 corps.DisplayName,
-                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(corps.BattleUnitId),
+                BattleUnitPreviewResolver.ResolvePreviewTexture(corps.BattleUnitId),
                 corps.Strength,
                 corps.Level,
                 corps.EquipmentLevel,
@@ -250,7 +250,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
             card.Bind(
                 heroId,
                 hero.DisplayName,
-                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(hero.BattleUnitId),
+                BattleUnitPreviewResolver.ResolveAnimatedPreview(hero.BattleUnitId),
                 hero.AssignedCorpsDisplayName,
                 selected: false);
             card.Selected += _ => _toggleHeroAssignment?.Invoke(heroId);

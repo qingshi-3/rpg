@@ -24,7 +24,9 @@ internal sealed partial class BattleMovementController
         HashSet<string> navigationFailureDiagnostics,
         BattleGroupTacticalStateStore tacticalStateStore,
         IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
-        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones)
+        IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
+        BattleBeaconFlowFieldCache beaconFlowFieldCache = null,
+        IReadOnlyList<BattleRuntimeDestinationBeacon> destinationBeacons = null)
     {
         if (movementCompletedActorIds == null ||
             movementCompletedActorIds.Count == 0 ||
@@ -61,6 +63,8 @@ internal sealed partial class BattleMovementController
                     tacticalStateStore,
                     groupActionZones,
                     combatZones,
+                    beaconFlowFieldCache,
+                    destinationBeacons,
                     out BattleRuntimeTickContext context))
             {
                 continue;
@@ -86,6 +90,8 @@ internal sealed partial class BattleMovementController
         BattleGroupTacticalStateStore tacticalStateStore,
         IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
         IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
+        BattleBeaconFlowFieldCache beaconFlowFieldCache,
+        IReadOnlyList<BattleRuntimeDestinationBeacon> destinationBeacons,
         out BattleRuntimeTickContext context)
     {
         context = null;
@@ -113,6 +119,8 @@ internal sealed partial class BattleMovementController
                 tacticalStateStore,
                 groupActionZones,
                 combatZones,
+                beaconFlowFieldCache,
+                destinationBeacons,
                 out context))
         {
             return false;
@@ -139,6 +147,8 @@ internal sealed partial class BattleMovementController
         BattleGroupTacticalStateStore tacticalStateStore,
         IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
         IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
+        BattleBeaconFlowFieldCache beaconFlowFieldCache,
+        IReadOnlyList<BattleRuntimeDestinationBeacon> destinationBeacons,
         out BattleRuntimeTickContext context)
     {
         context = null;
@@ -148,6 +158,7 @@ internal sealed partial class BattleMovementController
             actor.Phase != BattleRuntimeActorPhase.AnchoredDecision ||
             !actor.HasMovementIntentSnapshot ||
             !CommandStillMatches(actor, actorFact) ||
+            actor.MovementIntentKind != BattleRuntimeAiActionKind.AdvanceTowardBeacon &&
             ReachedObjectiveBoundary(actorFact))
         {
             return false;
@@ -162,7 +173,9 @@ internal sealed partial class BattleMovementController
             occupancy,
             performanceCounters,
             battleId,
-            tick);
+            tick,
+            beaconFlowFieldCache,
+            destinationBeacons);
         if (TryBuildOutsiderAdvanceContext(
                 actorFact,
                 combatJoinActionZone,
@@ -189,6 +202,15 @@ internal sealed partial class BattleMovementController
                 battleId,
                 tick,
                 BattleRuntimeAiActionRequest.AdvanceTowardObjective(actor.ActorId),
+                out context),
+            BattleRuntimeAiActionKind.AdvanceTowardBeacon => TryBuildBeaconContinuation(
+                actorFact,
+                navigationGraph,
+                occupancy,
+                candidateReservations,
+                performanceCounters,
+                beaconFlowFieldCache,
+                destinationBeacons,
                 out context),
             BattleRuntimeAiActionKind.ReturnToObjective => TryBuildObjectiveContinuation(
                 actorFact,
@@ -231,6 +253,49 @@ internal sealed partial class BattleMovementController
                     out context),
             _ => false
         };
+    }
+
+    private bool TryBuildBeaconContinuation(
+        BattleRuntimeTickStartActorFact actorFact,
+        BattleNavigationGraph navigationGraph,
+        BattleDynamicOccupancy occupancy,
+        BattleMovementReservationMap candidateReservations,
+        BattlePerformanceCounters performanceCounters,
+        BattleBeaconFlowFieldCache beaconFlowFieldCache,
+        IReadOnlyList<BattleRuntimeDestinationBeacon> destinationBeacons,
+        out BattleRuntimeTickContext context)
+    {
+        context = null;
+        BattleRuntimeActor actor = actorFact.Actor;
+        if (!BattleBeaconAdvancePlanner.HasActiveBeacon(actor) ||
+            BattleBeaconAdvancePlanner.IsBeaconReached(actorFact))
+        {
+            return false;
+        }
+
+        BattleRuntimeTickContext candidate = BuildMovementProposalContext(
+            new BattleMovementProposalBuildRequest(
+                BattleRuntimeAiActionRequest.AdvanceTowardBeacon(actor.ActorId),
+                actorFact,
+                null,
+                null,
+                null),
+            new BattleMovementProposalWorldInputs(
+                navigationGraph,
+                occupancy,
+                performanceCounters,
+                "",
+                -1,
+                beaconFlowFieldCache,
+                destinationBeacons,
+                candidateReservations));
+        if (!IsUsableMoveContext(candidate))
+        {
+            return false;
+        }
+
+        context = candidate;
+        return true;
     }
 
     private bool TryBuildObjectiveContinuation(

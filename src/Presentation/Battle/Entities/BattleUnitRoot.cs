@@ -499,12 +499,16 @@ public partial class BattleUnitRoot : Node2D
     private void SetCommandSelection(IReadOnlyList<BattleEntity> nextSelection, ISet<string> spotlightEntityIds = null)
     {
         HashSet<BattleEntity> next = (nextSelection ?? System.Array.Empty<BattleEntity>())
-            .Where(entity => entity != null && GodotObject.IsInstanceValid(entity))
+            .Where(IsLiveCommandSelectionEntity)
             .ToHashSet();
 
-        foreach (BattleEntity entity in _commandSelectedEntities.Where(entity => !next.Contains(entity)).ToArray())
+        foreach (BattleEntity entity in _commandSelectedEntities.Where(entity => !IsLiveCommandSelectionEntity(entity) || !next.Contains(entity)).ToArray())
         {
-            entity.GetComponent<BattleUnitPresentationComponent>()?.SetSelected(false);
+            if (IsLiveCommandSelectionEntity(entity))
+            {
+                entity.GetComponent<BattleUnitPresentationComponent>()?.SetSelected(false);
+            }
+
             _commandSelectedEntities.Remove(entity);
         }
 
@@ -514,6 +518,13 @@ public partial class BattleUnitRoot : Node2D
             entity.GetComponent<BattleUnitPresentationComponent>()?.SetSelected(true, spotlightSelected: spotlightSelected);
             _commandSelectedEntities.Add(entity);
         }
+    }
+
+    private static bool IsLiveCommandSelectionEntity(BattleEntity entity)
+    {
+        return entity != null &&
+               GodotObject.IsInstanceValid(entity) &&
+               !entity.IsQueuedForDeletion();
     }
 
     public Task WaitForDefeatedPresentationsAsync()

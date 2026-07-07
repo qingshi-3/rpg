@@ -123,6 +123,18 @@ public sealed class BattleRuntimeSessionController
             };
         }
 
+        if (request?.Kind == CommandKind.DestinationBeacon)
+        {
+            return BattleRuntimeDestinationBeaconCommandResolver.Submit(
+                State,
+                EventStream,
+                BattleId,
+                _nextTick,
+                CurrentTimeSeconds,
+                request,
+                _navigationGraph);
+        }
+
         return BattleRuntimeHeroSkillCommandResolver.Submit(
             State,
             EventStream,

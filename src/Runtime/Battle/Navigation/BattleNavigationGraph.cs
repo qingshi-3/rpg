@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Rpg.Application.Battle.Navigation;
@@ -29,6 +30,7 @@ internal sealed class BattleNavigationGraph
     private readonly Dictionary<GraphCell, int[]> _topologyHeightsByCell;
     private readonly BattleGroupRouteHintCache _routeHintCache;
     private readonly HashSet<string> _routeHintDiagnosticKeys = new();
+    private readonly int _topologyIdentity;
 
     private BattleNavigationGraph(
         int minX,
@@ -47,6 +49,7 @@ internal sealed class BattleNavigationGraph
         _topologyEdges = topologyEdges ?? new Dictionary<BattleGridCoord, List<GraphEdge>>();
         _reverseTopologyEdges = reverseTopologyEdges ?? new Dictionary<BattleGridCoord, List<GraphEdge>>();
         _topologyHeightsByCell = BuildTopologyHeightsByCell(_topologyNodeMoveCosts.Keys);
+        _topologyIdentity = BuildTopologyIdentity(minX, maxX, minY, maxY, _topologyNodeMoveCosts, _topologyEdges);
         RouteTopology = BattleRouteTopology.Build(this);
         _routeHintCache = new BattleGroupRouteHintCache(RouteTopology);
     }
@@ -56,6 +59,7 @@ internal sealed class BattleNavigationGraph
     public int MinY { get; }
     public int MaxY { get; }
     public bool UsesTopology => _topologyNodeMoveCosts.Count > 0;
+    public int TopologyIdentity => _topologyIdentity;
     internal BattleRouteTopology RouteTopology { get; }
     public int MaxSearchNodes => UsesTopology
         ? _topologyNodeMoveCosts.Count
@@ -501,6 +505,44 @@ internal sealed class BattleNavigationGraph
         return candidate.Height < known.Height ||
                candidate.Height == known.Height && candidate.Y < known.Y ||
                candidate.Height == known.Height && candidate.Y == known.Y && candidate.X < known.X;
+    }
+
+    private static int BuildTopologyIdentity(
+        int minX,
+        int maxX,
+        int minY,
+        int maxY,
+        Dictionary<BattleGridCoord, int> nodes,
+        Dictionary<BattleGridCoord, List<GraphEdge>> edges)
+    {
+        HashCode hash = new();
+        hash.Add(minX);
+        hash.Add(maxX);
+        hash.Add(minY);
+        hash.Add(maxY);
+        foreach (BattleGridCoord node in (nodes?.Keys ?? Enumerable.Empty<BattleGridCoord>())
+                     .OrderBy(item => item.Height)
+                     .ThenBy(item => item.Y)
+                     .ThenBy(item => item.X))
+        {
+            hash.Add(node);
+        }
+
+        foreach (GraphEdge edge in (edges?.Values ?? Enumerable.Empty<List<GraphEdge>>())
+                     .SelectMany(item => item)
+                     .OrderBy(item => item.From.Height)
+                     .ThenBy(item => item.From.Y)
+                     .ThenBy(item => item.From.X)
+                     .ThenBy(item => item.To.Height)
+                     .ThenBy(item => item.To.Y)
+                     .ThenBy(item => item.To.X))
+        {
+            hash.Add(edge.From);
+            hash.Add(edge.To);
+            hash.Add(edge.MoveCost);
+        }
+
+        return hash.ToHashCode();
     }
 
     private readonly record struct GraphCell(int X, int Y);

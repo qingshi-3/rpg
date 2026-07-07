@@ -307,10 +307,21 @@ public partial class WorldSiteRoot
         IReadOnlyList<BattleRuntimeCommandGroupView> groups = BuildBattlePreparationPlayerGroups();
         if (groups.Any(group => string.Equals(group.GroupKey, _selectedBattlePreparationPlanGroupKey, System.StringComparison.Ordinal)))
         {
+            if (!string.IsNullOrWhiteSpace(_selectedBattlePreparationPlanGroupKey) &&
+                _selectedBattlePreparationPlanGroupKeys.Count == 0)
+            {
+                _selectedBattlePreparationPlanGroupKeys.Add(_selectedBattlePreparationPlanGroupKey);
+            }
+
             return;
         }
 
         _selectedBattlePreparationPlanGroupKey = groups.FirstOrDefault()?.GroupKey ?? "";
+        if (!string.IsNullOrWhiteSpace(_selectedBattlePreparationPlanGroupKey) &&
+            _selectedBattlePreparationPlanGroupKeys.Count == 0)
+        {
+            _selectedBattlePreparationPlanGroupKeys.Add(_selectedBattlePreparationPlanGroupKey);
+        }
     }
 
     private BattleGroupPlanSnapshot ResolveBattlePreparationGroupPlan(
@@ -342,7 +353,7 @@ public partial class WorldSiteRoot
             ? CopyBattlePreparationPlan(request.PlayerBattleGroupPlan)
             : new BattleGroupPlanSnapshot
             {
-                EngagementRule = request.PlayerBattleGroupPlan?.EngagementRule ?? BattleEngagementRule.MoveFirst,
+                EngagementRule = request.PlayerBattleGroupPlan?.EngagementRule ?? BattleEngagementRule.AttackFirst,
                 InitialFormationId = request.PlayerBattleGroupPlan?.InitialFormationId ?? ""
             };
         if (!string.IsNullOrWhiteSpace(key))
@@ -390,7 +401,11 @@ public partial class WorldSiteRoot
             ObjectiveCellY = source.ObjectiveCellY,
             ObjectiveCellHeight = source.ObjectiveCellHeight,
             ObjectiveWidth = source.ObjectiveWidth,
-            ObjectiveHeight = source.ObjectiveHeight
+            ObjectiveHeight = source.ObjectiveHeight,
+            HasInitialDestinationBeacon = source.HasInitialDestinationBeacon,
+            InitialDestinationCellX = source.InitialDestinationCellX,
+            InitialDestinationCellY = source.InitialDestinationCellY,
+            InitialDestinationCellHeight = source.InitialDestinationCellHeight
         };
     }
 
@@ -457,6 +472,7 @@ public partial class WorldSiteRoot
                (!string.IsNullOrWhiteSpace(plan.ObjectiveZoneId) ||
                 !string.IsNullOrWhiteSpace(plan.InitialFormationId) ||
                 plan.HasObjectiveAnchor ||
+                plan.HasInitialDestinationBeacon ||
                 plan.EngagementRule != BattleEngagementRule.AttackFirst);
     }
 

@@ -27,7 +27,7 @@ public partial class WorldSiteRoot
 
         _isBattlePreparationActive = true;
         _battlePreparationRequest = request;
-        _selectedBattleCorpsCommand = BattleRuntimeCommandHudModel.ResolveCorpsCommand(request.InitialCorpsCommandId);
+        _selectedBattleCorpsCommand = BattleCorpsCommand.Assault;
         BattleRuntimeCommandHudModel.ApplyRuntimeCommandToRequest(request, BuildBattleRuntimeCommandRequest(_selectedBattleCorpsCommand));
         SetBattleRuntimeEnabled(false, keepBattlePresentation: true);
         StrategicWorldRuntime.EnsureInitialized();
@@ -37,9 +37,11 @@ public partial class WorldSiteRoot
             : request.ReturnScenePath;
         _selectedPlacementId = "";
         _selectedBattlePreparationPlanGroupKey = "";
+        _selectedBattlePreparationPlanGroupKeys.Clear();
         _explicitBattlePreparationRuleGroups.Clear();
         ClearPlayerBattlePreparationPlacements(request, refreshMapEntities: false);
         EnsureBattlePreparationPlanDefaults(request);
+        SetBattlePreparationTopPrompt("");
 
         if (_returnMapButton != null)
         {
@@ -53,7 +55,7 @@ public partial class WorldSiteRoot
             ApplySiteHudFullRect("battle_preparation");
         }
 
-        RefreshBattlePreparationUi("拖动部队头像到部署区，选择目标和策略后开战。");
+        RefreshBattlePreparationUi("点击部队后移动鼠标预览阵型，再点击合法部署位置放下。");
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattlePreparationEntered request={request.RequestId} site={_siteHudSiteId} playerForces={request.PlayerForces.Count} enemyForces={request.EnemyForces.Count}");
@@ -105,15 +107,15 @@ public partial class WorldSiteRoot
         if (_siteResourceLabel != null)
         {
             _siteResourceLabel.Text = string.IsNullOrWhiteSpace(notice)
-                ? "拖动部队部署，点击缩略图选择目标。"
+                ? "点击部队后放置阵型，放下后右键选择目的地。"
                 : notice.Trim();
         }
 
         BindBattlePreparationCompanyRoster();
         BindBattlePreparationCompactPlanControls();
-        BindBattlePreparationObjectiveThumbnail();
         ShowBattlePreparationDeploymentZone();
         RefreshBattlePreparationMapEntities();
+        RefreshBattlePreparationDestinationBeaconOverlays();
         UpdateSitePeacetimePanelVisibility("battle_preparation_refresh");
         UpdateMainWorldViewportLayout("battle_preparation_refresh");
     }
@@ -135,11 +137,29 @@ public partial class WorldSiteRoot
     private void OnBattlePreparationCompanySelected(string groupKey)
     {
         _selectedBattlePreparationPlanGroupKey = groupKey ?? "";
+        bool additiveSelection = Input.IsKeyPressed(Key.Shift);
+        if (!string.IsNullOrWhiteSpace(_selectedBattlePreparationPlanGroupKey) && additiveSelection)
+        {
+            if (!_selectedBattlePreparationPlanGroupKeys.Add(_selectedBattlePreparationPlanGroupKey) &&
+                _selectedBattlePreparationPlanGroupKeys.Count > 1)
+            {
+                _selectedBattlePreparationPlanGroupKeys.Remove(_selectedBattlePreparationPlanGroupKey);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(_selectedBattlePreparationPlanGroupKey))
+        {
+            _selectedBattlePreparationPlanGroupKeys.Clear();
+            _selectedBattlePreparationPlanGroupKeys.Add(_selectedBattlePreparationPlanGroupKey);
+        }
+
         ResolveBattlePreparationGroupPlan(_battlePreparationRequest, _selectedBattlePreparationPlanGroupKey, create: true);
         SyncSelectedBattlePreparationPlanFallback(_battlePreparationRequest);
-        BindBattlePreparationCompanyRoster();
-        BindBattlePreparationCompactPlanControls();
-        BindBattlePreparationObjectiveThumbnail();
+        BindBattlePreparationCompanyRoster(); BindBattlePreparationCompactPlanControls();
+        if (!additiveSelection)
+        {
+            BeginBattlePreparationCompanyPlacementFollow(groupKey);
+        }
+        RefreshBattlePreparationDestinationBeaconOverlays(); BattlePreparationCommandSelectionPresenter.Apply(_unitRoot, ResolveSelectedBattlePreparationGroup(), _selectedBattlePreparationPlanGroupKey);
         GameLog.Info(nameof(WorldSiteRoot), $"BattlePreparationCompanySelected group={_selectedBattlePreparationPlanGroupKey}");
     }
 
@@ -289,12 +309,10 @@ public partial class WorldSiteRoot
         {
             BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(request, group.GroupKey, create: true);
             plan.InitialFormationId = BattlePreparationPlanUiModel.ResolveFormationId(plan.InitialFormationId, group.DefaultFormationId);
-            bool explicitRuleSelected = _explicitBattlePreparationRuleGroups.Contains(group.GroupKey);
-            if (BattlePreparationPlanUiModel.ShouldDefaultEngagementRule(plan, explicitRuleSelected))
+            if (BattlePreparationPlanUiModel.ShouldDefaultEngagementRule(plan, explicitRuleSelected: false))
             {
-                plan.EngagementRule = _selectedBattleCorpsCommand == BattleCorpsCommand.HoldLine
-                    ? BattleEngagementRule.Hold
-                    : BattleEngagementRule.MoveFirst;
+                // Destination-beacon combat starts from the default attack posture; movement goals come from live commands.
+                plan.EngagementRule = BattleEngagementRule.AttackFirst;
             }
         }
 
@@ -513,6 +531,12 @@ public partial class WorldSiteRoot
             _selectedBattlePreparationPlanGroupKey = deployedGroupKeys.OrderBy(key => key, System.StringComparer.Ordinal).FirstOrDefault() ?? "";
         }
 
+        _selectedBattlePreparationPlanGroupKeys.RemoveWhere(key => !deployedGroupKeys.Contains(key));
+        if (!string.IsNullOrWhiteSpace(_selectedBattlePreparationPlanGroupKey))
+        {
+            _selectedBattlePreparationPlanGroupKeys.Add(_selectedBattlePreparationPlanGroupKey);
+        }
+
         SyncSelectedBattlePreparationPlanFallback(request);
         GameLog.Info(
             nameof(WorldSiteRoot),
@@ -531,7 +555,7 @@ public partial class WorldSiteRoot
         var reservedDeploymentSurfaces = new HashSet<GridSurfacePosition>();
         AddRequestedForces(_battlePreparationRequest.PlayerForces, BattleFaction.Player, _battlePreparationRequest, reservedDeploymentSurfaces, requireAllPlacements: false);
         AddRequestedForces(_battlePreparationRequest.EnemyForces, BattleFaction.Enemy, _battlePreparationRequest, reservedDeploymentSurfaces, requireAllPlacements: true);
-        PlaceBattleEntitiesOnGrid();
+        PlaceBattleEntitiesOnGrid(); BattlePreparationCommandSelectionPresenter.Apply(_unitRoot, ResolveSelectedBattlePreparationGroup(), _selectedBattlePreparationPlanGroupKey);
     }
 
     private bool CanLaunchPreparedBattle(BattleStartRequest request, out string failureReason)
@@ -544,11 +568,6 @@ public partial class WorldSiteRoot
         }
 
         EnsureBattlePreparationPlanDefaults(request);
-        if ((request.ObjectiveZones?.Count ?? 0) == 0)
-        {
-            failureReason = "当前地图没有可选目标区域 marker，不能开战。";
-            return false;
-        }
 
         IReadOnlyList<BattleRuntimeCommandGroupView> deployedGroups = BuildDeployedBattlePreparationPlayerGroups();
         if (deployedGroups.Count == 0)
@@ -564,30 +583,23 @@ public partial class WorldSiteRoot
                 failureReason = $"还有部队未部署：{group.DisplayName}。";
                 return false;
             }
+        }
 
-            BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(request, group.GroupKey, create: false);
-            if (plan == null || string.IsNullOrWhiteSpace(plan.ObjectiveZoneId))
+        foreach (BattleRuntimeCommandGroupView group in deployedGroups)
+        {
+            if (!HasBattlePreparationInitialDestinationBeacon(request, group.GroupKey))
             {
-                failureReason = $"还有部队未选择进攻目标：{group.DisplayName}。";
-                return false;
-            }
-
-            bool objectiveExists = request.ObjectiveZones.Any(zone =>
-                string.Equals(zone?.ObjectiveZoneId, plan.ObjectiveZoneId, System.StringComparison.Ordinal));
-            if (!objectiveExists)
-            {
-                failureReason = $"部队目标区域已失效：{group.DisplayName}。";
-                return false;
-            }
-
-            if (!_explicitBattlePreparationRuleGroups.Contains(group.GroupKey) ||
-                !BattlePreparationPlanUiModel.IsEngagementRuleDefined(plan.EngagementRule))
-            {
-                failureReason = $"还有部队未选择推进策略：{group.DisplayName}。";
+                failureReason = $"请右键选择部队目的地：{group.DisplayName}。";
                 return false;
             }
         }
 
         return true;
+    }
+
+    private bool HasBattlePreparationInitialDestinationBeacon(BattleStartRequest request, string groupKey)
+    {
+        BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(request, groupKey, create: false);
+        return plan?.HasInitialDestinationBeacon == true;
     }
 }

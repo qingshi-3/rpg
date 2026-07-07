@@ -16,15 +16,16 @@ internal static class BattlePreparationPlanUiModel
         IReadOnlySet<string> explicitRuleGroups)
     {
         bool placed = IsCompanyPlaced(group);
-        bool objectiveSelected = IsObjectiveValid(plan, objectiveZones);
-        bool explicitRule = !string.IsNullOrWhiteSpace(group?.GroupKey) &&
-                            explicitRuleGroups.Contains(group.GroupKey);
-        if (placed && objectiveSelected && explicitRule)
+        if (placed)
         {
-            return BattlePreparationCompanyPlanStatus.Complete;
+            return plan?.HasInitialDestinationBeacon == true
+                ? BattlePreparationCompanyPlanStatus.Complete
+                : BattlePreparationCompanyPlanStatus.Partial;
         }
 
-        return placed || objectiveSelected || explicitRule
+        bool hasPartialPlacement = (group?.Forces ?? System.Array.Empty<BattleForceRequest>())
+            .Any(force => force?.PreferredPlacements?.Any(placement => placement != null) == true);
+        return hasPartialPlacement
             ? BattlePreparationCompanyPlanStatus.Partial
             : BattlePreparationCompanyPlanStatus.Missing;
     }
@@ -97,14 +98,10 @@ internal static class BattlePreparationPlanUiModel
 
     public static bool ShouldDefaultEngagementRule(BattleGroupPlanSnapshot plan, bool explicitRuleSelected)
     {
-        if (plan == null || !IsEngagementRuleDefined(plan.EngagementRule))
-        {
-            return true;
-        }
-
-        return plan.EngagementRule == BattleEngagementRule.AttackFirst &&
-               !explicitRuleSelected &&
-               string.IsNullOrWhiteSpace(plan.ObjectiveZoneId);
+        return plan == null ||
+               !explicitRuleSelected ||
+               !IsEngagementRuleDefined(plan.EngagementRule) ||
+               plan.EngagementRule != BattleEngagementRule.AttackFirst;
     }
 
     public static string ResolveFormationId(string currentFormationId, string defaultFormationId)

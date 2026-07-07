@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dt84x8u5kiqm7"
-path="res://.godot/imported/recruitment_scroll_grabber_horizontal_hover.png-36159ca407dd042238b6d34225041c61.ctex"
+path="res://.godot/imported/recruitment_scroll_grabber_horizontal_hover.png-edce7981f2be14beac03facc3f399da5.ctex"
 metadata={
 "vram_texture": false
 }
@@ -11,7 +11,7 @@ metadata={
 [deps]
 
 source_file="res://assets/textures/ui/recruitment-ui-v1/recruitment_scroll_grabber_horizontal_hover.png"
-dest_files=["res://.godot/imported/recruitment_scroll_grabber_horizontal_hover.png-36159ca407dd042238b6d34225041c61.ctex"]
+dest_files=["res://.godot/imported/recruitment_scroll_grabber_horizontal_hover.png-edce7981f2be14beac03facc3f399da5.ctex"]
 
 [params]
 

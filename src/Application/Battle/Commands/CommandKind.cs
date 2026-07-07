@@ -7,5 +7,6 @@ public enum CommandKind
 	Hold = 2,
 	Retreat = 3,
 	CastSkill = 4,
-	Regroup = 5
+	Regroup = 5,
+	DestinationBeacon = 6
 }

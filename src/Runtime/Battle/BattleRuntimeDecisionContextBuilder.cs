@@ -26,6 +26,8 @@ internal static class BattleRuntimeDecisionContextBuilder
         BattleGroupTacticalStateStore tacticalStateStore,
         IReadOnlyDictionary<string, BattleGroupActionZoneSnapshot> groupActionZones,
         IReadOnlyDictionary<string, BattleCombatZoneSnapshot> combatZones,
+        BattleBeaconFlowFieldCache beaconFlowFieldCache,
+        IReadOnlyList<BattleRuntimeDestinationBeacon> destinationBeacons,
         IBattleRuntimeAiExecutor aiExecutor)
     {
         if (actor == null ||
@@ -38,12 +40,16 @@ internal static class BattleRuntimeDecisionContextBuilder
 
         System.ArgumentNullException.ThrowIfNull(aiExecutor);
         BattleMovementController movementController = new(actorFact.Actor);
+        BattleMovementReservationMap movementProposalReservations = new();
         BattleMovementProposalWorldInputs movementWorldInputs = new(
             navigationGraph,
             occupancy,
             performanceCounters,
             battleId,
-            tick);
+            tick,
+            beaconFlowFieldCache,
+            destinationBeacons,
+            movementProposalReservations);
         BattleRegionMovementGoal regionMovementGoal = BattleLocalCombatRegionResolver.ResolveRegionMovementGoal(actorFact, tacticalStateStore);
         bool regionReached = BattleLocalCombatRegionResolver.IsRegionReached(actorFact, regionMovementGoal);
         BattleGroupActionZoneSnapshot combatJoinActionZone = BattleGroupActionZoneResolver.ResolveActorCombatJoinActionZone(
@@ -164,6 +170,13 @@ internal static class BattleRuntimeDecisionContextBuilder
         }
 
         if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion)
+        {
+            return movementController.BuildMovementProposalContext(
+                new BattleMovementProposalBuildRequest(request, actorFact, requestedTarget, localCombatSituation, regionMovementGoal),
+                movementWorldInputs);
+        }
+
+        if (request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon)
         {
             return movementController.BuildMovementProposalContext(
                 new BattleMovementProposalBuildRequest(request, actorFact, requestedTarget, localCombatSituation, regionMovementGoal),
@@ -291,12 +304,14 @@ internal static class BattleRuntimeDecisionContextBuilder
     {
         if (request == null ||
             request.Kind == BattleRuntimeAiActionKind.Hold ||
+            request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon ||
             request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
             request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
             request.Kind == BattleRuntimeAiActionKind.ReturnToObjective ||
             request.Kind == BattleRuntimeAiActionKind.WaitForAttackCharge && fallbackTarget == null)
         {
-            return request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
+            return request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon ||
+                   request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
                    request?.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
                    request?.Kind == BattleRuntimeAiActionKind.ReturnToObjective
                 ? null

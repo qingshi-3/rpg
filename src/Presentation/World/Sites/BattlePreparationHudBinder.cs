@@ -42,7 +42,7 @@ internal sealed class BattlePreparationHudBinder
             row.Bind(
                 group.GroupKey,
                 group.DisplayName,
-                BattleUnitPreviewTextureResolver.ResolvePreviewTexture(group.HeroBattleUnitId),
+                BattleUnitPreviewResolver.ResolvePreviewTexture(group.HeroBattleUnitId),
                 ResolveCompanyPlanStatus(group, resolvePlan?.Invoke(group.GroupKey, create: false), objectiveZones, explicitRuleGroups),
                 selected);
             row.Selected += onSelected;
@@ -72,12 +72,15 @@ internal sealed class BattlePreparationHudBinder
 
         if (objectiveLabel != null)
         {
-            objectiveLabel.Text = $"目标：{BattlePreparationPlanUiModel.ResolveObjectiveText(plan, request?.ObjectiveZones)}";
+            _ = BattlePreparationPlanUiModel.ResolveObjectiveText(plan, request?.ObjectiveZones);
+            objectiveLabel.Text = plan?.HasInitialDestinationBeacon == true
+                ? $"目的地：{plan.InitialDestinationCellX}, {plan.InitialDestinationCellY}"
+                : "目的地：未设置";
         }
 
-        BindBattlePreparationRuleButton(moveFirstButton, BattleEngagementRule.MoveFirst, plan, selectedGroupKey, explicitRuleGroups);
-        BindBattlePreparationRuleButton(attackFirstButton, BattleEngagementRule.AttackFirst, plan, selectedGroupKey, explicitRuleGroups);
-        BindBattlePreparationRuleButton(holdButton, BattleEngagementRule.Hold, plan, selectedGroupKey, explicitRuleGroups);
+        HideBattlePreparationRuleButton(moveFirstButton);
+        HideBattlePreparationRuleButton(attackFirstButton);
+        HideBattlePreparationRuleButton(holdButton);
 
         if (startButton != null)
         {
@@ -119,6 +122,18 @@ internal sealed class BattlePreparationHudBinder
         button.Text = explicitSelected ? $"✓ {BattlePreparationPlanUiModel.BuildRuleLabel(rule)}" : BattlePreparationPlanUiModel.BuildRuleLabel(rule);
         button.Disabled = string.IsNullOrWhiteSpace(selectedGroupKey);
         button.TooltipText = BattlePreparationPlanUiModel.BuildRuleTooltip(rule);
+    }
+
+    private static void HideBattlePreparationRuleButton(Button button)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.Visible = false;
+        button.Disabled = true;
+        button.TooltipText = "";
     }
 
     private static void ClearChildren(Node parent)

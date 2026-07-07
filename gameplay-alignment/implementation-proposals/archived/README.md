@@ -4,6 +4,7 @@ These implementation proposals are historical records, not active work queues. S
 
 | Proposal | Summary |
 |---|---|
+| `2026-07-07-battle-beacon-flowfield-command.md` | Accepted battle beacon command record: preparation uses click-to-place deployment plus initial destination beacons, Runtime accepts multi-selected destination beacon commands with cached flow fields, Presentation owns reusable animated beacon markers and selection highlighting, and user QA follow-ups for marker sizing, visibility, layering, pause display, and outline thickness were resolved. Full suites still record unrelated guard failures in the proposal body. |
 | `2026-05-21-battle-footprint-navigation-attack-slots.md` | Accepted Runtime footprint, reservation, target-choice, and orthogonal attack-slot implementation record. |
 | `2026-05-21-battle-live-movement-queueing.md` | Accepted live Presentation movement queueing and timing dependency implementation record. |
 | `2026-05-21-battle-presentation-motion-integrator.md` | Accepted actor-local visual movement lane implementation record, superseded in timing detail by live movement queueing. |
