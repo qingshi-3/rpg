@@ -62,6 +62,27 @@ public sealed class StrategicManagementViewModelService
         return dashboard;
     }
 
+    public StrategicManagementDashboardViewModel BuildHeroCorpsWorkbenchDashboard(
+        StrategicManagementState state,
+        string factionId,
+        string selectedCityId,
+        string heroId)
+    {
+        string scopedFactionId = factionId ?? "";
+        string scopedCityId = selectedCityId ?? "";
+        StrategicManagementDashboardViewModel dashboard = new()
+        {
+            FactionId = scopedFactionId,
+            SelectedLocation = BuildSelectedLocation(state, scopedFactionId, scopedCityId),
+            SelectedCity = BuildSelectedCity(state, scopedFactionId, scopedCityId, heroId ?? ""),
+            Resources = BuildResources(state, scopedFactionId),
+            Heroes = BuildHeroes(state, scopedFactionId),
+            LatestBattleFeedback = BuildLatestBattleFeedback(state, scopedCityId)
+        };
+
+        return dashboard;
+    }
+
     private List<StrategicResourceViewModel> BuildResources(
         StrategicManagementState state,
         string factionId)
@@ -190,7 +211,8 @@ public sealed class StrategicManagementViewModelService
     private StrategicCityManagementViewModel BuildSelectedCity(
         StrategicManagementState state,
         string factionId,
-        string cityId)
+        string cityId,
+        string heroCorpsWorkbenchHeroId = "")
     {
         StrategicCityManagementViewModel cityView = new()
         {
@@ -217,7 +239,7 @@ public sealed class StrategicManagementViewModelService
         cityView.ConstructionRegions = BuildConstructionRegions(city, location);
         cityView.Buildings = BuildBuildings(city, location);
         cityView.BuildingOptions = BuildBuildingOptions(state, city, location);
-        cityView.MusterTemplates = BuildMusterTemplates(state, city.LocationId);
+        cityView.MusterTemplates = BuildMusterTemplates(state, city.LocationId, heroCorpsWorkbenchHeroId);
         cityView.CorpsInstances = BuildCorpsInstances(state, factionId, city.LocationId);
         cityView.HeroCompanies = BuildHeroCompanies(state, factionId, city.LocationId);
         return cityView;
@@ -421,24 +443,52 @@ public sealed class StrategicManagementViewModelService
 
     private List<StrategicMusterTemplateViewModel> BuildMusterTemplates(
         StrategicManagementState state,
-        string cityId)
+        string cityId,
+        string heroCorpsWorkbenchHeroId = "")
     {
-        return _rules.GetMusterTemplates(state, cityId)
+        bool hasHeroContext = !string.IsNullOrWhiteSpace(heroCorpsWorkbenchHeroId);
+        IReadOnlyList<StrategicMusterTemplateAvailability> templates = hasHeroContext
+            ? _definitions.Corps.Values
+                .OrderBy(item => item.CorpsDefinitionId)
+                .Select(corps => _rules.EvaluateHeroCorpsReplacementTemplate(
+                    state,
+                    cityId,
+                    heroCorpsWorkbenchHeroId,
+                    corps.CorpsDefinitionId))
+                .ToList()
+            : _rules.GetMusterTemplates(state, cityId);
+
+        return templates
             .OrderBy(item => item.CorpsDefinitionId)
             .Select(availability =>
             {
                 _definitions.Corps.TryGetValue(availability.CorpsDefinitionId, out StrategicCorpsDefinition corps);
+                int reserveRefund = hasHeroContext
+                    ? _rules.GetHeroCorpsReplacementReserveRefund(state, heroCorpsWorkbenchHeroId)
+                    : 0;
                 return new StrategicMusterTemplateViewModel
                 {
                     CorpsDefinitionId = availability.CorpsDefinitionId,
                     DisplayName = corps?.DisplayName ?? availability.CorpsDefinitionId,
                     BattleUnitId = corps?.BattleUnitId ?? "",
                     ReserveForceCost = System.Math.Max(0, corps?.SoldierCapacityCost ?? 0),
+                    ReserveForceRefund = reserveRefund,
+                    NetReserveForceCost = hasHeroContext
+                        ? _rules.GetHeroCorpsReplacementNetReserveCost(state, heroCorpsWorkbenchHeroId, availability.CorpsDefinitionId)
+                        : System.Math.Max(0, corps?.SoldierCapacityCost ?? 0),
                     CanCreate = availability.IsAvailable,
                     DisabledReasons = new List<string>(availability.FailureReasons),
                     CreationCost = BuildCosts(corps == null
                         ? System.Array.Empty<StrategicResourceAmount>()
-                        : corps.CreationCost)
+                        : corps.CreationCost),
+                    RefundCost = hasHeroContext
+                        ? BuildCosts(_rules.GetHeroCorpsReplacementResourceRefund(state, heroCorpsWorkbenchHeroId))
+                        : new List<StrategicResourceCostViewModel>(),
+                    NetCost = hasHeroContext
+                        ? BuildSignedCosts(_rules.GetHeroCorpsReplacementNetResourceCost(state, heroCorpsWorkbenchHeroId, availability.CorpsDefinitionId))
+                        : BuildCosts(corps == null
+                            ? System.Array.Empty<StrategicResourceAmount>()
+                            : corps.CreationCost)
                 };
             })
             .ToList();
@@ -595,6 +645,24 @@ public sealed class StrategicManagementViewModelService
     {
         return (costs ?? System.Array.Empty<StrategicResourceAmount>())
             .Where(cost => cost.Amount > 0)
+            .OrderBy(cost => cost.ResourceId)
+            .Select(cost =>
+            {
+                _definitions.Resources.TryGetValue(cost.ResourceId, out StrategicResourceDefinition resource);
+                return new StrategicResourceCostViewModel
+                {
+                    ResourceId = cost.ResourceId,
+                    DisplayName = resource?.DisplayName ?? cost.ResourceId,
+                    Amount = cost.Amount
+                };
+            })
+            .ToList();
+    }
+
+    private List<StrategicResourceCostViewModel> BuildSignedCosts(IReadOnlyCollection<StrategicResourceAmount> costs)
+    {
+        return (costs ?? System.Array.Empty<StrategicResourceAmount>())
+            .Where(cost => cost.Amount != 0)
             .OrderBy(cost => cost.ResourceId)
             .Select(cost =>
             {

@@ -53,6 +53,7 @@ script = ExtResource("1_definition")
 SkillDefinitionId = "skill_thunder_mark_fold"
 DisplayName = "雷印折跃"
 IconText = "跃"
+IconPath = "res://resource/ui/icons/battle/skills/skill_thunder_mark_fold_icon.tres"
 Tags = Array[String](["first_slice", "thunder", "teleport"])
 Timing = SubResource("BattleSkillTiming_thunder_mark_fold")
 InterruptPolicy = SubResource("BattleSkillInterrupt_thunder_mark_fold")

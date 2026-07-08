@@ -29,7 +29,7 @@ public partial class StrategicWorldRoot : Control
 	private const float SiteNavigationPointSnapDistance = 96.0f;
 	private const int SiteNavigationPointSearchCellRadius = 8;
 	private const double DefaultWorldTickIntervalSeconds = 8.0;
-	private const float SiteDetailPanelSlidePixels = 30.0f;
+	private const float SiteDetailPanelHiddenBelowPadding = 24.0f;
 	private const float SiteDetailPanelOvershootPixels = 8.0f;
 	private const double SiteDetailPanelEnterSeconds = 0.16;
 	private const double SiteDetailPanelSettleSeconds = 0.10;

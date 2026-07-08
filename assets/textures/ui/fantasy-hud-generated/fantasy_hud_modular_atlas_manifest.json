@@ -1,0 +1,452 @@
+{
+  "image": "fantasy_hud_modular_atlas.png",
+  "size": {
+    "w": 1536,
+    "h": 1024
+  },
+  "coordinate_system": "pixels, origin top-left",
+  "intended_usage": {
+    "themeable": "Use parchment panel, wood button, slot frame, command cell, and bar frame as StyleBoxTexture or NinePatchRect candidates after manual margin assignment.",
+    "decorative_fixed_size": "Use scroll rolls, rivets, corner plates, tabs, trim, and wood plaques as separate TextureRect decorations anchored around the themeable panel.",
+    "do_not_scale_as_one_piece": "Do not use a full roll-attached panel as a single stretchable Theme background."
+  },
+  "notes": [
+    "Rectangles are auto-detected from alpha components and should be reviewed before final production slicing.",
+    "Large parchment sample and its nine-slice pieces are both present in the atlas.",
+    "Godot UI import should keep mipmaps disabled; choose filtering according to final UI scale policy."
+  ],
+  "sprites": [
+    {
+      "x": 1010,
+      "y": 30,
+      "w": 95,
+      "h": 82,
+      "area": 7447,
+      "name": "sprite_01"
+    },
+    {
+      "x": 36,
+      "y": 31,
+      "w": 587,
+      "h": 300,
+      "area": 174846,
+      "name": "sprite_02"
+    },
+    {
+      "x": 668,
+      "y": 31,
+      "w": 94,
+      "h": 81,
+      "area": 7431,
+      "name": "sprite_03"
+    },
+    {
+      "x": 773,
+      "y": 31,
+      "w": 226,
+      "h": 81,
+      "area": 18181,
+      "name": "sprite_04"
+    },
+    {
+      "x": 1148,
+      "y": 31,
+      "w": 328,
+      "h": 80,
+      "area": 25776,
+      "name": "sprite_05"
+    },
+    {
+      "x": 668,
+      "y": 122,
+      "w": 94,
+      "h": 125,
+      "area": 11493,
+      "name": "sprite_06"
+    },
+    {
+      "x": 773,
+      "y": 123,
+      "w": 226,
+      "h": 124,
+      "area": 27951,
+      "name": "sprite_07"
+    },
+    {
+      "x": 1010,
+      "y": 123,
+      "w": 95,
+      "h": 124,
+      "area": 11495,
+      "name": "sprite_08"
+    },
+    {
+      "x": 1148,
+      "y": 123,
+      "w": 68,
+      "h": 210,
+      "area": 14240,
+      "name": "sprite_09"
+    },
+    {
+      "x": 1244,
+      "y": 229,
+      "w": 104,
+      "h": 104,
+      "area": 10717,
+      "name": "sprite_10"
+    },
+    {
+      "x": 668,
+      "y": 258,
+      "w": 94,
+      "h": 76,
+      "area": 6961,
+      "name": "sprite_11"
+    },
+    {
+      "x": 773,
+      "y": 258,
+      "w": 226,
+      "h": 76,
+      "area": 16829,
+      "name": "sprite_12"
+    },
+    {
+      "x": 1011,
+      "y": 258,
+      "w": 94,
+      "h": 76,
+      "area": 6965,
+      "name": "sprite_13"
+    },
+    {
+      "x": 53,
+      "y": 355,
+      "w": 52,
+      "h": 227,
+      "area": 9179,
+      "name": "sprite_14"
+    },
+    {
+      "x": 158,
+      "y": 355,
+      "w": 51,
+      "h": 231,
+      "area": 9442,
+      "name": "sprite_15"
+    },
+    {
+      "x": 262,
+      "y": 355,
+      "w": 52,
+      "h": 226,
+      "area": 9100,
+      "name": "sprite_16"
+    },
+    {
+      "x": 622,
+      "y": 376,
+      "w": 158,
+      "h": 210,
+      "area": 25429,
+      "name": "sprite_17"
+    },
+    {
+      "x": 799,
+      "y": 376,
+      "w": 159,
+      "h": 211,
+      "area": 25709,
+      "name": "sprite_18"
+    },
+    {
+      "x": 355,
+      "y": 386,
+      "w": 241,
+      "h": 57,
+      "area": 11546,
+      "name": "sprite_19"
+    },
+    {
+      "x": 1166,
+      "y": 396,
+      "w": 144,
+      "h": 147,
+      "area": 10117,
+      "name": "sprite_20"
+    },
+    {
+      "x": 993,
+      "y": 399,
+      "w": 144,
+      "h": 144,
+      "area": 9870,
+      "name": "sprite_21"
+    },
+    {
+      "x": 1340,
+      "y": 399,
+      "w": 144,
+      "h": 144,
+      "area": 19697,
+      "name": "sprite_22"
+    },
+    {
+      "x": 362,
+      "y": 492,
+      "w": 229,
+      "h": 74,
+      "area": 13892,
+      "name": "sprite_23"
+    },
+    {
+      "x": 52,
+      "y": 636,
+      "w": 88,
+      "h": 82,
+      "area": 4363,
+      "name": "sprite_24"
+    },
+    {
+      "x": 175,
+      "y": 636,
+      "w": 89,
+      "h": 82,
+      "area": 7123,
+      "name": "sprite_25"
+    },
+    {
+      "x": 298,
+      "y": 636,
+      "w": 90,
+      "h": 82,
+      "area": 7186,
+      "name": "sprite_26"
+    },
+    {
+      "x": 428,
+      "y": 637,
+      "w": 422,
+      "h": 71,
+      "area": 26211,
+      "name": "sprite_27"
+    },
+    {
+      "x": 876,
+      "y": 643,
+      "w": 302,
+      "h": 58,
+      "area": 16107,
+      "name": "sprite_28"
+    },
+    {
+      "x": 1201,
+      "y": 643,
+      "w": 287,
+      "h": 58,
+      "area": 15269,
+      "name": "sprite_29"
+    },
+    {
+      "x": 1207,
+      "y": 738,
+      "w": 51,
+      "h": 53,
+      "area": 2255,
+      "name": "sprite_30"
+    },
+    {
+      "x": 1390,
+      "y": 738,
+      "w": 51,
+      "h": 53,
+      "area": 2246,
+      "name": "sprite_31"
+    },
+    {
+      "x": 1301,
+      "y": 743,
+      "w": 46,
+      "h": 44,
+      "area": 1964,
+      "name": "sprite_32"
+    },
+    {
+      "x": 55,
+      "y": 749,
+      "w": 399,
+      "h": 36,
+      "area": 14302,
+      "name": "sprite_33"
+    },
+    {
+      "x": 492,
+      "y": 750,
+      "w": 327,
+      "h": 34,
+      "area": 11098,
+      "name": "sprite_34"
+    },
+    {
+      "x": 851,
+      "y": 750,
+      "w": 305,
+      "h": 34,
+      "area": 10351,
+      "name": "sprite_35"
+    },
+    {
+      "x": 1342,
+      "y": 834,
+      "w": 124,
+      "h": 49,
+      "area": 5282,
+      "name": "sprite_36"
+    },
+    {
+      "x": 952,
+      "y": 836,
+      "w": 64,
+      "h": 147,
+      "area": 8700,
+      "name": "sprite_37"
+    },
+    {
+      "x": 1054,
+      "y": 836,
+      "w": 57,
+      "h": 147,
+      "area": 7545,
+      "name": "sprite_38"
+    },
+    {
+      "x": 1144,
+      "y": 836,
+      "w": 50,
+      "h": 147,
+      "area": 6722,
+      "name": "sprite_39"
+    },
+    {
+      "x": 1226,
+      "y": 836,
+      "w": 51,
+      "h": 62,
+      "area": 2880,
+      "name": "sprite_40"
+    },
+    {
+      "x": 58,
+      "y": 845,
+      "w": 43,
+      "h": 43,
+      "area": 1489,
+      "name": "sprite_41"
+    },
+    {
+      "x": 153,
+      "y": 845,
+      "w": 43,
+      "h": 44,
+      "area": 1523,
+      "name": "sprite_42"
+    },
+    {
+      "x": 246,
+      "y": 847,
+      "w": 69,
+      "h": 76,
+      "area": 3098,
+      "name": "sprite_43"
+    },
+    {
+      "x": 368,
+      "y": 847,
+      "w": 65,
+      "h": 77,
+      "area": 2900,
+      "name": "sprite_44"
+    },
+    {
+      "x": 489,
+      "y": 847,
+      "w": 63,
+      "h": 76,
+      "area": 3069,
+      "name": "sprite_45"
+    },
+    {
+      "x": 608,
+      "y": 847,
+      "w": 289,
+      "h": 31,
+      "area": 3311,
+      "name": "sprite_46"
+    },
+    {
+      "x": 1325,
+      "y": 904,
+      "w": 150,
+      "h": 21,
+      "area": 3008,
+      "name": "sprite_47"
+    },
+    {
+      "x": 609,
+      "y": 911,
+      "w": 288,
+      "h": 17,
+      "area": 3477,
+      "name": "sprite_48"
+    },
+    {
+      "x": 58,
+      "y": 926,
+      "w": 43,
+      "h": 43,
+      "area": 1491,
+      "name": "sprite_49"
+    },
+    {
+      "x": 154,
+      "y": 926,
+      "w": 42,
+      "h": 43,
+      "area": 1487,
+      "name": "sprite_50"
+    },
+    {
+      "x": 281,
+      "y": 945,
+      "w": 34,
+      "h": 34,
+      "area": 1134,
+      "name": "sprite_51"
+    },
+    {
+      "x": 375,
+      "y": 945,
+      "w": 39,
+      "h": 34,
+      "area": 1105,
+      "name": "sprite_52"
+    },
+    {
+      "x": 1325,
+      "y": 947,
+      "w": 149,
+      "h": 32,
+      "area": 2889,
+      "name": "sprite_53"
+    },
+    {
+      "x": 609,
+      "y": 954,
+      "w": 286,
+      "h": 24,
+      "area": 2095,
+      "name": "sprite_54"
+    }
+  ]
+}

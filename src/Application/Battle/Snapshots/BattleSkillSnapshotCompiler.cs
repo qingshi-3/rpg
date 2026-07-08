@@ -193,6 +193,7 @@ public sealed class BattleSkillSnapshotCompiler
             OwnerHeroId = template.OwnerHeroId ?? "",
             DisplayName = template.DisplayName ?? "",
             IconText = template.IconText ?? "",
+            IconPath = template.IconPath ?? "",
             Tags = (template.Tags ?? new List<string>()).ToList(),
             CommandChannel = template.CommandChannel,
             SkillType = template.SkillType,
@@ -420,6 +421,7 @@ public sealed class BattleSkillSnapshotCompiler
                 : grant.RuntimeCommanderGroupId,
             DisplayName = definition.DisplayName ?? "",
             IconText = definition.IconText ?? "",
+            IconPath = definition.IconPath ?? "",
             Tags = (definition.Tags ?? new Godot.Collections.Array<string>())
                 .Where(tag => !string.IsNullOrWhiteSpace(tag))
                 .Select(tag => tag.Trim())

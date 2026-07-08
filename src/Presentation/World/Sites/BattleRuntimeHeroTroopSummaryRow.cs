@@ -15,7 +15,8 @@ public partial class BattleRuntimeHeroTroopSummaryRow : PanelContainer
 
     public override void _Ready()
     {
-        MouseFilter = MouseFilterEnum.Stop;
+        // Summary rows are live status only; they must not reserve map clicks.
+        MouseFilter = MouseFilterEnum.Ignore;
         _nameLabel = GetNodeOrNull<Label>("Margin/Stack/Header/HeroName");
         _soldierCountLabel = GetNodeOrNull<Label>("Margin/Stack/Header/SoldierCountText");
         _heroHpLabel = GetNodeOrNull<Label>("Margin/Stack/HeroHpRow/HeroHpText");

@@ -28,7 +28,6 @@ public partial class WorldSiteRoot
     {
         Build,
         Conscription,
-        Corps,
         Overview
     }
 
@@ -65,6 +64,7 @@ public partial class WorldSiteRoot
         _battleRuntimeSummaryList = hudRefs.BattleRuntimeSummaryList;
         _battleRuntimeSummaryPresenter = new BattleRuntimeHeroTroopSummaryPresenter(_battleRuntimeSummaryList);
         _battleRuntimeCommandBar = hudRefs.BattleRuntimeCommandBar;
+        _battleRuntimePauseDetailPanel = hudRefs.BattleRuntimePauseDetailPanel;
         _battleRuntimeHeroFrame = hudRefs.BattleRuntimeHeroFrame;
         _battleRuntimeHeroSelectorPresenter = new BattleRuntimeHeroSelectorPresenter(hudRefs.BattleRuntimeHeroSelectorList, SelectBattleRuntimeCommandGroup);
         _battleRuntimeHeroNameLabel = hudRefs.BattleRuntimeHeroNameLabel;
@@ -72,7 +72,6 @@ public partial class WorldSiteRoot
         _battleRuntimeHeroHealthBar = hudRefs.BattleRuntimeHeroHealthBar;
         _battleRuntimeHeroManaBar = hudRefs.BattleRuntimeHeroManaBar;
         _battleRuntimeHeroSkillList = hudRefs.BattleRuntimeHeroSkillList;
-        _battleRuntimeRegroupButton = hudRefs.BattleRuntimeRegroupButton;
         _battleRuntimeHeroFramePresenter = new BattleRuntimeHeroFramePresenter(
             _battleRuntimeHeroFrame,
             _battleRuntimeHeroNameLabel,
@@ -81,20 +80,20 @@ public partial class WorldSiteRoot
             _battleRuntimeHeroManaBar,
             _battleRuntimeHeroSelectorPresenter,
             _battleRuntimeHeroSkillList,
-            _battleRuntimeRegroupButton,
             OnBattleRuntimeSkillSlotPressed);
         ApplySiteHudFullRect("bound");
         _siteHudTitle = hudRefs.SiteHudTitle;
+        _siteResourceBarAnimator.Bind(hudRefs.SiteResourceBar);
         _siteResourceLabel = hudRefs.SiteResourceLabel;
         _returnMapButton = hudRefs.ReturnMapButton;
+        _siteManagementTabRail = hudRefs.SiteManagementTabRail;
         _siteBuildTabButton = hudRefs.BuildTabButton;
         _siteConscriptionTabButton = hudRefs.ConscriptionTabButton;
         _siteRecruitTabButton = hudRefs.RecruitTabButton;
-        _siteCorpsTabButton = hudRefs.CorpsTabButton;
         _siteOverviewTabButton = hudRefs.OverviewTabButton;
+        _sitePanelCloseButton = hudRefs.SitePanelCloseButton;
         _siteBuildSection = hudRefs.SiteBuildSection;
         _siteConscriptionSection = hudRefs.SiteConscriptionSection;
-        _siteCorpsSection = hudRefs.SiteCorpsSection;
         _siteOverviewSection = hudRefs.SiteOverviewSection;
         _militaryWorkbenchBackdrop = hudRefs.MilitaryWorkbenchBackdrop;
         _militaryWorkbenchPanel = hudRefs.MilitaryWorkbenchPanel;
@@ -105,19 +104,12 @@ public partial class WorldSiteRoot
         _militarySelectedHeroPreview = hudRefs.MilitarySelectedHeroPreview;
         _militarySelectedHeroNameLabel = hudRefs.MilitarySelectedHeroNameLabel;
         _militarySelectedHeroCorpsLabel = hudRefs.MilitarySelectedHeroCorpsLabel;
-        _militaryBackButton = hudRefs.MilitaryBackButton;
         _militaryCloseButton = hudRefs.MilitaryCloseButton;
         _siteHudBody = hudRefs.SiteHudBody;
         _siteSelectionLabel = hudRefs.SiteSelectionLabel;
         _battlePreparationRosterDock = hudRefs.BattlePreparationRosterDock;
         _battlePreparationRosterList = hudRefs.BattlePreparationRosterList;
-        _battlePreparationPlanBar = hudRefs.BattlePreparationPlanBar;
-        _battlePreparationCompanyLabel = hudRefs.BattlePreparationCompanyLabel;
-        _battlePreparationObjectiveLabel = hudRefs.BattlePreparationObjectiveLabel;
-        _battlePreparationRuleButtonRow = hudRefs.BattlePreparationRuleButtonRow;
-        _battlePreparationMoveFirstButton = hudRefs.BattlePreparationMoveFirstButton;
-        _battlePreparationAttackFirstButton = hudRefs.BattlePreparationAttackFirstButton;
-        _battlePreparationHoldButton = hudRefs.BattlePreparationHoldButton;
+        _battlePreparationLaunchDock = hudRefs.BattlePreparationLaunchDock;
         _battlePreparationStartButton = hudRefs.BattlePreparationStartButton;
         _battlePreparationObjectiveThumbnailDock = hudRefs.BattlePreparationObjectiveThumbnailDock;
         _battlePreparationObjectiveThumbnail = hudRefs.BattlePreparationObjectiveThumbnail;
@@ -126,7 +118,6 @@ public partial class WorldSiteRoot
         _siteBuildingOptionGrid = hudRefs.SiteBuildingOptionGrid;
         _siteConscriptionList = hudRefs.SiteConscriptionList;
         _siteBuildingList = hudRefs.SiteBuildingList;
-        _siteGarrisonList = hudRefs.SiteGarrisonList;
         _strategicManagementDashboardPanelBinder = new StrategicManagementDashboardPanelBinder(
             _siteResourceLabel,
             _siteHudBody,
@@ -135,15 +126,10 @@ public partial class WorldSiteRoot
             _siteBuildingBuildTitle,
             _siteBuildingOptionGrid,
             _siteConscriptionList,
-            _siteGarrisonList,
             OnStrategicBuildBuildingSelected,
             OnStrategicManualConscriptPressed,
-            OnStrategicAutoConscriptionIntensityPressed,
-            OnStrategicReplenishCorpsPressed,
-            OnStrategicHeroAssignmentPressed);
+            OnStrategicAutoConscriptionIntensityPressed);
         _strategicMilitaryWorkbenchBinder = new StrategicMilitaryWorkbenchBinder(
-            _militaryWorkbenchPanel,
-            _militaryWorkbenchBackdrop,
             _militaryHeroList,
             _militaryMusterGrid,
             _militaryHeroSummaryLabel,
@@ -151,22 +137,15 @@ public partial class WorldSiteRoot
             _militarySelectedHeroPreview,
             _militarySelectedHeroNameLabel,
             _militarySelectedHeroCorpsLabel,
-            _militaryBackButton,
             OnStrategicMilitaryHeroSelected,
             OnStrategicRecruitCorpsForHeroPressed);
         _siteNoticeLabel = hudRefs.SiteNoticeLabel;
         Label buildingTitleLabel = hudRefs.BuildingTitleLabel;
-        Label garrisonTitleLabel = hudRefs.GarrisonTitleLabel;
         Label noticeTitleLabel = hudRefs.NoticeTitleLabel;
 
         if (buildingTitleLabel != null)
         {
             buildingTitleLabel.Text = "建筑总览";
-        }
-
-        if (garrisonTitleLabel != null)
-        {
-            garrisonTitleLabel.Text = "部队配置";
         }
 
         if (noticeTitleLabel != null)
@@ -177,42 +156,38 @@ public partial class WorldSiteRoot
         if (_returnMapButton != null)
         {
             _returnMapButton.Text = "返回";
-            _returnMapButton.TooltipText = "返回大地图";
+            _returnMapButton.TooltipText = "";
             _returnMapButton.Pressed += () => ReturnToReturnScene(_siteHudReturnScenePath);
+            WireSiteManagementTabHover(_returnMapButton, "返回");
         }
 
         if (_siteBuildTabButton != null)
         {
-            _siteBuildTabButton.Pressed += () => SelectSiteManagementSection(SiteManagementSection.Build);
+            _siteBuildTabButton.Pressed += () => OpenSiteManagementSectionWithBounce(SiteManagementSection.Build, _siteBuildTabButton, "建造");
+            WireSiteManagementTabHover(_siteBuildTabButton, "建造");
         }
 
         if (_siteConscriptionTabButton != null)
         {
-            _siteConscriptionTabButton.Pressed += () => SelectSiteManagementSection(SiteManagementSection.Conscription);
+            _siteConscriptionTabButton.Pressed += () => OpenSiteManagementSectionWithBounce(SiteManagementSection.Conscription, _siteConscriptionTabButton, "征兵");
+            WireSiteManagementTabHover(_siteConscriptionTabButton, "征兵");
         }
 
         if (_siteRecruitTabButton != null)
         {
             _siteRecruitTabButton.Pressed += OpenStrategicMilitaryWorkbench;
-        }
-
-        if (_siteCorpsTabButton != null)
-        {
-            _siteCorpsTabButton.Pressed += () => SelectSiteManagementSection(SiteManagementSection.Corps);
+            WireSiteManagementTabHover(_siteRecruitTabButton, "招兵");
         }
 
         if (_siteOverviewTabButton != null)
         {
-            _siteOverviewTabButton.Pressed += () => SelectSiteManagementSection(SiteManagementSection.Overview);
+            _siteOverviewTabButton.Pressed += () => OpenSiteManagementSectionWithBounce(SiteManagementSection.Overview, _siteOverviewTabButton, "总览");
+            WireSiteManagementTabHover(_siteOverviewTabButton, "总览");
         }
 
-        if (_militaryBackButton != null)
+        if (_sitePanelCloseButton != null)
         {
-            _militaryBackButton.Pressed += () =>
-            {
-                _selectedMilitaryWorkbenchHeroId = "";
-                BindStrategicMilitaryWorkbench();
-            };
+            _sitePanelCloseButton.Pressed += CloseSiteManagementPanelToRail;
         }
 
         if (_militaryCloseButton != null)
@@ -220,22 +195,7 @@ public partial class WorldSiteRoot
             _militaryCloseButton.Pressed += CloseStrategicMilitaryWorkbench;
         }
 
-        ApplySiteManagementSectionVisibility();
-
-        if (_battlePreparationMoveFirstButton != null)
-        {
-            _battlePreparationMoveFirstButton.Pressed += () => SelectBattlePreparationEngagementRule(BattleEngagementRule.MoveFirst);
-        }
-
-        if (_battlePreparationAttackFirstButton != null)
-        {
-            _battlePreparationAttackFirstButton.Pressed += () => SelectBattlePreparationEngagementRule(BattleEngagementRule.AttackFirst);
-        }
-
-        if (_battlePreparationHoldButton != null)
-        {
-            _battlePreparationHoldButton.Pressed += () => SelectBattlePreparationEngagementRule(BattleEngagementRule.Hold);
-        }
+        UpdateSiteManagementEntryVisibility("build");
 
         if (_battlePreparationStartButton != null)
         {
@@ -259,10 +219,6 @@ public partial class WorldSiteRoot
             }
         }
 
-        if (_battleRuntimeRegroupButton != null)
-        {
-            _battleRuntimeRegroupButton.Pressed += OnBattleRuntimeRegroupPressed;
-        }
     }
 
     private void BuildBattleObjectiveMapDialog()
@@ -331,6 +287,7 @@ public partial class WorldSiteRoot
             : returnScenePath;
         _selectedPlacementId = "";
         _selectedStrategicBuildingDefinitionId = "";
+        _siteManagementPanelOpen = false;
         ClearStrategicBuildingPlacementPreview();
         _postBattleSettlementDialog?.Close();
         _postBattleSettlementDialogOpen = false;
@@ -338,7 +295,7 @@ public partial class WorldSiteRoot
         if (_returnMapButton != null)
         {
             _returnMapButton.Disabled = string.IsNullOrWhiteSpace(_siteHudReturnScenePath);
-            _returnMapButton.TooltipText = _returnMapButton.Disabled ? "没有可返回的大地图场景。" : "返回大地图";
+            _returnMapButton.TooltipText = "";
         }
 
         if (_siteHudRoot != null)
@@ -380,6 +337,7 @@ public partial class WorldSiteRoot
         _siteHudReturnScenePath = _postBattleSettlementReturnScenePath;
         _selectedPlacementId = "";
         _selectedStrategicBuildingDefinitionId = "";
+        _siteManagementPanelOpen = false;
         ClearStrategicBuildingPlacementPreview();
         CloseStrategicMilitaryWorkbench();
         _postBattleSettlementDialogOpen = true;
@@ -395,6 +353,7 @@ public partial class WorldSiteRoot
             _sitePeacetimePanel.Visible = false;
         }
 
+        UpdateSiteManagementEntryVisibility("post_battle_settlement_dialog");
         SetBattlePreparationHudVisible(false);
 
         bool manageCityAvailable = outcome == BattleOutcome.Victory && CanOpenManagedCityDetail(siteId);
@@ -506,7 +465,9 @@ public partial class WorldSiteRoot
         _siteHudRoot.Position = Vector2.Zero;
         _battlePreparationHudRestPositions.Clear();
         ApplySitePeacetimePanelLayout();
+        _siteResourceBarAnimator.ApplyLayout();
         UpdateMainWorldViewportLayout(reason);
+        UpdateSiteResourceBarVisibility(reason);
 
         GameLog.Info(
             nameof(WorldSiteRoot),
@@ -520,23 +481,25 @@ public partial class WorldSiteRoot
             return;
         }
 
-        // Site management is a hard split-screen workspace: the left panel touches
-        // the window edge and the world viewport fills every pixel to its right.
+        // Site management now overlays the fullscreen map. Keep this panel bounded
+        // so the map remains readable and the left tab rail can return on close.
         _sitePeacetimePanel.AnchorLeft = 0.0f;
         _sitePeacetimePanel.AnchorTop = 0.0f;
         _sitePeacetimePanel.AnchorRight = 0.0f;
-        _sitePeacetimePanel.AnchorBottom = 1.0f;
+        _sitePeacetimePanel.AnchorBottom = 0.0f;
         _sitePeacetimePanel.OffsetLeft = 0.0f;
-        _sitePeacetimePanel.OffsetTop = 0.0f;
-        _sitePeacetimePanel.OffsetRight = 520.0f;
-        _sitePeacetimePanel.OffsetBottom = 0.0f;
-        _sitePeacetimePanel.CustomMinimumSize = new Vector2(520.0f, 0.0f);
+        _sitePeacetimePanel.OffsetTop = 72.0f;
+        _sitePeacetimePanel.OffsetRight = 640.0f;
+        _sitePeacetimePanel.OffsetBottom = 840.0f;
+        _sitePeacetimePanel.CustomMinimumSize = new Vector2(640.0f, 0.0f);
     }
 
-    private void SelectSiteManagementSection(SiteManagementSection section)
+    private void OpenSiteManagementSectionWithBounce(SiteManagementSection section, Button button, string expandedText)
     {
         _selectedSiteManagementSection = section;
+        _siteManagementPanelOpen = true;
         ApplySiteManagementSectionVisibility();
+        SiteManagementDrawerAnimator.OpenPanelAfterTabRetracts(this, _sitePeacetimePanel, button, expandedText, () => UpdateSiteManagementEntryVisibility("section_selected"));
     }
 
     private void ApplySiteManagementSectionVisibility()
@@ -552,14 +515,11 @@ public partial class WorldSiteRoot
             _siteConscriptionTabButton,
             SiteManagementSection.Conscription);
         ApplySiteManagementSectionVisibility(
-            _siteCorpsSection,
-            _siteCorpsTabButton,
-            SiteManagementSection.Corps);
-        ApplySiteManagementSectionVisibility(
             _siteOverviewSection,
             _siteOverviewTabButton,
             SiteManagementSection.Overview);
         _siteRecruitTabButton?.SetPressedNoSignal(false);
+        _returnMapButton?.SetPressedNoSignal(false);
     }
 
     private void ApplySiteManagementSectionVisibility(
@@ -576,54 +536,122 @@ public partial class WorldSiteRoot
         tabButton?.SetPressedNoSignal(selected);
     }
 
-    private void UpdateSitePeacetimePanelVisibility(string reason)
+    private void UpdateSitePeacetimePanelVisibility(string reason) => UpdateSiteManagementEntryVisibility(reason);
+
+    private void UpdateSiteManagementEntryVisibility(string reason)
+    {
+        if (_sitePeacetimePanel == null && _siteManagementTabRail == null)
+        {
+            return;
+        }
+
+        if (_battleRuntimeEnabled)
+        {
+            SetSiteManagementPanelVisible(false);
+            SetSiteManagementTabRailVisible(false);
+            UpdateSiteResourceBarVisibility(reason);
+            return;
+        }
+
+        bool shouldShowEntry = ShouldShowSiteManagementEntry();
+        bool placementActive = !string.IsNullOrWhiteSpace(_selectedStrategicBuildingDefinitionId);
+        bool workbenchOpen = _militaryWorkbenchPanel?.Visible == true || _militaryWorkbenchBackdrop?.Visible == true;
+        bool showPanel = shouldShowEntry && _siteManagementPanelOpen && !placementActive && !workbenchOpen;
+        bool showRail = shouldShowEntry && !_siteManagementPanelOpen && !placementActive && !workbenchOpen;
+        if (!shouldShowEntry)
+        {
+            _siteManagementPanelOpen = false;
+        }
+
+        if (showPanel)
+        {
+            ApplySitePeacetimePanelLayout();
+        }
+
+        SetSiteManagementPanelVisible(showPanel);
+        SetSiteManagementTabRailVisible(showRail);
+        UpdateSiteResourceBarVisibility(reason);
+        GameLog.Info(
+            nameof(WorldSiteRoot),
+            $"SiteManagementEntryVisibilityChanged reason={reason} rail={showRail} panel={showPanel} placement={placementActive} workbench={workbenchOpen} panelRect={DescribeControlRect(_sitePeacetimePanel)}");
+    }
+
+    private void UpdateSiteResourceBarVisibility(string reason)
+    {
+        bool placementActive = !string.IsNullOrWhiteSpace(_selectedStrategicBuildingDefinitionId);
+        _siteResourceBarAnimator.Update(
+            _siteHudRoot?.Visible == true && !_battleRuntimeEnabled && !_postBattleSettlementDialogOpen && CanOpenManagedCityDetail(_siteHudSiteId),
+            placementActive || _battlePreparationHudRetreated,
+            this, reason);
+    }
+
+    private void SetSiteManagementPanelVisible(bool visible)
     {
         if (_sitePeacetimePanel == null)
         {
             return;
         }
 
-        if (IsBattleRuntimeHudActive())
-        {
-            if (_sitePeacetimePanel.Visible)
-            {
-                _sitePeacetimePanel.Visible = false;
-                GameLog.Info(
-                    nameof(WorldSiteRoot),
-                    $"SitePeacetimePanelVisibilityChanged visible=False reason={reason} battleRuntime=true panelRect={DescribeControlRect(_sitePeacetimePanel)}");
-            }
-
-            return;
-        }
-
-        bool shouldShow = ShouldShowSitePeacetimePanel();
-        if (shouldShow)
-        {
-            ApplySitePeacetimePanelLayout();
-        }
-
-        if (_sitePeacetimePanel.Visible == shouldShow)
-        {
-            return;
-        }
-
-        _sitePeacetimePanel.Visible = shouldShow;
-        GameLog.Info(
-            nameof(WorldSiteRoot),
-            $"SitePeacetimePanelVisibilityChanged visible={shouldShow} reason={reason} panelRect={DescribeControlRect(_sitePeacetimePanel)}");
+        _sitePeacetimePanel.Visible = visible;
+        _sitePeacetimePanel.MouseFilter = visible
+            ? Control.MouseFilterEnum.Stop
+            : Control.MouseFilterEnum.Ignore;
     }
 
-    private bool ShouldShowSitePeacetimePanel()
+    private void SetSiteManagementTabRailVisible(bool visible)
+    {
+        if (_siteManagementTabRail == null)
+        {
+            return;
+        }
+
+        _siteManagementTabRail.Visible = visible;
+        _siteManagementTabRail.MouseFilter = visible
+            ? Control.MouseFilterEnum.Stop
+            : Control.MouseFilterEnum.Ignore;
+    }
+
+    private void CloseSiteManagementPanelToRail()
+    {
+        CloseSiteManagementPanelWithBounce();
+    }
+
+    private void CloseSiteManagementPanelWithBounce()
+    {
+        _siteManagementPanelOpen = false;
+        if (!ShouldShowSiteManagementEntry() || _battleRuntimeEnabled)
+        {
+            UpdateSiteManagementEntryVisibility("panel_closed");
+            return;
+        }
+
+        SiteManagementDrawerAnimator.ClosePanelThenShowRail(
+            this,
+            _sitePeacetimePanel,
+            _siteManagementTabRail,
+            () => SetSiteManagementPanelVisible(false),
+            () => SetSiteManagementTabRailVisible(true));
+    }
+
+    private void WireSiteManagementTabHover(Button button, string expandedText)
+    {
+        SiteManagementDrawerAnimator.ApplyTabDrawerState(button, expandedText, expanded: false, animated: false);
+        button.MouseEntered += () => SiteManagementDrawerAnimator.ApplyTabDrawerState(button, expandedText, expanded: true, animated: true);
+        button.MouseExited += () => SiteManagementDrawerAnimator.ApplyTabDrawerState(button, expandedText, expanded: false, animated: true);
+    }
+
+    private bool ShouldShowSiteManagementEntry()
     {
         bool siteHudVisible = _siteHudRoot?.Visible == true;
         if (!siteHudVisible ||
+            _postBattleSettlementDialogOpen ||
             _isBattlePreparationActive ||
             _battleRuntimeEnabled)
         {
             return false;
         }
 
-        // The build/recruit/corps/overview panel is city-management UI. Strategic
+        // The build/recruit/overview entry is city-management UI. Strategic
         // Management owns city control; legacy WorldSite ownership is presentation cache.
         return CanOpenManagedCityDetail(_siteHudSiteId);
     }
@@ -652,10 +680,7 @@ public partial class WorldSiteRoot
         if (enabled && _siteHudRoot != null)
         {
             _siteHudRoot.Visible = true;
-            if (_sitePeacetimePanel != null)
-            {
-                _sitePeacetimePanel.Visible = false;
-            }
+            UpdateSiteManagementEntryVisibility("battle_runtime_enabled");
 
             SetBattlePreparationHudVisible(false);
         }
@@ -812,6 +837,8 @@ public partial class WorldSiteRoot
 
         _selectedStrategicBuildingDefinitionId = building.BuildingDefinitionId;
         _selectedPlacementId = "";
+        _siteManagementPanelOpen = false;
+        UpdateSiteManagementEntryVisibility("building_placement_selected");
         UpdateStrategicBuildingPlacementPreview();
         RefreshSiteManagementUi($"{building.DisplayName}已选择，请在地图建设区域点击放置。");
     }
@@ -867,13 +894,28 @@ public partial class WorldSiteRoot
         }
 
         _selectedMilitaryWorkbenchHeroId = "";
-        BindStrategicMilitaryWorkbench();
+        _siteManagementPanelOpen = false;
+        SetSiteManagementPanelVisible(false);
+        SiteManagementDrawerAnimator.ApplyTabDrawerState(_siteRecruitTabButton, "招兵", expanded: false, animated: true);
+        _siteResourceBarAnimator.SetModalOverlayBypass(true);
+        SiteManagementCenteredModalAnimator.OpenCenteredModalAfterDelay(this, _militaryWorkbenchPanel, _militaryWorkbenchBackdrop, () => { SetSiteManagementTabRailVisible(false); BindStrategicMilitaryWorkbench(); });
     }
 
     private void CloseStrategicMilitaryWorkbench()
     {
+        bool wasOpen = _militaryWorkbenchPanel?.Visible == true || _militaryWorkbenchBackdrop?.Visible == true;
         _selectedMilitaryWorkbenchHeroId = "";
-        _strategicMilitaryWorkbenchBinder?.Hide();
+        if (!wasOpen)
+        {
+            SiteManagementCenteredModalAnimator.CancelCenteredModal(_militaryWorkbenchPanel, _militaryWorkbenchBackdrop, () =>
+            {
+                _siteResourceBarAnimator.SetModalOverlayBypass(false);
+                _strategicMilitaryWorkbenchBinder?.Hide();
+            });
+            return;
+        }
+
+        SiteManagementCenteredModalAnimator.CloseCenteredModal(this, _militaryWorkbenchPanel, _militaryWorkbenchBackdrop, () => { _strategicMilitaryWorkbenchBinder?.Hide(); _siteResourceBarAnimator.SetModalOverlayBypass(false); UpdateSiteManagementEntryVisibility("military_workbench_closed"); SiteManagementDrawerAnimator.AnimateRailTabsIn(this, _siteManagementTabRail); });
     }
 
     private void BindStrategicMilitaryWorkbench(string notice = "")
@@ -886,16 +928,21 @@ public partial class WorldSiteRoot
         }
 
         StrategicManagementRuntime.EnsureInitialized();
-        StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
+        StrategicManagementDashboardViewModel heroSelectionDashboard = StrategicManagementRuntime.BuildDashboard(
             StrategicManagementIds.FactionPlayer,
             cityId);
         if (string.IsNullOrWhiteSpace(_selectedMilitaryWorkbenchHeroId) ||
-            !dashboard.Heroes.Any(hero => hero.HeroId == _selectedMilitaryWorkbenchHeroId))
+            !heroSelectionDashboard.Heroes.Any(hero => hero.HeroId == _selectedMilitaryWorkbenchHeroId))
         {
-            _selectedMilitaryWorkbenchHeroId = dashboard.Heroes.FirstOrDefault()?.HeroId ?? "";
+            _selectedMilitaryWorkbenchHeroId = heroSelectionDashboard.Heroes.FirstOrDefault()?.HeroId ?? "";
         }
 
+        StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildHeroCorpsWorkbenchDashboard(
+            StrategicManagementIds.FactionPlayer,
+            cityId,
+            _selectedMilitaryWorkbenchHeroId);
         _strategicMilitaryWorkbenchBinder?.Bind(dashboard, _selectedMilitaryWorkbenchHeroId, notice);
+        UpdateSiteManagementEntryVisibility("military_workbench_bound");
     }
 
     private void OnStrategicMilitaryHeroSelected(string heroId)
@@ -933,35 +980,6 @@ public partial class WorldSiteRoot
         string notice = BuildStrategicManagementCommandNotice("招募编制", result);
         RefreshSiteManagementUi(notice);
         BindStrategicMilitaryWorkbench(notice);
-    }
-
-    private void OnStrategicReplenishCorpsPressed(string corpsInstanceId)
-    {
-        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
-        {
-            RefreshSiteManagementUi(BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId));
-            return;
-        }
-
-        StrategicManagementRuntime.EnsureInitialized();
-        StrategicCommandResult result = StrategicManagementRuntime.Commands.ReplenishCorps(
-            StrategicManagementRuntime.State,
-            cityId,
-            corpsInstanceId,
-            100);
-        HandleStrategicManagementCommandResult("补员编制", result);
-    }
-
-    private void OnStrategicHeroAssignmentPressed(string heroId)
-    {
-        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out _))
-        {
-            RefreshSiteManagementUi(BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId));
-            return;
-        }
-
-        _selectedMilitaryWorkbenchHeroId = heroId ?? "";
-        BindStrategicMilitaryWorkbench();
     }
 
     private void HandleStrategicManagementCommandResult(string actionName, StrategicCommandResult result)
@@ -1078,9 +1096,9 @@ public partial class WorldSiteRoot
             _battlePreparationRosterDock.Visible = visible;
         }
 
-        if (_battlePreparationPlanBar != null)
+        if (_battlePreparationLaunchDock != null)
         {
-            _battlePreparationPlanBar.Visible = visible;
+            _battlePreparationLaunchDock.Visible = visible;
         }
 
         if (_siteMinimapHost != null)
@@ -1098,6 +1116,11 @@ public partial class WorldSiteRoot
             _battleDestinationBeaconMarkerPresenter.Clear();
             SetBattlePreparationTopPrompt("");
             SetBattlePreparationHudRetreated(false, "battle_preparation_hidden");
+            ExitBattleMapOperationHudSuppression(BattleMapOperationHudSuppressionReason.None, "battle_preparation_hidden");
+        }
+        else
+        {
+            ApplyBattleMapOperationHudSuppressionVisibility("battle_preparation_visible");
         }
     }
 
@@ -1110,6 +1133,7 @@ public partial class WorldSiteRoot
                 _battlePreparationHudRetreatTween?.Kill();
                 _battlePreparationHudRetreatTween = null;
             }
+            UpdateSiteResourceBarVisibility("battle_preparation_hud_retreat:" + (reason ?? ""));
             return;
         }
         _battlePreparationHudRetreatTween?.Kill();
@@ -1117,7 +1141,7 @@ public partial class WorldSiteRoot
         Control[] controls =
         {
             _battlePreparationRosterDock,
-            _battlePreparationPlanBar,
+            _battlePreparationLaunchDock,
             _battlePreparationObjectiveThumbnailDock
         };
         Vector2[] offsets =
@@ -1152,6 +1176,7 @@ public partial class WorldSiteRoot
             }
 
             _battlePreparationHudRetreated = retreated;
+            UpdateSiteResourceBarVisibility("battle_preparation_hud_retreat:" + (reason ?? ""));
             return;
         }
 
@@ -1170,6 +1195,7 @@ public partial class WorldSiteRoot
 
         _battlePreparationHudRetreated = retreated;
         _battlePreparationHudRetreatTween = tween;
+        UpdateSiteResourceBarVisibility("battle_preparation_hud_retreat:" + (reason ?? ""));
         GameLog.Info(nameof(WorldSiteRoot), $"BattlePreparationHudRetreatChanged active={retreated} reason={reason ?? ""}");
     }
 

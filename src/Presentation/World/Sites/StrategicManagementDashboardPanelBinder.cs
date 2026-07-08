@@ -4,7 +4,6 @@ using System.Linq;
 using Godot;
 using Rpg.Application.StrategicManagement;
 using Rpg.Definitions.StrategicManagement;
-using Rpg.Domain.StrategicManagement;
 using Rpg.Presentation.Common;
 
 namespace Rpg.Presentation.World.Sites;
@@ -18,12 +17,9 @@ internal sealed class StrategicManagementDashboardPanelBinder
     private readonly Label _buildingBuildTitle;
     private readonly GridContainer _buildingBuildList;
     private readonly VBoxContainer _conscriptionList;
-    private readonly VBoxContainer _corpsList;
     private readonly Action<string> _selectBuildingForPlacement;
     private readonly Action _manualConscript;
     private readonly Action<string> _setAutoConscriptionIntensity;
-    private readonly Action<string> _replenishCorps;
-    private readonly Action<string> _toggleHeroAssignment;
 
     public StrategicManagementDashboardPanelBinder(
         Label resourceLabel,
@@ -33,12 +29,9 @@ internal sealed class StrategicManagementDashboardPanelBinder
         Label buildingBuildTitle,
         GridContainer buildingBuildList,
         VBoxContainer conscriptionList,
-        VBoxContainer corpsList,
         Action<string> selectBuildingForPlacement,
         Action manualConscript,
-        Action<string> setAutoConscriptionIntensity,
-        Action<string> replenishCorps,
-        Action<string> toggleHeroAssignment)
+        Action<string> setAutoConscriptionIntensity)
     {
         _resourceLabel = resourceLabel;
         _overviewLabel = overviewLabel;
@@ -47,12 +40,9 @@ internal sealed class StrategicManagementDashboardPanelBinder
         _buildingBuildTitle = buildingBuildTitle;
         _buildingBuildList = buildingBuildList;
         _conscriptionList = conscriptionList;
-        _corpsList = corpsList;
         _selectBuildingForPlacement = selectBuildingForPlacement;
         _manualConscript = manualConscript;
         _setAutoConscriptionIntensity = setAutoConscriptionIntensity;
-        _replenishCorps = replenishCorps;
-        _toggleHeroAssignment = toggleHeroAssignment;
     }
 
     public void Bind(StrategicManagementDashboardViewModel dashboard)
@@ -78,7 +68,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
         BindBuildings(city);
         BindBuildingOptions(city);
         BindConscription(city.Conscription);
-        BindCorpsAndHeroes(safeDashboard, city);
     }
 
     public void BindLocation(StrategicManagementDashboardViewModel dashboard)
@@ -196,68 +185,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
         _conscriptionList.AddChild(panel);
     }
 
-    private void BindCorpsAndHeroes(
-        StrategicManagementDashboardViewModel dashboard,
-        StrategicCityManagementViewModel city)
-    {
-        ClearChildren(_corpsList);
-        if (_corpsList == null)
-        {
-            return;
-        }
-
-        AddMutedLine(_corpsList, "现有编制");
-        if (city.CorpsInstances.Count == 0)
-        {
-            AddMutedLine(_corpsList, "当前城市还没有已创建的编制。");
-        }
-
-        foreach (StrategicCorpsInstanceViewModel corps in city.CorpsInstances)
-        {
-            string corpsInstanceId = corps.CorpsInstanceId;
-            WorldCorpsInstanceRow row = GameUiSceneFactory.CreateWorldCorpsInstanceRow(nameof(StrategicManagementDashboardPanelBinder));
-            if (row == null)
-            {
-                continue;
-            }
-
-            row.Bind(
-                corpsInstanceId,
-                corps.DisplayName,
-                BattleUnitPreviewResolver.ResolvePreviewTexture(corps.BattleUnitId),
-                corps.Strength,
-                corps.Level,
-                corps.EquipmentLevel,
-                FormatCorpsStatus(corps.Status),
-                corps.Strength < 100 && corps.CanReplenish,
-                corps.ReplenishReserveCost,
-                FormatCostsForPresentation(corps.ReplenishCost),
-                FormatReasonsForPresentation(corps.ReplenishDisabledReason));
-            row.ReplenishRequested += requestedCorpsInstanceId => _replenishCorps?.Invoke(requestedCorpsInstanceId);
-            _corpsList.AddChild(row);
-        }
-
-        AddMutedLine(_corpsList, "英雄编制");
-        foreach (StrategicHeroAssignmentViewModel hero in dashboard.Heroes)
-        {
-            string heroId = hero.HeroId;
-            WorldMilitaryHeroCard card = GameUiSceneFactory.CreateWorldMilitaryHeroCard(nameof(StrategicManagementDashboardPanelBinder));
-            if (card == null)
-            {
-                continue;
-            }
-
-            card.Bind(
-                heroId,
-                hero.DisplayName,
-                BattleUnitPreviewResolver.ResolveAnimatedPreview(hero.BattleUnitId),
-                hero.AssignedCorpsDisplayName,
-                selected: false);
-            card.Selected += _ => _toggleHeroAssignment?.Invoke(heroId);
-            _corpsList.AddChild(card);
-        }
-    }
-
     private void BindLocationReadOnlyLists(StrategicLocationDashboardViewModel location)
     {
         ClearChildren(_buildingList);
@@ -265,6 +192,11 @@ internal sealed class StrategicManagementDashboardPanelBinder
         if (location.ProductionPerWorldTimePulse.Count > 0)
         {
             AddMutedLine(_buildingList, $"大地图时间产出：{location.ProductionDisplayText}");
+        }
+
+        if (location.SourcePermissionTags.Count > 0)
+        {
+            AddMutedLine(_buildingList, $"来源权限：{location.SourcePermissionDisplayText}");
         }
 
         ClearChildren(_buildingBuildList);
@@ -277,18 +209,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
 
         ClearChildren(_conscriptionList);
         AddMutedLine(_conscriptionList, "该地点不开放城市征兵。");
-
-        ClearChildren(_corpsList);
-        AddMutedLine(_corpsList, "该地点不管理城市预备兵和编制。");
-        if (location.ProductionPerWorldTimePulse.Count > 0)
-        {
-            AddMutedLine(_corpsList, $"被动产出：{location.ProductionDisplayText}");
-        }
-
-        if (location.SourcePermissionTags.Count > 0)
-        {
-            AddMutedLine(_corpsList, $"来源权限：{location.SourcePermissionDisplayText}");
-        }
     }
 
     private static string BuildOverviewText(StrategicCityManagementViewModel city)
@@ -389,21 +309,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
             StrategicFailureReasons.UnsupportedExpeditionIntent => "不支持的出征意图",
             StrategicFailureReasons.InvalidExpeditionParticipants => "出征成员无效",
             _ => reason
-        };
-    }
-
-    private static string FormatCorpsStatus(StrategicCorpsInstanceStatus status)
-    {
-        return status switch
-        {
-            StrategicCorpsInstanceStatus.Garrisoned => "驻守",
-            StrategicCorpsInstanceStatus.AssignedToHero => "已分配",
-            StrategicCorpsInstanceStatus.Expedition => "远征",
-            StrategicCorpsInstanceStatus.Recovering => "恢复中",
-            StrategicCorpsInstanceStatus.Routed => "溃散",
-            StrategicCorpsInstanceStatus.Scattered => "散失",
-            StrategicCorpsInstanceStatus.Rebuilding => "重建中",
-            _ => "未知"
         };
     }
 

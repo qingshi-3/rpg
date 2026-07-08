@@ -47,6 +47,7 @@ script = ExtResource("1_definition")
 SkillDefinitionId = "skill_sun_piercer"
 DisplayName = "贯日一击"
 IconText = "日"
+IconPath = "res://resource/ui/icons/battle/skills/skill_sun_piercer_icon.tres"
 Tags = Array[String](["first_slice", "archer"])
 Timing = SubResource("BattleSkillTiming_sun_piercer")
 InterruptPolicy = SubResource("BattleSkillInterrupt_sun_piercer")

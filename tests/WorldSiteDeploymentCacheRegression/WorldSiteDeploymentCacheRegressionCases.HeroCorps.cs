@@ -186,12 +186,12 @@ internal static void WorldSiteRootGatesBattleStartBehindDeployment()
         rootSource.Contains("TryHandleBattlePreparationDestinationBeaconInput", StringComparison.Ordinal) &&
         rootSource.Contains("ApplyBattlePreparationDestinationBeaconToPlan", StringComparison.Ordinal) &&
         rootSource.Contains("HasInitialDestinationBeacon", StringComparison.Ordinal),
-        "battle preparation should use right-click initial destination beacons instead of objective-zone selection before runtime activation");
+        "battle preparation should use left-click destination targeting to seed initial beacons before runtime activation");
     AssertTrue(
-        rootSource.Contains("BindBattlePreparationCompactPlanControls", StringComparison.Ordinal) &&
+        rootSource.Contains("BindBattlePreparationLaunchControl", StringComparison.Ordinal) &&
         !ExtractMethodBody(rootSource, "private void BindBattlePreparationPanel(")
             .Contains("BindBattlePreparationObjectiveThumbnail", StringComparison.Ordinal),
-        "battle preparation compact controls should not bind the old objective thumbnail or posture-selection flow as mandatory steps");
+        "battle preparation launch control should not bind the old objective thumbnail or posture-selection flow as mandatory steps");
     AssertTrue(
         rootSource.Contains("RegisterBattlePreparationPlacement", StringComparison.Ordinal),
         "battle placements should be registered during preparation");
@@ -256,14 +256,14 @@ internal static void WorldSiteRootBattleRuntimeCommandUiRoutesInitialCommand()
         siteScene.Contains("BattleRuntimeCommandBar", StringComparison.Ordinal) &&
         siteScene.Contains("BattleRuntimeHeroFrame", StringComparison.Ordinal) &&
         siteScene.Contains("BattleRuntimeHeroSkillList", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeRegroupButton", StringComparison.Ordinal),
-        "world site HUD scene should author a persistent bottom hero frame instead of building the runtime UI tree ad hoc");
+        !siteScene.Contains("BattleRuntimeRegroupButton", StringComparison.Ordinal),
+        "world site HUD scene should author a persistent bottom hero frame without the removed regroup button");
     AssertTrue(
         rootSource.Contains("_siteBottomCommandHost", StringComparison.Ordinal) &&
         rootSource.Contains("_battleRuntimeHeroFrame", StringComparison.Ordinal) &&
         rootSource.Contains("_battleRuntimeHeroSkillList", StringComparison.Ordinal) &&
-        rootSource.Contains("_battleRuntimeRegroupButton", StringComparison.Ordinal),
-        "WorldSiteRoot should bind authored runtime hero frame nodes");
+        !rootSource.Contains("_battleRuntimeRegroupButton", StringComparison.Ordinal),
+        "WorldSiteRoot should bind authored runtime hero frame nodes without the removed regroup button");
     AssertTrue(
         !battlePreparationSource.Contains("RefreshBattleRuntimeCommandControls", StringComparison.Ordinal),
         "battle preparation should keep runtime command buttons out of the pre-start action list");
@@ -384,7 +384,7 @@ internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()
         "runtime unit movement should be slowed in the site scene for readable realtime command evaluation.");
 }
 
-internal static void BattlePreparationUsesCompactPlanControls()
+internal static void BattlePreparationUsesLowerRightLaunchControl()
 {
     string root = ProjectRoot();
     string battlePreparationSource = File.ReadAllText(Path.Combine(
@@ -403,12 +403,13 @@ internal static void BattlePreparationUsesCompactPlanControls()
         !battlePreparationSource.Contains("AddBattlePreparationEngagementRuleButton(Container", StringComparison.Ordinal),
         "battle preparation controls should not be rendered through the old vertical action-list methods.");
     AssertTrue(
-        battlePreparationSource.Contains("BindBattlePreparationCompactPlanControls", StringComparison.Ordinal) &&
+        battlePreparationSource.Contains("BindBattlePreparationLaunchControl", StringComparison.Ordinal) &&
         battlePreparationSource.Contains("_battlePreparationStartButton", StringComparison.Ordinal) &&
         battlePreparationSource.Contains("LaunchPreparedBattle", StringComparison.Ordinal) &&
-        siteHudScene.Contains("node name=\"BattlePreparationPlanBar\"", StringComparison.Ordinal) &&
-        siteHudScene.Contains("node name=\"BattlePreparationStartButton\"", StringComparison.Ordinal),
-        "battle preparation should bind compact authored controls for current-company plan and start battle.");
+        siteHudScene.Contains("node name=\"BattlePreparationLaunchDock\"", StringComparison.Ordinal) &&
+        siteHudScene.Contains("node name=\"BattlePreparationStartButton\"", StringComparison.Ordinal) &&
+        !siteHudScene.Contains("node name=\"BattlePreparationPlanBar\"", StringComparison.Ordinal),
+        "battle preparation should bind a single authored lower-right start battle control.");
 }
 
 internal static void WorldSiteRootBattlePreparationDragUsesTemporaryHighZAndSurfaceSort()
@@ -572,9 +573,11 @@ internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
         tacticalWorldHudSource.Contains("node name=\"FoodAmountTicker\" type=\"Control\" parent=\"TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot\"", StringComparison.Ordinal) &&
         tacticalWorldHudSource.Contains("node name=\"SiteDetailPanel\" type=\"PanelContainer\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
         !peacetimeHudSource.Contains("node name=\"SiteTopBar\"", StringComparison.Ordinal) &&
-        peacetimeHudSource.Contains("node name=\"SitePeacetimePanel\" type=\"PanelContainer\" parent=\"LeftPrimaryPanelHost\"", StringComparison.Ordinal) &&
-        peacetimeHudSource.Contains("node name=\"SiteResourceLabel\" type=\"Label\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack\"", StringComparison.Ordinal),
-        "strategic-world uses fullscreen overlay context UI while site management keeps one dedicated left workspace panel with resources inside it.");
+        peacetimeHudSource.Contains("node name=\"TopLeftStatus\" type=\"PanelContainer\" parent=\"TopBarHost\"", StringComparison.Ordinal) &&
+        peacetimeHudSource.Contains("node name=\"SiteResourceLabel\" type=\"Label\" parent=\"TopBarHost/TopLeftStatus/Margin\"", StringComparison.Ordinal) &&
+        peacetimeHudSource.Contains("node name=\"SiteManagementTabRail\" type=\"Control\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
+        peacetimeHudSource.Contains("node name=\"SitePeacetimePanel\" type=\"PanelContainer\" parent=\"OverlayHost\"", StringComparison.Ordinal),
+        "strategic-world and entered-site management should both preserve fullscreen maps with authored overlay UI instead of reserving split-screen map space.");
 
     AssertTrue(
         managementSource.Contains("Layout hosts are Presentation-only containers", StringComparison.Ordinal),
@@ -598,17 +601,19 @@ internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
     AssertTrue(
         peacetimeHudSource.Contains("node name=\"BattlePreparationRosterDock\"", StringComparison.Ordinal) &&
         peacetimeHudSource.Contains("node name=\"BattlePreparationRosterList\"", StringComparison.Ordinal) &&
-        peacetimeHudSource.Contains("node name=\"BattlePreparationPlanBar\"", StringComparison.Ordinal) &&
+        peacetimeHudSource.Contains("node name=\"BattlePreparationLaunchDock\"", StringComparison.Ordinal) &&
         peacetimeHudSource.Contains("node name=\"BattlePreparationObjectiveThumbnailDock\"", StringComparison.Ordinal) &&
         peacetimeHudSource.Contains("node name=\"BattlePreparationObjectiveThumbnail\"", StringComparison.Ordinal) &&
-        peacetimeHudSource.Contains("node name=\"BattlePreparationStartButton\"", StringComparison.Ordinal),
-        "Peacetime HUD should author compact battle-preparation roster, plan, objective-thumbnail, and start controls outside the management panel.");
+        peacetimeHudSource.Contains("node name=\"BattlePreparationStartButton\"", StringComparison.Ordinal) &&
+        !peacetimeHudSource.Contains("node name=\"BattlePreparationPlanBar\"", StringComparison.Ordinal),
+        "Peacetime HUD should author the battle-preparation roster, objective-thumbnail, and lower-right launch controls outside the management panel.");
 
     AssertTrue(
         !managementSource.Contains("_siteBattlePreparationContent", StringComparison.Ordinal) &&
         !managementSource.Contains("SetBattlePreparationContentVisible", StringComparison.Ordinal) &&
         managementSource.Contains("_battlePreparationRosterDock", StringComparison.Ordinal) &&
-        managementSource.Contains("_battlePreparationPlanBar", StringComparison.Ordinal) &&
+        managementSource.Contains("_battlePreparationLaunchDock", StringComparison.Ordinal) &&
+        managementSource.Contains("_battlePreparationStartButton", StringComparison.Ordinal) &&
         managementSource.Contains("_battlePreparationObjectiveThumbnail", StringComparison.Ordinal),
         "WorldSiteRoot management binding should remove old battle-preparation panel fields and bind compact HUD controls.");
 
@@ -617,7 +622,7 @@ internal static void WorldSiteRootBattlePreparationUsesDedicatedUiContainers()
         !battlePreparationSource.Contains("RefreshBattlePreparationForceList()", StringComparison.Ordinal) &&
         !battlePreparationSource.Contains("_siteBattlePreparationActionList", StringComparison.Ordinal) &&
         battlePreparationSource.Contains("BindBattlePreparationCompanyRoster", StringComparison.Ordinal) &&
-        battlePreparationSource.Contains("BindBattlePreparationCompactPlanControls", StringComparison.Ordinal),
+        battlePreparationSource.Contains("BindBattlePreparationLaunchControl", StringComparison.Ordinal),
         "battle preparation refresh should bind compact company controls instead of the old roster/action lists.");
 
     AssertTrue(
@@ -641,10 +646,11 @@ internal static void PresentationUiScenePathsPreserveCodeBindings()
         strategicHud.Contains("node name=\"FoodAmountTicker\" type=\"Control\" parent=\"TopBarHost/TopLeftStatus/Margin/ResourceStrip/FoodSlot\"", StringComparison.Ordinal),
         "strategic HUD overlay panels must keep full parent paths so code-bound labels/lists remain reachable.");
     AssertTrue(
-        siteHud.Contains("node name=\"Margin\" type=\"MarginContainer\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel\"", StringComparison.Ordinal) &&
-        siteHud.Contains("node name=\"SiteResourceLabel\" type=\"Label\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack\"", StringComparison.Ordinal) &&
-        siteHud.Contains("node name=\"ManagementContentScroll\" type=\"ScrollContainer\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack\"", StringComparison.Ordinal),
-        "site HUD moved panels must keep full parent paths so management and battle-preparation data binders reach their controls.");
+        siteHud.Contains("node name=\"SiteManagementTabRail\" type=\"Control\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
+        siteHud.Contains("node name=\"SiteResourceLabel\" type=\"Label\" parent=\"TopBarHost/TopLeftStatus/Margin\"", StringComparison.Ordinal) &&
+        siteHud.Contains("node name=\"Margin\" type=\"MarginContainer\" parent=\"OverlayHost/SitePeacetimePanel\"", StringComparison.Ordinal) &&
+        siteHud.Contains("node name=\"ManagementContentScroll\" type=\"ScrollContainer\" parent=\"OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack\"", StringComparison.Ordinal),
+        "site HUD overlay panels must keep full parent paths so management data binders reach their controls.");
 }
 
 internal static void StrategicWorldMapViewportFillsScreenBehindHud()
@@ -776,6 +782,7 @@ internal static void WorldSiteUsesDedicatedMainWorldViewport()
     string root = ProjectRoot();
     string scene = File.ReadAllText(Path.Combine(root, "scenes", "world", "sites", "WorldSiteRoot.tscn"));
     string rootSource = ReadWorldSiteRootSource();
+    string viewportHostBlock = ExtractSceneNodeBlock(scene, "[node name=\"MainWorldViewportHost\"");
 
     AssertTrue(
         scene.Contains("[node name=\"WorldSiteRoot\" type=\"Control\"]", StringComparison.Ordinal) &&
@@ -783,9 +790,11 @@ internal static void WorldSiteUsesDedicatedMainWorldViewport()
         "world site root should use the same Control-root layout contract as strategic world.");
     AssertTrue(
         scene.Contains("[node name=\"MainWorldViewportHost\" type=\"SubViewportContainer\" parent=\".\"]", StringComparison.Ordinal) &&
-        scene.Contains("offset_left =", StringComparison.Ordinal) &&
-        scene.Contains("offset_top =", StringComparison.Ordinal),
-        "world site viewport host should be authored as a right-side workspace, not a full-screen map behind HUD.");
+        viewportHostBlock.Contains("anchor_right = 1.0", StringComparison.Ordinal) &&
+        viewportHostBlock.Contains("anchor_bottom = 1.0", StringComparison.Ordinal) &&
+        !viewportHostBlock.Contains("offset_left =", StringComparison.Ordinal) &&
+        !viewportHostBlock.Contains("offset_top =", StringComparison.Ordinal),
+        "world site viewport host should be authored fullscreen; entered-site management UI overlays the map instead of reserving a right-side workspace.");
     AssertTrue(
         scene.Contains("node name=\"MainWorldViewportHost\" type=\"SubViewportContainer\" parent=\".\"", StringComparison.Ordinal) &&
         scene.Contains("node name=\"MainWorldViewport\" type=\"SubViewport\" parent=\"MainWorldViewportHost\"", StringComparison.Ordinal),
@@ -1240,16 +1249,14 @@ internal static void BattlePreparationHudUsesSceneAuthoredDockLayout()
     AssertTrue(
         siteHudScene.Contains("node name=\"OverlayHost\" type=\"Control\" parent=\".\"", StringComparison.Ordinal) &&
         siteHudScene.Contains("node name=\"BattlePreparationRosterDock\" type=\"PanelContainer\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
-        siteHudScene.Contains("node name=\"BattlePreparationPlanBar\" type=\"PanelContainer\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
+        siteHudScene.Contains("node name=\"BattlePreparationLaunchDock\" type=\"Control\" parent=\"OverlayHost\"", StringComparison.Ordinal) &&
         siteHudScene.Contains("node name=\"BattlePreparationObjectiveThumbnailDock\" type=\"Control\" parent=\"MinimapHost\"", StringComparison.Ordinal),
         "battle preparation HUD docks should be authored as normal Godot Control/Container nodes in the HUD scene.");
     AssertTrue(
         siteHudScene.Contains("anchor_top = 1.0", StringComparison.Ordinal) &&
         siteHudScene.Contains("anchor_bottom = 1.0", StringComparison.Ordinal) &&
-        siteHudScene.Contains("anchor_left = 0.5", StringComparison.Ordinal) &&
-        siteHudScene.Contains("anchor_right = 0.5", StringComparison.Ordinal) &&
         siteHudScene.Contains("anchor_left = 1.0", StringComparison.Ordinal),
-        "scene-authored battle preparation docks should use Godot anchors for lower-left, lower-center, and lower-right placement.");
+        "scene-authored battle preparation docks should use Godot anchors for lower-left and lower-right placement.");
     AssertTrue(
         rootSource.Contains("_battlePreparationHudRestPositions", StringComparison.Ordinal) &&
         !ExtractMethodBody(rootSource, "private void SetBattlePreparationHudRetreated(").Contains("Vector2.Zero", StringComparison.Ordinal),

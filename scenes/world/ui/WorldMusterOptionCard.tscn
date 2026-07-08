@@ -1,12 +1,17 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Theme" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_ui_v1_theme.tres" id="1_theme"]
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/WorldMusterOptionCard.cs" id="2_card_script"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/recruitment-ui-v1/recruitment_unit_plinth_normal.png" id="3_plinth"]
 [ext_resource type="PackedScene" path="res://scenes/ui/common/BattleUnitPlinthPreview.tscn" id="4_plinth_preview"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/recruitment-ui-v1/recruitment_reserve_force_icon.png" id="5_reserve_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/resource-icons/resource_money_icon_ai.png" id="6_money_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/resource-icons/resource_food_icon_ai.png" id="7_food_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/resource-icons/resource_wood_icon_ai.png" id="8_wood_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/resource-icons/resource_ore_icon_ai.png" id="9_ore_icon"]
 
 [node name="WorldMusterOptionCard" type="Button"]
-custom_minimum_size = Vector2(196, 212)
+custom_minimum_size = Vector2(196, 260)
 size_flags_horizontal = 3
 focus_mode = 2
 theme = ExtResource("1_theme")
@@ -21,7 +26,7 @@ anchor_bottom = 1.0
 offset_left = 14.0
 offset_top = 10.0
 offset_right = -14.0
-offset_bottom = -58.0
+offset_bottom = -104.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -30,6 +35,136 @@ mouse_filter = 2
 position = Vector2(84, 99)
 scale = Vector2(0.84, 0.84)
 PlinthTexture = ExtResource("3_plinth")
+
+[node name="ResourceCostRow" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -96.0
+offset_right = -16.0
+offset_bottom = -58.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="ReserveCostSlot" type="HBoxContainer" parent="ResourceCostRow"]
+custom_minimum_size = Vector2(34, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="ReserveIcon" type="TextureRect" parent="ResourceCostRow/ReserveCostSlot"]
+custom_minimum_size = Vector2(18, 18)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("5_reserve_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ReserveAmountLabel" type="Label" parent="ResourceCostRow/ReserveCostSlot"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.98, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 13
+text = "0"
+vertical_alignment = 1
+
+[node name="MoneyCostSlot" type="HBoxContainer" parent="ResourceCostRow"]
+visible = false
+custom_minimum_size = Vector2(34, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="MoneyIcon" type="TextureRect" parent="ResourceCostRow/MoneyCostSlot"]
+custom_minimum_size = Vector2(18, 18)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("6_money_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="MoneyAmountLabel" type="Label" parent="ResourceCostRow/MoneyCostSlot"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.98, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 13
+text = "0"
+vertical_alignment = 1
+
+[node name="FoodCostSlot" type="HBoxContainer" parent="ResourceCostRow"]
+visible = false
+custom_minimum_size = Vector2(34, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="FoodIcon" type="TextureRect" parent="ResourceCostRow/FoodCostSlot"]
+custom_minimum_size = Vector2(18, 18)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("7_food_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="FoodAmountLabel" type="Label" parent="ResourceCostRow/FoodCostSlot"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.98, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 13
+text = "0"
+vertical_alignment = 1
+
+[node name="WoodCostSlot" type="HBoxContainer" parent="ResourceCostRow"]
+visible = false
+custom_minimum_size = Vector2(34, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="WoodIcon" type="TextureRect" parent="ResourceCostRow/WoodCostSlot"]
+custom_minimum_size = Vector2(18, 18)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("8_wood_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="WoodAmountLabel" type="Label" parent="ResourceCostRow/WoodCostSlot"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.98, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 13
+text = "0"
+vertical_alignment = 1
+
+[node name="OreCostSlot" type="HBoxContainer" parent="ResourceCostRow"]
+visible = false
+custom_minimum_size = Vector2(34, 24)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="OreIcon" type="TextureRect" parent="ResourceCostRow/OreCostSlot"]
+custom_minimum_size = Vector2(18, 18)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("9_ore_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="OreAmountLabel" type="Label" parent="ResourceCostRow/OreCostSlot"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.98, 0.9, 0.72, 1)
+theme_override_font_sizes/font_size = 13
+text = "0"
+vertical_alignment = 1
 
 [node name="Nameplate" type="PanelContainer" parent="."]
 custom_minimum_size = Vector2(0, 42)
@@ -54,7 +189,7 @@ size_flags_vertical = 3
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.98, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 18
-text = "缂栧埗"
+text = "编制"
 horizontal_alignment = 1
 vertical_alignment = 1
 clip_text = true

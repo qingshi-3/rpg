@@ -12,6 +12,7 @@ public sealed class BattleSkillSnapshot
     public string RuntimeCommanderGroupId { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public string IconText { get; set; } = "";
+    public string IconPath { get; set; } = "";
     public List<string> Tags { get; set; } = new();
     public BattleSkillCommandChannel CommandChannel { get; set; } = BattleSkillCommandChannel.Hero;
     public BattleSkillType SkillType { get; set; } = BattleSkillType.Active;

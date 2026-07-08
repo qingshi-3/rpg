@@ -72,7 +72,7 @@ internal static void WorldSiteRootDelegatesBattlePreparationHudBinding()
     string hudSource = File.ReadAllText(Path.Combine(siteRootDir, "WorldSiteRoot.BattlePreparationHud.cs"));
     string refreshSource = File.ReadAllText(Path.Combine(siteRootDir, "BattlePreparationRefresh.cs"));
     string binderPath = Path.Combine(siteRootDir, "BattlePreparationHudBinder.cs");
-    AssertTrue(File.Exists(binderPath), "battle-preparation roster and plan-control binding should live in BattlePreparationHudBinder");
+    AssertTrue(File.Exists(binderPath), "battle-preparation roster and launch-control binding should live in BattlePreparationHudBinder");
 
     string binderSource = File.ReadAllText(binderPath);
     AssertTrue(
@@ -83,18 +83,18 @@ internal static void WorldSiteRootDelegatesBattlePreparationHudBinding()
         "WorldSiteRoot should own a focused battle-preparation HUD binder");
 
     string rosterBody = ExtractMethodBody(hudSource, "private void BindBattlePreparationCompanyRoster()");
-    string controlsBody = ExtractMethodBody(hudSource, "private void BindBattlePreparationCompactPlanControls()");
+    string controlsBody = ExtractMethodBody(hudSource, "private void BindBattlePreparationLaunchControl()");
     AssertTrue(
         rosterBody.Contains("_battlePreparationHudBinder.BindCompanyRoster(", StringComparison.Ordinal),
         "battle-preparation company roster binding should delegate to the HUD binder");
     AssertTrue(
-        controlsBody.Contains("_battlePreparationHudBinder.BindCompactPlanControls(", StringComparison.Ordinal),
-        "battle-preparation compact plan controls should delegate to the HUD binder");
+        controlsBody.Contains("_battlePreparationHudBinder.BindLaunchControl(", StringComparison.Ordinal),
+        "battle-preparation launch control should delegate to the HUD binder");
     AssertTrue(
         refreshSource.Contains("BindBattlePreparationCompanyRoster()", StringComparison.Ordinal) &&
-        refreshSource.Contains("BindBattlePreparationCompactPlanControls()", StringComparison.Ordinal) &&
+        refreshSource.Contains("BindBattlePreparationLaunchControl()", StringComparison.Ordinal) &&
         !ExtractMethodBody(refreshSource, "private void RefreshBattlePreparationPlanUi(").Contains("RefreshBattlePreparationMapEntities", StringComparison.Ordinal),
-        "plan-only refresh should keep using lightweight root routing while binding details live in the HUD binder");
+        "launch-control refresh should keep using lightweight root routing while binding details live in the HUD binder");
 
     foreach (string rootMethod in new[]
     {

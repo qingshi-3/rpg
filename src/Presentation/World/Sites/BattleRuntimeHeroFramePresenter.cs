@@ -17,7 +17,6 @@ internal sealed class BattleRuntimeHeroFramePresenter
     private readonly ProgressBar _heroManaBar;
     private readonly BattleRuntimeHeroSelectorPresenter _heroSelectorPresenter;
     private readonly HBoxContainer _heroSkillList;
-    private readonly Button _regroupButton;
     private readonly Action<string> _skillSlotPressed;
     private readonly Dictionary<string, BattleRuntimeSkillSlot> _skillSlots = new(StringComparer.Ordinal);
 
@@ -29,7 +28,6 @@ internal sealed class BattleRuntimeHeroFramePresenter
         ProgressBar heroManaBar,
         BattleRuntimeHeroSelectorPresenter heroSelectorPresenter,
         HBoxContainer heroSkillList,
-        Button regroupButton,
         Action<string> skillSlotPressed)
     {
         _heroFrame = heroFrame;
@@ -39,7 +37,6 @@ internal sealed class BattleRuntimeHeroFramePresenter
         _heroManaBar = heroManaBar;
         _heroSelectorPresenter = heroSelectorPresenter;
         _heroSkillList = heroSkillList;
-        _regroupButton = regroupButton;
         _skillSlotPressed = skillSlotPressed;
     }
 
@@ -78,11 +75,6 @@ internal sealed class BattleRuntimeHeroFramePresenter
         _heroSelectorPresenter?.Refresh(playerGroups, selected?.GroupKey ?? "", hasRuntime, hasReadySkillForGroup);
         RefreshSkillList(selected, skills, hasRuntime, resolveSkillUsageState);
 
-        if (_regroupButton != null)
-        {
-            _regroupButton.Disabled = selected == null || !hasRuntime;
-            _regroupButton.TooltipText = "重整：先作为战斗中指挥入口，后续接入完整重整命令。";
-        }
     }
 
     private void RefreshSkillList(
@@ -137,6 +129,8 @@ internal sealed class BattleRuntimeHeroFramePresenter
             slot.Bind(
                 skillDefinitionId,
                 skill.DisplayName,
+                skill.IconText,
+                skill.IconPath,
                 available,
                 BattleRuntimeSkillHudText.BuildStatusText(selected, hasRuntime, usageState),
                 cooldownRemainingSeconds: 0.0);

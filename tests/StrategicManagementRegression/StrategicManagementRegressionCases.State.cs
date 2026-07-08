@@ -16,12 +16,27 @@ internal static partial class StrategicManagementRegressionCases
         string retiredConfigPath = Path.Combine(root, "config", "strategic_management", "first_slice_buildings.json");
         string definitionsPath = Path.Combine(root, "src", "Definitions", "StrategicManagement", "FirstStrategicManagementDefinitions.cs");
         string loaderPath = Path.Combine(root, "src", "Application", "Config", "StrategicManagementBuildingDefinitionConfigLoader.cs");
+        string atlasPath = Path.Combine(root, "assets", "textures", "world", "Buildings", "Foundation", "foundation_city_buildings.png");
+        string generatorPath = Path.Combine(root, "tools", "generate-foundation-city-buildings.py");
 
         AssertTrue(File.Exists(configPath), "foundation strategic building definitions should live under config/strategic_management/cities");
         AssertTrue(!File.Exists(retiredConfigPath), "strategic building config should not remain as a root first_slice_buildings.json file");
+        AssertTrue(File.Exists(atlasPath), $"foundation building atlas should exist path={atlasPath}");
+        AssertTrue(File.Exists(generatorPath), $"foundation building atlas should have a reusable native-scale generator path={generatorPath}");
         string configText = File.ReadAllText(configPath);
         string definitionsSource = File.ReadAllText(definitionsPath);
         string loaderSource = File.ReadAllText(loaderPath);
+        string generatorSource = File.Exists(generatorPath) ? File.ReadAllText(generatorPath) : "";
+        byte[] atlasHeader = File.ReadAllBytes(atlasPath);
+        int atlasWidth = (atlasHeader[16] << 24) | (atlasHeader[17] << 16) | (atlasHeader[18] << 8) | atlasHeader[19];
+        int atlasHeight = (atlasHeader[20] << 24) | (atlasHeader[21] << 16) | (atlasHeader[22] << 8) | atlasHeader[23];
+        AssertEqual(192, atlasWidth, "foundation building atlas should keep exact native slot width");
+        AssertEqual(80, atlasHeight, "foundation building atlas should keep exact native slot height");
+        AssertTrue(
+            generatorSource.Contains("SLOTS", StringComparison.Ordinal) &&
+            generatorSource.Contains("write_png", StringComparison.Ordinal) &&
+            generatorSource.Contains("draw_training_ground", StringComparison.Ordinal),
+            "foundation building atlas generator should keep reusable slot metadata and direct PNG writing for later style variants");
 
         AssertTrue(
             configText.Contains("\"buildingDefinitionId\": \"building_training_ground\"", StringComparison.Ordinal) &&
@@ -78,6 +93,17 @@ internal static partial class StrategicManagementRegressionCases
         StrategicBuildingDefinition farm = definitions.Buildings[StrategicManagementIds.BuildingFarm];
         string trainingIconPath = (string)(typeof(StrategicBuildingDefinition).GetProperty("IconPath")?.GetValue(trainingGround) ?? "");
         string farmIconPath = (string)(typeof(StrategicBuildingDefinition).GetProperty("IconPath")?.GetValue(farm) ?? "");
+        var expectedFootprints = new Dictionary<string, (int Width, int Height)>
+        {
+            [StrategicManagementIds.BuildingFarm] = (3, 2),
+            [StrategicManagementIds.BuildingMarket] = (3, 2),
+            [StrategicManagementIds.BuildingLumberCamp] = (3, 2),
+            [StrategicManagementIds.BuildingMine] = (3, 2),
+            [StrategicManagementIds.BuildingTrainingGround] = (4, 3),
+            [StrategicManagementIds.BuildingTavern] = (3, 2),
+            [StrategicManagementIds.BuildingArrowTower] = (2, 2),
+            [StrategicManagementIds.BuildingMedicalShrine] = (3, 2)
+        };
         AssertEqual("训练场", trainingGround.DisplayName, "training ground display name should come from config");
         AssertEqual(StrategicManagementIds.BuildingCategoryMilitary, trainingGround.CategoryId, "training ground should be military");
         AssertTrue(
@@ -103,6 +129,14 @@ internal static partial class StrategicManagementRegressionCases
                 !iconSource.Contains("region = Rect2(0, 0, 48, 64)", StringComparison.Ordinal) &&
                 !iconSource.Contains("region = Rect2(0, 0, 48, 80)", StringComparison.Ordinal),
                 $"building icon atlas region must not reuse a whole multi-building sheet id={building.BuildingDefinitionId}");
+            AssertTrue(
+                iconSource.Contains("foundation_city_buildings.png", StringComparison.Ordinal),
+                $"foundation building icon should use the unified native-scale atlas id={building.BuildingDefinitionId}");
+            AssertTrue(
+                expectedFootprints.TryGetValue(building.BuildingDefinitionId, out (int Width, int Height) expectedFootprint),
+                $"foundation building should have an expected native-scale footprint id={building.BuildingDefinitionId}");
+            AssertEqual(expectedFootprint.Width, building.FootprintWidth, $"foundation building footprint width id={building.BuildingDefinitionId}");
+            AssertEqual(expectedFootprint.Height, building.FootprintHeight, $"foundation building footprint height id={building.BuildingDefinitionId}");
         }
         AssertEqual(StrategicManagementIds.BuildingCategoryEconomy, farm.CategoryId, "farm should be an economy building");
         object capabilities = GetRequiredProperty<object>(farm, "ProvidedCapabilities");

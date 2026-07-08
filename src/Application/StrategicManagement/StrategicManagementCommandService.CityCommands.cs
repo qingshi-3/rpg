@@ -113,17 +113,35 @@ public sealed partial class StrategicManagementCommandService
         StrategicHeroState hero = state.Heroes[heroId ?? ""];
         StrategicCorpsDefinition definition = _definitions.Corps[corpsDefinitionId ?? ""];
         string previousCorpsInstanceId = hero.AssignedCorpsInstanceId ?? "";
-
-        state.Spend(location.OwnerFactionId, definition.CreationCost);
-        city.ReserveForces = System.Math.Max(0, city.ReserveForces - System.Math.Max(0, definition.SoldierCapacityCost));
-
-        // Hero-directed recruitment is one strategic mutation: the previous corps
-        // returns to the city, and the newly mustered corps becomes the hero's active company.
-        if (!string.IsNullOrWhiteSpace(previousCorpsInstanceId) &&
-            state.CorpsInstances.TryGetValue(previousCorpsInstanceId, out StrategicCorpsInstanceState previousCorps))
+        StrategicCorpsInstanceState previousCorps = null;
+        if (!string.IsNullOrWhiteSpace(previousCorpsInstanceId))
         {
-            previousCorps.AssignedHeroId = "";
-            previousCorps.Status = StrategicCorpsInstanceStatus.Garrisoned;
+            state.CorpsInstances.TryGetValue(previousCorpsInstanceId, out previousCorps);
+        }
+
+        int reserveConsumed = System.Math.Max(0, definition.SoldierCapacityCost);
+        int reserveRefunded = previousCorps == null
+            ? 0
+            : _rules.GetCorpsCurrentReserveValue(state, previousCorps.CorpsInstanceId);
+        System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> resourcesConsumed = NormalizeResourceAmounts(definition.CreationCost);
+        System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> resourcesRefunded = previousCorps == null
+            ? System.Array.Empty<StrategicResourceAmount>()
+            : _rules.GetCorpsCurrentResourceValue(state, previousCorps.CorpsInstanceId);
+        System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> netResources =
+            CombineResourceAmounts(resourcesRefunded, resourcesConsumed, -1);
+
+        // Replacement settlement dissolves the old main corps into city reserves
+        // at current strength before paying the new corps cost. Battle losses stay lost.
+        city.ReserveForces = System.Math.Max(0, city.ReserveForces + reserveRefunded - reserveConsumed);
+        foreach (StrategicResourceAmount refund in resourcesRefunded)
+        {
+            state.AddResourceAmount(location.OwnerFactionId, refund.ResourceId, refund.Amount);
+        }
+
+        state.Spend(location.OwnerFactionId, resourcesConsumed);
+        if (previousCorps != null)
+        {
+            state.CorpsInstances.Remove(previousCorps.CorpsInstanceId);
         }
 
         string corpsInstanceId = state.AllocateCorpsInstanceId();
@@ -148,13 +166,18 @@ public sealed partial class StrategicManagementCommandService
         result.CreatedEntityId = corpsInstanceId;
         result.AptitudeGrade = aptitude;
         result.Events.Add(Event(
-            "StrategicCorpsRecruitedForHero",
+            "StrategicHeroMainCorpsReplaced",
             corpsInstanceId,
             ("city", city.LocationId),
             ("hero", hero.HeroId),
             ("corps", definition.CorpsDefinitionId),
             ("previousCorps", previousCorpsInstanceId),
-            ("reserveSpent", definition.SoldierCapacityCost.ToString()),
+            ("reserveConsumed", reserveConsumed.ToString()),
+            ("reserveRefunded", reserveRefunded.ToString()),
+            ("netReserveDelta", (reserveRefunded - reserveConsumed).ToString()),
+            ("resourcesConsumed", FormatResourceAmounts(resourcesConsumed)),
+            ("resourcesRefunded", FormatResourceAmounts(resourcesRefunded)),
+            ("netResources", FormatResourceAmounts(netResources)),
             ("aptitude", aptitude.ToString())));
         Accept("RecruitCorpsForHero", corpsInstanceId, result);
         return result;
@@ -388,6 +411,6 @@ public sealed partial class StrategicManagementCommandService
             }
         }
 
-        return _rules.GetCorpsCreationFailureReason(state, city.LocationId, corpsDefinitionId);
+        return _rules.GetHeroCorpsReplacementFailureReason(state, city.LocationId, hero.HeroId, corpsDefinitionId);
     }
 }

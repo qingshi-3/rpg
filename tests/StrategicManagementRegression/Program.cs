@@ -22,7 +22,8 @@ Run("build city building consumes resources and records placement", StrategicMan
 Run("build city building rejects invalid placement without mutation", StrategicManagementRegressionCases.BuildCityBuildingRejectsInvalidPlacementWithoutMutation);
 Run("create corps consumes resources reserve and creates persistent corps instance", StrategicManagementRegressionCases.CreateCorpsConsumesResourcesReserveAndCreatesPersistentCorpsInstance);
 Run("create corps failure leaves resources reserve and corps list unchanged", StrategicManagementRegressionCases.CreateCorpsFailureLeavesResourcesReserveAndCorpsListUnchanged);
-Run("recruit corps for hero creates and binds new corps while returning old corps to city", StrategicManagementRegressionCases.RecruitCorpsForHeroCreatesAndBindsNewCorpsWhileReturningOldCorpsToCity);
+Run("recruit corps for hero replaces old corps with full refund", StrategicManagementRegressionCases.RecruitCorpsForHeroReplacesOldCorpsWithFullRefund);
+Run("recruit corps for hero refunds only current strength value", StrategicManagementRegressionCases.RecruitCorpsForHeroRefundsOnlyCurrentStrengthValue);
 Run("replenish corps consumes resources reserve and restores strength", StrategicManagementRegressionCases.ReplenishCorpsConsumesResourcesReserveAndRestoresStrength);
 Run("replenish corps failure leaves resources reserve and strength unchanged", StrategicManagementRegressionCases.ReplenishCorpsFailureLeavesResourcesReserveAndStrengthUnchanged);
 Run("manual conscription consumes resources and creates reserve soldiers", StrategicManagementRegressionCases.ManualConscriptionConsumesResourcesAndCreatesReserveSoldiers);
@@ -68,6 +69,7 @@ Run("strategic management dashboard summarizes city resources buildings reserve 
 Run("strategic management dashboard exposes dispatchable battle groups", StrategicManagementRegressionCases.StrategicManagementDashboardExposesDispatchableHeroCompanies);
 Run("strategic management dashboard reflects foundation command mutations", StrategicManagementRegressionCases.StrategicManagementDashboardReflectsFoundationCommandMutations);
 Run("strategic management dashboard separates conscription from corps recruitment", StrategicManagementRegressionCases.StrategicManagementDashboardSeparatesConscriptionFromCorpsRecruitment);
+Run("strategic management dashboard projects hero corps replacement cost", StrategicManagementRegressionCases.StrategicManagementDashboardProjectsHeroCorpsReplacementCost);
 Run("strategic management dashboard summarizes non-city location", StrategicManagementRegressionCases.StrategicManagementDashboardSummarizesNonCityLocation);
 Run("strategic management settles controlled resource site production", StrategicManagementRegressionCases.StrategicManagementSettlesControlledResourceSiteProduction);
 Run("strategic management uses elapsed world time naming instead of step naming", StrategicManagementRegressionCases.StrategicManagementUsesElapsedWorldTimeNamingInsteadOfStepNaming);

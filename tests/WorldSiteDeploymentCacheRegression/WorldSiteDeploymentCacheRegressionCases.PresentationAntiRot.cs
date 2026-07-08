@@ -764,14 +764,18 @@ internal static void WorldSiteRootDelegatesSiteManagementHudLists()
         binderSource.Contains("GameUiSceneFactory.CreateWorldMutedLine", StringComparison.Ordinal) &&
         binderSource.Contains("GameUiSceneFactory.CreateWorldBuildingOptionCard", StringComparison.Ordinal) &&
         binderSource.Contains("GameUiSceneFactory.CreateWorldConscriptionPanel", StringComparison.Ordinal) &&
-        binderSource.Contains("GameUiSceneFactory.CreateWorldCorpsInstanceRow", StringComparison.Ordinal) &&
-        binderSource.Contains("GameUiSceneFactory.CreateWorldMilitaryHeroCard", StringComparison.Ordinal) &&
         binderSource.Contains("_selectBuildingForPlacement", StringComparison.Ordinal) &&
-        binderSource.Contains("_replenishCorps", StringComparison.Ordinal) &&
-        binderSource.Contains("_toggleHeroAssignment", StringComparison.Ordinal) &&
         binderSource.Contains("Selected +=", StringComparison.Ordinal) &&
-        binderSource.Contains("ReplenishRequested +=", StringComparison.Ordinal),
-        "strategic management dashboard binder should render strategic dashboard rows through authored visual resources and callbacks");
+        binderSource.Contains("ManualConscriptRequested +=", StringComparison.Ordinal) &&
+        binderSource.Contains("AutoConscriptionIntensityRequested +=", StringComparison.Ordinal),
+        "strategic management dashboard binder should render build and conscription rows through authored visual resources and callbacks");
+    AssertTrue(
+        !binderSource.Contains("GameUiSceneFactory.CreateWorldCorpsInstanceRow", StringComparison.Ordinal) &&
+        !binderSource.Contains("GameUiSceneFactory.CreateWorldMilitaryHeroCard", StringComparison.Ordinal) &&
+        !binderSource.Contains("_replenishCorps", StringComparison.Ordinal) &&
+        !binderSource.Contains("_toggleHeroAssignment", StringComparison.Ordinal) &&
+        !binderSource.Contains("ReplenishRequested +=", StringComparison.Ordinal),
+        "site-management dashboard binder should not expose the removed corps tab, replenishment rows, or hero reassignment cards");
 
     AssertTrue(
         !binderSource.Contains("StrategicBattlePreparationOptionViewModel", StringComparison.Ordinal) &&
@@ -812,8 +816,8 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
     foreach (string requiredCallback in new[]
     {
         "OnStrategicBuildBuildingSelected",
-        "OnStrategicReplenishCorpsPressed",
-        "OnStrategicHeroAssignmentPressed"
+        "OnStrategicManualConscriptPressed",
+        "OnStrategicAutoConscriptionIntensityPressed"
     })
     {
         AssertTrue(
@@ -824,7 +828,8 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
     foreach (string requiredCommand in new[]
     {
         "StrategicManagementRuntime.Commands.BuildCityBuilding(",
-        "StrategicManagementRuntime.Commands.ReplenishCorps("
+        "StrategicManagementRuntime.Commands.ManualConscriptReserveForces(",
+        "StrategicManagementRuntime.Commands.SetAutoConscriptionIntensity("
     })
     {
         AssertTrue(
@@ -833,9 +838,12 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
     }
 
     AssertTrue(
+        !siteHudSource.Contains("OnStrategicReplenishCorpsPressed", StringComparison.Ordinal) &&
+        !siteHudSource.Contains("OnStrategicHeroAssignmentPressed", StringComparison.Ordinal) &&
+        !siteHudSource.Contains("StrategicManagementRuntime.Commands.ReplenishCorps(", StringComparison.Ordinal) &&
         !rootSource.Contains("OnStrategicBattlePreparationPressed", StringComparison.Ordinal) &&
         !rootSource.Contains("StrategicManagementRuntime.Commands.SelectBattlePreparation(", StringComparison.Ordinal),
-        "WorldSiteRoot should not route deleted strategic battle-preparation commands");
+        "WorldSiteRoot should not route deleted corps-tab replenishment, old hero-assignment, or strategic battle-preparation commands");
 
     AssertTrue(
         rootSource.Contains("private void HandleStrategicManagementCommandResult(", StringComparison.Ordinal) &&
@@ -843,9 +851,10 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
         "WorldSiteRoot should refresh the strategic dashboard with a command-result notice after command submission");
 
     string buildBuildingBody = ExtractMethodBody(rootSource, "private void TrySubmitStrategicBuildingPlacement(");
-    string replenishCorpsBody = ExtractMethodBody(rootSource, "private void OnStrategicReplenishCorpsPressed(");
-    string heroAssignmentBody = ExtractMethodBody(rootSource, "private void OnStrategicHeroAssignmentPressed(");
-    string commandBodies = buildBuildingBody + replenishCorpsBody + heroAssignmentBody;
+    string manualConscriptBody = ExtractMethodBody(rootSource, "private void OnStrategicManualConscriptPressed(");
+    string autoConscriptionBody = ExtractMethodBody(rootSource, "private void OnStrategicAutoConscriptionIntensityPressed(");
+    string recruitCorpsBody = ExtractMethodBody(rootSource, "private void OnStrategicRecruitCorpsForHeroPressed(");
+    string commandBodies = buildBuildingBody + manualConscriptBody + autoConscriptionBody + recruitCorpsBody;
 
     AssertTrue(
         rootSource.Contains("StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(", StringComparison.Ordinal) &&
@@ -861,18 +870,18 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
         "WorldSiteRoot should route mapped non-city sites into a Strategic Management location dashboard");
     AssertTrue(
         buildBuildingBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
-        replenishCorpsBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal),
-        "building placement and replenishment commands should guard command submission behind selected strategic city resolution");
+        manualConscriptBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
+        autoConscriptionBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
+        recruitCorpsBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal),
+        "city-management commands should guard command submission behind selected strategic city resolution");
     AssertTrue(
-        heroAssignmentBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out _)", StringComparison.Ordinal) &&
-        heroAssignmentBody.Contains("_selectedMilitaryWorkbenchHeroId = heroId ?? \"\"", StringComparison.Ordinal) &&
-        heroAssignmentBody.Contains("BindStrategicMilitaryWorkbench()", StringComparison.Ordinal) &&
-        !siteHudSource.Contains("OnStrategicHeroAssignmentPressedLegacy", StringComparison.Ordinal) &&
+        siteHudSource.Contains("OpenStrategicMilitaryWorkbench", StringComparison.Ordinal) &&
+        siteHudSource.Contains("OnStrategicMilitaryHeroSelected", StringComparison.Ordinal) &&
+        siteHudSource.Contains("OnStrategicRecruitCorpsForHeroPressed", StringComparison.Ordinal) &&
+        siteHudSource.Contains("StrategicManagementRuntime.Commands.RecruitCorpsForHero(", StringComparison.Ordinal) &&
         !siteHudSource.Contains("StrategicManagementRuntime.Commands.AssignCorpsToHero(", StringComparison.Ordinal) &&
-        !siteHudSource.Contains("StrategicManagementRuntime.Commands.UnassignCorpsFromHero(", StringComparison.Ordinal) &&
-        !heroAssignmentBody.Contains("StrategicManagementRuntime.Commands.AssignCorpsToHero(", StringComparison.Ordinal) &&
-        !heroAssignmentBody.Contains("StrategicManagementRuntime.Commands.UnassignCorpsFromHero(", StringComparison.Ordinal),
-        "hero assignment cards should open the focused military workbench instead of mutating assignment directly from the tab");
+        !siteHudSource.Contains("StrategicManagementRuntime.Commands.UnassignCorpsFromHero(", StringComparison.Ordinal),
+        "hero reassignment should be routed through the recruitment workbench and hero-directed recruitment command");
     AssertTrue(
         !commandBodies.Contains("WorldActionResolver", StringComparison.Ordinal) &&
         !commandBodies.Contains("_worldActionResolver", StringComparison.Ordinal),
@@ -883,14 +892,14 @@ internal static void WorldSiteRootShowsStrategicManagementPanelOnlyForPlayerCity
 {
     string siteRootDir = Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites");
     string rootSource = File.ReadAllText(Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs"));
-    string visibilityBody = ExtractMethodBody(rootSource, "private void UpdateSitePeacetimePanelVisibility(");
+    string visibilityBody = ExtractMethodBody(rootSource, "private void UpdateSiteManagementEntryVisibility(");
 
     AssertTrue(
-        rootSource.Contains("private bool ShouldShowSitePeacetimePanel(", StringComparison.Ordinal) &&
-        visibilityBody.Contains("ShouldShowSitePeacetimePanel()", StringComparison.Ordinal),
-        "site peacetime panel visibility should be delegated to a named helper that owns the player-city management gate");
+        rootSource.Contains("private bool ShouldShowSiteManagementEntry(", StringComparison.Ordinal) &&
+        visibilityBody.Contains("ShouldShowSiteManagementEntry()", StringComparison.Ordinal),
+        "site management entry visibility should be delegated to a named helper that owns the player-city management gate");
 
-    string helperBody = ExtractMethodBody(rootSource, "private bool ShouldShowSitePeacetimePanel(");
+    string helperBody = ExtractMethodBody(rootSource, "private bool ShouldShowSiteManagementEntry(");
     foreach (string required in new[]
     {
         "_siteHudRoot?.Visible == true",
@@ -901,7 +910,7 @@ internal static void WorldSiteRootShowsStrategicManagementPanelOnlyForPlayerCity
     {
         AssertTrue(
             helperBody.Contains(required, StringComparison.Ordinal),
-            $"site peacetime panel should show only for player-owned city management fragment={required}");
+            $"site management entry should show only for player-owned city management fragment={required}");
     }
 
     string cityGateBody = ExtractMethodBody(rootSource, "private static bool CanOpenManagedCityDetail(");
@@ -924,7 +933,7 @@ internal static void WorldSiteRootShowsStrategicManagementPanelOnlyForPlayerCity
         !helperBody.Contains("_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
         !helperBody.Contains("TryResolveStrategicManagementLocationId(_siteHudSiteId, out _)", StringComparison.Ordinal) &&
         !helperBody.Contains("CanOpenSiteDetail(ResolveSiteState(_siteHudSiteId))", StringComparison.Ordinal),
-        "site peacetime panel visibility must not depend on retired slots, battle pause, generic strategic-location mapping, or legacy WorldSite ownership");
+        "site management entry visibility must not depend on retired slots, battle pause, generic strategic-location mapping, or legacy WorldSite ownership");
 }
 
 internal static void WorldSiteManagementMapSuppressesLegacyUnitsForManagedCity()
@@ -959,16 +968,23 @@ internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
     string refsPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSitePeacetimeHudNodeRefs.cs");
     string binderPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "StrategicManagementDashboardPanelBinder.cs");
     string siteHudPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.SiteManagementHud.cs");
+    string animationPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "SiteManagementDrawerAnimator.cs");
+    string resourceBarAnimatorPath = Path.Combine(root, "src", "Presentation", "World", "Sites", "SiteManagementResourceBarAnimator.cs");
     string sheetStylePath = Path.Combine(root, "resource", "ui", "themes", "game-ui-skin", "basic_ui_1_panel_sheet.tres");
+    string tabStylePath = Path.Combine(root, "resource", "ui", "themes", "game-ui-skin", "site_management_tab_normal.tres");
 
     AssertTrue(File.Exists(scenePath), $"site management HUD scene should exist path={scenePath}");
     AssertTrue(File.Exists(sheetStylePath), $"site management HUD should reuse the shared outer sheet StyleBox resource path={sheetStylePath}");
+    AssertTrue(File.Exists(tabStylePath), $"site management tab rail should use a dedicated ManaSoul tab StyleBox path={tabStylePath}");
 
     string scene = File.ReadAllText(scenePath);
     string refsSource = File.ReadAllText(refsPath);
     string binderSource = File.ReadAllText(binderPath);
     string siteHudSource = File.ReadAllText(siteHudPath);
+    string animationSource = File.Exists(animationPath) ? File.ReadAllText(animationPath) : "";
+    string resourceBarAnimatorSource = File.Exists(resourceBarAnimatorPath) ? File.ReadAllText(resourceBarAnimatorPath) : "";
     string sheetStyle = File.ReadAllText(sheetStylePath);
+    string tabStyle = File.Exists(tabStylePath) ? File.ReadAllText(tabStylePath) : "";
 
     AssertTrue(
         sheetStyle.Contains("assets/textures/ui/tinyrpg_manasoulgui_v_1_0/20250420manaSoul9SlicesA-Sheet.png", StringComparison.Ordinal),
@@ -979,53 +995,171 @@ internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
         "site management outer frame should use the shared ManaSoul sheet StyleBox resource");
     string peacetimePanelBlock = ExtractSceneNodeBlock(scene, "[node name=\"SitePeacetimePanel\"");
     AssertTrue(
+        peacetimePanelBlock.Contains("[node name=\"SitePeacetimePanel\" type=\"PanelContainer\" parent=\"OverlayHost\"]", StringComparison.Ordinal) &&
+        peacetimePanelBlock.Contains("anchor_left = 0.0", StringComparison.Ordinal) &&
+        peacetimePanelBlock.Contains("anchor_top = 0.0", StringComparison.Ordinal) &&
+        peacetimePanelBlock.Contains("anchor_right = 0.0", StringComparison.Ordinal) &&
+        peacetimePanelBlock.Contains("anchor_bottom = 0.0", StringComparison.Ordinal) &&
         peacetimePanelBlock.Contains("offset_left = 0.0", StringComparison.Ordinal) &&
-        peacetimePanelBlock.Contains("offset_top = 0.0", StringComparison.Ordinal) &&
-        peacetimePanelBlock.Contains("offset_right = 520.0", StringComparison.Ordinal) &&
-        peacetimePanelBlock.Contains("offset_bottom = 0.0", StringComparison.Ordinal) &&
-        siteHudSource.Contains("_sitePeacetimePanel.OffsetLeft = 0.0f", StringComparison.Ordinal) &&
-        siteHudSource.Contains("_sitePeacetimePanel.OffsetTop = 0.0f", StringComparison.Ordinal) &&
-        siteHudSource.Contains("_sitePeacetimePanel.OffsetRight = 520.0f", StringComparison.Ordinal) &&
-        siteHudSource.Contains("_sitePeacetimePanel.OffsetBottom = 0.0f", StringComparison.Ordinal),
-        "site management panel should fill the full left screen edge without outer gray gutters");
+        peacetimePanelBlock.Contains("offset_top = 72.0", StringComparison.Ordinal) &&
+        peacetimePanelBlock.Contains("offset_right = 640.0", StringComparison.Ordinal) &&
+        peacetimePanelBlock.Contains("offset_bottom = 840.0", StringComparison.Ordinal) &&
+        !siteHudSource.Contains("_sitePeacetimePanel.OffsetRight = 520.0f", StringComparison.Ordinal) &&
+        !siteHudSource.Contains("_sitePeacetimePanel.CustomMinimumSize = new Vector2(520.0f", StringComparison.Ordinal),
+        "site management panel should be a task-sized overlay and must not hardcode the old 520px split-screen strip");
 
     AssertTrue(
         !scene.Contains("[node name=\"SiteTopBar\"", StringComparison.Ordinal) &&
         !scene.Contains("SiteOperationHintLabel", StringComparison.Ordinal),
         "site management should not keep a top header strip or a right-side resource panel over the map");
+    string topLeftStatusBlock = ExtractSceneNodeBlock(scene, "[node name=\"TopLeftStatus\"");
+    string tabRailBlock = ExtractSceneNodeBlock(scene, "[node name=\"SiteManagementTabRail\"");
     AssertTrue(
-        scene.Contains("[node name=\"SiteResourceLabel\" type=\"Label\" parent=\"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack\"]", StringComparison.Ordinal) &&
-        refsSource.Contains("LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteResourceLabel", StringComparison.Ordinal),
-        "resources should be presented at the top of the left site-management workspace");
+        scene.Contains("[node name=\"SiteManagementTabRail\" type=\"Control\" parent=\"OverlayHost\"]", StringComparison.Ordinal) &&
+        tabRailBlock.Contains("offset_left = 0.0", StringComparison.Ordinal) &&
+        tabRailBlock.Contains("offset_right = 96.0", StringComparison.Ordinal) &&
+        tabRailBlock.Contains("custom_minimum_size = Vector2(96, 260)", StringComparison.Ordinal) &&
+        refsSource.Contains("OverlayHost/SiteManagementTabRail", StringComparison.Ordinal) &&
+        !scene.Contains("[node name=\"SiteResourceLabel\" type=\"Label\" parent=\"OverlayHost/SitePeacetimePanel", StringComparison.Ordinal) &&
+        !refsSource.Contains("OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteResourceLabel", StringComparison.Ordinal),
+        "the tab rail should remain a separate left-edge entry surface and resources must not live inside the opened function panel");
+
+    AssertTrue(
+        scene.Contains("[node name=\"TopLeftStatus\" type=\"PanelContainer\" parent=\"TopBarHost\"]", StringComparison.Ordinal) &&
+        topLeftStatusBlock.Contains("offset_left = 12.0", StringComparison.Ordinal) &&
+        topLeftStatusBlock.Contains("offset_top = 10.0", StringComparison.Ordinal) &&
+        topLeftStatusBlock.Contains("mouse_filter = 2", StringComparison.Ordinal) &&
+        topLeftStatusBlock.Contains("theme_type_variation = &\"WorldTopStatusPanel\"", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"SiteResourceLabel\" type=\"Label\" parent=\"TopBarHost/TopLeftStatus/Margin\"]", StringComparison.Ordinal) &&
+        refsSource.Contains("SiteResourceBar = Get<Control>(root, \"TopBarHost/TopLeftStatus\"", StringComparison.Ordinal) &&
+        refsSource.Contains("SiteResourceLabel = Get<Label>(root, \"TopBarHost/TopLeftStatus/Margin/SiteResourceLabel\"", StringComparison.Ordinal) &&
+        binderSource.Contains("_resourceLabel.Text = BuildResourceLine(safeDashboard.Resources)", StringComparison.Ordinal),
+        "site-management resources should use a persistent top-left bar, share the strategic-world placement pattern, and keep binding from Strategic Management resources");
+
+    AssertTrue(
+        File.Exists(resourceBarAnimatorPath) &&
+        resourceBarAnimatorSource.Contains("internal sealed class SiteManagementResourceBarAnimator", StringComparison.Ordinal) &&
+        siteHudSource.Contains("_siteResourceBarAnimator.Bind(hudRefs.SiteResourceBar)", StringComparison.Ordinal) &&
+        siteHudSource.Contains("UpdateSiteResourceBarVisibility(", StringComparison.Ordinal) &&
+        siteHudSource.Contains("_siteResourceBarAnimator.Update(", StringComparison.Ordinal) &&
+        siteHudSource.Contains("placementActive || _battlePreparationHudRetreated", StringComparison.Ordinal) &&
+        resourceBarAnimatorSource.Contains("new Vector2(0.0f, -70.0f)", StringComparison.Ordinal) &&
+        resourceBarAnimatorSource.Contains("TweenProperty(_resourceBar, \"position\"", StringComparison.Ordinal) &&
+        resourceBarAnimatorSource.Contains("TweenProperty(_resourceBar, \"modulate\"", StringComparison.Ordinal) &&
+        siteHudSource.Contains("UpdateSiteResourceBarVisibility(\"battle_preparation_hud_retreat", StringComparison.Ordinal),
+        "site-management resource bar should stay resident by default and delegate smooth upward retreat to a focused helper during building placement and defensive deployment placement");
+
+    AssertTrue(
+        tabStyle.Contains("[gd_resource type=\"StyleBoxTexture\"", StringComparison.Ordinal) &&
+        tabStyle.Contains("assets/textures/ui/tinyrpg_manasoulgui_v_1_0/20250420manaTabD-Sheet.png", StringComparison.Ordinal) &&
+        tabStyle.Contains("region = Rect2(10, 0, 86, 32)", StringComparison.Ordinal),
+        "site management tab rail should trim the ManaSoul tab frame's transparent left edge so the visible tab sits on the screen edge");
 
     foreach (string[] tab in new[]
     {
-        new[] { "BuildTabButton", "建造" },
-        new[] { "ConscriptionTabButton", "征兵" },
-        new[] { "RecruitTabButton", "招兵" },
-        new[] { "CorpsTabButton", "编制" },
-        new[] { "OverviewTabButton", "总览" }
+        new[] { "BuildTabButton", "建造", "22_build_tab_icon" },
+        new[] { "ConscriptionTabButton", "征兵", "23_conscript_tab_icon" },
+        new[] { "RecruitTabButton", "招兵", "24_recruit_tab_icon" },
+        new[] { "OverviewTabButton", "总览", "25_overview_tab_icon" },
+        new[] { "ReturnMapTabButton", "返回", "26_return_tab_icon" }
     })
     {
         string tabName = tab[0];
         string tabText = tab[1];
+        string iconId = tab[2];
         string tabBlock = ExtractSceneNodeBlock(scene, $"[node name=\"{tabName}\"");
         AssertTrue(
             !string.IsNullOrWhiteSpace(tabBlock) &&
-            tabBlock.Contains("custom_minimum_size = Vector2(76, 48)", StringComparison.Ordinal) &&
-            tabBlock.Contains($"text = \"{tabText}\"", StringComparison.Ordinal) &&
-            tabBlock.Contains("toggle_mode = true", StringComparison.Ordinal),
-            $"site management tab should be a clear two-character toggle button tab={tabName}");
+            tabBlock.Contains($"[node name=\"{tabName}\" type=\"Button\" parent=\"OverlayHost/SiteManagementTabRail\"]", StringComparison.Ordinal) &&
+            tabBlock.Contains("custom_minimum_size = Vector2(96, 44)", StringComparison.Ordinal) &&
+            tabBlock.Contains("layout_mode = 1", StringComparison.Ordinal) &&
+            tabBlock.Contains("offset_left = -52.0", StringComparison.Ordinal) &&
+            tabBlock.Contains("offset_right = 44.0", StringComparison.Ordinal) &&
+            tabBlock.Contains("text = \"\"", StringComparison.Ordinal) &&
+            tabBlock.Contains("tooltip_text = \"\"", StringComparison.Ordinal) &&
+            tabBlock.Contains($"icon = ExtResource(\"{iconId}\")", StringComparison.Ordinal) &&
+            tabBlock.Contains("icon_alignment = 2", StringComparison.Ordinal) &&
+            tabBlock.Contains("theme_override_constants/icon_max_width = 22", StringComparison.Ordinal) &&
+            tabBlock.Contains("theme_type_variation = &\"WorldSiteRailTabButton\"", StringComparison.Ordinal) &&
+            tabBlock.Contains("toggle_mode = true", StringComparison.Ordinal) &&
+            siteHudSource.Contains($"WireSiteManagementTabHover({_siteManagementTabField(tabName)}, \"{tabText}\")", StringComparison.Ordinal),
+            $"site management tab should be a left-edge drawer tab with no external tooltip, a readable right-side icon, and Chinese hover text tab={tabName}");
     }
+
+    AssertTrue(
+        scene.Contains("UI_TravelBook_IconGear01a.png", StringComparison.Ordinal) &&
+        scene.Contains("recruitment_reserve_force_icon.png", StringComparison.Ordinal) &&
+        scene.Contains("training_ground_icon.tres", StringComparison.Ordinal) &&
+        scene.Contains("UI_TravelBook_IconHome01a.png", StringComparison.Ordinal) &&
+        scene.Contains("UI_TravelBook_IconArrow01a.png", StringComparison.Ordinal) &&
+        animationSource.Contains("ApplyTabDrawerState", StringComparison.Ordinal) &&
+        animationSource.Contains("const float collapsedLeft = -52.0f", StringComparison.Ordinal) &&
+        animationSource.Contains("const float collapsedRight = 44.0f", StringComparison.Ordinal) &&
+        animationSource.Contains("const float expandedLeft = 0.0f", StringComparison.Ordinal) &&
+        animationSource.Contains("const float expandedRight = 96.0f", StringComparison.Ordinal) &&
+        animationSource.Contains("tab.TooltipText = \"\"", StringComparison.Ordinal) &&
+        animationSource.Contains("tab.IconAlignment = HorizontalAlignment.Right", StringComparison.Ordinal) &&
+        animationSource.Contains("expanded ? HorizontalAlignment.Left : HorizontalAlignment.Center", StringComparison.Ordinal),
+        "site management tab hover should slide each drawer from icon-only side peek to full left-edge label with the icon on the right and no tooltip popup");
+
+    AssertTrue(
+        scene.Contains("[node name=\"ReturnMapTabButton\" type=\"Button\" parent=\"OverlayHost/SiteManagementTabRail\"]", StringComparison.Ordinal) &&
+        refsSource.Contains("ReturnMapButton = Get<Button>(root, \"OverlayHost/SiteManagementTabRail/ReturnMapTabButton\"", StringComparison.Ordinal) &&
+        siteHudSource.Contains("_returnMapButton.Pressed += () => ReturnToReturnScene(_siteHudReturnScenePath)", StringComparison.Ordinal) &&
+        !scene.Contains("[node name=\"ReturnMapButton\" type=\"Button\" parent=\"OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader\"]", StringComparison.Ordinal),
+        "return-to-world should live as an outside left-edge tab instead of a button inside the opened management panel");
+
+    AssertTrue(
+        scene.Contains("[node name=\"SiteManagementHeader\" type=\"HBoxContainer\" parent=\"OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"SiteHeaderSpacer\" type=\"Control\" parent=\"OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"SitePanelCloseButton\" type=\"Button\" parent=\"OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader\"]", StringComparison.Ordinal) &&
+        !scene.Contains("[node name=\"SiteResourceLabel\" type=\"Label\" parent=\"OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader\"]", StringComparison.Ordinal) &&
+        !scene.Contains("[node name=\"ReturnMapButton\" type=\"Button\" parent=\"OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader\"]", StringComparison.Ordinal),
+        "opened site-management panel header should not own resources and should reserve the top-right slot for close");
+
+    AssertTrue(
+        File.Exists(animationPath) &&
+        siteHudSource.Contains("OpenSiteManagementSectionWithBounce(") &&
+        animationSource.Contains("ApplyTabDrawerState(button, expandedText, expanded: false, animated: true)") &&
+        animationSource.Contains("BouncePanelIn(") &&
+        animationSource.Contains("const float panelHiddenLeft = -640.0f") &&
+        animationSource.Contains("const float panelOvershootLeft = 18.0f") &&
+        animationSource.Contains("TweenProperty(panel, \"offset_left\", panelOvershootLeft") &&
+        animationSource.Contains("TweenProperty(panel, \"offset_left\", panelFinalLeft"),
+        "opening a management tab should first retract the tab then bounce the panel in from the left with a small overshoot");
+
+    AssertTrue(
+        siteHudSource.Contains("CloseSiteManagementPanelWithBounce(") &&
+        animationSource.Contains("ClosePanelThenShowRail(") &&
+        animationSource.Contains("const float panelCloseOvershootLeft = 18.0f") &&
+        animationSource.Contains("const float panelClosedLeft = -640.0f") &&
+        animationSource.Contains("TweenProperty(panel, \"offset_left\", panelCloseOvershootLeft") &&
+        animationSource.Contains("TweenProperty(panel, \"offset_left\", panelClosedLeft") &&
+        animationSource.Contains("AnimateRailTabsIn(") &&
+        animationSource.Contains("const float tabHiddenLeft = -96.0f") &&
+        animationSource.Contains("const float tabPopLeft = -44.0f") &&
+        animationSource.Contains("TweenProperty(tab, \"offset_left\", tabPopLeft") &&
+        animationSource.Contains("TweenProperty(tab, \"offset_left\", collapsedLeft"),
+        "closing the management panel should bump right, retract left, then smoothly pop the left-edge tabs back out");
+
+    AssertTrue(
+        !scene.Contains("tooltip_text = \"建造建筑\"", StringComparison.Ordinal) &&
+        !scene.Contains("tooltip_text = \"城市总览\"", StringComparison.Ordinal) &&
+        scene.Contains("text = \"关闭\"", StringComparison.Ordinal) &&
+        scene.Contains("tooltip_text = \"关闭面板\"", StringComparison.Ordinal) &&
+        !scene.Contains("寤", StringComparison.Ordinal) &&
+        !scene.Contains("鎷", StringComparison.Ordinal) &&
+        !scene.Contains("鍏", StringComparison.Ordinal) &&
+        !scene.Contains("鍩", StringComparison.Ordinal),
+        "site management authored Chinese labels should stay readable");
 
     foreach (string required in new[]
     {
-        "SiteManagementTabBar",
+        "SiteManagementTabRail",
         "ManagementContentScroll",
         "SiteBuildSection",
         "SiteConscriptionSection",
         "SiteConscriptionList",
-        "SiteCorpsSection",
         "SiteOverviewSection"
     })
     {
@@ -1034,14 +1168,22 @@ internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
     }
 
     AssertTrue(
-        siteHudSource.Contains("SelectSiteManagementSection(") &&
-        siteHudSource.Contains("ApplySiteManagementSectionVisibility("),
-        "WorldSiteRoot should switch visible site-management sections from tab buttons");
+        !scene.Contains("CorpsTabButton", StringComparison.Ordinal) &&
+        !scene.Contains("SiteCorpsSection", StringComparison.Ordinal) &&
+        !refsSource.Contains("CorpsTabButton", StringComparison.Ordinal) &&
+        !refsSource.Contains("SiteCorpsSection", StringComparison.Ordinal),
+        "first-version site management should remove the obsolete corps tab and section; recruitment workbench owns hero main-corps reassignment");
+    AssertTrue(
+        siteHudSource.Contains("OpenSiteManagementSectionWithBounce(") &&
+        siteHudSource.Contains("UpdateSiteManagementEntryVisibility(") &&
+        siteHudSource.Contains("_siteManagementTabRail"),
+        "WorldSiteRoot should open one site-management overlay function at a time and return to the tab rail");
     AssertTrue(
         !binderSource.Contains("_recruitList", StringComparison.Ordinal) &&
-        binderSource.Contains("_corpsList", StringComparison.Ordinal) &&
+        !binderSource.Contains("_corpsList", StringComparison.Ordinal) &&
+        !binderSource.Contains("BindCorpsAndHeroes(", StringComparison.Ordinal) &&
         !binderSource.Contains("GameUiSceneFactory.CreateWorldMusterOptionCard", StringComparison.Ordinal),
-        "strategic management binder should keep recruitment out of the narrow site-management sidebar");
+        "strategic management binder should keep recruitment and corps inventory out of the narrow site-management sidebar");
     AssertTrue(
         binderSource.Contains("_conscriptionList", StringComparison.Ordinal) &&
         binderSource.Contains("BindConscription(", StringComparison.Ordinal) &&
@@ -1166,15 +1308,16 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
     string plinthPreviewSourcePath = Path.Combine(root, "src", "Presentation", "Common", "BattleUnitPlinthPreview.cs");
     string musterTooltipScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldMusterOptionTooltip.tscn");
     string musterTooltipSourcePath = Path.Combine(siteRootDir, "WorldMusterOptionTooltip.cs");
-    string corpsRowScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldCorpsInstanceRow.tscn");
-    string corpsRowSourcePath = Path.Combine(siteRootDir, "WorldCorpsInstanceRow.cs");
     string workbenchBinderPath = Path.Combine(siteRootDir, "StrategicMilitaryWorkbenchBinder.cs");
+    string centeredModalAnimatorPath = Path.Combine(siteRootDir, "SiteManagementCenteredModalAnimator.cs");
+    string resourceBarAnimatorPath = Path.Combine(siteRootDir, "SiteManagementResourceBarAnimator.cs");
     string refsPath = Path.Combine(siteRootDir, "WorldSitePeacetimeHudNodeRefs.cs");
     string siteHudPath = Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs");
     string factoryPath = Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs");
     string resolverPath = Path.Combine(root, "src", "Presentation", "Common", "BattleUnitPreviewResolver.cs");
     string dashboardBinderPath = Path.Combine(siteRootDir, "StrategicManagementDashboardPanelBinder.cs");
     string recruitmentThemeResourcePath = "res://resource/ui/themes/recruitment-ui-v1/recruitment_ui_v1_theme.tres";
+    string recruitmentDividerResourcePath = "res://assets/textures/ui/recruitment-ui-v1/recruitment_divider_blue.png";
     string recruitmentPlinthResourcePath = "res://assets/textures/ui/recruitment-ui-v1/recruitment_unit_plinth_normal.png";
     string recruitmentSelectedPlinthResourcePath = "res://assets/textures/ui/recruitment-ui-v1/recruitment_unit_plinth_selected.png";
 
@@ -1189,9 +1332,9 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
     AssertTrue(File.Exists(plinthPreviewSourcePath), $"battle-unit plinth preview should own its binding script path={plinthPreviewSourcePath}");
     AssertTrue(File.Exists(musterTooltipScenePath), $"military muster hover detail should be an authored tooltip scene path={musterTooltipScenePath}");
     AssertTrue(File.Exists(musterTooltipSourcePath), $"military muster hover detail should own its binding script path={musterTooltipSourcePath}");
-    AssertTrue(File.Exists(corpsRowScenePath), $"corps tab should use an authored reusable corps row scene path={corpsRowScenePath}");
-    AssertTrue(File.Exists(corpsRowSourcePath), $"corps tab row should own its binding script path={corpsRowSourcePath}");
     AssertTrue(File.Exists(workbenchBinderPath), $"military workbench binding should live in a focused Presentation collaborator path={workbenchBinderPath}");
+    AssertTrue(File.Exists(centeredModalAnimatorPath), $"centered recruitment modal animation should live in a focused Presentation collaborator path={centeredModalAnimatorPath}");
+    AssertTrue(File.Exists(resourceBarAnimatorPath), $"site resource bar overlay behavior should live in a focused Presentation collaborator path={resourceBarAnimatorPath}");
     AssertTrue(File.Exists(resolverPath), $"battle unit idle-frame previews should be resolved by a shared Presentation helper path={resolverPath}");
 
     string scene = File.ReadAllText(scenePath);
@@ -1205,27 +1348,35 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
     string plinthPreviewSource = File.Exists(plinthPreviewSourcePath) ? File.ReadAllText(plinthPreviewSourcePath) : "";
     string musterTooltipScene = File.Exists(musterTooltipScenePath) ? File.ReadAllText(musterTooltipScenePath) : "";
     string musterTooltipSource = File.Exists(musterTooltipSourcePath) ? File.ReadAllText(musterTooltipSourcePath) : "";
-    string corpsRowScene = File.Exists(corpsRowScenePath) ? File.ReadAllText(corpsRowScenePath) : "";
-    string corpsRowSource = File.Exists(corpsRowSourcePath) ? File.ReadAllText(corpsRowSourcePath) : "";
     string workbenchBinderSource = File.Exists(workbenchBinderPath) ? File.ReadAllText(workbenchBinderPath) : "";
+    string centeredModalAnimatorSource = File.Exists(centeredModalAnimatorPath) ? File.ReadAllText(centeredModalAnimatorPath) : "";
+    string resourceBarAnimatorSource = File.Exists(resourceBarAnimatorPath) ? File.ReadAllText(resourceBarAnimatorPath) : "";
     string refsSource = File.ReadAllText(refsPath);
     string siteHudSource = File.ReadAllText(siteHudPath);
     string factorySource = File.ReadAllText(factoryPath);
     string resolverSource = File.Exists(resolverPath) ? File.ReadAllText(resolverPath) : "";
     string dashboardBinderSource = File.ReadAllText(dashboardBinderPath);
     string workbenchPanelBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryWorkbenchPanel\"");
+    string workbenchMarginBlock = ExtractSceneNodeBlock(scene, "[node name=\"WorkbenchMargin\"");
+    string workbenchStackBlock = ExtractSceneNodeBlock(scene, "[node name=\"WorkbenchStack\"");
     string workbenchBackdropBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryWorkbenchBackdrop\"");
-    string militaryBackButtonBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryBackButton\"");
     string militaryCloseButtonBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryCloseButton\"");
+    string militaryHeroScrollBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryHeroScroll\"");
+    string militaryHeaderDividerBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryHeaderDivider\"");
+    string militaryMusterDividerBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryMusterDivider\"");
+    string militaryBodyBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryBody\"");
+    string selectedHeroMarginBlock = ExtractSceneNodeBlock(scene, "[node name=\"SelectedHeroMargin\"");
+    string selectedHeroRowBlock = ExtractSceneNodeBlock(scene, "[node name=\"SelectedHeroRow\"");
+    string selectedHeroAvatarFrameBlock = ExtractSceneNodeBlock(scene, "[node name=\"SelectedHeroAvatarFrame\"");
     string selectedHeroPanelBlock = ExtractSceneNodeBlock(scene, "[node name=\"SelectedHeroPanel\"");
     string selectedHeroPlinthBlock = ExtractSceneNodeBlock(scene, "[node name=\"SelectedHeroPlinthPreview\"");
+    string militaryMusterScrollBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryMusterScroll\"");
     string musterGridBlock = ExtractSceneNodeBlock(scene, "[node name=\"MilitaryMusterGrid\"");
     string heroCardRootBlock = ExtractSceneNodeBlock(heroCardScene, "[node name=\"WorldMilitaryHeroCard\"");
     string heroCardPlinthBlock = ExtractSceneNodeBlock(heroCardScene, "[node name=\"PlinthPreview\"");
     string musterCardRootBlock = ExtractSceneNodeBlock(musterCardScene, "[node name=\"WorldMusterOptionCard\"");
     string musterCardPlinthBlock = ExtractSceneNodeBlock(musterCardScene, "[node name=\"PlinthPreview\"");
     string musterCardNameplateBlock = ExtractSceneNodeBlock(musterCardScene, "[node name=\"Nameplate\"");
-    string bindCorpsBody = ExtractMethodBody(dashboardBinderSource, "private void BindCorpsAndHeroes(");
     string musterApplyBody = ExtractMethodBody(musterCardSource, "private void ApplyBinding()");
     string musterCustomTooltipBody = ExtractMethodBody(musterCardSource, "public override Control _MakeCustomTooltip(");
     string musterPressedBody = ExtractMethodBody(musterCardSource, "private void OnPressed()");
@@ -1238,7 +1389,6 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
         "MilitaryMusterGrid",
         "MilitaryHeroSummaryLabel",
         "MilitaryNoticeLabel",
-        "MilitaryBackButton",
         "MilitaryCloseButton"
     })
     {
@@ -1248,16 +1398,34 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
 
     AssertTrue(
         !scene.Contains("SiteRecruitList", StringComparison.Ordinal) &&
-        !dashboardBinderSource.Contains("GameUiSceneFactory.CreateWorldMusterOptionCard", StringComparison.Ordinal),
-        "recruitment should not render corps cards inside the narrow left sidebar");
+        !dashboardBinderSource.Contains("GameUiSceneFactory.CreateWorldMusterOptionCard", StringComparison.Ordinal) &&
+        !scene.Contains("CorpsTabButton", StringComparison.Ordinal) &&
+        !scene.Contains("SiteCorpsSection", StringComparison.Ordinal) &&
+        !refsSource.Contains("CorpsTabButton", StringComparison.Ordinal) &&
+        !refsSource.Contains("SiteCorpsSection", StringComparison.Ordinal),
+        "recruitment should not render corps cards inside the narrow left sidebar and the obsolete corps tab should be removed");
+    AssertTrue(
+        !scene.Contains("MilitaryBackButton", StringComparison.Ordinal) &&
+        !refsSource.Contains("MilitaryBackButton", StringComparison.Ordinal) &&
+        !siteHudSource.Contains("_militaryBackButton", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("MilitaryBackButton", StringComparison.Ordinal),
+        "recruitment workbench should not keep a secondary back button; the modal header should expose only the close action");
     AssertTrue(
         scene.Contains(recruitmentThemeResourcePath, StringComparison.Ordinal) &&
-        workbenchPanelBlock.Contains("custom_minimum_size = Vector2(1180, 720)", StringComparison.Ordinal) &&
-        workbenchPanelBlock.Contains("offset_left = -590.0", StringComparison.Ordinal) &&
-        workbenchPanelBlock.Contains("offset_top = -360.0", StringComparison.Ordinal) &&
-        workbenchPanelBlock.Contains("offset_right = 590.0", StringComparison.Ordinal) &&
-        workbenchPanelBlock.Contains("offset_bottom = 360.0", StringComparison.Ordinal) &&
+        scene.Contains(recruitmentDividerResourcePath, StringComparison.Ordinal) &&
+        workbenchPanelBlock.Contains("custom_minimum_size = Vector2(1500, 900)", StringComparison.Ordinal) &&
+        workbenchPanelBlock.Contains("offset_left = -750.0", StringComparison.Ordinal) &&
+        workbenchPanelBlock.Contains("offset_top = -450.0", StringComparison.Ordinal) &&
+        workbenchPanelBlock.Contains("offset_right = 750.0", StringComparison.Ordinal) &&
+        workbenchPanelBlock.Contains("offset_bottom = 450.0", StringComparison.Ordinal) &&
         workbenchPanelBlock.Contains("theme_type_variation = &\"RecruitmentModalPanel\"", StringComparison.Ordinal) &&
+        workbenchMarginBlock.Contains("margin_left = 24", StringComparison.Ordinal) &&
+        workbenchMarginBlock.Contains("margin_top = 20", StringComparison.Ordinal) &&
+        workbenchMarginBlock.Contains("margin_right = 24", StringComparison.Ordinal) &&
+        workbenchMarginBlock.Contains("margin_bottom = 20", StringComparison.Ordinal) &&
+        workbenchStackBlock.Contains("theme_override_constants/separation = 10", StringComparison.Ordinal) &&
+        militaryBodyBlock.Contains("theme_override_constants/separation = 14", StringComparison.Ordinal) &&
+        militaryHeroScrollBlock.Contains("custom_minimum_size = Vector2(384, 0)", StringComparison.Ordinal) &&
         !workbenchPanelBlock.Contains("theme_override_styles/panel", StringComparison.Ordinal) &&
         workbenchBackdropBlock.Contains("type=\"ColorRect\"", StringComparison.Ordinal) &&
         workbenchBackdropBlock.Contains("visible = false", StringComparison.Ordinal) &&
@@ -1265,13 +1433,35 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
         scene.Contains("[node name=\"SelectedHeroPlinthPreview\" parent=\"ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame\" instance=", StringComparison.Ordinal),
         "military workbench should use the recruitment modal theme, dim the map behind it, and keep enough room for a hero-first card grid");
     AssertTrue(
-        militaryBackButtonBlock.Contains("theme_type_variation = &\"RecruitmentTextButton\"", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"MilitaryHeaderDivider\" type=\"TextureRect\" parent=\"ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"MilitaryMusterDivider\" type=\"TextureRect\" parent=\"ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack\"]", StringComparison.Ordinal) &&
+        militaryHeaderDividerBlock.Contains("texture = ExtResource(", StringComparison.Ordinal) &&
+        militaryMusterDividerBlock.Contains("texture = ExtResource(", StringComparison.Ordinal) &&
+        militaryHeaderDividerBlock.Contains("custom_minimum_size = Vector2(1452, 32)", StringComparison.Ordinal) &&
+        militaryHeaderDividerBlock.Contains("size_flags_horizontal = 3", StringComparison.Ordinal) &&
+        militaryHeaderDividerBlock.Contains("stretch_mode = 0", StringComparison.Ordinal) &&
+        militaryMusterDividerBlock.Contains("custom_minimum_size = Vector2(826, 28)", StringComparison.Ordinal) &&
+        militaryMusterDividerBlock.Contains("size_flags_horizontal = 4", StringComparison.Ordinal) &&
+        militaryMusterDividerBlock.Contains("stretch_mode = 0", StringComparison.Ordinal) &&
+        militaryMusterScrollBlock.Contains("custom_minimum_size = Vector2(826, 0)", StringComparison.Ordinal) &&
+        militaryMusterScrollBlock.Contains("size_flags_horizontal = 4", StringComparison.Ordinal) &&
+        musterGridBlock.Contains("custom_minimum_size = Vector2(826, 0)", StringComparison.Ordinal) &&
+        musterGridBlock.Contains("size_flags_horizontal = 4", StringComparison.Ordinal) &&
+        militaryHeaderDividerBlock.Contains("mouse_filter = 2", StringComparison.Ordinal) &&
+        militaryMusterDividerBlock.Contains("mouse_filter = 2", StringComparison.Ordinal),
+        "recruitment workbench should stretch the authored blue divider texture to mark the full workbench range and the exact four-card troop-list range without extra box frames");
+    AssertTrue(
         militaryCloseButtonBlock.Contains("theme_type_variation = &\"RecruitmentTextButton\"", StringComparison.Ordinal) &&
         selectedHeroPanelBlock.Contains("theme_type_variation = &\"RecruitmentSelectedCardPanel\"", StringComparison.Ordinal) &&
+        selectedHeroPanelBlock.Contains("custom_minimum_size = Vector2(0, 128)", StringComparison.Ordinal) &&
+        selectedHeroMarginBlock.Contains("margin_top = 10", StringComparison.Ordinal) &&
+        selectedHeroMarginBlock.Contains("margin_bottom = 10", StringComparison.Ordinal) &&
+        selectedHeroRowBlock.Contains("theme_override_constants/separation = 16", StringComparison.Ordinal) &&
+        selectedHeroAvatarFrameBlock.Contains("custom_minimum_size = Vector2(176, 100)", StringComparison.Ordinal) &&
         scene.Contains(recruitmentSelectedPlinthResourcePath, StringComparison.Ordinal) &&
         selectedHeroPlinthBlock.Contains("PlinthTexture = ExtResource(", StringComparison.Ordinal) &&
-        musterGridBlock.Contains("columns = 3", StringComparison.Ordinal),
-        "military workbench controls should reuse recruitment button/card variations and present muster cards in a three-column panel");
+        musterGridBlock.Contains("columns = 4", StringComparison.Ordinal),
+        "military workbench controls should reuse recruitment button/card variations and present muster cards in a wide four-column panel");
     AssertTrue(
         resolverSource.Contains("BattleUnitPreviewResolver", StringComparison.Ordinal) &&
         animatedPreviewScene.Contains("res://src/Presentation/Common/BattleUnitAnimatedPreview.cs", StringComparison.Ordinal) &&
@@ -1346,18 +1536,128 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
         workbenchBinderSource.Contains("ResolveSelectedHeroId", StringComparison.Ordinal) &&
         workbenchBinderSource.Contains("hero.BattleUnitId", StringComparison.Ordinal) &&
         workbenchBinderSource.Contains("template.BattleUnitId", StringComparison.Ordinal) &&
+        workbenchBinderSource.Contains("template.ReserveForceCost", StringComparison.Ordinal) &&
+        workbenchBinderSource.Contains("template.CreationCost", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("_panel.Visible = true", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("_backdrop.Visible = true", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("_panel.Visible = false", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("_backdrop.Visible = false", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("template.ReserveForceRefund", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("template.NetReserveForceCost", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("template.RefundCost", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("template.NetCost", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("refundText", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("netText", StringComparison.Ordinal) &&
         !workbenchBinderSource.Contains("hero.IconPath", StringComparison.Ordinal) &&
         !workbenchBinderSource.Contains("template.IconPath", StringComparison.Ordinal) &&
         !workbenchBinderSource.Contains("GD.Load<Texture2D>(hero.IconPath)", StringComparison.Ordinal) &&
         workbenchBinderSource.Contains("BindHeroSelectionStep", StringComparison.Ordinal) &&
         workbenchBinderSource.Contains("BindCorpsAdjustmentStep", StringComparison.Ordinal),
-        "military workbench binder should own the hero-first binding, resolve battle-unit animated previews, and render an RTS-style corps card grid");
+        "military workbench binder should own hero-first content binding without directly showing or hiding the centered modal");
+    AssertTrue(
+        centeredModalAnimatorSource.Contains("internal static class SiteManagementCenteredModalAnimator", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("OpenCenteredModalAfterDelay(", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("OpenCenteredModal(", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("CloseCenteredModal(", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("ModalLeftEdgeNudgePixels", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("ResolveLeftEdgeStartPosition(restPosition, panel)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("ModalPointScale", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("ModalOpenOvershootScale", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalClosedScale", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalCloseBumpPixels", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalCloseBumpScale", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ColorRect", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalTrail", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("CreateModalTrailAfterimages", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("AnimateModalTrailAfterimages", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("new Vector2(ModalPointScale, ModalPointScale)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private const float ModalOpenOvershootViewportRatio = 0.60f;", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalOpenCenterOvershootRatio", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private const float ModalCenterArrivalScale = 0.54f;", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalCenterReturnScale", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private const float ModalUiLaunchOpacity = 0.24f;", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private const float ModalUiCenterOpacity = 0.72f;", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private const double TabRetractDelaySeconds = 0.10;", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private const double ModalOpenBackdropFadeSeconds = 0.135;", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private const double ModalUiLaunchSeconds = 0.27;", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private const double ModalOpenReturnSeconds = 0.07;", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalOpenOverscaleSeconds", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private const double ModalOpenSettleSeconds = 0.045;", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalCloseBumpSeconds", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalCloseRetractSeconds", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalClosePanelFadeSeconds", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalCloseBackdropFadeSeconds", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("panel.Modulate = new Color(1.0f, 1.0f, 1.0f, ModalUiLaunchOpacity)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("Vector2 centerOvershootPosition = ResolveCenterOvershootPosition(startPosition, restPosition, panel);", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("panel.GetParent() is Control parent", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("parentSize.X * ModalOpenOvershootViewportRatio", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"position\", centerOvershootPosition, ModalUiLaunchSeconds).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.Out)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"scale\", new Vector2(ModalCenterArrivalScale, ModalCenterArrivalScale), ModalUiLaunchSeconds).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"modulate\", new Color(1.0f, 1.0f, 1.0f, ModalUiCenterOpacity), ModalUiLaunchSeconds)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"position\", restPosition, ModalOpenReturnSeconds)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"scale\", new Vector2(ModalOpenOvershootScale, ModalOpenOvershootScale), ModalOpenReturnSeconds)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"modulate\", Opaque, ModalOpenReturnSeconds)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"position\", restPosition, ModalOpenSettleSeconds)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"scale\", new Vector2(ModalOpenOvershootScale, ModalOpenOvershootScale), ModalOpenSettleSeconds).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.In)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"position\", centerOvershootPosition, ModalOpenReturnSeconds).SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.In)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"scale\", new Vector2(ModalCenterArrivalScale, ModalCenterArrivalScale), ModalOpenReturnSeconds)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"modulate\", new Color(1.0f, 1.0f, 1.0f, ModalUiCenterOpacity), ModalOpenReturnSeconds)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"position\", startPosition, ModalUiLaunchSeconds).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.In)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"scale\", new Vector2(ModalPointScale, ModalPointScale), ModalUiLaunchSeconds)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"modulate\", Transparent, ModalUiLaunchSeconds)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(backdrop, \"modulate\", Transparent, ModalOpenBackdropFadeSeconds)", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalUiLaunchStretchScaleX", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalUiLaunchStretchScaleY", StringComparison.Ordinal) &&
+        !centeredModalAnimatorSource.Contains("ModalOpenOvershootPixels", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"position\"", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"scale\"", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(panel, \"modulate\"", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("TweenProperty(backdrop, \"modulate\"", StringComparison.Ordinal) &&
+        siteHudSource.Contains("SiteManagementCenteredModalAnimator.OpenCenteredModalAfterDelay(", StringComparison.Ordinal) &&
+        siteHudSource.Contains("SiteManagementCenteredModalAnimator.CloseCenteredModal(", StringComparison.Ordinal) &&
+        siteHudSource.Contains("SiteManagementDrawerAnimator.AnimateRailTabsIn(this, _siteManagementTabRail)", StringComparison.Ordinal),
+        "recruitment workbench should use the real centered modal UI as the q-bounce body: no gray ColorRect trail layer, faster speed, no redundant back button, tab retract, backdrop fade, point-like left-tab start, reach the 60% viewport marker while scaling and revealing, rebound to center while continuing into overscale, settle back to 100%, close by reversing the open path through the 60% marker back to the left edge, then rail return");
+    AssertTrue(
+        resourceBarAnimatorSource.Contains("private const int ModalOverlayBypassZIndex = 615;", StringComparison.Ordinal) &&
+        resourceBarAnimatorSource.Contains("internal void SetModalOverlayBypass(bool active)", StringComparison.Ordinal) &&
+        resourceBarAnimatorSource.Contains("_resourceBar.ZIndex = active ? ModalOverlayBypassZIndex : _restZIndex;", StringComparison.Ordinal) &&
+        siteHudSource.Contains("_siteResourceBarAnimator.SetModalOverlayBypass(true);", StringComparison.Ordinal) &&
+        siteHudSource.Contains("_siteResourceBarAnimator.SetModalOverlayBypass(false);", StringComparison.Ordinal),
+        "opening the recruitment modal should dim the map through the backdrop while keeping the top-left resource bar above the backdrop and restoring its authored z-index after close");
+    AssertTrue(
+        centeredModalAnimatorSource.Contains("private sealed class ModalAnimationState", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("private static readonly Dictionary<ulong, ModalAnimationState> ActiveModalAnimations = new();", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("BeginAnimation(panel, restPosition)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("CancelActiveTween(state);", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("IsCurrent(panel, generation)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("GodotObject.IsInstanceValid(panel)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("GodotObject.IsInstanceValid(backdrop)", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("state.RestPosition", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("FinishAnimation(panel, generation);", StringComparison.Ordinal) &&
+        centeredModalAnimatorSource.Contains("CancelCenteredModal(Control panel, Control backdrop", StringComparison.Ordinal) &&
+        siteHudSource.Contains("SiteManagementCenteredModalAnimator.CancelCenteredModal(_militaryWorkbenchPanel, _militaryWorkbenchBackdrop", StringComparison.Ordinal),
+        "recruitment centered modal animator should own one tween chain per panel, cancel stale delayed/open/close callbacks, keep a stable rest position, and let immediate close cancel pending open without touching freed Godot wrappers");
     AssertTrue(
         musterCardScene.Contains("[node name=\"WorldMusterOptionCard\" type=\"Button\"", StringComparison.Ordinal) &&
         musterCardScene.Contains("res://scenes/ui/common/BattleUnitPlinthPreview.tscn", StringComparison.Ordinal) &&
         musterCardScene.Contains("[node name=\"PlinthPreview\" parent=\"PreviewLayer\" instance=", StringComparison.Ordinal) &&
         musterCardScene.Contains("position = Vector2(84, 99)", StringComparison.Ordinal) &&
         musterCardScene.Contains("scale = Vector2(0.84, 0.84)", StringComparison.Ordinal) &&
+        musterCardScene.Contains("[node name=\"ResourceCostRow\" type=\"HBoxContainer\" parent=\".\"]", StringComparison.Ordinal) &&
+        musterCardScene.Contains("[node name=\"ReserveCostSlot\" type=\"HBoxContainer\" parent=\"ResourceCostRow\"]", StringComparison.Ordinal) &&
+        musterCardScene.Contains("[node name=\"MoneyCostSlot\" type=\"HBoxContainer\" parent=\"ResourceCostRow\"]", StringComparison.Ordinal) &&
+        musterCardScene.Contains("[node name=\"FoodCostSlot\" type=\"HBoxContainer\" parent=\"ResourceCostRow\"]", StringComparison.Ordinal) &&
+        musterCardScene.Contains("[node name=\"WoodCostSlot\" type=\"HBoxContainer\" parent=\"ResourceCostRow\"]", StringComparison.Ordinal) &&
+        musterCardScene.Contains("[node name=\"OreCostSlot\" type=\"HBoxContainer\" parent=\"ResourceCostRow\"]", StringComparison.Ordinal) &&
+        musterCardScene.Contains("res://assets/textures/ui/resource-icons/resource_money_icon_ai.png", StringComparison.Ordinal) &&
+        musterCardScene.Contains("res://assets/textures/ui/resource-icons/resource_food_icon_ai.png", StringComparison.Ordinal) &&
+        musterCardScene.Contains("res://assets/textures/ui/resource-icons/resource_wood_icon_ai.png", StringComparison.Ordinal) &&
+        musterCardScene.Contains("res://assets/textures/ui/resource-icons/resource_ore_icon_ai.png", StringComparison.Ordinal) &&
+        musterCardScene.Contains("res://assets/textures/ui/recruitment-ui-v1/recruitment_reserve_force_icon.png", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("recruitment_socket_circle_gold.png", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("ConsumeLabel", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("RefundLabel", StringComparison.Ordinal) &&
+        !musterCardScene.Contains("NetLabel", StringComparison.Ordinal) &&
         !musterCardScene.Contains("PlinthSize =", StringComparison.Ordinal) &&
         !musterCardScene.Contains("HeroOffset =", StringComparison.Ordinal) &&
         !musterCardScene.Contains("HeroMaxSize =", StringComparison.Ordinal) &&
@@ -1373,18 +1673,33 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
         musterCardSource.Contains("WorldMusterOptionTooltip", StringComparison.Ordinal) &&
         musterCardSource.Contains("BattleUnitAnimatedPreviewModel preview", StringComparison.Ordinal) &&
         musterCardSource.Contains("BattleUnitPlinthPreview", StringComparison.Ordinal) &&
+        musterCardSource.Contains("StrategicResourceCostViewModel", StringComparison.Ordinal) &&
+        musterCardSource.Contains("_reserveAmountLabel", StringComparison.Ordinal) &&
+        musterCardSource.Contains("_moneyAmountLabel", StringComparison.Ordinal) &&
+        musterCardSource.Contains("_foodAmountLabel", StringComparison.Ordinal) &&
+        musterCardSource.Contains("_woodAmountLabel", StringComparison.Ordinal) &&
+        musterCardSource.Contains("_oreAmountLabel", StringComparison.Ordinal) &&
+        musterCardSource.Contains("ApplyResourceCost", StringComparison.Ordinal) &&
+        !musterCardSource.Contains("_consumeLabel", StringComparison.Ordinal) &&
+        !musterCardSource.Contains("_refundLabel", StringComparison.Ordinal) &&
+        !musterCardSource.Contains("_netLabel", StringComparison.Ordinal) &&
+        !musterCardSource.Contains("refundText", StringComparison.Ordinal) &&
+        !musterCardSource.Contains("netText", StringComparison.Ordinal) &&
         !musterCardSource.Contains("string iconPath", StringComparison.Ordinal) &&
         !musterCardSource.Contains("_iconPath", StringComparison.Ordinal) &&
         !musterCardSource.Contains("GD.Load<Texture2D>", StringComparison.Ordinal) &&
         musterApplyBody.Contains("Disabled = false;", StringComparison.Ordinal) &&
         musterApplyBody.Contains("TooltipText = _displayName;", StringComparison.Ordinal) &&
+        musterApplyBody.Contains("_reserveAmountLabel.Text = _reserveCost.ToString", StringComparison.Ordinal) &&
+        musterApplyBody.Contains("ApplyResourceCost", StringComparison.Ordinal) &&
         !musterApplyBody.Contains("\\n", StringComparison.Ordinal) &&
         musterCustomTooltipBody.Contains("GameUiSceneFactory.CreateWorldMusterOptionTooltip", StringComparison.Ordinal) &&
         musterPressedBody.Contains("if (_selectable)", StringComparison.Ordinal),
-        "muster option cards should use recruitment card resources, stay preview-only, bind externally resolved animated previews, remain hoverable when unavailable, and move cost/reason detail into an authored tooltip");
+        "muster option cards should use recruitment card resources, stay preview-only, bind externally resolved animated previews, display compact icon/amount reserve and resource requirements, remain hoverable when unavailable, and keep disabled reasons in an authored tooltip");
     AssertTrue(
         scene.Contains("[node name=\"SelectedHeroPlinthPreview\" parent=\"ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame\" instance=", StringComparison.Ordinal) &&
-        scene.Contains("position = Vector2(115, 106)", StringComparison.Ordinal) &&
+        scene.Contains("position = Vector2(88, 74)", StringComparison.Ordinal) &&
+        scene.Contains("scale = Vector2(0.64, 0.64)", StringComparison.Ordinal) &&
         !scene.Contains("PlinthSize =", StringComparison.Ordinal) &&
         !scene.Contains("HeroOffset =", StringComparison.Ordinal) &&
         !scene.Contains("HeroMaxSize =", StringComparison.Ordinal) &&
@@ -1403,41 +1718,22 @@ internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
         musterTooltipSource.Contains("public void Bind(", StringComparison.Ordinal),
         "muster hover detail should be an authored PanelContainer scene with title, reserve cost, resource cost, and disabled reason labels");
     AssertTrue(
-        corpsRowScene.Contains("[node name=\"WorldCorpsInstanceRow\" type=\"Button\"", StringComparison.Ordinal) &&
-        corpsRowScene.Contains("[node name=\"Icon\" type=\"TextureRect\"", StringComparison.Ordinal) &&
-        corpsRowScene.Contains("[node name=\"StrengthBar\" type=\"ProgressBar\"", StringComparison.Ordinal) &&
-        corpsRowSource.Contains("public partial class WorldCorpsInstanceRow : Button", StringComparison.Ordinal) &&
-        corpsRowSource.Contains("ReplenishRequestedEventHandler", StringComparison.Ordinal) &&
-        corpsRowSource.Contains("Texture2D previewTexture", StringComparison.Ordinal) &&
-        !corpsRowSource.Contains("string iconPath", StringComparison.Ordinal) &&
-        !corpsRowSource.Contains("_iconPath", StringComparison.Ordinal) &&
-        !corpsRowSource.Contains("GD.Load<Texture2D>", StringComparison.Ordinal),
-        "corps tab should use compact visual rows with externally resolved idle-frame texture, strength bar, and replenish signal instead of multiline buttons");
-    AssertTrue(
         factorySource.Contains("WorldMusterOptionTooltipScenePath = \"res://scenes/world/ui/WorldMusterOptionTooltip.tscn\"", StringComparison.Ordinal) &&
-        factorySource.Contains("CreateWorldMusterOptionTooltip", StringComparison.Ordinal) &&
-        factorySource.Contains("WorldCorpsInstanceRowScenePath = \"res://scenes/world/ui/WorldCorpsInstanceRow.tscn\"", StringComparison.Ordinal) &&
-        factorySource.Contains("CreateWorldCorpsInstanceRow", StringComparison.Ordinal),
-        "UI scene factory should expose muster tooltip and corps row authored scenes");
+        factorySource.Contains("CreateWorldMusterOptionTooltip", StringComparison.Ordinal),
+        "UI scene factory should expose the authored muster tooltip scene used by recruitment cards");
     AssertTrue(
-        bindCorpsBody.Contains("GameUiSceneFactory.CreateWorldCorpsInstanceRow", StringComparison.Ordinal) &&
-        bindCorpsBody.Contains("GameUiSceneFactory.CreateWorldMilitaryHeroCard", StringComparison.Ordinal) &&
-        bindCorpsBody.Contains("BattleUnitPreviewResolver", StringComparison.Ordinal) &&
-        bindCorpsBody.Contains("corps.BattleUnitId", StringComparison.Ordinal) &&
-        bindCorpsBody.Contains("hero.BattleUnitId", StringComparison.Ordinal) &&
-        !bindCorpsBody.Contains("corps.IconPath", StringComparison.Ordinal) &&
-        !bindCorpsBody.Contains("hero.IconPath", StringComparison.Ordinal) &&
-        !bindCorpsBody.Contains("AddActionButton(", StringComparison.Ordinal) &&
-        !bindCorpsBody.Contains("\\n", StringComparison.Ordinal),
-        "corps tab binder should use authored visual rows/cards with shared idle-frame previews and must not regress to multi-line action text");
+        !factorySource.Contains("CreateWorldCorpsInstanceRow", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("GameUiSceneFactory.CreateWorldCorpsInstanceRow", StringComparison.Ordinal) &&
+        !workbenchBinderSource.Contains("ReplenishRequested +=", StringComparison.Ordinal),
+        "removed first-version corps tab should not keep active corps-row creation paths in recruitment binding");
     AssertTrue(
+        siteHudSource.Contains("StrategicManagementRuntime.BuildHeroCorpsWorkbenchDashboard(", StringComparison.Ordinal) &&
         siteHudSource.Contains("OpenStrategicMilitaryWorkbench", StringComparison.Ordinal) &&
         siteHudSource.Contains("BindStrategicMilitaryWorkbench", StringComparison.Ordinal) &&
         siteHudSource.Contains("OnStrategicMilitaryHeroSelected", StringComparison.Ordinal) &&
-        siteHudSource.Contains("OnStrategicHeroAssignmentPressed", StringComparison.Ordinal) &&
         siteHudSource.Contains("OnStrategicRecruitCorpsForHeroPressed", StringComparison.Ordinal) &&
         siteHudSource.Contains("StrategicManagementRuntime.Commands.RecruitCorpsForHero(", StringComparison.Ordinal),
-        "WorldSiteRoot should open the workbench from recruitment or hero cards and submit hero-directed recruitment through Strategic Management commands");
+        "WorldSiteRoot should open the workbench from recruitment, build hero-scoped replacement projections, and submit hero-directed recruitment through Strategic Management commands");
 }
 
 internal static void UnitIdlePreviewsReachExpeditionBattleGateAndDeploymentSurfaces()
@@ -1592,12 +1888,13 @@ internal static void WorldSiteBuildPickerUsesIconCardsAndMapPlacement()
         "site-management build picker should be a compact inventory-style GridContainer, not a long text-button VBox list");
     AssertTrue(
         nodeRefsSource.Contains("internal GridContainer SiteBuildingOptionGrid", StringComparison.Ordinal) &&
-        nodeRefsSource.Contains("Get<GridContainer>(root, \"LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/SiteBuildingOptionGrid\"", StringComparison.Ordinal),
+        nodeRefsSource.Contains("Get<GridContainer>(root, \"OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/SiteBuildingOptionGrid\"", StringComparison.Ordinal),
         "world-site HUD node refs should bind the build picker as GridContainer");
 
     AssertTrue(
         cardScene.Contains("[node name=\"WorldBuildingOptionCard\" type=\"Button\"", StringComparison.Ordinal) &&
         cardScene.Contains("res://src/Presentation/World/Sites/WorldBuildingOptionCard.cs", StringComparison.Ordinal) &&
+        cardScene.Contains("[node name=\"IconSlot\" type=\"CenterContainer\" parent=\"Content\"]", StringComparison.Ordinal) &&
         cardScene.Contains("[node name=\"Icon\" type=\"TextureRect\"", StringComparison.Ordinal) &&
         cardScene.Contains("[node name=\"NameLabel\" type=\"Label\"", StringComparison.Ordinal) &&
         cardScene.Contains("theme_override_colors/font_color = Color(0.96, 0.78, 0.62, 1)", StringComparison.Ordinal),
@@ -1628,6 +1925,17 @@ internal static void WorldSiteBuildPickerUsesIconCardsAndMapPlacement()
         !cardApplyBody.Contains("Disabled = !_selectable;", StringComparison.Ordinal) &&
         cardPressedBody.Contains("if (_selectable)", StringComparison.Ordinal),
         "building option cards must remain hoverable when unavailable; click authority stays gated by _selectable instead of BaseButton.Disabled");
+    AssertTrue(
+        cardScene.Contains("[node name=\"IconSlot\" type=\"CenterContainer\" parent=\"Content\"]", StringComparison.Ordinal) &&
+        cardScene.Contains("custom_minimum_size = Vector2(96, 70)", StringComparison.Ordinal) &&
+        cardScene.Contains("[node name=\"Icon\" type=\"TextureRect\" parent=\"Content/IconSlot\"]", StringComparison.Ordinal) &&
+        cardScene.Contains("stretch_mode = 0", StringComparison.Ordinal) &&
+        !cardScene.Contains("stretch_mode = 5", StringComparison.Ordinal) &&
+        !cardScene.Contains("expand_mode = 1", StringComparison.Ordinal) &&
+        cardSource.Contains("ApplyIconTexture(Texture2D texture)", StringComparison.Ordinal) &&
+        cardSource.Contains("CalculateIntegerIconScale", StringComparison.Ordinal) &&
+        cardSource.Contains("TextureFilter = TextureFilterEnum.Nearest", StringComparison.Ordinal),
+        "building option card previews should center an integer-scaled texture in a fixed slot instead of using arbitrary TextureRect aspect scaling");
     AssertTrue(
         tooltipScene.Contains("[node name=\"WorldBuildingOptionTooltip\" type=\"PanelContainer\"", StringComparison.Ordinal) &&
         tooltipScene.Contains("res://src/Presentation/World/Sites/WorldBuildingOptionTooltip.cs", StringComparison.Ordinal) &&
@@ -1804,9 +2112,10 @@ internal static void WorldSiteStrategicBuildingPlacementUsesMarkerBackedPreview(
     AssertTrue(
         buildingEntitySource.Contains("StrategicCityBuildingMapEntity : Node2D", StringComparison.Ordinal) &&
         buildingEntitySource.Contains("SetBuilding(", StringComparison.Ordinal) &&
-        buildingEntitySource.Contains("DrawTextureRect", StringComparison.Ordinal) &&
+        buildingEntitySource.Contains("DrawTexture(_texture", StringComparison.Ordinal) &&
+        buildingEntitySource.Contains("ResolveNativeDrawPosition", StringComparison.Ordinal) &&
         buildingEntityScene.Contains("StrategicCityBuildingMapEntity.cs", StringComparison.Ordinal),
-        "confirmed building map entity should render the building texture through an authored Node2D scene");
+        "confirmed building map entity should render the native building texture through an authored Node2D scene");
     AssertTrue(
         !placementSource.Contains("BuildFacility", StringComparison.Ordinal) &&
         !resolverSource.Contains("FacilitySlotDefinition", StringComparison.Ordinal) &&
@@ -1826,13 +2135,30 @@ internal static void StrategicCityBuildingMapEntityDrawsCleanSpriteOnly()
     string drawBody = ExtractMethodBody(entitySource, "public override void _Draw()");
 
     AssertTrue(
-        drawBody.Contains("DrawTextureRect(_texture, _drawRect", StringComparison.Ordinal),
-        "confirmed strategic city building entity should draw the selected building texture");
+        drawBody.Contains("DrawTexture(_texture", StringComparison.Ordinal) &&
+        entitySource.Contains("ResolveNativeDrawPosition", StringComparison.Ordinal) &&
+        entitySource.Contains("_texture.GetWidth()", StringComparison.Ordinal) &&
+        entitySource.Contains("_texture.GetHeight()", StringComparison.Ordinal),
+        "confirmed strategic city building entity should draw the selected building texture at native pixel size");
     AssertTrue(
         !entitySource.Contains("FootprintShadowColor", StringComparison.Ordinal) &&
+        !drawBody.Contains("DrawTextureRect(_texture, _drawRect", StringComparison.Ordinal) &&
         !drawBody.Contains("Grow(", StringComparison.Ordinal) &&
         !drawBody.Contains("DrawRect(_drawRect", StringComparison.Ordinal),
-        "confirmed strategic city building entity should not paint footprint backgrounds or gray blocks behind clean sprites");
+        "confirmed strategic city building entity should not stretch sprites or paint footprint backgrounds behind clean sprites");
+}
+
+static string _siteManagementTabField(string tabName)
+{
+    return tabName switch
+    {
+        "BuildTabButton" => "_siteBuildTabButton",
+        "ConscriptionTabButton" => "_siteConscriptionTabButton",
+        "RecruitTabButton" => "_siteRecruitTabButton",
+        "OverviewTabButton" => "_siteOverviewTabButton",
+        "ReturnMapTabButton" => "_returnMapButton",
+        _ => tabName
+    };
 }
 
 internal static void WorldSiteRootDelegatesBattlePreparationMapDrag()
@@ -1917,7 +2243,9 @@ internal static void WorldSiteRootDelegatesBattleRuntimeHeroFrame()
         "WorldSiteRoot should not bind progress bars or instantiate skill slots directly");
     AssertTrue(
         presenterSource.Contains("BattleRuntimeCommandHudPresentation.SetProgressBar", StringComparison.Ordinal) &&
-        presenterSource.Contains("GameUiSceneFactory.CreateBattleRuntimeSkillSlot", StringComparison.Ordinal),
+        presenterSource.Contains("using Rpg.Presentation.Common;", StringComparison.Ordinal) &&
+        presenterSource.Contains("GameUiSceneFactory.CreateBattleRuntimeSkillSlot", StringComparison.Ordinal) &&
+        !presenterSource.Contains("_regroupButton", StringComparison.Ordinal),
         "runtime hero frame presenter should own progress-bar and skill-slot binding");
 }
 
@@ -1941,9 +2269,11 @@ internal static void WorldSiteRootCentralizesWorldSiteHudNodeRefs()
         "internal sealed class WorldSitePeacetimeHudNodeRefs",
         "Resolve(Control root, string ownerName)",
         "GameUiSceneFactory.GetRequiredNode",
-        "LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteResourceLabel",
-        "LeftPrimaryPanelHost/SitePeacetimePanel",
-        "BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroNameLabel",
+        "TopBarHost/TopLeftStatus",
+        "TopBarHost/TopLeftStatus/Margin/SiteResourceLabel",
+        "OverlayHost/SiteManagementTabRail",
+        "OverlayHost/SitePeacetimePanel",
+        "BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroNameLabel",
         "OverlayHost/BattlePreparationRosterDock",
         "MinimapHost/BattlePreparationObjectiveThumbnailDock/BattlePreparationObjectiveThumbnail"
     })

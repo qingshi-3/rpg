@@ -62,6 +62,7 @@ internal sealed class BattleRuntimeHeroSelectorPresenter
             button.Bind(
                 group.GroupKey,
                 group.DisplayName,
+                group.HeroBattleUnitId,
                 string.Equals(group.GroupKey, selectedGroupKey ?? "", StringComparison.Ordinal),
                 hasReadySkill?.Invoke(group) == true,
                 hasRuntime);

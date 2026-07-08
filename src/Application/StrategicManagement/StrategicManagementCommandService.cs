@@ -49,7 +49,53 @@ public sealed partial class StrategicManagementCommandService
     {
         return string.Join(
             ",",
-            amounts.Select(item => $"{item.ResourceId}:{item.Amount}"));
+            (amounts ?? System.Array.Empty<StrategicResourceAmount>())
+                .Where(item => !string.IsNullOrWhiteSpace(item.ResourceId) && item.Amount != 0)
+                .OrderBy(item => item.ResourceId)
+                .Select(item => $"{item.ResourceId}:{item.Amount}"));
+    }
+
+    private static System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> NormalizeResourceAmounts(
+        System.Collections.Generic.IReadOnlyCollection<StrategicResourceAmount> amounts)
+    {
+        return (amounts ?? System.Array.Empty<StrategicResourceAmount>())
+            .Where(item => item.Amount > 0 && !string.IsNullOrWhiteSpace(item.ResourceId))
+            .GroupBy(item => item.ResourceId, System.StringComparer.Ordinal)
+            .Select(group => new StrategicResourceAmount(group.Key, group.Sum(item => item.Amount)))
+            .OrderBy(item => item.ResourceId)
+            .ToList();
+    }
+
+    private static System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> CombineResourceAmounts(
+        System.Collections.Generic.IReadOnlyCollection<StrategicResourceAmount> first,
+        System.Collections.Generic.IReadOnlyCollection<StrategicResourceAmount> second,
+        int secondSign)
+    {
+        System.Collections.Generic.Dictionary<string, int> totals = new(System.StringComparer.Ordinal);
+        AddAmounts(totals, first, 1);
+        AddAmounts(totals, second, secondSign);
+        return totals
+            .Where(item => item.Value != 0)
+            .OrderBy(item => item.Key)
+            .Select(item => new StrategicResourceAmount(item.Key, item.Value))
+            .ToList();
+    }
+
+    private static void AddAmounts(
+        System.Collections.Generic.Dictionary<string, int> totals,
+        System.Collections.Generic.IReadOnlyCollection<StrategicResourceAmount> amounts,
+        int sign)
+    {
+        foreach (StrategicResourceAmount amount in amounts ?? System.Array.Empty<StrategicResourceAmount>())
+        {
+            if (string.IsNullOrWhiteSpace(amount.ResourceId) || amount.Amount == 0)
+            {
+                continue;
+            }
+
+            totals.TryGetValue(amount.ResourceId, out int current);
+            totals[amount.ResourceId] = current + (amount.Amount * sign);
+        }
     }
 
     private static void AddUnique(System.Collections.Generic.ICollection<string> values, string value)

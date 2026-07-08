@@ -160,8 +160,6 @@ internal static void StrategicWorldUiUsesManaSoulGuiSkin()
         Path.Combine(root, "scenes", "world", "ui", "StrategicWorldHud.tscn"),
         Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"),
         Path.Combine(root, "scenes", "world", "ui", "BattlePreparationRosterRow.tscn"),
-        Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeSkillSlot.tscn"),
-        Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeHeroSwitchButton.tscn"),
         Path.Combine(root, "scenes", "world", "ui", "BattlePreparationObjectiveThumbnail.tscn"),
         Path.Combine(root, "scenes", "world", "ui", "WorldSiteHoverSummaryPanel.tscn"),
         Path.Combine(root, "scenes", "world", "ui", "WorldPrimaryActionButton.tscn"),
@@ -353,6 +351,7 @@ internal static void RecruitmentUiV1AssetsAreGeneratedAsResourceBackedThemeCandi
         "recruitment_resource_chip_selected.png",
         "recruitment_resource_chip_pressed.png",
         "recruitment_resource_chip_disabled.png",
+        "recruitment_reserve_force_icon.png",
         "recruitment_socket_circle_gold.png",
         "recruitment_socket_diamond_gold.png",
         "recruitment_scroll_track_bar_b.png",
@@ -372,6 +371,13 @@ internal static void RecruitmentUiV1AssetsAreGeneratedAsResourceBackedThemeCandi
         AssertTrue(
             new FileInfo(path).Length > 0,
             $"recruitment UI v1 texture should not be empty texture={textureName} path={path}");
+        if (textureName == "recruitment_reserve_force_icon.png")
+        {
+            (int width, int height) = ReadPngDimensions(path);
+            AssertTrue(
+                width == 18 && height == 18,
+                $"reserve-force resource icon should be authored at its card display size so it remains readable after layout scaling texture={textureName} width={width} height={height} path={path}");
+        }
         if (textureName.StartsWith("recruitment_scroll_", StringComparison.Ordinal))
         {
             (int width, int height) = ReadPngDimensions(path);
@@ -642,28 +648,28 @@ internal static void StrategicWorldUiButtonSkinsFitAuthoredButtonSizes()
         themeSource.Contains("WorldCompactTabButton/styles/pressed = ExtResource(\"8_button_compact\")", StringComparison.Ordinal) &&
         themeSource.Contains("WorldCompactTabButton/styles/disabled = ExtResource(\"11_button_compact_disabled\")", StringComparison.Ordinal),
         "compact tab buttons should use a reusable Theme variation whose selected state keeps the ManaSoul normal frame");
+    AssertTrue(
+        themeSource.Contains("site_management_tab_normal.tres", StringComparison.Ordinal) &&
+        themeSource.Contains("site_management_tab_hover.tres", StringComparison.Ordinal) &&
+        themeSource.Contains("site_management_tab_pressed.tres", StringComparison.Ordinal) &&
+        themeSource.Contains("site_management_tab_disabled.tres", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldSiteRailTabButton/styles/normal = ExtResource(", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldSiteRailTabButton/styles/hover = ExtResource(", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldSiteRailTabButton/styles/pressed = ExtResource(", StringComparison.Ordinal) &&
+        themeSource.Contains("WorldSiteRailTabButton/styles/disabled = ExtResource(", StringComparison.Ordinal),
+        "site-management tab rail should use dedicated ManaSoul tab sheet styleboxes through a shared Theme variation");
 
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "BattleRuntimeRegroupButton", "runtime regroup button is narrower than the large ornamental button skin", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "MoveFirstRuleButton", "battle-preparation rule button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "AttackFirstRuleButton", "battle-preparation rule button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "HoldRuleButton", "battle-preparation rule button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
     AssertSceneButtonUsesCompactStyle(siteHudPath, "BattlePreparationStartButton", "battle-preparation start button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
-    AssertSceneButtonUsesRecruitmentStyle(siteHudPath, "MilitaryBackButton", "RecruitmentTextButton", "military workbench back button belongs to the focused recruitment modal skin");
+    AssertTrue(
+        !File.ReadAllText(siteHudPath).Contains("MilitaryBackButton", StringComparison.Ordinal),
+        "military workbench should not author a redundant back button beside the close action");
     AssertSceneButtonUsesRecruitmentStyle(siteHudPath, "MilitaryCloseButton", "RecruitmentTextButton", "military workbench close button belongs to the focused recruitment modal skin");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "ReturnMapButton", "site top-bar return button is a compact control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "BuildTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "ConscriptionTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "RecruitTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "CorpsTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "OverviewTabButton", "site management tab is a compact toggle control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactTabButton");
-
-    AssertSceneButtonUsesCompactStyle(
-        Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeHeroSwitchButton.tscn"),
-        "BattleRuntimeHeroSwitchButton",
-        "battle runtime hero switch button is narrower than the large ornamental button skin",
-        compactHorizontalPadding,
-        compactVerticalPadding,
-        "WorldCompactActionButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "ReturnMapTabButton", "site return-to-world tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "BuildTabButton", "site management tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "ConscriptionTabButton", "site management tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "RecruitTabButton", "site management tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "OverviewTabButton", "site management tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
+    AssertSceneButtonUsesCompactStyle(siteHudPath, "SitePanelCloseButton", "site management close button is a compact header control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
 
     AssertSceneButtonUsesRecruitmentStyle(
         Path.Combine(root, "scenes", "world", "ui", "WorldMusterOptionCard.tscn"),
@@ -927,12 +933,18 @@ internal static void StrategicWorldHudUsesFullscreenOverlayContextLayout()
         "strategic world bindings should target the bottom overlay popup, not the old left panel path");
     AssertTrue(
         detailSource.Contains("SiteDetailPanelOvershootPixels", StringComparison.Ordinal) &&
+        detailSource.Contains("ResolveWorldDetailPanelHiddenBelowPosition", StringComparison.Ordinal) &&
         detailSource.Contains("AnimateWorldDetailPanelIn", StringComparison.Ordinal) &&
         detailSource.Contains("AnimateWorldDetailPanelOut", StringComparison.Ordinal) &&
+        detailSource.Contains("Vector2 hiddenBelowPosition = ResolveWorldDetailPanelHiddenBelowPosition(restPosition)", StringComparison.Ordinal) &&
+        detailSource.Contains("_siteDetailPanel.Position = hiddenBelowPosition", StringComparison.Ordinal) &&
         detailSource.Contains("TweenProperty(_siteDetailPanel, \"position\"", StringComparison.Ordinal) &&
+        detailSource.Contains("restPosition - new Vector2(0.0f, SiteDetailPanelOvershootPixels)", StringComparison.Ordinal) &&
+        detailSource.Contains("hiddenBelowPosition, SiteDetailPanelExitSeconds", StringComparison.Ordinal) &&
         detailSource.Contains("TweenProperty(_siteDetailPanel, \"scale\"", StringComparison.Ordinal) &&
+        !detailSource.Contains("SiteDetailPanelSlidePixels", StringComparison.Ordinal) &&
         !detailSource.Contains("_siteDetailPanel.Visible = visible;", StringComparison.Ordinal),
-        "selected city popup should use a bouncy overshoot tween instead of abruptly toggling visibility");
+        "selected city popup should q-bounce from below the screen, overshoot upward, settle, and retract downward instead of abruptly toggling visibility or short-sliding in place");
     AssertTrue(
         !bootstrapSource.Contains("_facilityList", StringComparison.Ordinal) &&
         !bootstrapSource.Contains("_garrisonList", StringComparison.Ordinal) &&

@@ -693,7 +693,6 @@ internal static void StrategicBattleSettlementModalIsResourceBackedAndActionScop
     string managePressedBody = ExtractMethodBody(siteHudSource, "private void OnPostBattleSettlementManageCityPressed()");
     string returnPressedBody = ExtractMethodBody(siteHudSource, "private void OnPostBattleSettlementReturnPressed()");
     string resolveViewportBody = ExtractMethodBody(rootSource, "private Rect2 ResolveMainWorldViewportRect()");
-    string reserveWorkspaceBody = ExtractMethodBody(rootSource, "private bool ShouldReserveSiteHudWorkspace()");
 
     AssertTrue(
         factorySource.Contains("PostBattleSettlementDialogScenePath", StringComparison.Ordinal) &&
@@ -728,10 +727,10 @@ internal static void StrategicBattleSettlementModalIsResourceBackedAndActionScop
         returnPressedBody.Contains("_postBattleSettlementDialogOpen = false;", StringComparison.Ordinal),
         "post-battle settlement modal should own an explicit open flag that is cleared by both acknowledgement actions");
     AssertTrue(
-        resolveViewportBody.Contains("ShouldReserveSiteHudWorkspace()", StringComparison.Ordinal) &&
-        reserveWorkspaceBody.Contains("_siteHudRoot?.Visible == true", StringComparison.Ordinal) &&
-        reserveWorkspaceBody.Contains("!_postBattleSettlementDialogOpen", StringComparison.Ordinal),
-        "post-battle settlement modal should not reserve the hidden left management workspace behind the result dialog");
+        !rootSource.Contains("ShouldReserveSiteHudWorkspace", StringComparison.Ordinal) &&
+        !rootSource.Contains("ResolveWorldSiteHudViewportRect", StringComparison.Ordinal) &&
+        !resolveViewportBody.Contains("_postBattleSettlementDialogOpen", StringComparison.Ordinal),
+        "post-battle settlement modal should not participate in viewport reservation because entered-site management overlays the fullscreen map");
 }
 
 internal static void BattleGroupProbePreservesStrategicForceIdentity()

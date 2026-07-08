@@ -25,6 +25,7 @@ public sealed partial class BattleRuntimeSession
                     RuntimeCommanderGroupId = skill.RuntimeCommanderGroupId ?? "",
                     DisplayName = skill.DisplayName ?? "",
                     IconText = skill.IconText ?? "",
+                    IconPath = skill.IconPath ?? "",
                     Tags = (skill.Tags ?? new List<string>())
                         .Where(tag => !string.IsNullOrWhiteSpace(tag))
                         .Select(tag => tag.Trim())

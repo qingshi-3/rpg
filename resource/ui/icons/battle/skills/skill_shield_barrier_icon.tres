@@ -1,0 +1,7 @@
+[gd_resource type="AtlasTexture" load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/battle/abilities/fx/duelyst/shield/fx_defense/fx_defense.png" id="1_texture"]
+
+[resource]
+atlas = ExtResource("1_texture")
+region = Rect2(162, 0, 80, 80)

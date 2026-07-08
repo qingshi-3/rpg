@@ -38,9 +38,10 @@ internal static void WorldBuildingOptionCardUsesReversibleInventoryPreviewSkin()
         "building option card should read as one inventory slot instead of a wide expanding action card");
     AssertTrue(
         cardScene.Contains("[node name=\"Content\" type=\"VBoxContainer\" parent=\".\"]", StringComparison.Ordinal) &&
-        cardScene.Contains("[node name=\"Icon\" type=\"TextureRect\" parent=\"Content\"]", StringComparison.Ordinal) &&
+        cardScene.Contains("[node name=\"IconSlot\" type=\"CenterContainer\" parent=\"Content\"]", StringComparison.Ordinal) &&
+        cardScene.Contains("[node name=\"Icon\" type=\"TextureRect\" parent=\"Content/IconSlot\"]", StringComparison.Ordinal) &&
         cardScene.Contains("[node name=\"NameLabel\" type=\"Label\" parent=\"Content\"]", StringComparison.Ordinal),
-        "building option card preview skin must preserve the authored icon-card node structure");
+        "building option card preview skin must preserve the authored icon-card node structure with a centered preview slot");
     AssertTrue(
         cardScene.Contains("offset_left = 8.0", StringComparison.Ordinal) &&
         cardScene.Contains("offset_top = 6.0", StringComparison.Ordinal) &&

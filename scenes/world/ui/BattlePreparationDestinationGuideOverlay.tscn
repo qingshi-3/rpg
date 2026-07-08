@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Sites/BattlePreparationDestinationGuideOverlay.cs" id="1_script"]
+
+[sub_resource type="Curve" id="Curve_arc_width"]
+_limits = [0.2, 1.0, 0.0, 1.0]
+_data = [Vector2(0, 0.2), 0.0, 0.0, 0, 0, Vector2(0.90099, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.2), 0.0, 0.0, 0, 0]
+point_count = 3
+
+[node name="BattlePreparationDestinationGuideOverlay" type="Node2D"]
+visible = false
+z_index = 900
+z_as_relative = false
+script = ExtResource("1_script")
+
+[node name="ArcBody" type="Line2D" parent="."]
+width = 4.0
+width_curve = SubResource("Curve_arc_width")
+default_color = Color(0.18, 0.95, 0.72, 0.9)
+
+[node name="ArrowHeadLeft" type="Line2D" parent="."]
+width = 4.0
+default_color = Color(0.18, 0.95, 0.72, 0.9)
+
+[node name="ArrowHeadRight" type="Line2D" parent="."]
+width = 4.0
+default_color = Color(0.18, 0.95, 0.72, 0.9)

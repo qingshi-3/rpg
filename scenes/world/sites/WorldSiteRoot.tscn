@@ -25,17 +25,18 @@ SiteMapScene = ExtResource("2_demo_site")
 StrategicCityBuildingMapEntityScene = ExtResource("27_building_entity")
 
 [node name="MainWorldViewportHost" type="SubViewportContainer" parent="."]
-layout_mode = 0
-offset_left = 520.0
-offset_top = 0.0
-offset_right = 1920.0
-offset_bottom = 1080.0
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 clip_contents = true
 mouse_filter = 1
 stretch = true
 
 [node name="MainWorldViewport" type="SubViewport" parent="MainWorldViewportHost"]
-size = Vector2i(1400, 1080)
+size = Vector2i(1920, 1080)
 disable_3d = true
 transparent_bg = true
 

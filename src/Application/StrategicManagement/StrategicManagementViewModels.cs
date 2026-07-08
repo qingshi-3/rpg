@@ -198,9 +198,13 @@ public sealed class StrategicMusterTemplateViewModel
     public string DisplayName { get; set; } = "";
     public string BattleUnitId { get; set; } = "";
     public int ReserveForceCost { get; set; }
+    public int ReserveForceRefund { get; set; }
+    public int NetReserveForceCost { get; set; }
     public bool CanCreate { get; set; }
     public List<string> DisabledReasons { get; set; } = new();
     public List<StrategicResourceCostViewModel> CreationCost { get; set; } = new();
+    public List<StrategicResourceCostViewModel> RefundCost { get; set; } = new();
+    public List<StrategicResourceCostViewModel> NetCost { get; set; } = new();
 }
 
 public sealed class StrategicCorpsInstanceViewModel

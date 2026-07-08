@@ -32,26 +32,26 @@ internal static void WorldViewportLayoutUsesResolvedControlRects()
         "world-site viewport layout should not duplicate HUD dimensions as root constants");
     AssertTrue(
         siteRootSource.Contains("ResolveMainWorldViewportRect", StringComparison.Ordinal) &&
-        siteRootSource.Contains("_sitePeacetimePanel.GetGlobalRect()", StringComparison.Ordinal) &&
-        siteRootSource.Contains("rootViewportSize.X - position.X", StringComparison.Ordinal) &&
+        !siteRootSource.Contains("_sitePeacetimePanel.GetGlobalRect()", StringComparison.Ordinal) &&
+        !siteRootSource.Contains("rootViewportSize.X - position.X", StringComparison.Ordinal) &&
+        !siteRootSource.Contains("ShouldReserveSiteHudWorkspace", StringComparison.Ordinal) &&
+        !siteRootSource.Contains("ResolveWorldSiteHudViewportRect", StringComparison.Ordinal) &&
         !siteRootSource.Contains("_siteHudTopBar", StringComparison.Ordinal) &&
         !siteRootSource.Contains("gapAfterPanel", StringComparison.Ordinal) &&
         !siteRootSource.Contains("sideMargin", StringComparison.Ordinal) &&
         !siteRootSource.Contains("bottomMargin", StringComparison.Ordinal),
-        "world-site viewport layout should derive a no-gutter right-side map rect from the left management workspace without a separate top header strip");
-    AssertTrue(
-        siteRootSource.Contains("ResolveWorldSiteHudViewportRect", StringComparison.Ordinal) &&
-        !siteRootSource.Contains("ResolveBattleRuntimeViewportRect", StringComparison.Ordinal),
-        "world-site battle viewport layout should reuse the same HUD workspace calculation instead of a separate full-width battle branch");
+        "world-site viewport layout should keep entered-city management map-first and must not reserve a left split-screen workspace");
     AssertTrue(
         siteRootSource.Contains("SetFixedRect(_mainWorldViewportHost", StringComparison.Ordinal),
         "world-site viewport layout should pin the SubViewportContainer with the same fixed-rect Control contract as strategic world");
     AssertTrue(
-        worldSiteViewportHostBlock.Contains("offset_left = 520.0", StringComparison.Ordinal) &&
-        worldSiteViewportHostBlock.Contains("offset_top = 0.0", StringComparison.Ordinal) &&
-        worldSiteViewportHostBlock.Contains("offset_right = 1920.0", StringComparison.Ordinal) &&
-        worldSiteViewportHostBlock.Contains("offset_bottom = 1080.0", StringComparison.Ordinal),
-        "world-site authored viewport should default to the right-side split-screen rectangle instead of the old centered gray-gutter preview");
+        worldSiteViewportHostBlock.Contains("anchor_right = 1.0", StringComparison.Ordinal) &&
+        worldSiteViewportHostBlock.Contains("anchor_bottom = 1.0", StringComparison.Ordinal) &&
+        !worldSiteViewportHostBlock.Contains("offset_left = 520.0", StringComparison.Ordinal) &&
+        !worldSiteViewportHostBlock.Contains("offset_top = 0.0", StringComparison.Ordinal) &&
+        !worldSiteViewportHostBlock.Contains("offset_right = 1920.0", StringComparison.Ordinal) &&
+        !worldSiteViewportHostBlock.Contains("offset_bottom = 1080.0", StringComparison.Ordinal),
+        "world-site authored viewport should default to fullscreen; entered-site HUD overlays must not change map/camera layout");
     AssertTrue(
         !strategicSource.Contains("float mapLeft = DetailWidth + OuterMargin * 2.0f", StringComparison.Ordinal),
         "strategic viewport bounds should not duplicate left-panel dimensions in geometry code");

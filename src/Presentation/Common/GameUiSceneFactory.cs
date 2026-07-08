@@ -34,7 +34,6 @@ public static class GameUiSceneFactory
     public const string WorldMusterOptionTooltipScenePath = "res://scenes/world/ui/WorldMusterOptionTooltip.tscn";
     public const string WorldMilitaryHeroCardScenePath = "res://scenes/world/ui/WorldMilitaryHeroCard.tscn";
     public const string WorldMilitaryWorkbenchHeroCardScenePath = "res://scenes/world/ui/WorldMilitaryWorkbenchHeroCard.tscn";
-    public const string WorldCorpsInstanceRowScenePath = "res://scenes/world/ui/WorldCorpsInstanceRow.tscn";
     public const string WorldExpeditionCountRowScenePath = "res://scenes/world/ui/WorldExpeditionCountRow.tscn";
     public const string StrategicBattleGateForcePreviewCardScenePath = "res://scenes/world/ui/StrategicBattleGateForcePreviewCard.tscn";
     public const string WorldResourceFloatTextScenePath = "res://scenes/world/ui/WorldResourceFloatText.tscn";
@@ -182,11 +181,6 @@ public static class GameUiSceneFactory
     public static WorldMilitaryHeroCard CreateWorldMilitaryWorkbenchHeroCard(string ownerName)
     {
         return Instantiate<WorldMilitaryHeroCard>(WorldMilitaryWorkbenchHeroCardScenePath, ownerName);
-    }
-
-    public static WorldCorpsInstanceRow CreateWorldCorpsInstanceRow(string ownerName)
-    {
-        return Instantiate<WorldCorpsInstanceRow>(WorldCorpsInstanceRowScenePath, ownerName);
     }
 
     public static WorldExpeditionCountRow CreateWorldExpeditionCountRow(string ownerName)

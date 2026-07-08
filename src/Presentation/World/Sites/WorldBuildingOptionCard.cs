@@ -5,6 +5,9 @@ namespace Rpg.Presentation.World.Sites;
 
 public partial class WorldBuildingOptionCard : Button
 {
+    private const int IconSlotWidth = 96;
+    private const int IconSlotHeight = 70;
+
     [Signal]
     public delegate void SelectedEventHandler(string buildingDefinitionId);
 
@@ -22,7 +25,7 @@ public partial class WorldBuildingOptionCard : Button
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Stop;
-        _icon = GetNodeOrNull<TextureRect>("Content/Icon");
+        _icon = GetNodeOrNull<TextureRect>("Content/IconSlot/Icon");
         _nameLabel = GetNodeOrNull<Label>("Content/NameLabel");
         Pressed += OnPressed;
         ApplyBinding();
@@ -93,10 +96,44 @@ public partial class WorldBuildingOptionCard : Button
 
         if (_icon != null)
         {
-            _icon.Texture = string.IsNullOrWhiteSpace(_iconPath)
+            Texture2D texture = string.IsNullOrWhiteSpace(_iconPath)
                 ? null
                 : GD.Load<Texture2D>(_iconPath);
+            ApplyIconTexture(texture);
         }
+    }
+
+    private void ApplyIconTexture(Texture2D texture)
+    {
+        if (_icon == null)
+        {
+            return;
+        }
+
+        _icon.Texture = texture;
+        _icon.TextureFilter = TextureFilterEnum.Nearest;
+        _icon.StretchMode = TextureRect.StretchModeEnum.Scale;
+        _icon.ExpandMode = TextureRect.ExpandModeEnum.KeepSize;
+        if (texture == null)
+        {
+            _icon.CustomMinimumSize = Vector2.Zero;
+            return;
+        }
+
+        Vector2I textureSize = new(
+            System.Math.Max(1, texture.GetWidth()),
+            System.Math.Max(1, texture.GetHeight()));
+        int scale = CalculateIntegerIconScale(textureSize);
+        _icon.CustomMinimumSize = new Vector2(
+            textureSize.X * scale,
+            textureSize.Y * scale);
+    }
+
+    private static int CalculateIntegerIconScale(Vector2I textureSize)
+    {
+        int fitWidthScale = System.Math.Max(1, IconSlotWidth / System.Math.Max(1, textureSize.X));
+        int fitHeightScale = System.Math.Max(1, IconSlotHeight / System.Math.Max(1, textureSize.Y));
+        return System.Math.Max(1, System.Math.Min(fitWidthScale, fitHeightScale));
     }
 
     private void OnPressed()

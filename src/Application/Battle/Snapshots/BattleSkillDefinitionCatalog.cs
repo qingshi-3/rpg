@@ -65,6 +65,7 @@ public sealed class BattleSkillDefinitionCatalog
             SkillDefinitionId = ReadString(parsed.MainProperties, "SkillDefinitionId", skillDefinitionId),
             DisplayName = ReadString(parsed.MainProperties, "DisplayName", ""),
             IconText = ReadString(parsed.MainProperties, "IconText", ""),
+            IconPath = ReadString(parsed.MainProperties, "IconPath", ""),
             Tags = ParseStringArray(ReadRaw(parsed.MainProperties, "Tags")).ToList(),
             CommandChannel = (BattleSkillCommandChannel)ReadInt(parsed.MainProperties, "CommandChannel", 0),
             SkillType = (BattleSkillType)ReadInt(parsed.MainProperties, "SkillType", 0),
@@ -330,6 +331,7 @@ public sealed class BattleSkillDefinitionCatalog
         definition.SkillDefinitionId = ReadString(parsed.MainProperties, "SkillDefinitionId", skillDefinitionId);
         definition.DisplayName = ReadString(parsed.MainProperties, "DisplayName", "");
         definition.IconText = ReadString(parsed.MainProperties, "IconText", "");
+        definition.IconPath = ReadString(parsed.MainProperties, "IconPath", "");
         definition.Tags = ToStringArray(ParseStringArray(ReadRaw(parsed.MainProperties, "Tags")));
         definition.CommandChannel = (BattleSkillCommandChannelDefinition)ReadInt(parsed.MainProperties, "CommandChannel", 0);
         definition.SkillType = (BattleSkillTypeDefinition)ReadInt(parsed.MainProperties, "SkillType", 0);

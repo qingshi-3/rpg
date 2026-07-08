@@ -112,6 +112,80 @@ internal static void GodotTextResourcesDoNotUseUtf8Bom()
     AssertTrue(bomFiles.Count == 0, $"Godot text resources must not start with UTF-8 BOM: {string.Join(", ", bomFiles)}");
 }
 
+internal static void GodotTextResourcesCloseQuotedStrings()
+{
+    string root = ProjectRoot();
+    List<string> brokenLines = new();
+    foreach (string file in EnumerateGodotTextResourceFiles(root))
+    {
+        string[] lines = File.ReadAllLines(file);
+        for (int index = 0; index < lines.Length; index++)
+        {
+            if (CountUnescapedDoubleQuotes(lines[index]) % 2 != 0)
+            {
+                brokenLines.Add($"{Path.GetRelativePath(root, file)}:{index + 1}");
+            }
+        }
+    }
+
+    AssertTrue(
+        brokenLines.Count == 0,
+        $"Godot text resources must close quoted strings so ResourceLoader can parse them: {string.Join(", ", brokenLines)}");
+}
+
+private static IEnumerable<string> EnumerateGodotTextResourceFiles(string root)
+{
+    string[] searchRoots =
+    {
+        Path.Combine(root, "assets"),
+        Path.Combine(root, "resource"),
+        Path.Combine(root, "scenes")
+    };
+    string[] extensions = { ".tscn", ".tres", ".gdshader" };
+    foreach (string searchRoot in searchRoots)
+    {
+        if (!Directory.Exists(searchRoot))
+        {
+            continue;
+        }
+
+        foreach (string file in Directory.GetFiles(searchRoot, "*", SearchOption.AllDirectories))
+        {
+            if (extensions.Contains(Path.GetExtension(file), StringComparer.OrdinalIgnoreCase))
+            {
+                yield return file;
+            }
+        }
+    }
+}
+
+private static int CountUnescapedDoubleQuotes(string line)
+{
+    int count = 0;
+    bool escaped = false;
+    foreach (char current in line)
+    {
+        if (escaped)
+        {
+            escaped = false;
+            continue;
+        }
+
+        if (current == '\\')
+        {
+            escaped = true;
+            continue;
+        }
+
+        if (current == '"')
+        {
+            count++;
+        }
+    }
+
+    return count;
+}
+
 internal static GridCellSurface AddNonWalkableFoundation(
     BattleGridMap grid,
     int x,

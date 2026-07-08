@@ -183,4 +183,5 @@ public partial class BattleUnitAnimatedPreview : Node2D
     {
         return Mathf.Max(1f, Mathf.Min(MaxSize.X, MaxSize.Y));
     }
+
 }

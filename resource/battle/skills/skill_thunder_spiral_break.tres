@@ -60,6 +60,7 @@ script = ExtResource("1_definition")
 SkillDefinitionId = "skill_thunder_spiral_break"
 DisplayName = "雷旋破"
 IconText = "旋"
+IconPath = "res://resource/ui/icons/battle/skills/skill_thunder_spiral_break_icon.tres"
 Tags = Array[String](["first_slice", "thunder", "channel"])
 Timing = SubResource("BattleSkillTiming_thunder_spiral_break")
 InterruptPolicy = SubResource("BattleSkillInterrupt_thunder_spiral_break")

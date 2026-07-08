@@ -75,6 +75,14 @@ internal static void BattleSkillDefinitionsLiveInContentLayerAndMapToSnapshots()
     string skillIndexSource = File.ReadAllText(Path.Combine(root, "config", "battle", "battle_skill_definitions.json"));
     string compilerSource = File.ReadAllText(Path.Combine(root, "src", "Application", "Battle", "Snapshots", "BattleSkillSnapshotCompiler.cs"));
     string runtimeResolverSource = File.ReadAllText(Path.Combine(root, "src", "Runtime", "Battle", "BattleRuntimeHeroSkillCommandResolver.cs"));
+    string skillDefinitions = string.Join("\n", new[]
+    {
+        File.ReadAllText(Path.Combine(root, "resource", "battle", "skills", "skill_shield_barrier.tres")),
+        File.ReadAllText(Path.Combine(root, "resource", "battle", "skills", "skill_sun_piercer.tres")),
+        File.ReadAllText(Path.Combine(root, "resource", "battle", "skills", "skill_thunder_tag_throw.tres")),
+        File.ReadAllText(Path.Combine(root, "resource", "battle", "skills", "skill_thunder_mark_fold.tres")),
+        File.ReadAllText(Path.Combine(root, "resource", "battle", "skills", "skill_thunder_spiral_break.tres"))
+    });
 
     AssertTrue(
         skillIndexSource.Contains("skill_shield_barrier", StringComparison.Ordinal) &&
@@ -85,11 +93,25 @@ internal static void BattleSkillDefinitionsLiveInContentLayerAndMapToSnapshots()
         "first-slice hero skill data should be authored as indexed battle skill resources");
     AssertTrue(
         compilerSource.Contains("BattleSkillDefinitionResource", StringComparison.Ordinal) &&
+        compilerSource.Contains("IconPath = definition.IconPath", StringComparison.Ordinal) &&
+        compilerSource.Contains("IconPath = template.IconPath", StringComparison.Ordinal) &&
         compilerSource.Contains("DamageSkillEffectSnapshot", StringComparison.Ordinal) &&
         compilerSource.Contains("CreateMarkSkillEffectSnapshot", StringComparison.Ordinal) &&
         compilerSource.Contains("TeleportToMarkSkillEffectSnapshot", StringComparison.Ordinal) &&
         compilerSource.Contains("ChanneledAreaDamageSkillEffectSnapshot", StringComparison.Ordinal),
         "application snapshot compiler should translate authored resources into typed runtime snapshots");
+    AssertTrue(
+        skillDefinitions.Contains("IconPath = \"res://resource/ui/icons/battle/skills/skill_shield_barrier_icon.tres\"", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("IconPath = \"res://resource/ui/icons/battle/skills/skill_sun_piercer_icon.tres\"", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("IconPath = \"res://resource/ui/icons/battle/skills/skill_thunder_tag_throw_icon.tres\"", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("IconPath = \"res://resource/ui/icons/battle/skills/skill_thunder_mark_fold_icon.tres\"", StringComparison.Ordinal) &&
+        skillDefinitions.Contains("IconPath = \"res://resource/ui/icons/battle/skills/skill_thunder_spiral_break_icon.tres\"", StringComparison.Ordinal) &&
+        File.Exists(Path.Combine(root, "resource", "ui", "icons", "battle", "skills", "skill_shield_barrier_icon.tres")) &&
+        File.Exists(Path.Combine(root, "resource", "ui", "icons", "battle", "skills", "skill_sun_piercer_icon.tres")) &&
+        File.Exists(Path.Combine(root, "resource", "ui", "icons", "battle", "skills", "skill_thunder_tag_throw_icon.tres")) &&
+        File.Exists(Path.Combine(root, "resource", "ui", "icons", "battle", "skills", "skill_thunder_mark_fold_icon.tres")) &&
+        File.Exists(Path.Combine(root, "resource", "ui", "icons", "battle", "skills", "skill_thunder_spiral_break_icon.tres")),
+        "first-slice hero skills should carry reusable resource-backed icon paths instead of depending only on text glyphs");
     AssertTrue(
         !runtimeResolverSource.Contains("FirstSliceBattleSkillDefinitions", StringComparison.Ordinal) &&
         runtimeResolverSource.Contains("skill_caster_not_allowed", StringComparison.Ordinal),
@@ -122,6 +144,7 @@ private static void AssertThunderTagSkillSnapshot(IReadOnlyList<BattleSkillSnaps
 {
     BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillDefinitionId == "skill_thunder_tag_throw");
     AssertTrue(skill != null, "snapshot should include thunder tag throw");
+    AssertTrue(skill.IconPath.EndsWith("skill_thunder_tag_throw_icon.tres", StringComparison.Ordinal), "thunder tag should carry its HUD icon path");
     AssertEqual((BattleSkillTargetingMode)3, skill.TargetingMode, "thunder tag targeting mode");
     AssertTrue(skill.ReleasesWithoutOccupyingCaster, "thunder tag should be an offhand release that does not occupy movement state");
     AssertTrue(skill.Effects.OfType<DamageSkillEffectSnapshot>().Any(item => item.BaseDamage == 12), "thunder tag should deal impact damage");
@@ -132,6 +155,7 @@ private static void AssertThunderFoldSkillSnapshot(IReadOnlyList<BattleSkillSnap
 {
     BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillDefinitionId == "skill_thunder_mark_fold");
     AssertTrue(skill != null, "snapshot should include thunder mark fold");
+    AssertTrue(skill.IconPath.EndsWith("skill_thunder_mark_fold_icon.tres", StringComparison.Ordinal), "thunder fold should carry its HUD icon path");
     AssertEqual(BattleSkillTargetingMode.TargetedCell, skill.TargetingMode, "thunder fold targeting mode");
     AssertTrue(skill.CanCancelBasicAttackRecovery, "thunder fold should be a high-tier mobility cancel");
     AssertTrue(skill.Effects.OfType<TeleportToMarkSkillEffectSnapshot>().Any(item => item.LandingRadius == 3), "thunder fold should teleport within the accepted radius around a selected mark");
@@ -141,6 +165,7 @@ private static void AssertThunderSpiralSkillSnapshot(IReadOnlyList<BattleSkillSn
 {
     BattleSkillSnapshot skill = skills.FirstOrDefault(item => item.SkillDefinitionId == "skill_thunder_spiral_break");
     AssertTrue(skill != null, "snapshot should include thunder spiral break");
+    AssertTrue(skill.IconPath.EndsWith("skill_thunder_spiral_break_icon.tres", StringComparison.Ordinal), "thunder spiral should carry its HUD icon path");
     AssertEqual(BattleSkillTargetingMode.TargetedCell, skill.TargetingMode, "thunder spiral targeting mode");
     AssertEqual(3, skill.Range, "thunder spiral direction target center range");
     ChanneledAreaDamageSkillEffectSnapshot channel = skill.Effects.OfType<ChanneledAreaDamageSkillEffectSnapshot>().FirstOrDefault();

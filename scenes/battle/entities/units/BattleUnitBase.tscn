@@ -38,30 +38,66 @@ z_index = 0
 [node name="HealthBarRoot" type="Control" parent="."]
 z_index = 100
 mouse_filter = 2
-offset_right = 36.0
-offset_bottom = 5.0
+offset_right = 72.0
+offset_bottom = 24.0
 
 [node name="HealthBack" type="ColorRect" parent="HealthBarRoot"]
 layout_mode = 0
-offset_right = 36.0
-offset_bottom = 5.0
-color = Color(0.018, 0.02, 0.018, 0.78)
+offset_right = 72.0
+offset_bottom = 24.0
+color = Color(0.32, 0.1, 0.08, 0.96)
+
+[node name="NameStrip" type="ColorRect" parent="HealthBarRoot"]
+layout_mode = 0
+offset_left = 1.0
+offset_top = 1.0
+offset_right = 71.0
+offset_bottom = 12.0
+color = Color(0.48, 0.12, 0.1, 0.98)
+
+[node name="UnitNameLabel" type="Label" parent="HealthBarRoot"]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 0.0
+offset_right = 70.0
+offset_bottom = 12.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.98, 0.93, 0.84, 1)
+theme_override_font_sizes/font_size = 7
+text = "Unit"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
 
 [node name="HealthTrack" type="ColorRect" parent="HealthBarRoot"]
 layout_mode = 0
 offset_left = 1.0
-offset_top = 1.0
-offset_right = 35.0
-offset_bottom = 4.0
-color = Color(0.06, 0.07, 0.06, 0.58)
+offset_top = 13.0
+offset_right = 71.0
+offset_bottom = 23.0
+color = Color(0.18, 0.035, 0.035, 0.92)
 
 [node name="HealthFill" type="ColorRect" parent="HealthBarRoot"]
 layout_mode = 0
-offset_left = 1.0
-offset_top = 1.0
-offset_right = 35.0
-offset_bottom = 4.0
-color = Color(0.34, 0.78, 0.38, 0.92)
+offset_left = 2.0
+offset_top = 14.0
+offset_right = 70.0
+offset_bottom = 22.0
+color = Color(0.86, 0.12, 0.08, 0.98)
+
+[node name="HealthValueLabel" type="Label" parent="HealthBarRoot"]
+layout_mode = 0
+offset_left = 2.0
+offset_top = 13.0
+offset_right = 70.0
+offset_bottom = 23.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.96, 0.9, 1)
+theme_override_font_sizes/font_size = 7
+text = "120/120"
+horizontal_alignment = 1
+vertical_alignment = 1
+clip_text = true
 
 [node name="FactionComponent" type="Node" parent="."]
 script = ExtResource("2_faction")

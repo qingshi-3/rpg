@@ -361,8 +361,7 @@ offset_right = -210.0
 offset_bottom = 68.0
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.86, 0.92, 1, 1)
-text = "世界推进：运行 1x
-下一世界步：8s"
+text = "世界推进：运行 1x\n下一世界步：8s"
 horizontal_alignment = 2
 vertical_alignment = 1
 clip_text = true

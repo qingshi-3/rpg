@@ -47,6 +47,7 @@ script = ExtResource("1_definition")
 SkillDefinitionId = "skill_shield_barrier"
 DisplayName = "曦盾结界"
 IconText = "盾"
+IconPath = "res://resource/ui/icons/battle/skills/skill_shield_barrier_icon.tres"
 Tags = Array[String](["first_slice", "shield"])
 Timing = SubResource("BattleSkillTiming_shield_barrier")
 InterruptPolicy = SubResource("BattleSkillInterrupt_shield_barrier")

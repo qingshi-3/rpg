@@ -159,14 +159,233 @@ internal static void BattleRuntimeHudUsesFullscreenHeroFrame()
         siteScene.Contains("BattleRuntimeHeroHealthBar", StringComparison.Ordinal) &&
         siteScene.Contains("BattleRuntimeHeroManaBar", StringComparison.Ordinal) &&
         siteScene.Contains("BattleRuntimeHeroSkillList", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeRegroupButton", StringComparison.Ordinal),
-        "battle runtime HUD should author a persistent hero frame with HP, mana, a skill list, and regroup controls");
+        !siteScene.Contains("BattleRuntimeRegroupButton", StringComparison.Ordinal),
+        "battle runtime HUD should author a persistent hero frame with HP, mana, and skill slots without the removed regroup button");
     AssertTrue(
         File.Exists(Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeSkillSlot.tscn")) &&
         File.Exists(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeSkillSlot.cs")) &&
         File.Exists(Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeHeroSwitchButton.tscn")) &&
         File.Exists(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroSwitchButton.cs")),
         "runtime hero and skill controls should use reusable authored scenes instead of hardcoded single buttons");
+}
+
+internal static void BattleRuntimeHudUsesReferenceDrivenMapFirstCommandFlow()
+{
+    string root = ProjectRoot();
+    string siteScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
+    string skillSlotScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeSkillSlot.tscn"));
+    string heroSwitchScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeHeroSwitchButton.tscn"));
+    string summaryRowScene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeHeroTroopSummaryRow.tscn"));
+    string nodeRefsSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSitePeacetimeHudNodeRefs.cs"));
+    string rootSource = ReadWorldSiteRootSource();
+    string commandHudSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
+    string skillSlotSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeSkillSlot.cs"));
+    string switchButtonSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroSwitchButton.cs"));
+    string selectorPresenterSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroSelectorPresenter.cs"));
+    string presenterSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroFramePresenter.cs"));
+    string animatedPreviewSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Common", "BattleUnitAnimatedPreview.cs"));
+    string plinthPreviewSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Common", "BattleUnitPlinthPreview.cs"));
+    string wheelPath = Path.Combine(root, "assets", "textures", "ui", "battle-runtime", "battle_runtime_command_wheel.png");
+    string fantasyAtlasPath = Path.Combine(root, "assets", "textures", "ui", "fantasy-hud-generated", "fantasy_hud_modular_atlas.png");
+    string pauseDecorScenePath = Path.Combine(root, "scenes", "world", "ui", "BattleRuntimePauseDecorFrame.tscn");
+    string pausePanelStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_pause_scroll_panel.tres");
+    string pauseInnerStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_pause_scroll_inner_panel.tres");
+    string fantasyPanelStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_panel.tres");
+    string fantasyInnerStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_inner_panel.tres");
+    string fantasySlotStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_slot.tres");
+    string fantasySlotSelectedStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_slot_selected.tres");
+    string fantasyButtonNormalStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_button_normal.tres");
+    string fantasyButtonHoverStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_button_hover.tres");
+    string fantasyButtonPressedStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_button_pressed.tres");
+    string fantasyBarFrameStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_bar_frame.tres");
+    string fantasyBarHealthStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_bar_health_fill.tres");
+    string fantasyBarManaStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_bar_mana_fill.tres");
+    string pausePresentationBody = ExtractMethodBody(commandHudSource, "private void RefreshBattleRuntimeCommandPausePresentation()");
+    string pauseDecorScene = File.Exists(pauseDecorScenePath) ? File.ReadAllText(pauseDecorScenePath) : "";
+    string pausePanelStyle = File.Exists(pausePanelStylePath) ? File.ReadAllText(pausePanelStylePath) : "";
+    string pauseInnerStyle = File.Exists(pauseInnerStylePath) ? File.ReadAllText(pauseInnerStylePath) : "";
+    string fantasyPanelStyle = File.Exists(fantasyPanelStylePath) ? File.ReadAllText(fantasyPanelStylePath) : "";
+    string fantasyInnerStyle = File.Exists(fantasyInnerStylePath) ? File.ReadAllText(fantasyInnerStylePath) : "";
+    string fantasySlotStyle = File.Exists(fantasySlotStylePath) ? File.ReadAllText(fantasySlotStylePath) : "";
+    string fantasySlotSelectedStyle = File.Exists(fantasySlotSelectedStylePath) ? File.ReadAllText(fantasySlotSelectedStylePath) : "";
+    string fantasyButtonNormalStyle = File.Exists(fantasyButtonNormalStylePath) ? File.ReadAllText(fantasyButtonNormalStylePath) : "";
+    string fantasyButtonHoverStyle = File.Exists(fantasyButtonHoverStylePath) ? File.ReadAllText(fantasyButtonHoverStylePath) : "";
+    string fantasyButtonPressedStyle = File.Exists(fantasyButtonPressedStylePath) ? File.ReadAllText(fantasyButtonPressedStylePath) : "";
+    string fantasyBarFrameStyle = File.Exists(fantasyBarFrameStylePath) ? File.ReadAllText(fantasyBarFrameStylePath) : "";
+    string fantasyBarHealthStyle = File.Exists(fantasyBarHealthStylePath) ? File.ReadAllText(fantasyBarHealthStylePath) : "";
+    string fantasyBarManaStyle = File.Exists(fantasyBarManaStylePath) ? File.ReadAllText(fantasyBarManaStylePath) : "";
+
+    AssertTrue(
+        !File.Exists(wheelPath),
+        $"battle runtime should remove the old round command wheel texture path={wheelPath}");
+    AssertTrue(File.Exists(fantasyAtlasPath), $"battle runtime fantasy HUD atlas should exist path={fantasyAtlasPath}");
+    (int fantasyAtlasWidth, int fantasyAtlasHeight) = ReadPngDimensions(fantasyAtlasPath);
+    AssertTrue(
+        fantasyAtlasWidth == 1536 && fantasyAtlasHeight == 1024,
+        $"battle runtime fantasy HUD atlas should keep the generated atlas dimensions width={fantasyAtlasWidth} height={fantasyAtlasHeight}");
+    AssertTrue(
+        File.Exists(fantasyPanelStylePath) &&
+        File.Exists(fantasyInnerStylePath) &&
+        File.Exists(fantasySlotStylePath) &&
+        File.Exists(fantasySlotSelectedStylePath) &&
+        File.Exists(fantasyButtonNormalStylePath) &&
+        File.Exists(fantasyButtonHoverStylePath) &&
+        File.Exists(fantasyButtonPressedStylePath) &&
+        File.Exists(fantasyBarFrameStylePath) &&
+        File.Exists(fantasyBarHealthStylePath) &&
+        File.Exists(fantasyBarManaStylePath) &&
+        fantasyPanelStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
+        fantasyPanelStyle.Contains("region = Rect2(36, 31, 587, 300)", StringComparison.Ordinal) &&
+        fantasyInnerStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
+        fantasyInnerStyle.Contains("region = Rect2(773, 123, 226, 124)", StringComparison.Ordinal) &&
+        fantasySlotStyle.Contains("region = Rect2(1166, 396, 144, 147)", StringComparison.Ordinal) &&
+        fantasySlotSelectedStyle.Contains("region = Rect2(1340, 399, 144, 144)", StringComparison.Ordinal) &&
+        fantasyButtonNormalStyle.Contains("region = Rect2(1342, 834, 124, 49)", StringComparison.Ordinal) &&
+        fantasyButtonHoverStyle.Contains("region = Rect2(355, 386, 241, 57)", StringComparison.Ordinal) &&
+        fantasyButtonPressedStyle.Contains("region = Rect2(362, 492, 229, 74)", StringComparison.Ordinal) &&
+        fantasyBarFrameStyle.Contains("region = Rect2(428, 637, 422, 71)", StringComparison.Ordinal) &&
+        fantasyBarHealthStyle.Contains("region = Rect2(492, 750, 327, 34)", StringComparison.Ordinal) &&
+        fantasyBarManaStyle.Contains("region = Rect2(851, 750, 305, 34)", StringComparison.Ordinal),
+        "battle runtime skin should slice the generated modular fantasy HUD atlas into panel, slot, button, and bar style resources");
+    AssertTrue(
+        !siteScene.Contains("BattleRuntimeRadialCommandMenu", StringComparison.Ordinal) &&
+        !siteScene.Contains("BattleRuntimeCommandWheelFrame", StringComparison.Ordinal) &&
+        !siteScene.Contains("battle_runtime_command_wheel.png", StringComparison.Ordinal),
+        "battle runtime tactical-pause commands should not keep the rejected round command wheel or overlay radial menu");
+    AssertTrue(
+        siteScene.Contains("[node name=\"BattleRuntimeSkillCommandPanel\" type=\"PanelContainer\" parent=\"BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody\"]", StringComparison.Ordinal) &&
+        siteScene.Contains("[node name=\"BattleRuntimeHeroSkillList\" type=\"HBoxContainer\" parent=\"BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack\"]", StringComparison.Ordinal) &&
+        !siteScene.Contains("BattleRuntimeRegroupButton", StringComparison.Ordinal),
+        "battle runtime skills should live inside the bottom tactical-pause detail area without the removed regroup button");
+    AssertTrue(
+        File.Exists(pausePanelStylePath) &&
+        File.Exists(pauseInnerStylePath) &&
+        siteScene.Contains("BattleRuntimePauseDetailPanel", StringComparison.Ordinal) &&
+        !siteScene.Contains("BattleRuntimePauseDetailFrame", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimePauseCommandQueueList", StringComparison.Ordinal) &&
+        !siteScene.Contains("BattleRuntimePauseCollapseButton", StringComparison.Ordinal) &&
+        siteScene.Contains("battle_runtime_pause_scroll_panel.tres", StringComparison.Ordinal) &&
+        siteScene.Contains("battle_runtime_pause_scroll_inner_panel.tres", StringComparison.Ordinal) &&
+        siteScene.Contains("battle_runtime_fantasy_bar_frame.tres", StringComparison.Ordinal) &&
+        siteScene.Contains("battle_runtime_fantasy_bar_health_fill.tres", StringComparison.Ordinal) &&
+        siteScene.Contains("battle_runtime_fantasy_bar_mana_fill.tres", StringComparison.Ordinal) &&
+        File.Exists(pauseDecorScenePath) &&
+        siteScene.Contains("BattleRuntimePauseDecorFrame.tscn", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimePauseBackgroundPanel", StringComparison.Ordinal) &&
+        siteScene.Contains("BattleRuntimePauseDecorFrame", StringComparison.Ordinal) &&
+        pauseDecorScene.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
+        pauseDecorScene.Contains("LeftScrollRoll", StringComparison.Ordinal) &&
+        !pauseDecorScene.Contains("RightScrollRoll", StringComparison.Ordinal) &&
+        !pauseDecorScene.Contains("TopWoodPlaque", StringComparison.Ordinal) &&
+        pauseDecorScene.Contains("region = Rect2(53, 355, 52, 227)", StringComparison.Ordinal) &&
+        !pauseDecorScene.Contains("region = Rect2(262, 355, 52, 226)", StringComparison.Ordinal) &&
+        !pauseDecorScene.Contains("region = Rect2(1342, 834, 124, 49)", StringComparison.Ordinal) &&
+        pauseDecorScene.Contains("mouse_filter = 2", StringComparison.Ordinal) &&
+        pausePanelStyle.Contains("[gd_resource type=\"StyleBoxTexture\"", StringComparison.Ordinal) &&
+        pausePanelStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
+        pausePanelStyle.Contains("region = Rect2(36, 31, 587, 300)", StringComparison.Ordinal) &&
+        pauseInnerStyle.Contains("[gd_resource type=\"StyleBoxTexture\"", StringComparison.Ordinal) &&
+        pauseInnerStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
+        pauseInnerStyle.Contains("region = Rect2(773, 123, 226, 124)", StringComparison.Ordinal) &&
+        !pauseDecorScene.Contains("battle_runtime_keyboard_panel_sheet.png", StringComparison.Ordinal) &&
+        !pausePanelStyle.Contains("StyleBoxFlat", StringComparison.Ordinal) &&
+        !siteScene.Contains("battle_runtime_pause_panel.tres", StringComparison.Ordinal),
+        "tactical pause detail should use a stretchable fantasy parchment panel with only left-side scroll decoration from the modular atlas");
+    AssertTrue(
+        skillSlotScene.Contains("battle_runtime_fantasy_slot.tres", StringComparison.Ordinal) &&
+        skillSlotScene.Contains("battle_runtime_fantasy_slot_selected.tres", StringComparison.Ordinal) &&
+        skillSlotScene.Contains("theme_override_styles/panel = ExtResource(\"4_fantasy_slot_selected\")", StringComparison.Ordinal) &&
+        skillSlotScene.Contains("NormalPanelStyle = ExtResource(\"4_fantasy_slot_selected\")", StringComparison.Ordinal) &&
+        skillSlotScene.Contains("HoverPanelStyle = ExtResource(\"2_fantasy_slot\")", StringComparison.Ordinal) &&
+        skillSlotScene.Contains("[node name=\"IconTexture\" type=\"TextureRect\"", StringComparison.Ordinal) &&
+        skillSlotScene.Contains("IconGlyph", StringComparison.Ordinal) &&
+        skillSlotSource.Contains("MouseEntered += ApplyHoverPanelStyle", StringComparison.Ordinal) &&
+        skillSlotSource.Contains("MouseExited += ApplyNormalPanelStyle", StringComparison.Ordinal) &&
+        skillSlotSource.Contains("AddThemeStyleboxOverride(\"panel\"", StringComparison.Ordinal) &&
+        !skillSlotScene.Contains("[node name=\"Icon\" type=\"ColorRect\"", StringComparison.Ordinal) &&
+        !skillSlotScene.Contains("mana_soul_item_tall_frame_normal.tres", StringComparison.Ordinal) &&
+        !skillSlotScene.Contains("basic_ui_1_panel_slot.tres", StringComparison.Ordinal),
+        "battle runtime skill slots should use the dark slot frame by default and switch to the gold slot frame only on hover");
+    AssertTrue(
+        !heroSwitchScene.Contains("battle_runtime_fantasy_slot.tres", StringComparison.Ordinal) &&
+        !heroSwitchScene.Contains("battle_runtime_fantasy_slot_selected.tres", StringComparison.Ordinal) &&
+        !heroSwitchScene.Contains("theme_override_styles/", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("flat = true", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("custom_minimum_size = Vector2(104, 118)", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("position = Vector2(52, 86)", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("scale = Vector2(0.38, 0.38)", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("[node name=\"SelectedBackplate\" type=\"ColorRect\"", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("color = Color(0.05, 0.08, 0.13, 0.64)", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("[node name=\"SelectedSideMark\" type=\"ColorRect\"", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("color = Color(0.55, 0.92, 1, 0.95)", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("res://scenes/ui/common/BattleUnitPlinthPreview.tscn", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("[node name=\"HeroPlinthPreview\"", StringComparison.Ordinal) &&
+        heroSwitchScene.Contains("[node name=\"HeroNameLabel\" type=\"Label\"", StringComparison.Ordinal) &&
+        !heroSwitchScene.Contains("[node name=\"Glyph\" type=\"Label\"", StringComparison.Ordinal) &&
+        !heroSwitchScene.Contains("[node name=\"Status\" type=\"Label\"", StringComparison.Ordinal) &&
+        !heroSwitchScene.Contains("ManaSoulItemFrameButton", StringComparison.Ordinal) &&
+        !heroSwitchScene.Contains("WorldCompactActionButton", StringComparison.Ordinal),
+        "battle runtime hero switch should be a frameless plinth/unit idle preview with only the secondary bottom name label");
+    AssertTrue(
+        switchButtonSource.Contains("BattleUnitPreviewResolver.ResolveAnimatedPreview", StringComparison.Ordinal) &&
+        switchButtonSource.Contains("_heroPlinthPreview.Bind", StringComparison.Ordinal) &&
+        switchButtonSource.Contains("_selectedBackplate.Visible = selected", StringComparison.Ordinal) &&
+        switchButtonSource.Contains("_selectedSideMark.Visible = selected", StringComparison.Ordinal) &&
+        !switchButtonSource.Contains("SetSelectionOutline", StringComparison.Ordinal) &&
+        selectorPresenterSource.Contains("group.HeroBattleUnitId", StringComparison.Ordinal) &&
+        !switchButtonSource.Contains("BuildShortLabel", StringComparison.Ordinal) &&
+        !animatedPreviewSource.Contains("unit_body_outline.gdshader", StringComparison.Ordinal) &&
+        !animatedPreviewSource.Contains("public void SetSelectionOutline(bool selected)", StringComparison.Ordinal) &&
+        !plinthPreviewSource.Contains("public void SetSelectionOutline(bool selected)", StringComparison.Ordinal),
+        "runtime hero switching should use a larger plinth/unit component and a cool-color selected backplate instead of a yellow outline");
+    AssertTrue(
+        summaryRowScene.Contains("battle_runtime_fantasy_inner_panel.tres", StringComparison.Ordinal) &&
+        summaryRowScene.Contains("battle_runtime_fantasy_bar_frame.tres", StringComparison.Ordinal) &&
+        summaryRowScene.Contains("battle_runtime_fantasy_bar_health_fill.tres", StringComparison.Ordinal) &&
+        !summaryRowScene.Contains("ManaSoulPanelD", StringComparison.Ordinal) &&
+        !summaryRowScene.Contains("ManaSoulHealthBar", StringComparison.Ordinal) &&
+        !summaryRowScene.Contains("basic_ui_1_panel_slot.tres", StringComparison.Ordinal),
+        "battle runtime summary rows should use the same fantasy atlas skin as the detail frame");
+    AssertTrue(
+        nodeRefsSource.Contains("BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack/BattleRuntimeHeroSkillList", StringComparison.Ordinal) &&
+        !nodeRefsSource.Contains("BattleRuntimeRegroupButton", StringComparison.Ordinal) &&
+        !nodeRefsSource.Contains("OverlayHost/BattleRuntimeRadialCommandMenu", StringComparison.Ordinal) &&
+        nodeRefsSource.Contains("BattleRuntimePauseDetailPanel", StringComparison.Ordinal) &&
+        !nodeRefsSource.Contains("BattleRuntimeHeroPlinthPreview", StringComparison.Ordinal) &&
+        !nodeRefsSource.Contains("BattleRuntimeHeroAvatarLabel", StringComparison.Ordinal),
+        "world-site HUD node refs should bind the bottom skill surface without regroup or a redundant selected-hero preview");
+    AssertTrue(
+        pausePresentationBody.Contains("_siteBottomCommandHost.Visible = false", StringComparison.Ordinal) &&
+        pausePresentationBody.Contains("_battleRuntimeSummaryBar.Visible = false", StringComparison.Ordinal) &&
+        pausePresentationBody.Contains("_battleRuntimePauseDetailPanel.Visible = false", StringComparison.Ordinal) &&
+        pausePresentationBody.IndexOf("if (!_battleRuntimeCommandPauseActive)", StringComparison.Ordinal) <
+        pausePresentationBody.IndexOf("_siteBottomCommandHost.Visible = false", StringComparison.Ordinal) &&
+        !pausePresentationBody.Contains("bool showRuntimeSummary = IsBattleRuntimeHudActive()", StringComparison.Ordinal),
+        "live/default battle runtime should hide bottom summary, command, and pause-detail panels instead of showing a persistent bottom HUD");
+    AssertTrue(
+        pausePresentationBody.Contains("_battleRuntimePauseDetailPanel.Visible = true", StringComparison.Ordinal) &&
+        pausePresentationBody.Contains("_battleRuntimeCommandBar.Visible = false", StringComparison.Ordinal) &&
+        !pausePresentationBody.Contains("RefreshBattleRuntimeRadialCommandMenuPosition()", StringComparison.Ordinal),
+        "tactical pause should show the bottom detail panel without refreshing a separate radial command menu");
+    AssertTrue(
+        !rootSource.Contains("private Control _battleRuntimeRadialCommandMenu", StringComparison.Ordinal) &&
+        rootSource.Contains("private Control _battleRuntimePauseDetailPanel", StringComparison.Ordinal) &&
+        !commandHudSource.Contains("private void RefreshBattleRuntimeRadialCommandMenuPosition()", StringComparison.Ordinal) &&
+        !commandHudSource.Contains("BattleRuntimeRadialCommandMenuPresenter.Refresh", StringComparison.Ordinal),
+        "runtime command presentation should remove the separate radial command-menu owner after moving skills into the bottom detail panel");
+    AssertTrue(
+        !siteScene.Contains("[node name=\"BattleRuntimeHeroAvatar\"", StringComparison.Ordinal) &&
+        !siteScene.Contains("[node name=\"BattleRuntimeHeroPlinthPreview\"", StringComparison.Ordinal) &&
+        siteScene.Contains("res://scenes/ui/common/BattleUnitPlinthPreview.tscn", StringComparison.Ordinal) &&
+        presenterSource.Contains("skill.IconText", StringComparison.Ordinal) &&
+        presenterSource.Contains("skill.IconPath", StringComparison.Ordinal) &&
+        !presenterSource.Contains("BattleUnitPreviewResolver.ResolveAnimatedPreview", StringComparison.Ordinal) &&
+        !presenterSource.Contains("_heroPlinthPreview", StringComparison.Ordinal) &&
+        !presenterSource.Contains("BuildAvatarGlyph", StringComparison.Ordinal) &&
+        skillSlotSource.Contains("GD.Load<Texture2D>(iconPath)", StringComparison.Ordinal) &&
+        !rootSource.Contains("_battleRuntimeRegroupButton", StringComparison.Ordinal) &&
+        !commandHudSource.Contains("OnBattleRuntimeRegroupPressed", StringComparison.Ordinal),
+        "battle runtime hero frame presenter should bind skill icon textures without a redundant selected-hero preview or regroup button");
 }
 
 internal static void WorldSiteRuntimeHudBindsHeroFrameInsteadOfLeftCommandPanel()
@@ -196,8 +415,8 @@ internal static void WorldSiteRuntimeHudBindsHeroFrameInsteadOfLeftCommandPanel(
         siteManagementSource.Contains("_battleRuntimeHeroHealthBar", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeHeroManaBar", StringComparison.Ordinal) &&
         siteManagementSource.Contains("_battleRuntimeHeroSkillList", StringComparison.Ordinal) &&
-        siteManagementSource.Contains("_battleRuntimeRegroupButton", StringComparison.Ordinal),
-        "WorldSiteRoot should bind the authored runtime hero frame controls");
+        !siteManagementSource.Contains("_battleRuntimeRegroupButton", StringComparison.Ordinal),
+        "WorldSiteRoot should bind the authored runtime hero frame controls without the removed regroup button");
 }
 
 internal static void BattleRuntimeHudShowsHeroTroopSummaryPanel()
@@ -354,28 +573,30 @@ internal static void BattleRuntimeLiveSkillButtonEntersTacticalPauseBeforeTarget
         "skill entry should leave a low-noise diagnostic for the runtime HUD interaction");
 }
 
-internal static void BattleRuntimeTargetPickingLeavesCommandHudClickable()
+internal static void BattleRuntimeTargetPickingSuppressesCommandHud()
 {
     string rootSource = ReadWorldSiteRootSource();
-    string presentationSource = ReadWorldSitePresentationSource();
+    string suppressionPath = Path.Combine(
+        ProjectRoot(),
+        "src",
+        "Presentation",
+        "World",
+        "Sites",
+        "WorldSiteRoot.BattleMapOperationHud.cs");
+    string suppressionSource = File.Exists(suppressionPath) ? File.ReadAllText(suppressionPath) : "";
+    string beginBody = ExtractMethodBody(rootSource, "private void BeginBattleRuntimeHeroSkillTargetPicking(");
+    string cancelBody = ExtractMethodBody(rootSource, "private void CancelBattleRuntimeHeroSkillTargetPicking(");
     string targetInputBody = ExtractMethodBody(rootSource, "private bool TryHandleBattleRuntimeHeroSkillTargetInput(InputEvent inputEvent)");
-    int gateIndex = targetInputBody.IndexOf(
-        "BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeCommandBar, mouseButton.Position)",
-        StringComparison.Ordinal);
-    int rightClickIndex = targetInputBody.IndexOf("mouseButton.ButtonIndex == MouseButton.Right", StringComparison.Ordinal);
-    int handledIndex = targetInputBody.IndexOf("GetViewport()?.SetInputAsHandled()", StringComparison.Ordinal);
 
     AssertTrue(
-        gateIndex >= 0 &&
-        rightClickIndex >= 0 &&
-        handledIndex >= 0 &&
-        gateIndex < rightClickIndex &&
-        gateIndex < handledIndex,
-        "target-picking input should ignore command HUD pointer clicks before treating them as battlefield cancel or target clicks");
+        beginBody.Contains("EnterBattleMapOperationHudSuppression(BattleMapOperationHudSuppressionReason.RuntimeSkillTarget", StringComparison.Ordinal) &&
+        cancelBody.Contains("ExitBattleMapOperationHudSuppression(BattleMapOperationHudSuppressionReason.RuntimeSkillTarget", StringComparison.Ordinal),
+        "target-picking should hide blocking command HUD on entry and restore the previous HUD layer on exit");
     AssertTrue(
-        presentationSource.Contains("internal static class BattleRuntimeCommandHudPointerGate", StringComparison.Ordinal) &&
-        presentationSource.Contains("control.GetGlobalRect().HasPoint(globalPosition)", StringComparison.Ordinal),
-        "HUD pointer gating should live in a focused presentation helper instead of growing WorldSiteRoot");
+        suppressionSource.Contains("_battleRuntimeCommandBar", StringComparison.Ordinal) &&
+        suppressionSource.Contains("_battleRuntimeSummaryBar", StringComparison.Ordinal) &&
+        !targetInputBody.Contains("BattleRuntimeCommandHudPointerGate.ContainsPointer", StringComparison.Ordinal),
+        "target-picking map clicks should not be blocked by still-visible command or summary HUD pointer gates");
 }
 
 internal static void BattleRuntimePresentationHandlesThunderFoldAsTeleport()
@@ -403,9 +624,13 @@ internal static void BattleRuntimeHudHidesHeroControlsWhenPauseEnds()
     AssertTrue(
         pausePresentationBody.Contains("_battleRuntimeCommandPauseActive", StringComparison.Ordinal) &&
         pausePresentationBody.Contains("_battleRuntimeCommandBar.Visible = false", StringComparison.Ordinal) &&
-        pausePresentationBody.IndexOf("_battleRuntimeCommandBar.Visible = false", StringComparison.Ordinal) <
-        pausePresentationBody.IndexOf("_battleRuntimeCommandBar.Visible = true", StringComparison.Ordinal),
-        "turning tactical pause off should hide the hero switch and skill command bar instead of leaving it on screen");
+        pausePresentationBody.Contains("_battleRuntimePauseDetailPanel.Visible = false", StringComparison.Ordinal),
+        "turning tactical pause off should hide the bottom command/detail surfaces instead of leaving them on screen");
+    AssertTrue(
+        pausePresentationBody.Contains("_battleRuntimeSummaryBar.Visible = false", StringComparison.Ordinal) &&
+        pausePresentationBody.Contains("_battleRuntimePauseDetailPanel.Visible = true", StringComparison.Ordinal) &&
+        !pausePresentationBody.Contains("RefreshBattleRuntimeRadialCommandMenuPosition()", StringComparison.Ordinal),
+        "tactical pause should hide the live summary strip and show the combat detail panel without a separate selected-unit radial");
     AssertTrue(
         setPauseBody.Contains("CancelBattleRuntimeHeroSkillTargetPicking(\"pause_off\")", StringComparison.Ordinal) &&
         setPauseBody.Contains("RefreshBattleRuntimeCommandPausePresentation()", StringComparison.Ordinal),
@@ -424,7 +649,7 @@ internal static void BattleRuntimeViewportStaysFullscreenDuringHudAndPause()
         "WorldSiteRoot.SiteManagementHud.cs"));
     string resolveRectBody = ExtractMethodBody(rootSource, "private Rect2 ResolveMainWorldViewportRect()");
     string pausePresentationBody = ExtractMethodBody(rootSource, "private void RefreshBattleRuntimeCommandPausePresentation()");
-    string panelVisibilityBody = ExtractMethodBody(siteManagementSource, "private void UpdateSitePeacetimePanelVisibility(");
+    string panelVisibilityBody = ExtractMethodBody(siteManagementSource, "private void UpdateSiteManagementEntryVisibility(");
 
     AssertTrue(
         resolveRectBody.Contains("_battleRuntimeEnabled", StringComparison.Ordinal) &&
@@ -435,10 +660,10 @@ internal static void BattleRuntimeViewportStaysFullscreenDuringHudAndPause()
         !pausePresentationBody.Contains("UpdateSitePeacetimePanelVisibility(\"battle_runtime_command_pause\")", StringComparison.Ordinal),
         "tactical pause should keep the left primary panel hidden and not re-run management panel visibility");
     AssertTrue(
-        panelVisibilityBody.Contains("IsBattleRuntimeHudActive()", StringComparison.Ordinal) &&
-        panelVisibilityBody.Contains("_sitePeacetimePanel.Visible = false", StringComparison.Ordinal) &&
-        panelVisibilityBody.IndexOf("IsBattleRuntimeHudActive()", StringComparison.Ordinal) <
-        panelVisibilityBody.IndexOf("bool shouldShow", StringComparison.Ordinal),
+        panelVisibilityBody.Contains("_battleRuntimeEnabled", StringComparison.Ordinal) &&
+        panelVisibilityBody.Contains("SetSiteManagementPanelVisible(false)", StringComparison.Ordinal) &&
+        panelVisibilityBody.IndexOf("_battleRuntimeEnabled", StringComparison.Ordinal) <
+        panelVisibilityBody.IndexOf("bool shouldShowEntry", StringComparison.Ordinal),
         "site panel visibility must short-circuit during battle runtime so tactical pause cannot reopen the management panel");
 }
 
@@ -489,7 +714,10 @@ internal static void BattleRuntimeRightClickSubmitsDestinationBeaconCommand()
         destinationInputBody.Contains("InputEventMouseButton", StringComparison.Ordinal) &&
         destinationInputBody.Contains("mouseButton.ButtonIndex == MouseButton.Right", StringComparison.Ordinal) &&
         destinationInputBody.Contains("mouseButton.Pressed", StringComparison.Ordinal) &&
-        destinationInputBody.Contains("BattleRuntimeCommandHudPointerGate.ContainsPointer", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("EnterBattleMapOperationHudSuppression(BattleMapOperationHudSuppressionReason.RuntimeDestinationBeacon", StringComparison.Ordinal) &&
+        destinationInputBody.IndexOf("EnterBattleMapOperationHudSuppression", StringComparison.Ordinal) <
+        destinationInputBody.IndexOf("TryGetMouseGridPosition(out GridPosition position)", StringComparison.Ordinal) &&
+        !destinationInputBody.Contains("BattleRuntimeCommandHudPointerGate.ContainsPointer", StringComparison.Ordinal) &&
         destinationInputBody.Contains("TryGetMouseGridPosition(out GridPosition position)", StringComparison.Ordinal) &&
         destinationInputBody.Contains("BuildBattleRuntimeDestinationBeaconCommandRequest", StringComparison.Ordinal) &&
         destinationInputBody.Contains("_activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand(commandRequest)", StringComparison.Ordinal) &&

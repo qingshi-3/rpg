@@ -82,6 +82,12 @@ public static class StrategicManagementRuntime
         return ViewModels.BuildLocationDashboard(State, factionId, locationId);
     }
 
+    public static StrategicManagementDashboardViewModel BuildHeroCorpsWorkbenchDashboard(string factionId, string cityId, string heroId)
+    {
+        EnsureInitialized();
+        return ViewModels.BuildHeroCorpsWorkbenchDashboard(State, factionId, cityId, heroId);
+    }
+
     public static void PauseWorldTimeForCityManagement()
     {
         EnsureInitialized();

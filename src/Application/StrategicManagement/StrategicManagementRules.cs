@@ -172,6 +172,195 @@ public sealed class StrategicManagementRules
         return availability.IsAvailable ? "" : SelectPrimaryFailure(availability.FailureReasons);
     }
 
+    public StrategicMusterTemplateAvailability EvaluateHeroCorpsReplacementTemplate(
+        StrategicManagementState state,
+        string cityId,
+        string heroId,
+        string corpsDefinitionId)
+    {
+        StrategicMusterTemplateAvailability result = new()
+        {
+            CorpsDefinitionId = corpsDefinitionId ?? ""
+        };
+
+        if (state == null ||
+            !_definitions.Corps.TryGetValue(corpsDefinitionId ?? "", out StrategicCorpsDefinition corps) ||
+            !TryGetCityContext(state, cityId, out StrategicCityState city, out StrategicLocationState cityLocation) ||
+            !state.Heroes.TryGetValue(heroId ?? "", out StrategicHeroState hero))
+        {
+            AddUnique(result.FailureReasons, StrategicFailureReasons.MissingDefinitions);
+            return result;
+        }
+
+        if (!string.Equals(hero.FactionId, cityLocation.OwnerFactionId, System.StringComparison.Ordinal))
+        {
+            AddUnique(result.FailureReasons, StrategicFailureReasons.FactionMismatch);
+        }
+
+        if (!string.IsNullOrWhiteSpace(hero.CurrentExpeditionId))
+        {
+            AddUnique(result.FailureReasons, StrategicFailureReasons.HeroAlreadyOnExpedition);
+        }
+
+        StrategicCorpsInstanceState currentCorps = null;
+        if (!string.IsNullOrWhiteSpace(hero.AssignedCorpsInstanceId))
+        {
+            if (!state.CorpsInstances.TryGetValue(hero.AssignedCorpsInstanceId, out currentCorps))
+            {
+                AddUnique(result.FailureReasons, StrategicFailureReasons.MissingCorpsInstance);
+            }
+            else
+            {
+                if (!string.Equals(currentCorps.FactionId, cityLocation.OwnerFactionId, System.StringComparison.Ordinal))
+                {
+                    AddUnique(result.FailureReasons, StrategicFailureReasons.FactionMismatch);
+                }
+
+                if (!string.Equals(currentCorps.HomeCityId, city.LocationId, System.StringComparison.Ordinal))
+                {
+                    AddUnique(result.FailureReasons, StrategicFailureReasons.MissingCity);
+                }
+
+                if (!string.IsNullOrWhiteSpace(currentCorps.CurrentExpeditionId) ||
+                    currentCorps.Status == StrategicCorpsInstanceStatus.Expedition)
+                {
+                    AddUnique(result.FailureReasons, StrategicFailureReasons.CorpsAlreadyOnExpedition);
+                }
+            }
+        }
+
+        if (!CityIdentityAllows(city, corps))
+        {
+            AddUnique(result.FailureReasons, StrategicFailureReasons.MissingCityIdentity);
+        }
+
+        foreach (string requiredCategoryId in corps.RequiredBuildingCategoryIds)
+        {
+            if (!CityHasBuildingCategory(city, requiredCategoryId))
+            {
+                AddUnique(result.FailureReasons, StrategicFailureReasons.MissingBuilding);
+            }
+        }
+
+        int reserveRefund = currentCorps == null ? 0 : GetCorpsCurrentReserveValue(state, currentCorps.CorpsInstanceId);
+        if (city.ReserveForces + reserveRefund < System.Math.Max(0, corps.SoldierCapacityCost))
+        {
+            AddUnique(result.FailureReasons, StrategicFailureReasons.InsufficientReserveForces);
+        }
+
+        if (GetRemainingCityForceCapacity(state, city.LocationId) < 0)
+        {
+            AddUnique(result.FailureReasons, StrategicFailureReasons.CityForceCapacityFull);
+        }
+
+        IReadOnlyList<StrategicResourceAmount> resourceRefund = currentCorps == null
+            ? System.Array.Empty<StrategicResourceAmount>()
+            : GetCorpsCurrentResourceValue(state, currentCorps.CorpsInstanceId);
+        if (!CanSpendWithRefund(state, cityLocation.OwnerFactionId, corps.CreationCost, resourceRefund))
+        {
+            AddUnique(result.FailureReasons, StrategicFailureReasons.InsufficientResources);
+        }
+
+        return result;
+    }
+
+    public string GetHeroCorpsReplacementFailureReason(
+        StrategicManagementState state,
+        string cityId,
+        string heroId,
+        string corpsDefinitionId)
+    {
+        StrategicMusterTemplateAvailability availability = EvaluateHeroCorpsReplacementTemplate(
+            state,
+            cityId,
+            heroId,
+            corpsDefinitionId);
+        return availability.IsAvailable ? "" : SelectPrimaryFailure(availability.FailureReasons);
+    }
+
+    public int GetCorpsCurrentReserveValue(
+        StrategicManagementState state,
+        string corpsInstanceId)
+    {
+        if (state == null ||
+            !state.CorpsInstances.TryGetValue(corpsInstanceId ?? "", out StrategicCorpsInstanceState corps) ||
+            !_definitions.Corps.TryGetValue(corps.CorpsDefinitionId, out StrategicCorpsDefinition definition))
+        {
+            return 0;
+        }
+
+        int strength = System.Math.Clamp(corps.Strength, 0, 100);
+        return (int)System.Math.Ceiling(System.Math.Max(0, definition.SoldierCapacityCost) * (strength / 100.0));
+    }
+
+    public IReadOnlyList<StrategicResourceAmount> GetCorpsCurrentResourceValue(
+        StrategicManagementState state,
+        string corpsInstanceId)
+    {
+        if (state == null ||
+            !state.CorpsInstances.TryGetValue(corpsInstanceId ?? "", out StrategicCorpsInstanceState corps) ||
+            !_definitions.Corps.TryGetValue(corps.CorpsDefinitionId, out StrategicCorpsDefinition definition))
+        {
+            return System.Array.Empty<StrategicResourceAmount>();
+        }
+
+        int strength = System.Math.Clamp(corps.Strength, 0, 100);
+        if (strength <= 0)
+        {
+            return System.Array.Empty<StrategicResourceAmount>();
+        }
+
+        return definition.ReplenishFullCost
+            .Where(cost => cost.Amount > 0 && !string.IsNullOrWhiteSpace(cost.ResourceId))
+            .Select(cost => new StrategicResourceAmount(
+                cost.ResourceId,
+                (int)System.Math.Ceiling(cost.Amount * (strength / 100.0))))
+            .Where(cost => cost.Amount > 0)
+            .OrderBy(cost => cost.ResourceId)
+            .ToList();
+    }
+
+    public int GetHeroCorpsReplacementReserveRefund(
+        StrategicManagementState state,
+        string heroId)
+    {
+        return TryGetHeroAssignedCorps(state, heroId, out StrategicCorpsInstanceState corps)
+            ? GetCorpsCurrentReserveValue(state, corps.CorpsInstanceId)
+            : 0;
+    }
+
+    public IReadOnlyList<StrategicResourceAmount> GetHeroCorpsReplacementResourceRefund(
+        StrategicManagementState state,
+        string heroId)
+    {
+        return TryGetHeroAssignedCorps(state, heroId, out StrategicCorpsInstanceState corps)
+            ? GetCorpsCurrentResourceValue(state, corps.CorpsInstanceId)
+            : System.Array.Empty<StrategicResourceAmount>();
+    }
+
+    public int GetHeroCorpsReplacementNetReserveCost(
+        StrategicManagementState state,
+        string heroId,
+        string corpsDefinitionId)
+    {
+        int consume = _definitions.Corps.TryGetValue(corpsDefinitionId ?? "", out StrategicCorpsDefinition definition)
+            ? System.Math.Max(0, definition.SoldierCapacityCost)
+            : 0;
+        return consume - GetHeroCorpsReplacementReserveRefund(state, heroId);
+    }
+
+    public IReadOnlyList<StrategicResourceAmount> GetHeroCorpsReplacementNetResourceCost(
+        StrategicManagementState state,
+        string heroId,
+        string corpsDefinitionId)
+    {
+        IReadOnlyList<StrategicResourceAmount> consume = _definitions.Corps.TryGetValue(corpsDefinitionId ?? "", out StrategicCorpsDefinition definition)
+            ? NormalizeCost(definition.CreationCost)
+            : System.Array.Empty<StrategicResourceAmount>();
+        IReadOnlyList<StrategicResourceAmount> refund = GetHeroCorpsReplacementResourceRefund(state, heroId);
+        return CombineResourceAmounts(consume, refund, subtractSecond: true);
+    }
+
     public string GetBuildingPlacementFailureReason(
         StrategicManagementState state,
         string cityId,
@@ -858,6 +1047,82 @@ public sealed class StrategicManagementRules
                y >= region.OriginY &&
                x < region.OriginX + region.Width &&
                y < region.OriginY + region.Height;
+    }
+
+    private static bool CanSpendWithRefund(
+        StrategicManagementState state,
+        string factionId,
+        IReadOnlyCollection<StrategicResourceAmount> costs,
+        IReadOnlyCollection<StrategicResourceAmount> refunds)
+    {
+        if (state == null)
+        {
+            return false;
+        }
+
+        Dictionary<string, int> refundByResource = (refunds ?? System.Array.Empty<StrategicResourceAmount>())
+            .Where(item => item.Amount > 0 && !string.IsNullOrWhiteSpace(item.ResourceId))
+            .GroupBy(item => item.ResourceId, System.StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Sum(item => item.Amount), System.StringComparer.Ordinal);
+
+        foreach (StrategicResourceAmount cost in costs ?? System.Array.Empty<StrategicResourceAmount>())
+        {
+            if (cost.Amount <= 0 || string.IsNullOrWhiteSpace(cost.ResourceId))
+            {
+                continue;
+            }
+
+            refundByResource.TryGetValue(cost.ResourceId, out int refund);
+            if (state.GetResourceAmount(factionId, cost.ResourceId) + refund < cost.Amount)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool TryGetHeroAssignedCorps(
+        StrategicManagementState state,
+        string heroId,
+        out StrategicCorpsInstanceState corps)
+    {
+        corps = null;
+        return state?.Heroes.TryGetValue(heroId ?? "", out StrategicHeroState hero) == true &&
+               !string.IsNullOrWhiteSpace(hero.AssignedCorpsInstanceId) &&
+               state.CorpsInstances.TryGetValue(hero.AssignedCorpsInstanceId, out corps);
+    }
+
+    private static IReadOnlyList<StrategicResourceAmount> CombineResourceAmounts(
+        IReadOnlyCollection<StrategicResourceAmount> first,
+        IReadOnlyCollection<StrategicResourceAmount> second,
+        bool subtractSecond)
+    {
+        Dictionary<string, int> totals = new(System.StringComparer.Ordinal);
+        AddAmounts(totals, first, 1);
+        AddAmounts(totals, second, subtractSecond ? -1 : 1);
+        return totals
+            .Where(item => item.Value != 0)
+            .OrderBy(item => item.Key)
+            .Select(item => new StrategicResourceAmount(item.Key, item.Value))
+            .ToList();
+    }
+
+    private static void AddAmounts(
+        Dictionary<string, int> totals,
+        IReadOnlyCollection<StrategicResourceAmount> amounts,
+        int sign)
+    {
+        foreach (StrategicResourceAmount amount in amounts ?? System.Array.Empty<StrategicResourceAmount>())
+        {
+            if (amount.Amount == 0 || string.IsNullOrWhiteSpace(amount.ResourceId))
+            {
+                continue;
+            }
+
+            totals.TryGetValue(amount.ResourceId, out int current);
+            totals[amount.ResourceId] = current + (amount.Amount * sign);
+        }
     }
 
     private static string SelectPrimaryFailure(IReadOnlyList<string> reasons)

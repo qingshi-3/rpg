@@ -11,13 +11,22 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
     public NodePath BackPath { get; set; } = new("../HealthBarRoot/HealthBack");
 
     [Export]
+    public NodePath NameStripPath { get; set; } = new("../HealthBarRoot/NameStrip");
+
+    [Export]
+    public NodePath NameLabelPath { get; set; } = new("../HealthBarRoot/UnitNameLabel");
+
+    [Export]
     public NodePath TrackPath { get; set; } = new("../HealthBarRoot/HealthTrack");
 
     [Export]
     public NodePath FillPath { get; set; } = new("../HealthBarRoot/HealthFill");
 
     [Export]
-    public Vector2 BarSize { get; set; } = new(36f, 5f);
+    public NodePath ValueLabelPath { get; set; } = new("../HealthBarRoot/HealthValueLabel");
+
+    [Export]
+    public Vector2 BarSize { get; set; } = new(72f, 24f);
 
     [Export]
     public bool HideWhenFullHp { get; set; } = true;
@@ -25,29 +34,36 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
     [Export(PropertyHint.Range, "0.1,1,0.05")]
     public float AttentionAlpha { get; set; } = 0.96f;
 
-    // Head bars are short-lived attention hints. Persistent battle readability lives
-    // in the runtime HUD so damaged units do not permanently add world-space noise.
+    // The nameplate reuses one red HP fill for readability; faction identity
+    // lives on the title strip and border so HP state is never color-coded twice.
     [Export]
-    public Color BorderColor { get; set; } = new(0.018f, 0.02f, 0.018f, 0.78f);
+    public Color BorderColor { get; set; } = new(0.36f, 0.13f, 0.1f, 0.96f);
 
     [Export]
-    public Color TrackColor { get; set; } = new(0.06f, 0.07f, 0.06f, 0.58f);
+    public Color PlayerBorderColor { get; set; } = new(0.16f, 0.36f, 0.68f, 0.96f);
 
     [Export]
-    public Color HighHpColor { get; set; } = new(0.34f, 0.78f, 0.38f, 0.92f);
+    public Color EnemyBorderColor { get; set; } = new(0.58f, 0.12f, 0.1f, 0.96f);
 
     [Export]
-    public Color MidHpColor { get; set; } = new(0.82f, 0.64f, 0.24f, 0.92f);
+    public Color NeutralBorderColor { get; set; } = new(0.34f, 0.29f, 0.23f, 0.96f);
 
     [Export]
-    public Color LowHpColor { get; set; } = new(0.82f, 0.25f, 0.20f, 0.92f);
+    public Color TrackColor { get; set; } = new(0.18f, 0.035f, 0.035f, 0.92f);
+
+    [Export]
+    public Color HealthFillColor { get; set; } = new(0.86f, 0.12f, 0.08f, 0.98f);
 
     private HealthComponent _health;
+    private FactionComponent _faction;
     private BattleUnitOverlayAnchorComponent _overlayAnchor;
     private Control _root;
     private ColorRect _back;
+    private ColorRect _nameStrip;
+    private Label _nameLabel;
     private ColorRect _track;
     private ColorRect _fill;
+    private Label _valueLabel;
     private int _lastHp = -1;
     private bool _attentionVisible;
     private bool _hoverVisible;
@@ -68,11 +84,15 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
         }
 
         _health = null;
+        _faction = null;
         _overlayAnchor = null;
         _root = null;
         _back = null;
+        _nameStrip = null;
+        _nameLabel = null;
         _track = null;
         _fill = null;
+        _valueLabel = null;
     }
 
     public void SetAttentionVisible(bool visible)
@@ -113,20 +133,26 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
 
     private void ResolveNodes()
     {
+        _faction =
+            Entity?.GetComponent<FactionComponent>() ??
+            Entity?.GetNodeOrNull<FactionComponent>("FactionComponent");
         _overlayAnchor =
             Entity?.GetComponent<BattleUnitOverlayAnchorComponent>() ??
             Entity?.GetNodeOrNull<BattleUnitOverlayAnchorComponent>("BattleUnitOverlayAnchorComponent");
         _root = ResolveSibling<Control>(RootPath);
         _back = ResolveSibling<ColorRect>(BackPath);
+        _nameStrip = ResolveSibling<ColorRect>(NameStripPath);
+        _nameLabel = ResolveSibling<Label>(NameLabelPath);
         _track = ResolveSibling<ColorRect>(TrackPath);
         _fill = ResolveSibling<ColorRect>(FillPath);
+        _valueLabel = ResolveSibling<Label>(ValueLabelPath);
         if (_root == null)
         {
             return;
         }
 
-        // The bar is authored in the unit scene; this component only enforces
-        // stable runtime dimensions so HP changes cannot resize surrounding UI.
+        // The nameplate is authored in the unit scene; this component only
+        // enforces stable runtime dimensions so HP/name changes cannot resize it.
         _root.MouseFilter = Control.MouseFilterEnum.Ignore;
         ApplyBarGeometry();
     }
@@ -138,10 +164,9 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
             return;
         }
 
+        BorderColor = ResolveFactionPalette();
         _root.Position = ResolveBarPosition();
         _root.Size = BarSize;
-        Vector2 innerOffset = new(1f, 1f);
-        Vector2 innerSize = ResolveInnerBarSize();
         if (_back != null)
         {
             _back.MouseFilter = Control.MouseFilterEnum.Ignore;
@@ -150,19 +175,46 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
             _back.Color = BorderColor;
         }
 
+        if (_nameStrip != null)
+        {
+            _nameStrip.MouseFilter = Control.MouseFilterEnum.Ignore;
+            _nameStrip.Position = new Vector2(1f, 1f);
+            _nameStrip.Size = new Vector2(Mathf.Max(0f, BarSize.X - 2f), 11f);
+            _nameStrip.Color = ResolveNameStripColor(BorderColor);
+        }
+
+        if (_nameLabel != null)
+        {
+            _nameLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
+            _nameLabel.Position = new Vector2(2f, 0f);
+            _nameLabel.Size = new Vector2(Mathf.Max(0f, BarSize.X - 4f), 12f);
+            _nameLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _nameLabel.VerticalAlignment = VerticalAlignment.Center;
+            _nameLabel.ClipText = true;
+        }
+
         if (_track != null)
         {
             _track.MouseFilter = Control.MouseFilterEnum.Ignore;
-            _track.Position = innerOffset;
-            _track.Size = innerSize;
+            _track.Position = new Vector2(1f, 13f);
+            _track.Size = new Vector2(Mathf.Max(0f, BarSize.X - 2f), 10f);
             _track.Color = TrackColor;
         }
 
         if (_fill != null)
         {
             _fill.MouseFilter = Control.MouseFilterEnum.Ignore;
-            _fill.Position = innerOffset;
-            _fill.Size = innerSize;
+            _fill.Position = new Vector2(2f, 14f);
+        }
+
+        if (_valueLabel != null)
+        {
+            _valueLabel.MouseFilter = Control.MouseFilterEnum.Ignore;
+            _valueLabel.Position = new Vector2(2f, 13f);
+            _valueLabel.Size = new Vector2(Mathf.Max(0f, BarSize.X - 4f), 10f);
+            _valueLabel.HorizontalAlignment = HorizontalAlignment.Center;
+            _valueLabel.VerticalAlignment = VerticalAlignment.Center;
+            _valueLabel.ClipText = true;
         }
     }
 
@@ -203,9 +255,19 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
         // on the zero-HP frame before BattleUnitRoot starts the death animation.
         _root.Visible = ShouldShowHealthBar(maxHp, ratio);
         _root.Modulate = new Color(1f, 1f, 1f, ResolveVisibilityAlpha());
-        _fill.Position = new Vector2(1f, 1f);
+        if (_nameLabel != null)
+        {
+            _nameLabel.Text = ResolveDisplayName();
+        }
+
+        if (_valueLabel != null)
+        {
+            _valueLabel.Text = $"{_health.Hp}/{maxHp}";
+        }
+
+        _fill.Position = new Vector2(2f, 14f);
         _fill.Size = new Vector2(Mathf.Max(0f, innerSize.X * ratio), innerSize.Y);
-        _fill.Color = ResolveFillColor(ratio);
+        _fill.Color = HealthFillColor;
         _root.QueueRedraw();
     }
 
@@ -247,23 +309,35 @@ public partial class BattleUnitHealthBarComponent : BattleEntityComponent
     private Vector2 ResolveInnerBarSize()
     {
         return new Vector2(
-            Mathf.Max(0f, BarSize.X - 2f),
-            Mathf.Max(1f, BarSize.Y - 2f));
+            Mathf.Max(0f, BarSize.X - 4f),
+            8f);
     }
 
-    private Color ResolveFillColor(float ratio)
+    private Color ResolveFactionPalette()
     {
-        if (ratio <= 0.25f)
+        return (_faction?.Faction ?? BattleFaction.Neutral) switch
         {
-            return LowHpColor;
-        }
+            BattleFaction.Player => PlayerBorderColor,
+            BattleFaction.Enemy => EnemyBorderColor,
+            _ => NeutralBorderColor
+        };
+    }
 
-        if (ratio <= 0.55f)
-        {
-            return MidHpColor;
-        }
+    private static Color ResolveNameStripColor(Color borderColor)
+    {
+        return new Color(
+            borderColor.R * 0.78f,
+            borderColor.G * 0.78f,
+            borderColor.B * 0.78f,
+            borderColor.A);
+    }
 
-        return HighHpColor;
+    private string ResolveDisplayName()
+    {
+        string displayName = Entity?.DisplayName ?? "";
+        return string.IsNullOrWhiteSpace(displayName)
+            ? "\u5355\u4f4d"
+            : displayName.Trim();
     }
 
     private T ResolveSibling<T>(NodePath path) where T : Node

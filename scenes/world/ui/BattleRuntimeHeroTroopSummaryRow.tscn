@@ -1,47 +1,49 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleRuntimeHeroTroopSummaryRow.cs" id="1_summary_row"]
-[ext_resource type="StyleBoxTexture" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_slot.tres" id="2_panel_slot"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/battle-runtime/battle_runtime_fantasy_inner_panel.tres" id="2_fantasy_inner"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/battle-runtime/battle_runtime_fantasy_bar_frame.tres" id="3_bar_frame"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/battle-runtime/battle_runtime_fantasy_bar_health_fill.tres" id="4_bar_health"]
 
 [node name="BattleRuntimeHeroTroopSummaryRow" type="PanelContainer"]
-custom_minimum_size = Vector2(214, 74)
-mouse_filter = 0
-theme_override_styles/panel = ExtResource("2_panel_slot")
+custom_minimum_size = Vector2(196, 62)
+mouse_filter = 2
+theme_override_styles/panel = ExtResource("2_fantasy_inner")
 script = ExtResource("1_summary_row")
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 6
+theme_override_constants/margin_top = 5
 theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 6
+theme_override_constants/margin_bottom = 5
 
 [node name="Stack" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 4
+theme_override_constants/separation = 3
 
 [node name="Header" type="HBoxContainer" parent="Margin/Stack"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 5
 
 [node name="HeroName" type="Label" parent="Margin/Stack/Header"]
-custom_minimum_size = Vector2(118, 18)
+custom_minimum_size = Vector2(104, 16)
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_color = Color(0.24, 0.12, 0.08, 1)
 text = "英雄"
 vertical_alignment = 1
 clip_text = true
 
 [node name="SoldierCountText" type="Label" parent="Margin/Stack/Header"]
-custom_minimum_size = Vector2(48, 18)
+custom_minimum_size = Vector2(44, 16)
 layout_mode = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.82, 0.92, 1, 1)
+theme_override_colors/font_color = Color(0.42, 0.21, 0.1, 1)
 text = "0/0"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -50,43 +52,47 @@ clip_text = true
 [node name="HeroHpRow" type="HBoxContainer" parent="Margin/Stack"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 5
 
 [node name="HeroHpText" type="Label" parent="Margin/Stack/HeroHpRow"]
-custom_minimum_size = Vector2(68, 14)
+custom_minimum_size = Vector2(58, 13)
 layout_mode = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.9, 0.96, 0.86, 1)
+theme_override_colors/font_color = Color(0.28, 0.14, 0.08, 1)
 text = "英雄 1/1"
 vertical_alignment = 1
 clip_text = true
 
 [node name="HeroHpBar" type="ProgressBar" parent="Margin/Stack/HeroHpRow"]
-custom_minimum_size = Vector2(116, 12)
+custom_minimum_size = Vector2(108, 13)
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
+theme_override_styles/background = ExtResource("3_bar_frame")
+theme_override_styles/fill = ExtResource("4_bar_health")
 value = 100.0
 show_percentage = false
 
 [node name="TroopHpRow" type="HBoxContainer" parent="Margin/Stack"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 5
 
 [node name="TroopHpText" type="Label" parent="Margin/Stack/TroopHpRow"]
-custom_minimum_size = Vector2(68, 14)
+custom_minimum_size = Vector2(58, 13)
 layout_mode = 2
 mouse_filter = 2
-theme_override_colors/font_color = Color(0.9, 0.96, 0.86, 1)
+theme_override_colors/font_color = Color(0.28, 0.14, 0.08, 1)
 text = "兵力 1/1"
 vertical_alignment = 1
 clip_text = true
 
 [node name="TroopHpBar" type="ProgressBar" parent="Margin/Stack/TroopHpRow"]
-custom_minimum_size = Vector2(116, 12)
+custom_minimum_size = Vector2(108, 13)
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
+theme_override_styles/background = ExtResource("3_bar_frame")
+theme_override_styles/fill = ExtResource("4_bar_health")
 value = 100.0
 show_percentage = false

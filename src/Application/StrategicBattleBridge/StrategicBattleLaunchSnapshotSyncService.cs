@@ -506,6 +506,7 @@ public sealed class StrategicBattleLaunchSnapshotSyncService
                 RuntimeCommanderGroupId = skill.RuntimeCommanderGroupId ?? "",
                 DisplayName = skill.DisplayName ?? "",
                 IconText = skill.IconText ?? "",
+                IconPath = skill.IconPath ?? "",
                 Tags = (skill.Tags ?? new List<string>())
                     .Where(item => !string.IsNullOrWhiteSpace(item))
                     .Select(item => item.Trim())

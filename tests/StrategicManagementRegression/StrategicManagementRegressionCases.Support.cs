@@ -400,6 +400,24 @@ internal static partial class StrategicManagementRegressionCases
         return (StrategicManagementDashboardViewModel)method.Invoke(viewModels, new object[] { state, factionId, locationId })!;
     }
 
+    private static StrategicManagementDashboardViewModel InvokeHeroCorpsWorkbenchDashboard(
+        StrategicManagementViewModelService viewModels,
+        StrategicManagementState state,
+        string factionId,
+        string cityId,
+        string heroId)
+    {
+        System.Reflection.MethodInfo? method = typeof(StrategicManagementViewModelService).GetMethod(
+            "BuildHeroCorpsWorkbenchDashboard",
+            new[] { typeof(StrategicManagementState), typeof(string), typeof(string), typeof(string) });
+        if (method == null)
+        {
+            throw new InvalidOperationException("view model service should expose BuildHeroCorpsWorkbenchDashboard(state, factionId, cityId, heroId)");
+        }
+
+        return (StrategicManagementDashboardViewModel)method.Invoke(viewModels, new object[] { state, factionId, cityId, heroId })!;
+    }
+
     private static StrategicManagementDashboardViewModel InvokeRuntimeLocationDashboard(string factionId, string locationId)
     {
         System.Reflection.MethodInfo? method = typeof(StrategicManagementRuntime).GetMethod(

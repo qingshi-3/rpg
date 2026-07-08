@@ -98,8 +98,8 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.LocationPlainsCity,
             StrategicManagementIds.BuildingTrainingGround,
             StrategicManagementIds.RegionPlainsEconomy,
-            economy.OriginX + 2,
-            economy.OriginY);
+            economy.OriginX,
+            economy.OriginY + 2);
         AssertTrue(crossCategory.Success, $"cross-category placement inside a buildable region should succeed, got {crossCategory.FailureReason}");
 
         int beforeBuildings = state.Cities[StrategicManagementIds.LocationPlainsCity].Buildings.Count;
@@ -170,7 +170,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(0, city.ReserveForces, "reserve should not change");
     }
 
-    internal static void RecruitCorpsForHeroCreatesAndBindsNewCorpsWhileReturningOldCorpsToCity()
+    internal static void RecruitCorpsForHeroReplacesOldCorpsWithFullRefund()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
@@ -192,21 +192,73 @@ internal static partial class StrategicManagementRegressionCases
 
         AssertTrue(result.Success, $"hero-directed recruitment should succeed, got {result.FailureReason}");
         AssertTrue(state.CorpsInstances.ContainsKey(result.CreatedEntityId), "hero-directed recruitment should create a durable corps instance");
-        AssertEqual(beforeCorpsCount + 1, state.CorpsInstances.Count, "hero-directed recruitment should add exactly one corps instance");
+        AssertEqual(beforeCorpsCount, state.CorpsInstances.Count, "replacement should add the new corps and remove the replaced old corps");
         AssertEqual(result.CreatedEntityId, hero.AssignedCorpsInstanceId, "selected hero should lead the newly recruited corps");
 
-        StrategicCorpsInstanceState oldCorps = state.CorpsInstances[oldCorpsInstanceId];
-        AssertEqual("", oldCorps.AssignedHeroId, "replaced corps should return to the city instead of staying on the hero");
-        AssertEqual(StrategicCorpsInstanceStatus.Garrisoned, oldCorps.Status, "replaced corps should become an unassigned garrison corps");
+        AssertTrue(!state.CorpsInstances.ContainsKey(oldCorpsInstanceId), "replaced corps should be dissolved through the refund settlement instead of hidden in city inventory");
 
         StrategicCorpsInstanceState newCorps = state.CorpsInstances[result.CreatedEntityId];
         AssertEqual(StrategicManagementIds.CorpsCavalryLine, newCorps.CorpsDefinitionId, "new corps should use the selected corps definition");
         AssertEqual(StrategicManagementIds.HeroOrdinaryCommander, newCorps.AssignedHeroId, "new corps should reference the selected hero");
         AssertEqual(StrategicCorpsInstanceStatus.AssignedToHero, newCorps.Status, "new corps should start bound to the selected hero");
-        AssertEqual(beforeReserve - definitions.Corps[StrategicManagementIds.CorpsCavalryLine].SoldierCapacityCost, city.ReserveForces, "hero recruitment should consume reserve soldiers once");
-        AssertEqual(beforeMoney - 45, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "hero recruitment should consume selected corps money cost");
-        AssertEqual(beforeFood - 30, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "hero recruitment should consume selected corps food cost");
-        AssertTrue(result.Events.Any(item => item.Kind == "StrategicCorpsRecruitedForHero"), "hero recruitment should emit a low-noise event");
+        AssertEqual(
+            beforeReserve - definitions.Corps[StrategicManagementIds.CorpsCavalryLine].SoldierCapacityCost + definitions.Corps[StrategicManagementIds.CorpsShieldLine].SoldierCapacityCost,
+            city.ReserveForces,
+            "replacement should consume the new corps reserve cost and fully refund the old corps current reserve value");
+        AssertEqual(beforeMoney - 45 + 30, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "replacement should charge new money cost and refund old money value");
+        AssertEqual(beforeFood - 30 + 20, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "replacement should charge new food cost and refund old food value");
+
+        StrategicEvent replacement = result.Events.FirstOrDefault(item => item.Kind == "StrategicHeroMainCorpsReplaced")
+            ?? throw new InvalidOperationException("hero corps replacement should emit a low-noise replacement event");
+        AssertEqual(oldCorpsInstanceId, replacement.Payload["previousCorps"], "replacement event should identify the removed old corps");
+        AssertEqual("40", replacement.Payload["reserveConsumed"], "replacement event should report new corps reserve consumption");
+        AssertEqual("30", replacement.Payload["reserveRefunded"], "replacement event should report old corps reserve refund");
+        AssertEqual("-10", replacement.Payload["netReserveDelta"], "replacement event should report signed reserve delta");
+        AssertEqual("resource_food:30,resource_money:45", replacement.Payload["resourcesConsumed"], "replacement event should report new corps resources");
+        AssertEqual("resource_food:20,resource_money:30", replacement.Payload["resourcesRefunded"], "replacement event should report old corps resource refund");
+        AssertEqual("resource_food:-10,resource_money:-15", replacement.Payload["netResources"], "replacement event should report signed net resource delta");
+    }
+
+    internal static void RecruitCorpsForHeroRefundsOnlyCurrentStrengthValue()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicHeroState hero = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander];
+        string oldCorpsInstanceId = hero.AssignedCorpsInstanceId;
+        state.CorpsInstances[oldCorpsInstanceId].Strength = 50;
+        int beforeReserve = city.ReserveForces;
+        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
+        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
+        int beforeCorpsCount = state.CorpsInstances.Count;
+
+        StrategicCommandResult result = InvokeRecruitCorpsForHero(
+            commands,
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            StrategicManagementIds.CorpsArcherLine);
+
+        AssertTrue(result.Success, $"damaged old corps replacement should succeed, got {result.FailureReason}");
+        AssertEqual(beforeCorpsCount, state.CorpsInstances.Count, "damaged old corps replacement should not grow hidden corps inventory");
+        AssertTrue(!state.CorpsInstances.ContainsKey(oldCorpsInstanceId), "damaged old corps should be removed by replacement settlement");
+        AssertEqual(result.CreatedEntityId, hero.AssignedCorpsInstanceId, "hero should lead the newly recruited corps");
+        AssertEqual(
+            beforeReserve - definitions.Corps[StrategicManagementIds.CorpsArcherLine].SoldierCapacityCost + 15,
+            city.ReserveForces,
+            "replacement should refund only the old corps current-strength reserve value");
+        AssertEqual(beforeMoney - 35 + 15, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "replacement should refund only current-strength money value");
+        AssertEqual(beforeFood - 20 + 10, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "replacement should refund only current-strength food value");
+
+        StrategicEvent replacement = result.Events.FirstOrDefault(item => item.Kind == "StrategicHeroMainCorpsReplaced")
+            ?? throw new InvalidOperationException("damaged replacement should emit a replacement event");
+        AssertEqual("30", replacement.Payload["reserveConsumed"], "damaged replacement event should report new reserve consumption");
+        AssertEqual("15", replacement.Payload["reserveRefunded"], "damaged replacement event should report current-strength reserve refund");
+        AssertEqual("-15", replacement.Payload["netReserveDelta"], "damaged replacement event should report signed reserve delta");
+        AssertEqual("resource_food:20,resource_money:35", replacement.Payload["resourcesConsumed"], "damaged replacement event should report new resource cost");
+        AssertEqual("resource_food:10,resource_money:15", replacement.Payload["resourcesRefunded"], "damaged replacement event should report current-strength resource refund");
+        AssertEqual("resource_food:-10,resource_money:-20", replacement.Payload["netResources"], "damaged replacement event should report signed net resource delta");
     }
 
     internal static void ReplenishCorpsConsumesResourcesReserveAndRestoresStrength()

@@ -50,36 +50,68 @@ internal static void BattlePreparationPlacementFollowCommitsOnLeftClickPress()
         "invalid placement clicks should keep the preview active instead of restoring and ending placement-follow mode");
 }
 
-internal static void BattlePreparationTopPromptUsesAuthoredNonBlockingHudNode()
+internal static void BattlePreparationDestinationTargetingUsesCurvedGuideOverlay()
 {
     string root = ProjectRoot();
     string scene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
-    string nodeRefsSource = File.ReadAllText(Path.Combine(
+    string guideScenePath = Path.Combine(root, "scenes", "world", "ui", "BattlePreparationDestinationGuideOverlay.tscn");
+    string guideScene = File.Exists(guideScenePath) ? File.ReadAllText(guideScenePath) : "";
+    string guideOverlayPath = Path.Combine(
         root,
         "src",
         "Presentation",
         "World",
         "Sites",
-        "WorldSitePeacetimeHudNodeRefs.cs"));
+        "BattlePreparationDestinationGuideOverlay.cs");
+    string guideOverlaySource = File.Exists(guideOverlayPath) ? File.ReadAllText(guideOverlayPath) : "";
     string rootSource = ReadWorldSiteRootSource();
+    string presentationSource = ReadWorldSitePresentationSource();
 
     AssertTrue(
-        scene.Contains("BattlePreparationTopPromptDock", StringComparison.Ordinal) &&
-        scene.Contains("BattlePreparationTopPromptLabel", StringComparison.Ordinal) &&
-        scene.Contains("mouse_filter = 2", StringComparison.Ordinal),
-        "battle preparation destination prompt should be authored in the HUD scene and ignore mouse input");
+        File.Exists(guideOverlayPath) &&
+        File.Exists(guideScenePath) &&
+        guideScene.Contains("[node name=\"BattlePreparationDestinationGuideOverlay\" type=\"Node2D\"", StringComparison.Ordinal) &&
+        guideScene.Contains("[node name=\"ArcBody\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal) &&
+        guideScene.Contains("width = 4.0", StringComparison.Ordinal) &&
+        guideScene.Contains("width_curve = SubResource", StringComparison.Ordinal) &&
+        guideScene.Contains("[node name=\"ArrowHeadLeft\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal) &&
+        guideScene.Contains("[node name=\"ArrowHeadRight\" type=\"Line2D\" parent=\".\"]", StringComparison.Ordinal) &&
+        !guideScene.Contains("ArcGlow", StringComparison.Ordinal) &&
+        !guideScene.Contains("ArrowGlow", StringComparison.Ordinal) &&
+        !guideScene.Contains("Polygon2D", StringComparison.Ordinal) &&
+        !guideScene.Contains("antialiased = true", StringComparison.Ordinal) &&
+        guideOverlaySource.Contains("partial class BattlePreparationDestinationGuideOverlay", StringComparison.Ordinal) &&
+        guideOverlaySource.Contains("SetGuide(", StringComparison.Ordinal) &&
+        guideOverlaySource.Contains("ClearGuide()", StringComparison.Ordinal) &&
+        guideOverlaySource.Contains("Line2D", StringComparison.Ordinal) &&
+        guideOverlaySource.Contains("EaseOutCubic", StringComparison.Ordinal) &&
+        guideOverlaySource.Contains("ApplyArrowLines", StringComparison.Ordinal) &&
+        !guideOverlaySource.Contains("Polygon2D", StringComparison.Ordinal) &&
+        !guideOverlaySource.Contains("DrawPolyline", StringComparison.Ordinal) &&
+        !guideOverlaySource.Contains("DrawPolygon", StringComparison.Ordinal),
+        "battle preparation destination targeting should use the card target selector's pixel-style Line2D width-curve arc with line-stroke arrowheads");
     AssertTrue(
-        nodeRefsSource.Contains("internal Label BattlePreparationTopPromptLabel", StringComparison.Ordinal) &&
-        nodeRefsSource.Contains("BattlePreparationTopPromptLabel = Get<Label>", StringComparison.Ordinal),
-        "HUD node refs should expose the authored top prompt label");
+        rootSource.Contains("_battlePreparationDestinationGuideOverlay", StringComparison.Ordinal) &&
+        presentationSource.Contains("BattlePreparationDestinationGuideOverlayScenePath", StringComparison.Ordinal) &&
+        presentationSource.Contains("Instantiate<BattlePreparationDestinationGuideOverlay>", StringComparison.Ordinal) &&
+        !presentationSource.Contains("new BattlePreparationDestinationGuideOverlay()", StringComparison.Ordinal) &&
+        presentationSource.Contains("BeginBattlePreparationDestinationTargeting", StringComparison.Ordinal) &&
+        presentationSource.Contains("UpdateBattlePreparationDestinationTargetingGuide", StringComparison.Ordinal) &&
+        presentationSource.Contains("ClearBattlePreparationDestinationTargeting", StringComparison.Ordinal),
+        "WorldSiteRoot should own an explicit preparation destination-targeting lifecycle around the guide overlay");
     AssertTrue(
-        rootSource.Contains("private Label _battlePreparationTopPromptLabel", StringComparison.Ordinal) &&
-        rootSource.Contains("SetBattlePreparationTopPrompt", StringComparison.Ordinal) &&
-        rootSource.Contains("右键选择部队目的地", StringComparison.Ordinal),
-        "WorldSiteRoot should bind and refresh a concise Chinese top-center destination prompt");
+        presentationSource.Contains("Input.MouseMode = Input.MouseModeEnum.Hidden", StringComparison.Ordinal) &&
+        presentationSource.Contains("Input.MouseMode = _battlePreparationDestinationPreviousMouseMode", StringComparison.Ordinal) &&
+        presentationSource.Contains("BattleGridHighlightKind.Hover", StringComparison.Ordinal),
+        "destination targeting should hide the system cursor while keeping grid hover available for cell positioning");
+    AssertTrue(
+        scene.Contains("node name=\"BattlePreparationLaunchDock\"", StringComparison.Ordinal) &&
+        scene.Contains("node name=\"BattlePreparationStartButton\"", StringComparison.Ordinal) &&
+        !scene.Contains("node name=\"BattlePreparationPlanBar\"", StringComparison.Ordinal),
+        "battle preparation should remove the old bottom plan bar and keep only the lower-right launch control");
 }
 
-internal static void BattlePreparationRightClickStoresInitialDestinationBeacon()
+internal static void BattlePreparationLeftClickStoresInitialDestinationBeacon()
 {
     string root = ProjectRoot();
     string rootSource = ReadWorldSiteRootSource();
@@ -92,15 +124,18 @@ internal static void BattlePreparationRightClickStoresInitialDestinationBeacon()
         inputBody.Contains("TryHandleBattlePreparationDestinationBeaconInput(@event)", StringComparison.Ordinal) &&
         inputBody.IndexOf("TryHandleBattlePreparationDestinationBeaconInput(@event)", StringComparison.Ordinal) <
         inputBody.IndexOf("HandleSiteDeploymentDragInput(@event)", StringComparison.Ordinal),
-        "preparation right-click destination input should run before generic deployment drag handling");
+        "preparation destination input should run before generic deployment drag handling");
     AssertTrue(
         destinationInputBody.Contains("_isBattlePreparationActive", StringComparison.Ordinal) &&
-        destinationInputBody.Contains("MouseButton.Right", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("_battlePreparationDestinationTargetingActive", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("MouseButton.Left", StringComparison.Ordinal) &&
+        !destinationInputBody.Contains("MouseButton.Right", StringComparison.Ordinal) &&
         destinationInputBody.Contains("BuildSelectedBattlePreparationDestinationBeaconGroupKeys", StringComparison.Ordinal) &&
         destinationInputBody.Contains("ApplyBattlePreparationDestinationBeaconToPlan", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("ClearBattlePreparationDestinationTargeting", StringComparison.Ordinal) &&
         destinationInputBody.Contains("RefreshBattlePreparationDestinationBeaconOverlays", StringComparison.Ordinal) &&
         destinationInputBody.Contains("GetViewport()?.SetInputAsHandled()", StringComparison.Ordinal),
-        "preparation right-click should store an initial beacon for the selected deployed group or multi-selection");
+        "preparation destination targeting should store an initial beacon on left-click for the selected deployed group");
     AssertTrue(
         planSource.Contains("HasInitialDestinationBeacon", StringComparison.Ordinal) &&
         planSource.Contains("InitialDestinationCellX", StringComparison.Ordinal) &&
@@ -115,7 +150,9 @@ internal static void BattlePreparationRightClickStoresInitialDestinationBeacon()
 
 internal static void BattlePreparationLaunchRequiresInitialBeaconAndHidesObjectiveThumbnail()
 {
+    string root = ProjectRoot();
     string rootSource = ReadWorldSiteRootSource();
+    string scene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
     string bindBody = ExtractMethodBody(rootSource, "private void BindBattlePreparationPanel(");
     string canLaunchBody = ExtractMethodBody(rootSource, "private bool CanLaunchPreparedBattle(");
     string hudVisibleBody = ExtractMethodBody(rootSource, "private void SetBattlePreparationHudVisible(");
@@ -128,9 +165,14 @@ internal static void BattlePreparationLaunchRequiresInitialBeaconAndHidesObjecti
         "current battle preparation HUD should keep the objective thumbnail dock hidden");
     AssertTrue(
         canLaunchBody.Contains("HasBattlePreparationInitialDestinationBeacon", StringComparison.Ordinal) &&
-        canLaunchBody.Contains("右键", StringComparison.Ordinal) &&
+        !canLaunchBody.Contains("鍙抽敭", StringComparison.Ordinal) &&
         !canLaunchBody.Contains("ObjectiveZoneId", StringComparison.Ordinal) &&
         !canLaunchBody.Contains("_explicitBattlePreparationRuleGroups.Contains", StringComparison.Ordinal),
         "launch readiness should require deployed groups to have initial beacons but not objective-zone or posture choices");
+    AssertTrue(
+        scene.Contains("node name=\"BattlePreparationLaunchDock\"", StringComparison.Ordinal) &&
+        scene.Contains("node name=\"BattlePreparationStartButton\"", StringComparison.Ordinal) &&
+        !scene.Contains("node name=\"BattlePreparationPlanBar\"", StringComparison.Ordinal),
+        "launch readiness should be surfaced through the lower-right start button, not the removed bottom plan bar");
 }
 }

@@ -26,10 +26,11 @@ public partial class WorldSiteRoot
         // Plan-only interactions must not rebuild map entities; doing so restarts
         // every unit's idle animation and creates a visible input hitch.
         BindBattlePreparationCompanyRoster();
-        BindBattlePreparationCompactPlanControls();
+        BindBattlePreparationLaunchControl();
         BindBattlePreparationObjectiveThumbnail();
         UpdateSitePeacetimePanelVisibility(layoutReason);
         UpdateMainWorldViewportLayout(layoutReason);
+        ApplyBattleMapOperationHudSuppressionVisibility(layoutReason);
     }
 
     private void SetBattlePreparationNoticeText(string notice)

@@ -91,6 +91,7 @@ public partial class WorldSiteRoot
         ClearDraggedBattlePreparationCompanyEntities();
         CreateBattlePreparationCompanyPreviewEntities(group, BattleFaction.Player);
         RaiseBattlePreparationCompanyPreviewEntities(); BattlePreparationCommandSelectionPresenter.Apply(_unitRoot, group, group.GroupKey);
+        EnterBattleMapOperationHudSuppression(BattleMapOperationHudSuppressionReason.PreparationPlacement, "company_drag_start");
         SetBattlePreparationHudRetreated(true, "company_drag_start");
         UpdateBattlePreparationCompanyDragPreview();
         GameLog.Info(
@@ -125,10 +126,10 @@ public partial class WorldSiteRoot
             return;
         }
         ClearBattlePreparationCompanyDragState();
-        SetBattlePreparationTopPrompt("右键选择部队目的地");
         RefreshBattlePreparationAfterCompanyDrag(
             groupKey,
             placed ? "部队阵型已部署。" : FormatPlacementFailure(failureReason));
+        BeginBattlePreparationDestinationTargeting(groupKey);
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattlePreparationCompanyDragEnded group={groupKey} placed={placed} reason={failureReason}");
@@ -398,6 +399,7 @@ public partial class WorldSiteRoot
         _lastBattlePreparationCompanyDragReason = "";
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Hover);
         _highlightOverlay?.ClearCells(BattleGridHighlightKind.Invalid);
+        ExitBattleMapOperationHudSuppression(BattleMapOperationHudSuppressionReason.PreparationPlacement, "company_drag_end");
         SetBattlePreparationHudRetreated(false, "company_drag_end");
     }
 

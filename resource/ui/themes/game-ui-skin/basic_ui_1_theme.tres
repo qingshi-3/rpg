@@ -1,4 +1,4 @@
-[gd_resource type="Theme" load_steps=21 format=3]
+[gd_resource type="Theme" load_steps=25 format=3]
 
 [ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_sheet.tres" id="1_panel_sheet"]
 [ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/basic_ui_1_panel_card.tres" id="2_panel_card"]
@@ -19,6 +19,10 @@
 [ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_normal.tres" id="17_scroll_grabber_v_normal"]
 [ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_hover.tres" id="18_scroll_grabber_v_hover"]
 [ext_resource type="StyleBox" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_scroll_grabber_pressed.tres" id="19_scroll_grabber_v_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/site_management_tab_normal.tres" id="20_site_tab_normal"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/site_management_tab_hover.tres" id="21_site_tab_hover"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/site_management_tab_pressed.tres" id="22_site_tab_pressed"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/game-ui-skin/site_management_tab_disabled.tres" id="23_site_tab_disabled"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_popup_panel"]
 
@@ -77,6 +81,15 @@ WorldCompactTabButton/styles/hover = ExtResource("9_button_compact_hover")
 WorldCompactTabButton/styles/hover_pressed = ExtResource("9_button_compact_hover")
 WorldCompactTabButton/styles/normal = ExtResource("8_button_compact")
 WorldCompactTabButton/styles/pressed = ExtResource("8_button_compact")
+WorldSiteRailTabButton/base_type = &"Button"
+WorldSiteRailTabButton/colors/font_color = Color(0.96, 0.9, 0.72, 1)
+WorldSiteRailTabButton/colors/font_hover_color = Color(1, 0.96, 0.78, 1)
+WorldSiteRailTabButton/colors/font_pressed_color = Color(0.96, 0.9, 0.72, 1)
+WorldSiteRailTabButton/styles/disabled = ExtResource("23_site_tab_disabled")
+WorldSiteRailTabButton/styles/hover = ExtResource("21_site_tab_hover")
+WorldSiteRailTabButton/styles/hover_pressed = ExtResource("21_site_tab_hover")
+WorldSiteRailTabButton/styles/normal = ExtResource("20_site_tab_normal")
+WorldSiteRailTabButton/styles/pressed = ExtResource("22_site_tab_pressed")
 WorldTravelBookCardButton/base_type = &"Button"
 WorldTravelBookCardButton/colors/font_color = Color(0.96, 0.78, 0.62, 1)
 WorldTravelBookCardButton/colors/font_hover_color = Color(1, 0.88, 0.68, 1)

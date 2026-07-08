@@ -43,7 +43,18 @@ public partial class StrategicCityBuildingMapEntity : Node2D
 
         if (_texture != null)
         {
-            DrawTextureRect(_texture, _drawRect, tile: false, modulate: BuildingTint);
+            DrawTexture(_texture, ResolveNativeDrawPosition(), BuildingTint);
         }
+    }
+
+    private Vector2 ResolveNativeDrawPosition()
+    {
+        // The footprint bounds own placement and occupancy. The sprite stays at
+        // native pixel size so confirmed buildings do not pick up scaling blur.
+        float textureWidth = System.Math.Max(1, _texture.GetWidth());
+        float textureHeight = System.Math.Max(1, _texture.GetHeight());
+        return new Vector2(
+            Mathf.Round(_drawRect.Position.X + ((_drawRect.Size.X - textureWidth) * 0.5f)),
+            Mathf.Round(_drawRect.Position.Y + _drawRect.Size.Y - textureHeight));
     }
 }

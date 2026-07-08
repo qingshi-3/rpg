@@ -51,7 +51,7 @@ internal sealed class BattlePreparationHudBinder
         }
     }
 
-    public void BindCompactPlanControls(
+    public void BindLaunchControl(
         Label companyLabel,
         Label objectiveLabel,
         Button moveFirstButton,

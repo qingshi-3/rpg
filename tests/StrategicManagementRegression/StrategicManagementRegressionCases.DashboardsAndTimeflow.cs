@@ -156,6 +156,50 @@ internal static partial class StrategicManagementRegressionCases
             "corps recruitment should remain a separate muster-template list from conscription");
     }
 
+    internal static void StrategicManagementDashboardProjectsHeroCorpsReplacementCost()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementViewModelService viewModels = new(definitions, new StrategicManagementRules(definitions));
+
+        StrategicManagementDashboardViewModel dashboard = InvokeHeroCorpsWorkbenchDashboard(
+            viewModels,
+            state,
+            StrategicManagementIds.FactionPlayer,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.HeroOrdinaryCommander);
+        StrategicMusterTemplateViewModel cavalry = FindMusterTemplate(dashboard, StrategicManagementIds.CorpsCavalryLine);
+
+        AssertEqual(40, cavalry.ReserveForceCost, "cavalry option should expose direct reserve consumption");
+        AssertEqual(30, GetRequiredProperty<int>(cavalry, "ReserveForceRefund"), "workbench option should project full old-corps reserve refund");
+        AssertEqual(10, GetRequiredProperty<int>(cavalry, "NetReserveForceCost"), "workbench option should project final reserve cost after refund");
+        IEnumerable<object> refundCost = GetRequiredProperty<IEnumerable<object>>(cavalry, "RefundCost");
+        IEnumerable<object> netCost = GetRequiredProperty<IEnumerable<object>>(cavalry, "NetCost");
+        AssertEqual(30, FindReflectedAmount(refundCost, StrategicManagementIds.ResourceMoney), "workbench option should project old-corps money refund");
+        AssertEqual(20, FindReflectedAmount(refundCost, StrategicManagementIds.ResourceFood), "workbench option should project old-corps food refund");
+        AssertEqual(15, FindReflectedAmount(netCost, StrategicManagementIds.ResourceMoney), "workbench option should project net money cost");
+        AssertEqual(10, FindReflectedAmount(netCost, StrategicManagementIds.ResourceFood), "workbench option should project net food cost");
+
+        string oldCorpsId = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].AssignedCorpsInstanceId;
+        state.CorpsInstances[oldCorpsId].Strength = 50;
+        StrategicManagementDashboardViewModel damagedDashboard = InvokeHeroCorpsWorkbenchDashboard(
+            viewModels,
+            state,
+            StrategicManagementIds.FactionPlayer,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.HeroOrdinaryCommander);
+        StrategicMusterTemplateViewModel archer = FindMusterTemplate(damagedDashboard, StrategicManagementIds.CorpsArcherLine);
+
+        AssertEqual(15, GetRequiredProperty<int>(archer, "ReserveForceRefund"), "damaged old corps should refund only current-strength reserve value");
+        AssertEqual(15, GetRequiredProperty<int>(archer, "NetReserveForceCost"), "damaged old corps should leave the correct net reserve cost");
+        refundCost = GetRequiredProperty<IEnumerable<object>>(archer, "RefundCost");
+        netCost = GetRequiredProperty<IEnumerable<object>>(archer, "NetCost");
+        AssertEqual(15, FindReflectedAmount(refundCost, StrategicManagementIds.ResourceMoney), "damaged old corps should refund only current-strength money value");
+        AssertEqual(10, FindReflectedAmount(refundCost, StrategicManagementIds.ResourceFood), "damaged old corps should refund only current-strength food value");
+        AssertEqual(20, FindReflectedAmount(netCost, StrategicManagementIds.ResourceMoney), "damaged old corps should leave correct net money cost");
+        AssertEqual(10, FindReflectedAmount(netCost, StrategicManagementIds.ResourceFood), "damaged old corps should leave correct net food cost");
+    }
+
     internal static void StrategicManagementDashboardSummarizesNonCityLocation()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();

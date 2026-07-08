@@ -8,8 +8,6 @@ namespace Rpg.Presentation.World.Sites;
 
 internal sealed class StrategicMilitaryWorkbenchBinder
 {
-    private readonly Control _panel;
-    private readonly Control _backdrop;
     private readonly VBoxContainer _heroList;
     private readonly GridContainer _musterGrid;
     private readonly Label _heroSummaryLabel;
@@ -17,13 +15,10 @@ internal sealed class StrategicMilitaryWorkbenchBinder
     private readonly BattleUnitPlinthPreview _selectedHeroPreview;
     private readonly Label _selectedHeroNameLabel;
     private readonly Label _selectedHeroCorpsLabel;
-    private readonly Button _backButton;
     private readonly Action<string> _selectHero;
     private readonly Action<string> _recruitCorps;
 
     public StrategicMilitaryWorkbenchBinder(
-        Control panel,
-        Control backdrop,
         VBoxContainer heroList,
         GridContainer musterGrid,
         Label heroSummaryLabel,
@@ -31,12 +26,9 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         BattleUnitPlinthPreview selectedHeroPreview,
         Label selectedHeroNameLabel,
         Label selectedHeroCorpsLabel,
-        Button backButton,
         Action<string> selectHero,
         Action<string> recruitCorps)
     {
-        _panel = panel;
-        _backdrop = backdrop;
         _heroList = heroList;
         _musterGrid = musterGrid;
         _heroSummaryLabel = heroSummaryLabel;
@@ -44,7 +36,6 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         _selectedHeroPreview = selectedHeroPreview;
         _selectedHeroNameLabel = selectedHeroNameLabel;
         _selectedHeroCorpsLabel = selectedHeroCorpsLabel;
-        _backButton = backButton;
         _selectHero = selectHero;
         _recruitCorps = recruitCorps;
     }
@@ -55,15 +46,6 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         string notice)
     {
         StrategicManagementDashboardViewModel safeDashboard = dashboard ?? new StrategicManagementDashboardViewModel();
-        if (_panel != null)
-        {
-            _panel.Visible = true;
-        }
-        if (_backdrop != null)
-        {
-            _backdrop.Visible = true;
-        }
-
         string resolvedHeroId = ResolveSelectedHeroId(safeDashboard, selectedHeroId);
         if (string.IsNullOrWhiteSpace(resolvedHeroId))
         {
@@ -76,14 +58,8 @@ internal sealed class StrategicMilitaryWorkbenchBinder
 
     public void Hide()
     {
-        if (_panel != null)
-        {
-            _panel.Visible = false;
-        }
-        if (_backdrop != null)
-        {
-            _backdrop.Visible = false;
-        }
+        ClearChildren(_heroList);
+        ClearChildren(_musterGrid);
     }
 
     private static string ResolveSelectedHeroId(
@@ -118,11 +94,6 @@ internal sealed class StrategicMilitaryWorkbenchBinder
                 : notice.Trim();
         }
 
-        if (_backButton != null)
-        {
-            _backButton.Disabled = true;
-        }
-
         foreach (StrategicHeroAssignmentViewModel hero in dashboard.Heroes)
         {
             AddHeroCard(hero, "");
@@ -148,13 +119,8 @@ internal sealed class StrategicMilitaryWorkbenchBinder
         if (_noticeLabel != null)
         {
             _noticeLabel.Text = string.IsNullOrWhiteSpace(notice)
-                ? "选择一个兵种后，会消耗资源和预备兵，并绑定到当前英雄。"
+                ? "选择一个兵种后，会消耗对应资源和预备兵，并绑定到当前英雄。"
                 : notice.Trim();
-        }
-
-        if (_backButton != null)
-        {
-            _backButton.Disabled = true;
         }
 
         foreach (StrategicHeroAssignmentViewModel option in dashboard.Heroes)
@@ -176,6 +142,7 @@ internal sealed class StrategicMilitaryWorkbenchBinder
                 template.DisplayName,
                 BattleUnitPreviewResolver.ResolveAnimatedPreview(template.BattleUnitId),
                 template.ReserveForceCost,
+                template.CreationCost,
                 StrategicManagementDashboardPanelBinder.FormatCostsForPresentation(template.CreationCost),
                 template.CanCreate,
                 StrategicManagementDashboardPanelBinder.FormatReasonsForPresentation(template.DisabledReasons));

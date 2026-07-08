@@ -107,12 +107,12 @@ public partial class WorldSiteRoot
         if (_siteResourceLabel != null)
         {
             _siteResourceLabel.Text = string.IsNullOrWhiteSpace(notice)
-                ? "点击部队后放置阵型，放下后右键选择目的地。"
+                ? "点击部队后放置阵型，放下后继续选择移动目的地。"
                 : notice.Trim();
         }
 
         BindBattlePreparationCompanyRoster();
-        BindBattlePreparationCompactPlanControls();
+        BindBattlePreparationLaunchControl();
         ShowBattlePreparationDeploymentZone();
         RefreshBattlePreparationMapEntities();
         RefreshBattlePreparationDestinationBeaconOverlays();
@@ -154,7 +154,7 @@ public partial class WorldSiteRoot
 
         ResolveBattlePreparationGroupPlan(_battlePreparationRequest, _selectedBattlePreparationPlanGroupKey, create: true);
         SyncSelectedBattlePreparationPlanFallback(_battlePreparationRequest);
-        BindBattlePreparationCompanyRoster(); BindBattlePreparationCompactPlanControls();
+        BindBattlePreparationCompanyRoster(); BindBattlePreparationLaunchControl();
         if (!additiveSelection)
         {
             BeginBattlePreparationCompanyPlacementFollow(groupKey);
@@ -163,19 +163,19 @@ public partial class WorldSiteRoot
         GameLog.Info(nameof(WorldSiteRoot), $"BattlePreparationCompanySelected group={_selectedBattlePreparationPlanGroupKey}");
     }
 
-    private void BindBattlePreparationCompactPlanControls()
+    private void BindBattlePreparationLaunchControl()
     {
         BattleRuntimeCommandGroupView selectedGroup = ResolveSelectedBattlePreparationGroup();
         BattleGroupPlanSnapshot plan = ResolveBattlePreparationGroupPlan(
             _battlePreparationRequest,
             _selectedBattlePreparationPlanGroupKey,
             create: false);
-        _battlePreparationHudBinder.BindCompactPlanControls(
-            _battlePreparationCompanyLabel,
-            _battlePreparationObjectiveLabel,
-            _battlePreparationMoveFirstButton,
-            _battlePreparationAttackFirstButton,
-            _battlePreparationHoldButton,
+        _battlePreparationHudBinder.BindLaunchControl(
+            null,
+            null,
+            null,
+            null,
+            null,
             _battlePreparationStartButton,
             selectedGroup,
             _selectedBattlePreparationPlanGroupKey,
@@ -589,7 +589,7 @@ public partial class WorldSiteRoot
         {
             if (!HasBattlePreparationInitialDestinationBeacon(request, group.GroupKey))
             {
-                failureReason = $"请右键选择部队目的地：{group.DisplayName}。";
+                failureReason = $"请先为部队选择移动目的地：{group.DisplayName}。";
                 return false;
             }
         }

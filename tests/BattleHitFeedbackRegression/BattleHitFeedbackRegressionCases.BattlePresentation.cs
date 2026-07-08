@@ -874,9 +874,12 @@ internal static void BattleUnitBaseSceneAuthorsHealthBarAndSpriteAnimationBacken
         scene.Contains("BattleUnitHealthBarComponent.cs", StringComparison.Ordinal) &&
         scene.Contains("[node name=\"HealthBarRoot\" type=\"Control\" parent=\".\"]", StringComparison.Ordinal) &&
         scene.Contains("[node name=\"HealthBack\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"NameStrip\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"UnitNameLabel\" type=\"Label\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal) &&
         scene.Contains("[node name=\"HealthTrack\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal) &&
-        scene.Contains("[node name=\"HealthFill\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal),
-        "battle unit base scene should author a reusable overlay anchor and visible health bar resource tree");
+        scene.Contains("[node name=\"HealthFill\" type=\"ColorRect\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"HealthValueLabel\" type=\"Label\" parent=\"HealthBarRoot\"]", StringComparison.Ordinal),
+        "battle unit base scene should author a reusable nameplate health-bar kit with unit name and HP text");
     AssertTrue(
         scene.Contains("[node name=\"AnimatedSprite2D\" type=\"AnimatedSprite2D\" parent=\"VisualRoot\"]", StringComparison.Ordinal) &&
         !scene.Contains("AnimationPlayer", StringComparison.Ordinal) &&
@@ -888,13 +891,15 @@ internal static void BattleUnitBaseSceneAuthorsHealthBarAndSpriteAnimationBacken
         "health bar component should update from health events instead of polling every frame");
     AssertTrue(
         healthBar.Contains("public NodePath BackPath { get; set; } = new(\"../HealthBarRoot/HealthBack\");", StringComparison.Ordinal) &&
+        healthBar.Contains("public NodePath NameLabelPath { get; set; } = new(\"../HealthBarRoot/UnitNameLabel\");", StringComparison.Ordinal) &&
+        healthBar.Contains("public NodePath ValueLabelPath { get; set; } = new(\"../HealthBarRoot/HealthValueLabel\");", StringComparison.Ordinal) &&
         healthBar.Contains("public NodePath TrackPath { get; set; } = new(\"../HealthBarRoot/HealthTrack\");", StringComparison.Ordinal),
-        "health bar component should bind the authored frame, track, and fill resources instead of drawing an ad hoc bar");
+        "health bar component should bind the authored frame, name, hp text, track, and fill resources instead of drawing an ad hoc bar");
     AssertTrue(
-        healthBar.Contains("public Vector2 BarSize { get; set; } = new(36f, 5f);", StringComparison.Ordinal) &&
+        healthBar.Contains("public Vector2 BarSize { get; set; } = new(72f, 24f);", StringComparison.Ordinal) &&
         !healthBar.Contains("BarOffset", StringComparison.Ordinal) &&
         !scene.Contains("offset_left = -18.0", StringComparison.Ordinal),
-        "default health bar size should stay compact while placement comes from the reusable overlay anchor instead of a fixed offset");
+        "default health nameplate should stay compact while placement comes from the reusable overlay anchor instead of a fixed offset");
     AssertTrue(
         overlayAnchor.Contains("public NodePath GridOccupantPath { get; set; } = new(\"../GridOccupantComponent\");", StringComparison.Ordinal) &&
         overlayAnchor.Contains("public NodePath VisualRootPath { get; set; } = new(\"../VisualRoot\");", StringComparison.Ordinal) &&
@@ -931,18 +936,19 @@ internal static void BattleUnitBaseSceneAuthorsHealthBarAndSpriteAnimationBacken
         "selection, target preview, action focus, and hover should explicitly ask the health bar to show.");
     AssertTrue(
         healthBar.Contains("public Color BorderColor", StringComparison.Ordinal) &&
+        healthBar.Contains("public Color PlayerBorderColor", StringComparison.Ordinal) &&
+        healthBar.Contains("public Color EnemyBorderColor", StringComparison.Ordinal) &&
+        healthBar.Contains("public Color NeutralBorderColor", StringComparison.Ordinal) &&
         healthBar.Contains("public Color TrackColor", StringComparison.Ordinal) &&
-        healthBar.Contains("public Color HighHpColor", StringComparison.Ordinal) &&
-        healthBar.Contains("public Color MidHpColor", StringComparison.Ordinal) &&
-        healthBar.Contains("public Color LowHpColor", StringComparison.Ordinal) &&
+        healthBar.Contains("public Color HealthFillColor", StringComparison.Ordinal) &&
+        healthBar.Contains("private FactionComponent _faction", StringComparison.Ordinal) &&
+        healthBar.Contains("ResolveFactionPalette", StringComparison.Ordinal) &&
+        healthBar.Contains("_nameLabel.Text = ResolveDisplayName();", StringComparison.Ordinal) &&
+        healthBar.Contains("_valueLabel.Text = $\"{_health.Hp}/{maxHp}\";", StringComparison.Ordinal) &&
         healthBar.Contains("_back.Color = BorderColor;", StringComparison.Ordinal) &&
         healthBar.Contains("_track.Color = TrackColor;", StringComparison.Ordinal) &&
-        healthBar.Contains("_fill.Color = ResolveFillColor(ratio);", StringComparison.Ordinal),
-        "health bar visuals should be resourceized and use muted configurable colors");
-    AssertTrue(
-        healthBar.Contains("ratio <= 0.25f", StringComparison.Ordinal) &&
-        healthBar.Contains("ratio <= 0.55f", StringComparison.Ordinal),
-        "health bar fill should shift from green to amber to red as HP falls");
+        healthBar.Contains("_fill.Color = HealthFillColor;", StringComparison.Ordinal),
+        "health nameplate visuals should be a reusable kit with faction-tinted frame colors and shared red HP fill");
 }
 
 internal static void DefeatedUnitPresentationHidesHealthBarBeforeFastDeathAnimation()

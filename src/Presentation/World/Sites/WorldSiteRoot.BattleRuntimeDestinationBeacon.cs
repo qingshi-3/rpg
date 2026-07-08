@@ -17,19 +17,27 @@ public partial class WorldSiteRoot
     private bool TryHandleBattlePreparationDestinationBeaconInput(InputEvent inputEvent)
     {
         if (!_isBattlePreparationActive ||
+            !_battlePreparationDestinationTargetingActive ||
             !string.IsNullOrWhiteSpace(_draggedBattlePreparationGroupKey) ||
-            inputEvent is not InputEventMouseButton mouseButton)
+            inputEvent is not (InputEventMouseMotion or InputEventMouseButton))
         {
             return false;
         }
 
-        bool isRightClick = mouseButton.ButtonIndex == MouseButton.Right;
-        if (!isRightClick || !mouseButton.Pressed)
+        if (inputEvent is InputEventMouseMotion)
+        {
+            UpdateBattlePreparationDestinationTargetingGuide();
+            GetViewport()?.SetInputAsHandled();
+            return true;
+        }
+
+        if (inputEvent is not InputEventMouseButton mouseButton)
         {
             return false;
         }
 
-        if (IsPointerOverSiteHud(inputEvent))
+        bool isLeftClick = mouseButton.ButtonIndex == MouseButton.Left;
+        if (!isLeftClick || !mouseButton.Pressed)
         {
             return false;
         }
@@ -42,10 +50,14 @@ public partial class WorldSiteRoot
             return true;
         }
 
+        EnterBattleMapOperationHudSuppression(BattleMapOperationHudSuppressionReason.PreparationDestinationBeacon, "preparation_destination_left_click");
         if (!TryGetMouseGridPosition(out GridPosition position) ||
             !TryResolveBattleRuntimeDestinationBeaconTarget(position, out GridPosition target, out int targetHeight))
         {
             SetSiteNoticeText("请选择战场内的有效目的地。");
+            GameLog.Info(
+                nameof(WorldSiteRoot),
+                $"BattlePreparationDestinationRejected request={_battlePreparationRequest?.RequestId ?? ""} group={_battlePreparationDestinationTargetingGroupKey} reason=invalid_target");
             GetViewport()?.SetInputAsHandled();
             return true;
         }
@@ -57,10 +69,11 @@ public partial class WorldSiteRoot
 
         SyncSelectedBattlePreparationPlanFallback(_battlePreparationRequest);
         BindBattlePreparationCompanyRoster();
-        BindBattlePreparationCompactPlanControls();
+        BindBattlePreparationLaunchControl();
         RefreshBattlePreparationDestinationBeaconOverlays();
         SetBattlePreparationTopPrompt("");
         SetSiteNoticeText($"已为{selectedGroupKeys.Count}支部队设置目的地。");
+        ClearBattlePreparationDestinationTargeting("preparation_destination_submitted");
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattlePreparationDestinationBeaconStored request={_battlePreparationRequest?.RequestId ?? ""} groups={string.Join("|", selectedGroupKeys)} target=({target.X},{target.Y},{targetHeight})");
@@ -70,6 +83,15 @@ public partial class WorldSiteRoot
 
     private IReadOnlyList<string> BuildSelectedBattlePreparationDestinationBeaconGroupKeys()
     {
+        if (_battlePreparationDestinationTargetingActive &&
+            !string.IsNullOrWhiteSpace(_battlePreparationDestinationTargetingGroupKey))
+        {
+            BattleRuntimeCommandGroupView targetingGroup = FindBattlePreparationCompany(_battlePreparationDestinationTargetingGroupKey);
+            return targetingGroup != null && IsBattlePreparationCompanyPlaced(targetingGroup)
+                ? new[] { targetingGroup.GroupKey }
+                : System.Array.Empty<string>();
+        }
+
         HashSet<string> selected = new(_selectedBattlePreparationPlanGroupKeys, System.StringComparer.Ordinal);
         if (!string.IsNullOrWhiteSpace(_selectedBattlePreparationPlanGroupKey))
         {
@@ -132,7 +154,8 @@ public partial class WorldSiteRoot
         }
 
         if (BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeCommandBar, mouseButton.Position) ||
-            BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeSummaryBar, mouseButton.Position))
+            BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeSummaryBar, mouseButton.Position) ||
+            BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimePauseDetailPanel, mouseButton.Position))
         {
             return false;
         }
@@ -167,12 +190,6 @@ public partial class WorldSiteRoot
             return false;
         }
 
-        if (BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeCommandBar, mouseButton.Position) ||
-            BattleRuntimeCommandHudPointerGate.ContainsPointer(_battleRuntimeSummaryBar, mouseButton.Position))
-        {
-            return false;
-        }
-
         IReadOnlyList<string> selectedGroupKeys = BuildSelectedBattleRuntimeCommandGroupKeys();
         if (selectedGroupKeys.Count == 0)
         {
@@ -181,6 +198,7 @@ public partial class WorldSiteRoot
             return true;
         }
 
+        EnterBattleMapOperationHudSuppression(BattleMapOperationHudSuppressionReason.RuntimeDestinationBeacon, "runtime_destination_right_click");
         if (!TryGetMouseGridPosition(out GridPosition position) ||
             !TryResolveBattleRuntimeDestinationBeaconTarget(position, out GridPosition target, out int targetHeight))
         {
@@ -197,6 +215,7 @@ public partial class WorldSiteRoot
         {
             SetSiteNoticeText($"已为{selectedGroupKeys.Count}支部队设置目的地。");
             RefreshBattleRuntimeDestinationBeaconOverlayVisibility();
+            ExitBattleMapOperationHudSuppression(BattleMapOperationHudSuppressionReason.RuntimeDestinationBeacon, "runtime_destination_submitted");
         }
         else
         {

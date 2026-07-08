@@ -307,8 +307,9 @@ public partial class StrategicWorldRoot
         KillWorldDetailPanelTween();
         _siteDetailPanel.Visible = true;
         Vector2 restPosition = ResolveWorldDetailPanelRestPosition();
+        Vector2 hiddenBelowPosition = ResolveWorldDetailPanelHiddenBelowPosition(restPosition);
         ConfigureWorldDetailPanelPivot();
-        _siteDetailPanel.Position = restPosition + new Vector2(0.0f, SiteDetailPanelSlidePixels);
+        _siteDetailPanel.Position = hiddenBelowPosition;
         _siteDetailPanel.Scale = new Vector2(0.98f, 0.94f);
         _siteDetailPanel.Modulate = new Color(1.0f, 1.0f, 1.0f, 0.0f);
 
@@ -339,12 +340,13 @@ public partial class StrategicWorldRoot
         }
 
         Vector2 restPosition = ResolveWorldDetailPanelRestPosition();
+        Vector2 hiddenBelowPosition = ResolveWorldDetailPanelHiddenBelowPosition(restPosition);
         KillWorldDetailPanelTween();
         ConfigureWorldDetailPanelPivot();
         _siteDetailPanel.Visible = true;
 
         _siteDetailPanelTween = CreateTween().BindNode(this);
-        _siteDetailPanelTween.TweenProperty(_siteDetailPanel, "position", restPosition + new Vector2(0.0f, SiteDetailPanelSlidePixels), SiteDetailPanelExitSeconds)
+        _siteDetailPanelTween.TweenProperty(_siteDetailPanel, "position", hiddenBelowPosition, SiteDetailPanelExitSeconds)
             .SetTrans(Tween.TransitionType.Cubic)
             .SetEase(Tween.EaseType.In);
         _siteDetailPanelTween.Parallel().TweenProperty(_siteDetailPanel, "scale", new Vector2(0.98f, 0.94f), SiteDetailPanelExitSeconds)
@@ -360,6 +362,28 @@ public partial class StrategicWorldRoot
     {
         ApplyWorldDetailPanelResponsiveLayout();
         return _siteDetailPanel?.Position ?? Vector2.Zero;
+    }
+
+    private Vector2 ResolveWorldDetailPanelHiddenBelowPosition(Vector2 restPosition)
+    {
+        if (_siteDetailPanel == null)
+        {
+            return restPosition;
+        }
+
+        Vector2 viewportSize = ResolveWorldDetailPanelViewportSize();
+        float panelHeight = _siteDetailPanel.Size.Y > 0.0f
+            ? _siteDetailPanel.Size.Y
+            : _siteDetailPanel.GetCombinedMinimumSize().Y;
+        float viewportBottom = viewportSize.Y > 0.0f
+            ? viewportSize.Y
+            : restPosition.Y + panelHeight;
+        // The selected-location sheet is a bottom popup. Hide it past the
+        // viewport bottom so the opening read is "from below", then overshoot up.
+        float hiddenY = System.Math.Max(
+            restPosition.Y + panelHeight + SiteDetailPanelHiddenBelowPadding,
+            viewportBottom + SiteDetailPanelHiddenBelowPadding);
+        return new Vector2(restPosition.X, hiddenY);
     }
 
     private void ApplyWorldDetailPanelResponsiveLayout()

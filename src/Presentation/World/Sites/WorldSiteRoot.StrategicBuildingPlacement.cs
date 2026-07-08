@@ -54,6 +54,7 @@ public partial class WorldSiteRoot
         {
             string missingBuildingId = _selectedStrategicBuildingDefinitionId;
             _selectedStrategicBuildingDefinitionId = "";
+            _siteManagementPanelOpen = false;
             ClearStrategicBuildingPlacementPreview();
             RefreshSiteManagementUi($"建筑放置失败：{StrategicManagementDashboardPanelBinder.FormatFailureReason(StrategicFailureReasons.MissingBuilding)}");
             GameLog.Warn(nameof(WorldSiteRoot), $"Strategic building placement missing definition building={missingBuildingId}");
@@ -118,8 +119,10 @@ public partial class WorldSiteRoot
         if (result?.Success == true)
         {
             _selectedStrategicBuildingDefinitionId = "";
+            _siteManagementPanelOpen = false;
             ClearStrategicBuildingPlacementPreview();
             StrategicManagementRuntime.SaveCurrentState();
+            UpdateSiteManagementEntryVisibility("building_placement_committed");
         }
 
         HandleStrategicManagementCommandResult("建设建筑", result);
@@ -218,6 +221,7 @@ public partial class WorldSiteRoot
     private void CancelStrategicBuildingPlacement()
     {
         _selectedStrategicBuildingDefinitionId = "";
+        _siteManagementPanelOpen = false;
         ClearStrategicBuildingPlacementPreview();
         RefreshSiteManagementUi("已取消建筑放置。");
     }

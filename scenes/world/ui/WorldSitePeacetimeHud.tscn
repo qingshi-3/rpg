@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattlePreparationObjectiveThumbnail.cs" id="1_battle_prep_thumb"]
 [ext_resource type="Script" path="res://src/Presentation/World/Sites/BattleObjectiveMapPreview.cs" id="2_battle_objective_preview"]
@@ -9,6 +9,20 @@
 [ext_resource type="Theme" path="res://resource/ui/themes/recruitment-ui-v1/recruitment_ui_v1_theme.tres" id="15_recruitment_theme"]
 [ext_resource type="Texture2D" path="res://assets/textures/ui/recruitment-ui-v1/recruitment_unit_plinth_selected.png" id="16_recruitment_plinth_selected"]
 [ext_resource type="PackedScene" path="res://scenes/ui/common/BattleUnitPlinthPreview.tscn" id="17_plinth_preview"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/recruitment-ui-v1/recruitment_divider_blue.png" id="36_recruitment_divider_blue"]
+[ext_resource type="Theme" path="res://resource/ui/themes/mana-soul-gui/mana_soul_gui_theme.tres" id="18_mana_soul_theme"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/battle-runtime/battle_runtime_pause_scroll_panel.tres" id="20_pause_panel"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/battle-runtime/battle_runtime_pause_scroll_inner_panel.tres" id="21_pause_inner_panel"]
+[ext_resource type="PackedScene" path="res://scenes/world/ui/BattleRuntimePauseDecorFrame.tscn" id="28_pause_decor_frame"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/battle-runtime/battle_runtime_fantasy_bar_frame.tres" id="32_fantasy_bar_frame"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/battle-runtime/battle_runtime_fantasy_bar_health_fill.tres" id="33_fantasy_bar_health"]
+[ext_resource type="StyleBox" path="res://resource/ui/themes/battle-runtime/battle_runtime_fantasy_bar_mana_fill.tres" id="34_fantasy_bar_mana"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconGear01a.png" id="22_build_tab_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/recruitment-ui-v1/recruitment_reserve_force_icon.png" id="23_conscript_tab_icon"]
+[ext_resource type="Texture2D" path="res://resource/ui/icons/buildings/foundation/training_ground_icon.tres" id="24_recruit_tab_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconHome01a.png" id="25_overview_tab_icon"]
+[ext_resource type="Texture2D" path="res://assets/textures/ui/travel-book-lite/sprites/UI_TravelBook_IconArrow01a.png" id="26_return_tab_icon"]
+[ext_resource type="Theme" path="res://resource/ui/themes/travel-book-lite/travel_book_lite_theme.tres" id="27_travel_book_theme"]
 
 [node name="SitePeacetimeHudRoot" type="Control"]
 z_index = 500
@@ -29,6 +43,37 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="TopLeftStatus" type="PanelContainer" parent="TopBarHost"]
+visible = false
+z_index = 530
+custom_minimum_size = Vector2(430, 42)
+layout_mode = 1
+offset_left = 12.0
+offset_top = 10.0
+offset_right = 442.0
+offset_bottom = 52.0
+mouse_filter = 2
+theme_type_variation = &"WorldTopStatusPanel"
+
+[node name="Margin" type="MarginContainer" parent="TopBarHost/TopLeftStatus"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 8
+
+[node name="SiteResourceLabel" type="Label" parent="TopBarHost/TopLeftStatus/Margin"]
+custom_minimum_size = Vector2(402, 24)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
+theme_override_font_sizes/font_size = 16
+text = "资源"
+vertical_alignment = 1
+clip_text = true
 
 [node name="LeftPrimaryPanelHost" type="Control" parent="."]
 layout_mode = 1
@@ -125,122 +170,241 @@ mouse_filter = 2
 [node name="BattleRuntimeSummaryBar" type="PanelContainer" parent="BottomCommandHost"]
 visible = false
 z_index = 538
+custom_minimum_size = Vector2(688, 72)
 layout_mode = 1
+anchor_left = 0.5
 anchor_top = 1.0
+anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -190.0
-offset_right = 920.0
-offset_bottom = -124.0
-grow_horizontal = 1
+offset_left = -344.0
+offset_top = -92.0
+offset_right = 344.0
+offset_bottom = -20.0
+grow_horizontal = 2
 grow_vertical = 0
-mouse_filter = 0
-theme_override_styles/panel = ExtResource("4_panel_card")
+mouse_filter = 2
+theme = ExtResource("18_mana_soul_theme")
+theme_type_variation = &"ManaSoulPanelB"
 
 [node name="SummaryMargin" type="MarginContainer" parent="BottomCommandHost/BattleRuntimeSummaryBar"]
 layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 7
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 7
+mouse_filter = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 6
 
 [node name="BattleRuntimeSummaryScroll" type="ScrollContainer" parent="BottomCommandHost/BattleRuntimeSummaryBar/SummaryMargin"]
-custom_minimum_size = Vector2(858, 52)
+custom_minimum_size = Vector2(640, 48)
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
 horizontal_scroll_mode = 2
 vertical_scroll_mode = 0
 
 [node name="BattleRuntimeSummaryList" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeSummaryBar/SummaryMargin/BattleRuntimeSummaryScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
+mouse_filter = 2
 theme_override_constants/separation = 8
 
-[node name="BattleRuntimeCommandBar" type="PanelContainer" parent="BottomCommandHost"]
+[node name="BattleRuntimeCommandBar" type="Control" parent="BottomCommandHost"]
 visible = false
 z_index = 540
 layout_mode = 1
-anchor_top = 1.0
+anchors_preset = 15
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 24.0
-offset_top = -116.0
-offset_right = 920.0
-offset_bottom = -24.0
-grow_horizontal = 1
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BattleRuntimePauseDetailPanel" type="Control" parent="BottomCommandHost"]
+visible = false
+z_index = 542
+custom_minimum_size = Vector2(1160, 270)
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -580.0
+offset_top = -292.0
+offset_right = 580.0
+offset_bottom = -20.0
+grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 0
-theme_override_styles/panel = ExtResource("4_panel_card")
 
-[node name="CommandMargin" type="MarginContainer" parent="BottomCommandHost/BattleRuntimeCommandBar"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
+[node name="BattleRuntimePauseBackgroundPanel" type="PanelContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = ExtResource("20_pause_panel")
+
+[node name="BattleRuntimePauseDecorFrame" parent="BottomCommandHost/BattleRuntimePauseDetailPanel" instance=ExtResource("28_pause_decor_frame")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="PauseDetailMargin" type="MarginContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 68.0
+offset_top = 24.0
+offset_right = -34.0
+offset_bottom = -26.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 8
 theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 12
+theme_override_constants/margin_right = 8
 theme_override_constants/margin_bottom = 8
 
-[node name="BattleRuntimeHeroFrame" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin"]
+[node name="PauseDetailStack" type="VBoxContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="PauseDetailBody" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="BattleRuntimeHeroFramePanel" type="PanelContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody"]
+custom_minimum_size = Vector2(460, 140)
+layout_mode = 2
+mouse_filter = 0
+theme_override_styles/panel = ExtResource("21_pause_inner_panel")
+
+[node name="HeroFrameMargin" type="MarginContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="BattleRuntimeHeroFrame" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 
-[node name="BattleRuntimeHeroSelectorList" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
-custom_minimum_size = Vector2(252, 62)
+[node name="BattleRuntimeHeroSelectorList" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin/BattleRuntimeHeroFrame"]
+custom_minimum_size = Vector2(320, 118)
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="BattleRuntimeHeroAvatar" type="PanelContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
-custom_minimum_size = Vector2(56, 56)
+[node name="BattleRuntimeHeroInfoStack" type="VBoxContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin/BattleRuntimeHeroFrame"]
+custom_minimum_size = Vector2(132, 0)
 layout_mode = 2
-theme_override_styles/panel = ExtResource("5_panel_slot")
-
-[node name="BattleRuntimeHeroAvatarLabel" type="Label" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroAvatar"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-text = "将"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="BattleRuntimeHeroInfoStack" type="VBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
-custom_minimum_size = Vector2(158, 0)
-layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 5
 
-[node name="BattleRuntimeHeroNameLabel" type="Label" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
+[node name="BattleRuntimeHeroNameLabel" type="Label" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
+theme_override_colors/font_color = Color(0.22, 0.11, 0.08, 1)
 text = "参战英雄"
 clip_text = true
 
-[node name="BattleRuntimeHeroStateLabel" type="Label" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
+[node name="BattleRuntimeHeroStateLabel" type="Label" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.74, 0.86, 0.92, 1)
+theme_override_colors/font_color = Color(0.39, 0.22, 0.15, 1)
 text = "战斗中"
 clip_text = true
 
-[node name="BattleRuntimeHeroHealthBar" type="ProgressBar" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
-custom_minimum_size = Vector2(150, 14)
+[node name="BattleRuntimeHeroHealthBar" type="ProgressBar" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
+custom_minimum_size = Vector2(132, 15)
 layout_mode = 2
+theme_override_styles/background = ExtResource("32_fantasy_bar_frame")
+theme_override_styles/fill = ExtResource("33_fantasy_bar_health")
 value = 100.0
 show_percentage = false
 
-[node name="BattleRuntimeHeroManaBar" type="ProgressBar" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
-custom_minimum_size = Vector2(150, 10)
+[node name="BattleRuntimeHeroManaBar" type="ProgressBar" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack"]
+custom_minimum_size = Vector2(132, 15)
 layout_mode = 2
+theme_override_styles/background = ExtResource("32_fantasy_bar_frame")
+theme_override_styles/fill = ExtResource("34_fantasy_bar_mana")
 value = 100.0
 show_percentage = false
 
-[node name="BattleRuntimeHeroSkillList" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
-custom_minimum_size = Vector2(220, 62)
+[node name="BattleRuntimeSkillCommandPanel" type="PanelContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody"]
+custom_minimum_size = Vector2(246, 140)
+layout_mode = 2
+mouse_filter = 0
+theme_override_styles/panel = ExtResource("21_pause_inner_panel")
+
+[node name="SkillCommandMargin" type="MarginContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="BattleRuntimeSkillCommandStack" type="VBoxContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="BattleRuntimeRegroupButton" type="Button" parent="BottomCommandHost/BattleRuntimeCommandBar/CommandMargin/BattleRuntimeHeroFrame"]
-custom_minimum_size = Vector2(74, 54)
+[node name="SkillTitleLabel" type="Label" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack"]
 layout_mode = 2
-text = "重整"
-focus_mode = 2
-theme_type_variation = &"WorldCompactActionButton"
+theme_override_colors/font_color = Color(0.32, 0.16, 0.1, 1)
+text = "英雄技能"
+clip_text = true
+
+[node name="BattleRuntimeHeroSkillList" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="BattleRuntimePauseCommandQueuePanel" type="PanelContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody"]
+custom_minimum_size = Vector2(300, 140)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_styles/panel = ExtResource("21_pause_inner_panel")
+
+[node name="CommandQueueMargin" type="MarginContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimePauseCommandQueuePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="BattleRuntimePauseCommandQueueList" type="VBoxContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimePauseCommandQueuePanel/CommandQueueMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="QueueTitleLabel" type="Label" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimePauseCommandQueuePanel/CommandQueueMargin/BattleRuntimePauseCommandQueueList"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.32, 0.16, 0.1, 1)
+text = "命令队列"
+clip_text = true
+
+[node name="QueueCurrentLabel" type="Label" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimePauseCommandQueuePanel/CommandQueueMargin/BattleRuntimePauseCommandQueueList"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.29, 0.17, 0.12, 1)
+text = "当前：待命"
+clip_text = true
+
+[node name="QueueNextLabel" type="Label" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimePauseCommandQueuePanel/CommandQueueMargin/BattleRuntimePauseCommandQueueList"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.45, 0.31, 0.21, 1)
+text = "下一步：选择命令"
+clip_text = true
 
 [node name="OverlayHost" type="Control" parent="."]
 layout_mode = 1
@@ -250,6 +414,123 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="SiteManagementTabRail" type="Control" parent="OverlayHost"]
+visible = false
+z_index = 521
+custom_minimum_size = Vector2(96, 260)
+layout_mode = 1
+anchor_left = 0.0
+anchor_top = 0.5
+anchor_right = 0.0
+anchor_bottom = 0.5
+offset_left = 0.0
+offset_top = -130.0
+offset_right = 96.0
+offset_bottom = 130.0
+grow_horizontal = 1
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="BuildTabButton" type="Button" parent="OverlayHost/SiteManagementTabRail"]
+custom_minimum_size = Vector2(96, 44)
+layout_mode = 1
+offset_left = -52.0
+offset_right = 44.0
+offset_bottom = 44.0
+grow_horizontal = 1
+text = ""
+tooltip_text = ""
+clip_text = true
+toggle_mode = true
+button_pressed = true
+focus_mode = 2
+icon = ExtResource("22_build_tab_icon")
+icon_alignment = 2
+vertical_icon_alignment = 1
+theme_override_constants/h_separation = 6
+theme_override_constants/icon_max_width = 22
+theme_type_variation = &"WorldSiteRailTabButton"
+
+[node name="ConscriptionTabButton" type="Button" parent="OverlayHost/SiteManagementTabRail"]
+custom_minimum_size = Vector2(96, 44)
+layout_mode = 1
+offset_left = -52.0
+offset_top = 52.0
+offset_right = 44.0
+offset_bottom = 96.0
+grow_horizontal = 1
+text = ""
+tooltip_text = ""
+clip_text = true
+toggle_mode = true
+focus_mode = 2
+icon = ExtResource("23_conscript_tab_icon")
+icon_alignment = 2
+vertical_icon_alignment = 1
+theme_override_constants/h_separation = 6
+theme_override_constants/icon_max_width = 22
+theme_type_variation = &"WorldSiteRailTabButton"
+
+[node name="RecruitTabButton" type="Button" parent="OverlayHost/SiteManagementTabRail"]
+custom_minimum_size = Vector2(96, 44)
+layout_mode = 1
+offset_left = -52.0
+offset_top = 104.0
+offset_right = 44.0
+offset_bottom = 148.0
+grow_horizontal = 1
+text = ""
+tooltip_text = ""
+clip_text = true
+toggle_mode = true
+focus_mode = 2
+icon = ExtResource("24_recruit_tab_icon")
+icon_alignment = 2
+vertical_icon_alignment = 1
+theme_override_constants/h_separation = 6
+theme_override_constants/icon_max_width = 22
+theme_type_variation = &"WorldSiteRailTabButton"
+
+[node name="OverviewTabButton" type="Button" parent="OverlayHost/SiteManagementTabRail"]
+custom_minimum_size = Vector2(96, 44)
+layout_mode = 1
+offset_left = -52.0
+offset_top = 156.0
+offset_right = 44.0
+offset_bottom = 200.0
+grow_horizontal = 1
+text = ""
+tooltip_text = ""
+clip_text = true
+toggle_mode = true
+focus_mode = 2
+icon = ExtResource("25_overview_tab_icon")
+icon_alignment = 2
+vertical_icon_alignment = 1
+theme_override_constants/h_separation = 6
+theme_override_constants/icon_max_width = 22
+theme_type_variation = &"WorldSiteRailTabButton"
+
+[node name="ReturnMapTabButton" type="Button" parent="OverlayHost/SiteManagementTabRail"]
+custom_minimum_size = Vector2(96, 44)
+layout_mode = 1
+offset_left = -52.0
+offset_top = 208.0
+offset_right = 44.0
+offset_bottom = 252.0
+grow_horizontal = 1
+text = ""
+tooltip_text = ""
+clip_text = true
+toggle_mode = true
+focus_mode = 2
+icon = ExtResource("26_return_tab_icon")
+icon_alignment = 2
+vertical_icon_alignment = 1
+theme_override_constants/h_separation = 6
+theme_override_constants/icon_max_width = 22
+theme_type_variation = &"WorldSiteRailTabButton"
 
 [node name="BattlePreparationTopPromptDock" type="Control" parent="OverlayHost"]
 visible = false
@@ -274,7 +555,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-text = "右键选择部队目的地"
+text = "选择部队移动目的地"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -307,36 +588,35 @@ theme_override_constants/margin_bottom = 8
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="BattlePreparationPlanBar" type="PanelContainer" parent="OverlayHost"]
+[node name="BattlePreparationLaunchDock" type="Control" parent="OverlayHost"]
 visible = false
 z_index = 535
-custom_minimum_size = Vector2(720, 76)
 layout_mode = 1
-anchor_left = 0.5
+anchor_left = 1.0
 anchor_top = 1.0
-anchor_right = 0.5
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -360.0
-offset_top = -100.0
-offset_right = 360.0
-offset_bottom = -18.0
-grow_horizontal = 2
+offset_left = -148.0
+offset_top = -96.0
+offset_right = -28.0
+offset_bottom = -28.0
+grow_horizontal = 0
 grow_vertical = 0
-mouse_filter = 0
-theme_override_styles/panel = ExtResource("4_panel_card")
+mouse_filter = 2
 
-[node name="PlanMargin" type="MarginContainer" parent="OverlayHost/BattlePreparationPlanBar"]
+[node name="PlanMargin" type="MarginContainer" parent="OverlayHost/BattlePreparationLaunchDock"]
+visible = false
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 10
 
-[node name="PlanRow" type="HBoxContainer" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin"]
+[node name="PlanRow" type="HBoxContainer" parent="OverlayHost/BattlePreparationLaunchDock/PlanMargin"]
 layout_mode = 2
 theme_override_constants/separation = 10
 
-[node name="BattlePreparationCompanyLabel" type="Label" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow"]
+[node name="BattlePreparationCompanyLabel" type="Label" parent="OverlayHost/BattlePreparationLaunchDock/PlanMargin/PlanRow"]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
@@ -344,7 +624,7 @@ text = "当前部队"
 vertical_alignment = 1
 clip_text = true
 
-[node name="BattlePreparationObjectiveLabel" type="Label" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow"]
+[node name="BattlePreparationObjectiveLabel" type="Label" parent="OverlayHost/BattlePreparationLaunchDock/PlanMargin/PlanRow"]
 custom_minimum_size = Vector2(170, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.84, 0.92, 0.86, 1)
@@ -352,36 +632,41 @@ text = "目标：未选"
 vertical_alignment = 1
 clip_text = true
 
-[node name="BattlePreparationRuleButtonRow" type="HBoxContainer" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow"]
+[node name="BattlePreparationRuleButtonRow" type="HBoxContainer" parent="OverlayHost/BattlePreparationLaunchDock/PlanMargin/PlanRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 alignment = 1
 
-[node name="MoveFirstRuleButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
+[node name="MoveFirstRuleButton" type="Button" parent="OverlayHost/BattlePreparationLaunchDock/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
 custom_minimum_size = Vector2(74, 54)
 layout_mode = 2
 text = "推进"
 focus_mode = 2
 theme_type_variation = &"WorldCompactActionButton"
 
-[node name="AttackFirstRuleButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
+[node name="AttackFirstRuleButton" type="Button" parent="OverlayHost/BattlePreparationLaunchDock/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
 custom_minimum_size = Vector2(74, 54)
 layout_mode = 2
 text = "强攻"
 focus_mode = 2
 theme_type_variation = &"WorldCompactActionButton"
 
-[node name="HoldRuleButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
+[node name="HoldRuleButton" type="Button" parent="OverlayHost/BattlePreparationLaunchDock/PlanMargin/PlanRow/BattlePreparationRuleButtonRow"]
 custom_minimum_size = Vector2(74, 54)
 layout_mode = 2
 text = "坚守"
 focus_mode = 2
 theme_type_variation = &"WorldCompactActionButton"
 
-[node name="BattlePreparationStartButton" type="Button" parent="OverlayHost/BattlePreparationPlanBar/PlanMargin/PlanRow"]
+[node name="BattlePreparationStartButton" type="Button" parent="OverlayHost/BattlePreparationLaunchDock"]
 custom_minimum_size = Vector2(92, 54)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 text = "开战"
 focus_mode = 2
 theme_type_variation = &"WorldCompactActionButton"
@@ -410,16 +695,16 @@ color = Color(0.03, 0.04, 0.08, 0.68)
 [node name="MilitaryWorkbenchPanel" type="PanelContainer" parent="ModalHost"]
 visible = false
 z_index = 620
-custom_minimum_size = Vector2(1180, 720)
+custom_minimum_size = Vector2(1500, 900)
 layout_mode = 1
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -590.0
-offset_top = -360.0
-offset_right = 590.0
-offset_bottom = 360.0
+offset_left = -750.0
+offset_top = -450.0
+offset_right = 750.0
+offset_bottom = 450.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 0
@@ -428,16 +713,16 @@ theme_type_variation = &"RecruitmentModalPanel"
 
 [node name="WorkbenchMargin" type="MarginContainer" parent="ModalHost/MilitaryWorkbenchPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 34
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_right = 34
-theme_override_constants/margin_bottom = 30
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
 
 [node name="WorkbenchStack" type="VBoxContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 14
+theme_override_constants/separation = 10
 
 [node name="MilitaryHeader" type="HBoxContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack"]
 layout_mode = 2
@@ -445,31 +730,33 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
 [node name="MilitaryHeroSummaryLabel" type="Label" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryHeader"]
-custom_minimum_size = Vector2(0, 50)
+custom_minimum_size = Vector2(0, 44)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 28
+theme_override_font_sizes/font_size = 24
 text = "选择英雄"
 vertical_alignment = 1
 clip_text = true
 
-[node name="MilitaryBackButton" type="Button" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryHeader"]
-custom_minimum_size = Vector2(126, 50)
-layout_mode = 2
-text = "返回"
-focus_mode = 2
-theme_type_variation = &"RecruitmentTextButton"
-
 [node name="MilitaryCloseButton" type="Button" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryHeader"]
-custom_minimum_size = Vector2(126, 50)
+custom_minimum_size = Vector2(112, 44)
 layout_mode = 2
 text = "关闭"
 focus_mode = 2
 theme_type_variation = &"RecruitmentTextButton"
 
+[node name="MilitaryHeaderDivider" type="TextureRect" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack"]
+custom_minimum_size = Vector2(1452, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+texture = ExtResource("36_recruitment_divider_blue")
+expand_mode = 1
+stretch_mode = 0
+
 [node name="MilitaryNoticeLabel" type="Label" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack"]
-custom_minimum_size = Vector2(0, 30)
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
@@ -481,10 +768,10 @@ clip_text = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 18
+theme_override_constants/separation = 14
 
 [node name="MilitaryHeroScroll" type="ScrollContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody"]
-custom_minimum_size = Vector2(386, 0)
+custom_minimum_size = Vector2(384, 0)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
@@ -493,7 +780,7 @@ vertical_scroll_mode = 4
 [node name="MilitaryHeroList" type="VBoxContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryHeroScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="MilitaryDetailStack" type="VBoxContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody"]
 layout_mode = 2
@@ -502,7 +789,7 @@ size_flags_vertical = 3
 theme_override_constants/separation = 10
 
 [node name="SelectedHeroPanel" type="PanelContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack"]
-custom_minimum_size = Vector2(0, 190)
+custom_minimum_size = Vector2(0, 128)
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
@@ -510,38 +797,39 @@ theme_type_variation = &"RecruitmentSelectedCardPanel"
 
 [node name="SelectedHeroMargin" type="MarginContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel"]
 layout_mode = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 18
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 18
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 10
 
 [node name="SelectedHeroRow" type="HBoxContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 24
+theme_override_constants/separation = 16
 
 [node name="SelectedHeroAvatarFrame" type="Control" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow"]
-custom_minimum_size = Vector2(230, 150)
+custom_minimum_size = Vector2(176, 100)
 layout_mode = 2
 mouse_filter = 2
 
 [node name="SelectedHeroPlinthPreview" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroAvatarFrame" instance=ExtResource("17_plinth_preview")]
-position = Vector2(115, 106)
+position = Vector2(88, 74)
+scale = Vector2(0.64, 0.64)
 PlinthTexture = ExtResource("16_recruitment_plinth_selected")
 
 [node name="SelectedHeroTextStack" type="VBoxContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 1
-theme_override_constants/separation = 10
+theme_override_constants/separation = 6
 
 [node name="SelectedHeroNameLabel" type="Label" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/SelectedHeroPanel/SelectedHeroMargin/SelectedHeroRow/SelectedHeroTextStack"]
-custom_minimum_size = Vector2(0, 42)
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 26
+theme_override_font_sizes/font_size = 22
 text = "英雄"
 clip_text = true
 
@@ -556,241 +844,178 @@ clip_text = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.78, 0.72, 0.62, 1)
-theme_override_font_sizes/font_size = 15
+theme_override_font_sizes/font_size = 14
 text = "右侧选择兵种，悬停查看消耗。"
 clip_text = true
 
-[node name="MilitaryMusterScroll" type="ScrollContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack"]
+[node name="MilitaryMusterDivider" type="TextureRect" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack"]
+custom_minimum_size = Vector2(826, 28)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
+mouse_filter = 2
+texture = ExtResource("36_recruitment_divider_blue")
+expand_mode = 1
+stretch_mode = 0
+
+[node name="MilitaryMusterScroll" type="ScrollContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack"]
+custom_minimum_size = Vector2(826, 0)
+layout_mode = 2
+size_flags_horizontal = 4
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 4
 
 [node name="MilitaryMusterGrid" type="GridContainer" parent="ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/MilitaryMusterScroll"]
+custom_minimum_size = Vector2(826, 0)
 layout_mode = 2
-size_flags_horizontal = 3
-columns = 3
+size_flags_horizontal = 4
+columns = 4
 theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 14
 
-[node name="SitePeacetimePanel" type="PanelContainer" parent="LeftPrimaryPanelHost"]
+[node name="SitePeacetimePanel" type="PanelContainer" parent="OverlayHost"]
 visible = false
 z_index = 520
-custom_minimum_size = Vector2(520, 0)
+custom_minimum_size = Vector2(640, 0)
 layout_mode = 1
 anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 0.0
-anchor_bottom = 1.0
+anchor_bottom = 0.0
 offset_left = 0.0
-offset_top = 0.0
-offset_right = 520.0
-offset_bottom = 0.0
+offset_top = 72.0
+offset_right = 640.0
+offset_bottom = 840.0
 grow_horizontal = 1
-grow_vertical = 2
+grow_vertical = 1
 mouse_filter = 0
 theme_override_styles/panel = ExtResource("3_panel_sheet")
 
-[node name="Margin" type="MarginContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel"]
+[node name="Margin" type="MarginContainer" parent="OverlayHost/SitePeacetimePanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 
-[node name="SiteManagementStack" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin"]
+[node name="SiteManagementStack" type="VBoxContainer" parent="OverlayHost/SitePeacetimePanel/Margin"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 10
 
-[node name="SiteResourceLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack"]
-custom_minimum_size = Vector2(0, 42)
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
-text = "资源"
-vertical_alignment = 1
-autowrap_mode = 3
-
-[node name="SiteManagementHeader" type="HBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack"]
+[node name="SiteManagementHeader" type="HBoxContainer" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="SiteManagementTabBar" type="HBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader"]
+[node name="SiteHeaderSpacer" type="Control" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 6
 
-[node name="BuildTabButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar"]
-custom_minimum_size = Vector2(76, 48)
+[node name="SitePanelCloseButton" type="Button" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader"]
+custom_minimum_size = Vector2(88, 44)
 layout_mode = 2
-text = "建造"
-tooltip_text = "建建筑"
-toggle_mode = true
-button_pressed = true
-focus_mode = 2
-theme_type_variation = &"WorldCompactTabButton"
-
-[node name="ConscriptionTabButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar"]
-custom_minimum_size = Vector2(76, 48)
-layout_mode = 2
-text = "征兵"
-tooltip_text = "征兵"
-toggle_mode = true
-focus_mode = 2
-theme_type_variation = &"WorldCompactTabButton"
-
-[node name="RecruitTabButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar"]
-custom_minimum_size = Vector2(76, 48)
-layout_mode = 2
-text = "招兵"
-tooltip_text = "招兵"
-toggle_mode = true
-focus_mode = 2
-theme_type_variation = &"WorldCompactTabButton"
-
-[node name="CorpsTabButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar"]
-custom_minimum_size = Vector2(76, 48)
-layout_mode = 2
-text = "编制"
-tooltip_text = "调整部队配置"
-toggle_mode = true
-focus_mode = 2
-theme_type_variation = &"WorldCompactTabButton"
-
-[node name="OverviewTabButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteManagementTabBar"]
-custom_minimum_size = Vector2(76, 48)
-layout_mode = 2
-text = "总览"
-tooltip_text = "城市概览"
-toggle_mode = true
-focus_mode = 2
-theme_type_variation = &"WorldCompactTabButton"
-
-[node name="ReturnMapButton" type="Button" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader"]
-custom_minimum_size = Vector2(112, 54)
-layout_mode = 2
-text = "返回"
-tooltip_text = "返回大地图"
+text = "关闭"
+tooltip_text = "关闭面板"
 focus_mode = 2
 theme_type_variation = &"WorldCompactActionButton"
 
-[node name="SiteHudTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack"]
+[node name="SiteHudTitle" type="Label" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack"]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 clip_text = true
 
-[node name="ManagementContentScroll" type="ScrollContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack"]
+[node name="ManagementContentScroll" type="ScrollContainer" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="ManagementContent" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll"]
+[node name="ManagementContent" type="VBoxContainer" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="SiteBuildSection" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
+[node name="SiteBuildSection" type="VBoxContainer" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="BuildTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection"]
+[node name="BuildTitle" type="Label" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "可建建筑"
 
-[node name="SiteBuildingOptionGrid" type="GridContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection"]
+[node name="SiteBuildingOptionGrid" type="GridContainer" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 columns = 4
 theme_override_constants/separation = 8
 
-[node name="SiteConscriptionSection" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
+[node name="SiteConscriptionSection" type="VBoxContainer" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="ConscriptionTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection"]
+[node name="ConscriptionTitle" type="Label" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "征兵"
 
-[node name="SiteConscriptionList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection"]
+[node name="SiteConscriptionList" type="VBoxContainer" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="SiteCorpsSection" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
+[node name="SiteOverviewSection" type="VBoxContainer" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="GarrisonTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteCorpsSection"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
-theme_override_font_sizes/font_size = 17
-text = "部队配置"
-
-[node name="SiteGarrisonList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteCorpsSection"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="SiteOverviewSection" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent"]
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 8
-
-[node name="SiteHudBody" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+[node name="SiteHudBody" type="Label" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.88, 0.94, 0.88, 1)
 autowrap_mode = 3
 
-[node name="SiteSelectionLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+[node name="SiteSelectionLabel" type="Label" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.88, 0.55, 1)
 autowrap_mode = 3
 
-[node name="BuildingTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+[node name="BuildingTitle" type="Label" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 17
 text = "建筑与区域"
 
-[node name="SiteBuildingList" type="VBoxContainer" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+[node name="SiteBuildingList" type="VBoxContainer" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="NoticeDivider" type="HSeparator" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+[node name="NoticeDivider" type="HSeparator" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 
-[node name="NoticeTitle" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+[node name="NoticeTitle" type="Label" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.96, 0.9, 0.72, 1)
 theme_override_font_sizes/font_size = 16
 text = "最近反馈"
 
-[node name="SiteNoticeLabel" type="Label" parent="LeftPrimaryPanelHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
+[node name="SiteNoticeLabel" type="Label" parent="OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.82, 0.9, 1, 1)

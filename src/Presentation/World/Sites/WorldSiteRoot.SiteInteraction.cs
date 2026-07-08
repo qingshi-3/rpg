@@ -486,8 +486,11 @@ public partial class WorldSiteRoot
         };
         return !float.IsNaN(screenPosition.X) &&
                (IsScreenPointInsideControl(_sitePeacetimePanel, screenPosition) ||
+                IsScreenPointInsideControl(_siteManagementTabRail, screenPosition) ||
+                IsScreenPointInsideControl(_militaryWorkbenchPanel, screenPosition) ||
+                IsScreenPointInsideControl(_militaryWorkbenchBackdrop, screenPosition) ||
                 IsScreenPointInsideControl(_battlePreparationRosterDock, screenPosition) ||
-                IsScreenPointInsideControl(_battlePreparationPlanBar, screenPosition) ||
+                IsScreenPointInsideControl(_battlePreparationLaunchDock, screenPosition) ||
                 IsScreenPointInsideControl(_battlePreparationObjectiveThumbnailDock, screenPosition));
     }
 

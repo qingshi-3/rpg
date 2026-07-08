@@ -93,6 +93,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private HBoxContainer _battleRuntimeSummaryList;
 	private BattleRuntimeHeroTroopSummaryPresenter _battleRuntimeSummaryPresenter;
 	private Control _battleRuntimeCommandBar;
+	private Control _battleRuntimePauseDetailPanel;
 	private Control _battleRuntimeHeroFrame;
 	private Node2D _sitePlacementEntityRoot;
 	private Label _siteHudTitle;
@@ -107,15 +108,14 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private HBoxContainer _battleRuntimeHeroSkillList;
 	private BattleRuntimeHeroSelectorPresenter _battleRuntimeHeroSelectorPresenter;
 	private BattleRuntimeHeroFramePresenter _battleRuntimeHeroFramePresenter;
-	private Button _battleRuntimeRegroupButton;
 	private Button _siteBuildTabButton;
 	private Button _siteConscriptionTabButton;
 	private Button _siteRecruitTabButton;
-	private Button _siteCorpsTabButton;
 	private Button _siteOverviewTabButton;
+	private Button _sitePanelCloseButton;
+	private Control _siteManagementTabRail;
 	private Control _siteBuildSection;
 	private Control _siteConscriptionSection;
-	private Control _siteCorpsSection;
 	private Control _siteOverviewSection;
 	private Control _militaryWorkbenchBackdrop;
 	private Control _militaryWorkbenchPanel;
@@ -126,7 +126,6 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattleUnitPlinthPreview _militarySelectedHeroPreview;
 	private Label _militarySelectedHeroNameLabel;
 	private Label _militarySelectedHeroCorpsLabel;
-	private Button _militaryBackButton;
 	private Button _militaryCloseButton;
 	private Label _siteBuildingBuildTitle;
 	private GridContainer _siteBuildingOptionGrid;
@@ -134,22 +133,17 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Control _siteMinimapHost;
 	private Control _battlePreparationRosterDock;
 	private VBoxContainer _battlePreparationRosterList;
-	private Control _battlePreparationPlanBar;
-	private Label _battlePreparationCompanyLabel;
-	private Label _battlePreparationObjectiveLabel;
-	private HBoxContainer _battlePreparationRuleButtonRow;
-	private Button _battlePreparationMoveFirstButton;
-	private Button _battlePreparationAttackFirstButton;
-	private Button _battlePreparationHoldButton;
+	private Control _battlePreparationLaunchDock;
 	private Button _battlePreparationStartButton;
 	private Control _battlePreparationObjectiveThumbnailDock;
 	private BattlePreparationObjectiveThumbnail _battlePreparationObjectiveThumbnail;
 	private Label _battlePreparationTopPromptLabel;
+	private BattlePreparationDestinationGuideOverlay _battlePreparationDestinationGuideOverlay;
+	private PackedScene _battlePreparationDestinationGuideOverlayScene;
 	private Button _returnMapButton;
 	private BattleObjectiveMapDialog _battleObjectiveMapDialog;
 	private PostBattleSettlementDialog _postBattleSettlementDialog;
 	private VBoxContainer _siteBuildingList;
-	private VBoxContainer _siteGarrisonList;
 	private StrategicManagementDashboardPanelBinder _strategicManagementDashboardPanelBinder;
 	private StrategicMilitaryWorkbenchBinder _strategicMilitaryWorkbenchBinder;
 	private readonly BattleObjectivePlanningHudBinder _battleObjectivePlanningHudBinder = new();
@@ -186,6 +180,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private int _battleRuntimeDestinationBeaconCommandSequence;
 	private string _hoveredBattleRuntimeEntityId = "";
 	private SiteManagementSection _selectedSiteManagementSection = SiteManagementSection.Build;
+	private bool _siteManagementPanelOpen;
 	private bool _battleRuntimeHeroSkillTargetPickingActive;
 	private BattleRuntimeCommandGroupView _battleRuntimeHeroSkillTargetPickingGroup;
 	private string _battleRuntimeHeroSkillTargetPickingSkillDefinitionId = "";
@@ -205,9 +200,13 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattlePreparationCompanyFormationDraft _draggedBattlePreparationDraft;
 	private bool _lastBattlePreparationCompanyDragValid;
 	private string _lastBattlePreparationCompanyDragReason = "";
+	private bool _battlePreparationDestinationTargetingActive;
+	private string _battlePreparationDestinationTargetingGroupKey = "";
+	private Input.MouseModeEnum _battlePreparationDestinationPreviousMouseMode = Input.MouseModeEnum.Visible;
 	private Tween _battlePreparationHudRetreatTween;
 	private bool _battlePreparationHudRetreated;
 	private readonly Dictionary<Control, Vector2> _battlePreparationHudRestPositions = new();
+	private readonly SiteManagementResourceBarAnimator _siteResourceBarAnimator = new();
 	private readonly BattleUnitFactory _battleUnitFactory = new();
 	private readonly WorldBattleResultApplier _worldBattleResultApplier = new();
 	private readonly WorldArmyCommandService _armyCommandService = new();
@@ -366,6 +365,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		_unitRoot = GetNodeOrNull<BattleUnitRoot>(UnitRootPath);
 		_highlightOverlay = GetNodeOrNull<BattleGridHighlightOverlay>(HighlightOverlayPath);
 		_deploymentZoneOverlay = GetNodeOrNull<BattleDeploymentZoneOverlay>(DeploymentZoneOverlayPath);
+		EnsureBattlePreparationDestinationGuideOverlay();
 		_strategicBuildingPlacementPreview = GetNodeOrNull<StrategicBuildingPlacementPreview>(StrategicBuildingPlacementPreviewPath);
 		_selectionVignetteOverlay = GetNodeOrNull<BattleSelectionVignetteOverlay>(SelectionVignetteOverlayPath);
 		_battleCamera = GetNodeOrNull<BattleCameraController>(BattleCameraPath);
@@ -454,6 +454,11 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 				return;
 			}
 
+			if (TryHandleBattleMapOperationHudSuppressionCancelInput(@event))
+			{
+				return;
+			}
+
 			if (TryHandleBattleRuntimeDestinationBeaconInput(@event))
 			{
 				return;
@@ -478,6 +483,11 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		}
 
 		if (TryHandleSiteContextClearInput(@event))
+		{
+			return;
+		}
+
+		if (TryHandleBattleMapOperationHudSuppressionCancelInput(@event))
 		{
 			return;
 		}
@@ -640,7 +650,6 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		}
 
 		Rect2 worldViewportRect = ResolveMainWorldViewportRect();
-		bool reserveUiWorkspace = ShouldReserveSiteHudWorkspace();
 
 		// The site/battle map is a separate world viewport. HUD and modal UI stay on
 		// the outer CanvasLayer, so root mouse positions must cross this boundary.
@@ -654,7 +663,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		_battleCamera?.SetViewportSizeOverride(worldViewportRect.Size);
 		GameLog.Info(
 			nameof(WorldSiteRoot),
-			$"SiteMainWorldViewportLayoutApplied reason={reason} reserveUi={reserveUiWorkspace} position={_mainWorldViewportHost.Position} size={worldViewportRect.Size}");
+			$"SiteMainWorldViewportLayoutApplied reason={reason} mapFirst=true position={_mainWorldViewportHost.Position} size={worldViewportRect.Size}");
 	}
 
 	private Rect2 ResolveMainWorldViewportRect()
@@ -670,55 +679,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 			return new Rect2(Vector2.Zero, rootViewportSize);
 		}
 
-		if (ShouldReserveSiteHudWorkspace())
-		{
-			return ResolveWorldSiteHudViewportRect(rootViewportSize);
-		}
-
 		return ResolveAuthoredMainWorldViewportRect(rootViewportSize);
-	}
-
-	private bool ShouldReserveSiteHudWorkspace()
-	{
-		return _siteHudRoot?.Visible == true &&
-		       !_postBattleSettlementDialogOpen &&
-		       !IsBattleRuntimeHudActive() &&
-		       !(_isBattlePreparationActive && !_battleRuntimeEnabled);
-	}
-
-	private Rect2 ResolveWorldSiteHudViewportRect(Vector2 rootViewportSize)
-	{
-		Rect2 authoredWorldRect = ResolveAuthoredMainWorldViewportRect(rootViewportSize);
-		if (_sitePeacetimePanel == null)
-		{
-			return authoredWorldRect;
-		}
-
-		Rect2 panelRect = _sitePeacetimePanel.GetGlobalRect();
-		if (panelRect.Size.X <= 1.0f || panelRect.Size.Y <= 1.0f)
-		{
-			return authoredWorldRect;
-		}
-
-		Vector2 position = new(Mathf.Clamp(panelRect.End.X, 0.0f, rootViewportSize.X - 1.0f), 0.0f);
-		float bottomLimit = rootViewportSize.Y;
-
-		if (_battleRuntimeCommandBar?.Visible == true)
-		{
-			Rect2 commandRect = _battleRuntimeCommandBar.GetGlobalRect();
-			if (commandRect.Size.Y > 1.0f && commandRect.Position.Y > position.Y)
-			{
-				bottomLimit = Mathf.Min(bottomLimit, commandRect.Position.Y);
-			}
-		}
-
-		// Site management uses a no-gutter split screen: UI owns the left strip and
-		// the map viewport owns the full remaining right-side rectangle.
-		return new Rect2(
-			position,
-			new Vector2(
-				Mathf.Max(1.0f, rootViewportSize.X - position.X),
-				Mathf.Max(1.0f, bottomLimit - position.Y)));
 	}
 
 	private Rect2 ResolveAuthoredMainWorldViewportRect(Vector2 rootViewportSize)
