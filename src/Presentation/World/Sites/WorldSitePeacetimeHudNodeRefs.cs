@@ -26,12 +26,10 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
     internal Label SiteResourceLabel { get; private init; }
     internal Button ReturnMapButton { get; private init; }
     internal Button BuildTabButton { get; private init; }
-    internal Button ConscriptionTabButton { get; private init; }
     internal Button RecruitTabButton { get; private init; }
     internal Button OverviewTabButton { get; private init; }
     internal Button SitePanelCloseButton { get; private init; }
     internal Control SiteBuildSection { get; private init; }
-    internal Control SiteConscriptionSection { get; private init; }
     internal Control SiteOverviewSection { get; private init; }
     internal Control MilitaryWorkbenchBackdrop { get; private init; }
     internal Control MilitaryWorkbenchPanel { get; private init; }
@@ -54,7 +52,6 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
     internal Label BattlePreparationTopPromptLabel { get; private init; }
     internal Label SiteBuildingBuildTitle { get; private init; }
     internal GridContainer SiteBuildingOptionGrid { get; private init; }
-    internal VBoxContainer SiteConscriptionList { get; private init; }
     internal VBoxContainer SiteBuildingList { get; private init; }
     internal Label SiteNoticeLabel { get; private init; }
     internal Label BuildingTitleLabel { get; private init; }
@@ -85,12 +82,10 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
             SiteResourceLabel = Get<Label>(root, "TopBarHost/TopLeftStatus/Margin/SiteResourceLabel", ownerName),
             ReturnMapButton = Get<Button>(root, "OverlayHost/SiteManagementTabRail/ReturnMapTabButton", ownerName),
             BuildTabButton = Get<Button>(root, "OverlayHost/SiteManagementTabRail/BuildTabButton", ownerName),
-            ConscriptionTabButton = Get<Button>(root, "OverlayHost/SiteManagementTabRail/ConscriptionTabButton", ownerName),
             RecruitTabButton = Get<Button>(root, "OverlayHost/SiteManagementTabRail/RecruitTabButton", ownerName),
             OverviewTabButton = Get<Button>(root, "OverlayHost/SiteManagementTabRail/OverviewTabButton", ownerName),
             SitePanelCloseButton = Get<Button>(root, "OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SitePanelCloseButton", ownerName),
             SiteBuildSection = Get<Control>(root, "OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection", ownerName),
-            SiteConscriptionSection = Get<Control>(root, "OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection", ownerName),
             SiteOverviewSection = Get<Control>(root, "OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection", ownerName),
             MilitaryWorkbenchBackdrop = Get<Control>(root, "ModalHost/MilitaryWorkbenchBackdrop", ownerName),
             SiteHudBody = Get<Label>(root, "OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteOverviewSection/SiteHudBody", ownerName),
@@ -104,7 +99,6 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
             BattlePreparationTopPromptLabel = Get<Label>(root, "OverlayHost/BattlePreparationTopPromptDock/BattlePreparationTopPromptLabel", ownerName),
             SiteBuildingBuildTitle = Get<Label>(root, "OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/BuildTitle", ownerName),
             SiteBuildingOptionGrid = Get<GridContainer>(root, "OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteBuildSection/SiteBuildingOptionGrid", ownerName),
-            SiteConscriptionList = Get<VBoxContainer>(root, "OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/ManagementContentScroll/ManagementContent/SiteConscriptionSection/SiteConscriptionList", ownerName),
             MilitaryWorkbenchPanel = Get<Control>(root, "ModalHost/MilitaryWorkbenchPanel", ownerName),
             MilitaryHeroList = Get<VBoxContainer>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryHeroScroll/MilitaryHeroList", ownerName),
             MilitaryMusterGrid = Get<GridContainer>(root, "ModalHost/MilitaryWorkbenchPanel/WorkbenchMargin/WorkbenchStack/MilitaryBody/MilitaryDetailStack/MilitaryMusterScroll/MilitaryMusterGrid", ownerName),

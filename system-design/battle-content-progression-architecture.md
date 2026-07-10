@@ -77,7 +77,7 @@ Adding a specific skill, equipment effect, or corps trait should usually require
 
 Repository-level gameplay configuration indexes live under `config/`. These files may reference resource ids and resource paths, but they do not contain Godot-authored resources, imported art, scenes, themes, shaders, or SpriteFrames.
 
-`config/` owns stable content indexes and mappings such as first-slice battle-group bindings, default corps attachments, battle unit resource path indexes, and strategic initial roster data. Repository directory ownership follows `system-design/resource-authoring-taxonomy.md`: `resource/` owns Godot-authored definitions such as `BattleUnitDefinition`, battle skill resources, behavior trees, themes, shaders, and tilesets; `assets/` owns raw imported media and source-like asset packages. `frames.tres` remains a temporary visual-content pipeline exception and may stay beside its source PNG/PLIST files under `assets/` until a later accepted migration changes that workflow.
+`config/` owns stable content indexes and mappings such as first-slice battle-group bindings, default corps attachments, battle unit resource path indexes, and strategic initial roster data. Repository directory ownership follows `system-design/resource-authoring-taxonomy.md`: `resource/` owns Godot-authored definitions such as `BattleUnitDefinition`, battle skill resources, behavior trees, themes, shaders, and tilesets; `assets/` owns raw imported media and source-like asset packages. `frames.tres` remains a temporary visual-content pipeline exception and may stay beside its source PNG/PLIST files under `assets/` until a later accepted asset-pipeline proposal changes that workflow.
 
 Application code may load `config/` indexes to assemble strategic definitions or locate authored resources. Presentation may consume a config-backed resource path index before falling back to broad asset discovery for legacy library content. Runtime must still consume snapshots and ids, not config files or Godot resources directly.
 
@@ -149,7 +149,7 @@ Skill definitions provide:
 
 Runtime actor behavior and validation decide when an accepted skill order can start. Runtime action execution owns cast, impact, recovery, interruption, and failure timing. Runtime effect execution owns applying the resulting effect payloads.
 
-Basic attacks should be represented as the same shape over time: an action with attack windup, one impact point, recovery, and a basic-attack effect payload. Basic attacks may keep a narrower implementation during migration, but they must not become a second long-term effect authority.
+Basic attacks currently share the Runtime action shape used by skills: actor-local windup, one impact boundary, recovery, interruption rules, and deterministic commit/event ordering. They retain a dedicated basic-attack proposal and damage-commit path instead of passing through the skill-effect executor registry; this preserves basic-attack-specific range, minimum-damage, charge, and event semantics. That specialized path is not a second general effect authority and must not grow into a parallel configurable effect system. Full convergence with skill effect executors requires a focused accepted proposal rather than being assumed as unfinished migration work.
 
 ## Cost, Cooldown, And Availability Ownership
 
@@ -221,7 +221,7 @@ SkillDefinitionResource
 -> BattleEventStream and reports
 ```
 
-Other ability-definition paths may exist only as explicit migration inputs before the accepted implementation slice removes or converts them. They must not remain as fallbacks, parallel feature paths, or alternate authorities. Missing resource definitions, invalid effect payloads, or unsupported rule types should fail explicitly with diagnostics instead of falling back to a legacy skill model.
+Other ability-definition paths are not active authorities. Any retained importer or compatibility adapter must be explicitly scoped, own no new skill facts, and remain removable; it must not become a fallback, parallel feature path, or alternate authority. Missing resource definitions, invalid effect payloads, or unsupported rule types should fail explicitly with diagnostics instead of falling back to a legacy skill model.
 
 ## Resource And Progression Flow
 

@@ -13,8 +13,9 @@ gameplay-design/     accepted player-facing gameplay and content rules
 system-design/       accepted implementation architecture and contracts
 design-proposals/    local proposal copies before merge into authority documents
 gameplay-alignment/  gap tracking and steady migration workstreams
-docs/                existing project documentation and historical implementation material
 ```
+
+Deleted legacy `docs/` routes are not active inputs. Historical proposals and implementation records remain discoverable through the archived indexes and do not override accepted authority.
 
 `system-design/` is not edited directly for architecture changes. Use the proposal flow in `../design-proposals/README.md`.
 
@@ -37,16 +38,6 @@ Acceptance
 
 Keep documents focused. Split large systems into smaller documents when one file starts mixing ownership, runtime flow, data model, and migration status.
 
-## First Target Areas
-
-Initial architecture documents should be created through proposals for:
-
-- hero/corps light-RTS combat;
-- hero command and corps command separation;
-- corps level and equipment-level progression;
-- city management and resource flow;
-- battle result writeback.
-
 ## Accepted Documents
 
 - `hero-led-light-rts-system-architecture.md`: battle-system architecture index and stable cross-cutting invariants.
@@ -54,7 +45,7 @@ Initial architecture documents should be created through proposals for:
 - `battle-navigation-topology-architecture.md`: battle topology compilation, runtime pathfinding, footprints, occupancy, reservations, and path diagnostics.
 - `battle-command-architecture.md`: hero/corps/combined command lifecycle, validation boundaries, runtime order events, and command failure semantics.
 - `battle-ai-boundary-architecture.md`: tactical autonomy, player-intent precedence, and LimboAI behavior-tree boundary.
-- `battle-tactical-intent-architecture.md`: battle target objects, tactical intent plans, target selectors, tactical capability boundaries, and enemy-first intent migration scope.
+- `battle-tactical-intent-architecture.md`: battle target objects, tactical intent plans, target selectors, side-neutral player/enemy intent, and tactical capability boundaries.
 - `battle-group-tactical-region-architecture.md`: battle-group-owned target objects/regions, temporary regions, local combat regions, enemy intent consumption, and player-command separation.
 - `battle-result-settlement-architecture.md`: snapshot/result contracts, settlement, report attribution, recovery, rollback, and campaign writeback rules.
 - `battle-content-progression-architecture.md`: ability/effect definitions, battle content resourceization, and resource/progression loops.
@@ -65,6 +56,7 @@ Initial architecture documents should be created through proposals for:
 - `site-map-layout-architecture.md`: reusable base terrain scenes, inherited site layout variants, bridge marker rules, layout extraction, validation, and per-location state isolation.
 - `scene-transition-router-architecture.md`: root scene transition ownership, handoff boundaries, loading overlay, and conservative root-scene preload cache rules.
 - `strategic-management-system-architecture.md`: clean Strategic Management authority for strategic content, state, rules, commands, presentation view models, and strategic-side battle boundary.
+- `strategic-world-map-authoring-architecture.md`: local Web geographic authoring, shared world/chunk contracts, Godot navigation authoring and compilation, dynamic passage access, and runtime visual loading.
 - `strategic-battle-bridge-architecture.md`: accepted bridge contract between Strategic Management and battle Runtime, including battle sessions, preparation drafts, snapshot compilation, result summaries, and strategic command writeback.
 
 ## Retired Documents

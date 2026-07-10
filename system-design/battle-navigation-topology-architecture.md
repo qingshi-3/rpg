@@ -83,7 +83,7 @@ It should expose:
 - topology version or diagnostic identity;
 - compact graph summary for diagnostics.
 
-Legacy raw `NavigationSurfaces` and `NavigationConnections` may remain only as compatibility input to the compiler during migration. Runtime graph construction consumes compiled topology, not those raw authoring snapshots.
+`NavigationSurfaces` and `NavigationConnections` are current Application-facing authoring snapshots supplied to the topology compiler. The compiler converts them into immutable `BattleNavigationTopology`; Runtime graph construction consumes only that compiled topology and never treats the raw lists as live navigation authority.
 
 `BattleRouteTopology` is the optional immutable route-hint layer derived from `BattleNavigationTopology`.
 

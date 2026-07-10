@@ -9,9 +9,11 @@ public static class FirstStrategicManagementDefinitions
     public static StrategicManagementDefinitionSet Create()
     {
         StrategicManagementContentConfig content = StrategicManagementContentConfigLoader.LoadDefaultContent();
-        StrategicManagementDefinitionSet definitions = new();
+        StrategicManagementDefinitionSet definitions = new()
+        {
+            ReserveRecoveryPerElapsedPulse = content.ReserveRecoveryPerElapsedPulse
+        };
         AddResources(definitions, content.Resources);
-        definitions.Conscription = content.Conscription;
         AddLocations(definitions);
         AddBattleRewards(definitions);
         AddEquipmentSamples(definitions);

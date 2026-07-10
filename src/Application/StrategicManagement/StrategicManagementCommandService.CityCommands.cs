@@ -225,64 +225,6 @@ public sealed partial class StrategicManagementCommandService
         return result;
     }
 
-    public StrategicCommandResult ManualConscriptReserveForces(
-        StrategicManagementState state,
-        string cityId)
-    {
-        string failureReason = _rules.GetManualConscriptionFailureReason(state, cityId);
-        if (!string.IsNullOrWhiteSpace(failureReason))
-        {
-            return Reject("ManualConscriptReserveForces", cityId, failureReason);
-        }
-
-        StrategicCityState city = state.Cities[cityId];
-        StrategicLocationState location = state.Locations[city.LocationId];
-        int reserveGain = _rules.GetManualConscriptionReserveGain();
-        System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> cost = _rules.GetManualConscriptionCost();
-
-        state.Spend(location.OwnerFactionId, cost);
-        city.ReserveForces += reserveGain;
-
-        StrategicCommandResult result = StrategicCommandResult.Ok(city.LocationId);
-        result.ChangedFactIds.Add(city.LocationId);
-        foreach (StrategicResourceAmount amount in cost)
-        {
-            result.ChangedFactIds.Add($"{location.OwnerFactionId}:{amount.ResourceId}");
-        }
-
-        result.Events.Add(Event(
-            "StrategicCityReserveForcesManuallyConscripted",
-            city.LocationId,
-            ("reserveGain", reserveGain.ToString()),
-            ("resources", FormatResourceAmounts(cost))));
-        Accept("ManualConscriptReserveForces", city.LocationId, result);
-        return result;
-    }
-
-    public StrategicCommandResult SetAutoConscriptionIntensity(
-        StrategicManagementState state,
-        string cityId,
-        string intensityId)
-    {
-        string failureReason = _rules.GetAutoConscriptionIntensityFailureReason(state, cityId, intensityId);
-        if (!string.IsNullOrWhiteSpace(failureReason))
-        {
-            return Reject("SetAutoConscriptionIntensity", cityId, failureReason);
-        }
-
-        StrategicCityState city = state.Cities[cityId];
-        city.AutoConscriptionIntensityId = intensityId ?? StrategicManagementIds.ConscriptionOff;
-
-        StrategicCommandResult result = StrategicCommandResult.Ok(city.LocationId);
-        result.ChangedFactIds.Add(city.LocationId);
-        result.Events.Add(Event(
-            "StrategicCityAutoConscriptionPolicyChanged",
-            city.LocationId,
-            ("intensity", city.AutoConscriptionIntensityId)));
-        Accept("SetAutoConscriptionIntensity", city.LocationId, result);
-        return result;
-    }
-
     public StrategicCommandResult AssignCorpsToHero(
         StrategicManagementState state,
         string heroId,

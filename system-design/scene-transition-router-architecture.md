@@ -29,15 +29,12 @@ It owns:
 - typed transition requests between strategic world, strategic-location detail, battle preparation/runtime, settlement report, and return flows;
 - transition busy state and duplicate transition rejection;
 - setup and cleanup of typed scene-entry handoff payloads;
-- loading overlay visibility and progress display;
-- root scene loading through cached `PackedScene` resources or direct scene path loading;
+- root scene loading through direct scene paths or an explicitly supplied `PackedScene`;
 - the actual `SceneTree.ChangeSceneToPacked` or `SceneTree.ChangeSceneToFile` call;
 - waiting for `SceneTree.SceneChanged` before marking a transition entered;
 - transition failure rollback, handoff cancellation, and low-noise diagnostics.
 
-`ScenePreloadCache` is an optional acceleration service used by the router.
-
-It owns:
+A future `ScenePreloadCache` is an optional acceleration service for the router. It is not a current capability. If implemented, that cache would own:
 
 - resource-only preload requests for `PackedScene` paths;
 - Godot threaded resource load status polling;
@@ -53,14 +50,14 @@ The router and cache do not own:
 - battle runtime execution, damage, movement, outcome, settlement, or report truth;
 - command validation or battle-entry gameplay rules;
 - tactical AI, expedition navigation, or enemy intent prediction;
-- UI layout authority beyond showing a transition/loading overlay;
+- UI layout authority beyond a future transition/loading overlay;
 - long-term state schema;
 - instantiated scene-node pooling;
 - automatic background scanning of the whole world to guess future gameplay.
 
 ## Persistent State
 
-Scene transition state is not persistent save state in the first phase.
+Scene transition state is not persistent save state.
 
 Persistent campaign state remains owned by Domain and Application services. If a transition fails, the router must restore or cancel the operation without fabricating persistent outcomes.
 
@@ -77,14 +74,13 @@ Router runtime state may include:
 - target scene path;
 - requested return scene path;
 - rollback token or callback supplied by the caller/application service;
-- loading overlay state;
 - handoff setup state;
 - scene-change start time for diagnostics;
 - final transition result.
 
 For Strategic Management-backed battles, the battle handoff runtime state is a Bridge Active Context or typed reference owned by the Strategic Battle Bridge. The router may carry, write, or cancel that context during transition, but it does not own the contained gameplay facts.
 
-Preload cache runtime state may include:
+When implemented, preload cache runtime state may include:
 
 - scene path;
 - load status: `None`, `Loading`, `Loaded`, `Failed`;
@@ -100,17 +96,17 @@ Preload cache runtime state may include:
 
 Presentation/UI may request transitions only through typed APIs.
 
-Recommended V0 transition request types:
+Current transition request families:
 
 | Request | Source | Target | Handoff |
 |---|---|---|---|
 | `EnterStrategicWorld` | startup, site return, battle settlement return | strategic world scene | optional resume flag |
-| `EnterSiteDetail` | strategic selection | world site scene | `StrategicWorldRuntime.BeginSiteVisit` during migration |
+| `EnterSiteDetail` | strategic selection | world site scene | site-visit context used only for scene/world-flow handoff |
 | `EnterBattlePreparation` | strategic battle bridge active context | battle preparation/runtime scene | typed Bridge Active Context handoff |
-| `ReturnFromSite` | site management UI | strategic world scene | `StrategicWorldRuntime.MarkWorldResumeAfterSiteReturn` |
+| `ReturnFromSite` | site management UI | strategic world scene | world-resume context used only for scene/world-flow handoff |
 | `ReturnAfterBattleSettlement` | settlement/report UI | strategic world scene | consumed battle result/writeback must already be resolved |
 
-Application and world-flow code may submit preload hints:
+A future preload cache may accept explicit hints from Application and world-flow code:
 
 ```text
 ScenePreloadHint(
@@ -121,18 +117,18 @@ ScenePreloadHint(
     pinPolicy)
 ```
 
-Preload hints are advisory. They never grant permission to enter a scene.
+Future preload hints are advisory. They never grant permission to enter a scene.
 
 ## Outputs
 
 Router outputs:
 
 - `SceneTransitionResult` with success/failure, target path, elapsed time, and failure reason;
-- low-noise diagnostic logs for transition start, success, failure, cancel, cache hit, cache miss, and rollback;
-- optional UI-visible loading or failure notice;
+- low-noise diagnostic logs for transition start, success, failure, cancel, and rollback;
+- optional UI-visible failure notice;
 - scene-entered event after `SceneTree.SceneChanged`.
 
-Preload cache outputs:
+Future preload cache outputs:
 
 - cache hit/miss status;
 - loading progress where available;
@@ -160,7 +156,7 @@ The router carries typed handoff payloads for scene-entry transitions:
 
 The router owns when these handoff payloads are written or canceled for scene-entry transitions. Scene roots may consume handoff data, but they must not create competing handoff state.
 
-`BattleSessionHandoff` is a legacy migration store, not the long-term battle bridge authority. New Strategic Management battle entry must use the Strategic Battle Bridge Active Context and must not require `BattleSessionHandoff` to boot or return from battle. A future unified `SceneTransitionContext` is allowed if it preserves this ownership boundary.
+`BattleSessionHandoff` is a legacy compatibility store, not the current battle bridge authority. Strategic Management battle entry uses Strategic Battle Bridge Active Context and must not require `BattleSessionHandoff` to boot or return from battle. A future unified `SceneTransitionContext` is allowed if it preserves this ownership boundary.
 
 ### Application Validation Contract
 
@@ -168,7 +164,7 @@ The router does not decide whether a site may be entered, whether a battle may s
 
 Callers must perform or request Application-level validation before submitting a transition. The router may reject malformed requests, missing paths, busy transitions, or missing required handoff payloads.
 
-### Preload Resource Contract
+### Deferred Preload Resource Contract
 
 The preload cache caches resources only:
 
@@ -180,17 +176,17 @@ The preload cache caches resources only:
 
 Scene instantiation and root scene replacement happen on the main scene transition path.
 
-### Loading Overlay Contract
+### Deferred Loading Overlay Contract
 
 The loading overlay is an authored Godot scene/control. Runtime code may instantiate or bind it, but must not build a new permanent UI tree with hardcoded controls.
 
 Player-visible loading and failure text defaults to Chinese.
 
-## Game-Flow Preload Policy
+## Deferred Game-Flow Preload Policy
 
 Preloading exists to reduce stalls in expected near-term transitions. It is not a gameplay prediction engine.
 
-Recommended V0 hint sources:
+Potential future hint sources:
 
 | Flow Moment | Hint | Priority | Notes |
 |---|---|---|---|
@@ -203,9 +199,9 @@ Recommended V0 hint sources:
 
 Do not preload every visible strategic location. Do not let the cache poll all armies and opportunities by itself.
 
-## Cache Budget And Eviction
+## Deferred Cache Budget And Eviction
 
-V0 cache limits should be conservative:
+Future cache limits should be conservative:
 
 ```text
 MaxCachedScenes: 2 or 3 non-current root scenes
@@ -270,36 +266,34 @@ Destination boot failure:
 Overlapping transition:
 
 - reject or queue according to explicit router policy;
-- V0 should reject duplicate player-triggered transitions while `IsTransitioning` is true;
+- the current policy rejects duplicate player-triggered transitions while `IsTransitioning` is true;
 - rejection should be low-noise and should not create another modal loop.
 
-## Migration Plan
+## Current Capability And Future Extensions
 
-### Phase 1: Router Boundary
+### Current Router Boundary
 
-- Add the router as the only runtime owner of root scene replacement.
-- Migrate strategic-world site entry, strategic-world battle entry, and site return behind typed router calls.
-- Keep only explicitly scoped migration handoff stores while moving player-facing scene changes behind the router. New Strategic Management battle entry must target the Strategic Battle Bridge Active Context.
-- Add direct-scene-change regression guard.
+- The router is the only runtime owner of player-facing root scene replacement.
+- Strategic-world site entry, Strategic Management battle entry, site return, and post-battle return use typed transition requests.
+- Strategic Management battle entry carries Strategic Battle Bridge Active Context; retained site-visit carriers are scene/world-flow adapters, not strategic gameplay authority.
+- Direct player-facing root scene changes outside the router are rejected by regression guards.
 
-### Phase 2: Loading Overlay And Diagnostics
+### Deferred Loading Presentation
 
-- Add authored loading overlay resource.
-- Wait for `SceneTree.SceneChanged` before marking success.
-- Add start/success/failure timing logs.
+- The authored loading overlay is not a current player-facing capability.
+- A future loading surface must remain Presentation-only, wait for scene entry before reporting success, and show router-provided failure state without fabricating gameplay results.
 
-### Phase 3: Conservative Preload Cache
+### Deferred Conservative Preload Cache
 
-- Add resource-only `ScenePreloadCache`.
-- Support manual preload hints from stable selection, pre-battle gate, and return-to-world flows.
-- Enforce small budget, TTL, LRU, and pin behavior.
+- Scene preloading is not a current capability.
+- A future cache is limited to `PackedScene` resources, accepts only explicit hints from stable gameplay context, and enforces a small budget, TTL, LRU, and pin behavior.
 
-### Phase 4: World-Flow Hints
+### Later World-Flow Hints
 
-- Add high-priority hints from world progression when an army is near a likely battle transition.
-- Keep prediction outside the cache. World systems provide explicit hints.
+- World progression may later provide high-priority hints when an army is near a likely battle transition.
+- Prediction stays outside the cache; world systems provide explicit hints.
 
-### Phase 5: Unified Transition Context
+### Optional Unified Transition Context
 
 - Consider consolidating remaining static handoff stores into a typed `SceneTransitionContext`.
 - This phase needs its own proposal if it changes persistent state, runtime ownership, or save/resume behavior.
@@ -308,12 +302,12 @@ Overlapping transition:
 
 This architecture is acceptable when:
 
-- future work can identify the single owner for root scene replacement;
+- the running game has one identifiable router owner for player-facing root scene replacement;
 - scene roots submit transition requests instead of performing player-facing root scene changes directly;
 - Application remains responsible for gameplay validation before transitions;
 - Runtime and Settlement remain responsible for battle truth and writeback;
-- preload caching is clearly limited to `PackedScene` resources;
-- cache hints are explicit and bounded, not autonomous world scanning;
+- any later preload cache is limited to `PackedScene` resources;
+- any later cache hints are explicit and bounded, not autonomous world scanning;
 - failure and rollback semantics are documented for battle, site, and return flows;
 - Strategic Management-backed battle transitions use Bridge Active Context instead of static `BattleSessionHandoff` as authority;
-- the first implementation can migrate current direct scene switches without changing the accepted gameplay loop.
+- current strategic-world, site, battle, and return transitions preserve the accepted gameplay loop behind typed router requests.

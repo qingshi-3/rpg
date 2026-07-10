@@ -30,24 +30,30 @@ Presentation/UI does not own:
 
 UI may:
 
-- Read definitions and current state for display through existing query services during migration.
+- Read definitions and current state for display through accepted query or view-model boundaries.
 - Build derived display-only view models.
 - Disable buttons for basic local availability hints.
 - Submit Application requests such as expedition, site entry, and deployment confirmation.
 - Submit typed scene transition requests instead of calling root scene-change APIs directly.
-- Submit `CommandRequest` when light-RTS command UI is implemented, including destination beacon commands from selected battle groups and right-clicked cells.
+- Submit `CommandRequest` from current and future light-RTS command UI, including destination and hero-skill commands.
 
 UI must not:
 
-- Mutate long-term state directly except through existing migration paths already owned by Application services.
+- Mutate long-term state directly; all persistent changes go through the accepted Application, Strategic Management, Bridge, or Runtime command boundary.
 - Compute battle outcome, casualties, rewards, or settlement deltas.
 - Duplicate `BattleStartRequest`, `BattleStartSnapshot`, battle group state, or site unit pools as UI-owned models.
 - Treat hidden fallback controls as valid behavior when an authoritative path fails.
 - Add permanent screen-level panels outside approved layout hosts.
 
+## Context-First UI Principle
+
+Player-facing UI should expose only the state, choices, and feedback relevant to the player's current context. Unrelated details and capabilities recede when the context changes, so the active surface remains concise, immersive, and focused on the current decision.
+
+Do not turn default surfaces into broad information boards or repeat the same capability through parallel panels and controls. Additional detail belongs in a focused sub-context only when the player needs it to understand or complete the active task.
+
 ## Layout Host Model
 
-The target layout is a strategy/RTS workspace:
+The accepted layout is a strategy/RTS workspace:
 
 ```text
 +------------------------------------------------------------------+
@@ -73,7 +79,17 @@ The target layout is a strategy/RTS workspace:
 
 `MainWorldViewport` is a real Godot `SubViewport` hosted by a `SubViewportContainer`, not only a logical rectangle. Strategic map, site map, battle units, battle overlays, and their cameras live inside this viewport tree. HUD panels, modal dialogs, and persistent management UI remain outside it in normal `Control` or `CanvasLayer` UI hosts.
 
-This boundary exists so world rendering cannot become the background of UI panels. If a scene cannot yet be fully wrapped, the migration must isolate one vertical slice at a time and add regression guards for the remaining direct-root world content.
+This boundary exists so world rendering cannot become the background of UI panels. Player-facing strategic, site, and battle scenes must keep world content inside the accepted viewport boundary; direct-root world content is not an allowed fallback.
+
+### Strategic World Map Rendering
+
+The strategic world's static terrain is presented through aligned raster chunks under `MainWorldViewport`. Runtime strategic objects, city-territory hover and selection overlays, fog, alerts, and HUD remain separate presentation layers and must not be baked into chunk art.
+
+The local Web geographic workbench may display real-world references, geographic layers, final chunk art, masks, and validation overlays in one authoring view. Its city-territory hover and smaller-region highlight simulation is authoring feedback, not player-facing Presentation authority. It must not define runtime UI state or become a hidden runtime map implementation.
+
+Godot navigation authoring may display the active final-art chunk and its neighbors for alignment context. Runtime chunk residency is owned behind the strategic-world map-loading boundary and may display only camera-visible chunks plus a preload margin. Visual chunk residency must not decide whether strategic navigation data exists.
+
+Presentation may consume compiled territory masks, lookup data, and outlines and may display navigation, chunk-boundary, seam, and alignment diagnostics in Godot editor or debug contexts. It does not own canonical geographic editing, static navigation compilation, faction-aware route access, path invalidation, or strategic passage state.
 
 ### TopBarHost
 
@@ -134,9 +150,9 @@ V0 may leave this host empty. It should be reserved in the architecture to preve
 
 ### BottomCommandHost
 
-Owns future high-frequency battle command controls.
+Owns current and future high-frequency battle selection and command controls.
 
-V0 may remain hidden. When implemented, command buttons submit `CommandRequest`; they do not directly mutate Runtime or Domain.
+The current foundation supports battle-group selection and multi-selection, tactical-pause command input, destination commands, and hero-skill commands. These controls submit `CommandRequest`; they do not directly mutate Runtime or Domain. Later hero, corps, and combined battle-group commands extend this foundation instead of creating a separate command surface or authority.
 
 ### OverlayHost
 
@@ -223,7 +239,7 @@ Rules:
 
 ## Dirty Refresh Rules
 
-Short-term implementation may keep current `RefreshAll()` methods, but new work should move toward explicit refresh reasons:
+Whole-surface refresh methods are allowed only for low-frequency bootstrap or mode replacement. State-driven refreshes use explicit reasons such as:
 
 - selection changed;
 - mode changed;
@@ -235,7 +251,7 @@ Short-term implementation may keep current `RefreshAll()` methods, but new work 
 
 High-frequency per-frame UI rebuilds are forbidden unless explicitly justified and logged.
 
-## Migration Rules For Current Code
+## Current Scene And Presentation Contracts
 
 ### Strategic World
 
@@ -245,27 +261,27 @@ Top strategic-world UI is not a single full-width bar. Resource/status, notice, 
 
 `SiteDetailPanel` is a selected-context bottom sheet under `OverlayHost`, centered horizontally near the lower screen edge. It sizes to its current content within viewport-safe width and height limits; when content exceeds that safe height, the body/details area and the action card clip their variable content through internal scroll containers while the sheet frame and action region remain visible. It is hidden when no strategic location or opportunity context is selected. Its content lays out horizontally so it reads as a contextual sheet, not as a left-side menu.
 
-Current bindings in `StrategicWorldRoot.UiBootstrap.cs` and `StrategicWorldRoot.DetailHud.cs` may remain initially if they only display and submit Application requests.
+Presentation bindings in `StrategicWorldRoot.UiBootstrap.cs` and `StrategicWorldRoot.DetailHud.cs` may remain as entry points when they only display state and submit Application requests.
 
-`StrategicWorldRoot.tscn` must host `WorldMapRoot`, `WorldCamera`, and map-space overlay controls under `MainWorldViewportHost/MainWorldViewport`. Site hit buttons and labels may remain `Control` nodes during migration, but they must attach to a viewport-local overlay instead of the root UI canvas.
+`StrategicWorldRoot.tscn` hosts `WorldMapRoot`, `WorldCamera`, and map-space overlay controls under `MainWorldViewportHost/MainWorldViewport`. Site hit buttons and labels may remain `Control` nodes when they attach to a viewport-local overlay instead of the root UI canvas.
 
 ### World Site
 
-`WorldSitePeacetimeHud.tscn` should migrate site management from a permanent split-screen `SitePeacetimePanel` to a fullscreen-map management model. The site map stays in `MainWorldViewport` at full root size during peacetime management. A narrow vertical `SiteManagementTabRail` is anchored to the left edge outside the viewport, and opened function panels live under the approved overlay/modal hosts without changing the map camera or viewport layout.
+Entered-city and managed-site presentation uses a fullscreen-map management model. The site map stays in `MainWorldViewport` at full root size during peacetime management. A narrow vertical function rail is anchored to the left edge, and one current management function opens as a task-sized overlay or modal without changing the map camera or viewport layout.
 
-`ApplySitePeacetimePanelLayout()` must stop hardcoding a permanent left panel width or right-side viewport reservation. Rename or wrap it when practical so the method name no longer implies peacetime-only ownership.
+Site-management panel layout may size and position the active overlay, but it must not reserve permanent horizontal space or change the fullscreen map viewport.
 
-World-site map, units, battle overlays, debug world nodes, and battle camera belong in `MainWorldViewport`. Site management HUD, battle-preparation panels, selection vignette, modal dialogs, and future command UI belong outside the viewport. The current `WorldSiteRoot` scene may migrate after strategic world isolation if changing the root type would create a high-risk runtime rewrite.
+World-site map, units, battle overlays, debug world nodes, and battle camera belong in `MainWorldViewport`. Site-management HUD, battle-preparation panels, selection vignette, modal dialogs, and battle command UI belong outside the viewport.
 
-The site-management default state shows only compact map overlays plus the left tab rail. The rail contains the major city functions, such as build, conscription, recruitment, and overview. It should use authored tab/button resources derived from `assets/textures/ui/tinyrpg_manasoulgui_v_1_0/20250420manaTabD-Sheet.png`. The atlas frame may be cut into normal, hover, pressed, and disabled regions or equivalent texture-backed theme resources. Do not stretch the full sheet as one raw panel image.
+The site-management default state shows only compact map overlays plus the left tab rail. The rail contains major city functions with accepted player workflows, such as build, recruitment, and overview. Passive reserve recovery does not require a dedicated conscription tab. The rail should use authored tab/button resources derived from `assets/textures/ui/tinyrpg_manasoulgui_v_1_0/20250420manaTabD-Sheet.png`. The atlas frame may be cut into normal, hover, pressed, and disabled regions or equivalent texture-backed theme resources. Do not stretch the full sheet as one raw panel image.
 
 Tab hover animation is local Presentation feedback. It may shift the tab, swap frame state, tint, or play a short tween, but it must not change selected function state, command legality, or Strategic Management data.
 
 Clicking a tab opens only that function's panel and hides the other tab entries until the panel closes. Closing the panel returns to the tab rail. Opening a different function should be an explicit close-then-open or direct switch inside the active panel surface; the player should not see the whole function menu competing with an open management panel.
 
-Function panels are task-sized overlays, not fullscreen by default. Overview and conscription should prefer compact panels sized to their content. Build selection should use a left or near-left picker panel, then hide management panels while map placement owns the interaction. Recruitment may remain a large bounded workbench because hero selection and troop option cards need space, but it still should not define every site-management panel as fullscreen.
+Function panels are task-sized overlays, not fullscreen by default. Overview should prefer a compact panel sized to its content and may show current reserve soldiers, total force capacity, and the passive recovery rate as read-only facts. Build selection should use a left or near-left picker panel, then hide management panels while map placement owns the interaction. Recruitment may remain a large bounded workbench because hero selection and troop option cards need space, but it still should not define every site-management panel as fullscreen.
 
-The first-version recruitment surface is also the hero main-corps reassignment workbench. It should present a hero selector and troop option cards as the primary flow. A separate corps tab should not remain in the site-management tab bar unless it owns a distinct accepted workflow beyond what the recruitment workbench already provides.
+The first-version recruitment surface is also the hero main-corps reassignment workbench. Its primary flow is selecting a hero and then a troop option. A separate corps tab does not belong in the site-management tab bar unless it gains a distinct accepted workflow beyond what the recruitment workbench already provides.
 
 Troop option cards must show reserve-soldier and resource requirements directly on the card as compact attributes, preferably icon plus amount. When a selected hero already has a corps, the card should still present the selected corps requirements rather than printing old-corps refund and final net reserve/resource change. Strategic Management commands remain the authority for replacement validation and refund settlement; Presentation may consume settlement projections for diagnostics or future confirmation surfaces, but normal recruitment cards must not become accounting breakdowns.
 
@@ -277,9 +293,9 @@ The next valid map click submits `BuildCityBuilding` through Strategic Managemen
 
 ### Battle Preparation
 
-Battle preparation must stop presenting roster units through `_siteGarrisonList` as a long-term design.
+Battle preparation uses its own compact battle-group roster and must not present deployment choices through the city garrison or management lists.
 
-The target battle-preparation UI is a map-first battle-group deployment workflow:
+The current battle-preparation capability is a map-first battle-group deployment workflow:
 
 ```text
 compact battle-group roster / placement source
@@ -295,7 +311,7 @@ compact battle-group roster / placement source
 
 The battle-preparation roster is a narrow switcher and placement source, not a text-heavy panel. It displays battle-group portrait, battle-group name, and a compact deployment status marker such as deployed, needs destination, reserve, or invalid. It must not become the place where objective text, engagement-rule explanations, enemy summaries, or long action instructions accumulate.
 
-Formation selection belongs to the current-battle deployment controls, not the roster row and not a large formation editor. The selected formation is the formation used by drag preview. If the player has not changed it in battle preparation, it is initialized from the battle group's strategic default formation. The player may change it before placement or after placement; after-placement changes must request a transactional recompute and keep the previous valid placement when the new formation does not fit.
+Formation selection belongs to the current-battle deployment controls, not the roster row and not a large formation editor. The selected formation is used by the pointer-follow placement preview regardless of whether placement began from the primary click flow or the compatible drag flow. If the player has not changed it in battle preparation, it is initialized from the battle group's strategic default formation. The player may change it before placement or after placement; after-placement changes must request a transactional recompute and keep the previous valid placement when the new formation does not fit.
 
 Roster rows and battle-preparation HUD docks are authored Godot scene resources. `WorldSitePeacetimeHud.tscn` owns the dock layout through normal `Control` anchors and containers; reusable rows such as `BattlePreparationRosterRow.tscn` own their child structure. C# may bind data, connect signals, toggle visibility, and animate relative retreat offsets, but it must not rebuild this layout through ad hoc `new` Control trees or runtime anchor helpers.
 
@@ -313,17 +329,13 @@ After a battle group is placed, Presentation enters preparation destination-targ
 
 Battle preparation does not need a persistent bottom plan bar. The only persistent launch control should be a lower-right start-battle button outside map-operation suppression states. It remains disabled with a player-readable reason until launch readiness is satisfied, including at least one deployed participating battle group and required initial destination beacon facts.
 
-Migration path:
-
-1. Keep existing behavior stable while the panel is moved left.
-2. Replace text-heavy battle-preparation panels with a compact roster, battlefield overlays, current-battle-group deployment controls, a preparation destination-targeting guide, and a lower-right start-battle action.
-3. Bind player roster, deployment status, formation, and start-battle actions to battle-preparation-specific containers.
-4. Continue consuming the same battle request/snapshot and deployment draft source; do not create a separate UI unit pool.
-5. Reserve `OverlayHost` and battle map overlays for deployment highlights, formation-follow previews, invalid-placement feedback, preparation destination-targeting guide arrows, destination beacons, optional route previews, and optional objective/tactical marker outlines.
+Battle preparation consumes the accepted battle request/snapshot and deployment draft; it does not create a separate UI unit pool. Its compact roster, placement status, formation controls, destination selection, and launch action belong to battle-preparation-specific surfaces. `OverlayHost` and battle map overlays own deployment highlights, pointer-follow formation previews, invalid-placement feedback, destination-targeting guide arrows, destination beacons, optional route previews, and optional objective or tactical marker outlines.
 
 ### Battle Runtime
 
-Battle runtime may hide the left primary panel in V0. Runtime selection and command UI belongs in `BottomCommandHost` and viewport overlays, then submits `CommandRequest`.
+Battle runtime uses the fullscreen battlefield without a persistent city-management or left-primary panel. Runtime selection and command UI belongs in `BottomCommandHost` and non-blocking viewport overlays, then submits `CommandRequest`.
+
+The current command foundation supports selecting or multi-selecting player battle groups, issuing destination commands during live battle or tactical pause, and targeting player-cast hero skills. This is not the complete hero/corps/combined command vocabulary: retreat, regroup or return-to-guard behavior, dedicated corps active abilities, and other channel-specific commands remain later extensions of the same Runtime command boundary.
 
 The first battle-runtime visual baseline is map-first: live battle defaults to the fullscreen map with only compact, low-profile status when useful; selected or paused detail UI may appear for reading and command selection, but it is not allowed to remain over the map while the player is choosing a cell or target. World-space unit HP/status presentation may be more visible than screen-space panels because it moves with the map object and does not reserve a screen corner.
 
@@ -361,4 +373,4 @@ The UI architecture is acceptable when:
 - new UI work has a clear data source and write boundary;
 - hover presentation follows the simple `TooltipText`, authored complex tooltip scene, or subsystem-owned world-overlay path and remains display-only;
 - regression tests prevent reintroducing right-side main-panel hardcoding;
-- future command UI can submit `CommandRequest`, including destination beacon commands, without direct Runtime or Domain mutation.
+- current and future command UI submits `CommandRequest`, including destination and hero-skill commands, without direct Runtime or Domain mutation.

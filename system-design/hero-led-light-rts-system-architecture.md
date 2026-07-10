@@ -23,7 +23,7 @@ The core architecture term is:
 battle group = 1 hero + 1 main corps
 ```
 
-Runtime-visible force counts may create multiple combat actors for presentation, collision, attack, or damage resolution, but they do not by themselves create separate battle-group commander state. The selectable battle group or accepted battle-group command identity remains the commander boundary. If a migration adapter expands old force-count data, it must preserve the owning battle-group identity instead of letting each expanded row become an independent tactical commander.
+Runtime-visible force counts may create multiple combat actors for presentation, collision, attack, or damage resolution, but they do not by themselves create separate battle-group commander state. The selectable battle group or accepted battle-group command identity remains the commander boundary. If a compatibility adapter expands old force-count data, it must preserve the owning battle-group identity instead of letting each expanded row become an independent tactical commander.
 
 Chinese design language uses **战斗编组**. Code-facing English should use `BattleGroup` unless a later accepted proposal changes the naming rule.
 
@@ -66,7 +66,7 @@ Use progressive disclosure. Read the smallest authority document that matches th
 | Battle map topology compilation, pathfinding, footprints, occupancy, reservations, path failure diagnostics | `battle-navigation-topology-architecture.md` |
 | Hero/corps/combined command lifecycle, validation, runtime order events | `battle-command-architecture.md` |
 | Tactical autonomy, player intent precedence, LimboAI behavior-tree boundary | `battle-ai-boundary-architecture.md` |
-| Battle target objects, tactical intent plans, target selectors, tactical capability boundaries, and enemy-first intent migration | `battle-tactical-intent-architecture.md` |
+| Battle target objects, tactical intent plans, target selectors, side-neutral player/enemy intent, and tactical capability boundaries | `battle-tactical-intent-architecture.md` |
 | Battle-group-owned target objects/regions, temporary regions, local combat regions, enemy intent consumption, and player-command separation | `battle-group-tactical-region-architecture.md` |
 | Snapshot/result contracts, settlement, report attribution, recovery, rollback/failure semantics | `battle-result-settlement-architecture.md` |
 | Ability/effect definitions, combat content resourceization, resource and progression loops | `battle-content-progression-architecture.md` |
@@ -146,16 +146,16 @@ Runtime emits EventStream + BattleOutcomeResult
 -> UI shows settled result and explanation
 ```
 
-## Migration Principles
+## Current Authority And Legacy Isolation
 
 | Principle | Rule |
 |---|---|
-| Target architecture first | New systems follow hero-led light RTS, battle groups, strategic management, and reportable settlement. |
-| Old concepts stay outside core contracts | AP, TurnSystem, old auto-battle, and old unit-count force models cannot become new Domain or Runtime foundations. |
-| Temporary adapters are allowed | Old data may be converted into new snapshots or states during migration. |
-| Adapters must be removable | Temporary migration code stays outside the core architecture and can be deleted after migration. |
+| Current architecture | New work follows hero-led light RTS, battle groups, Strategic Management, and reportable settlement as the running-game authority. |
+| Retired concepts stay outside core contracts | AP, TurnSystem, old auto-battle, and old unit-count force models cannot become Domain or Runtime foundations. |
+| Boundary adapters are explicit | Retained old data may be converted into current snapshots or states only at a named compatibility boundary. |
+| Adapters must be removable | Compatibility code stays outside the core architecture, owns no new gameplay facts, and remains removable. |
 | No double authority | One runtime responsibility has one target implementation. Old and new paths must not compete as equal authorities. |
-| Contracts before presentation | Stabilize Definition, Domain, Snapshot, Result, Event, and Settlement contracts before replacing UI and scene presentation. |
+| Contracts govern presentation | Definition, Domain, Snapshot, Result, Event, and Settlement contracts remain authoritative over UI and scene presentation. |
 | Explicit failure | Missing mappings or invalid old data fail clearly with diagnostics instead of hidden fallback. |
 
 ## Acceptance
@@ -165,4 +165,4 @@ This index is acceptable when:
 - future work can identify the smallest focused authority document for the task;
 - detailed battle rules are no longer buried in this top-level file;
 - Runtime, navigation, command, AI, settlement, and content/progression ownership are routed to separate documents;
-- old implementation can be treated as migration input rather than target architecture.
+- any retained old implementation is constrained as compatibility input or an adapter, not an alternative gameplay authority.

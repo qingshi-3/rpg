@@ -27,7 +27,6 @@ public partial class WorldSiteRoot
     private enum SiteManagementSection
     {
         Build,
-        Conscription,
         Overview
     }
 
@@ -88,12 +87,10 @@ public partial class WorldSiteRoot
         _returnMapButton = hudRefs.ReturnMapButton;
         _siteManagementTabRail = hudRefs.SiteManagementTabRail;
         _siteBuildTabButton = hudRefs.BuildTabButton;
-        _siteConscriptionTabButton = hudRefs.ConscriptionTabButton;
         _siteRecruitTabButton = hudRefs.RecruitTabButton;
         _siteOverviewTabButton = hudRefs.OverviewTabButton;
         _sitePanelCloseButton = hudRefs.SitePanelCloseButton;
         _siteBuildSection = hudRefs.SiteBuildSection;
-        _siteConscriptionSection = hudRefs.SiteConscriptionSection;
         _siteOverviewSection = hudRefs.SiteOverviewSection;
         _militaryWorkbenchBackdrop = hudRefs.MilitaryWorkbenchBackdrop;
         _militaryWorkbenchPanel = hudRefs.MilitaryWorkbenchPanel;
@@ -116,7 +113,6 @@ public partial class WorldSiteRoot
         _battlePreparationTopPromptLabel = hudRefs.BattlePreparationTopPromptLabel;
         _siteBuildingBuildTitle = hudRefs.SiteBuildingBuildTitle;
         _siteBuildingOptionGrid = hudRefs.SiteBuildingOptionGrid;
-        _siteConscriptionList = hudRefs.SiteConscriptionList;
         _siteBuildingList = hudRefs.SiteBuildingList;
         _strategicManagementDashboardPanelBinder = new StrategicManagementDashboardPanelBinder(
             _siteResourceLabel,
@@ -125,10 +121,7 @@ public partial class WorldSiteRoot
             _siteBuildingList,
             _siteBuildingBuildTitle,
             _siteBuildingOptionGrid,
-            _siteConscriptionList,
-            OnStrategicBuildBuildingSelected,
-            OnStrategicManualConscriptPressed,
-            OnStrategicAutoConscriptionIntensityPressed);
+            OnStrategicBuildBuildingSelected);
         _strategicMilitaryWorkbenchBinder = new StrategicMilitaryWorkbenchBinder(
             _militaryHeroList,
             _militaryMusterGrid,
@@ -165,12 +158,6 @@ public partial class WorldSiteRoot
         {
             _siteBuildTabButton.Pressed += () => OpenSiteManagementSectionWithBounce(SiteManagementSection.Build, _siteBuildTabButton, "建造");
             WireSiteManagementTabHover(_siteBuildTabButton, "建造");
-        }
-
-        if (_siteConscriptionTabButton != null)
-        {
-            _siteConscriptionTabButton.Pressed += () => OpenSiteManagementSectionWithBounce(SiteManagementSection.Conscription, _siteConscriptionTabButton, "征兵");
-            WireSiteManagementTabHover(_siteConscriptionTabButton, "征兵");
         }
 
         if (_siteRecruitTabButton != null)
@@ -511,10 +498,6 @@ public partial class WorldSiteRoot
             _siteBuildTabButton,
             SiteManagementSection.Build);
         ApplySiteManagementSectionVisibility(
-            _siteConscriptionSection,
-            _siteConscriptionTabButton,
-            SiteManagementSection.Conscription);
-        ApplySiteManagementSectionVisibility(
             _siteOverviewSection,
             _siteOverviewTabButton,
             SiteManagementSection.Overview);
@@ -841,47 +824,6 @@ public partial class WorldSiteRoot
         UpdateSiteManagementEntryVisibility("building_placement_selected");
         UpdateStrategicBuildingPlacementPreview();
         RefreshSiteManagementUi($"{building.DisplayName}已选择，请在地图建设区域点击放置。");
-    }
-
-    private void OnStrategicManualConscriptPressed()
-    {
-        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
-        {
-            RefreshSiteManagementUi(BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId));
-            return;
-        }
-
-        StrategicManagementRuntime.EnsureInitialized();
-        StrategicCommandResult result = StrategicManagementRuntime.Commands.ManualConscriptReserveForces(
-            StrategicManagementRuntime.State,
-            cityId);
-        if (result.Success)
-        {
-            StrategicManagementRuntime.SaveCurrentState();
-        }
-
-        HandleStrategicManagementCommandResult("手动征兵", result);
-    }
-
-    private void OnStrategicAutoConscriptionIntensityPressed(string intensityId)
-    {
-        if (!TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId))
-        {
-            RefreshSiteManagementUi(BuildStrategicManagementCityUnavailableNotice(_siteHudSiteId));
-            return;
-        }
-
-        StrategicManagementRuntime.EnsureInitialized();
-        StrategicCommandResult result = StrategicManagementRuntime.Commands.SetAutoConscriptionIntensity(
-            StrategicManagementRuntime.State,
-            cityId,
-            intensityId);
-        if (result.Success)
-        {
-            StrategicManagementRuntime.SaveCurrentState();
-        }
-
-        HandleStrategicManagementCommandResult("征兵力度", result);
     }
 
     private void OpenStrategicMilitaryWorkbench()

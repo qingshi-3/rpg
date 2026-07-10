@@ -79,7 +79,7 @@ This state is a session envelope around battle preparation and Runtime launch. I
 
 ### Bridge Active Context
 
-Strategic Management-backed battles use a Bridge Active Context as the long-term active handoff.
+Strategic Management-backed battles use Bridge Active Context as their current active handoff.
 
 The active context is a typed runtime envelope owned by the Strategic Battle Bridge. It may contain:
 
@@ -92,7 +92,7 @@ The active context is a typed runtime envelope owned by the Strategic Battle Bri
 
 The active context is the authoritative in-memory carrier for Strategic Management battle preparation, launch, and return. It is not persistent Strategic Management state, and it must not mutate heroes, corps, locations, resources, or expeditions directly.
 
-Temporary compatibility fields may be projected from the active context into legacy preparation UI models while those UI slices are being migrated. Those projections are adapters, not authorities.
+Any presentation or compatibility projection derived from the active context is a subordinate adapter. It may expose preparation facts for display, but it must not own launch readiness, participant identity, battle outcome, or result consumption.
 
 ## Inputs
 
@@ -232,7 +232,7 @@ For Strategic Management-backed battles, the summary is built from Bridge Active
 
 Scene transition carries the active bridge session context. It does not validate battle rules or own battle truth.
 
-The long-term handoff payload is the Bridge Active Context or a typed reference to it, not the legacy `BattleSessionHandoff` request/result store. The scene router may write or cancel this payload during root-scene replacement, but it must not fabricate battle results or strategic consequences.
+The current handoff payload is Bridge Active Context or a typed reference to it, not the legacy `BattleSessionHandoff` request/result store. The scene router may write or cancel this payload during root-scene replacement, but it must not fabricate battle results or strategic consequences.
 
 Scene roots may read the active context through bridge-facing APIs. They must not create parallel active Strategic Management battle state, and they must not require `BattleSessionHandoff` to boot a Strategic Management-backed battle.
 
@@ -247,9 +247,9 @@ The following are legacy bridge artifacts and must not receive new Strategic Man
 - old world army, garrison, and site-state source kinds;
 - static `BattleSessionHandoff` as the long-term bridge session.
 
-Temporary migration adapters may exist only when explicitly scoped by an implementation proposal. They must convert legacy facts into the accepted bridge/snapshot/result contracts and must remain removable.
+Any retained legacy adapter must be explicitly scoped, convert legacy facts into the accepted bridge/snapshot/result contracts, own no new battle or strategic facts, and remain removable.
 
-After the Bridge Active Context cutover, Strategic Management-backed battle entry must not depend on:
+Current Strategic Management-backed battle entry must not depend on:
 
 - `WorldBattleRequestBuilder` to produce the authoritative battle entry payload;
 - static `BattleSessionHandoff` to store active request/result state;
@@ -272,7 +272,7 @@ Legacy non-Strategic battle paths may remain only as explicitly scoped compatibi
 
 This architecture is acceptable when:
 
-- new Strategic Management work can request and resolve battles without depending on legacy world army, garrison, or site-management state;
+- the current Strategic Management battle flow requests and resolves battles without depending on legacy world army, garrison, or site-management state;
 - `BattleStartSnapshot` remains the Runtime input and is not inflated into a scene-transition or strategic-state carrier;
 - Runtime results and event streams are the source for settlement, report, and strategic result summaries;
 - Strategic Management state changes from battle results happen only through Strategic Management commands;

@@ -9,7 +9,7 @@ Status: Accepted
 - Supersedes: None
 - Superseded By: None
 - Amends: None
-- Amended By: None
+- Amended By: `design-proposals/archived/2026-07-10-lightweight-reserve-recovery/`
 - Affected Authority Documents:
   - `gameplay-design/content-systems-long-term-design.md`
   - `gameplay-design/details/cities-and-locations/README.md`

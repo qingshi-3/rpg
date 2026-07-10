@@ -10,11 +10,6 @@ public static class StrategicManagementIds
     public const string ResourceWood = "resource_wood";
     public const string ResourceOre = "resource_ore";
 
-    public const string ConscriptionOff = "conscription_off";
-    public const string ConscriptionLow = "conscription_low";
-    public const string ConscriptionStandard = "conscription_standard";
-    public const string ConscriptionHigh = "conscription_high";
-
     public const string LocationPlainsCity = "location_plains_city";
     public const string LocationTimberSite = "location_timber_site";
     public const string LocationBonefieldOutpost = "location_bonefield_outpost";

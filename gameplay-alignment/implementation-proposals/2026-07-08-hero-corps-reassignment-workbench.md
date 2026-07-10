@@ -1,6 +1,6 @@
 # Hero Corps Reassignment Workbench Implementation Proposal
 
-Status: Implemented - Pending Manual QA, Presentation Suite Blocked By Unrelated Taxonomy Guard
+Status: Implemented - Pending Manual QA
 
 ## Origin
 
@@ -103,7 +103,7 @@ Implement the accepted city recruitment workbench flow where selecting a troop o
 - Strategic Management owns replacement validation, refund calculation, mutation, and event reporting.
 - Presentation displays selected-corps reserve/resource requirements from view models and submits the replacement command.
 - The separate first-version corps tab is removed from the player-facing site-management tab bar.
-- Focused Strategic Management and Presentation regression guards pass, with only documented unrelated blockers accepted.
+- Focused Strategic Management checks and the complete Presentation regression suite pass.
 
 ## Verification Evidence
 
@@ -114,3 +114,4 @@ Implement the accepted city recruitment workbench flow where selecting a troop o
 - 2026-07-08: `git diff --check` exited 0; Git reported a line-ending normalization warning for `tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.PresentationAntiRot.cs`.
 - 2026-07-08: After the resource-chip amendment, the Presentation regression guard was verified red before implementation, then `dotnet run --project tests\WorldSiteDeploymentCacheRegression\WorldSiteDeploymentCacheRegression.csproj -v:minimal /p:GodotProjectDir=D:\godot\rpg` passed the task-specific `world site recruitment uses hero first military workbench` guard. The suite still exits nonzero on the unrelated resource taxonomy guard: `TileSets expected=0 actual=2`.
 - 2026-07-08: After the resource-chip amendment, `dotnet run --project tests\StrategicManagementRegression\StrategicManagementRegression.csproj -v:minimal` passed, `dotnet build rpg.csproj -maxcpucount:2 -v:minimal` passed with 0 warnings and 0 errors, and `git diff --check` exited 0 with the existing line-ending normalization warning for `tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.PresentationAntiRot.cs`.
+- 2026-07-10: The two tracked legacy TileSet resources under `assets/tilesets/` were removed after static reference checks confirmed all active scenes use `resource/tilesets/`. A fresh complete `WorldSiteDeploymentCacheRegression` run then passed with exit code `0`, including the recruitment-workbench and resource-taxonomy guards.

@@ -16,34 +16,6 @@ public sealed class StrategicManagementRules
         _definitions = definitions ?? new StrategicManagementDefinitionSet();
     }
 
-    public int GetManualConscriptionReserveGain()
-    {
-        return System.Math.Max(0, _definitions.Conscription?.Manual?.ReserveGain ?? 0);
-    }
-
-    public IReadOnlyList<StrategicResourceAmount> GetManualConscriptionCost()
-    {
-        return NormalizeCost(_definitions.Conscription?.Manual?.Cost);
-    }
-
-    public IReadOnlyList<StrategicConscriptionIntensityRule> GetAutoConscriptionIntensityRules()
-    {
-        return (_definitions.Conscription?.AutoIntensities ?? new List<StrategicConscriptionIntensityDefinition>())
-            .Where(item => !string.IsNullOrWhiteSpace(item.IntensityId))
-            .Select(ToConscriptionRule)
-            .ToList();
-    }
-
-    private static StrategicConscriptionIntensityRule ToConscriptionRule(StrategicConscriptionIntensityDefinition definition)
-    {
-        return new(
-            definition.IntensityId,
-            definition.DisplayName,
-            definition.ReserveGain,
-            NormalizeCost(definition.Cost),
-            definition.RequiresTrainingGround);
-    }
-
     private static List<StrategicResourceAmount> NormalizeCost(IReadOnlyCollection<StrategicResourceAmount> cost)
     {
         return (cost ?? System.Array.Empty<StrategicResourceAmount>())
@@ -51,54 +23,6 @@ public sealed class StrategicManagementRules
             .Select(item => new StrategicResourceAmount(item.ResourceId, item.Amount))
             .OrderBy(item => item.ResourceId)
             .ToList();
-    }
-
-    public bool TryGetAutoConscriptionIntensityRule(
-        string intensityId,
-        out StrategicConscriptionIntensityRule rule)
-    {
-        rule = GetAutoConscriptionIntensityRules()
-            .FirstOrDefault(item => string.Equals(item.IntensityId, intensityId ?? "", System.StringComparison.Ordinal));
-        return rule != null;
-    }
-
-    public string GetManualConscriptionFailureReason(
-        StrategicManagementState state,
-        string cityId)
-    {
-        if (!TryGetCityContext(state, cityId, out StrategicCityState city, out StrategicLocationState cityLocation))
-        {
-            return StrategicFailureReasons.MissingCity;
-        }
-
-        if (GetRemainingCityForceCapacity(state, city.LocationId) < GetManualConscriptionReserveGain())
-        {
-            return StrategicFailureReasons.CityForceCapacityFull;
-        }
-
-        return state.CanSpend(cityLocation.OwnerFactionId, GetManualConscriptionCost())
-            ? ""
-            : StrategicFailureReasons.InsufficientResources;
-    }
-
-    public string GetAutoConscriptionIntensityFailureReason(
-        StrategicManagementState state,
-        string cityId,
-        string intensityId)
-    {
-        if (!TryGetAutoConscriptionIntensityRule(intensityId, out StrategicConscriptionIntensityRule rule))
-        {
-            return StrategicFailureReasons.InvalidConscriptionIntensity;
-        }
-
-        if (!TryGetCityContext(state, cityId, out StrategicCityState city, out _))
-        {
-            return StrategicFailureReasons.MissingCity;
-        }
-
-        return rule.RequiresTrainingGround && !CityHasConstructedBuilding(city, StrategicManagementIds.BuildingTrainingGround)
-            ? StrategicFailureReasons.MissingBuilding
-            : "";
     }
 
     public IReadOnlyList<StrategicMusterTemplateAvailability> GetMusterTemplates(
@@ -1161,30 +1085,4 @@ public sealed class StrategicManagementRules
             reasons.Add(reason);
         }
     }
-}
-
-public sealed class StrategicConscriptionIntensityRule
-{
-    public StrategicConscriptionIntensityRule(
-        string intensityId,
-        string displayName,
-        int reserveGain,
-        IReadOnlyCollection<StrategicResourceAmount> cost,
-        bool requiresTrainingGround)
-    {
-        IntensityId = intensityId ?? "";
-        DisplayName = displayName ?? "";
-        ReserveGain = System.Math.Max(0, reserveGain);
-        Cost = (cost ?? System.Array.Empty<StrategicResourceAmount>())
-            .Where(item => item.Amount > 0 && !string.IsNullOrWhiteSpace(item.ResourceId))
-            .Select(item => new StrategicResourceAmount(item.ResourceId, item.Amount))
-            .ToList();
-        RequiresTrainingGround = requiresTrainingGround;
-    }
-
-    public string IntensityId { get; }
-    public string DisplayName { get; }
-    public int ReserveGain { get; }
-    public List<StrategicResourceAmount> Cost { get; }
-    public bool RequiresTrainingGround { get; }
 }

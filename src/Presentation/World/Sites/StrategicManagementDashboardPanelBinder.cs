@@ -16,10 +16,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
     private readonly VBoxContainer _buildingList;
     private readonly Label _buildingBuildTitle;
     private readonly GridContainer _buildingBuildList;
-    private readonly VBoxContainer _conscriptionList;
     private readonly Action<string> _selectBuildingForPlacement;
-    private readonly Action _manualConscript;
-    private readonly Action<string> _setAutoConscriptionIntensity;
 
     public StrategicManagementDashboardPanelBinder(
         Label resourceLabel,
@@ -28,10 +25,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
         VBoxContainer buildingList,
         Label buildingBuildTitle,
         GridContainer buildingBuildList,
-        VBoxContainer conscriptionList,
-        Action<string> selectBuildingForPlacement,
-        Action manualConscript,
-        Action<string> setAutoConscriptionIntensity)
+        Action<string> selectBuildingForPlacement)
     {
         _resourceLabel = resourceLabel;
         _overviewLabel = overviewLabel;
@@ -39,10 +33,7 @@ internal sealed class StrategicManagementDashboardPanelBinder
         _buildingList = buildingList;
         _buildingBuildTitle = buildingBuildTitle;
         _buildingBuildList = buildingBuildList;
-        _conscriptionList = conscriptionList;
         _selectBuildingForPlacement = selectBuildingForPlacement;
-        _manualConscript = manualConscript;
-        _setAutoConscriptionIntensity = setAutoConscriptionIntensity;
     }
 
     public void Bind(StrategicManagementDashboardViewModel dashboard)
@@ -62,12 +53,11 @@ internal sealed class StrategicManagementDashboardPanelBinder
 
         if (_selectionLabel != null)
         {
-            _selectionLabel.Text = $"兵力 {city.ActiveForces + city.ReserveForces}/{city.CityForceCapacity}    预备 {city.ReserveForces}    剩余 {city.RemainingForceCapacity}";
+            _selectionLabel.Text = $"兵力 {city.ActiveForces + city.ReserveForces}/{city.CityForceCapacity}    预备 {city.ReserveForces}    恢复 +{city.ReserveRecoveryPerElapsedPulse}/世界脉冲";
         }
 
         BindBuildings(city);
         BindBuildingOptions(city);
-        BindConscription(city.Conscription);
     }
 
     public void BindLocation(StrategicManagementDashboardViewModel dashboard)
@@ -165,26 +155,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
         }
     }
 
-    private void BindConscription(StrategicConscriptionViewModel conscription)
-    {
-        ClearChildren(_conscriptionList);
-        if (_conscriptionList == null)
-        {
-            return;
-        }
-
-        WorldConscriptionPanel panel = GameUiSceneFactory.CreateWorldConscriptionPanel(nameof(StrategicManagementDashboardPanelBinder));
-        if (panel == null)
-        {
-            return;
-        }
-
-        panel.Bind(conscription ?? new StrategicConscriptionViewModel());
-        panel.ManualConscriptRequested += () => _manualConscript?.Invoke();
-        panel.AutoConscriptionIntensityRequested += intensityId => _setAutoConscriptionIntensity?.Invoke(intensityId);
-        _conscriptionList.AddChild(panel);
-    }
-
     private void BindLocationReadOnlyLists(StrategicLocationDashboardViewModel location)
     {
         ClearChildren(_buildingList);
@@ -207,8 +177,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
 
         AddMutedLine(_buildingBuildList, "该地点不是城市，不开放建筑建设。");
 
-        ClearChildren(_conscriptionList);
-        AddMutedLine(_conscriptionList, "该地点不开放城市征兵。");
     }
 
     private static string BuildOverviewText(StrategicCityManagementViewModel city)
@@ -290,7 +258,6 @@ internal sealed class StrategicManagementDashboardPanelBinder
             StrategicFailureReasons.BuildingPlacementOccupied => "建筑占地被占用",
             StrategicFailureReasons.InsufficientReserveForces => "预备兵不足",
             StrategicFailureReasons.CityForceCapacityFull => "城市兵力容量已满",
-            StrategicFailureReasons.InvalidConscriptionIntensity => "征兵力度无效",
             StrategicFailureReasons.InvalidReplenishmentTarget => "补员目标无效",
             StrategicFailureReasons.CorpsAlreadyFullStrength => "编制已满员",
             StrategicFailureReasons.FactionMismatch => "势力不匹配",

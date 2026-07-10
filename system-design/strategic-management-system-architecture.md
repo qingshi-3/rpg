@@ -14,16 +14,16 @@ The Strategic Management system owns the game's long-term strategic-management l
 
 - strategic-location control, availability, and binding to accepted site map layout ids;
 - world-map strategic time, elapsed-time settlement, and paused management-state boundaries;
-- faction-shared first-version resources, resource rewards, and future resource-production settlement for `Money`, `Food`, `Wood`, and `Ore`;
+- faction-shared first-version resources, passive resource-production settlement, and resource rewards for `Money`, `Food`, `Wood`, and `Ore`;
 - city identity, authored construction regions, city building definitions and instances;
-- city force capacity and aggregate reserve soldiers; recovery rules are owned by Strategic Management but must be defined through the accepted economy/capability model before implementation;
+- city force capacity and aggregate reserve soldiers, including the configured first-version base recovery of `2` reserve soldiers per elapsed world-map pulse;
 - corps muster template availability and persistent corps instances;
 - hero strategic state, corps assignment, battle-group skill grants/loadouts, and expeditions;
 - strategic commands that mutate long-term state;
 - strategic presentation view models;
 - strategic-side battle handoff intent and battle-result application through a bridge boundary.
 
-Strategic Management is the new strategic-layer authority. Legacy world/site/action/garrison structures are not long-term authority for new strategic-management work.
+Strategic Management is the current strategic-layer authority. Legacy world/site/action/garrison structures are not strategic gameplay authority; any retained boundary adapter must remain subordinate and must not own new strategic facts or rules.
 
 ## Does Not Own
 
@@ -114,8 +114,8 @@ Commands include:
 - occupy, lose, discover, or change a strategic location;
 - settle elapsed world-map time and time-driven strategic effects;
 - settle resource rewards and accepted time-driven strategic effects;
-- build, remove, or later upgrade a city building;
-- create, recover, train, or upgrade a corps instance;
+- build or remove a city building, with building upgrades reserved for a later accepted capability;
+- create or replenish a corps instance;
 - assign or unassign a corps to a hero;
 - replace a hero's main corps through a city muster template, including old-corps full-refund settlement and new-corps assignment;
 - assign, unassign, unlock, or modify a hero or battle-group skill grant;
@@ -149,7 +149,7 @@ External battle interaction is through the Strategic Battle Bridge. The bridge m
 
 ### Strategic Timeflow
 
-Owns Sanguo Qunying-style world-map time for the strategic layer. The large strategic map is the normal running timeline. While it runs, elapsed time can move armies, allow enemy strategic actions, settle passive resource production, refresh opportunities, and later advance construction, training, recovery, or expedition timers.
+Owns Sanguo Qunying-style world-map time for the strategic layer. The large strategic map is the normal running timeline. The current foundation advances strategic army movement and settles passive resource production and city reserve recovery. Enemy strategic actions, opportunity refresh, construction duration, corps training, and expedition-preparation timers require later accepted capability slices.
 
 Entering city management pauses world-map time. Battle preparation, active battle, dialogue, story scenes, reports, and other modal management states also pause world-map time unless a later accepted architecture defines a specific exception.
 
@@ -171,7 +171,7 @@ It does not own cross-city transport loss, trade, logistics, or battle Runtime r
 
 Owns city identity, authored construction regions, placement legality, city building instances, construction state, and building-provided strategic capabilities.
 
-Buildings enable and support capabilities such as economy, reserve capacity, common military training, hero recruitment access, workshop support, defense, or later special routes. The old direct building scalar fields for per-pulse production, reserve recovery, and force-capacity bonuses are retired implementation scaffolding; future building effects must be introduced through a focused economy/capability architecture instead of re-adding ad hoc fields. Buildings do not directly instantiate battle Runtime units or bypass corps muster rules.
+The current foundation supports bounded building placement, resource costs, durable city building instances, and passive economy production. City reserve recovery is a base city rule and does not require a building. Common military training gates, hero recruitment access, workshop support, defense effects, reserve-capacity modifiers, and special routes are later building-capability slices unless a focused accepted rule explicitly introduces them. The old direct building scalar fields for per-pulse production, reserve recovery, and force-capacity bonuses are retired implementation scaffolding; future building effects must use a focused economy/capability architecture instead of re-adding ad hoc fields. Buildings do not directly instantiate battle Runtime units or bypass corps muster rules.
 
 The foundation construction model is bounded RTS-style placement: building-panel selection, mouse-attached preview, grid snapping, footprint validation, overlap checks, region bounds checks, resource checks, and explicit building eligibility. Construction regions define buildable space and must not reject a placement only because the building category differs from the region label. It does not include workers, road connectivity, gathering paths, production-efficiency simulation, or full RTS production queues. Later economy/capability work may use terrain, tile, resource context, or local map facts as efficiency modifiers without making them hidden category bans.
 
@@ -181,11 +181,17 @@ Owns available muster-template evaluation and persistent corps instances.
 
 A muster template is a derived availability result from city identity, buildings, source locations, resources, and later accepted systems. A corps instance is durable strategic state with strength, training, equipment, experience, assignment, and recovery state.
 
+The current player-facing foundation supports corps creation from available muster templates, reserve/resource-funded replenishment, hero assignment, and full-refund hero main-corps replacement. Training, level progression, equipment upgrades, and durable hero equipment loadouts are not current player-facing loops; existing progression fields and reward samples are extension anchors for later accepted capabilities.
+
 City reserve soldiers are an aggregate city manpower pool, not individual soldier records. Corps creation and replenishment consume reserve soldiers and resources. Active forces should be derived from corps, battle group, and garrison instances when possible, with the invariant:
 
 ```text
 ActiveForces + ReserveForces <= CityForceCapacity
 ```
+
+For each controlled city, first-version elapsed-time settlement recovers `min(2 * elapsedPulses, remaining force capacity)` reserve soldiers. The rate belongs to the Strategic Management economy definitions and Runtime must not duplicate it as a hidden constant. Recovery is free and has no first-version building requirement. Strategic state does not persist a manual-conscription queue or automatic-conscription policy, and Strategic Management exposes no player command for either concept.
+
+When recovery changes a city, elapsed-time settlement emits one aggregated low-noise recovery event for that city. It does not emit one event per pulse.
 
 Severe battle loss should move a corps instance into routed, scattered, recovering, or rebuilding state rather than permanently deleting it by default.
 
@@ -203,7 +209,9 @@ Skill definitions themselves are battle content definitions. Strategic Managemen
 
 Owns only strategic-side battle intent and battle-result application. It must not own battle Runtime internals or bridge session implementation details.
 
-This subsystem can say "this expedition requests battle against this target" and later "apply this battle result summary". The bridge contract, preparation session, snapshot compilation, scene handoff, and result-summary shape are owned by `strategic-battle-bridge-architecture.md`.
+The current foundation can request battle for an expedition against a hostile target and apply the resulting victory, defeat, corps-loss, ownership, reward, and hero-feedback facts back to strategic state. The bridge contract, preparation session, snapshot compilation, scene handoff, and result-summary shape are owned by `strategic-battle-bridge-architecture.md`.
+
+This establishes the foundation strategic battle loop; it does not mean terrain, facilities, corps automatic skills, equipment, bonds, or city influence already provide complete battle-outcome explanation. Those remain later battle-rule and reporting capabilities.
 
 The first version does not own a mandatory strategic battle-preparation choice before battle entry. A player expedition may request a battle directly after reaching a hostile battle-capable target; deployment and launch readiness then belong to the Strategic Battle Bridge.
 
@@ -239,22 +247,20 @@ Code-owned rule families:
 - expedition formation;
 - battle result application.
 
-Do not build a generic rule scripting language, full technology framework, arbitrary effect chains, automated strategic AI, complex logistics, or editor tooling as part of the first Strategic Management rebuild.
+Do not add a generic rule scripting language, full technology framework, arbitrary effect chains, automated strategic AI, complex logistics, or broad editor tooling to the current foundation without a focused accepted capability.
 
-## Clean Rebuild Policy
+## Single-Authority Policy
 
-Strategic Management is a clean rebuild of the strategic layer. The goal is clean final architecture, not preserving legacy strategic code during intermediate implementation steps.
+The strategic-layer replacement is complete: Strategic Management is the current authority. The following rules protect that single-authority boundary.
 
 Rules:
 
 - Do not keep dual strategic authorities.
 - Do not write legacy fallback paths.
 - Do not keep new and old strategic state in sync through double writes.
-- Do not preserve intermediate compilation or runtime behavior by keeping stale strategic authority.
+- Do not preserve stale strategic authority for compatibility or build convenience.
 - Reuse only the large-map TileMapLayer resource and other pure presentation assets when useful.
-- Keep existing battle Runtime behavior out of the strategic refactor except through the Strategic Battle Bridge boundary.
-
-During implementation, the project may be temporarily non-compiling while the strategic layer is being replaced. The final accepted implementation must compile, run, and verify only after the new Strategic Management authority has replaced the old strategic layer.
+- Strategic changes interact with battle only through the Strategic Battle Bridge boundary.
 
 ## Legacy Authority Retirement
 
@@ -268,7 +274,7 @@ The following legacy responsibilities must not receive new strategic-management 
 - first-slice strategic definition factory as the new content authority;
 - action-list UI as the long-term strategic-management UI model.
 
-These may be deleted, replaced, or temporarily broken during the clean rebuild. If a path remains after the rebuild, it must be renamed or constrained so it cannot be mistaken for Strategic Management authority.
+Any retained legacy path is an explicit adapter or presentation-only carrier. It must be renamed or constrained so it cannot be mistaken for Strategic Management authority, and it must not own new strategic facts, rules, or state mutation.
 
 ## Contracts
 
@@ -277,7 +283,7 @@ These may be deleted, replaced, or temporarily broken during the clean rebuild. 
 - City management, battle preparation, battle execution, dialogue, and reports pause world-map elapsed time by default.
 - City-management commands must not advance world-map time merely because the player opened or used a city screen.
 - City construction uses authored bounded construction regions and must not be implemented as unrestricted full-map RTS construction.
-- City manpower follows `ActiveForces + ReserveForces <= CityForceCapacity`; reserve soldiers recover only through Strategic Management time settlement and are consumed only through Strategic Management commands.
+- City manpower follows `ActiveForces + ReserveForces <= CityForceCapacity`; reserve soldiers recover at the configured first-version base rate only through Strategic Management time settlement and are consumed only through Strategic Management commands.
 - Rules must be deterministic read-only queries over definitions and state.
 - Presentation must consume view models and submit commands.
 - Hero main-corps replacement must go through Strategic Management; Presentation may consume replacement projections for validation, diagnostics, or future confirmation surfaces but must not calculate or apply replacement settlement as authority. Normal recruitment cards present the selected corps requirements, not the full replacement accounting breakdown.
@@ -300,7 +306,7 @@ These may be deleted, replaced, or temporarily broken during the clean rebuild. 
 
 This architecture is acceptable when:
 
-- a future implementation can replace the old strategic layer without dual strategic authorities;
+- the running game uses Strategic Management as the sole strategic gameplay authority without dual strategic state or mutation paths;
 - a strategic state can be understood without reading Godot scene nodes or battle Runtime state;
 - all player, AI, event, and battle-result strategic mutations go through commands;
 - location, resource, facility, corps, hero, and expedition responsibilities are separable;

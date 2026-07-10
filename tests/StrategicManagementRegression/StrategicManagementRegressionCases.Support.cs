@@ -484,22 +484,6 @@ internal static partial class StrategicManagementRegressionCases
         return (StrategicCommandResult)method.Invoke(commands, new object[] { state, factionId, elapsedPulses })!;
     }
 
-    private static StrategicCommandResult InvokeManualConscriptReserveForces(
-        StrategicManagementCommandService commands,
-        StrategicManagementState state,
-        string cityId)
-    {
-        System.Reflection.MethodInfo? method = typeof(StrategicManagementCommandService).GetMethod(
-            "ManualConscriptReserveForces",
-            new[] { typeof(StrategicManagementState), typeof(string) });
-        if (method == null)
-        {
-            throw new InvalidOperationException("command service should expose ManualConscriptReserveForces(state, cityId)");
-        }
-
-        return (StrategicCommandResult)method.Invoke(commands, new object[] { state, cityId })!;
-    }
-
     private static StrategicCommandResult InvokeRecruitCorpsForHero(
         StrategicManagementCommandService commands,
         StrategicManagementState state,
@@ -516,23 +500,6 @@ internal static partial class StrategicManagementRegressionCases
         }
 
         return (StrategicCommandResult)method.Invoke(commands, new object[] { state, cityId, heroId, corpsDefinitionId })!;
-    }
-
-    private static StrategicCommandResult InvokeSetAutoConscriptionIntensity(
-        StrategicManagementCommandService commands,
-        StrategicManagementState state,
-        string cityId,
-        string intensityId)
-    {
-        System.Reflection.MethodInfo? method = typeof(StrategicManagementCommandService).GetMethod(
-            "SetAutoConscriptionIntensity",
-            new[] { typeof(StrategicManagementState), typeof(string), typeof(string) });
-        if (method == null)
-        {
-            throw new InvalidOperationException("command service should expose SetAutoConscriptionIntensity(state, cityId, intensityId)");
-        }
-
-        return (StrategicCommandResult)method.Invoke(commands, new object[] { state, cityId, intensityId })!;
     }
 
     private static StrategicCommandResult InvokeRuntimeSettleElapsedWorldTime(int elapsedPulses)

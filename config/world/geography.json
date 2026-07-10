@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "linearFeatures": {
+    "type": "FeatureCollection",
+    "features": []
+  },
+  "waterAnchors": {
+    "type": "FeatureCollection",
+    "features": []
+  },
+  "strategicLocations": {
+    "type": "FeatureCollection",
+    "features": []
+  },
+  "regions": {
+    "type": "FeatureCollection",
+    "features": []
+  }
+}

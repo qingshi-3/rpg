@@ -8,20 +8,16 @@ namespace Rpg.Application.Config;
 
 public sealed class StrategicManagementContentConfig
 {
+    public int ReserveRecoveryPerElapsedPulse { get; set; }
     public List<StrategicResourceDefinition> Resources { get; set; } = new();
-    public StrategicConscriptionDefinition Conscription { get; set; } = new();
     public List<StrategicBuildingDefinition> Buildings { get; set; } = new();
     public List<StrategicCorpsDefinition> Corps { get; set; } = new();
 }
 
 public sealed class StrategicManagementResourceDefinitionConfig
 {
+    public int ReserveRecoveryPerElapsedPulse { get; set; }
     public List<StrategicResourceDefinition> Resources { get; set; } = new();
-}
-
-public sealed class StrategicManagementConscriptionPolicyConfig
-{
-    public StrategicConscriptionDefinition Conscription { get; set; } = new();
 }
 
 public sealed class StrategicManagementCorpsDefinitionConfig
@@ -32,15 +28,15 @@ public sealed class StrategicManagementCorpsDefinitionConfig
 public static class StrategicManagementContentConfigLoader
 {
     public const string ResourceConfigPath = "res://config/strategic_management/economy/resources.json";
-    public const string ConscriptionConfigPath = "res://config/strategic_management/economy/conscription_policies.json";
     public const string CommonCorpsConfigPath = "res://config/strategic_management/military/corps_common.json";
 
     public static StrategicManagementContentConfig LoadDefaultContent()
     {
+        StrategicManagementResourceDefinitionConfig economy = LoadResourceEconomy(ResourceConfigPath);
         StrategicManagementContentConfig content = new()
         {
-            Resources = LoadResources(ResourceConfigPath).ToList(),
-            Conscription = LoadConscription(ConscriptionConfigPath),
+            ReserveRecoveryPerElapsedPulse = economy.ReserveRecoveryPerElapsedPulse,
+            Resources = economy.Resources.ToList(),
             Buildings = StrategicManagementBuildingDefinitionConfigLoader.LoadDefaultBuildings().ToList(),
             Corps = LoadCorps(CommonCorpsConfigPath).ToList()
         };
@@ -51,24 +47,24 @@ public static class StrategicManagementContentConfigLoader
 
     public static IReadOnlyList<StrategicResourceDefinition> LoadResources(string path)
     {
+        return LoadResourceEconomy(path).Resources;
+    }
+
+    public static StrategicManagementResourceDefinitionConfig LoadResourceEconomy(string path)
+    {
         string text = ProjectConfigFileReader.ReadAllText(path);
         StrategicManagementResourceDefinitionConfig config = JsonSerializer.Deserialize<StrategicManagementResourceDefinitionConfig>(
             text,
             ProjectJson.Options) ?? throw new InvalidOperationException($"Invalid strategic management resources config path={path}");
 
         ValidateResources(config, path);
-        return config.Resources;
-    }
+        if (config.ReserveRecoveryPerElapsedPulse <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Strategic management reserve recovery must be positive path={path}");
+        }
 
-    public static StrategicConscriptionDefinition LoadConscription(string path)
-    {
-        string text = ProjectConfigFileReader.ReadAllText(path);
-        StrategicManagementConscriptionPolicyConfig config = JsonSerializer.Deserialize<StrategicManagementConscriptionPolicyConfig>(
-            text,
-            ProjectJson.Options) ?? throw new InvalidOperationException($"Invalid strategic management conscription config path={path}");
-
-        ValidateConscription(config.Conscription, path);
-        return config.Conscription;
+        return config;
     }
 
     public static IReadOnlyList<StrategicCorpsDefinition> LoadCorps(string path)
@@ -98,49 +94,6 @@ public static class StrategicManagementContentConfigLoader
             {
                 throw new InvalidOperationException($"Duplicate strategic management resource id={resource.ResourceId} path={path}");
             }
-        }
-    }
-
-    private static void ValidateConscription(StrategicConscriptionDefinition definition, string path)
-    {
-        if (definition?.Manual == null)
-        {
-            throw new InvalidOperationException($"Strategic management conscription config has no manual policy path={path}");
-        }
-
-        if (definition.Manual.ReserveGain <= 0)
-        {
-            throw new InvalidOperationException($"Strategic management manual conscription reserve gain must be positive path={path}");
-        }
-
-        ValidateAmounts(definition.Manual.Cost, "manual.cost", path);
-
-        if (definition.AutoIntensities == null || definition.AutoIntensities.Count == 0)
-        {
-            throw new InvalidOperationException($"Strategic management conscription config has no auto intensities path={path}");
-        }
-
-        HashSet<string> ids = new(StringComparer.Ordinal);
-        foreach (StrategicConscriptionIntensityDefinition intensity in definition.AutoIntensities)
-        {
-            RequireNonEmpty(intensity.IntensityId, "autoIntensities.intensityId", path);
-            RequireNonEmpty(intensity.DisplayName, "autoIntensities.displayName", path);
-            if (!ids.Add(intensity.IntensityId))
-            {
-                throw new InvalidOperationException($"Duplicate strategic management conscription intensity id={intensity.IntensityId} path={path}");
-            }
-
-            if (intensity.ReserveGain < 0)
-            {
-                throw new InvalidOperationException($"Strategic management conscription intensity has negative reserve gain id={intensity.IntensityId} path={path}");
-            }
-
-            ValidateAmounts(intensity.Cost, $"autoIntensities[{intensity.IntensityId}].cost", path, allowEmpty: true);
-        }
-
-        if (!ids.Contains(StrategicManagementIds.ConscriptionOff))
-        {
-            throw new InvalidOperationException($"Strategic management conscription config must include {StrategicManagementIds.ConscriptionOff} path={path}");
         }
     }
 
@@ -194,19 +147,6 @@ public static class StrategicManagementContentConfigLoader
 
     private static IEnumerable<StrategicResourceAmount> EnumerateAmounts(StrategicManagementContentConfig content)
     {
-        foreach (StrategicResourceAmount amount in content.Conscription.Manual.Cost)
-        {
-            yield return amount;
-        }
-
-        foreach (StrategicConscriptionIntensityDefinition intensity in content.Conscription.AutoIntensities)
-        {
-            foreach (StrategicResourceAmount amount in intensity.Cost)
-            {
-                yield return amount;
-            }
-        }
-
         foreach (StrategicBuildingDefinition building in content.Buildings)
         {
             foreach (StrategicResourceAmount amount in building.BuildCost)
@@ -238,16 +178,10 @@ public static class StrategicManagementContentConfigLoader
     private static void ValidateAmounts(
         IReadOnlyCollection<StrategicResourceAmount> amounts,
         string field,
-        string path,
-        bool allowEmpty = false)
+        string path)
     {
         if (amounts == null || amounts.Count == 0)
         {
-            if (allowEmpty)
-            {
-                return;
-            }
-
             throw new InvalidOperationException($"Strategic management config amount list is empty field={field} path={path}");
         }
 

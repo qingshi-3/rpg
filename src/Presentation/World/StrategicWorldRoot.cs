@@ -31,9 +31,12 @@ public partial class StrategicWorldRoot : Control
 	private const double DefaultWorldTickIntervalSeconds = 8.0;
 	private const float SiteDetailPanelHiddenBelowPadding = 24.0f;
 	private const float SiteDetailPanelOvershootPixels = 8.0f;
-	private const double SiteDetailPanelEnterSeconds = 0.16;
+	// The strategic-world context sheet is intentionally readable: it travels
+	// from below the screen instead of snapping like a small tooltip.
+	private const double SiteDetailPanelEnterSeconds = 0.30;
 	private const double SiteDetailPanelSettleSeconds = 0.10;
-	private const double SiteDetailPanelExitSeconds = 0.14;
+	private const double SiteDetailPanelExitBumpSeconds = 0.08;
+	private const double SiteDetailPanelExitSeconds = 0.30;
 	// Deferring a forced battle should only step the army off the trigger point,
 	// not send it into a retreat-like strategic move.
 	private const float DeferredBattleStandbyDistance = 32.0f;

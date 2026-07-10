@@ -16,27 +16,12 @@ internal static partial class StrategicManagementRegressionCases
         string retiredConfigPath = Path.Combine(root, "config", "strategic_management", "first_slice_buildings.json");
         string definitionsPath = Path.Combine(root, "src", "Definitions", "StrategicManagement", "FirstStrategicManagementDefinitions.cs");
         string loaderPath = Path.Combine(root, "src", "Application", "Config", "StrategicManagementBuildingDefinitionConfigLoader.cs");
-        string atlasPath = Path.Combine(root, "assets", "textures", "world", "Buildings", "Foundation", "foundation_city_buildings.png");
-        string generatorPath = Path.Combine(root, "tools", "generate-foundation-city-buildings.py");
 
         AssertTrue(File.Exists(configPath), "foundation strategic building definitions should live under config/strategic_management/cities");
         AssertTrue(!File.Exists(retiredConfigPath), "strategic building config should not remain as a root first_slice_buildings.json file");
-        AssertTrue(File.Exists(atlasPath), $"foundation building atlas should exist path={atlasPath}");
-        AssertTrue(File.Exists(generatorPath), $"foundation building atlas should have a reusable native-scale generator path={generatorPath}");
         string configText = File.ReadAllText(configPath);
         string definitionsSource = File.ReadAllText(definitionsPath);
         string loaderSource = File.ReadAllText(loaderPath);
-        string generatorSource = File.Exists(generatorPath) ? File.ReadAllText(generatorPath) : "";
-        byte[] atlasHeader = File.ReadAllBytes(atlasPath);
-        int atlasWidth = (atlasHeader[16] << 24) | (atlasHeader[17] << 16) | (atlasHeader[18] << 8) | atlasHeader[19];
-        int atlasHeight = (atlasHeader[20] << 24) | (atlasHeader[21] << 16) | (atlasHeader[22] << 8) | atlasHeader[23];
-        AssertEqual(192, atlasWidth, "foundation building atlas should keep exact native slot width");
-        AssertEqual(80, atlasHeight, "foundation building atlas should keep exact native slot height");
-        AssertTrue(
-            generatorSource.Contains("SLOTS", StringComparison.Ordinal) &&
-            generatorSource.Contains("write_png", StringComparison.Ordinal) &&
-            generatorSource.Contains("draw_training_ground", StringComparison.Ordinal),
-            "foundation building atlas generator should keep reusable slot metadata and direct PNG writing for later style variants");
 
         AssertTrue(
             configText.Contains("\"buildingDefinitionId\": \"building_training_ground\"", StringComparison.Ordinal) &&
@@ -93,17 +78,6 @@ internal static partial class StrategicManagementRegressionCases
         StrategicBuildingDefinition farm = definitions.Buildings[StrategicManagementIds.BuildingFarm];
         string trainingIconPath = (string)(typeof(StrategicBuildingDefinition).GetProperty("IconPath")?.GetValue(trainingGround) ?? "");
         string farmIconPath = (string)(typeof(StrategicBuildingDefinition).GetProperty("IconPath")?.GetValue(farm) ?? "");
-        var expectedFootprints = new Dictionary<string, (int Width, int Height)>
-        {
-            [StrategicManagementIds.BuildingFarm] = (3, 2),
-            [StrategicManagementIds.BuildingMarket] = (3, 2),
-            [StrategicManagementIds.BuildingLumberCamp] = (3, 2),
-            [StrategicManagementIds.BuildingMine] = (3, 2),
-            [StrategicManagementIds.BuildingTrainingGround] = (4, 3),
-            [StrategicManagementIds.BuildingTavern] = (3, 2),
-            [StrategicManagementIds.BuildingArrowTower] = (2, 2),
-            [StrategicManagementIds.BuildingMedicalShrine] = (3, 2)
-        };
         AssertEqual("训练场", trainingGround.DisplayName, "training ground display name should come from config");
         AssertEqual(StrategicManagementIds.BuildingCategoryMilitary, trainingGround.CategoryId, "training ground should be military");
         AssertTrue(
@@ -129,14 +103,6 @@ internal static partial class StrategicManagementRegressionCases
                 !iconSource.Contains("region = Rect2(0, 0, 48, 64)", StringComparison.Ordinal) &&
                 !iconSource.Contains("region = Rect2(0, 0, 48, 80)", StringComparison.Ordinal),
                 $"building icon atlas region must not reuse a whole multi-building sheet id={building.BuildingDefinitionId}");
-            AssertTrue(
-                iconSource.Contains("foundation_city_buildings.png", StringComparison.Ordinal),
-                $"foundation building icon should use the unified native-scale atlas id={building.BuildingDefinitionId}");
-            AssertTrue(
-                expectedFootprints.TryGetValue(building.BuildingDefinitionId, out (int Width, int Height) expectedFootprint),
-                $"foundation building should have an expected native-scale footprint id={building.BuildingDefinitionId}");
-            AssertEqual(expectedFootprint.Width, building.FootprintWidth, $"foundation building footprint width id={building.BuildingDefinitionId}");
-            AssertEqual(expectedFootprint.Height, building.FootprintHeight, $"foundation building footprint height id={building.BuildingDefinitionId}");
         }
         AssertEqual(StrategicManagementIds.BuildingCategoryEconomy, farm.CategoryId, "farm should be an economy building");
         object capabilities = GetRequiredProperty<object>(farm, "ProvidedCapabilities");
@@ -159,7 +125,6 @@ internal static partial class StrategicManagementRegressionCases
         foreach (string requiredPath in new[]
         {
             Path.Combine(configRoot, "economy", "resources.json"),
-            Path.Combine(configRoot, "economy", "conscription_policies.json"),
             Path.Combine(configRoot, "cities", "buildings_foundation.json"),
             Path.Combine(configRoot, "military", "corps_common.json")
         })
@@ -187,18 +152,16 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(
             configLoaderSource.Contains("StrategicManagementContentConfigLoader", StringComparison.Ordinal) &&
             configLoaderSource.Contains("economy/resources.json", StringComparison.Ordinal) &&
-            configLoaderSource.Contains("economy/conscription_policies.json", StringComparison.Ordinal) &&
             configLoaderSource.Contains("military/corps_common.json", StringComparison.Ordinal),
-            "Strategic Management should use one module-aware content loader for foundation resources, conscription policies, buildings, and common corps");
+            "Strategic Management should use module-aware content loaders for foundation economy, buildings, and common corps");
         AssertTrue(
             !definitionsSource.Contains("new StrategicResourceDefinition", StringComparison.Ordinal) &&
             !definitionsSource.Contains("CommonCorps(", StringComparison.Ordinal),
             "first strategic definitions should not hardcode resources or common corps cost literals in C#");
         AssertTrue(
-            !rulesSource.Contains("new StrategicConscriptionIntensityRule(", StringComparison.Ordinal) &&
-            !rulesSource.Contains("return 10;", StringComparison.Ordinal) &&
-            typeof(StrategicManagementDefinitionSet).GetProperty("Conscription") != null,
-            "conscription gain, costs, labels, and building requirements should be content definitions consumed by rules");
+            !rulesSource.Contains("Conscription", StringComparison.Ordinal) &&
+            typeof(StrategicManagementDefinitionSet).GetProperty("Conscription") == null,
+            "Strategic Management should not retain retired conscription policy definitions or rules");
 
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         AssertEqual("资金", definitions.Resources[StrategicManagementIds.ResourceMoney].DisplayName, "money display name should load from economy resource config");
@@ -207,14 +170,46 @@ internal static partial class StrategicManagementRegressionCases
             45,
             FindStrategicAmount(definitions.Corps[StrategicManagementIds.CorpsCavalryLine].CreationCost, StrategicManagementIds.ResourceMoney),
             "cavalry corps money cost should load from common corps config");
+    }
 
-        StrategicManagementRules rules = new(definitions);
-        AssertEqual(10, rules.GetManualConscriptionReserveGain(), "manual conscription reserve gain should still expose the accepted first value");
-        AssertEqual(15, FindStrategicAmount(rules.GetManualConscriptionCost(), StrategicManagementIds.ResourceMoney), "manual conscription money cost should load from conscription policy config");
-        StrategicConscriptionIntensityRule standard = rules.GetAutoConscriptionIntensityRules()
-            .First(item => item.IntensityId == StrategicManagementIds.ConscriptionStandard);
-        AssertTrue(standard.RequiresTrainingGround, "standard auto conscription should retain its training-ground requirement from config");
-        AssertEqual(6, standard.ReserveGain, "standard auto conscription gain should load from config");
+    internal static void StrategicManagementLoadsPassiveReserveRecoveryFromEconomyConfig()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        AssertEqual(
+            2,
+            definitions.ReserveRecoveryPerElapsedPulse,
+            "first-version economy config should define passive reserve recovery at two soldiers per elapsed pulse");
+    }
+
+    internal static void StrategicManagementRejectsNonPositivePassiveReserveRecovery()
+    {
+        string tempRoot = Path.Combine(Path.GetTempPath(), $"rpg-strategic-recovery-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempRoot);
+        string configPath = Path.Combine(tempRoot, "invalid_recovery.json");
+        try
+        {
+            File.WriteAllText(
+                configPath,
+                """
+                {
+                  "reserveRecoveryPerElapsedPulse": 0,
+                  "resources": [
+                    { "resourceId": "resource_money", "displayName": "Money" }
+                  ]
+                }
+                """);
+
+            AssertThrowsInvalidOperation(
+                () => StrategicManagementContentConfigLoader.LoadResourceEconomy(configPath),
+                "passive reserve recovery must be positive");
+        }
+        finally
+        {
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
     }
 
     internal static void StrategicManagementConfigRejectsInvalidResourceAmountLists()
@@ -223,7 +218,6 @@ internal static partial class StrategicManagementRegressionCases
         Directory.CreateDirectory(tempRoot);
         string emptyBuildCostPath = Path.Combine(tempRoot, "empty_build_cost.json");
         string duplicateBuildCostPath = Path.Combine(tempRoot, "duplicate_build_cost.json");
-        string duplicateConscriptionCostPath = Path.Combine(tempRoot, "duplicate_conscription_cost.json");
         try
         {
             File.WriteAllText(
@@ -263,40 +257,12 @@ internal static partial class StrategicManagementRegressionCases
                   ]
                 }
                 """);
-            File.WriteAllText(
-                duplicateConscriptionCostPath,
-                """
-                {
-                  "conscription": {
-                    "manual": {
-                      "reserveGain": 10,
-                      "cost": [
-                        { "resourceId": "resource_money", "amount": 15 },
-                        { "resourceId": "resource_money", "amount": 5 }
-                      ]
-                    },
-                    "autoIntensities": [
-                      {
-                        "intensityId": "conscription_off",
-                        "displayName": "Off",
-                        "reserveGain": 0,
-                        "cost": [],
-                        "requiresTrainingGround": false
-                      }
-                    ]
-                  }
-                }
-                """);
-
             AssertThrowsInvalidOperation(
                 () => StrategicManagementBuildingDefinitionConfigLoader.LoadBuildings(emptyBuildCostPath),
                 "empty build cost should be rejected because required cost lists must be explicit");
             AssertThrowsInvalidOperation(
                 () => StrategicManagementBuildingDefinitionConfigLoader.LoadBuildings(duplicateBuildCostPath),
                 "duplicate building build-cost resources should be rejected");
-            AssertThrowsInvalidOperation(
-                () => StrategicManagementContentConfigLoader.LoadConscription(duplicateConscriptionCostPath),
-                "duplicate conscription cost resources should be rejected");
         }
         finally
         {
@@ -395,6 +361,51 @@ internal static partial class StrategicManagementRegressionCases
             "strategic management runtime should expose save/load entry points without reviving legacy world save service");
     }
 
+    internal static void StrategicManagementLoadsVersionOneSaveWithRetiredConscriptionField()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicConstructionRegionDefinition economy = FindRegion(definitions, StrategicManagementIds.RegionPlainsEconomy);
+        StrategicCommandResult build = commands.BuildCityBuilding(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.BuildingFarm,
+            StrategicManagementIds.RegionPlainsEconomy,
+            economy.OriginX,
+            economy.OriginY);
+        AssertTrue(build.Success, $"legacy-save setup build should succeed, got {build.FailureReason}");
+        state.Cities[StrategicManagementIds.LocationPlainsCity].ReserveForces = 73;
+        int expectedCorpsCount = state.CorpsInstances.Count;
+
+        string savePath = Path.Combine(Path.GetTempPath(), $"rpg-strategic-management-legacy-conscription-{Guid.NewGuid():N}.json");
+        try
+        {
+            StrategicManagementSaveService saveService = new();
+            saveService.Save(state, savePath);
+            System.Text.Json.Nodes.JsonObject document =
+                System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(savePath))?.AsObject()
+                ?? throw new InvalidOperationException("version-one save should parse as a JSON object");
+            System.Text.Json.Nodes.JsonObject city = document["State"]?["Cities"]?[StrategicManagementIds.LocationPlainsCity]?.AsObject()
+                ?? throw new InvalidOperationException("version-one save should contain the first city object");
+            city["AutoConscriptionIntensityId"] = "conscription_high";
+            File.WriteAllText(savePath, document.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+
+            StrategicManagementState loaded = saveService.Load(savePath);
+            StrategicCityState loadedCity = loaded.Cities[StrategicManagementIds.LocationPlainsCity];
+            AssertEqual(73, loadedCity.ReserveForces, "legacy policy field should not disturb reserve soldiers");
+            AssertEqual(StrategicManagementIds.BuildingFarm, loadedCity.Buildings.Single().BuildingDefinitionId, "legacy policy field should not disturb buildings");
+            AssertEqual(expectedCorpsCount, loaded.CorpsInstances.Count, "legacy policy field should not disturb corps instances");
+        }
+        finally
+        {
+            if (File.Exists(savePath))
+            {
+                File.Delete(savePath);
+            }
+        }
+    }
+
     internal static void StrategicManagementRuntimeRepairsCapturedCityCompanyOwnershipOnLoad()
     {
         var setup = CreateStrategicAssaultExpedition();
@@ -481,29 +492,21 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(40, rules.GetRemainingCityForceCapacity(state, city.LocationId), "remaining capacity should be capacity minus active plus reserve");
     }
 
-    internal static void FirstCityInitializesConscriptionPolicyOff()
+    internal static void StrategicManagementRetiresConscriptionPolicyContracts()
     {
-        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
-
         AssertTrue(
-            typeof(StrategicCityState).GetProperty("AutoConscriptionIntensityId") != null,
-            "city state should store the city-local automatic conscription intensity id");
-        AssertEqual(
-            "conscription_off",
-            GetRequiredProperty<string>(city, "AutoConscriptionIntensityId"),
-            "first city should default automatic conscription to off to avoid hidden resource drain");
+            typeof(StrategicCityState).GetProperty("AutoConscriptionIntensityId") == null,
+            "city state must not persist a retired conscription policy");
         AssertTrue(
             typeof(StrategicManagementCommandService).GetMethod(
                 "ManualConscriptReserveForces",
-                new[] { typeof(StrategicManagementState), typeof(string) }) != null,
-            "command service should expose manual reserve-soldier conscription");
+                new[] { typeof(StrategicManagementState), typeof(string) }) == null,
+            "manual conscription must not remain as a command contract");
         AssertTrue(
             typeof(StrategicManagementCommandService).GetMethod(
                 "SetAutoConscriptionIntensity",
-                new[] { typeof(StrategicManagementState), typeof(string), typeof(string) }) != null,
-            "command service should expose city-local automatic conscription intensity selection");
+                new[] { typeof(StrategicManagementState), typeof(string), typeof(string) }) == null,
+            "automatic conscription must not remain as a command contract");
     }
 
     internal static void FirstPlayableStartsWithThreeDispatchableHeroCompanies()

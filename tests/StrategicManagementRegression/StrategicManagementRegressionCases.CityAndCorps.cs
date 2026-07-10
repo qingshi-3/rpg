@@ -313,68 +313,6 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "failed replenishment must not spend resources");
     }
 
-    internal static void ManualConscriptionConsumesResourcesAndCreatesReserveSoldiers()
-    {
-        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
-        int beforeReserve = city.ReserveForces;
-        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
-        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
-
-        StrategicCommandResult result = InvokeManualConscriptReserveForces(
-            commands,
-            state,
-            StrategicManagementIds.LocationPlainsCity);
-
-        AssertTrue(result.Success, $"manual conscription should succeed, got {result.FailureReason}");
-        AssertEqual(beforeReserve + 10, city.ReserveForces, "manual conscription should add one accepted reserve-soldier batch");
-        AssertEqual(beforeMoney - 15, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "manual conscription should spend the higher money cost");
-        AssertEqual(beforeFood - 20, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "manual conscription should spend the higher food cost");
-        AssertTrue(
-            result.Events.Any(item => item.Kind == "StrategicCityReserveForcesManuallyConscripted"),
-            "manual conscription should emit a low-noise reserve-soldier event");
-    }
-
-    internal static void ManualConscriptionFailureLeavesResourcesAndReserveUnchanged()
-    {
-        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        StrategicManagementRules rules = new(definitions);
-        StrategicManagementCommandService commands = new(definitions, rules);
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
-        city.ReserveForces = city.CityForceCapacity - rules.GetActiveForces(state, city.LocationId);
-        int beforeReserve = city.ReserveForces;
-        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
-        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
-
-        StrategicCommandResult full = InvokeManualConscriptReserveForces(
-            commands,
-            state,
-            StrategicManagementIds.LocationPlainsCity);
-
-        AssertTrue(!full.Success, "manual conscription should fail when the city lacks full-batch reserve capacity");
-        AssertEqual(StrategicFailureReasons.CityForceCapacityFull, full.FailureReason, "manual conscription capacity failure should be explicit");
-        AssertEqual(beforeReserve, city.ReserveForces, "capacity failure must not change reserve soldiers");
-        AssertEqual(beforeMoney, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "capacity failure must not spend money");
-        AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "capacity failure must not spend food");
-
-        city.ReserveForces = 0;
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney, 0);
-        beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
-        StrategicCommandResult insufficientResources = InvokeManualConscriptReserveForces(
-            commands,
-            state,
-            StrategicManagementIds.LocationPlainsCity);
-
-        AssertTrue(!insufficientResources.Success, "manual conscription should fail without resources");
-        AssertEqual(StrategicFailureReasons.InsufficientResources, insufficientResources.FailureReason, "manual conscription resource failure should be explicit");
-        AssertEqual(0, city.ReserveForces, "resource failure must not change reserve soldiers");
-        AssertEqual(0, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "resource failure must not change money");
-        AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "resource failure must not spend food");
-    }
-
     internal static void AssignCorpsToHeroRecordsAptitudeWithoutRandomFailure()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();

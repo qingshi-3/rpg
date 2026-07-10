@@ -346,7 +346,13 @@ public partial class StrategicWorldRoot
         _siteDetailPanel.Visible = true;
 
         _siteDetailPanelTween = CreateTween().BindNode(this);
-        _siteDetailPanelTween.TweenProperty(_siteDetailPanel, "position", hiddenBelowPosition, SiteDetailPanelExitSeconds)
+        _siteDetailPanelTween.TweenProperty(_siteDetailPanel, "position", restPosition - new Vector2(0.0f, SiteDetailPanelOvershootPixels), SiteDetailPanelExitBumpSeconds)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.Out);
+        _siteDetailPanelTween.Parallel().TweenProperty(_siteDetailPanel, "scale", new Vector2(1.02f, 1.03f), SiteDetailPanelExitBumpSeconds)
+            .SetTrans(Tween.TransitionType.Sine)
+            .SetEase(Tween.EaseType.Out);
+        _siteDetailPanelTween.Chain().TweenProperty(_siteDetailPanel, "position", hiddenBelowPosition, SiteDetailPanelExitSeconds)
             .SetTrans(Tween.TransitionType.Cubic)
             .SetEase(Tween.EaseType.In);
         _siteDetailPanelTween.Parallel().TweenProperty(_siteDetailPanel, "scale", new Vector2(0.98f, 0.94f), SiteDetailPanelExitSeconds)

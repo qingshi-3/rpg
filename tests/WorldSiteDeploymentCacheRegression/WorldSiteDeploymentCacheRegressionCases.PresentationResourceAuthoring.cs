@@ -666,7 +666,6 @@ internal static void StrategicWorldUiButtonSkinsFitAuthoredButtonSizes()
     AssertSceneButtonUsesRecruitmentStyle(siteHudPath, "MilitaryCloseButton", "RecruitmentTextButton", "military workbench close button belongs to the focused recruitment modal skin");
     AssertSceneButtonUsesCompactStyle(siteHudPath, "ReturnMapTabButton", "site return-to-world tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
     AssertSceneButtonUsesCompactStyle(siteHudPath, "BuildTabButton", "site management tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
-    AssertSceneButtonUsesCompactStyle(siteHudPath, "ConscriptionTabButton", "site management tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
     AssertSceneButtonUsesCompactStyle(siteHudPath, "RecruitTabButton", "site management tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
     AssertSceneButtonUsesCompactStyle(siteHudPath, "OverviewTabButton", "site management tab is a vertical rail control", compactHorizontalPadding, compactVerticalPadding, "WorldSiteRailTabButton");
     AssertSceneButtonUsesCompactStyle(siteHudPath, "SitePanelCloseButton", "site management close button is a compact header control", compactHorizontalPadding, compactVerticalPadding, "WorldCompactActionButton");
@@ -887,6 +886,7 @@ internal static void StrategicWorldHudUsesFullscreenOverlayContextLayout()
     string bodyScrollBlock = ExtractSceneNodeBlock(scene, "[node name=\"BodyScroll\"");
     string bodyContentBlock = ExtractSceneNodeBlock(scene, "[node name=\"BodyContent\"");
     string bootstrapSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.UiBootstrap.cs"));
+    string rootSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.cs"));
     string detailSource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "World", "StrategicWorldRoot.DetailHud.cs"));
 
     AssertTrue(
@@ -932,6 +932,9 @@ internal static void StrategicWorldHudUsesFullscreenOverlayContextLayout()
         !bootstrapSource.Contains("LeftPrimaryPanelHost/SiteDetailPanel", StringComparison.Ordinal),
         "strategic world bindings should target the bottom overlay popup, not the old left panel path");
     AssertTrue(
+        rootSource.Contains("SiteDetailPanelEnterSeconds = 0.30", StringComparison.Ordinal) &&
+        rootSource.Contains("SiteDetailPanelExitBumpSeconds", StringComparison.Ordinal) &&
+        rootSource.Contains("SiteDetailPanelExitSeconds = 0.30", StringComparison.Ordinal) &&
         detailSource.Contains("SiteDetailPanelOvershootPixels", StringComparison.Ordinal) &&
         detailSource.Contains("ResolveWorldDetailPanelHiddenBelowPosition", StringComparison.Ordinal) &&
         detailSource.Contains("AnimateWorldDetailPanelIn", StringComparison.Ordinal) &&
@@ -940,11 +943,12 @@ internal static void StrategicWorldHudUsesFullscreenOverlayContextLayout()
         detailSource.Contains("_siteDetailPanel.Position = hiddenBelowPosition", StringComparison.Ordinal) &&
         detailSource.Contains("TweenProperty(_siteDetailPanel, \"position\"", StringComparison.Ordinal) &&
         detailSource.Contains("restPosition - new Vector2(0.0f, SiteDetailPanelOvershootPixels)", StringComparison.Ordinal) &&
-        detailSource.Contains("hiddenBelowPosition, SiteDetailPanelExitSeconds", StringComparison.Ordinal) &&
+        detailSource.Contains("restPosition - new Vector2(0.0f, SiteDetailPanelOvershootPixels), SiteDetailPanelExitBumpSeconds", StringComparison.Ordinal) &&
+        detailSource.Contains("Chain().TweenProperty(_siteDetailPanel, \"position\", hiddenBelowPosition, SiteDetailPanelExitSeconds", StringComparison.Ordinal) &&
         detailSource.Contains("TweenProperty(_siteDetailPanel, \"scale\"", StringComparison.Ordinal) &&
         !detailSource.Contains("SiteDetailPanelSlidePixels", StringComparison.Ordinal) &&
         !detailSource.Contains("_siteDetailPanel.Visible = visible;", StringComparison.Ordinal),
-        "selected city popup should q-bounce from below the screen, overshoot upward, settle, and retract downward instead of abruptly toggling visibility or short-sliding in place");
+        "selected city popup should q-bounce from below the screen with matched 0.30-second enter/retract timing, overshoot upward, settle, and reverse-close with an upward bump before retracting downward");
     AssertTrue(
         !bootstrapSource.Contains("_facilityList", StringComparison.Ordinal) &&
         !bootstrapSource.Contains("_garrisonList", StringComparison.Ordinal) &&

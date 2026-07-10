@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Rpg.Definitions.StrategicManagement;
 
 namespace Rpg.Domain.StrategicManagement;
 
@@ -9,7 +8,6 @@ public sealed class StrategicCityState
     public string CityIdentityId { get; set; } = "";
     public int CityForceCapacity { get; set; }
     public int ReserveForces { get; set; }
-    public string AutoConscriptionIntensityId { get; set; } = StrategicManagementIds.ConscriptionOff;
     public List<string> ConstructionRegionIds { get; set; } = new();
     public List<StrategicBuildingInstanceState> Buildings { get; set; } = new();
 }

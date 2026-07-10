@@ -115,9 +115,8 @@ public sealed partial class StrategicManagementCommandService
             ("newPulses", (previousPulses + elapsedPulses).ToString()),
             ("elapsedPulses", elapsedPulses.ToString())));
 
-        // Elapsed world-map time is command-driven. The first playable loop only
-        // settles definition-authored runtime production capabilities; reserve
-        // recovery and capacity changes remain outside this thin economy slice.
+        // Elapsed world-map time is command-driven. Production settles first, then
+        // controlled cities receive one capacity-bounded passive reserve mutation.
         foreach (StrategicLocationState location in GetControlledProducingLocations(state, factionId))
         {
             System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> production =
@@ -166,7 +165,7 @@ public sealed partial class StrategicManagementCommandService
 
         foreach (StrategicCityState city in GetControlledCities(state, factionId))
         {
-            SettleCityAutoConscription(
+            SettleCityReserveRecovery(
                 state,
                 factionId,
                 elapsedPulses,
@@ -179,74 +178,31 @@ public sealed partial class StrategicManagementCommandService
         return result;
     }
 
-    private void SettleCityAutoConscription(
+    private void SettleCityReserveRecovery(
         StrategicManagementState state,
         string factionId,
         int elapsedPulses,
         StrategicCityState city,
         StrategicCommandResult result)
     {
-        string intensityId = string.IsNullOrWhiteSpace(city.AutoConscriptionIntensityId)
-            ? StrategicManagementIds.ConscriptionOff
-            : city.AutoConscriptionIntensityId;
-        if (!_rules.TryGetAutoConscriptionIntensityRule(intensityId, out StrategicConscriptionIntensityRule rule) ||
-            rule.ReserveGain <= 0)
+        int rate = System.Math.Max(0, _definitions.ReserveRecoveryPerElapsedPulse);
+        int remaining = _rules.GetRemainingCityForceCapacity(state, city.LocationId);
+        long requested = (long)rate * elapsedPulses;
+        int gain = (int)System.Math.Min(remaining, requested);
+        if (gain <= 0)
         {
             return;
         }
 
-        string policyFailure = _rules.GetAutoConscriptionIntensityFailureReason(state, city.LocationId, intensityId);
-        if (!string.IsNullOrWhiteSpace(policyFailure))
-        {
-            return;
-        }
-
-        int appliedPulses = 0;
-        int totalReserveGain = 0;
-        System.Collections.Generic.Dictionary<string, int> spent = new(System.StringComparer.Ordinal);
-        for (int pulse = 0; pulse < elapsedPulses; pulse++)
-        {
-            if (_rules.GetRemainingCityForceCapacity(state, city.LocationId) < rule.ReserveGain ||
-                !state.CanSpend(factionId, rule.Cost))
-            {
-                continue;
-            }
-
-            state.Spend(factionId, rule.Cost);
-            foreach (StrategicResourceAmount amount in rule.Cost)
-            {
-                spent.TryGetValue(amount.ResourceId, out int current);
-                spent[amount.ResourceId] = current + amount.Amount;
-            }
-
-            city.ReserveForces += rule.ReserveGain;
-            totalReserveGain += rule.ReserveGain;
-            appliedPulses++;
-        }
-
-        if (appliedPulses == 0)
-        {
-            return;
-        }
-
+        city.ReserveForces += gain;
         AddUnique(result.ChangedFactIds, city.LocationId);
-        foreach (string resourceId in spent.Keys)
-        {
-            AddUnique(result.ChangedFactIds, $"{factionId}:{resourceId}");
-        }
-
-        System.Collections.Generic.IReadOnlyList<StrategicResourceAmount> spentAmounts = spent
-            .OrderBy(item => item.Key)
-            .Select(item => new StrategicResourceAmount(item.Key, item.Value))
-            .ToList();
         result.Events.Add(Event(
-            "StrategicCityReserveForcesAutoConscripted",
+            "StrategicCityReserveRecovered",
             city.LocationId,
             ("faction", factionId),
-            ("intensity", rule.IntensityId),
-            ("appliedPulses", appliedPulses.ToString()),
-            ("reserveGain", totalReserveGain.ToString()),
-            ("resources", FormatResourceAmounts(spentAmounts))));
+            ("elapsedPulses", elapsedPulses.ToString()),
+            ("recoveryPerPulse", rate.ToString()),
+            ("reserveGain", gain.ToString())));
     }
 
     private System.Collections.Generic.IReadOnlyList<StrategicLocationState> GetControlledProducingLocations(

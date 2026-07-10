@@ -1,4 +1,5 @@
 {
+  "reserveRecoveryPerElapsedPulse": 2,
   "resources": [
     {
       "resourceId": "resource_money",

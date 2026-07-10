@@ -29,7 +29,6 @@ public static class GameUiSceneFactory
     public const string WorldCompactMarkerButtonScenePath = "res://scenes/world/ui/WorldCompactMarkerButton.tscn";
     public const string WorldBuildingOptionCardScenePath = "res://scenes/world/ui/WorldBuildingOptionCard.tscn";
     public const string WorldBuildingOptionTooltipScenePath = "res://scenes/world/ui/WorldBuildingOptionTooltip.tscn";
-    public const string WorldConscriptionPanelScenePath = "res://scenes/world/ui/WorldConscriptionPanel.tscn";
     public const string WorldMusterOptionCardScenePath = "res://scenes/world/ui/WorldMusterOptionCard.tscn";
     public const string WorldMusterOptionTooltipScenePath = "res://scenes/world/ui/WorldMusterOptionTooltip.tscn";
     public const string WorldMilitaryHeroCardScenePath = "res://scenes/world/ui/WorldMilitaryHeroCard.tscn";
@@ -156,11 +155,6 @@ public static class GameUiSceneFactory
     public static WorldBuildingOptionTooltip CreateWorldBuildingOptionTooltip(string ownerName)
     {
         return Instantiate<WorldBuildingOptionTooltip>(WorldBuildingOptionTooltipScenePath, ownerName);
-    }
-
-    public static WorldConscriptionPanel CreateWorldConscriptionPanel(string ownerName)
-    {
-        return Instantiate<WorldConscriptionPanel>(WorldConscriptionPanelScenePath, ownerName);
     }
 
     public static WorldMusterOptionCard CreateWorldMusterOptionCard(string ownerName)

@@ -125,7 +125,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(StrategicHeroCorpsAptitudeGrade.B, hero.AptitudeGrade, "hero row should show derived aptitude");
     }
 
-    internal static void StrategicManagementDashboardSeparatesConscriptionFromCorpsRecruitment()
+    internal static void StrategicManagementDashboardExposesPassiveReserveRecovery()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
@@ -135,25 +135,14 @@ internal static partial class StrategicManagementRegressionCases
             state,
             StrategicManagementIds.FactionPlayer,
             StrategicManagementIds.LocationPlainsCity);
-        object conscription = GetRequiredProperty<object>(dashboard.SelectedCity, "Conscription");
-        object manualOption = GetRequiredProperty<object>(conscription, "ManualOption");
-        IEnumerable<object> intensityOptions = GetRequiredProperty<IEnumerable<object>>(conscription, "IntensityOptions");
-
-        AssertEqual("conscription_off", GetRequiredProperty<string>(conscription, "CurrentIntensityId"), "dashboard should expose the current auto-conscription intensity");
-        AssertEqual(80, GetRequiredProperty<int>(conscription, "ReserveForces"), "conscription page should expose reserve pool state");
-        AssertEqual(40, GetRequiredProperty<int>(conscription, "RemainingForceCapacity"), "conscription page should expose remaining reserve capacity");
-        AssertEqual(10, GetRequiredProperty<int>(manualOption, "ReserveGain"), "manual conscription option should expose the accepted batch size");
-        AssertEqual(true, GetRequiredProperty<bool>(manualOption, "CanConscript"), "manual conscription should initially be available");
-        AssertEqual(4, intensityOptions.Count(), "conscription page should expose off/low/standard/high automatic intensity options");
-        AssertTrue(
-            intensityOptions.Any(option =>
-                GetRequiredProperty<string>(option, "IntensityId") == "conscription_standard" &&
-                GetRequiredProperty<string>(option, "DisabledReason") == StrategicFailureReasons.MissingBuilding),
-            "standard auto conscription should be present but disabled before the training ground is built");
+        AssertEqual(
+            2,
+            dashboard.SelectedCity.ReserveRecoveryPerElapsedPulse,
+            "city dashboard should expose the configured recovery rate");
         AssertTrue(
             dashboard.SelectedCity.MusterTemplates.Count > 0 &&
             dashboard.SelectedCity.MusterTemplates.All(template => !string.IsNullOrWhiteSpace(template.CorpsDefinitionId)),
-            "corps recruitment should remain a separate muster-template list from conscription");
+            "corps recruitment should remain available independently from passive recovery");
     }
 
     internal static void StrategicManagementDashboardProjectsHeroCorpsReplacementCost()
@@ -440,7 +429,7 @@ internal static partial class StrategicManagementRegressionCases
             beforeWood + 24,
             state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),
             "controlled resource-site production should still be settled for every elapsed pulse");
-        AssertEqual(10, city.ReserveForces, "built training ground should not recover reserves through retired per-building scalar effects");
+        AssertEqual(14, city.ReserveForces, "passive recovery should add two reserve soldiers for each elapsed pulse independently of buildings");
         AssertTrue(
             result.Events.Any(item => item.Kind == "StrategicWorldTimeSettled"),
             "elapsed-time settlement should emit a command-level time event");
@@ -448,74 +437,16 @@ internal static partial class StrategicManagementRegressionCases
             result.Events.Any(item => item.Kind == "StrategicCityBuildingProductionSettled"),
             "global advancement should emit a city-building production event for constructed economy buildings");
         AssertTrue(
-            !result.Events.Any(item => item.Kind == "StrategicCityReserveRecovered"),
-            "global advancement should not emit retired city reserve recovery events");
+            result.Events.Count(item => item.Kind == "StrategicCityReserveRecovered") == 1,
+            "global advancement should aggregate passive recovery into one city event");
     }
 
-    internal static void StrategicManagementSettlesLowAutoConscriptionDuringElapsedWorldTime()
+    internal static void StrategicManagementRecoversReserveForOneElapsedPulseWithoutCost()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
         StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
-        city.ReserveForces = 0;
-        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
-        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
-
-        StrategicCommandResult policy = InvokeSetAutoConscriptionIntensity(
-            commands,
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            "conscription_low");
-        AssertTrue(policy.Success, $"low auto conscription should be selectable, got {policy.FailureReason}");
-
-        StrategicCommandResult result = InvokeSettleElapsedWorldTime(
-            commands,
-            state,
-            StrategicManagementIds.FactionPlayer,
-            1);
-
-        AssertTrue(result.Success, $"elapsed world time should settle with low auto conscription, got {result.FailureReason}");
-        AssertEqual(2, city.ReserveForces, "low auto conscription should add reserve soldiers during world-map time");
-        AssertEqual(beforeMoney - 2, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "low auto conscription should spend money");
-        AssertEqual(beforeFood - 3, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "low auto conscription should spend food");
-        AssertTrue(
-            result.Events.Any(item => item.Kind == "StrategicCityReserveForcesAutoConscripted"),
-            "auto conscription settlement should emit a reserve-soldier event");
-    }
-
-    internal static void StrategicManagementStandardAutoConscriptionRequiresTrainingGround()
-    {
-        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicConstructionRegionDefinition military = FindRegion(definitions, StrategicManagementIds.RegionPlainsMilitary);
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
-
-        StrategicCommandResult missingTrainingGround = InvokeSetAutoConscriptionIntensity(
-            commands,
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            "conscription_standard");
-        AssertTrue(!missingTrainingGround.Success, "standard auto conscription should fail before the training ground exists");
-        AssertEqual(StrategicFailureReasons.MissingBuilding, missingTrainingGround.FailureReason, "missing training ground should be explicit");
-        AssertEqual("conscription_off", GetRequiredProperty<string>(city, "AutoConscriptionIntensityId"), "failed policy selection must not mutate the city intensity");
-
-        StrategicCommandResult buildTraining = commands.BuildCityBuilding(
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.BuildingTrainingGround,
-            StrategicManagementIds.RegionPlainsMilitary,
-            military.OriginX,
-            military.OriginY);
-        AssertTrue(buildTraining.Success, $"training ground setup should succeed, got {buildTraining.FailureReason}");
-
-        StrategicCommandResult policy = InvokeSetAutoConscriptionIntensity(
-            commands,
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            "conscription_standard");
-        AssertTrue(policy.Success, $"standard auto conscription should be selectable after training ground, got {policy.FailureReason}");
         city.ReserveForces = 0;
         int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
         int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
@@ -526,57 +457,105 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.FactionPlayer,
             1);
 
-        AssertTrue(result.Success, $"elapsed world time should settle with standard auto conscription, got {result.FailureReason}");
-        AssertEqual(6, city.ReserveForces, "standard auto conscription should add the accepted reserve batch");
-        AssertEqual(beforeMoney - 5, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "standard auto conscription should spend money");
-        AssertEqual(beforeFood - 8, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "standard auto conscription should spend food");
+        AssertTrue(result.Success, $"elapsed world time should settle passive reserve recovery, got {result.FailureReason}");
+        AssertEqual(2, city.ReserveForces, "one elapsed pulse should recover two reserve soldiers");
+        AssertEqual(beforeMoney, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "passive recovery should not spend money");
+        AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "passive recovery should not spend food");
+
+        StrategicEvent recovery = result.Events.Single(item => item.Kind == "StrategicCityReserveRecovered");
+        AssertEqual(StrategicManagementIds.FactionPlayer, recovery.Payload["faction"], "recovery event should identify the controlling faction");
+        AssertEqual("1", recovery.Payload["elapsedPulses"], "recovery event should report the settled pulse count");
+        AssertEqual("2", recovery.Payload["recoveryPerPulse"], "recovery event should report the configured rate");
+        AssertEqual("2", recovery.Payload["reserveGain"], "recovery event should report the actual bounded gain");
     }
 
-    internal static void StrategicManagementAutoConscriptionSkipsWithoutResourcesOrCapacity()
+    internal static void StrategicManagementAggregatesMultiplePulseReserveRecovery()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        city.ReserveForces = 0;
+
+        StrategicCommandResult result = InvokeSettleElapsedWorldTime(
+            commands,
+            state,
+            StrategicManagementIds.FactionPlayer,
+            3);
+
+        AssertTrue(result.Success, $"multiple elapsed pulses should settle passive reserve recovery, got {result.FailureReason}");
+        AssertEqual(6, city.ReserveForces, "three elapsed pulses should recover six reserve soldiers");
+        AssertEqual(1, result.Events.Count(item => item.Kind == "StrategicCityReserveRecovered"), "multiple pulses should emit one aggregated city recovery event");
+        StrategicEvent recovery = result.Events.Single(item => item.Kind == "StrategicCityReserveRecovered");
+        AssertEqual("3", recovery.Payload["elapsedPulses"], "aggregated recovery event should report all elapsed pulses");
+        AssertEqual("6", recovery.Payload["reserveGain"], "aggregated recovery event should report the total gain");
+    }
+
+    internal static void StrategicManagementCapsPassiveRecoveryAtRemainingCapacity()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementRules rules = new(definitions);
         StrategicManagementCommandService commands = new(definitions, rules);
         StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
-
-        StrategicCommandResult policy = InvokeSetAutoConscriptionIntensity(
-            commands,
-            state,
-            StrategicManagementIds.LocationPlainsCity,
-            "conscription_low");
-        AssertTrue(policy.Success, $"low auto conscription should be selectable, got {policy.FailureReason}");
-
-        city.ReserveForces = 0;
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney, 0);
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood, 0);
-        StrategicCommandResult noResources = InvokeSettleElapsedWorldTime(
-            commands,
-            state,
-            StrategicManagementIds.FactionPlayer,
-            1);
-        AssertTrue(noResources.Success, $"world time should still settle when auto conscription skips resources, got {noResources.FailureReason}");
-        AssertEqual(0, city.ReserveForces, "resource shortage should skip reserve gain");
-        AssertEqual(0, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "resource shortage should not mutate money");
-        AssertEqual(0, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "resource shortage should not mutate food");
-
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney, 500);
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood, 300);
         city.ReserveForces = city.CityForceCapacity - rules.GetActiveForces(state, city.LocationId) - 1;
         int beforeReserve = city.ReserveForces;
-        int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
-        int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
 
-        StrategicCommandResult noCapacity = InvokeSettleElapsedWorldTime(
+        StrategicCommandResult result = InvokeSettleElapsedWorldTime(
+            commands,
+            state,
+            StrategicManagementIds.FactionPlayer,
+            3);
+
+        AssertTrue(result.Success, $"near-full city recovery should still settle, got {result.FailureReason}");
+        AssertEqual(beforeReserve + 1, city.ReserveForces, "passive recovery should use the final point of remaining city capacity");
+        StrategicEvent recovery = result.Events.Single(item => item.Kind == "StrategicCityReserveRecovered");
+        AssertEqual("1", recovery.Payload["reserveGain"], "capacity-bounded recovery event should report the actual one-soldier gain");
+    }
+
+    internal static void StrategicManagementSkipsPassiveRecoveryForFullCity()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementRules rules = new(definitions);
+        StrategicManagementCommandService commands = new(definitions, rules);
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        city.ReserveForces = city.CityForceCapacity - rules.GetActiveForces(state, city.LocationId);
+        int beforeReserve = city.ReserveForces;
+
+        StrategicCommandResult result = InvokeSettleElapsedWorldTime(
             commands,
             state,
             StrategicManagementIds.FactionPlayer,
             1);
 
-        AssertTrue(noCapacity.Success, $"world time should still settle when auto conscription skips capacity, got {noCapacity.FailureReason}");
-        AssertEqual(beforeReserve, city.ReserveForces, "insufficient full-batch capacity should skip reserve gain");
-        AssertEqual(beforeMoney, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "capacity skip should not spend money");
-        AssertEqual(beforeFood, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood), "capacity skip should not spend food");
+        AssertTrue(result.Success, $"full city should not block elapsed-time settlement, got {result.FailureReason}");
+        AssertEqual(beforeReserve, city.ReserveForces, "full city should not gain reserve soldiers");
+        AssertTrue(!result.Events.Any(item => item.Kind == "StrategicCityReserveRecovered"), "full city should not emit a recovery event");
+    }
+
+    internal static void StrategicManagementSkipsPassiveRecoveryForEnemyHeldCity()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        city.ReserveForces = 0;
+        StrategicCommandResult lose = commands.LoseLocation(
+            state,
+            city.LocationId,
+            StrategicManagementIds.FactionEnemy);
+        AssertTrue(lose.Success, "losing the city should succeed before elapsed-time settlement");
+
+        StrategicCommandResult result = InvokeSettleElapsedWorldTime(
+            commands,
+            state,
+            StrategicManagementIds.FactionPlayer,
+            1);
+
+        AssertTrue(result.Success, $"enemy-held city should not block elapsed-time settlement, got {result.FailureReason}");
+        AssertEqual(0, city.ReserveForces, "enemy-held city must not recover player reserve soldiers");
+        AssertTrue(!result.Events.Any(item => item.Kind == "StrategicCityReserveRecovered"), "enemy-held city should not emit a player recovery event");
     }
 
     internal static void StrategicManagementElapsedWorldTimeSkipsEnemyHeldProduction()
@@ -620,6 +599,7 @@ internal static partial class StrategicManagementRegressionCases
         int beforeWood = state.GetResourceAmount(
             StrategicManagementIds.FactionPlayer,
             StrategicManagementIds.ResourceWood);
+        int beforeReserve = state.Cities[StrategicManagementIds.LocationPlainsCity].ReserveForces;
 
         StrategicCommandResult result = InvokeSettleElapsedWorldTime(
             commands,
@@ -630,6 +610,10 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(!result.Success, "settling zero elapsed pulses should fail");
         AssertEqual("invalid_elapsed_world_time_pulses", result.FailureReason, "invalid elapsed pulse count should be explicit");
         AssertEqual(beforePulses, GetElapsedWorldTimePulses(state), "failed settlement must not mutate strategic time");
+        AssertEqual(
+            beforeReserve,
+            state.Cities[StrategicManagementIds.LocationPlainsCity].ReserveForces,
+            "failed settlement must not recover reserve soldiers");
         AssertEqual(
             beforeWood,
             state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood),

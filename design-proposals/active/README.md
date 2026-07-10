@@ -8,7 +8,6 @@ Read active proposals only when they are relevant to the current task. Active pr
 
 | Proposal | Requirement | Status | Archive Readiness |
 |---|---|---|---|
-| `2026-06-17-strategic-world-context-ui/` | UI-CTX-001 | Draft | Pending written proposal review, authority merge, and follow-up implementation proposal. |
 | `2026-07-07-ui-theme-routing-taxonomy/` | UI-THEME-001 | Deferred Draft | Resume after major player-facing UI surfaces stabilize; expected authority copy is intentionally not prepared yet. |
 
 ## Rules

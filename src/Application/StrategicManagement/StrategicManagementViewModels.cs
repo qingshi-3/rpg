@@ -109,44 +109,13 @@ public sealed class StrategicCityManagementViewModel
     public int ReserveForces { get; set; }
     public int ActiveForces { get; set; }
     public int RemainingForceCapacity { get; set; }
-    public StrategicConscriptionViewModel Conscription { get; set; } = new();
+    public int ReserveRecoveryPerElapsedPulse { get; set; }
     public List<StrategicConstructionRegionViewModel> ConstructionRegions { get; set; } = new();
     public List<StrategicBuildingInstanceViewModel> Buildings { get; set; } = new();
     public List<StrategicBuildingOptionViewModel> BuildingOptions { get; set; } = new();
     public List<StrategicMusterTemplateViewModel> MusterTemplates { get; set; } = new();
     public List<StrategicCorpsInstanceViewModel> CorpsInstances { get; set; } = new();
     public List<StrategicHeroCompanyViewModel> HeroCompanies { get; set; } = new();
-}
-
-public sealed class StrategicConscriptionViewModel
-{
-    public string CurrentIntensityId { get; set; } = "";
-    public int CityForceCapacity { get; set; }
-    public int ReserveForces { get; set; }
-    public int ActiveForces { get; set; }
-    public int RemainingForceCapacity { get; set; }
-    public StrategicConscriptionManualOptionViewModel ManualOption { get; set; } = new();
-    public List<StrategicConscriptionIntensityOptionViewModel> IntensityOptions { get; set; } = new();
-}
-
-public sealed class StrategicConscriptionManualOptionViewModel
-{
-    public int ReserveGain { get; set; }
-    public bool CanConscript { get; set; }
-    public string DisabledReason { get; set; } = "";
-    public List<StrategicResourceCostViewModel> Cost { get; set; } = new();
-}
-
-public sealed class StrategicConscriptionIntensityOptionViewModel
-{
-    public string IntensityId { get; set; } = "";
-    public string DisplayName { get; set; } = "";
-    public int ReserveGain { get; set; }
-    public bool RequiresTrainingGround { get; set; }
-    public bool IsCurrent { get; set; }
-    public bool CanSelect { get; set; }
-    public string DisabledReason { get; set; } = "";
-    public List<StrategicResourceCostViewModel> Cost { get; set; } = new();
 }
 
 public sealed class StrategicConstructionRegionViewModel

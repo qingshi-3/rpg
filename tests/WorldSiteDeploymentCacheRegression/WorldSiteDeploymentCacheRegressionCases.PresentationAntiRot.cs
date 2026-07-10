@@ -763,12 +763,10 @@ internal static void WorldSiteRootDelegatesSiteManagementHudLists()
         binderSource.Contains("StrategicBuildingOptionViewModel", StringComparison.Ordinal) &&
         binderSource.Contains("GameUiSceneFactory.CreateWorldMutedLine", StringComparison.Ordinal) &&
         binderSource.Contains("GameUiSceneFactory.CreateWorldBuildingOptionCard", StringComparison.Ordinal) &&
-        binderSource.Contains("GameUiSceneFactory.CreateWorldConscriptionPanel", StringComparison.Ordinal) &&
         binderSource.Contains("_selectBuildingForPlacement", StringComparison.Ordinal) &&
         binderSource.Contains("Selected +=", StringComparison.Ordinal) &&
-        binderSource.Contains("ManualConscriptRequested +=", StringComparison.Ordinal) &&
-        binderSource.Contains("AutoConscriptionIntensityRequested +=", StringComparison.Ordinal),
-        "strategic management dashboard binder should render build and conscription rows through authored visual resources and callbacks");
+        binderSource.Contains("ReserveRecoveryPerElapsedPulse", StringComparison.Ordinal),
+        "strategic management dashboard binder should render building cards and the read-only reserve recovery fact");
     AssertTrue(
         !binderSource.Contains("GameUiSceneFactory.CreateWorldCorpsInstanceRow", StringComparison.Ordinal) &&
         !binderSource.Contains("GameUiSceneFactory.CreateWorldMilitaryHeroCard", StringComparison.Ordinal) &&
@@ -813,29 +811,12 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
     string siteHudSource = File.ReadAllText(Path.Combine(siteRootDir, "WorldSiteRoot.SiteManagementHud.cs"));
 
     string buildHudBody = ExtractMethodBody(siteHudSource, "private void BuildSiteHud()");
-    foreach (string requiredCallback in new[]
-    {
-        "OnStrategicBuildBuildingSelected",
-        "OnStrategicManualConscriptPressed",
-        "OnStrategicAutoConscriptionIntensityPressed"
-    })
-    {
-        AssertTrue(
-            buildHudBody.Contains(requiredCallback, StringComparison.Ordinal),
-            $"WorldSiteRoot should pass strategic command callbacks into the dashboard binder callback={requiredCallback}");
-    }
-
-    foreach (string requiredCommand in new[]
-    {
-        "StrategicManagementRuntime.Commands.BuildCityBuilding(",
-        "StrategicManagementRuntime.Commands.ManualConscriptReserveForces(",
-        "StrategicManagementRuntime.Commands.SetAutoConscriptionIntensity("
-    })
-    {
-        AssertTrue(
-            rootSource.Contains(requiredCommand, StringComparison.Ordinal),
-            $"WorldSiteRoot should route strategic dashboard intent through command service call={requiredCommand}");
-    }
+    AssertTrue(
+        buildHudBody.Contains("OnStrategicBuildBuildingSelected", StringComparison.Ordinal),
+        "WorldSiteRoot should pass the building command callback into the dashboard binder");
+    AssertTrue(
+        rootSource.Contains("StrategicManagementRuntime.Commands.BuildCityBuilding(", StringComparison.Ordinal),
+        "WorldSiteRoot should route building placement through Strategic Management commands");
 
     AssertTrue(
         !siteHudSource.Contains("OnStrategicReplenishCorpsPressed", StringComparison.Ordinal) &&
@@ -851,10 +832,8 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
         "WorldSiteRoot should refresh the strategic dashboard with a command-result notice after command submission");
 
     string buildBuildingBody = ExtractMethodBody(rootSource, "private void TrySubmitStrategicBuildingPlacement(");
-    string manualConscriptBody = ExtractMethodBody(rootSource, "private void OnStrategicManualConscriptPressed(");
-    string autoConscriptionBody = ExtractMethodBody(rootSource, "private void OnStrategicAutoConscriptionIntensityPressed(");
     string recruitCorpsBody = ExtractMethodBody(rootSource, "private void OnStrategicRecruitCorpsForHeroPressed(");
-    string commandBodies = buildBuildingBody + manualConscriptBody + autoConscriptionBody + recruitCorpsBody;
+    string commandBodies = buildBuildingBody + recruitCorpsBody;
 
     AssertTrue(
         rootSource.Contains("StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(", StringComparison.Ordinal) &&
@@ -870,8 +849,6 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
         "WorldSiteRoot should route mapped non-city sites into a Strategic Management location dashboard");
     AssertTrue(
         buildBuildingBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
-        manualConscriptBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
-        autoConscriptionBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal) &&
         recruitCorpsBody.Contains("TryResolveStrategicManagementCityId(_siteHudSiteId, out string cityId)", StringComparison.Ordinal),
         "city-management commands should guard command submission behind selected strategic city resolution");
     AssertTrue(
@@ -1018,7 +995,7 @@ internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
         scene.Contains("[node name=\"SiteManagementTabRail\" type=\"Control\" parent=\"OverlayHost\"]", StringComparison.Ordinal) &&
         tabRailBlock.Contains("offset_left = 0.0", StringComparison.Ordinal) &&
         tabRailBlock.Contains("offset_right = 96.0", StringComparison.Ordinal) &&
-        tabRailBlock.Contains("custom_minimum_size = Vector2(96, 260)", StringComparison.Ordinal) &&
+        tabRailBlock.Contains("custom_minimum_size = Vector2(96, 208)", StringComparison.Ordinal) &&
         refsSource.Contains("OverlayHost/SiteManagementTabRail", StringComparison.Ordinal) &&
         !scene.Contains("[node name=\"SiteResourceLabel\" type=\"Label\" parent=\"OverlayHost/SitePeacetimePanel", StringComparison.Ordinal) &&
         !refsSource.Contains("OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteManagementHeader/SiteResourceLabel", StringComparison.Ordinal),
@@ -1058,7 +1035,6 @@ internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
     foreach (string[] tab in new[]
     {
         new[] { "BuildTabButton", "建造", "22_build_tab_icon" },
-        new[] { "ConscriptionTabButton", "征兵", "23_conscript_tab_icon" },
         new[] { "RecruitTabButton", "招兵", "24_recruit_tab_icon" },
         new[] { "OverviewTabButton", "总览", "25_overview_tab_icon" },
         new[] { "ReturnMapTabButton", "返回", "26_return_tab_icon" }
@@ -1088,7 +1064,6 @@ internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
 
     AssertTrue(
         scene.Contains("UI_TravelBook_IconGear01a.png", StringComparison.Ordinal) &&
-        scene.Contains("recruitment_reserve_force_icon.png", StringComparison.Ordinal) &&
         scene.Contains("training_ground_icon.tres", StringComparison.Ordinal) &&
         scene.Contains("UI_TravelBook_IconHome01a.png", StringComparison.Ordinal) &&
         scene.Contains("UI_TravelBook_IconArrow01a.png", StringComparison.Ordinal) &&
@@ -1158,8 +1133,6 @@ internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
         "SiteManagementTabRail",
         "ManagementContentScroll",
         "SiteBuildSection",
-        "SiteConscriptionSection",
-        "SiteConscriptionList",
         "SiteOverviewSection"
     })
     {
@@ -1185,112 +1158,43 @@ internal static void WorldSiteManagementHudUsesTabbedOperationLayout()
         !binderSource.Contains("GameUiSceneFactory.CreateWorldMusterOptionCard", StringComparison.Ordinal),
         "strategic management binder should keep recruitment and corps inventory out of the narrow site-management sidebar");
     AssertTrue(
-        binderSource.Contains("_conscriptionList", StringComparison.Ordinal) &&
-        binderSource.Contains("BindConscription(", StringComparison.Ordinal) &&
-        binderSource.Contains("StrategicConscriptionViewModel", StringComparison.Ordinal),
-        "strategic management binder should keep conscription as a normal city-panel page");
+        !binderSource.Contains("Conscription", StringComparison.Ordinal),
+        "strategic management binder should not retain a dedicated conscription page");
 }
 
-internal static void WorldSiteConscriptionUsesFocusedReservePanel()
+internal static void WorldSiteOmitsDedicatedConscriptionSurface()
 {
     string root = ProjectRoot();
     string siteRootDir = Path.Combine(root, "src", "Presentation", "World", "Sites");
-    string scenePath = Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn");
-    string panelScenePath = Path.Combine(root, "scenes", "world", "ui", "WorldConscriptionPanel.tscn");
-    string panelSourcePath = Path.Combine(siteRootDir, "WorldConscriptionPanel.cs");
-    string factoryPath = Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs");
-    string dashboardBinderPath = Path.Combine(siteRootDir, "StrategicManagementDashboardPanelBinder.cs");
+    string scene = File.ReadAllText(Path.Combine(root, "scenes", "world", "ui", "WorldSitePeacetimeHud.tscn"));
+    string refsSource = File.ReadAllText(Path.Combine(siteRootDir, "WorldSitePeacetimeHudNodeRefs.cs"));
+    string rootSource = ReadWorldSiteRootSource();
+    string binderSource = File.ReadAllText(Path.Combine(siteRootDir, "StrategicManagementDashboardPanelBinder.cs"));
+    string factorySource = File.ReadAllText(Path.Combine(root, "src", "Presentation", "Common", "GameUiSceneFactory.cs"));
 
-    AssertTrue(File.Exists(scenePath), $"world-site peacetime HUD scene should exist path={scenePath}");
-    AssertTrue(File.Exists(panelScenePath), $"conscription page should use an authored reusable panel scene path={panelScenePath}");
-    AssertTrue(File.Exists(panelSourcePath), $"conscription page panel should own its binding script path={panelSourcePath}");
-
-    string scene = File.ReadAllText(scenePath);
-    string panelScene = File.Exists(panelScenePath) ? File.ReadAllText(panelScenePath) : "";
-    string panelSource = File.Exists(panelSourcePath) ? File.ReadAllText(panelSourcePath) : "";
-    string factorySource = File.ReadAllText(factoryPath);
-    string dashboardBinderSource = File.ReadAllText(dashboardBinderPath);
-    string bindConscriptionBody = ExtractMethodBody(dashboardBinderSource, "private void BindConscription(");
-
-    AssertTrue(
-        scene.Contains("SiteConscriptionList", StringComparison.Ordinal),
-        "site-management scene should keep the conscription page hosted inside the existing tab section");
-    AssertTrue(
-        factorySource.Contains("WorldConscriptionPanelScenePath", StringComparison.Ordinal) &&
-        factorySource.Contains("CreateWorldConscriptionPanel", StringComparison.Ordinal),
-        "conscription page should be instantiated through the shared UI scene factory");
-    AssertTrue(
-        bindConscriptionBody.Contains("GameUiSceneFactory.CreateWorldConscriptionPanel", StringComparison.Ordinal) &&
-        bindConscriptionBody.Contains(".Bind(", StringComparison.Ordinal),
-        "strategic dashboard binder should delegate conscription presentation to the focused panel");
-    AssertTrue(
-        !bindConscriptionBody.Contains("AddActionButton(", StringComparison.Ordinal) &&
-        !bindConscriptionBody.Contains("AddMutedLine(", StringComparison.Ordinal) &&
-        !bindConscriptionBody.Contains("手动征兵\\n", StringComparison.Ordinal) &&
-        !bindConscriptionBody.Contains("自动征兵力度", StringComparison.Ordinal),
-        "conscription binding must not regress to text-heavy stacked labels and multi-line action buttons");
-
-    foreach (string requiredNode in new[]
+    foreach (string retiredFragment in new[]
     {
-        "ReserveSummaryPanel",
-        "ReserveFill",
-        "CapacityUsageLabel",
-        "ManualConscriptButton",
-        "CurrentIntensityPanel",
-        "CurrentIntensityNameLabel",
-        "CurrentIntensityGainLabel",
-        "IntensityOptionGrid",
-    })
-    {
-        AssertTrue(panelScene.Contains(requiredNode, StringComparison.Ordinal), $"conscription panel scene should author node={requiredNode}");
-    }
-    foreach (string retiredNode in new[]
-    {
-        "ForceStatsGrid",
-        "ForceValueLabel",
-        "CapacityValueLabel",
-        "RemainingValueLabel",
-        "ConscriptionFeedbackLabel"
-    })
-    {
-        AssertTrue(!panelScene.Contains(retiredNode, StringComparison.Ordinal), $"conscription panel should not restore cluttered node={retiredNode}");
-    }
-
-    foreach (string requiredFragment in new[]
-    {
-        "public partial class WorldConscriptionPanel",
-        "StrategicConscriptionViewModel",
+        "ConscriptionTabButton",
+        "SiteConscriptionSection",
+        "WorldConscriptionPanel",
         "ManualConscriptRequested",
         "AutoConscriptionIntensityRequested",
-        "BindCurrentIntensity",
-        "BindIntensityOption"
+        "ManualConscriptReserveForces(",
+        "SetAutoConscriptionIntensity("
     })
     {
-        AssertTrue(panelSource.Contains(requiredFragment, StringComparison.Ordinal), $"conscription panel script should own binding fragment={requiredFragment}");
+        AssertTrue(
+            !scene.Contains(retiredFragment, StringComparison.Ordinal) &&
+            !refsSource.Contains(retiredFragment, StringComparison.Ordinal) &&
+            !rootSource.Contains(retiredFragment, StringComparison.Ordinal) &&
+            !binderSource.Contains(retiredFragment, StringComparison.Ordinal) &&
+            !factorySource.Contains(retiredFragment, StringComparison.Ordinal),
+            $"site management should not retain retired conscription fragment={retiredFragment}");
     }
+
     AssertTrue(
-        panelSource.Contains("_capacityUsageLabel", StringComparison.Ordinal) &&
-        panelSource.Contains("_currentIntensityNameLabel", StringComparison.Ordinal) &&
-        panelSource.Contains("_currentIntensityGainLabel", StringComparison.Ordinal),
-        "conscription panel should bind one compact capacity summary and a separate current auto-mode display");
-    AssertTrue(
-        panelSource.Contains("if (option == null || option.IsCurrent)", StringComparison.Ordinal) &&
-        !panelSource.Contains("ToggleMode = option.IsCurrent", StringComparison.Ordinal) &&
-        !panelSource.Contains("SetPressedNoSignal", StringComparison.Ordinal),
-        "current auto-conscription mode should be displayed once, not duplicated as a pressed switch button");
-    AssertTrue(
-        !panelSource.Contains("_forceValueLabel", StringComparison.Ordinal) &&
-        !panelSource.Contains("_capacityValueLabel", StringComparison.Ordinal) &&
-        !panelSource.Contains("_remainingValueLabel", StringComparison.Ordinal) &&
-        !panelSource.Contains("_feedbackLabel", StringComparison.Ordinal) &&
-        !panelSource.Contains("BindFeedback(", StringComparison.Ordinal),
-        "conscription panel should not restore secondary stat columns or repeated feedback text");
-    AssertTrue(
-        !panelSource.Contains("_manualConscriptButton.Text = $\"手动征兵    +", StringComparison.Ordinal) &&
-        !panelSource.Contains("_manualConscriptButton.Text = $\"手动征兵  +{gain}\\n", StringComparison.Ordinal) &&
-        !panelSource.Contains("自动：每次结算", StringComparison.Ordinal) &&
-        !panelSource.Contains("手动：可立即补充", StringComparison.Ordinal),
-        "conscription visible text should stay compact; costs and reasons belong in tooltips");
+        binderSource.Contains("ReserveRecoveryPerElapsedPulse", StringComparison.Ordinal),
+        "existing city summary should display the read-only passive reserve recovery rate");
 }
 
 internal static void WorldSiteRecruitmentUsesHeroFirstMilitaryWorkbench()
@@ -2153,7 +2057,6 @@ static string _siteManagementTabField(string tabName)
     return tabName switch
     {
         "BuildTabButton" => "_siteBuildTabButton",
-        "ConscriptionTabButton" => "_siteConscriptionTabButton",
         "RecruitTabButton" => "_siteRecruitTabButton",
         "OverviewTabButton" => "_siteOverviewTabButton",
         "ReturnMapTabButton" => "_returnMapButton",

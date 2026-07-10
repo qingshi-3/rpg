@@ -235,7 +235,7 @@ public sealed class StrategicManagementViewModelService
         cityView.ReserveForces = city.ReserveForces;
         cityView.ActiveForces = _rules.GetActiveForces(state, city.LocationId);
         cityView.RemainingForceCapacity = _rules.GetRemainingCityForceCapacity(state, city.LocationId);
-        cityView.Conscription = BuildConscription(state, city);
+        cityView.ReserveRecoveryPerElapsedPulse = _definitions.ReserveRecoveryPerElapsedPulse;
         cityView.ConstructionRegions = BuildConstructionRegions(city, location);
         cityView.Buildings = BuildBuildings(city, location);
         cityView.BuildingOptions = BuildBuildingOptions(state, city, location);
@@ -243,53 +243,6 @@ public sealed class StrategicManagementViewModelService
         cityView.CorpsInstances = BuildCorpsInstances(state, factionId, city.LocationId);
         cityView.HeroCompanies = BuildHeroCompanies(state, factionId, city.LocationId);
         return cityView;
-    }
-
-    private StrategicConscriptionViewModel BuildConscription(
-        StrategicManagementState state,
-        StrategicCityState city)
-    {
-        string currentIntensityId = string.IsNullOrWhiteSpace(city.AutoConscriptionIntensityId)
-            ? StrategicManagementIds.ConscriptionOff
-            : city.AutoConscriptionIntensityId;
-        string manualFailure = _rules.GetManualConscriptionFailureReason(state, city.LocationId);
-        StrategicConscriptionViewModel viewModel = new()
-        {
-            CurrentIntensityId = currentIntensityId,
-            CityForceCapacity = city.CityForceCapacity,
-            ReserveForces = city.ReserveForces,
-            ActiveForces = _rules.GetActiveForces(state, city.LocationId),
-            RemainingForceCapacity = _rules.GetRemainingCityForceCapacity(state, city.LocationId),
-            ManualOption = new StrategicConscriptionManualOptionViewModel
-            {
-                ReserveGain = _rules.GetManualConscriptionReserveGain(),
-                CanConscript = string.IsNullOrWhiteSpace(manualFailure),
-                DisabledReason = manualFailure,
-                Cost = BuildCosts(_rules.GetManualConscriptionCost())
-            }
-        };
-
-        viewModel.IntensityOptions = _rules.GetAutoConscriptionIntensityRules()
-            .Select(rule =>
-            {
-                string disabledReason = _rules.GetAutoConscriptionIntensityFailureReason(
-                    state,
-                    city.LocationId,
-                    rule.IntensityId);
-                return new StrategicConscriptionIntensityOptionViewModel
-                {
-                    IntensityId = rule.IntensityId,
-                    DisplayName = rule.DisplayName,
-                    ReserveGain = rule.ReserveGain,
-                    RequiresTrainingGround = rule.RequiresTrainingGround,
-                    IsCurrent = string.Equals(currentIntensityId, rule.IntensityId, System.StringComparison.Ordinal),
-                    CanSelect = string.IsNullOrWhiteSpace(disabledReason),
-                    DisabledReason = disabledReason,
-                    Cost = BuildCosts(rule.Cost)
-                };
-            })
-            .ToList();
-        return viewModel;
     }
 
     private static List<StrategicConstructionRegionViewModel> BuildConstructionRegions(

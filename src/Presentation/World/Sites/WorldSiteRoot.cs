@@ -109,13 +109,11 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattleRuntimeHeroSelectorPresenter _battleRuntimeHeroSelectorPresenter;
 	private BattleRuntimeHeroFramePresenter _battleRuntimeHeroFramePresenter;
 	private Button _siteBuildTabButton;
-	private Button _siteConscriptionTabButton;
 	private Button _siteRecruitTabButton;
 	private Button _siteOverviewTabButton;
 	private Button _sitePanelCloseButton;
 	private Control _siteManagementTabRail;
 	private Control _siteBuildSection;
-	private Control _siteConscriptionSection;
 	private Control _siteOverviewSection;
 	private Control _militaryWorkbenchBackdrop;
 	private Control _militaryWorkbenchPanel;
@@ -129,7 +127,6 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private Button _militaryCloseButton;
 	private Label _siteBuildingBuildTitle;
 	private GridContainer _siteBuildingOptionGrid;
-	private VBoxContainer _siteConscriptionList;
 	private Control _siteMinimapHost;
 	private Control _battlePreparationRosterDock;
 	private VBoxContainer _battlePreparationRosterList;

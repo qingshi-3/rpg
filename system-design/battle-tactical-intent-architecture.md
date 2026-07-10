@@ -6,7 +6,7 @@ Status: Accepted Architecture
 
 This document supports hero-led light RTS combat by separating battlefield business semantics from reusable tactical domain capabilities.
 
-The next migration slice applies this architecture to both enemy-controlled and player-commanded battle groups. Player battle preparation, deployment, and command UI remain upstream intent-input producers; Runtime Tactical Intent owns how accepted intent input becomes stable movement and local-combat direction.
+This architecture applies to both enemy-controlled and player-commanded battle groups. Player battle preparation, deployment, and command UI remain upstream intent-input producers; Runtime Tactical Intent owns how accepted intent input becomes stable movement and local-combat direction.
 
 ## Responsibility
 
@@ -168,29 +168,29 @@ Player intent resolution priority is:
 
 ```text
 accepted runtime player command
--> accepted destination beacon command or future battle-start player battle plan
+-> accepted destination beacon command or preparation initial-destination facts
 -> player-scoped autonomous fallback when no player command is active
 -> safe fallback intent
 ```
 
 The fallback must be explicit and diagnosable. It may hold, defend a known region, or advance toward a stable opposing-side objective. It must not silently chase a volatile runtime observation.
 
-## Player Migration Scope
+## Player Tactical Intent Contract
 
-The enemy first slice connected enemy-controlled battle groups to Tactical Intent. The player migration slice connects player-commanded battle groups to the same Runtime Tactical Intent path.
+Player-commanded and enemy-controlled battle groups use the same Runtime Tactical Intent path. Command source and precedence distinguish player intent, enemy policy, self-calculated fallback, and safe fallback without creating separate movement authorities.
 
-In scope:
+Current rules:
 
-- generalize AI-named intent DTOs, state fields, sources, and policies into side-neutral tactical intent names;
-- convert accepted destination beacon commands into player-sourced tactical intent plans during battle;
-- keep battle preparation and deployment as upstream input producers, not Tactical Intent responsibilities;
-- resolve both player and enemy non-engaged movement through active tactical intent and stable target objects, destination beacons, or regions;
-- remove the old player-only objective-anchor movement path as a runtime authority after equivalent beacon tactical intent coverage exists;
-- keep runtime-observed player clusters as tactical observations, not default long-term movement targets;
-- allow temporary or cluster-derived targets only when the active intent explicitly selects them or when fallback policy permits them;
-- add low-noise diagnostics for intent selection, target resolution, target retention, retarget rejection, and fallback.
+- Tactical intent names, state, sources, and policies are side-neutral.
+- Accepted destination-beacon commands produce player-sourced tactical intent during battle.
+- Battle preparation and deployment are upstream intent-input workflows, not Tactical Intent responsibilities.
+- Player and enemy non-engaged movement resolves through active tactical intent and stable target objects, destination beacons, or regions.
+- The old player-only objective-anchor movement path is not a Runtime movement authority.
+- Runtime-observed player clusters are tactical observations, not default long-term movement targets.
+- Temporary or cluster-derived targets are allowed only when the active intent selects them or fallback policy permits them.
+- Intent selection, target resolution, retention, retarget rejection, and fallback expose low-noise diagnostics.
 
-Out of scope:
+Does not own:
 
 - changing deployment UI operations or battle-preparation selection UX;
 - changing Presentation movement interpolation;
