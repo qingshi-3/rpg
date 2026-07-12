@@ -159,7 +159,9 @@ public partial class WorldSiteRoot
 
     private bool ActivateBattleGroupRuntime()
     {
-        if (!TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext))
+        if (!TryResolveActiveBattleContext(
+                out StrategicBattleActiveContext activeContext,
+                out StrategicBattleActiveContextToken activeToken))
         {
             _battleStartBlockedReason = "strategic_battle_active_context_required";
             GameLog.Warn(nameof(WorldSiteRoot), $"Battle group runtime activation blocked reason={_battleStartBlockedReason}");
@@ -169,9 +171,17 @@ public partial class WorldSiteRoot
 
         bool started = _battleGroupRuntimeAdapter.TryStartActiveBattle(
             activeContext,
+            activeToken,
             out WorldSiteBattleGroupRuntimeResolveResult resolution);
         if (!started)
         {
+            if (resolution?.ActiveContextToken != null &&
+                ReferenceEquals(activeContext, resolution.ActiveContext))
+            {
+                // Final Snapshot publication may have succeeded before Runtime
+                // rejected start. Retain that exact revision for explicit recovery.
+                _activeStrategicBattleToken = resolution.ActiveContextToken;
+            }
             _battleStartBlockedReason = string.IsNullOrWhiteSpace(resolution?.FailureReason)
                 ? "battle_group_runtime_activation_failed"
                 : resolution.FailureReason;
@@ -181,6 +191,7 @@ public partial class WorldSiteRoot
         }
 
         _activeBattleGroupRuntimeResolution = resolution;
+        _activeStrategicBattleToken = resolution.ActiveContextToken;
         AlignBattlePresentationEntityIdsToRuntime(resolution.Request, resolution.Snapshot);
         _ = PlayBattleGroupRuntimeAndApplyResultAsync(resolution);
         return true;
@@ -199,7 +210,7 @@ public partial class WorldSiteRoot
             _battleStartBlockedReason = "battle_group_runtime_presentation_failed";
             GameLog.Warn(nameof(WorldSiteRoot), $"Battle runtime presentation failed request={resolution?.Request?.RequestId ?? ""} reason={_battleStartBlockedReason} error={ex.Message}");
             _activeBattleGroupRuntimeResolution = null; ClearBattleEntities(); SetBattleRuntimeEnabled(false);
-            CancelActiveBattleLaunch(_battleStartBlockedReason);
+            CancelActiveBattleLaunch(_battleStartBlockedReason, resolution?.ActiveContextToken);
             return;
         }
         resolution = resolution?.ActiveContext != null
@@ -216,6 +227,7 @@ public partial class WorldSiteRoot
             SetBattleRuntimeEnabled(false);
             return;
         }
+        _activeStrategicBattleToken = resolution.ActiveContextToken;
         _activeBattleGroupRuntimeResolution = null;
         BattleReportRecord resultReport = resolution.ActiveContext == null
             ? resolution.Report : resolution.ActiveContext.ResultEnvelope?.Report;
@@ -229,7 +241,9 @@ public partial class WorldSiteRoot
         }
         BattleOutcome outcome = resolution.BattleResult?.Outcome ?? BattleOutcome.None;
         applyResult = resolution.ActiveContext != null
-            ? ApplyStrategicBattleResultToWorld(resolution.ActiveContext)
+            ? ApplyStrategicBattleResultToWorld(
+                resolution.ActiveContext,
+                resolution.ActiveContextToken)
             : ApplyBattleResultToWorld(resolution.Request, resolution.BattleResult);
         string battleNotice = BuildBattleGroupRuntimeReturnNotice(applyResult, resultReport, resolution.Request);
         if (!string.IsNullOrWhiteSpace(battleNotice))
@@ -806,7 +820,9 @@ public partial class WorldSiteRoot
         _unitRoot?.SetHoverPreviewByEntityId(normalizedEntityId);
     }
 
-    private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context)
+    private WorldActionResult ApplyStrategicBattleResultToWorld(
+        StrategicBattleActiveContext context,
+        StrategicBattleActiveContextToken expectedResultToken)
     {
         StrategicWorldRuntime.EnsureInitialized();
         string bridgeFailureReason = StrategicBattleBridgeService.GetActiveContextFailureReason(context);
@@ -826,7 +842,10 @@ public partial class WorldSiteRoot
         StrategicManagementRuntime.EnsureInitialized();
         StrategicBattleBridgeService bridge = new(StrategicManagementRuntime.Definitions);
         StrategicBattleResultSummary summary = bridge.BuildResultSummary(context);
-        StrategicBattleSettlementCommitResult commitResult = StrategicManagementRuntime.CommitBattleResult(context, summary);
+        StrategicBattleSettlementCommitResult commitResult = StrategicManagementRuntime.CommitBattleResult(
+            context,
+            expectedResultToken,
+            summary);
         StrategicCommandResult strategicResult = commitResult.CommandResult;
         if (!commitResult.Success || strategicResult?.Success != true)
         {
@@ -863,6 +882,7 @@ public partial class WorldSiteRoot
         StrategicWorldRuntime.LastNotice = applyResult.Message;
         ClearLegacyStrategicBattleHandoff("result_consumed");
         _activeStrategicBattleContext = null;
+        _activeStrategicBattleToken = null;
         return applyResult;
     }
 

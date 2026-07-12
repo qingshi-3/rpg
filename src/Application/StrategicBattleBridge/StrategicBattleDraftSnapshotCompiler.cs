@@ -61,8 +61,11 @@ public sealed class StrategicBattleDraftSnapshotCompiler
     public const string CombatStatsMissingReason = "strategic_battle_launch_combat_stats_missing";
 
     public StrategicBattleDraftSnapshotResult CompileAndCommitFinalSnapshot(
-        StrategicBattleActiveContext activeContext)
+        StrategicBattleActiveContext activeContext,
+        StrategicBattleActiveContextToken expectedToken,
+        out StrategicBattleActiveContextToken advancedToken)
     {
+        advancedToken = null;
         StrategicBattlePreparationDraft draft = activeContext?.PreparationDraft;
         BattleStartRequest projection = StrategicBattlePreparationDraftAdapter.CreateCompatibilityProjection(draft);
         if (projection == null)
@@ -76,12 +79,20 @@ public sealed class StrategicBattleDraftSnapshotCompiler
             return result;
         }
 
-        // Compilation validated every lineage and fact before this single commit.
-        // The compatibility projection is a detached outbound copy.
-        activeContext.Snapshot = result.Snapshot;
-        activeContext.CompatibilityRequest = projection;
-        activeContext.FinalizedDraftId = draft.DraftId;
-        activeContext.FinalizedDraftRevision = draft.Revision;
+        if (!StrategicBattleActiveContextStore.TryAdvanceSnapshot(
+                expectedToken,
+                activeContext,
+                result.Snapshot,
+                projection,
+                draft.DraftId,
+                draft.Revision,
+                result.DeployedParticipantIds.ToArray(),
+                out advancedToken,
+                out string commitFailureReason))
+        {
+            return StrategicBattleDraftSnapshotResult.Failed(commitFailureReason);
+        }
+
         return result;
     }
 
@@ -289,15 +300,6 @@ public sealed class StrategicBattleDraftSnapshotCompiler
         if (snapshot.BattleGroups.Count == 0 || deployedParticipantIds.Count == 0)
         {
             return StrategicBattleDraftSnapshotResult.Failed("strategic_battle_launch_snapshot_empty");
-        }
-
-        // Freeze the accepted deployment subset only after every Draft fact has
-        // validated and the complete final Snapshot exists.
-        foreach (StrategicBattleParticipantReference participant in participants)
-        {
-            participant.Role = deployedParticipantIds.Contains(participant.ParticipantId ?? "")
-                ? StrategicBattleParticipantRole.Deployed
-                : StrategicBattleParticipantRole.Reserve;
         }
 
         GameLog.Info(

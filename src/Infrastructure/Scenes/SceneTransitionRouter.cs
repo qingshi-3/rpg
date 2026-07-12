@@ -114,7 +114,10 @@ public sealed class SceneTransitionRouter
                 $"StaleLegacyBattleHandoffClearedForStrategicTransition context={activeContext.ContextId}");
         }
 
-        if (!StrategicBattleActiveContextStore.TryBegin(activeContext, out string publicationFailureReason))
+        if (!StrategicBattleActiveContextStore.TryBegin(
+                activeContext,
+                out StrategicBattleActiveContextToken transitionToken,
+                out string publicationFailureReason))
         {
             IsTransitioning = false;
             GameLog.Warn(
@@ -132,22 +135,21 @@ public sealed class SceneTransitionRouter
                 request.OnSuccess));
         if (error == Error.Ok)
         {
-            GameLog.Info(nameof(SceneTransitionRouter), $"StrategicBattleTransitionStarted context={activeContext.ContextId} scene={scenePath}");
+            GameLog.Info(nameof(SceneTransitionRouter), $"StrategicBattleTransitionStarted context={activeContext.ContextId} revision={transitionToken.Revision} scene={scenePath}");
             return SceneTransitionResult.Ok();
         }
 
         bool clearedMatchingContext = StrategicBattleActiveContextStore.TryClear(
-            activeContext.ContextId,
-            activeContext.Session?.SessionId,
-            activeContext.Snapshot?.SnapshotId,
-            $"scene_change_failed:{error}");
+            transitionToken,
+            $"scene_change_failed:{error}",
+            out string clearFailureReason);
         IsTransitioning = false;
         string failureReason = $"scene_change_failed:{error}";
         if (clearedMatchingContext)
         {
             request.RollbackOnFailure?.Invoke(failureReason);
         }
-        GameLog.Warn(nameof(SceneTransitionRouter), $"StrategicBattleTransitionFailed context={activeContext.ContextId} scene={scenePath} error={error}");
+        GameLog.Warn(nameof(SceneTransitionRouter), $"StrategicBattleTransitionFailed context={activeContext.ContextId} expectedRevision={transitionToken.Revision} scene={scenePath} error={error} clearReason={clearFailureReason}");
         return SceneTransitionResult.Fail(failureReason, error);
     }
 

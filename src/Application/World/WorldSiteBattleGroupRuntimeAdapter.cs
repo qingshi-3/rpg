@@ -22,6 +22,7 @@ public sealed class WorldSiteBattleGroupRuntimeResolveResult
     public BattleStartSnapshot Snapshot { get; init; }
     public BattleRuntimeSessionController RuntimeController { get; init; }
     public StrategicBattleActiveContext ActiveContext { get; init; }
+    public StrategicBattleActiveContextToken ActiveContextToken { get; init; }
 }
 
 public sealed class WorldSiteBattleGroupRuntimeAdapter
@@ -61,6 +62,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
 
     public bool TryStartActiveBattle(
         StrategicBattleActiveContext activeContext,
+        StrategicBattleActiveContextToken expectedToken,
         out WorldSiteBattleGroupRuntimeResolveResult result)
     {
         StrategicBattlePreparationDraft draft = activeContext?.PreparationDraft;
@@ -70,10 +72,22 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             return false;
         }
 
+        if (!StrategicBattleActiveContextStore.TryPeek(expectedToken, out StrategicBattleActiveContext storedContext) ||
+            !ReferenceEquals(activeContext, storedContext))
+        {
+            result = Reject(
+                StrategicBattleActiveContextStore.CasMismatchReason,
+                activeContext?.CompatibilityRequest,
+                null,
+                activeContext,
+                expectedToken);
+            return false;
+        }
+
         BattleStartSnapshot activeSnapshot = activeContext.Snapshot;
         if (activeSnapshot == null || string.IsNullOrWhiteSpace(activeSnapshot.SnapshotId))
         {
-            result = Reject("strategic_battle_active_context_snapshot_missing", null, null, activeContext);
+            result = Reject("strategic_battle_active_context_snapshot_missing", null, null, activeContext, expectedToken);
             return false;
         }
 
@@ -81,18 +95,25 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             (!string.Equals(activeContext.Session.SessionId ?? "", activeContext.ContextId ?? "", System.StringComparison.Ordinal) ||
              !string.Equals(activeSnapshot.BattleId ?? "", activeContext.Session.SessionId ?? "", System.StringComparison.Ordinal)))
         {
-            result = Reject("strategic_battle_active_context_snapshot_mismatch", null, null, activeContext);
+            result = Reject("strategic_battle_active_context_snapshot_mismatch", null, null, activeContext, expectedToken);
             return false;
         }
 
         if (!TryBuildStrategicLaunchSnapshot(
                 activeContext,
                 draft,
+                expectedToken,
                 out BattleStartSnapshot snapshot,
                 out BattleStartRequest request,
+                out StrategicBattleActiveContextToken snapshotToken,
                 out string compileFailureReason))
         {
-            result = Reject(compileFailureReason, activeContext.CompatibilityRequest, null, activeContext);
+            result = Reject(
+                compileFailureReason,
+                activeContext.CompatibilityRequest,
+                null,
+                activeContext,
+                expectedToken);
             return false;
         }
 
@@ -103,7 +124,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             {
                 Snapshot = snapshot,
                 RuntimeResult = runtimeController.BuildResult()
-            }, activeContext);
+            }, activeContext, snapshotToken);
             return false;
         }
 
@@ -114,6 +135,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             Snapshot = snapshot,
             RuntimeController = runtimeController,
             ActiveContext = activeContext,
+            ActiveContextToken = snapshotToken,
             FlowResult = new BattleGroupBattleFlowResult
             {
                 Snapshot = snapshot,
@@ -122,19 +144,22 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
         };
         GameLog.Info(
             nameof(WorldSiteBattleGroupRuntimeAdapter),
-            $"StrategicBattleGroupRuntimeStarted context={activeContext.ContextId} session={activeContext.Session?.SessionId ?? ""} request={request.RequestId} snapshot={snapshot.SnapshotId} initialEvents={runtimeController.EventStream.Events.Count}");
+            $"StrategicBattleGroupRuntimeStarted context={activeContext.ContextId} session={activeContext.Session?.SessionId ?? ""} request={request.RequestId} snapshot={snapshot.SnapshotId} revision={snapshotToken.Revision} initialEvents={runtimeController.EventStream.Events.Count}");
         return true;
     }
 
     private bool TryBuildStrategicLaunchSnapshot(
         StrategicBattleActiveContext activeContext,
         StrategicBattlePreparationDraft draft,
+        StrategicBattleActiveContextToken expectedToken,
         out BattleStartSnapshot snapshot,
         out BattleStartRequest compatibilityRequest,
+        out StrategicBattleActiveContextToken snapshotToken,
         out string failureReason)
     {
         snapshot = null;
         compatibilityRequest = null;
+        snapshotToken = null;
         failureReason = "";
         BattleStartSnapshot preparationSeed = activeContext?.PreparationSeedSnapshot;
         if (activeContext == null ||
@@ -146,7 +171,10 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             return false;
         }
 
-        StrategicBattleDraftSnapshotResult compileResult = _strategicDraftSnapshotCompiler.CompileAndCommitFinalSnapshot(activeContext);
+        StrategicBattleDraftSnapshotResult compileResult = _strategicDraftSnapshotCompiler.CompileAndCommitFinalSnapshot(
+            activeContext,
+            expectedToken,
+            out snapshotToken);
         if (!compileResult.Success)
         {
             failureReason = string.IsNullOrWhiteSpace(compileResult.FailureReason)
@@ -159,7 +187,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
         compatibilityRequest = activeContext.CompatibilityRequest;
         GameLog.Info(
             nameof(WorldSiteBattleGroupRuntimeAdapter),
-            $"StrategicBattleFinalSnapshotCommitted context={activeContext.ContextId ?? ""} draft={draft.DraftId} revision={draft.Revision} request={compatibilityRequest.RequestId ?? ""} snapshot={snapshot.SnapshotId} battle={snapshot.BattleId} groups={snapshot.BattleGroups.Count}");
+            $"StrategicBattleFinalSnapshotCommitted context={activeContext.ContextId ?? ""} draft={draft.DraftId} draftRevision={draft.Revision} contextRevision={snapshotToken.Revision} request={compatibilityRequest.RequestId ?? ""} snapshot={snapshot.SnapshotId} battle={snapshot.BattleId} groups={snapshot.BattleGroups.Count}");
         return true;
     }
 
@@ -237,9 +265,23 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
     {
         BattleStartRequest request = activeContext?.CompatibilityRequest;
         BattleRuntimeSessionController runtimeController = started?.RuntimeController;
-        if (activeContext == null || request == null || runtimeController == null)
+        StrategicBattleActiveContextToken expectedToken = started?.ActiveContextToken;
+        if (activeContext == null ||
+            request == null ||
+            runtimeController == null ||
+            expectedToken == null ||
+            !ReferenceEquals(started.ActiveContext, activeContext) ||
+            !StrategicBattleActiveContextStore.TryPeek(expectedToken, out StrategicBattleActiveContext storedContext) ||
+            !ReferenceEquals(storedContext, activeContext))
         {
-            return Reject("strategic_battle_group_runtime_completion_missing", request, started?.FlowResult, activeContext);
+            return Reject(
+                expectedToken == null || activeContext == null || request == null || runtimeController == null
+                    ? "strategic_battle_group_runtime_completion_missing"
+                    : StrategicBattleActiveContextStore.CasMismatchReason,
+                request,
+                started?.FlowResult,
+                activeContext,
+                expectedToken);
         }
 
         BattleStartSnapshot snapshot = started?.Snapshot;
@@ -248,7 +290,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             !string.Equals(snapshot.SnapshotId ?? "", activeContext.Snapshot.SnapshotId ?? "", System.StringComparison.Ordinal) ||
             !string.Equals(snapshot.BattleId ?? "", activeContext.Session?.SessionId ?? "", System.StringComparison.Ordinal))
         {
-            return Reject("strategic_battle_active_context_snapshot_mismatch", request, started?.FlowResult, activeContext);
+            return Reject("strategic_battle_active_context_snapshot_mismatch", request, started?.FlowResult, activeContext, expectedToken);
         }
 
         if (!runtimeController.IsComplete)
@@ -261,7 +303,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
                 Snapshot = snapshot,
                 RuntimeResult = incompleteResult
             };
-            return Reject("battle_group_runtime_incomplete", request, incompleteFlowResult, activeContext);
+            return Reject("battle_group_runtime_incomplete", request, incompleteFlowResult, activeContext, expectedToken);
         }
 
         BattleRuntimeSessionResult runtimeResult = runtimeController.BuildResult();
@@ -285,38 +327,50 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             string reason = string.IsNullOrWhiteSpace(settlementPlan.RejectionReason)
                 ? "battle_group_runtime_settlement_rejected"
                 : settlementPlan.RejectionReason;
-            return Reject(reason, request, flowResult, activeContext);
+            return Reject(reason, request, flowResult, activeContext, expectedToken);
         }
 
         BattleResult compatibilityResult = _legacyResultAdapter.ToLegacyResult(
             request,
             runtimeResult.Outcome);
         CopyObjectiveResults(request, compatibilityResult);
-        if (!activeContext.TryPublishResultEnvelope(
+        if (!StrategicBattleActiveContextStore.TryPublishResultEnvelope(
+                expectedToken,
+                activeContext,
                 runtimeResult,
                 settlementPlan,
                 report,
+                compatibilityResult,
+                out StrategicBattleResultEnvelope acceptedEnvelope,
+                out StrategicBattleActiveContextToken resultToken,
                 out string envelopeFailureReason))
         {
-            return Reject(envelopeFailureReason, request, flowResult, activeContext);
+            return Reject(envelopeFailureReason, request, flowResult, activeContext, expectedToken);
         }
-
-        activeContext.CompatibilityResult = compatibilityResult;
+        BattleResult acceptedCompatibilityResult = activeContext.CompatibilityResult ?? compatibilityResult;
+        BattleGroupBattleFlowResult acceptedFlowResult = new()
+        {
+            Snapshot = snapshot,
+            RuntimeResult = acceptedEnvelope.RuntimeResult,
+            SettlementPlan = acceptedEnvelope.SettlementPlan,
+            Report = acceptedEnvelope.Report
+        };
 
         WorldSiteBattleGroupRuntimeResolveResult result = new()
         {
             Success = true,
             Request = request,
-            BattleResult = compatibilityResult,
-            Report = activeContext.ResultEnvelope.Report,
-            FlowResult = flowResult,
+            BattleResult = acceptedCompatibilityResult,
+            Report = acceptedEnvelope.Report,
+            FlowResult = acceptedFlowResult,
             Snapshot = snapshot,
             RuntimeController = runtimeController,
-            ActiveContext = activeContext
+            ActiveContext = activeContext,
+            ActiveContextToken = resultToken
         };
         GameLog.Info(
             nameof(WorldSiteBattleGroupRuntimeAdapter),
-            $"StrategicBattleGroupRuntimeResolved context={activeContext.ContextId} request={request.RequestId} snapshot={snapshot.SnapshotId} outcome={compatibilityResult.Outcome} events={runtimeResult.EventStream.Events.Count}");
+            $"StrategicBattleGroupRuntimeResolved context={activeContext.ContextId} request={request.RequestId} snapshot={snapshot.SnapshotId} revision={resultToken.Revision} result={resultToken.ResultId} outcome={acceptedCompatibilityResult.Outcome} events={acceptedEnvelope.RuntimeResult.EventStream.Events.Count}");
         return result;
     }
 
@@ -359,7 +413,8 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
         string reason,
         BattleStartRequest request,
         BattleGroupBattleFlowResult flowResult,
-        StrategicBattleActiveContext activeContext)
+        StrategicBattleActiveContext activeContext,
+        StrategicBattleActiveContextToken activeContextToken = null)
     {
         string failureReason = string.IsNullOrWhiteSpace(reason)
             ? "battle_group_runtime_resolution_failed"
@@ -371,7 +426,8 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             FailureReason = failureReason,
             Request = request,
             FlowResult = flowResult,
-            ActiveContext = activeContext
+            ActiveContext = activeContext,
+            ActiveContextToken = activeContextToken
         };
     }
 }

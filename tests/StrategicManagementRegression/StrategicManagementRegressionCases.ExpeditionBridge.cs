@@ -349,9 +349,11 @@ internal static partial class StrategicManagementRegressionCases
         string bridgeSnapshotId = seedSnapshot.SnapshotId;
         string bridgeBattleId = seedSnapshot.BattleId;
         AttachStrategicLaunchFlatTopology(draft);
+        StrategicBattleActiveContextToken contextToken = PublishActiveContextForTest(context);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
+            contextToken,
             out WorldSiteBattleGroupRuntimeResolveResult result);
 
         AssertTrue(started, $"active context launch should start Runtime, got {result.FailureReason}");
@@ -450,9 +452,11 @@ internal static partial class StrategicManagementRegressionCases
             InitialDestinationCellHeight = 0
         };
         AttachStrategicLaunchFlatTopology(draft);
+        StrategicBattleActiveContextToken contextToken = PublishActiveContextForTest(context);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
+            contextToken,
             out WorldSiteBattleGroupRuntimeResolveResult result);
 
         int expectedGroupCount = session.Participants.Count(participant => participant.Role == StrategicBattleParticipantRole.Deployed) +
@@ -497,6 +501,7 @@ internal static partial class StrategicManagementRegressionCases
 
         bool restarted = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
+            result.ActiveContextToken,
             out WorldSiteBattleGroupRuntimeResolveResult restartResult);
 
         AssertTrue(!restarted, "a finalized Draft lineage must not be compiled or launched twice");
@@ -532,9 +537,11 @@ internal static partial class StrategicManagementRegressionCases
             missingSession,
             missingSeed).Context;
         missingContext.PreparationDraft.SessionId = "";
+        StrategicBattleActiveContextToken missingToken = PublishActiveContextForTest(missingContext);
 
         bool missingStarted = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             missingContext,
+            missingToken,
             out WorldSiteBattleGroupRuntimeResolveResult missingResult);
 
         AssertTrue(!missingStarted, "missing draft lineage must fail before Runtime start");
@@ -560,9 +567,11 @@ internal static partial class StrategicManagementRegressionCases
             staleSession,
             staleSeed).Context;
         staleContext.PreparationDraftRevision++;
+        StrategicBattleActiveContextToken staleToken = PublishActiveContextForTest(staleContext);
 
         bool staleStarted = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             staleContext,
+            staleToken,
             out WorldSiteBattleGroupRuntimeResolveResult staleResult);
 
         AssertTrue(!staleStarted, "stale draft lineage must fail before Runtime start");
@@ -594,9 +603,11 @@ internal static partial class StrategicManagementRegressionCases
         sessionIdProperty.SetValue(draft, "stale_session");
         AttachStrategicLaunchFlatTopology(draft);
         BattleStartSnapshot seedSnapshot = context.Snapshot;
+        StrategicBattleActiveContextToken contextToken = PublishActiveContextForTest(context);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
+            contextToken,
             out WorldSiteBattleGroupRuntimeResolveResult result);
 
         AssertTrue(!started, "mismatched draft lineage must fail before Runtime start");
@@ -646,9 +657,11 @@ internal static partial class StrategicManagementRegressionCases
             }
         });
         AttachStrategicLaunchFlatTopology(draft);
+        StrategicBattleActiveContextToken contextToken = PublishActiveContextForTest(context);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
+            contextToken,
             out WorldSiteBattleGroupRuntimeResolveResult result);
 
         AssertTrue(!started, "unmapped Draft player force must not launch through generated probe identities");
@@ -675,9 +688,11 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.HeroOrdinaryCommander,
             "request_active_context_missing_topology");
         StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
+        StrategicBattleActiveContextToken contextToken = PublishActiveContextForTest(context);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
+            contextToken,
             out WorldSiteBattleGroupRuntimeResolveResult result);
 
         AssertTrue(!started, "active context launch without compiled topology should not report Runtime start success");
@@ -707,9 +722,11 @@ internal static partial class StrategicManagementRegressionCases
         BattleStartRequest draft = GetRequiredProperty<BattleStartRequest>(context, "PreparationDraft");
         draft.PlayerForces[0].AttackDamage = 0;
         AttachStrategicLaunchFlatTopology(draft);
+        StrategicBattleActiveContextToken contextToken = PublishActiveContextForTest(context);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
+            contextToken,
             out WorldSiteBattleGroupRuntimeResolveResult result);
 
         AssertTrue(!started, "active context launch should reject missing production combat stats before Runtime defaults apply");

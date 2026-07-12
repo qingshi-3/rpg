@@ -30,6 +30,7 @@ internal static partial class StrategicManagementRegressionCases
 
             bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
                 setup.Context,
+                setup.Token,
                 out WorldSiteBattleGroupRuntimeResolveResult launch);
 
             AssertTrue(started, $"cardinality launch should start for mask={mask}, got {launch.FailureReason}");
@@ -78,6 +79,7 @@ internal static partial class StrategicManagementRegressionCases
                 remainingHitPoints + 17);
             bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
                 setup.Context,
+                setup.Token,
                 out WorldSiteBattleGroupRuntimeResolveResult launch);
             AssertTrue(started, $"casualty launch should start, got {launch.FailureReason}");
 
@@ -132,6 +134,7 @@ internal static partial class StrategicManagementRegressionCases
 
         bool duplicateStarted = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             launchSetup.Context,
+            launchSetup.Token,
             out WorldSiteBattleGroupRuntimeResolveResult duplicateLaunch);
 
         AssertTrue(!duplicateStarted, "duplicate participant hero rows must reject before Runtime starts");
@@ -147,6 +150,7 @@ internal static partial class StrategicManagementRegressionCases
             92);
         bool resultStarted = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             resultSetup.Context,
+            resultSetup.Token,
             out WorldSiteBattleGroupRuntimeResolveResult resultLaunch);
         AssertTrue(resultStarted, $"result mapping launch should start, got {resultLaunch.FailureReason}");
         StrategicBattleParticipantReference resultParticipant = resultSetup.Session.Participants.Single();
@@ -194,7 +198,8 @@ internal static partial class StrategicManagementRegressionCases
         StrategicBattleBridgeService Bridge,
         StrategicBattleSession Session,
         BattleStartRequest Request,
-        StrategicBattleActiveContext Context) CreateCardinalityBattle(
+        StrategicBattleActiveContext Context,
+        StrategicBattleActiveContextToken Token) CreateCardinalityBattle(
             IReadOnlyList<string> heroIds,
             int countSeed)
     {
@@ -293,7 +298,8 @@ internal static partial class StrategicManagementRegressionCases
         AttachStrategicLaunchFlatTopology(request);
         StrategicBattleActiveContextResult context = bridge.CreateActiveContext(state, session, request);
         AssertTrue(context.Success, $"cardinality active context should be created, got {context.FailureReason}");
-        return (definitions, state, commands, bridge, session, context.Context.PreparationDraft, context.Context);
+        StrategicBattleActiveContextToken token = PublishActiveContextForTest(context.Context);
+        return (definitions, state, commands, bridge, session, context.Context.PreparationDraft, context.Context, token);
     }
 
     private static BattleOutcomeResult BuildCardinalityOutcome(
@@ -345,7 +351,16 @@ internal static partial class StrategicManagementRegressionCases
             EventStream = eventStream
         };
         BattleReportRecord report = new BattleReportBuilder().Build(outcome, eventStream, settlement);
-        return context.TryPublishResultEnvelope(runtimeResult, settlement, report, out string envelopeFailureReason)
+        StrategicBattleActiveContextToken snapshotToken = RequireActiveContextTokenForTest(context);
+        return StrategicBattleActiveContextStore.TryPublishResultEnvelope(
+            snapshotToken,
+            context,
+            runtimeResult,
+            settlement,
+            report,
+            out _,
+            out _,
+            out string envelopeFailureReason)
             ? ""
             : envelopeFailureReason;
     }

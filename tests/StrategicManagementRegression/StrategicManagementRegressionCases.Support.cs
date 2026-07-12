@@ -159,11 +159,13 @@ internal static partial class StrategicManagementRegressionCases
         StrategicBattleSession session,
         BattleStartRequest request,
         BattleOutcome outcome,
-        Func<StrategicBattleParticipantReference, int> survivingCorpsActors)
+        Func<StrategicBattleParticipantReference, int> survivingCorpsActors,
+        Action<StrategicBattleActiveContextToken, StrategicBattleActiveContextToken, StrategicBattleActiveContextToken>? captureTokens = null)
     {
         StrategicBattleActiveContextResult contextResult = bridge.CreateActiveContext(state, session, request);
         AssertTrue(contextResult.Success, $"active context should be created, got {contextResult.FailureReason}");
         StrategicBattleActiveContext context = contextResult.Context;
+        StrategicBattleActiveContextToken beginToken = PublishActiveContextForTest(context);
         foreach (BattleForceRequest force in context.PreparationDraft.PlayerForces)
         {
             // This helper fabricates completed Runtime outcomes without starting
@@ -183,7 +185,7 @@ internal static partial class StrategicManagementRegressionCases
             }
         }
         StrategicBattleDraftSnapshotResult finalSnapshot = new StrategicBattleDraftSnapshotCompiler()
-            .CompileAndCommitFinalSnapshot(context);
+            .CompileAndCommitFinalSnapshot(context, beginToken, out StrategicBattleActiveContextToken snapshotToken);
         AssertTrue(finalSnapshot.Success, $"completed context should compile the final Draft snapshot, got {finalSnapshot.FailureReason}");
         BattleStartRequest draft = context.PreparationDraft;
         BattleOutcomeResult runtimeOutcome = BattleOutcomeResult.Completed(
@@ -243,9 +245,43 @@ internal static partial class StrategicManagementRegressionCases
         };
         BattleReportRecord report = new BattleReportBuilder().Build(runtimeOutcome, eventStream, settlement);
         AssertTrue(
-            context.TryPublishResultEnvelope(runtimeResult, settlement, report, out string envelopeFailureReason),
+            StrategicBattleActiveContextStore.TryPublishResultEnvelope(
+                snapshotToken,
+                context,
+                runtimeResult,
+                settlement,
+                report,
+                out _,
+                out StrategicBattleActiveContextToken resultToken,
+                out string envelopeFailureReason),
             $"completed fixture should publish one result envelope, got {envelopeFailureReason}");
+        captureTokens?.Invoke(beginToken, snapshotToken, resultToken);
         return context;
+    }
+
+    private static StrategicBattleActiveContextToken PublishActiveContextForTest(
+        StrategicBattleActiveContext context)
+    {
+        ResetActiveContextStore();
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryBegin(
+                context,
+                out StrategicBattleActiveContextToken token,
+                out string failureReason),
+            $"test active context should publish, got {failureReason}");
+        return token;
+    }
+
+    private static StrategicBattleActiveContextToken RequireActiveContextTokenForTest(
+        StrategicBattleActiveContext context)
+    {
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryPeek(
+                out StrategicBattleActiveContext storedContext,
+                out StrategicBattleActiveContextToken token) &&
+            ReferenceEquals(context, storedContext),
+            "test should retain the expected published active context");
+        return token;
     }
 
     private static int ResolveParticipantInitialCount(

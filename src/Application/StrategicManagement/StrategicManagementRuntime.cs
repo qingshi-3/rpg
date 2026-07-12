@@ -72,12 +72,13 @@ public static class StrategicManagementRuntime
 
     public static StrategicBattleSettlementCommitResult CommitBattleResult(
         Rpg.Application.StrategicBattleBridge.StrategicBattleActiveContext context,
+        Rpg.Application.StrategicBattleBridge.StrategicBattleActiveContextToken expectedResultToken,
         Rpg.Application.StrategicBattleBridge.StrategicBattleResultSummary summary,
         string path = DefaultSavePath)
     {
         EnsureInitialized();
         StrategicBattleSettlementCommitService service = new(Definitions, SaveService);
-        return service.Commit(State, context, summary, path, candidate => State = candidate);
+        return service.Commit(State, context, expectedResultToken, summary, path, candidate => State = candidate);
     }
 
     public static StrategicManagementDashboardViewModel BuildDashboard(string factionId, string cityId)

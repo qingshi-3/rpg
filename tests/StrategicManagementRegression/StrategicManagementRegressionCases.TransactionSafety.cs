@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Reports;
 using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
@@ -215,7 +216,9 @@ internal static partial class StrategicManagementRegressionCases
         draft.PlayerForces.RemoveAll(force => string.Equals(force.StrategicParticipantId, reserveParticipantId, StringComparison.Ordinal));
         AttachStrategicLaunchFlatTopology(draft);
 
-        StrategicBattleDraftSnapshotResult synced = new StrategicBattleDraftSnapshotCompiler().CompileAndCommitFinalSnapshot(context);
+        StrategicBattleActiveContextToken beginToken = PublishActiveContextForTest(context);
+        StrategicBattleDraftSnapshotResult synced = new StrategicBattleDraftSnapshotCompiler()
+            .CompileAndCommitFinalSnapshot(context, beginToken, out _);
 
         AssertTrue(synced.Success, $"final Draft compilation should succeed, got {synced.FailureReason}");
         AssertEqual(StrategicBattleParticipantRole.Deployed, session.Participants.Single(item => item.HeroId == StrategicManagementIds.HeroOrdinaryCommander).Role, "remaining final participant should be deployed");
@@ -235,8 +238,9 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicBattleActiveContext allReserveContext = bridge.CreateActiveContext(state, allReserveSession, allReserveSeed).Context;
         allReserveContext.PreparationDraft.PlayerForces.Clear();
+        StrategicBattleActiveContextToken allReserveToken = PublishActiveContextForTest(allReserveContext);
         StrategicBattleDraftSnapshotResult allReserve = new StrategicBattleDraftSnapshotCompiler()
-            .CompileAndCommitFinalSnapshot(allReserveContext);
+            .CompileAndCommitFinalSnapshot(allReserveContext, allReserveToken, out _);
         AssertTrue(!allReserve.Success, "final launch must reject an all-reserve draft");
         AssertEqual(StrategicBattleParticipantRole.Deployed, session.Participants.Single(item => item.HeroId == StrategicManagementIds.HeroOrdinaryCommander).Role, "failed all-reserve compilation must not mutate the last valid stable role set");
         AssertTrue(allReserveSession.Participants.All(item => item.Role == StrategicBattleParticipantRole.Unknown), "failed all-reserve compilation must not mutate its session roles");
@@ -310,20 +314,33 @@ internal static partial class StrategicManagementRegressionCases
         FailingPromotionStore store = new();
         StrategicManagementSaveService saveService = new(setup.Definitions, store);
         StrategicBattleSettlementCommitService commitService = new(setup.Definitions, saveService);
-        ResetActiveContextStore();
-        AssertTrue(StrategicBattleActiveContextStore.TryBegin(setup.Context, out _), "setup context should publish");
+        StrategicBattleActiveContextToken resultToken = RequireActiveContextTokenForTest(setup.Context);
 
         StrategicBattleSettlementCommitResult result = commitService.Commit(
             liveState,
             setup.Context,
+            resultToken,
             setup.Summary,
             savePath,
             candidate => liveState = candidate);
 
         AssertTrue(!result.Success, "promotion failure should reject commit");
         AssertEqual(before, JsonSerializer.Serialize(liveState), "promotion failure should leave live state unchanged");
-        AssertTrue(StrategicBattleActiveContextStore.TryPeek(setup.Context.ContextId, setup.Context.Session.SessionId, setup.Context.Snapshot.SnapshotId, out _), "promotion failure should leave matching context retryable");
+        AssertTrue(StrategicBattleActiveContextStore.TryPeek(resultToken, out _), "promotion failure should leave the exact accepted result token retryable");
         AssertTrue(!File.Exists(StrategicManagementSaveService.GetStagingPath(savePath)), "handled promotion failure should remove its uncommitted staging document");
+
+        StrategicBattleSettlementCommitResult retry = new StrategicBattleSettlementCommitService(
+                setup.Definitions,
+                new StrategicManagementSaveService(setup.Definitions))
+            .Commit(
+                liveState,
+                setup.Context,
+                resultToken,
+                setup.Summary,
+                savePath,
+                candidate => liveState = candidate);
+        AssertTrue(retry.Success, $"exact retry after persistence failure should succeed, got {retry.FailureReason}");
+        AssertTrue(!StrategicBattleActiveContextStore.HasActiveContext, "successful retry should consume the exact result token");
         ResetActiveContextStore();
         DeleteSaveFamily(savePath);
     }
@@ -337,11 +354,11 @@ internal static partial class StrategicManagementRegressionCases
         {
             StrategicManagementSaveService saveService = new(setup.Definitions);
             StrategicBattleSettlementCommitService commitService = new(setup.Definitions, saveService);
-            ResetActiveContextStore();
-            AssertTrue(StrategicBattleActiveContextStore.TryBegin(setup.Context, out _), "setup context should publish");
+            StrategicBattleActiveContextToken resultToken = RequireActiveContextTokenForTest(setup.Context);
             StrategicBattleSettlementCommitResult committed = commitService.Commit(
                 published,
                 setup.Context,
+                resultToken,
                 setup.Summary,
                 savePath,
                 candidate => published = candidate);
@@ -354,6 +371,7 @@ internal static partial class StrategicManagementRegressionCases
             StrategicBattleSettlementCommitResult replay = commitService.Commit(
                 published,
                 setup.Context,
+                resultToken,
                 setup.Summary,
                 savePath,
                 candidate =>
@@ -382,6 +400,7 @@ internal static partial class StrategicManagementRegressionCases
                 StrategicBattleSettlementCommitResult rejected = commitService.Commit(
                     published,
                     setup.Context,
+                    resultToken,
                     conflict,
                     savePath,
                     candidate => published = candidate);
@@ -396,6 +415,7 @@ internal static partial class StrategicManagementRegressionCases
             StrategicBattleSettlementCommitResult payloadRejected = commitService.Commit(
                 published,
                 setup.Context,
+                resultToken,
                 conflictingPayload,
                 savePath,
                 candidate => published = candidate);
@@ -411,6 +431,204 @@ internal static partial class StrategicManagementRegressionCases
         }
     }
 
+    internal static void SettlementPublicationFailureLeavesAcceptedResultRetryable()
+    {
+        var setup = CreateCompletedSettlementSetup("publication_failure");
+        StrategicManagementState liveState = setup.State;
+        string before = JsonSerializer.Serialize(liveState);
+        string savePath = Path.Combine(Path.GetTempPath(), $"rpg-settlement-publication-failure-{Guid.NewGuid():N}.json");
+        try
+        {
+            StrategicBattleActiveContextToken resultToken = RequireActiveContextTokenForTest(setup.Context);
+            StrategicBattleSettlementCommitService commitService = new(
+                setup.Definitions,
+                new StrategicManagementSaveService(setup.Definitions));
+            StrategicBattleSettlementCommitResult failed = commitService.Commit(
+                liveState,
+                setup.Context,
+                resultToken,
+                setup.Summary,
+                savePath,
+                _ => throw new InvalidOperationException("fault_injected_live_publication"));
+
+            AssertTrue(!failed.Success, "live publication failure should reject final consumption");
+            AssertEqual(before, JsonSerializer.Serialize(liveState), "publication failure before assignment should leave live state unchanged");
+            AssertTrue(File.Exists(savePath), "durable candidate should exist before live publication is attempted");
+            AssertTrue(
+                StrategicBattleActiveContextStore.TryPeek(resultToken, out StrategicBattleActiveContext retryable) &&
+                ReferenceEquals(setup.Context, retryable),
+                "publication failure should release reservation and retain the exact accepted result token");
+
+            StrategicBattleSettlementCommitResult retry = commitService.Commit(
+                liveState,
+                setup.Context,
+                resultToken,
+                setup.Summary,
+                savePath,
+                candidate => liveState = candidate);
+            AssertTrue(retry.Success, $"exact retry after publication failure should succeed, got {retry.FailureReason}");
+            AssertTrue(!StrategicBattleActiveContextStore.HasActiveContext, "successful publication retry should consume the result token");
+        }
+        finally
+        {
+            ResetActiveContextStore();
+            DeleteSaveFamily(savePath);
+        }
+    }
+
+    internal static void SettlementDurableReplayConsumesExactStillActiveResult()
+    {
+        var setup = CreateCompletedSettlementSetup("published_then_failed");
+        StrategicManagementState liveState = setup.State;
+        string savePath = Path.Combine(Path.GetTempPath(), $"rpg-settlement-published-then-failed-{Guid.NewGuid():N}.json");
+        try
+        {
+            StrategicBattleActiveContextToken resultToken = RequireActiveContextTokenForTest(setup.Context);
+            StrategicBattleSettlementCommitService commitService = new(
+                setup.Definitions,
+                new StrategicManagementSaveService(setup.Definitions));
+            StrategicBattleSettlementCommitResult failed = commitService.Commit(
+                liveState,
+                setup.Context,
+                resultToken,
+                setup.Summary,
+                savePath,
+                candidate =>
+                {
+                    liveState = candidate;
+                    throw new InvalidOperationException("fault_injected_after_live_publication");
+                });
+
+            AssertTrue(!failed.Success, "a publication callback exception should report failure");
+            AssertTrue(
+                liveState.BattleSettlementRecordsByExpedition.ContainsKey(setup.Summary.ExpeditionId),
+                "fault injection should leave the exact durable settlement visible in live state");
+            AssertTrue(
+                StrategicBattleActiveContextStore.TryPeek(resultToken, out _),
+                "callback failure should leave the exact accepted result token retryable");
+
+            StrategicBattleActiveContextToken wrongToken = new(
+                resultToken.ContextId,
+                resultToken.SessionId,
+                resultToken.SnapshotId,
+                resultToken.Revision + 1,
+                resultToken.ResultId);
+            int wrongReplayPublicationCalls = 0;
+            StrategicBattleSettlementCommitResult wrongReplay = commitService.Commit(
+                liveState,
+                setup.Context,
+                wrongToken,
+                setup.Summary,
+                savePath,
+                _ => wrongReplayPublicationCalls++);
+            AssertTrue(!wrongReplay.Success, "an exact durable record must not hide a wrong token for the same still-active context");
+            AssertEqual(
+                StrategicFailureReasons.ActiveBattleContextMismatch,
+                wrongReplay.FailureReason,
+                "wrong-token durable replay should expose the CAS mismatch contract");
+            AssertEqual(0, wrongReplayPublicationCalls, "wrong-token durable replay must not invoke live publication");
+            AssertTrue(
+                StrategicBattleActiveContextStore.TryPeek(resultToken, out _),
+                "wrong-token durable replay must leave the accepted result retryable");
+
+            StrategicBattleSettlementCommitResult replay = commitService.Commit(
+                liveState,
+                setup.Context,
+                resultToken,
+                setup.Summary,
+                savePath,
+                _ => throw new InvalidOperationException("exact durable replay must not republish"));
+
+            AssertTrue(replay.Success, $"exact durable retry should replay successfully, got {replay.FailureReason}");
+            AssertTrue(
+                !StrategicBattleActiveContextStore.HasActiveContext,
+                "exact durable replay should CAS-consume its still-active accepted result token");
+        }
+        finally
+        {
+            ResetActiveContextStore();
+            DeleteSaveFamily(savePath);
+        }
+    }
+
+    internal static void SettlementRejectsSummaryDivergentFromAcceptedEnvelope()
+    {
+        var setup = CreateCompletedSettlementSetup("summary_envelope_conflict");
+        StrategicManagementState liveState = setup.State;
+        string before = JsonSerializer.Serialize(liveState);
+        string savePath = Path.Combine(Path.GetTempPath(), $"rpg-settlement-summary-conflict-{Guid.NewGuid():N}.json");
+        try
+        {
+            StrategicBattleResultSummary divergent = JsonSerializer.Deserialize<StrategicBattleResultSummary>(
+                JsonSerializer.Serialize(setup.Summary))!;
+            divergent.Outcome = divergent.Outcome == BattleOutcome.Victory
+                ? BattleOutcome.Defeat
+                : BattleOutcome.Victory;
+
+            StrategicBattleSettlementCommitResult result = new StrategicBattleSettlementCommitService(
+                    setup.Definitions,
+                    new StrategicManagementSaveService(setup.Definitions))
+                .Commit(
+                    liveState,
+                    setup.Context,
+                    setup.ResultToken,
+                    divergent,
+                    savePath,
+                    candidate => liveState = candidate);
+
+            AssertTrue(!result.Success, "a summary divergent from the accepted P2-14 envelope must be rejected");
+            AssertEqual(before, JsonSerializer.Serialize(liveState), "divergent summary must not publish strategic state");
+            AssertTrue(!File.Exists(savePath), "divergent summary must not persist a candidate");
+            AssertTrue(
+                StrategicBattleActiveContextStore.TryPeek(setup.ResultToken, out _),
+                "divergent summary must leave the exact accepted envelope retryable");
+        }
+        finally
+        {
+            ResetActiveContextStore();
+            DeleteSaveFamily(savePath);
+        }
+    }
+
+    internal static void SettlementCallbacksExecuteOutsideActiveContextStoreLock()
+    {
+        var setup = CreateCompletedSettlementSetup("callbacks_outside_lock");
+        StrategicBattleActiveContextToken resultToken = RequireActiveContextTokenForTest(setup.Context);
+        bool persistenceObservedUnlockedStore = false;
+        bool publicationObservedUnlockedStore = false;
+        List<string> phases = new();
+
+        bool consumed = StrategicBattleActiveContextStore.TryCommitAndConsume(
+            resultToken,
+            setup.Context,
+            () =>
+            {
+                persistenceObservedUnlockedStore = ProbeStoreFromAnotherThread(resultToken);
+                phases.Add("persist");
+            },
+            () =>
+            {
+                publicationObservedUnlockedStore = ProbeStoreFromAnotherThread(resultToken);
+                phases.Add("publish");
+            },
+            out StrategicBattleActiveContext consumedContext,
+            out Exception callbackFailure,
+            out string failureReason);
+
+        AssertTrue(consumed, $"lock-safe reservation should commit, got {failureReason} / {callbackFailure?.Message}");
+        AssertTrue(persistenceObservedUnlockedStore, "persistence callback must not execute while the global store lock is held");
+        AssertTrue(publicationObservedUnlockedStore, "publication callback must not execute while the global store lock is held");
+        AssertEqual("persist,publish", string.Join(",", phases), "A1 ordering must persist before live publication and final consumption");
+        AssertTrue(ReferenceEquals(setup.Context, consumedContext), "commit should consume the exact reserved context");
+        AssertTrue(!StrategicBattleActiveContextStore.HasActiveContext, "successful reserved commit should clear active context");
+    }
+
+    private static bool ProbeStoreFromAnotherThread(StrategicBattleActiveContextToken expectedToken)
+    {
+        Task<bool> probe = Task.Run(() => StrategicBattleActiveContextStore.TryPeek(expectedToken, out _));
+        return probe.Wait(TimeSpan.FromSeconds(2)) && probe.Result;
+    }
+
     internal static void SettlementUncommittedResultRequiresActiveContext()
     {
         var setup = CreateCompletedSettlementSetup("commit_requires_context");
@@ -419,11 +637,12 @@ internal static partial class StrategicManagementRegressionCases
         string savePath = Path.Combine(Path.GetTempPath(), $"rpg-settlement-context-required-{Guid.NewGuid():N}.json");
         try
         {
+            StrategicBattleActiveContextToken resultToken = RequireActiveContextTokenForTest(setup.Context);
             ResetActiveContextStore();
             StrategicBattleSettlementCommitResult result = new StrategicBattleSettlementCommitService(
                     setup.Definitions,
                     new StrategicManagementSaveService(setup.Definitions))
-                .Commit(published, setup.Context, setup.Summary, savePath, candidate => published = candidate);
+                .Commit(published, setup.Context, resultToken, setup.Summary, savePath, candidate => published = candidate);
 
             AssertTrue(!result.Success, "an uncommitted settlement without active context should fail");
             AssertEqual(StrategicFailureReasons.ActiveBattleContextMismatch, result.FailureReason, "uncommitted settlement context failure reason");
@@ -460,18 +679,17 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementState published = setup.State;
             string before = JsonSerializer.Serialize(published);
             string savePath = Path.Combine(Path.GetTempPath(), $"rpg-settlement-mismatch-{mismatch}-{Guid.NewGuid():N}.json");
-        ResetActiveContextStore();
-            AssertTrue(StrategicBattleActiveContextStore.TryBegin(setup.Context, out _), "setup context should publish");
+            StrategicBattleActiveContextToken resultToken = RequireActiveContextTokenForTest(setup.Context);
             StrategicBattleSettlementCommitResult result = new StrategicBattleSettlementCommitService(
                     setup.Definitions,
                     new StrategicManagementSaveService(setup.Definitions))
-                .Commit(published, suppliedContext, suppliedSummary, savePath, candidate => published = candidate);
+                .Commit(published, suppliedContext, resultToken, suppliedSummary, savePath, candidate => published = candidate);
 
             AssertTrue(!result.Success, $"{mismatch} mismatch should reject commit");
             AssertEqual(before, JsonSerializer.Serialize(published), $"{mismatch} mismatch must not mutate live state");
             AssertTrue(!File.Exists(savePath), $"{mismatch} mismatch must not persist a candidate");
-            AssertTrue(StrategicBattleActiveContextStore.TryPeek(setup.Context.ContextId, setup.Context.Session.SessionId, setup.Context.Snapshot.SnapshotId, out _), $"{mismatch} mismatch must not consume matching active context");
-        ResetActiveContextStore();
+            AssertTrue(StrategicBattleActiveContextStore.TryPeek(resultToken, out _), $"{mismatch} mismatch must not consume matching active context");
+            ResetActiveContextStore();
             DeleteSaveFamily(savePath);
         }
     }
@@ -554,12 +772,266 @@ internal static partial class StrategicManagementRegressionCases
         ResetActiveContextStore();
         StrategicBattleActiveContext first = BuildIdentityContext("context_first", "session_first", "snapshot_first");
         StrategicBattleActiveContext second = BuildIdentityContext("context_second", "session_second", "snapshot_second");
-        AssertTrue(StrategicBattleActiveContextStore.TryBegin(first, out _), "first context should publish");
-        AssertTrue(!StrategicBattleActiveContextStore.TryBegin(second, out _), "different active identity must not be overwritten");
-        AssertTrue(!StrategicBattleActiveContextStore.TryCommitAndConsume(first.ContextId, first.Session.SessionId, "stale_snapshot", () => { }, () => { }, out _, out _), "mismatched snapshot must not consume context");
-        AssertTrue(StrategicBattleActiveContextStore.TryPeek(first.ContextId, first.Session.SessionId, first.Snapshot.SnapshotId, out StrategicBattleActiveContext active) && ReferenceEquals(first, active), "stale consume must leave original context active");
-        AssertTrue(StrategicBattleActiveContextStore.TryCommitAndConsume(first.ContextId, first.Session.SessionId, first.Snapshot.SnapshotId, () => { }, () => { }, out _, out _), "matching identity should consume context after commit callbacks");
-        AssertTrue(StrategicBattleActiveContextStore.TryBegin(second, out _), "new context may publish after matching consumption");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryBegin(first, out StrategicBattleActiveContextToken firstToken, out _),
+            "first context should publish");
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryBegin(second, out _, out _),
+            "different active identity must not be overwritten");
+        StrategicBattleActiveContextToken staleToken = new(
+            firstToken.ContextId,
+            firstToken.SessionId,
+            "stale_snapshot",
+            firstToken.Revision);
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryClear(staleToken, "stale_identity", out _),
+            "mismatched snapshot token must not clear context");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryPeek(firstToken, out StrategicBattleActiveContext active) &&
+            ReferenceEquals(first, active),
+            "stale mutation must leave original context active");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryClear(firstToken, "matching_cancel", out _),
+            "matching token should cancel the active context");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryBegin(second, out _, out _),
+            "new context may publish after matching cancellation");
+        ResetActiveContextStore();
+    }
+
+    internal static void ActiveContextRevisionLeaseRejectsSameReferenceStaleCallbacks()
+    {
+        ResetActiveContextStore();
+        StrategicBattleActiveContext context = BuildIdentityContext(
+            "context_revision",
+            "session_revision",
+            "snapshot_revision");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryBegin(
+                context,
+                out StrategicBattleActiveContextToken beginToken,
+                out string beginFailure),
+            $"initial context should publish, got {beginFailure}");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryBegin(
+                context,
+                beginToken,
+                out StrategicBattleActiveContextToken idempotentToken,
+                out string idempotentFailure),
+            $"begin should be idempotent only with the exact object and token, got {idempotentFailure}");
+        AssertEqual(beginToken, idempotentToken, "idempotent begin should return the exact accepted token");
+
+        var finalSnapshot = new Rpg.Application.Battle.Snapshots.BattleStartSnapshot
+        {
+            SnapshotId = beginToken.SnapshotId,
+            BattleId = beginToken.SessionId
+        };
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryAdvanceSnapshot(
+                beginToken,
+                context,
+                finalSnapshot,
+                new BattleStartRequest { RequestId = "revision_projection" },
+                "draft_revision",
+                1,
+                Array.Empty<string>(),
+                out StrategicBattleActiveContextToken snapshotToken,
+                out string snapshotFailure),
+            $"final snapshot should advance the lease, got {snapshotFailure}");
+        AssertEqual(beginToken.Revision + 1, snapshotToken.Revision, "final snapshot publication should advance revision once");
+        AssertTrue(ReferenceEquals(context.Snapshot, finalSnapshot), "accepted final snapshot should become context authority");
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryAdvanceSnapshot(
+                snapshotToken,
+                context,
+                new Rpg.Application.Battle.Snapshots.BattleStartSnapshot
+                {
+                    SnapshotId = snapshotToken.SnapshotId,
+                    BattleId = snapshotToken.SessionId
+                },
+                new BattleStartRequest { RequestId = "duplicate_revision_projection" },
+                "draft_revision_duplicate",
+                2,
+                Array.Empty<string>(),
+                out _,
+                out _),
+            "the Store must reject a second authoritative final Snapshot advancement");
+
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryClear(beginToken, "stale_after_snapshot", out _),
+            "a callback holding the same context reference and old lease must not clear the advanced snapshot");
+        StrategicBattleActiveContextToken wrongRevision = new(
+            snapshotToken.ContextId,
+            snapshotToken.SessionId,
+            snapshotToken.SnapshotId,
+            snapshotToken.Revision + 10,
+            snapshotToken.ResultId);
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryClear(wrongRevision, "wrong_revision", out _),
+            "a fabricated wrong revision must not mutate the active context");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryPeek(snapshotToken, out StrategicBattleActiveContext active) &&
+            ReferenceEquals(context, active) &&
+            ReferenceEquals(finalSnapshot, active.Snapshot),
+            "stale and wrong-revision rejection must leave the accepted state unchanged");
+        ResetActiveContextStore();
+    }
+
+    internal static void ActiveContextSnapshotCasRejectsInvalidParticipantsAtomically()
+    {
+        ResetActiveContextStore();
+        StrategicBattleActiveContext context = BuildIdentityContext(
+            "context_invalid_participant",
+            "session_invalid_participant",
+            "snapshot_invalid_participant");
+        StrategicBattleParticipantReference validParticipant = new()
+        {
+            ParticipantId = "participant_valid",
+            Role = StrategicBattleParticipantRole.Unknown
+        };
+        context.Session.Participants.Add(validParticipant);
+        context.Session.Participants.Add(null!);
+        try
+        {
+            AssertTrue(
+                StrategicBattleActiveContextStore.TryBegin(
+                    context,
+                    out StrategicBattleActiveContextToken beginToken,
+                    out _),
+                "invalid-participant fixture should publish its preparation state");
+            bool advanced = StrategicBattleActiveContextStore.TryAdvanceSnapshot(
+                beginToken,
+                context,
+                new Rpg.Application.Battle.Snapshots.BattleStartSnapshot
+                {
+                    SnapshotId = beginToken.SnapshotId,
+                    BattleId = beginToken.SessionId
+                },
+                new BattleStartRequest { RequestId = "invalid_participant_projection" },
+                "invalid_participant_draft",
+                1,
+                new[] { validParticipant.ParticipantId },
+                out _,
+                out _);
+
+            AssertTrue(!advanced, "a null participant row must reject final Snapshot publication");
+            AssertEqual(
+                StrategicBattleParticipantRole.Unknown,
+                validParticipant.Role,
+                "rejected Snapshot CAS must not partially mutate earlier participant roles");
+            AssertTrue(
+                StrategicBattleActiveContextStore.TryPeek(beginToken, out _),
+                "rejected Snapshot CAS must leave the predecessor token unchanged");
+        }
+        finally
+        {
+            ResetActiveContextStore();
+        }
+    }
+
+    internal static void ActiveContextResultRevisionReturnsExactDuplicateAndRejectsConflict()
+    {
+        var setup = CreateCompletedSettlementSetup("result_revision");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryPeek(
+                out StrategicBattleActiveContext active,
+                out StrategicBattleActiveContextToken resultToken) &&
+            ReferenceEquals(setup.Context, active),
+            "completed context fixture should remain published with its accepted result token");
+        StrategicBattleResultEnvelope accepted = active.ResultEnvelope ??
+            throw new InvalidOperationException("completed context should expose the accepted result envelope");
+        StrategicBattleActiveContextToken preResultToken = setup.SnapshotToken;
+        AssertEqual(preResultToken.Revision + 1, resultToken.Revision, "first result publication should advance revision once");
+        AssertEqual(accepted.ResultId, resultToken.ResultId, "result token should bind the accepted envelope identity");
+
+        int persistenceCalls = 0;
+        int publicationCalls = 0;
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryCommitAndConsume(
+                preResultToken,
+                active,
+                () => persistenceCalls++,
+                () => publicationCalls++,
+                out _,
+                out _,
+                out _),
+            "the pre-result token must not enter settlement callbacks or consume the accepted result");
+        StrategicBattleActiveContextToken wrongResultToken = new(
+            resultToken.ContextId,
+            resultToken.SessionId,
+            resultToken.SnapshotId,
+            resultToken.Revision,
+            $"{resultToken.ResultId}:wrong");
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryCommitAndConsume(
+                wrongResultToken,
+                active,
+                () => persistenceCalls++,
+                () => publicationCalls++,
+                out _,
+                out _,
+                out _),
+            "a mismatched result identity must not enter settlement callbacks or consume");
+        AssertEqual(0, persistenceCalls, "stale settlement attempts must not call persistence");
+        AssertEqual(0, publicationCalls, "stale settlement attempts must not call live publication");
+
+        string acceptedReportId = accepted.Report.ReportId;
+        accepted.Report.ReportId = $"{acceptedReportId}:mutated";
+        bool mutableEnvelopeStillMatched = StrategicBattleActiveContextStore.TryPeek(resultToken, out _);
+        accepted.Report.ReportId = acceptedReportId;
+        AssertTrue(!mutableEnvelopeStillMatched, "post-publication result mutation must invalidate the accepted digest");
+
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryPublishResultEnvelope(
+                preResultToken,
+                active,
+                accepted.RuntimeResult,
+                accepted.SettlementPlan,
+                accepted.Report,
+                out StrategicBattleResultEnvelope duplicateEnvelope,
+                out StrategicBattleActiveContextToken duplicateToken,
+                out string duplicateFailure),
+            $"exact duplicate should return the accepted identity without republishing, got {duplicateFailure}");
+        AssertTrue(ReferenceEquals(accepted, duplicateEnvelope), "exact duplicate should return the original envelope object");
+        AssertEqual(resultToken, duplicateToken, "exact duplicate should return the original immutable result token");
+
+        BattleReportRecord conflictingReport = new()
+        {
+            ReportId = $"{accepted.Report.ReportId}:conflict",
+            SnapshotId = accepted.Report.SnapshotId,
+            BattleId = accepted.Report.BattleId
+        };
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryPublishResultEnvelope(
+                preResultToken,
+                active,
+                accepted.RuntimeResult,
+                accepted.SettlementPlan,
+                conflictingReport,
+                out _,
+                out _,
+                out string conflictFailure),
+            "a different result at the same predecessor revision must be rejected");
+        AssertEqual(
+            StrategicBattleActiveContextStore.ResultEnvelopeConflictReason,
+            conflictFailure,
+            "different result publication should expose an explicit conflict");
+        AssertTrue(ReferenceEquals(accepted, active.ResultEnvelope), "result conflict must not replace the accepted envelope");
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryClear(preResultToken, "stale_after_result", out _),
+            "a callback captured before result publication must not clear the result revision");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryPeek(resultToken, out StrategicBattleActiveContext stillActive) &&
+            ReferenceEquals(active, stillActive),
+            "duplicate and conflict handling must leave the accepted result state unchanged");
+        AssertTrue(
+            !StrategicBattleActiveContextStore.TryClear(resultToken, "result_must_commit", out _),
+            "an accepted result must not be discarded through generic cancellation");
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryPeek(resultToken, out StrategicBattleActiveContext afterRejectedClear) &&
+            ReferenceEquals(active, afterRejectedClear) &&
+            ReferenceEquals(accepted, afterRejectedClear.ResultEnvelope),
+            "rejected accepted-result clear must leave the exact context and envelope unchanged");
         ResetActiveContextStore();
     }
 
@@ -607,7 +1079,13 @@ internal static partial class StrategicManagementRegressionCases
         });
     }
 
-    private static (StrategicManagementDefinitionSet Definitions, StrategicManagementState State, StrategicBattleActiveContext Context, StrategicBattleResultSummary Summary) CreateCompletedSettlementSetup(string requestId)
+    private static (
+        StrategicManagementDefinitionSet Definitions,
+        StrategicManagementState State,
+        StrategicBattleActiveContext Context,
+        StrategicBattleResultSummary Summary,
+        StrategicBattleActiveContextToken SnapshotToken,
+        StrategicBattleActiveContextToken ResultToken) CreateCompletedSettlementSetup(string requestId)
     {
         var setup = CreateStrategicAssaultExpedition();
         StrategicBattleBridgeService bridge = new(setup.Definitions);
@@ -618,14 +1096,27 @@ internal static partial class StrategicManagementRegressionCases
             "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
         BattleStartRequest request = new() { RequestId = requestId, BattleKind = BattleKind.AssaultSite };
         AddParticipantForces(setup.Definitions, setup.State, request, StrategicManagementIds.HeroOrdinaryCommander);
+        StrategicBattleActiveContextToken? snapshotToken = null;
+        StrategicBattleActiveContextToken? resultToken = null;
         StrategicBattleActiveContext context = BuildCompletedActiveContext(
             bridge,
             setup.State,
             session,
             request,
             BattleOutcome.Victory,
-            participant => Math.Max(1, ResolveParticipantInitialCount(request, participant) / 2));
-        return (setup.Definitions, setup.State, context, bridge.BuildResultSummary(context));
+            participant => Math.Max(1, ResolveParticipantInitialCount(request, participant) / 2),
+            (_, acceptedSnapshotToken, acceptedResultToken) =>
+            {
+                snapshotToken = acceptedSnapshotToken;
+                resultToken = acceptedResultToken;
+            });
+        return (
+            setup.Definitions,
+            setup.State,
+            context,
+            bridge.BuildResultSummary(context),
+            snapshotToken ?? throw new InvalidOperationException("completed fixture should capture the Snapshot token"),
+            resultToken ?? throw new InvalidOperationException("completed fixture should capture the result token"));
     }
 
     private static StrategicBattleActiveContext BuildIdentityContext(string contextId, string sessionId, string snapshotId)
@@ -651,13 +1142,25 @@ internal static partial class StrategicManagementRegressionCases
 
     private static void ResetActiveContextStore()
     {
-        if (StrategicBattleActiveContextStore.TryPeek(out StrategicBattleActiveContext context))
+        if (StrategicBattleActiveContextStore.TryPeek(
+                out StrategicBattleActiveContext context,
+                out StrategicBattleActiveContextToken token))
         {
-            StrategicBattleActiveContextStore.TryClear(
-                context.ContextId,
-                context.Session?.SessionId,
-                context.Snapshot?.SnapshotId,
-                "test_reset");
+            if (string.IsNullOrWhiteSpace(token.ResultId))
+            {
+                StrategicBattleActiveContextStore.TryClear(token, "test_reset", out _);
+            }
+            else
+            {
+                StrategicBattleActiveContextStore.TryCommitAndConsume(
+                    token,
+                    context,
+                    () => { },
+                    () => { },
+                    out _,
+                    out _,
+                    out _);
+            }
         }
     }
 

@@ -86,9 +86,12 @@ internal static void SceneTransitionRouterEntersStrategicBattleThroughActiveCont
     AssertEqual(context.ScenePath, gateway.LastScenePath, "strategic battle transition target scene");
     AssertTrue(StrategicBattleActiveContextStore.HasActiveContext, "strategic transition should publish active context for the destination scene");
     AssertTrue(
-        StrategicBattleActiveContextStore.TryPeek(out StrategicBattleActiveContext active) &&
+        StrategicBattleActiveContextStore.TryPeek(
+            out StrategicBattleActiveContext active,
+            out StrategicBattleActiveContextToken activeToken) &&
         ReferenceEquals(context, active),
         "destination scene should be able to peek the exact strategic active context");
+    AssertTrue(activeToken.Revision > 0, "strategic transition should publish a positive immutable revision");
     AssertTrue(!BattleSessionHandoff.HasActiveLaunch, "strategic active context path must not begin legacy battle handoff");
     AssertEqual(0, successCalls, "strategic battle success callback should wait for scene entered");
 
@@ -164,13 +167,34 @@ internal static void SceneTransitionRouterStaleFailureCannotClearNewerContext()
 {
     ResetActiveContextStore();
     StrategicBattleActiveContext stale = BuildSceneTransitionActiveContext("stale_context");
-    StrategicBattleActiveContext newer = BuildSceneTransitionActiveContext("newer_context");
+    StrategicBattleActiveContextToken advancedToken = null!;
     FakeSceneTransitionGateway gateway = new(Error.Failed)
     {
         OnChange = () =>
         {
-    ResetActiveContextStore();
-            AssertTrue(StrategicBattleActiveContextStore.TryBegin(newer, out _), "test should publish newer context before stale failure returns");
+            AssertTrue(
+                StrategicBattleActiveContextStore.TryPeek(
+                    out StrategicBattleActiveContext sameContext,
+                    out StrategicBattleActiveContextToken transitionToken) &&
+                ReferenceEquals(stale, sameContext),
+                "scene callback should observe the same mutable context object");
+            AssertTrue(
+                StrategicBattleActiveContextStore.TryAdvanceSnapshot(
+                    transitionToken,
+                    stale,
+                    new BattleStartSnapshot
+                    {
+                        SnapshotId = transitionToken.SnapshotId,
+                        BattleId = transitionToken.SessionId,
+                        TargetLocationId = stale.Session.TargetLocationId
+                    },
+                    stale.CompatibilityRequest,
+                    "scene_transition_advanced_draft",
+                    1,
+                    Array.Empty<string>(),
+                    out advancedToken,
+                    out string advanceFailure),
+                $"test should advance the same context before stale failure returns, got {advanceFailure}");
         }
     };
     SceneTransitionRouter router = new(gateway);
@@ -185,8 +209,9 @@ internal static void SceneTransitionRouterStaleFailureCannotClearNewerContext()
     AssertTrue(!result.Success, "stale transition should still report its scene failure");
     AssertEqual(0, rollbackCalls, "stale failure must not run rollback after identity changed");
     AssertTrue(
-        StrategicBattleActiveContextStore.TryPeek(newer.ContextId, newer.Session.SessionId, newer.Snapshot.SnapshotId, out StrategicBattleActiveContext active) && ReferenceEquals(newer, active),
-        "stale failure must not clear newer active context");
+        StrategicBattleActiveContextStore.TryPeek(advancedToken, out StrategicBattleActiveContext active) &&
+        ReferenceEquals(stale, active),
+        "stale failure must not clear the newer revision on the same active context reference");
     ResetActiveContextStore();
 }
 
@@ -450,13 +475,11 @@ private static StrategicBattleActiveContext BuildSceneTransitionActiveContext(st
 
 private static void ResetActiveContextStore()
 {
-    if (StrategicBattleActiveContextStore.TryPeek(out StrategicBattleActiveContext context))
+    if (StrategicBattleActiveContextStore.TryPeek(
+            out _,
+            out StrategicBattleActiveContextToken token))
     {
-        StrategicBattleActiveContextStore.TryClear(
-            context.ContextId,
-            context.Session?.SessionId,
-            context.Snapshot?.SnapshotId,
-            "test_reset");
+        StrategicBattleActiveContextStore.TryClear(token, "test_reset", out _);
     }
 }
 }

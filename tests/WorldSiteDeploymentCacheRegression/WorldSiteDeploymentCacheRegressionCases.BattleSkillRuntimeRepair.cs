@@ -80,8 +80,15 @@ internal static void StrategicBattleLaunchSnapshotPreservesStartingHeroSkillGran
             participant.HeroId,
             $"active bridge snapshot hero={heroId}");
 
+        ResetActiveContextStore();
+        AssertTrue(
+            StrategicBattleActiveContextStore.TryBegin(
+                activeContextResult.Context,
+                out StrategicBattleActiveContextToken beginToken,
+                out string beginFailure),
+            $"strategic active context should publish hero={heroId} reason={beginFailure}");
         StrategicBattleDraftSnapshotResult compileResult = new StrategicBattleDraftSnapshotCompiler()
-            .CompileAndCommitFinalSnapshot(activeContextResult.Context);
+            .CompileAndCommitFinalSnapshot(activeContextResult.Context, beginToken, out _);
         AssertTrue(
             compileResult.Success,
             $"strategic Draft snapshot compilation should succeed hero={heroId} reason={compileResult.FailureReason}");

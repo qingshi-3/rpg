@@ -1,11 +1,13 @@
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Reports;
 using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
-using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle;
 
 namespace Rpg.Application.StrategicBattleBridge;
@@ -85,15 +87,62 @@ public sealed class StrategicBattleActiveContextResult
     }
 }
 
+public sealed class StrategicBattleActiveContextToken : System.IEquatable<StrategicBattleActiveContextToken>
+{
+    public StrategicBattleActiveContextToken(
+        string contextId,
+        string sessionId,
+        string snapshotId,
+        long revision,
+        string resultId = "")
+    {
+        ContextId = contextId ?? "";
+        SessionId = sessionId ?? "";
+        SnapshotId = snapshotId ?? "";
+        Revision = revision;
+        ResultId = resultId ?? "";
+    }
+
+    public string ContextId { get; }
+    public string SessionId { get; }
+    public string SnapshotId { get; }
+    public long Revision { get; }
+    public string ResultId { get; }
+
+    public bool Equals(StrategicBattleActiveContextToken other)
+    {
+        return other != null &&
+               string.Equals(ContextId, other.ContextId, System.StringComparison.Ordinal) &&
+               string.Equals(SessionId, other.SessionId, System.StringComparison.Ordinal) &&
+               string.Equals(SnapshotId, other.SnapshotId, System.StringComparison.Ordinal) &&
+               Revision == other.Revision &&
+               string.Equals(ResultId, other.ResultId, System.StringComparison.Ordinal);
+    }
+
+    public override bool Equals(object obj) => Equals(obj as StrategicBattleActiveContextToken);
+
+    public override int GetHashCode() => System.HashCode.Combine(
+        ContextId,
+        SessionId,
+        SnapshotId,
+        Revision,
+        ResultId);
+
+    public override string ToString() =>
+        $"context={ContextId} session={SessionId} snapshot={SnapshotId} revision={Revision} result={ResultId}";
+}
+
 public sealed class StrategicBattleResultEnvelope
 {
     internal StrategicBattleResultEnvelope(
+        string resultId,
         string sessionId,
         string snapshotId,
         BattleRuntimeSessionResult runtimeResult,
         SettlementPlan settlementPlan,
         BattleReportRecord report)
     {
+        ResultId = resultId ?? "";
         SessionId = sessionId ?? "";
         SnapshotId = snapshotId ?? "";
         RuntimeResult = runtimeResult;
@@ -101,17 +150,77 @@ public sealed class StrategicBattleResultEnvelope
         Report = report;
     }
 
+    public string ResultId { get; }
     public string SessionId { get; }
     public string SnapshotId { get; }
     public BattleRuntimeSessionResult RuntimeResult { get; }
     public SettlementPlan SettlementPlan { get; }
     public BattleReportRecord Report { get; }
+
+    internal static StrategicBattleResultEnvelope Create(
+        string sessionId,
+        string snapshotId,
+        BattleRuntimeSessionResult runtimeResult,
+        SettlementPlan settlementPlan,
+        BattleReportRecord report)
+    {
+        string resultId = ComputeResultId(
+            sessionId,
+            snapshotId,
+            runtimeResult,
+            settlementPlan,
+            report);
+        return new StrategicBattleResultEnvelope(
+            resultId,
+            sessionId,
+            snapshotId,
+            runtimeResult,
+            settlementPlan,
+            report);
+    }
+
+    internal bool HasIntactIdentity()
+    {
+        try
+        {
+            return string.Equals(
+                ResultId,
+                ComputeResultId(SessionId, SnapshotId, RuntimeResult, SettlementPlan, Report),
+                System.StringComparison.Ordinal);
+        }
+        catch (System.Exception)
+        {
+            // Mutable producer objects must never change accepted result facts
+            // without invalidating the result token's canonical digest.
+            return false;
+        }
+    }
+
+    private static string ComputeResultId(
+        string sessionId,
+        string snapshotId,
+        BattleRuntimeSessionResult runtimeResult,
+        SettlementPlan settlementPlan,
+        BattleReportRecord report)
+    {
+        string identityPayload = JsonSerializer.Serialize(new
+        {
+            SessionId = sessionId ?? "",
+            SnapshotId = snapshotId ?? "",
+            Outcome = runtimeResult?.Outcome,
+            Events = runtimeResult?.EventStream?.Events,
+            FinalState = runtimeResult?.FinalState,
+            SettlementPlan = settlementPlan,
+            Report = report
+        });
+        return System.Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(identityPayload)))
+            .ToLowerInvariant();
+    }
 }
 
 public sealed class StrategicBattleActiveContext
 {
-    public const string ResultEnvelopeAlreadyPublishedReason = "strategic_battle_result_envelope_already_published";
-
     private readonly object _resultEnvelopeGate = new();
     private StrategicBattleResultEnvelope _resultEnvelope;
 
@@ -140,52 +249,21 @@ public sealed class StrategicBattleActiveContext
         }
     }
     public BattleResult CompatibilityResult { get; set; }
-    public bool ResultConsumed { get; set; }
+    public bool ResultConsumed { get; internal set; }
     public string FailureReason { get; set; } = "";
 
-    public bool TryPublishResultEnvelope(
-        BattleRuntimeSessionResult runtimeResult,
-        SettlementPlan settlementPlan,
-        BattleReportRecord report,
-        out string failureReason)
+    internal bool TryAcceptResultEnvelope(StrategicBattleResultEnvelope resultEnvelope)
     {
         lock (_resultEnvelopeGate)
         {
             if (_resultEnvelope != null)
             {
-                failureReason = ResultEnvelopeAlreadyPublishedReason;
-                LogResultEnvelopeRejected(failureReason);
                 return false;
             }
 
-            StrategicBattleResultEnvelope candidate = new(
-                Session?.SessionId,
-                Snapshot?.SnapshotId,
-                runtimeResult,
-                settlementPlan,
-                report);
-            failureReason = StrategicBattleBridgeService.GetResultEnvelopeFailureReason(this, candidate);
-            if (!string.IsNullOrWhiteSpace(failureReason))
-            {
-                LogResultEnvelopeRejected(failureReason);
-                return false;
-            }
-
-            // The three accepted facts cross the Bridge boundary atomically and
-            // can no longer diverge through direct or legacy-mirror writes.
-            _resultEnvelope = candidate;
-            GameLog.Info(
-                nameof(StrategicBattleActiveContext),
-                $"StrategicBattleResultEnvelopePublished context={ContextId} session={candidate.SessionId} snapshot={candidate.SnapshotId} report={candidate.Report.ReportId}");
+            _resultEnvelope = resultEnvelope;
             return true;
         }
-    }
-
-    private void LogResultEnvelopeRejected(string failureReason)
-    {
-        GameLog.Warn(
-            nameof(StrategicBattleActiveContext),
-            $"StrategicBattleResultEnvelopeRejected context={ContextId} session={Session?.SessionId ?? ""} snapshot={Snapshot?.SnapshotId ?? ""} reason={failureReason ?? ""}");
     }
 }
 

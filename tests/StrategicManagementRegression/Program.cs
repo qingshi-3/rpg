@@ -76,10 +76,17 @@ Run("strategic world control projection survives persisted reload", StrategicMan
 Run("strategic battle result summary applies all expedition participant consequences", StrategicManagementRegressionCases.StrategicBattleResultSummaryAppliesAllExpeditionParticipantConsequences);
 Run("battle settlement covers every non-empty deployment subset", StrategicManagementRegressionCases.BattleSettlementCoversEveryNonEmptyDeploymentSubset);
 Run("settlement commit failure leaves live state and context retryable", StrategicManagementRegressionCases.SettlementCommitFailureLeavesLiveStateAndContextRetryable);
+Run("settlement publication failure leaves accepted result retryable", StrategicManagementRegressionCases.SettlementPublicationFailureLeavesAcceptedResultRetryable);
+Run("settlement durable replay consumes an exact still-active result", StrategicManagementRegressionCases.SettlementDurableReplayConsumesExactStillActiveResult);
+Run("settlement callbacks execute outside active context store lock", StrategicManagementRegressionCases.SettlementCallbacksExecuteOutsideActiveContextStoreLock);
+Run("settlement rejects summary divergent from accepted envelope", StrategicManagementRegressionCases.SettlementRejectsSummaryDivergentFromAcceptedEnvelope);
 Run("settlement exact replay is idempotent and conflict fails", StrategicManagementRegressionCases.SettlementExactReplayIsIdempotentAndConflictFails);
 Run("uncommitted settlement requires matching active context", StrategicManagementRegressionCases.SettlementUncommittedResultRequiresActiveContext);
 Run("settlement commit rejects mismatched identity without mutation", StrategicManagementRegressionCases.SettlementCommitRejectsMismatchedIdentityWithoutMutation);
 Run("active context store rejects stale publication and consumption", StrategicManagementRegressionCases.ActiveContextStoreRejectsStalePublicationAndConsumption);
+Run("active context revision lease rejects same-reference stale callbacks", StrategicManagementRegressionCases.ActiveContextRevisionLeaseRejectsSameReferenceStaleCallbacks);
+Run("active context snapshot CAS rejects invalid participants atomically", StrategicManagementRegressionCases.ActiveContextSnapshotCasRejectsInvalidParticipantsAtomically);
+Run("active context result revision returns exact duplicate and rejects conflict", StrategicManagementRegressionCases.ActiveContextResultRevisionReturnsExactDuplicateAndRejectsConflict);
 Run("strategic battle active context publishes one result envelope once", StrategicManagementRegressionCases.StrategicBattleActiveContextPublishesOneResultEnvelopeOnce);
 Run("strategic battle result envelope rejects invalid and legacy mirror authority", StrategicManagementRegressionCases.StrategicBattleResultEnvelopeRejectsInvalidAndLegacyMirrorAuthority);
 Run("strategic battle result summary rejects legacy request result authority", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsLegacyRequestResultAuthority);

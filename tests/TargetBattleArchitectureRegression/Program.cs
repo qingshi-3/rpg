@@ -945,6 +945,14 @@ static string ProjectRoot()
 }
 static void Run(string name, Action test)
 {
+    string filter = Environment.GetEnvironmentVariable("RPG_TEST_FILTER") ?? "";
+    if (!string.IsNullOrWhiteSpace(filter) &&
+        !filter.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(item => name.Contains(item, StringComparison.OrdinalIgnoreCase)))
+    {
+        return;
+    }
+
     try
     {
         test();

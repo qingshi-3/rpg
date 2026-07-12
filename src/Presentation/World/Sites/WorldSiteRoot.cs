@@ -159,6 +159,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private BattleStartRequest _battlePreparationRequest;
 	private BattleStartRequest _battleRuntimeRequest;
 	private StrategicBattleActiveContext _activeStrategicBattleContext;
+	private StrategicBattleActiveContextToken _activeStrategicBattleToken;
 	private WorldSiteBattleGroupRuntimeResolveResult _activeBattleGroupRuntimeResolution;
 	private string _siteHudReturnScenePath = "";
 	private string _siteHudSiteId = "";
@@ -257,27 +258,38 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 			ApplyEntityRenderSort);
 	}
 
-	private bool TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext)
+	private bool TryResolveActiveBattleContext(
+		out StrategicBattleActiveContext activeContext,
+		out StrategicBattleActiveContextToken activeToken)
 	{
-		if (_activeStrategicBattleContext != null)
+		if (_activeStrategicBattleContext != null &&
+			_activeStrategicBattleToken != null &&
+			StrategicBattleActiveContextStore.TryPeek(
+				_activeStrategicBattleToken,
+				out StrategicBattleActiveContext storedContext) &&
+			ReferenceEquals(_activeStrategicBattleContext, storedContext))
 		{
 			activeContext = _activeStrategicBattleContext;
+			activeToken = _activeStrategicBattleToken;
 			return true;
 		}
 
-		if (StrategicBattleActiveContextStore.TryPeek(out activeContext))
+		if (_activeStrategicBattleContext == null &&
+			StrategicBattleActiveContextStore.TryPeek(out activeContext, out activeToken))
 		{
 			_activeStrategicBattleContext = activeContext;
+			_activeStrategicBattleToken = activeToken;
 			return true;
 		}
 
 		activeContext = null;
+		activeToken = null;
 		return false;
 	}
 
 	private bool TryResolveActiveBattleRequest(out BattleStartRequest request)
 	{
-		if (TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext) &&
+		if (TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext, out _) &&
 			activeContext.PreparationDraft != null)
 		{
 			request = activeContext.PreparationDraft;
@@ -333,23 +345,51 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 		return TryResolveActiveBattleRequest(out _);
 	}
 
-	private void CancelActiveBattleLaunch(string reason)
+	private void CancelActiveBattleLaunch(
+		string reason,
+		StrategicBattleActiveContextToken expectedToken = null)
 	{
+		if (expectedToken != null)
+		{
+			if (StrategicBattleActiveContextStore.TryClear(expectedToken, reason, out string capturedClearFailure))
+			{
+				_activeStrategicBattleContext = null;
+				_activeStrategicBattleToken = null;
+				ClearLegacyStrategicBattleHandoff(reason);
+			}
+			else
+			{
+				GameLog.Warn(
+					nameof(WorldSiteRoot),
+					$"StrategicBattleLaunchCancelRejected context={expectedToken.ContextId} expectedRevision={expectedToken.Revision} reason={capturedClearFailure}");
+			}
+			return;
+		}
+
 		if (_activeStrategicBattleContext == null &&
-			StrategicBattleActiveContextStore.TryPeek(out StrategicBattleActiveContext storedContext))
+			StrategicBattleActiveContextStore.TryPeek(
+				out StrategicBattleActiveContext storedContext,
+				out StrategicBattleActiveContextToken storedToken))
 		{
 			_activeStrategicBattleContext = storedContext;
+			_activeStrategicBattleToken = storedToken;
 		}
 
 		if (_activeStrategicBattleContext != null)
 		{
-			StrategicBattleActiveContextStore.TryClear(
-				_activeStrategicBattleContext.ContextId,
-				_activeStrategicBattleContext.Session?.SessionId,
-				_activeStrategicBattleContext.Snapshot?.SnapshotId,
-				reason);
-			_activeStrategicBattleContext = null;
-			ClearLegacyStrategicBattleHandoff(reason);
+			StrategicBattleActiveContextToken tokenToClear = _activeStrategicBattleToken;
+			if (StrategicBattleActiveContextStore.TryClear(tokenToClear, reason, out string clearFailureReason))
+			{
+				_activeStrategicBattleContext = null;
+				_activeStrategicBattleToken = null;
+				ClearLegacyStrategicBattleHandoff(reason);
+			}
+			else
+			{
+				GameLog.Warn(
+					nameof(WorldSiteRoot),
+					$"StrategicBattleLaunchCancelRejected context={_activeStrategicBattleContext.ContextId ?? ""} expectedRevision={tokenToClear?.Revision ?? 0} reason={clearFailureReason}");
+			}
 			return;
 		}
 

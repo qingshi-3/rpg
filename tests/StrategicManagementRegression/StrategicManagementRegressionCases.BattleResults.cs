@@ -37,17 +37,25 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicBattleResultEnvelope accepted = context.ResultEnvelope ??
             throw new InvalidOperationException("completed strategic context should publish one result envelope");
+        StrategicBattleActiveContextToken resultToken = RequireActiveContextTokenForTest(context);
+        StrategicBattleActiveContextToken preResultToken = new(
+            resultToken.ContextId,
+            resultToken.SessionId,
+            resultToken.SnapshotId,
+            resultToken.Revision - 1);
         AssertTrue(
-            !context.TryPublishResultEnvelope(
+            StrategicBattleActiveContextStore.TryPublishResultEnvelope(
+                preResultToken,
+                context,
                 accepted.RuntimeResult,
                 accepted.SettlementPlan,
                 accepted.Report,
+                out StrategicBattleResultEnvelope duplicate,
+                out StrategicBattleActiveContextToken duplicateToken,
                 out string duplicateFailure),
-            "published result envelope must reject duplicate publication");
-        AssertEqual(
-            StrategicBattleActiveContext.ResultEnvelopeAlreadyPublishedReason,
-            duplicateFailure,
-            "duplicate publication should fail explicitly");
+            $"published result envelope should return its exact accepted identity for a duplicate, got {duplicateFailure}");
+        AssertTrue(ReferenceEquals(accepted, duplicate), "duplicate publication must return the accepted envelope");
+        AssertEqual(resultToken, duplicateToken, "duplicate publication must return the accepted immutable token");
         AssertTrue(ReferenceEquals(accepted, context.ResultEnvelope), "duplicate publication must not replace the accepted envelope");
     }
 
@@ -87,24 +95,33 @@ internal static partial class StrategicManagementRegressionCases
             BattleId = accepted.SettlementPlan.BattleId,
             SnapshotId = "mismatched_snapshot"
         };
+        StrategicBattleActiveContextToken candidateToken = PublishActiveContextForTest(candidate);
 
         AssertTrue(
-            !candidate.TryPublishResultEnvelope(
+            !StrategicBattleActiveContextStore.TryPublishResultEnvelope(
+                candidateToken,
+                candidate,
                 accepted.RuntimeResult,
                 mismatchedSettlement,
                 accepted.Report,
+                out _,
+                out _,
                 out string mismatchFailure),
             "identity-mismatched result envelope must be rejected");
         AssertEqual(StrategicFailureReasons.BattleResultMismatch, mismatchFailure, "identity mismatch should be diagnosable");
         AssertTrue(candidate.ResultEnvelope == null, "failed publication must leave the active context unchanged");
         AssertTrue(
-            candidate.TryPublishResultEnvelope(
+            StrategicBattleActiveContextStore.TryPublishResultEnvelope(
+                candidateToken,
+                candidate,
                 accepted.RuntimeResult,
                 accepted.SettlementPlan,
                 accepted.Report,
+                out StrategicBattleResultEnvelope published,
+                out _,
                 out string publicationFailure),
             $"matching complete facts should publish once, got {publicationFailure}");
-        StrategicBattleResultEnvelope published = candidate.ResultEnvelope!;
+        AssertTrue(ReferenceEquals(published, candidate.ResultEnvelope), "accepted result should be the single context envelope");
 
         BattleGroupBattleFlowResult divergentLegacyMirror = new()
         {
@@ -280,7 +297,10 @@ internal static partial class StrategicManagementRegressionCases
             Session = session,
             Snapshot = snapshotResult.Snapshot
         };
-        bool published = context.TryPublishResultEnvelope(
+        StrategicBattleActiveContextToken contextToken = PublishActiveContextForTest(context);
+        bool published = StrategicBattleActiveContextStore.TryPublishResultEnvelope(
+            contextToken,
+            context,
             new BattleRuntimeSessionResult
             {
                 Outcome = outcome,
@@ -298,6 +318,8 @@ internal static partial class StrategicManagementRegressionCases
                 SnapshotId = snapshotResult.Snapshot.SnapshotId,
                 BattleId = session.SessionId
             },
+            out _,
+            out _,
             out string envelopeFailureReason);
 
         StrategicBattleResultSummary summary = bridge.BuildResultSummary(context);
