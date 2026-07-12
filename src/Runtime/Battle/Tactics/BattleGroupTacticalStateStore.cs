@@ -81,6 +81,9 @@ public sealed class BattleGroupTacticalStateStore
                 ObjectiveGridHeight = plan.ObjectiveCellHeight,
                 ObjectiveWidth = Math.Max(1, plan.ObjectiveWidth),
                 ObjectiveHeight = Math.Max(1, plan.ObjectiveHeight),
+                InitialDeploymentGridX = group.CellX,
+                InitialDeploymentGridY = group.CellY,
+                InitialDeploymentGridHeight = group.CellHeight,
                 PlanState = plan.HasObjectiveAnchor
                     ? BattleGroupPlanRuntimeState.AdvancingToObjective
                     : BattleGroupPlanRuntimeState.SensingContact
@@ -199,6 +202,84 @@ public sealed class BattleGroupTacticalStateStore
         }
 
         state.PlanState = planState;
+        state.Version++;
+        return true;
+    }
+
+    internal bool TryApplyTacticalCommand(
+        string battleGroupId,
+        string commandId,
+        Rpg.Application.Battle.Commands.CommandKind commandKind,
+        int targetGridX,
+        int targetGridY,
+        int targetGridHeight,
+        out string previousCommandId,
+        out BattleGroupPlanRuntimeState previousPlanState)
+    {
+        previousCommandId = "";
+        previousPlanState = BattleGroupPlanRuntimeState.SensingContact;
+        if (!_states.TryGetValue(battleGroupId ?? "", out BattleGroupTacticalState state))
+        {
+            return false;
+        }
+
+        previousCommandId = state.ActiveCommandId ?? "";
+        previousPlanState = state.PlanState;
+        state.ActiveCommandId = commandId ?? "";
+        state.ActiveTacticalCommandKind = commandKind;
+        state.HasActiveTacticalCommand = true;
+        state.HasTacticalCommandTarget = true;
+        state.TacticalCommandTargetGridX = targetGridX;
+        state.TacticalCommandTargetGridY = targetGridY;
+        state.TacticalCommandTargetGridHeight = targetGridHeight;
+        state.HasCompletedRetreat = false;
+        state.EngagementState = BattleGroupEngagementState.NotEngaged;
+        state.LocalCombatRegion = null;
+        state.SelectedRegion = new BattleTacticalRegionSnapshot
+        {
+            RegionId = $"{battleGroupId}:{commandKind.ToString().ToLowerInvariant()}:{commandId}",
+            OwnerBattleGroupId = battleGroupId ?? "",
+            Kind = BattleTacticalRegionKind.FixedTarget,
+            SourceRegionId = commandId ?? "",
+            ReasonCode = commandKind == Rpg.Application.Battle.Commands.CommandKind.Regroup
+                ? "regroup_target_accepted"
+                : "retreat_target_accepted",
+            CenterCellX = targetGridX,
+            CenterCellY = targetGridY,
+            CenterCellHeight = targetGridHeight,
+            Width = 1,
+            Height = 1,
+            Version = state.Version + 1
+        };
+        state.SelectedRegionCommandSource = BattleGroupTacticalCommandSource.PlayerCommand;
+        state.ActiveDestinationBeaconId = "";
+        state.ActiveDestinationBeaconRevision = 0;
+        state.ActiveDestinationBeaconCommandId = "";
+        state.PlanState = commandKind == Rpg.Application.Battle.Commands.CommandKind.Regroup
+            ? BattleGroupPlanRuntimeState.RegroupingOrReturningToObjective
+            : BattleGroupPlanRuntimeState.Retreating;
+        state.Version++;
+        return true;
+    }
+
+    internal bool TryFinishTacticalCommand(string battleGroupId, bool retreatCompleted)
+    {
+        if (!_states.TryGetValue(battleGroupId ?? "", out BattleGroupTacticalState state) ||
+            !state.HasActiveTacticalCommand)
+        {
+            return false;
+        }
+
+        state.HasActiveTacticalCommand = false;
+        state.HasTacticalCommandTarget = false;
+        state.SelectedRegion = null;
+        state.SelectedRegionCommandSource = BattleGroupTacticalCommandSource.None;
+        state.LocalCombatRegion = null;
+        state.HasCompletedRetreat = retreatCompleted;
+        if (!retreatCompleted)
+        {
+            state.PlanState = BattleGroupPlanRuntimeState.SensingContact;
+        }
         state.Version++;
         return true;
     }
@@ -589,6 +670,16 @@ public sealed class BattleGroupTacticalStateStore
             ActiveDestinationBeaconGridY = state?.ActiveDestinationBeaconGridY ?? 0,
             ActiveDestinationBeaconGridHeight = state?.ActiveDestinationBeaconGridHeight ?? 0,
             ActiveDestinationBeaconCommandId = state?.ActiveDestinationBeaconCommandId ?? "",
+            ActiveTacticalCommandKind = state?.ActiveTacticalCommandKind ?? Rpg.Application.Battle.Commands.CommandKind.Move,
+            HasActiveTacticalCommand = state?.HasActiveTacticalCommand ?? false,
+            HasTacticalCommandTarget = state?.HasTacticalCommandTarget ?? false,
+            TacticalCommandTargetGridX = state?.TacticalCommandTargetGridX ?? 0,
+            TacticalCommandTargetGridY = state?.TacticalCommandTargetGridY ?? 0,
+            TacticalCommandTargetGridHeight = state?.TacticalCommandTargetGridHeight ?? 0,
+            InitialDeploymentGridX = state?.InitialDeploymentGridX ?? 0,
+            InitialDeploymentGridY = state?.InitialDeploymentGridY ?? 0,
+            InitialDeploymentGridHeight = state?.InitialDeploymentGridHeight ?? 0,
+            HasCompletedRetreat = state?.HasCompletedRetreat ?? false,
             Version = state?.Version ?? 0,
             LastTemporaryRegionRefreshTick = state?.LastTemporaryRegionRefreshTick ?? -1,
             NoPerceivedHostileTicks = state?.NoPerceivedHostileTicks ?? 0,

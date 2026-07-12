@@ -218,6 +218,46 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
+[node name="LiveCommandPanel" type="PanelContainer" parent="BottomCommandHost/BattleRuntimeCommandBar"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -150.0
+offset_top = -78.0
+offset_right = 150.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 0
+theme_override_styles/panel = ExtResource("21_pause_inner_panel")
+
+[node name="LiveCommandMargin" type="MarginContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/LiveCommandPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="LiveCommandRow" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimeCommandBar/LiveCommandPanel/LiveCommandMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="BattleRuntimeRegroupButton" type="Button" parent="BottomCommandHost/BattleRuntimeCommandBar/LiveCommandPanel/LiveCommandMargin/LiveCommandRow"]
+custom_minimum_size = Vector2(128, 38)
+layout_mode = 2
+focus_mode = 2
+text = "重整"
+
+[node name="BattleRuntimeRetreatButton" type="Button" parent="BottomCommandHost/BattleRuntimeCommandBar/LiveCommandPanel/LiveCommandMargin/LiveCommandRow"]
+custom_minimum_size = Vector2(128, 38)
+layout_mode = 2
+focus_mode = 2
+text = "撤退"
+
 [node name="BattleRuntimePauseDetailPanel" type="Control" parent="BottomCommandHost"]
 visible = false
 z_index = 542
@@ -367,6 +407,23 @@ size_flags_horizontal = 3
 mouse_filter = 2
 theme_override_constants/separation = 4
 alignment = 1
+
+[node name="TacticalCommandRow" type="HBoxContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack"]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="BattleRuntimePauseRegroupButton" type="Button" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack/TacticalCommandRow"]
+custom_minimum_size = Vector2(100, 34)
+layout_mode = 2
+focus_mode = 2
+text = "重整"
+
+[node name="BattleRuntimePauseRetreatButton" type="Button" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack/TacticalCommandRow"]
+custom_minimum_size = Vector2(100, 34)
+layout_mode = 2
+focus_mode = 2
+text = "撤退"
 
 [node name="BattleRuntimePauseCommandQueuePanel" type="PanelContainer" parent="BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody"]
 custom_minimum_size = Vector2(300, 140)

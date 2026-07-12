@@ -22,6 +22,20 @@ internal static class BattleAiActionRequestBuilder
             localCombatSituation,
             targetCandidates,
             targetSelectionPolicy);
+        if (actorFact.Actor.PlanState is BattleGroupPlanRuntimeState.RegroupingOrReturningToObjective or BattleGroupPlanRuntimeState.Retreating)
+        {
+            if (regionMovementGoal != null && !BattleLocalCombatRegionResolver.IsRegionReached(actorFact, regionMovementGoal))
+            {
+                return BattleRuntimeAiActionRequest.AdvanceTowardRegion(actorFact.Actor.ActorId, regionMovementGoal);
+            }
+
+            return BattleRuntimeAiActionRequest.Hold(
+                actorFact.Actor.ActorId,
+                actorFact.Actor.PlanState == BattleGroupPlanRuntimeState.Retreating
+                    ? "retreat_target_reached"
+                    : "regroup_target_reached");
+        }
+
         if (localCombatSituation != null)
         {
             BattleRuntimeAiActionRequest localRequest = aiExecutor.ChooseAction(decisionFacts);

@@ -54,6 +54,15 @@ internal static class BattleGroupCommanderTransitionCoordinator
                 continue;
             }
 
+            BattleGroupTacticalState commanderState = state.TacticalStateStore.GetRequiredSnapshot(battleGroupId);
+            if (commanderState.HasActiveTacticalCommand)
+            {
+                // Regroup/retreat own the commander plan until their explicit
+                // completion or failure boundary; actor movement cannot demote
+                // them into ordinary objective or combat transitions.
+                continue;
+            }
+
             CommanderTransition transition = availableContexts
                 .Where(context => string.Equals(
                     context?.ActorFact.Actor.BattleGroupId ?? "",

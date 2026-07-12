@@ -22,6 +22,10 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
     internal ProgressBar BattleRuntimeHeroHealthBar { get; private init; }
     internal ProgressBar BattleRuntimeHeroManaBar { get; private init; }
     internal HBoxContainer BattleRuntimeHeroSkillList { get; private init; }
+    internal Button BattleRuntimeLiveRegroupButton { get; private init; }
+    internal Button BattleRuntimeLiveRetreatButton { get; private init; }
+    internal Button BattleRuntimePauseRegroupButton { get; private init; }
+    internal Button BattleRuntimePauseRetreatButton { get; private init; }
     internal Label SiteHudTitle { get; private init; }
     internal Label SiteResourceLabel { get; private init; }
     internal Button ReturnMapButton { get; private init; }
@@ -78,6 +82,10 @@ internal sealed class WorldSitePeacetimeHudNodeRefs
             BattleRuntimeHeroHealthBar = Get<ProgressBar>(root, "BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroHealthBar", ownerName),
             BattleRuntimeHeroManaBar = Get<ProgressBar>(root, "BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeHeroFramePanel/HeroFrameMargin/BattleRuntimeHeroFrame/BattleRuntimeHeroInfoStack/BattleRuntimeHeroManaBar", ownerName),
             BattleRuntimeHeroSkillList = Get<HBoxContainer>(root, "BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack/BattleRuntimeHeroSkillList", ownerName),
+            BattleRuntimeLiveRegroupButton = Get<Button>(root, "BottomCommandHost/BattleRuntimeCommandBar/LiveCommandPanel/LiveCommandMargin/LiveCommandRow/BattleRuntimeRegroupButton", ownerName),
+            BattleRuntimeLiveRetreatButton = Get<Button>(root, "BottomCommandHost/BattleRuntimeCommandBar/LiveCommandPanel/LiveCommandMargin/LiveCommandRow/BattleRuntimeRetreatButton", ownerName),
+            BattleRuntimePauseRegroupButton = Get<Button>(root, "BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack/TacticalCommandRow/BattleRuntimePauseRegroupButton", ownerName),
+            BattleRuntimePauseRetreatButton = Get<Button>(root, "BottomCommandHost/BattleRuntimePauseDetailPanel/PauseDetailMargin/PauseDetailStack/PauseDetailBody/BattleRuntimeSkillCommandPanel/SkillCommandMargin/BattleRuntimeSkillCommandStack/TacticalCommandRow/BattleRuntimePauseRetreatButton", ownerName),
             SiteHudTitle = Get<Label>(root, "OverlayHost/SitePeacetimePanel/Margin/SiteManagementStack/SiteHudTitle", ownerName),
             SiteResourceLabel = Get<Label>(root, "TopBarHost/TopLeftStatus/Margin/SiteResourceLabel", ownerName),
             ReturnMapButton = Get<Button>(root, "OverlayHost/SiteManagementTabRail/ReturnMapTabButton", ownerName),

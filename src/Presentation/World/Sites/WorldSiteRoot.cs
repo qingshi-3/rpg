@@ -106,6 +106,10 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private ProgressBar _battleRuntimeHeroHealthBar;
 	private ProgressBar _battleRuntimeHeroManaBar;
 	private HBoxContainer _battleRuntimeHeroSkillList;
+	private Button _battleRuntimeLiveRegroupButton;
+	private Button _battleRuntimeLiveRetreatButton;
+	private Button _battleRuntimePauseRegroupButton;
+	private Button _battleRuntimePauseRetreatButton;
 	private BattleRuntimeHeroSelectorPresenter _battleRuntimeHeroSelectorPresenter;
 	private BattleRuntimeHeroFramePresenter _battleRuntimeHeroFramePresenter;
 	private Button _siteBuildTabButton;
@@ -176,6 +180,7 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private string _selectedBattleRuntimeGroupKey = "";
 	private readonly HashSet<string> _selectedBattleRuntimeGroupKeys = new(System.StringComparer.Ordinal);
 	private int _battleRuntimeDestinationBeaconCommandSequence;
+	private int _battleRuntimeTacticalCommandSequence;
 	private string _hoveredBattleRuntimeEntityId = "";
 	private SiteManagementSection _selectedSiteManagementSection = SiteManagementSection.Build;
 	private bool _siteManagementPanelOpen;

@@ -148,7 +148,7 @@ public partial class WorldSiteRoot
 
         if (_battleRuntimeCommandBar != null)
         {
-            _battleRuntimeCommandBar.Visible = _battleRuntimeCommandPauseActive;
+            _battleRuntimeCommandBar.Visible = !_battleRuntimeCommandPauseActive;
         }
 
         RefreshBattleRuntimeCommandControls(runtimeLocked);

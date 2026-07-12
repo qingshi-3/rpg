@@ -71,6 +71,14 @@ public partial class WorldSiteRoot
         _battleRuntimeHeroHealthBar = hudRefs.BattleRuntimeHeroHealthBar;
         _battleRuntimeHeroManaBar = hudRefs.BattleRuntimeHeroManaBar;
         _battleRuntimeHeroSkillList = hudRefs.BattleRuntimeHeroSkillList;
+        _battleRuntimeLiveRegroupButton = hudRefs.BattleRuntimeLiveRegroupButton;
+        _battleRuntimeLiveRetreatButton = hudRefs.BattleRuntimeLiveRetreatButton;
+        _battleRuntimePauseRegroupButton = hudRefs.BattleRuntimePauseRegroupButton;
+        _battleRuntimePauseRetreatButton = hudRefs.BattleRuntimePauseRetreatButton;
+        _battleRuntimeLiveRegroupButton.Pressed += () => SubmitBattleRuntimeTacticalCommand(Rpg.Application.Battle.Commands.CommandKind.Regroup);
+        _battleRuntimeLiveRetreatButton.Pressed += () => SubmitBattleRuntimeTacticalCommand(Rpg.Application.Battle.Commands.CommandKind.Retreat);
+        _battleRuntimePauseRegroupButton.Pressed += () => SubmitBattleRuntimeTacticalCommand(Rpg.Application.Battle.Commands.CommandKind.Regroup);
+        _battleRuntimePauseRetreatButton.Pressed += () => SubmitBattleRuntimeTacticalCommand(Rpg.Application.Battle.Commands.CommandKind.Retreat);
         _battleRuntimeHeroFramePresenter = new BattleRuntimeHeroFramePresenter(
             _battleRuntimeHeroFrame,
             _battleRuntimeHeroNameLabel,

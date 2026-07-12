@@ -316,6 +316,11 @@ public static class BattleGroupEngagementStateMachine
 
     private static bool CanEnterEngagementFromObservation(BattleGroupTacticalState state)
     {
+        if (state?.HasActiveTacticalCommand == true)
+        {
+            return false;
+        }
+
         BattleGroupTacticalMode mode = state?.TacticalMode ?? BattleGroupTacticalMode.PlayerCommanded;
         bool enemyPolicyCanEnter = mode is BattleGroupTacticalMode.EnemyOffense
             or BattleGroupTacticalMode.EnemyActiveDefense

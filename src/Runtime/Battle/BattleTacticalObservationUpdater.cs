@@ -21,7 +21,7 @@ internal static class BattleTacticalObservationUpdater
         double currentTimeSeconds)
     {
         BattleRuntimeActor[] livingCorps = state.Actors
-            .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
+            .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0 && !item.HasRetreated)
             .OrderBy(item => item.ActorId, System.StringComparer.Ordinal)
             .ToArray();
 

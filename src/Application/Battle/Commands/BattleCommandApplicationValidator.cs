@@ -75,6 +75,13 @@ public sealed class BattleCommandApplicationValidator
                 : CommandValidationResult.Reject(CommandRejectionStage.Application, "command_channel_unavailable");
         }
 
+        if (request.Kind is CommandKind.Regroup or CommandKind.Retreat)
+        {
+            return request.Channel == CommandChannel.Combined
+                ? CommandValidationResult.Accept()
+                : CommandValidationResult.Reject(CommandRejectionStage.Application, "command_channel_unavailable");
+        }
+
         if (request.Kind == CommandKind.CastSkill)
         {
             return ValidateSkillSubmission(request, snapshot);
@@ -116,6 +123,12 @@ public sealed class BattleCommandApplicationValidator
         if (request.Kind == CommandKind.DestinationBeacon && !request.HasTargetGrid)
         {
             return CommandValidationResult.Reject(CommandRejectionStage.Application, "destination_missing");
+        }
+
+
+        if (request.Kind is CommandKind.Regroup or CommandKind.Retreat && request.Channel != CommandChannel.Combined)
+        {
+            return CommandValidationResult.Reject(CommandRejectionStage.Application, "command_channel_unavailable");
         }
 
         bool channelAllowed = request.Channel switch

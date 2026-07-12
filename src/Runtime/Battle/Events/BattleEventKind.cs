@@ -23,5 +23,6 @@ public enum BattleEventKind
     CommandInterrupted = 18,
     EffectApplied = 19,
     ThunderMarkCreated = 20,
-    ThunderMarkTeleported = 21
+    ThunderMarkTeleported = 21,
+    CommandCompleted = 22
 }

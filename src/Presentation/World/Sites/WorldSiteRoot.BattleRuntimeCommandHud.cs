@@ -78,13 +78,102 @@ public partial class WorldSiteRoot
 		};
 	}
 	private void RefreshBattleRuntimeCommandControls(bool runtimeLocked) => RefreshBattleRuntimeHeroFrame();
+
+	private void SubmitBattleRuntimeTacticalCommand(CommandKind commandKind)
+	{
+		IReadOnlyList<string> selectedGroupKeys = BuildSelectedBattleRuntimeCommandGroupKeys();
+		if (selectedGroupKeys.Count == 0)
+		{
+			SetSiteNoticeText("请先选择要下达命令的我方战斗组。");
+			RefreshBattleRuntimeTacticalCommandControls();
+			return;
+		}
+
+		BattleRuntimeSessionController controller = _activeBattleGroupRuntimeResolution?.RuntimeController;
+		string battleId = controller?.BattleId ?? "";
+		CommandRequest request = new()
+		{
+			CommandId = $"{battleId}:{commandKind.ToString().ToLowerInvariant()}:{++_battleRuntimeTacticalCommandSequence}",
+			BattleId = battleId,
+			BattleGroupId = selectedGroupKeys[0],
+			Channel = CommandChannel.Combined,
+			Kind = commandKind
+		};
+		foreach (string groupKey in selectedGroupKeys)
+		{
+			request.BattleGroupIds.Add(groupKey);
+		}
+
+		BattleCommandSubmissionResult result = new BattleCommandSubmissionService().Submit(
+			_activeBattleGroupRuntimeResolution?.Snapshot,
+			StrategicWorldRuntime.State?.PlayerFactionId ?? "",
+			request,
+			controller);
+		if (result?.Accepted == true)
+		{
+			SetSiteNoticeText(commandKind == CommandKind.Regroup
+				? $"已命令 {selectedGroupKeys.Count} 支战斗组重整。"
+				: $"已命令 {selectedGroupKeys.Count} 支战斗组撤退。"
+			);
+		}
+		else
+		{
+			SetSiteNoticeText($"命令不可用：{BuildBattleRuntimeTacticalCommandUnavailableText(result?.ReasonCode)}");
+		}
+
+		RefreshBattleRuntimeHeroFrame();
+		GameLog.Info(
+			nameof(WorldSiteRoot),
+			$"BattleRuntimeTacticalCommandSubmitted command={request.CommandId} kind={commandKind} groups={string.Join("|", selectedGroupKeys)} accepted={result?.Accepted == true} reason={result?.ReasonCode ?? "runtime_missing"}");
+	}
+
+	private void RefreshBattleRuntimeTacticalCommandControls()
+	{
+		BattleRuntimeSessionController controller = _activeBattleGroupRuntimeResolution?.RuntimeController;
+		IReadOnlyList<string> selected = BuildSelectedBattleRuntimeCommandGroupKeys();
+		bool available = controller != null && !controller.IsComplete && selected.Count > 0 &&
+			selected.All(groupId => controller.State.Actors.Any(actor =>
+				actor.Kind == BattleRuntimeActorKind.Corps &&
+				actor.HitPoints > 0 &&
+				!actor.HasRetreated &&
+				string.Equals(actor.BattleGroupId ?? "", groupId, System.StringComparison.Ordinal)));
+		string disabledReason = controller == null || controller.IsComplete
+			? "当前没有可下达命令的战斗。"
+			: selected.Count == 0
+				? "请先选择我方已部署战斗组。"
+				: "所选战斗组已无法接收命令。";
+		foreach (Button button in new[]
+		         {
+			         _battleRuntimeLiveRegroupButton,
+			         _battleRuntimeLiveRetreatButton,
+			         _battleRuntimePauseRegroupButton,
+			         _battleRuntimePauseRetreatButton
+		         }.Where(item => item != null))
+		{
+			button.Disabled = !available;
+			button.TooltipText = available ? "" : disabledReason;
+		}
+	}
+
+	private static string BuildBattleRuntimeTacticalCommandUnavailableText(string reasonCode) => reasonCode switch
+	{
+		"battle_group_unavailable" => "所选战斗组未部署或已离开战斗。",
+		"battle_group_not_owned" or "battle_group_not_player_controlled" => "只能命令我方战斗组。",
+		"battle_id_mismatch" or "battle_missing" => "当前战斗状态已变化，请重新选择。",
+		"command_channel_unavailable" => "该命令必须作为战斗组联合命令下达。",
+		"tactical_command_action_locked" => "战斗组正在完成不可中断动作。",
+		"regroup_target_unreachable" => "没有可到达的重整位置。",
+		"retreat_target_unreachable" => "没有可到达的撤退位置。",
+		"battle_already_complete" => "战斗已经结束。",
+		_ => "当前条件不满足。"
+	};
 	private void RefreshBattleRuntimeCommandPausePresentation()
 	{
 		if (!_battleRuntimeCommandPauseActive)
 		{
-			if (_siteBottomCommandHost != null) { _siteBottomCommandHost.Visible = false; }
+			if (_siteBottomCommandHost != null) { _siteBottomCommandHost.Visible = true; }
 			if (_battleRuntimeSummaryBar != null) { _battleRuntimeSummaryBar.Visible = false; }
-			if (_battleRuntimeCommandBar != null) { _battleRuntimeCommandBar.Visible = false; }
+			if (_battleRuntimeCommandBar != null) { _battleRuntimeCommandBar.Visible = true; }
 			if (_battleRuntimePauseDetailPanel != null) { _battleRuntimePauseDetailPanel.Visible = false; }
 			RefreshBattleRuntimeHeroFrame();
 			ApplyBattleMapOperationHudSuppressionVisibility("battle_runtime_command_resume");
@@ -138,6 +227,7 @@ public partial class WorldSiteRoot
 			skills,
 			group => HasReadyBattleRuntimeSkill(group, hasRuntime),
 			skillDefinitionId => ResolveSelectedHeroSkillUsageState(selected, skillDefinitionId));
+		RefreshBattleRuntimeTacticalCommandControls();
 		if (_battleRuntimeSummaryPresenter != null)
 		{
 			_battleRuntimeSummaryPresenter.Refresh(

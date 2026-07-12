@@ -144,4 +144,7 @@ public sealed class BattleRuntimeActor
     // Keeps blocked movement diagnosable without letting presentation infer combat truth.
     public int ConsecutiveAdvanceFailures { get; set; }
     public string LastAdvanceFailureReason { get; set; } = "";
+    // Retreat completion is an execution fact derived from commander state.
+    // It removes the actor from live decisions without treating survival as defeat.
+    public bool HasRetreated { get; set; }
 }

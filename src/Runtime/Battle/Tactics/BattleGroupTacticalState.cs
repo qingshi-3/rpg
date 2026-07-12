@@ -1,4 +1,5 @@
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Commands;
 using Rpg.Application.Battle.Snapshots;
 
 namespace Rpg.Runtime.Battle.Tactics;
@@ -41,6 +42,16 @@ public sealed class BattleGroupTacticalState
     public int ActiveDestinationBeaconGridY { get; set; }
     public int ActiveDestinationBeaconGridHeight { get; set; }
     public string ActiveDestinationBeaconCommandId { get; set; } = "";
+    public CommandKind ActiveTacticalCommandKind { get; set; } = CommandKind.Move;
+    public bool HasActiveTacticalCommand { get; set; }
+    public bool HasTacticalCommandTarget { get; set; }
+    public int TacticalCommandTargetGridX { get; set; }
+    public int TacticalCommandTargetGridY { get; set; }
+    public int TacticalCommandTargetGridHeight { get; set; }
+    public int InitialDeploymentGridX { get; set; }
+    public int InitialDeploymentGridY { get; set; }
+    public int InitialDeploymentGridHeight { get; set; }
+    public bool HasCompletedRetreat { get; set; }
     public int Version { get; set; }
     public int LastTemporaryRegionRefreshTick { get; set; } = -1;
     public int NoPerceivedHostileTicks { get; set; }

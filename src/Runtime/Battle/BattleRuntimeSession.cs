@@ -480,8 +480,9 @@ public sealed partial class BattleRuntimeSession
             return BattleTerminationReason.RuntimeException;
         }
 
-        bool hasPlayer = corps.Any(item => item.HitPoints > 0 && BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId));
+        bool hasPlayer = corps.Any(item => item.HitPoints > 0 && !item.HasRetreated && BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId));
         bool hasEnemy = corps.Any(item => item.HitPoints > 0 && !BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId));
+        bool hasRetreatedPlayer = corps.Any(item => item.HitPoints > 0 && item.HasRetreated && BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId));
         if (hasPlayer && !hasEnemy)
         {
             return BattleTerminationReason.NormalVictory;
@@ -489,7 +490,9 @@ public sealed partial class BattleRuntimeSession
 
         if (!hasPlayer && hasEnemy)
         {
-            return BattleTerminationReason.NormalDefeat;
+            return hasRetreatedPlayer
+                ? BattleTerminationReason.PlayerRetreat
+                : BattleTerminationReason.NormalDefeat;
         }
 
         if (!hasPlayer && !hasEnemy)

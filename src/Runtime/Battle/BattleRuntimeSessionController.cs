@@ -142,6 +142,18 @@ public sealed class BattleRuntimeSessionController
                 _navigationGraph);
         }
 
+        if (request?.Kind is CommandKind.Regroup or CommandKind.Retreat)
+        {
+            return BattleRuntimeTacticalCommandResolver.Submit(
+                State,
+                EventStream,
+                BattleId,
+                _nextTick,
+                CurrentTimeSeconds,
+                request,
+                _navigationGraph);
+        }
+
         return BattleRuntimeHeroSkillCommandResolver.Submit(
             State,
             EventStream,
@@ -159,7 +171,7 @@ public sealed class BattleRuntimeSessionController
             return "command_missing";
         }
 
-        if (request.Kind is not (CommandKind.DestinationBeacon or CommandKind.CastSkill))
+        if (request.Kind is not (CommandKind.DestinationBeacon or CommandKind.CastSkill or CommandKind.Regroup or CommandKind.Retreat))
         {
             return "";
         }
@@ -170,7 +182,7 @@ public sealed class BattleRuntimeSessionController
             return "battle_id_mismatch";
         }
 
-        if (request.Kind == CommandKind.DestinationBeacon)
+        if (request.Kind is CommandKind.DestinationBeacon or CommandKind.Regroup or CommandKind.Retreat)
         {
             if (request.Channel != CommandChannel.Combined)
             {
@@ -179,17 +191,19 @@ public sealed class BattleRuntimeSessionController
 
             foreach (string groupId in ResolveRequestedBattleGroupIds(request))
             {
-                BattleRuntimeActor corps = State?.Actors?
-                    .FirstOrDefault(actor =>
+                BattleRuntimeActor[] corpsMembers = State?.Actors?
+                    .Where(actor =>
                         actor.Kind == BattleRuntimeActorKind.Corps &&
                         actor.HitPoints > 0 &&
-                        string.Equals(actor.BattleGroupId ?? "", groupId, System.StringComparison.Ordinal));
-                if (corps == null)
+                        !actor.HasRetreated &&
+                        string.Equals(actor.BattleGroupId ?? "", groupId, System.StringComparison.Ordinal))
+                    .ToArray() ?? System.Array.Empty<BattleRuntimeActor>();
+                if (corpsMembers.Length == 0)
                 {
                     return "battle_group_unavailable";
                 }
 
-                if (!BattleRuntimeIdentityRules.IsPlayerFaction(corps.FactionId))
+                if (corpsMembers.Any(actor => !BattleRuntimeIdentityRules.IsPlayerFaction(actor.FactionId)))
                 {
                     return "battle_group_not_player_controlled";
                 }
@@ -434,6 +448,18 @@ public sealed class BattleRuntimeSessionController
 
         // Presentation-backed battles call this one action-time slice at a time.
         // Runtime remains the only owner of damage, movement, target choice, and action readiness.
+        BattleRuntimeTacticalCommandLifecycle.Advance(
+            State,
+            EventStream,
+            BattleId,
+            _nextTick,
+            CurrentTimeSeconds);
+        BattleTerminationReason tacticalCommandTermination = BattleRuntimeSession.ResolveTermination(State);
+        if (tacticalCommandTermination != BattleTerminationReason.None)
+        {
+            Complete(tacticalCommandTermination);
+            return BuildAdvanceResult(startIndex);
+        }
         long resolveStartedAt = Stopwatch.GetTimestamp();
         _tickResolver.ResolveTick(
             State,

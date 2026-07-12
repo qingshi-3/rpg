@@ -18,7 +18,7 @@ internal static class BattleMovementBoundaryCoordinator
         List<BattleMovementBoundaryEvent> completed = new();
         HashSet<string> completedActorIds = new(System.StringComparer.Ordinal);
 
-        foreach (BattleRuntimeActor actor in actorList.Where(item => item != null && item.Kind == BattleRuntimeActorKind.Corps))
+        foreach (BattleRuntimeActor actor in actorList.Where(item => item != null && item.Kind == BattleRuntimeActorKind.Corps && !item.HasRetreated))
         {
             BattleMovementController movementController = new(actor);
             if (!movementController.AdvanceMovementBoundary(
@@ -44,7 +44,7 @@ internal static class BattleMovementBoundaryCoordinator
     private static BattleDynamicOccupancy BuildPreBoundaryOccupancy(IEnumerable<BattleRuntimeActor> actors)
     {
         BattleRuntimeActor[] preBoundaryLivingCorps = (actors ?? Enumerable.Empty<BattleRuntimeActor>())
-            .Where(item => item != null && item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
+            .Where(item => item != null && item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0 && !item.HasRetreated)
             .OrderBy(item => item.ActorId, System.StringComparer.Ordinal)
             .ToArray();
         return BattleDynamicOccupancy.FromActors(preBoundaryLivingCorps);
