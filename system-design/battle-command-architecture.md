@@ -43,8 +43,10 @@ Create Intent
 ## Layer Rules
 
 - UI creates command intent and performs only basic availability hints such as selected battle group and disabled buttons.
-- Application validates battle existence, player ownership, battle-group availability, and whether the requested command channel matches hero/corps/combined authority.
-- Runtime validates battle-context facts such as whether the target still exists, is reachable, or can be affected.
+- Production Presentation submits every live-battle and tactical-pause command through one focused Application submission boundary; Presentation does not call Runtime directly as its authorization boundary.
+- Application validates the active battle identity, player-faction ownership, deployed battle-group availability, source actor identity and kind, and whether the requested hero/corps/combined channel and skill are authorized by the compiled battle snapshot. Request fields cannot grant skill or channel eligibility.
+- Application rejection returns typed feedback and diagnostics without calling Runtime, emitting accepted runtime events, consuming costs or cooldowns, or mutating command or tactical state.
+- Runtime validates battle-context facts such as whether the target still exists, is reachable, or can be affected. It also defensively revalidates battle, group, source, player ownership, and snapshot-authored skill/channel identity so forged or stale requests fail even when Runtime is called outside Presentation.
 - Runtime consumes accepted orders at the next valid actor decision boundary, or at an explicit interrupt boundary if the command is allowed to interrupt the current action.
 - Commands must not force pathfinding, target reacquisition, or attacks while the actor is still locked in movement, attack recovery, casting, or another non-decision phase.
 - Accepted runtime commands must become traceable states: `accepted`, `rejected`, `interrupted`, `completed`, `failed`.

@@ -233,7 +233,7 @@ Outputs are:
 
 - Base terrain scenes define terrain possibility; layout variant scenes define actual site content.
 - Layout variants must be Godot inherited scenes or an equivalent authored scene composition that preserves the base terrain contract.
-- Bridges, decorations, resources, obstacles, construction-region markers, deployment zones, objective zones, and event markers belong to layout variants unless a later accepted proposal changes this rule.
+- Bridges, decorations, resources, obstacles, construction-region markers, deployment zones, objective zones, and event markers belong to layout variants unless a later confirmed discussion updates this authority rule.
 - Every grid cell has at most one final standable gameplay surface.
 - Same-height movement may use ordinary topology adjacency; cross-height movement requires explicit connections.
 - Bridge gameplay facts come from bridge markers and explicit connections, not visual tile overlap.

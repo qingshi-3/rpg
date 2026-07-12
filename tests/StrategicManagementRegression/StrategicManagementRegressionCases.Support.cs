@@ -72,7 +72,11 @@ internal static partial class StrategicManagementRegressionCases
             AttackSpeed = 1.0,
             MoveStepSeconds = 0.16,
             AttackActionSeconds = 1.0,
-            AttackImpactDelaySeconds = 0.45
+            AttackImpactDelaySeconds = 0.45,
+            PreferredPlacements =
+            {
+                new BattleForcePlacementRequest { CellX = 4, CellY = 4, CellHeight = 0 }
+            }
         });
         request.PlayerForces.Add(new BattleForceRequest
         {
@@ -85,7 +89,11 @@ internal static partial class StrategicManagementRegressionCases
             AttackSpeed = 1.0,
             MoveStepSeconds = 0.16,
             AttackActionSeconds = 1.0,
-            AttackImpactDelaySeconds = 0.45
+            AttackImpactDelaySeconds = 0.45,
+            PreferredPlacements =
+            {
+                new BattleForcePlacementRequest { CellX = 4, CellY = 4, CellHeight = 0 }
+            }
         });
         bridge.AttachSessionToLegacyRequest(session, request);
         return request;
@@ -156,14 +164,44 @@ internal static partial class StrategicManagementRegressionCases
         StrategicBattleActiveContextResult contextResult = bridge.CreateActiveContext(state, session, request);
         AssertTrue(contextResult.Success, $"active context should be created, got {contextResult.FailureReason}");
         StrategicBattleActiveContext context = contextResult.Context;
+        foreach (BattleForceRequest force in context.PreparationDraft.PlayerForces)
+        {
+            // This helper fabricates completed Runtime outcomes without starting
+            // Runtime; supply the same valid combat contract production launch requires.
+            force.MaxHitPoints = force.MaxHitPoints > 0 ? force.MaxHitPoints : 24;
+            force.AttackDamage = force.AttackDamage > 0 ? force.AttackDamage : 5;
+            force.AttackRange = force.AttackRange > 0 ? force.AttackRange : 1;
+            force.AttackSpeed = double.IsFinite(force.AttackSpeed) && force.AttackSpeed > 0 ? force.AttackSpeed : 1.0;
+            force.MoveStepSeconds = double.IsFinite(force.MoveStepSeconds) && force.MoveStepSeconds > 0 ? force.MoveStepSeconds : 0.16;
+            force.AttackActionSeconds = double.IsFinite(force.AttackActionSeconds) && force.AttackActionSeconds > 0 ? force.AttackActionSeconds : 1.0;
+            force.AttackImpactDelaySeconds = double.IsFinite(force.AttackImpactDelaySeconds) && force.AttackImpactDelaySeconds >= 0
+                ? force.AttackImpactDelaySeconds
+                : 0.45;
+            if (force.PreferredPlacements.Count == 0)
+            {
+                force.PreferredPlacements.Add(new BattleForcePlacementRequest { CellX = 4, CellY = 4, CellHeight = 0 });
+            }
+        }
+        StrategicBattleDraftSnapshotResult finalSnapshot = new StrategicBattleDraftSnapshotCompiler()
+            .CompileAndCommitFinalSnapshot(context);
+        AssertTrue(finalSnapshot.Success, $"completed context should compile the final Draft snapshot, got {finalSnapshot.FailureReason}");
+        BattleStartRequest draft = context.PreparationDraft;
         BattleOutcomeResult runtimeOutcome = BattleOutcomeResult.Completed(
             context.Snapshot.SnapshotId,
             session.SessionId,
             ToTerminationReason(outcome));
         foreach (StrategicBattleParticipantReference participant in session.Participants)
         {
+            if (participant.Role != StrategicBattleParticipantRole.Deployed)
+            {
+                continue;
+            }
+
             int survivorCount = Math.Max(0, survivingCorpsActors?.Invoke(participant) ?? 0);
-            int initialCount = ResolveParticipantInitialCount(request, participant);
+            int initialCount = ResolveParticipantInitialCount(draft, participant);
+            BattleGroupSnapshot participantGroup = context.Snapshot.BattleGroups.Single(group =>
+                string.Equals(group.SourceForceId, participant.ParticipantId, StringComparison.Ordinal));
+            participantGroup.MaxHitPoints = 100;
             runtimeOutcome.ActorOutcomes.Add(new BattleActorOutcome
             {
                 ActorId = $"{participant.ParticipantId}:hero",
@@ -175,37 +213,22 @@ internal static partial class StrategicManagementRegressionCases
                 Survived = true,
                 RemainingHitPoints = 1
             });
-            for (int index = 0; index < survivorCount; index++)
+            // Older transaction fixtures express survival as visible-row counts.
+            // Convert that fixture input once into the single authoritative corps outcome.
+            int remainingHitPoints = initialCount <= 0
+                ? 0
+                : (int)Math.Round(100 * Math.Clamp(survivorCount / (double)initialCount, 0.0, 1.0));
+            runtimeOutcome.ActorOutcomes.Add(new BattleActorOutcome
             {
-                runtimeOutcome.ActorOutcomes.Add(new BattleActorOutcome
-                {
-                    ActorId = $"{participant.ParticipantId}:corps:{index}",
-                    BattleGroupId = participant.ParticipantId,
-                    FactionId = participant.FactionId,
-                    SourceForceId = participant.ParticipantId,
-                    SourceStateId = participant.CorpsInstanceId,
-                    Kind = BattleRuntimeActorKind.Corps,
-                    Survived = true,
-                    RemainingHitPoints = 1
-                });
-            }
-
-            // Bridge summaries must consume explicit runtime actor outcomes.
-            // Defeated corps actors are recorded here instead of being inferred from outcome.
-            for (int index = survivorCount; index < initialCount; index++)
-            {
-                runtimeOutcome.ActorOutcomes.Add(new BattleActorOutcome
-                {
-                    ActorId = $"{participant.ParticipantId}:corps:{index}",
-                    BattleGroupId = participant.ParticipantId,
-                    FactionId = participant.FactionId,
-                    SourceForceId = participant.ParticipantId,
-                    SourceStateId = participant.CorpsInstanceId,
-                    Kind = BattleRuntimeActorKind.Corps,
-                    Survived = false,
-                    RemainingHitPoints = 0
-                });
-            }
+                ActorId = $"{participant.ParticipantId}:corps",
+                BattleGroupId = participant.ParticipantId,
+                FactionId = participant.FactionId,
+                SourceForceId = participant.ParticipantId,
+                SourceStateId = participant.CorpsInstanceId,
+                Kind = BattleRuntimeActorKind.Corps,
+                Survived = remainingHitPoints > 0,
+                RemainingHitPoints = remainingHitPoints
+            });
         }
 
         BattleEventStream eventStream = BuildEndedStream(session.SessionId);

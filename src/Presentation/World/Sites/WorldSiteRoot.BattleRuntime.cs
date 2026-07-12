@@ -818,14 +818,13 @@ public partial class WorldSiteRoot
         StrategicManagementRuntime.EnsureInitialized();
         StrategicBattleBridgeService bridge = new(StrategicManagementRuntime.Definitions);
         StrategicBattleResultSummary summary = bridge.BuildResultSummary(context);
-        StrategicCommandResult strategicResult = StrategicManagementRuntime.Commands.ApplyBattleResultSummary(
-            StrategicManagementRuntime.State,
-            summary);
-        if (!strategicResult.Success)
+        StrategicBattleSettlementCommitResult commitResult = StrategicManagementRuntime.CommitBattleResult(context, summary);
+        StrategicCommandResult strategicResult = commitResult.CommandResult;
+        if (!commitResult.Success || strategicResult?.Success != true)
         {
             GameLog.Warn(
                 nameof(WorldSiteRoot),
-                $"Strategic battle active context result rejected context={context.ContextId} expedition={context.Session?.ExpeditionId ?? ""} reason={strategicResult.FailureReason}");
+                $"Strategic battle active context result rejected context={context.ContextId} expedition={context.Session?.ExpeditionId ?? ""} reason={commitResult.FailureReason}");
             return new WorldActionResult
             {
                 Success = false,
@@ -833,8 +832,6 @@ public partial class WorldSiteRoot
                 Message = "战斗结果无法写回战略经营。"
             };
         }
-
-        StrategicManagementRuntime.SaveCurrentState();
 
         StrategicBattleFeedbackRecord strategicFeedback = null;
         if (!string.IsNullOrWhiteSpace(strategicResult.CreatedEntityId))
@@ -857,8 +854,6 @@ public partial class WorldSiteRoot
         ApplyStrategicBattleResultWorldArmyCarrierCleanup(context.CompatibilityRequest, applyResult);
         StrategicWorldRuntime.LastNotice = applyResult.Message;
         context.CompatibilityResult = compatibilityResult;
-        context.ResultConsumed = true;
-        StrategicBattleActiveContextStore.Clear("result_consumed");
         ClearLegacyStrategicBattleHandoff("result_consumed");
         _activeStrategicBattleContext = null;
         return applyResult;

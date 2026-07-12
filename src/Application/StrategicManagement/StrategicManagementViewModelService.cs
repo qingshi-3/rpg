@@ -62,6 +62,14 @@ public sealed class StrategicManagementViewModelService
         return dashboard;
     }
 
+    public StrategicLocationDashboardViewModel BuildLocationMapView(
+        StrategicManagementState state,
+        string factionId,
+        string locationId)
+    {
+        return BuildSelectedLocation(state, factionId ?? "", locationId ?? "");
+    }
+
     public StrategicManagementDashboardViewModel BuildHeroCorpsWorkbenchDashboard(
         StrategicManagementState state,
         string factionId,
@@ -198,6 +206,29 @@ public sealed class StrategicManagementViewModelService
             locationView.ControlState = location.ControlState;
             locationView.ControlStateDisplayName = FormatLocationControlState(location.ControlState);
         }
+
+        // Map presentation consumes the same rule results that commands enforce;
+        // it must not recreate friendly/hostile or attackability rules from scene state.
+        locationView.ReinforceDisabledReason = _rules.GetLocationTargetFailureReason(
+            state,
+            locationView.LocationId,
+            factionId,
+            StrategicExpeditionIntent.ReinforceLocation);
+        locationView.AssaultDisabledReason = _rules.GetLocationTargetFailureReason(
+            state,
+            locationView.LocationId,
+            factionId,
+            StrategicExpeditionIntent.AssaultLocation);
+        locationView.CanReinforce = string.IsNullOrWhiteSpace(locationView.ReinforceDisabledReason);
+        locationView.CanAssault = string.IsNullOrWhiteSpace(locationView.AssaultDisabledReason);
+        locationView.PreferredExpeditionIntent = locationView.CanReinforce
+            ? StrategicExpeditionIntent.ReinforceLocation
+            : locationView.CanAssault
+                ? StrategicExpeditionIntent.AssaultLocation
+                : StrategicExpeditionIntent.Unknown;
+        locationView.CommandDisabledReason = locationView.PreferredExpeditionIntent == StrategicExpeditionIntent.Unknown
+            ? locationView.AssaultDisabledReason
+            : "";
 
         // City management is stricter than being a city definition: the requesting
         // faction must currently own and control this managed location.

@@ -20,6 +20,10 @@ namespace Rpg.Application.StrategicBattleBridge;
 
 public sealed class StrategicBattleBridgeService
 {
+    public const string ParticipantActorMappingMissingReason = "strategic_battle_participant_actor_mapping_missing";
+    public const string ParticipantActorMappingAmbiguousReason = "strategic_battle_participant_actor_mapping_ambiguous";
+    public const string ParticipantCasualtyBasisInvalidReason = "strategic_battle_participant_casualty_basis_invalid";
+
     private readonly StrategicManagementDefinitionSet _definitions;
     private readonly BattleSnapshotBuilder _snapshotBuilder = new();
 
@@ -93,7 +97,7 @@ public sealed class StrategicBattleBridgeService
         return StrategicBattleSessionResult.Ok(session);
     }
 
-    public StrategicBattleSnapshotResult CompileStartSnapshot(
+    public StrategicBattleSnapshotResult CompilePreparationSeedSnapshot(
         StrategicManagementState state,
         StrategicBattleSession session)
     {
@@ -105,7 +109,7 @@ public sealed class StrategicBattleBridgeService
         List<BattleGroupState> groups = new();
         Dictionary<string, HeroState> heroes = new(StringComparer.Ordinal);
         Dictionary<string, CorpsState> corps = new(StringComparer.Ordinal);
-        foreach (StrategicBattleParticipantReference participant in session.Participants)
+        foreach (StrategicBattleParticipantReference participant in session.Participants.Where(item => item?.Role != StrategicBattleParticipantRole.Reserve))
         {
             if (participant == null ||
                 string.IsNullOrWhiteSpace(participant.HeroId) ||
@@ -146,6 +150,7 @@ public sealed class StrategicBattleBridgeService
             groups,
             heroes,
             corps);
+        snapshot.StrategicBattleSessionId = session.SessionId;
         foreach (BattleGroupSnapshot group in snapshot.BattleGroups)
         {
             StrategicBattleParticipantReference participant = session.Participants.FirstOrDefault(item =>
@@ -172,42 +177,51 @@ public sealed class StrategicBattleBridgeService
     public StrategicBattleActiveContextResult CreateActiveContext(
         StrategicManagementState state,
         StrategicBattleSession session,
-        BattleStartRequest compatibilityRequest)
+        BattleStartRequest preparationSeed)
     {
-        if (state == null || session == null || compatibilityRequest == null)
+        if (state == null || session == null || preparationSeed == null)
         {
             return StrategicBattleActiveContextResult.Failed(StrategicFailureReasons.MissingBattleResultSummary);
         }
 
-        AttachSessionToLegacyRequest(session, compatibilityRequest);
-        StrategicBattleSnapshotResult snapshotResult = CompileStartSnapshot(state, session);
+        StrategicBattlePreparationDraft draft = StrategicBattlePreparationDraftAdapter.Create(session, preparationSeed);
+        if (draft == null)
+        {
+            return StrategicBattleActiveContextResult.Failed("strategic_battle_preparation_draft_missing");
+        }
+
+        AttachSessionToDraft(session, draft);
+        StrategicBattleSnapshotResult snapshotResult = CompilePreparationSeedSnapshot(state, session);
         if (!snapshotResult.Success)
         {
             return StrategicBattleActiveContextResult.Failed(snapshotResult.FailureReason);
         }
 
-        if (string.IsNullOrWhiteSpace(compatibilityRequest.SiteScenePath))
+        if (string.IsNullOrWhiteSpace(draft.SiteScenePath))
         {
-            compatibilityRequest.SiteScenePath = session.SiteScenePath;
+            draft.SiteScenePath = session.SiteScenePath;
         }
 
-        if (string.IsNullOrWhiteSpace(compatibilityRequest.ReturnScenePath))
+        if (string.IsNullOrWhiteSpace(draft.ReturnScenePath))
         {
-            compatibilityRequest.ReturnScenePath = session.ReturnScenePath;
+            draft.ReturnScenePath = session.ReturnScenePath;
         }
 
         StrategicBattleActiveContext context = new()
         {
             ContextId = session.SessionId,
             ScenePath = string.IsNullOrWhiteSpace(session.SiteScenePath)
-                ? compatibilityRequest.SiteScenePath
+                ? draft.SiteScenePath
                 : session.SiteScenePath,
             ReturnScenePath = string.IsNullOrWhiteSpace(session.ReturnScenePath)
-                ? compatibilityRequest.ReturnScenePath
+                ? draft.ReturnScenePath
                 : session.ReturnScenePath,
             Session = session,
-            Snapshot = snapshotResult.Snapshot,
-            CompatibilityRequest = compatibilityRequest
+            PreparationDraft = draft,
+            PreparationSeedSnapshot = snapshotResult.Snapshot,
+            PreparationDraftId = draft.DraftId,
+            PreparationDraftRevision = draft.Revision,
+            Snapshot = snapshotResult.Snapshot
         };
 
         GameLog.Info(
@@ -217,6 +231,18 @@ public sealed class StrategicBattleBridgeService
     }
 
     public void AttachSessionToLegacyRequest(StrategicBattleSession session, BattleStartRequest request)
+    {
+        AttachSessionProjection(session, request);
+    }
+
+    private void AttachSessionToDraft(StrategicBattleSession session, StrategicBattlePreparationDraft draft)
+    {
+        AttachSessionProjection(session, draft);
+        // Draft lineage is Bridge-owned; a legacy seed cannot retain a competing context identity.
+        draft.ContextId = session?.SessionId ?? "";
+    }
+
+    private void AttachSessionProjection(StrategicBattleSession session, BattleStartRequest request)
     {
         if (session == null || request == null)
         {
@@ -257,6 +283,9 @@ public sealed class StrategicBattleBridgeService
             force.StrategicCorpsBattleUnitId = GetCorpsBattleUnitId(participant);
             force.StrategicSourceLocationId = participant.SourceLocationId;
             force.StrategicPreBattleCorpsStrength = participant.PreBattleCorpsStrength;
+            force.FactionId = string.IsNullOrWhiteSpace(force.FactionId)
+                ? participant.FactionId
+                : force.FactionId;
         }
     }
 
@@ -280,6 +309,23 @@ public sealed class StrategicBattleBridgeService
             ObjectiveSucceeded = mappedOutcome == BattleOutcome.Victory
         };
 
+        foreach (StrategicBattleParticipantReference participant in session?.Participants ?? new List<StrategicBattleParticipantReference>())
+        {
+            if (participant == null)
+            {
+                continue;
+            }
+
+            summary.ParticipantDispositions.Add(new StrategicBattleParticipantDisposition
+            {
+                ParticipantId = participant.ParticipantId,
+                HeroId = participant.HeroId,
+                CorpsInstanceId = participant.CorpsInstanceId,
+                RollbackStationLocationId = participant.RollbackStationLocationId,
+                Role = participant.Role
+            });
+        }
+
         if (!string.IsNullOrWhiteSpace(failureReason))
         {
             GameLog.Warn(
@@ -288,25 +334,35 @@ public sealed class StrategicBattleBridgeService
             return summary;
         }
 
-        foreach (StrategicBattleParticipantReference participant in session.Participants)
+        foreach (StrategicBattleParticipantReference participant in session.Participants.Where(item => item?.Role == StrategicBattleParticipantRole.Deployed))
         {
             if (participant == null || string.IsNullOrWhiteSpace(participant.CorpsInstanceId))
             {
                 continue;
             }
 
-            int initialCount = ResolveInitialParticipantCount(context.CompatibilityRequest, participant);
-            int survivedCount = CountSurvivingRuntimeCorps(outcome, participant);
-            int preBattleStrength = Math.Max(0, participant.PreBattleCorpsStrength);
-            if (initialCount <= 0)
+            if (!TryResolveParticipantRuntimeOutcome(
+                    context,
+                    participant,
+                    out BattleGroupSnapshot group,
+                    out _,
+                    out BattleActorOutcome corpsOutcome,
+                    out string mappingFailureReason))
             {
                 GameLog.Warn(
                     nameof(StrategicBattleBridgeService),
-                    $"StrategicBattleParticipantSummarySkipped session={summary.SessionId} participant={participant.ParticipantId} reason=initial_participant_count_missing");
+                    $"StrategicBattleParticipantSummarySkipped session={summary.SessionId} participant={participant.ParticipantId} reason={mappingFailureReason}");
                 continue;
             }
 
-            int remainingStrength = (int)Math.Round(preBattleStrength * Math.Clamp(survivedCount / (double)initialCount, 0.0, 1.0));
+            int preBattleStrength = ClampStrength(participant.PreBattleCorpsStrength);
+            // Strategic casualties scale the frozen 0-100 corps basis from the
+            // authoritative corps actor only; hero rows and visible counts never enter.
+            double survivalFraction = Math.Clamp(
+                corpsOutcome.RemainingHitPoints / (double)group.MaxHitPoints,
+                0.0,
+                1.0);
+            int remainingStrength = (int)Math.Round(preBattleStrength * survivalFraction);
 
             summary.Participants.Add(new StrategicBattleParticipantResult
             {
@@ -395,14 +451,48 @@ public sealed class StrategicBattleBridgeService
             return StrategicFailureReasons.BattleResultMismatch;
         }
 
-        if (context.Session.Participants.Any(participant =>
-                participant == null ||
-                string.IsNullOrWhiteSpace(participant.ParticipantId) ||
-                string.IsNullOrWhiteSpace(participant.HeroId) ||
-                string.IsNullOrWhiteSpace(participant.CorpsInstanceId) ||
-                !HasParticipantRuntimeCorpsOutcome(outcome, participant)))
+        StrategicBattleParticipantReference[] deployedParticipants = context.Session.Participants
+            .Where(participant => participant?.Role == StrategicBattleParticipantRole.Deployed)
+            .ToArray();
+        if (deployedParticipants.Length == 0)
         {
             return StrategicFailureReasons.MissingBattleResultSummary;
+        }
+
+        if (HasDuplicateParticipantIdentity(deployedParticipants))
+        {
+            return ParticipantActorMappingAmbiguousReason;
+        }
+
+        HashSet<string> actorIds = new(StringComparer.Ordinal);
+        if ((outcome.ActorOutcomes ?? new List<BattleActorOutcome>()).Any(actor =>
+                actor == null ||
+                string.IsNullOrWhiteSpace(actor.ActorId) ||
+                !actorIds.Add(actor.ActorId)))
+        {
+            return ParticipantActorMappingAmbiguousReason;
+        }
+
+        foreach (StrategicBattleParticipantReference participant in deployedParticipants)
+        {
+            if (participant == null ||
+                string.IsNullOrWhiteSpace(participant.ParticipantId) ||
+                string.IsNullOrWhiteSpace(participant.HeroId) ||
+                string.IsNullOrWhiteSpace(participant.CorpsInstanceId))
+            {
+                return ParticipantActorMappingMissingReason;
+            }
+
+            if (!TryResolveParticipantRuntimeOutcome(
+                    context,
+                    participant,
+                    out _,
+                    out _,
+                    out _,
+                    out string mappingFailureReason))
+            {
+                return mappingFailureReason;
+            }
         }
 
         return "";
@@ -423,16 +513,117 @@ public sealed class StrategicBattleBridgeService
         return context?.Report ?? context?.FlowResult?.Report;
     }
 
-    private static bool HasParticipantRuntimeCorpsOutcome(
-        BattleOutcomeResult outcome,
-        StrategicBattleParticipantReference participant)
+    private static bool HasDuplicateParticipantIdentity(
+        IEnumerable<StrategicBattleParticipantReference> participants)
     {
-        return (outcome?.ActorOutcomes ?? new List<BattleActorOutcome>())
-            .Any(actor =>
-                actor.Kind == BattleRuntimeActorKind.Corps &&
+        StrategicBattleParticipantReference[] list = participants?.Where(item => item != null).ToArray() ??
+                                                    Array.Empty<StrategicBattleParticipantReference>();
+        return list.Select(item => item.ParticipantId ?? "").Distinct(StringComparer.Ordinal).Count() != list.Length ||
+               list.Select(item => item.HeroId ?? "").Distinct(StringComparer.Ordinal).Count() != list.Length ||
+               list.Select(item => item.CorpsInstanceId ?? "").Distinct(StringComparer.Ordinal).Count() != list.Length;
+    }
+
+    private static bool TryResolveParticipantRuntimeOutcome(
+        StrategicBattleActiveContext context,
+        StrategicBattleParticipantReference participant,
+        out BattleGroupSnapshot group,
+        out BattleActorOutcome heroOutcome,
+        out BattleActorOutcome corpsOutcome,
+        out string failureReason)
+    {
+        group = null;
+        heroOutcome = null;
+        corpsOutcome = null;
+        failureReason = ParticipantActorMappingMissingReason;
+        BattleOutcomeResult runtimeOutcome = ResolveRuntimeResult(context)?.Outcome;
+        if (context?.Snapshot?.BattleGroups == null ||
+            runtimeOutcome?.ActorOutcomes == null ||
+            participant == null)
+        {
+            return false;
+        }
+
+        BattleGroupSnapshot[] matchingGroups = context.Snapshot.BattleGroups
+            .Where(candidate =>
+                candidate != null &&
+                string.Equals(candidate.SourceForceId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal))
+            .ToArray();
+        if (matchingGroups.Length != 1)
+        {
+            failureReason = matchingGroups.Length == 0
+                ? ParticipantActorMappingMissingReason
+                : ParticipantActorMappingAmbiguousReason;
+            return false;
+        }
+
+        group = matchingGroups[0];
+        string commanderGroupId = BattleCommanderGroupIdentity.Resolve(group);
+        if (!string.Equals(group.BattleGroupId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
+            !string.Equals(commanderGroupId, participant.ParticipantId ?? "", StringComparison.Ordinal) ||
+            !string.Equals(group.HeroId ?? "", participant.HeroId ?? "", StringComparison.Ordinal) ||
+            !string.Equals(group.CorpsId ?? "", participant.CorpsInstanceId ?? "", StringComparison.Ordinal))
+        {
+            failureReason = ParticipantActorMappingAmbiguousReason;
+            return false;
+        }
+
+        BattleActorOutcome[] associatedOutcomes = runtimeOutcome.ActorOutcomes
+            .Where(actor =>
+                actor != null &&
                 (string.Equals(actor.SourceForceId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
-                 string.Equals(actor.BattleGroupId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
-                 string.Equals(actor.SourceStateId ?? "", participant.CorpsInstanceId ?? "", StringComparison.Ordinal)));
+                 string.Equals(actor.BattleGroupId ?? "", commanderGroupId, StringComparison.Ordinal) ||
+                 string.Equals(actor.SourceStateId ?? "", participant.HeroId ?? "", StringComparison.Ordinal) ||
+                 string.Equals(actor.SourceStateId ?? "", participant.CorpsInstanceId ?? "", StringComparison.Ordinal)))
+            .ToArray();
+        BattleActorOutcome[] heroOutcomes = associatedOutcomes
+            .Where(actor => actor.Kind == BattleRuntimeActorKind.Hero)
+            .ToArray();
+        BattleActorOutcome[] corpsOutcomes = associatedOutcomes
+            .Where(actor => actor.Kind == BattleRuntimeActorKind.Corps)
+            .ToArray();
+        if (heroOutcomes.Length == 0 || corpsOutcomes.Length == 0)
+        {
+            return false;
+        }
+
+        if (heroOutcomes.Length != 1 || corpsOutcomes.Length != 1 || associatedOutcomes.Length != 2)
+        {
+            failureReason = ParticipantActorMappingAmbiguousReason;
+            return false;
+        }
+
+        heroOutcome = heroOutcomes[0];
+        corpsOutcome = corpsOutcomes[0];
+        if (!IsExactActorMapping(heroOutcome, participant.ParticipantId, participant.HeroId, commanderGroupId) ||
+            !IsExactActorMapping(corpsOutcome, participant.ParticipantId, participant.CorpsInstanceId, commanderGroupId))
+        {
+            failureReason = ParticipantActorMappingAmbiguousReason;
+            return false;
+        }
+
+        if (group.MaxHitPoints <= 0 ||
+            corpsOutcome.RemainingHitPoints < 0 ||
+            corpsOutcome.RemainingHitPoints > group.MaxHitPoints ||
+            corpsOutcome.Survived != (corpsOutcome.RemainingHitPoints > 0))
+        {
+            failureReason = ParticipantCasualtyBasisInvalidReason;
+            return false;
+        }
+
+        failureReason = "";
+        return true;
+    }
+
+    private static bool IsExactActorMapping(
+        BattleActorOutcome actor,
+        string participantId,
+        string sourceStateId,
+        string commanderGroupId)
+    {
+        return actor != null &&
+               string.Equals(actor.SourceForceId ?? "", participantId ?? "", StringComparison.Ordinal) &&
+               string.Equals(actor.SourceStateId ?? "", sourceStateId ?? "", StringComparison.Ordinal) &&
+               string.Equals(actor.BattleGroupId ?? "", commanderGroupId ?? "", StringComparison.Ordinal);
     }
 
     public StrategicBattleResultSummary BuildResultSummary(BattleStartRequest request, BattleResult result)
@@ -553,6 +744,7 @@ public sealed class StrategicBattleBridgeService
                 CorpsDefinitionId = corpsDefinition?.CorpsDefinitionId ?? corps.CorpsDefinitionId,
                 FactionId = expedition.FactionId,
                 SourceLocationId = expedition.SourceLocationId,
+                RollbackStationLocationId = participant.RollbackStationLocationId,
                 PreBattleCorpsStrength = ClampStrength(corps.Strength),
                 CorpsLevel = Math.Max(1, corps.Level),
                 CorpsEquipmentLevel = Math.Max(0, corps.EquipmentLevel)
@@ -679,30 +871,6 @@ public sealed class StrategicBattleBridgeService
     private static int ClampStrength(int value)
     {
         return Math.Clamp(value, 0, 100);
-    }
-
-    private static int ResolveInitialParticipantCount(
-        BattleStartRequest request,
-        StrategicBattleParticipantReference participant)
-    {
-        return (request?.PlayerForces ?? new List<BattleForceRequest>())
-            .Where(force =>
-                string.Equals(force.StrategicParticipantId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
-                string.Equals(force.StrategicCorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", StringComparison.Ordinal))
-            .Sum(force => Math.Max(0, force.Count));
-    }
-
-    private static int CountSurvivingRuntimeCorps(
-        BattleOutcomeResult outcome,
-        StrategicBattleParticipantReference participant)
-    {
-        return (outcome?.ActorOutcomes ?? new List<BattleActorOutcome>())
-            .Count(actor =>
-                actor.Kind == BattleRuntimeActorKind.Corps &&
-                actor.Survived &&
-                (string.Equals(actor.SourceForceId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
-                 string.Equals(actor.BattleGroupId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
-                 string.Equals(actor.SourceStateId ?? "", participant.CorpsInstanceId ?? "", StringComparison.Ordinal)));
     }
 
     private static BattleOutcome MapRuntimeOutcome(BattleOutcomeResult outcome)

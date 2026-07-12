@@ -24,6 +24,12 @@ public sealed class StrategicLocationDashboardViewModel
     public string OwnerFactionId { get; set; } = "";
     public StrategicLocationControlState ControlState { get; set; } = StrategicLocationControlState.Unknown;
     public string ControlStateDisplayName { get; set; } = "";
+    public bool CanReinforce { get; set; }
+    public string ReinforceDisabledReason { get; set; } = "";
+    public bool CanAssault { get; set; }
+    public string AssaultDisabledReason { get; set; } = "";
+    public StrategicExpeditionIntent PreferredExpeditionIntent { get; set; } = StrategicExpeditionIntent.Unknown;
+    public string CommandDisabledReason { get; set; } = "";
     public bool IsCity { get; set; }
     public bool CanManageCity { get; set; }
     public List<string> SourcePermissionTags { get; set; } = new();

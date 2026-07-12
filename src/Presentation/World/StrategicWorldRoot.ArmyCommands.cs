@@ -18,7 +18,7 @@ public partial class StrategicWorldRoot
     private bool TryCommandSelectedArmiesToSite(string siteId)
     {
         if (string.IsNullOrWhiteSpace(siteId) ||
-            !State.SiteStates.TryGetValue(siteId, out WorldSiteState site))
+            !TryBuildStrategicWorldMapSitePresentation(siteId, out StrategicWorldMapSitePresentation target))
         {
             return false;
         }
@@ -36,7 +36,7 @@ public partial class StrategicWorldRoot
             return false;
         }
 
-        if (site.OwnerFactionId == State.PlayerFactionId)
+        if (target.CanReinforce)
         {
             bool hasStrategicExpeditionCarrier = HasSelectedStrategicExpeditionCarrier(selectedArmies);
             if (hasStrategicExpeditionCarrier &&
@@ -44,23 +44,6 @@ public partial class StrategicWorldRoot
             {
                 RefreshAll();
                 return true;
-            }
-
-            // Strategic expedition carriers are movement adapters; city station writes belong to Strategic Management.
-            // Only legacy world armies should consume legacy WorldSite garrison capacity here.
-            WorldArmyState[] legacyGarrisonArmies = hasStrategicExpeditionCarrier
-                ? selectedArmies.Where(army => string.IsNullOrWhiteSpace(army?.StrategicExpeditionId)).ToArray()
-                : selectedArmies;
-            if (legacyGarrisonArmies.Length > 0)
-            {
-                int incomingSlots = legacyGarrisonArmies.Sum(army => _deploymentService.GetArmyGarrisonSlotUsage(army));
-                if (!_deploymentService.CanAcceptGarrison(site, siteDefinition, incomingSlots, out string failureReason))
-                {
-                    StrategicWorldRuntime.LastNotice = WorldActionResolver.FormatFailureReason(failureReason);
-                    GameLog.Info(nameof(StrategicWorldRoot), $"WorldArmyCommandReinforceRejected site={siteId} reason={failureReason} incoming={incomingSlots}");
-                    RefreshAll();
-                    return true;
-                }
             }
 
             Vector2 approachFrom = GetAverageArmyPosition(selectedArmies);
@@ -100,6 +83,13 @@ public partial class StrategicWorldRoot
             }
 
             StrategicWorldRuntime.LastNotice = $"已命令 {selectedArmies.Length} 支小队进驻 {siteDefinition.DisplayName}。";
+            RefreshAll();
+            return true;
+        }
+
+        if (!target.CanAttack)
+        {
+            StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(target.CommandDisabledReason);
             RefreshAll();
             return true;
         }

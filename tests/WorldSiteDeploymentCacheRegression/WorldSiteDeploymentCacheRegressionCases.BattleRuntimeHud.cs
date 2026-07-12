@@ -720,11 +720,14 @@ internal static void BattleRuntimeRightClickSubmitsDestinationBeaconCommand()
         !destinationInputBody.Contains("BattleRuntimeCommandHudPointerGate.ContainsPointer", StringComparison.Ordinal) &&
         destinationInputBody.Contains("TryGetMouseGridPosition(out GridPosition position)", StringComparison.Ordinal) &&
         destinationInputBody.Contains("BuildBattleRuntimeDestinationBeaconCommandRequest", StringComparison.Ordinal) &&
-        destinationInputBody.Contains("_activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand(commandRequest)", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("new BattleCommandSubmissionService().Submit", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("_activeBattleGroupRuntimeResolution?.Snapshot", StringComparison.Ordinal) &&
+        destinationInputBody.Contains("StrategicWorldRuntime.State?.PlayerFactionId", StringComparison.Ordinal) &&
+        !destinationInputBody.Contains("RuntimeController?.SubmitCommand(commandRequest)", StringComparison.Ordinal) &&
         !destinationInputBody.Contains("MovementRangeFinder", StringComparison.Ordinal) &&
         !destinationInputBody.Contains("SetEntityPosition", StringComparison.Ordinal) &&
         !destinationInputBody.Contains("SnapEntity", StringComparison.Ordinal),
-        "right-click destination input should submit command intent and must not move presentation entities directly.");
+        "right-click destination input should submit command intent through Application and must not move presentation entities directly.");
     AssertTrue(
         buildRequestBody.Contains("Kind = CommandKind.DestinationBeacon", StringComparison.Ordinal) &&
         buildRequestBody.Contains("Channel = CommandChannel.Combined", StringComparison.Ordinal) &&

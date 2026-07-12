@@ -4,6 +4,7 @@ using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Commands;
 using Rpg.Application.Battle.Snapshots;
+using Rpg.Application.World;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle;
@@ -397,8 +398,11 @@ public partial class WorldSiteRoot
 			: string.IsNullOrWhiteSpace(selectedSpatialMarkId)
 				? BuildBattleRuntimeHeroSkillCommandRequest(selected, sourceActorId, targetActorId)
 				: BuildBattleRuntimeHeroSkillCommandRequest(selected, sourceActorId, targetActorId, null, selectedSpatialMarkId);
-		Rpg.Runtime.Battle.BattleRuntimeCommandSubmitResult result =
-			_activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand(commandRequest);
+		BattleCommandSubmissionResult result = new BattleCommandSubmissionService().Submit(
+			_activeBattleGroupRuntimeResolution?.Snapshot,
+			StrategicWorldRuntime.State?.PlayerFactionId ?? "",
+			commandRequest,
+			_activeBattleGroupRuntimeResolution?.RuntimeController);
 		bool accepted = result?.Accepted == true;
 		if (accepted)
 		{

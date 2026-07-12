@@ -35,6 +35,9 @@ internal static class BattleRuntimeDecisionPhaseCoordinator
         ArgumentNullException.ThrowIfNull(movementCompletedActorIds);
         ArgumentNullException.ThrowIfNull(skillConsumedActorIds);
 
+        // Actor command/objective fields are execution caches only. Refresh them
+        // from the commander store before observations or decisions can read them.
+        state.TacticalStateStore.SynchronizeActorExecutionCaches(state.Actors);
         BattleRuntimeActor[] livingCorps = BattleTacticalObservationUpdater.RefreshAtTickStart(
             state,
             stream,

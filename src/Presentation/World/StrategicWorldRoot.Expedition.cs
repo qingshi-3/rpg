@@ -114,7 +114,7 @@ public partial class StrategicWorldRoot
     private bool TryIssueExpeditionToSite(string siteId)
     {
         if (string.IsNullOrWhiteSpace(siteId) ||
-            !State.SiteStates.TryGetValue(siteId, out WorldSiteState site))
+            !TryBuildStrategicWorldMapSitePresentation(siteId, out StrategicWorldMapSitePresentation target))
         {
             return false;
         }
@@ -133,19 +133,26 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        if (site.OwnerFactionId == State.PlayerFactionId)
+        if (target.CanReinforce)
         {
             return TryCreateExpedition(siteId, siteDefinition.MapPosition, WorldArmyIntent.ReinforceSite);
         }
 
-        if (!CanBuildAssaultBattleForSite(siteId))
+        if (target.CanAttack && !CanBuildAssaultBattleForSite(siteId))
         {
             StrategicWorldRuntime.LastNotice = BuildUnsupportedAssaultNotice(siteDefinition);
             RefreshAll();
             return true;
         }
 
-        return TryCreateExpedition(siteId, siteDefinition.MapPosition, WorldArmyIntent.AssaultSite);
+        if (target.CanAttack)
+        {
+            return TryCreateExpedition(siteId, siteDefinition.MapPosition, WorldArmyIntent.AssaultSite);
+        }
+
+        StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(target.CommandDisabledReason);
+        RefreshAll();
+        return true;
     }
 
     private bool TryCreateExpedition(string targetSiteId, Vector2 destination, WorldArmyIntent intent)
@@ -361,8 +368,7 @@ public partial class StrategicWorldRoot
     private bool IsSiteBlockedForExpeditionTarget(string siteId)
     {
         if (!_isExpeditionTargeting ||
-            string.IsNullOrWhiteSpace(siteId) ||
-            !State.SiteStates.TryGetValue(siteId, out WorldSiteState site))
+            string.IsNullOrWhiteSpace(siteId))
         {
             return false;
         }
@@ -372,12 +378,8 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        if (site.OwnerFactionId != State.PlayerFactionId)
-        {
-            return false;
-        }
-
-        return false;
+        return !TryBuildStrategicWorldMapSitePresentation(siteId, out StrategicWorldMapSitePresentation target) ||
+               target.NextCommand == StrategicExpeditionIntent.Unknown;
     }
 
     private bool CanStartExpeditionFromSite(string siteId, out string failureReason)
@@ -497,7 +499,7 @@ public partial class StrategicWorldRoot
     private bool IsSiteBlockedForSelectedSiteCommand(string siteId)
     {
         if (_selectedArmyIds.Count == 0 ||
-            !State.SiteStates.TryGetValue(siteId, out WorldSiteState site))
+            string.IsNullOrWhiteSpace(siteId))
         {
             return false;
         }
@@ -508,13 +510,7 @@ public partial class StrategicWorldRoot
             return false;
         }
 
-        if (site.OwnerFactionId != State.PlayerFactionId)
-        {
-            return false;
-        }
-
-        StrategicWorldDefinitionQueries queries = new(Definition);
-        int incomingSlots = selectedArmies.Sum(army => _deploymentService.GetArmyGarrisonSlotUsage(army));
-        return !_deploymentService.CanAcceptGarrison(site, queries.GetSite(siteId), incomingSlots, out _);
+        return !TryBuildStrategicWorldMapSitePresentation(siteId, out StrategicWorldMapSitePresentation target) ||
+               target.NextCommand == StrategicExpeditionIntent.Unknown;
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Rpg.Application.Battle;
+using Rpg.Application.Battle.Commands;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Infrastructure.Logging;
@@ -95,8 +96,20 @@ internal static partial class TargetBattleContinuousStepHandoffRegressionCases
             firstAdvance.Events.Any(item => item.Kind == BattleEventKind.MovementStarted && item.ActorId == PlayerActorId),
             "the command-change scenario should start with an in-progress movement segment");
 
-        BattleRuntimeActor mover = controller.State.Actors.Single(item => item.ActorId == PlayerActorId);
-        mover.CommandId = "HoldLine";
+        BattleRuntimeCommandSubmitResult submit = controller.SubmitCommand(new CommandRequest
+        {
+            CommandId = "command_continuous_step_replacement",
+            BattleId = "battle_continuous_step_command_changed",
+            BattleGroupId = "group_player",
+            Channel = CommandChannel.Combined,
+            Kind = CommandKind.DestinationBeacon,
+            HasTargetGrid = true,
+            TargetGridX = 2,
+            TargetGridY = 0,
+            TargetGridHeight = 0,
+            BattleGroupIds = { "group_player" }
+        });
+        AssertTrue(submit.Accepted, $"replacement group command should be accepted: {submit.ReasonCode}");
 
         FixedTickSlice boundary = AdvanceUntilMovementCompleted(controller, PlayerActorId, maxTicks: 12);
         AssertTrue(
@@ -194,12 +207,10 @@ internal static partial class TargetBattleContinuousStepHandoffRegressionCases
 
         AssertTrue(
             newLog.Contains("BattleRuntimeStateTransition battle=battle_state_transition_diagnostics", StringComparison.Ordinal) &&
-            newLog.Contains("state=AdvancingToObjective", StringComparison.Ordinal),
-            "state transition diagnostics should log objective movement state");
-        AssertTrue(
-            newLog.Contains("state=MovingToAttackSlot", StringComparison.Ordinal) ||
-            newLog.Contains("state=Attacking", StringComparison.Ordinal),
-            "state transition diagnostics should log contact response state");
+            newLog.Contains("group=group_player", StringComparison.Ordinal) &&
+            (newLog.Contains("state=MovingToAttackSlot", StringComparison.Ordinal) ||
+             newLog.Contains("state=Attacking", StringComparison.Ordinal)),
+            "state transition diagnostics should log the commander-owned contact response state");
     }
 
     private static BattleStartSnapshot BuildObjectiveLaneSnapshot(string battleId, int objectiveX, int enemyX)

@@ -1,4 +1,71 @@
 {
   "version": 1,
-  "regions": {}
+  "regions": {
+    "1": {
+      "regionId": "qinghe_fan",
+      "cityId": "city_qinghe",
+      "role": "river-fan",
+      "direction": "west"
+    },
+    "2": {
+      "regionId": "qinghe_forest_ribbon",
+      "cityId": "city_qinghe",
+      "role": "forest-ribbon",
+      "direction": "northwest"
+    },
+    "3": {
+      "regionId": "qinghe_core",
+      "cityId": "city_qinghe",
+      "role": "city-core",
+      "direction": "north"
+    },
+    "4": {
+      "regionId": "qinghe_bottleneck",
+      "cityId": "city_qinghe",
+      "role": "river-bottleneck",
+      "direction": "east"
+    },
+    "5": {
+      "regionId": "qinghe_river_delta",
+      "cityId": "city_qinghe",
+      "role": "river-delta",
+      "direction": "south"
+    },
+    "6": {
+      "regionId": "chiyan_wasteland",
+      "cityId": "city_chiyan",
+      "role": "wasteland",
+      "direction": "southwest"
+    },
+    "7": {
+      "regionId": "chiyan_west_ridge",
+      "cityId": "city_chiyan",
+      "role": "mountain-ridge",
+      "direction": "west"
+    },
+    "8": {
+      "regionId": "chiyan_pass",
+      "cityId": "city_chiyan",
+      "role": "mountain-pass",
+      "direction": "northwest"
+    },
+    "9": {
+      "regionId": "chiyan_high_basin",
+      "cityId": "city_chiyan",
+      "role": "mountain-basin",
+      "direction": "north"
+    },
+    "10": {
+      "regionId": "chiyan_east_ridge",
+      "cityId": "city_chiyan",
+      "role": "mountain-ridge",
+      "direction": "east"
+    },
+    "11": {
+      "regionId": "chiyan_mine",
+      "cityId": "city_chiyan",
+      "role": "mine",
+      "direction": "southeast"
+    }
+  }
 }

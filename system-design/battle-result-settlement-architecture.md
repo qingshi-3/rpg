@@ -86,13 +86,29 @@ Runtime emits EventStream + BattleOutcomeResult
 
 Settlement proposes rewards, losses, experience, recovery entry points, and city/location changes from Runtime facts. Runtime does not write long-term resources. In the Strategic Management flow, strategic state changes are applied only by Strategic Management commands consuming a bridge-produced `StrategicBattleResultSummary`.
 
+Strategic Management battle settlement is a durable candidate-state transaction:
+
+```text
+validate complete result and stable expedition/session/snapshot identity
+-> apply consequences to an isolated candidate strategic state
+-> durably persist the complete candidate
+-> publish the candidate as current strategic state
+-> consume only the identity-matched Bridge Active Context
+```
+
+Persistence failure leaves the published strategic state and matching active context unchanged and retryable. Context consumption is never allowed to precede durable commit. Exact replay of an already committed expedition/session/snapshot returns the original successful settlement identity without applying consequences again; a different session or snapshot for that settled expedition is a conflicting replay and fails explicitly.
+
 ## Loss And Recovery
 
 `CorpsStrength` is the long-term corps strength value and uses the accepted 0-100 range. Visible soldiers are Runtime/Presentation mapping only. Long-term state does not track individual soldier identity, individual soldier experience, individual soldier equipment, or individual soldier casualty records.
 
 `CorpsStrength` loss is applied after battle through Settlement. Recovery depends on battle outcome, retreat state, city support, available resources, and facility capacity. If resources are insufficient, the system leaves an explicit unrecovered state instead of silently restoring strength.
 
-Hero down in ordinary battle is a battle-state consequence unless a future accepted proposal defines campaign-level death or injury rules. V0 should communicate loss of contribution, not permanent hero deletion.
+For each deployed participant, settlement freezes the participant's pre-battle `CorpsStrength` as the 0-100 casualty basis. Remaining strategic strength is that frozen basis multiplied by the deployed corps survival fraction reported by Runtime. Only corps outcomes belonging unambiguously to that participant enter the fraction; hero outcomes, legacy force-row `Count`, `battleUnitCount`, and visible or presentation actor multiplicity never enter the denominator. Missing, duplicated, contradictory, or incomplete participant/group/actor mappings reject settlement before any strategic candidate is published.
+
+Runtime completeness and casualty writeback apply only to participants recorded as deployed for that battle session. A carried reserve requires no fabricated Runtime outcome and takes no battle casualty; settlement unlocks it at unchanged strength and restores its recorded rollback station.
+
+Hero down in ordinary battle is a battle-state consequence unless a future confirmed discussion adds campaign-level death or injury rules to accepted authority. V0 should communicate loss of contribution, not permanent hero deletion.
 
 ## Failure Attribution
 
@@ -115,6 +131,7 @@ Failure candidates are created where the event happens and ranked during report 
 - Settlement cannot fabricate victory, defeat, rewards, or losses to hide missing runtime facts.
 - Strategic writeback must not bypass Strategic Management commands.
 - `StrategicBattleResultSummary` must map participant results back to stable hero and corps instance IDs before strategic consequences are applied.
+- A settlement attempt with incomplete deployed results, mismatched identity, conflicting replay, or failed durable persistence must not publish partial strategic mutation or consume an active context.
 
 ## Acceptance
 

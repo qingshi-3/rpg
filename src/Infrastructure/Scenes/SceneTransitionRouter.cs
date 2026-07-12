@@ -96,7 +96,7 @@ public sealed class SceneTransitionRouter
     {
         StrategicBattleActiveContext activeContext = request.ActiveContext;
         string scenePath = string.IsNullOrWhiteSpace(activeContext.ScenePath)
-            ? activeContext.CompatibilityRequest?.SiteScenePath ?? ""
+            ? activeContext.PreparationDraft?.SiteScenePath ?? ""
             : activeContext.ScenePath;
         if (string.IsNullOrWhiteSpace(scenePath))
         {
@@ -114,7 +114,15 @@ public sealed class SceneTransitionRouter
                 $"StaleLegacyBattleHandoffClearedForStrategicTransition context={activeContext.ContextId}");
         }
 
-        StrategicBattleActiveContextStore.Begin(activeContext);
+        if (!StrategicBattleActiveContextStore.TryBegin(activeContext, out string publicationFailureReason))
+        {
+            IsTransitioning = false;
+            GameLog.Warn(
+                nameof(SceneTransitionRouter),
+                $"StrategicBattleTransitionPublicationRejected context={activeContext.ContextId} session={activeContext.Session?.SessionId ?? ""} snapshot={activeContext.Snapshot?.SnapshotId ?? ""} reason={publicationFailureReason}");
+            return SceneTransitionResult.Fail(publicationFailureReason);
+        }
+
         Error error = _gateway.ChangeSceneToFile(
             scenePath,
             () => CompleteTransition(
@@ -128,10 +136,17 @@ public sealed class SceneTransitionRouter
             return SceneTransitionResult.Ok();
         }
 
-        StrategicBattleActiveContextStore.Clear($"scene_change_failed:{error}");
+        bool clearedMatchingContext = StrategicBattleActiveContextStore.TryClear(
+            activeContext.ContextId,
+            activeContext.Session?.SessionId,
+            activeContext.Snapshot?.SnapshotId,
+            $"scene_change_failed:{error}");
         IsTransitioning = false;
         string failureReason = $"scene_change_failed:{error}";
-        request.RollbackOnFailure?.Invoke(failureReason);
+        if (clearedMatchingContext)
+        {
+            request.RollbackOnFailure?.Invoke(failureReason);
+        }
         GameLog.Warn(nameof(SceneTransitionRouter), $"StrategicBattleTransitionFailed context={activeContext.ContextId} scene={scenePath} error={error}");
         return SceneTransitionResult.Fail(failureReason, error);
     }

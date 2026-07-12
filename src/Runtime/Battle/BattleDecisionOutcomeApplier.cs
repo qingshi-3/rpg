@@ -66,14 +66,6 @@ internal static class BattleDecisionOutcomeApplier
                 if (targetChanged)
                 {
                     resetAdvanceFailureState(context.ActorFact.Actor);
-                    BattlePlanStateEmitter.SetPlanState(
-                        stream,
-                        battleId,
-                        tick,
-                        currentTimeSeconds,
-                        context.ActorFact.Actor,
-                        BattleGroupPlanRuntimeState.TargetLocked,
-                        "target_locked");
                 }
             }
             else if (context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
@@ -82,22 +74,6 @@ internal static class BattleDecisionOutcomeApplier
                      context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective)
             {
                 context.ActorFact.Actor.TargetActorId = "";
-                BattlePlanStateEmitter.SetPlanState(
-                    stream,
-                        battleId,
-                        tick,
-                        currentTimeSeconds,
-                        context.ActorFact.Actor,
-                        context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon
-                            ? BattleGroupPlanRuntimeState.AdvancingToBeacon
-                            : BattleGroupPlanRuntimeState.AdvancingToObjective,
-                    context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                        ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
-                        : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon
-                            ? "destination_beacon_advance"
-                            : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
-                            ? context.Request.ReasonCode
-                            : "objective_advance");
             }
 
             if (!string.IsNullOrWhiteSpace(context.Proposal.FailureReason))

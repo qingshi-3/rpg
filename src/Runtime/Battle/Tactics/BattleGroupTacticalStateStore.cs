@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Runtime.Battle.Events;
+using Rpg.Runtime.Battle;
 
 namespace Rpg.Runtime.Battle.Tactics;
 
@@ -61,14 +62,28 @@ public sealed class BattleGroupTacticalStateStore
                 continue;
             }
 
+            BattleGroupPlanSnapshot plan = BattleRuntimeSession.ResolveBattleGroupPlan(group, objectiveZones);
             BattleGroupTacticalState state = new()
             {
                 BattleGroupId = commanderGroupId,
+                FactionId = group.FactionId ?? "",
                 TacticalMode = group.TacticalMode,
                 TacticalIntentPlan = BattleTacticalIntentPolicy.NormalizeForRuntime(group),
                 AllowPlayerScopedEngagement = !string.IsNullOrWhiteSpace(group.RuntimeCommanderGroupId),
                 AllowAutonomousFallbackTargeting = !string.IsNullOrWhiteSpace(group.RuntimeCommanderGroupId),
-                EngagementState = BattleGroupEngagementState.NotEngaged
+                EngagementState = BattleGroupEngagementState.NotEngaged,
+                ActiveCommandId = BattleRuntimeIdentityRules.NormalizeCorpsCommandId(group.InitialCorpsCommandId),
+                EngagementRule = plan.EngagementRule,
+                HasObjectiveAnchor = plan.HasObjectiveAnchor,
+                ObjectiveZoneId = plan.ObjectiveZoneId ?? "",
+                ObjectiveGridX = plan.ObjectiveCellX,
+                ObjectiveGridY = plan.ObjectiveCellY,
+                ObjectiveGridHeight = plan.ObjectiveCellHeight,
+                ObjectiveWidth = Math.Max(1, plan.ObjectiveWidth),
+                ObjectiveHeight = Math.Max(1, plan.ObjectiveHeight),
+                PlanState = plan.HasObjectiveAnchor
+                    ? BattleGroupPlanRuntimeState.AdvancingToObjective
+                    : BattleGroupPlanRuntimeState.SensingContact
             };
             store._states[commanderGroupId] = state;
 
@@ -123,6 +138,103 @@ public sealed class BattleGroupTacticalStateStore
             item => (IReadOnlyList<BattleGroupTacticalRegionMutationResult>)item.Value.Select(result => result.Clone()).ToArray(),
             StringComparer.Ordinal);
         return new ReadOnlyDictionary<string, IReadOnlyList<BattleGroupTacticalRegionMutationResult>>(snapshots);
+    }
+
+    internal bool TryApplyDestinationCommand(
+        string battleGroupId,
+        string commandId,
+        string beaconId,
+        int beaconRevision,
+        int gridX,
+        int gridY,
+        int gridHeight,
+        out BattleGroupPlanRuntimeState previousPlanState)
+    {
+        previousPlanState = BattleGroupPlanRuntimeState.SensingContact;
+        if (!_states.TryGetValue(battleGroupId ?? "", out BattleGroupTacticalState state))
+        {
+            return false;
+        }
+
+        previousPlanState = state.PlanState;
+        bool changed = !string.Equals(state.ActiveCommandId, commandId ?? "", StringComparison.Ordinal) ||
+                       !string.Equals(state.ActiveDestinationBeaconId, beaconId ?? "", StringComparison.Ordinal) ||
+                       state.ActiveDestinationBeaconRevision != beaconRevision ||
+                       state.ActiveDestinationBeaconGridX != gridX ||
+                       state.ActiveDestinationBeaconGridY != gridY ||
+                       state.ActiveDestinationBeaconGridHeight != gridHeight ||
+                       state.PlanState != BattleGroupPlanRuntimeState.AdvancingToBeacon;
+        if (!changed)
+        {
+            return false;
+        }
+
+        state.ActiveCommandId = commandId ?? "";
+        state.ActiveDestinationBeaconId = beaconId ?? "";
+        state.ActiveDestinationBeaconRevision = beaconRevision;
+        state.ActiveDestinationBeaconGridX = gridX;
+        state.ActiveDestinationBeaconGridY = gridY;
+        state.ActiveDestinationBeaconGridHeight = gridHeight;
+        state.ActiveDestinationBeaconCommandId = commandId ?? "";
+        state.PlanState = BattleGroupPlanRuntimeState.AdvancingToBeacon;
+        state.Version++;
+        return true;
+    }
+
+    internal bool TryApplyPlanState(
+        string battleGroupId,
+        BattleGroupPlanRuntimeState planState,
+        out BattleGroupPlanRuntimeState previousPlanState)
+    {
+        previousPlanState = BattleGroupPlanRuntimeState.SensingContact;
+        if (!_states.TryGetValue(battleGroupId ?? "", out BattleGroupTacticalState state))
+        {
+            return false;
+        }
+
+        previousPlanState = state.PlanState;
+        if (previousPlanState == planState)
+        {
+            return false;
+        }
+
+        state.PlanState = planState;
+        state.Version++;
+        return true;
+    }
+
+    internal void SynchronizeActorExecutionCache(BattleRuntimeActor actor)
+    {
+        if (actor == null ||
+            !_states.TryGetValue(actor.BattleGroupId ?? "", out BattleGroupTacticalState state))
+        {
+            return;
+        }
+
+        actor.CommandId = state.ActiveCommandId;
+        actor.EngagementRule = state.EngagementRule;
+        actor.PlanState = state.PlanState;
+        actor.HasObjectiveAnchor = state.HasObjectiveAnchor;
+        actor.ObjectiveZoneId = state.ObjectiveZoneId;
+        actor.ObjectiveGridX = state.ObjectiveGridX;
+        actor.ObjectiveGridY = state.ObjectiveGridY;
+        actor.ObjectiveGridHeight = state.ObjectiveGridHeight;
+        actor.ObjectiveWidth = state.ObjectiveWidth;
+        actor.ObjectiveHeight = state.ObjectiveHeight;
+        actor.ActiveDestinationBeaconId = state.ActiveDestinationBeaconId;
+        actor.ActiveDestinationBeaconRevision = state.ActiveDestinationBeaconRevision;
+        actor.ActiveDestinationBeaconGridX = state.ActiveDestinationBeaconGridX;
+        actor.ActiveDestinationBeaconGridY = state.ActiveDestinationBeaconGridY;
+        actor.ActiveDestinationBeaconGridHeight = state.ActiveDestinationBeaconGridHeight;
+        actor.ActiveDestinationBeaconCommandId = state.ActiveDestinationBeaconCommandId;
+    }
+
+    internal void SynchronizeActorExecutionCaches(IEnumerable<BattleRuntimeActor> actors)
+    {
+        foreach (BattleRuntimeActor actor in actors ?? Enumerable.Empty<BattleRuntimeActor>())
+        {
+            SynchronizeActorExecutionCache(actor);
+        }
     }
 
     public BattleGroupTacticalRegionMutationResult TrySetRegion(
@@ -452,6 +564,7 @@ public sealed class BattleGroupTacticalStateStore
         return new BattleGroupTacticalState
         {
             BattleGroupId = state?.BattleGroupId ?? "",
+            FactionId = state?.FactionId ?? "",
             TacticalMode = state?.TacticalMode ?? BattleGroupTacticalMode.PlayerCommanded,
             TacticalIntentPlan = BattleTacticalIntentPolicy.CopyIntentPlan(state?.TacticalIntentPlan),
             AllowPlayerScopedEngagement = state?.AllowPlayerScopedEngagement ?? false,
@@ -460,6 +573,22 @@ public sealed class BattleGroupTacticalStateStore
             SelectedRegion = CloneRegion(state?.SelectedRegion),
             SelectedRegionCommandSource = state?.SelectedRegionCommandSource ?? BattleGroupTacticalCommandSource.None,
             LocalCombatRegion = CloneRegion(state?.LocalCombatRegion),
+            ActiveCommandId = state?.ActiveCommandId ?? "",
+            EngagementRule = state?.EngagementRule ?? BattleEngagementRule.AttackFirst,
+            PlanState = state?.PlanState ?? BattleGroupPlanRuntimeState.SensingContact,
+            HasObjectiveAnchor = state?.HasObjectiveAnchor ?? false,
+            ObjectiveZoneId = state?.ObjectiveZoneId ?? "",
+            ObjectiveGridX = state?.ObjectiveGridX ?? 0,
+            ObjectiveGridY = state?.ObjectiveGridY ?? 0,
+            ObjectiveGridHeight = state?.ObjectiveGridHeight ?? 0,
+            ObjectiveWidth = state?.ObjectiveWidth ?? 1,
+            ObjectiveHeight = state?.ObjectiveHeight ?? 1,
+            ActiveDestinationBeaconId = state?.ActiveDestinationBeaconId ?? "",
+            ActiveDestinationBeaconRevision = state?.ActiveDestinationBeaconRevision ?? 0,
+            ActiveDestinationBeaconGridX = state?.ActiveDestinationBeaconGridX ?? 0,
+            ActiveDestinationBeaconGridY = state?.ActiveDestinationBeaconGridY ?? 0,
+            ActiveDestinationBeaconGridHeight = state?.ActiveDestinationBeaconGridHeight ?? 0,
+            ActiveDestinationBeaconCommandId = state?.ActiveDestinationBeaconCommandId ?? "",
             Version = state?.Version ?? 0,
             LastTemporaryRegionRefreshTick = state?.LastTemporaryRegionRefreshTick ?? -1,
             NoPerceivedHostileTicks = state?.NoPerceivedHostileTicks ?? 0,

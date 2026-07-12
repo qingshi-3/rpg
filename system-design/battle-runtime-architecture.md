@@ -66,6 +66,8 @@ Runtime validation remains the final authority for topology, footprint, occupanc
 
 Each runtime actor belongs to one battle-group commander state. Multiple visible actors may share that commander state when they are produced from the same battle group or command group. Expanded force-count rows, presentation entities, or temporary adapter rows must not create independent commander state unless the accepted battle model says they are separate player-commandable battle groups.
 
+At the Strategic Battle Bridge handoff, each deployed participant's single `BattleGroupSnapshot` creates exactly one hero actor and resolves to exactly one battle-group commander state. The main-corps Runtime actor and any additional corps or presentation actors for that group share the same commander identity. Actor count, legacy force-row `Count`, and presentation multiplicity cannot create another hero actor or commander state. Duplicate strategic group or hero mapping is a bridge launch error and must be rejected before Runtime receives the snapshot or publishes mutable battle state.
+
 
 ## Battle Tactical Area Runtime State
 

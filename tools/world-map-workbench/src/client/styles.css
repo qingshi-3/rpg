@@ -57,7 +57,8 @@ small { color: var(--muted); }
 
 .workbench-shell.saving .authoring-sidebar,
 .workbench-shell.saving .map-stage,
-.workbench-shell.saving .side-drawer {
+.workbench-shell.saving .side-drawer,
+.workbench-shell.saving .validation-list {
   pointer-events: none;
   opacity: .72;
 }

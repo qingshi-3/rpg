@@ -12,6 +12,17 @@ public sealed partial class StrategicManagementCommandService
         StrategicManagementState state,
         StrategicBattleResultSummary summary)
     {
+        StrategicCommandResult replayResult = ResolveCommittedReplay(state, summary, out string replayFailureReason);
+        if (replayResult != null)
+        {
+            return replayResult;
+        }
+
+        if (!string.IsNullOrWhiteSpace(replayFailureReason))
+        {
+            return Reject("ApplyBattleResultSummary", summary?.ExpeditionId, replayFailureReason);
+        }
+
         string failureReason = GetBattleResultSummaryFailureReason(state, summary);
         if (!string.IsNullOrWhiteSpace(failureReason))
         {
@@ -43,6 +54,17 @@ public sealed partial class StrategicManagementCommandService
         ApplyBattleFeedbackRewards(state, expedition.FactionId, summary, feedback, victory);
         state.BattleFeedbackRecords[feedback.FeedbackId] = feedback;
         state.BattleFeedbackRecordIdsByExpedition[expedition.ExpeditionId] = feedback.FeedbackId;
+        if (!string.IsNullOrWhiteSpace(summary.SessionId) && !string.IsNullOrWhiteSpace(summary.SnapshotId))
+        {
+            state.BattleSettlementRecordsByExpedition[expedition.ExpeditionId] = new StrategicBattleSettlementRecord
+            {
+                ExpeditionId = expedition.ExpeditionId,
+                SessionId = summary.SessionId,
+                SnapshotId = summary.SnapshotId,
+                FeedbackId = feedback.FeedbackId,
+                ResultFingerprint = ComputeBattleResultFingerprint(summary)
+            };
+        }
 
         StrategicCommandResult result = StrategicCommandResult.Ok(summary.ExpeditionId, summary.TargetLocationId);
         result.CreatedEntityId = feedback.FeedbackId;
@@ -79,6 +101,36 @@ public sealed partial class StrategicManagementCommandService
         return result;
     }
 
+    private static StrategicCommandResult ResolveCommittedReplay(
+        StrategicManagementState state,
+        StrategicBattleResultSummary summary,
+        out string failureReason)
+    {
+        failureReason = "";
+        if (state == null || summary == null ||
+            !state.BattleSettlementRecordsByExpedition.TryGetValue(summary.ExpeditionId ?? "", out StrategicBattleSettlementRecord record))
+        {
+            return null;
+        }
+
+        bool exact = !string.IsNullOrWhiteSpace(summary.SessionId) &&
+                     !string.IsNullOrWhiteSpace(summary.SnapshotId) &&
+                     string.Equals(record.ExpeditionId, summary.ExpeditionId, System.StringComparison.Ordinal) &&
+                     string.Equals(record.SessionId, summary.SessionId, System.StringComparison.Ordinal) &&
+                     string.Equals(record.SnapshotId, summary.SnapshotId, System.StringComparison.Ordinal) &&
+                     string.Equals(record.ResultFingerprint, ComputeBattleResultFingerprint(summary), System.StringComparison.Ordinal);
+        if (!exact)
+        {
+            failureReason = StrategicFailureReasons.BattleResultConflict;
+            return null;
+        }
+
+        // Exact replay returns the original identity and never reapplies consequences.
+        StrategicCommandResult replay = StrategicCommandResult.Ok(record.ExpeditionId, record.FeedbackId);
+        replay.CreatedEntityId = record.FeedbackId;
+        return replay;
+    }
+
     private static string GetBattleResultSummaryFailureReason(
         StrategicManagementState state,
         StrategicBattleResultSummary summary)
@@ -107,6 +159,64 @@ public sealed partial class StrategicManagementCommandService
             !string.Equals(expedition.TargetLocationId, summary.TargetLocationId ?? "", System.StringComparison.Ordinal))
         {
             return StrategicFailureReasons.BattleResultMismatch;
+        }
+
+        if (summary.ParticipantDispositions?.Count > 0)
+        {
+            if (string.IsNullOrWhiteSpace(summary.SessionId) ||
+                string.IsNullOrWhiteSpace(summary.SnapshotId) ||
+                summary.Outcome == BattleOutcome.None ||
+                summary.ParticipantDispositions.Any(item => item == null) ||
+                summary.ParticipantDispositions.Count != EnumerateExpeditionParticipants(expedition).Count ||
+                summary.ParticipantDispositions
+                    .GroupBy(item => $"{item.HeroId}\u001f{item.CorpsInstanceId}", System.StringComparer.Ordinal)
+                    .Any(group => group.Count() != 1))
+            {
+                return StrategicFailureReasons.BattleResultMismatch;
+            }
+
+            System.Collections.Generic.HashSet<string> deployedKeys = summary.ParticipantDispositions
+                .Where(item => item.Role == StrategicBattleParticipantRole.Deployed)
+                .Select(item => $"{item.HeroId}\u001f{item.CorpsInstanceId}")
+                .ToHashSet(System.StringComparer.Ordinal);
+            string[] resultKeys = summary.Participants
+                .Select(item => $"{item.HeroId}\u001f{item.CorpsInstanceId}")
+                .ToArray();
+            if (resultKeys.Length != deployedKeys.Count ||
+                deployedKeys.Count == 0 ||
+                resultKeys.Distinct(System.StringComparer.Ordinal).Count() != resultKeys.Length ||
+                resultKeys.Any(key => !deployedKeys.Contains(key)))
+            {
+                return StrategicFailureReasons.BattleResultMismatch;
+            }
+
+            foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
+            {
+                StrategicBattleParticipantDisposition disposition = summary.ParticipantDispositions.SingleOrDefault(item =>
+                    string.Equals(item?.HeroId ?? "", participant.HeroId ?? "", System.StringComparison.Ordinal) &&
+                    string.Equals(item?.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
+                if (disposition == null ||
+                    disposition.Role == StrategicBattleParticipantRole.Unknown ||
+                    !string.Equals(disposition.RollbackStationLocationId ?? "", participant.RollbackStationLocationId ?? "", System.StringComparison.Ordinal))
+                {
+                    return StrategicFailureReasons.BattleResultMismatch;
+                }
+
+                bool hasRuntimeResult = summary.Participants.Any(item =>
+                    string.Equals(item?.HeroId ?? "", participant.HeroId ?? "", System.StringComparison.Ordinal) &&
+                    string.Equals(item?.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
+                if (disposition.Role == StrategicBattleParticipantRole.Deployed && !hasRuntimeResult)
+                {
+                    return StrategicFailureReasons.MissingBattleParticipantResult;
+                }
+
+                if (disposition.Role == StrategicBattleParticipantRole.Reserve && hasRuntimeResult)
+                {
+                    return StrategicFailureReasons.BattleResultMismatch;
+                }
+            }
+
+            return "";
         }
 
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
@@ -154,6 +264,7 @@ public sealed partial class StrategicManagementCommandService
             FeedbackId = state.AllocateBattleFeedbackId(),
             ExpeditionId = expedition.ExpeditionId,
             SessionId = summary.SessionId ?? "",
+            SnapshotId = summary.SnapshotId ?? "",
             TargetLocationId = summary.TargetLocationId ?? "",
             TargetDisplayName = targetDefinition?.DisplayName ?? summary.TargetLocationId ?? "",
             Victory = victory,
@@ -168,7 +279,7 @@ public sealed partial class StrategicManagementCommandService
         };
 
         BuildParticipantFeedback(state, expedition, summary, preBattleStrengthByCorps, feedback);
-        BuildHeroFeedback(state, expedition, feedback, victory);
+        BuildHeroFeedback(state, expedition, summary, feedback, victory);
         if (summary.HasConsequenceFacts)
         {
             if (!string.IsNullOrWhiteSpace(summary.TargetDisplayName))
@@ -230,6 +341,11 @@ public sealed partial class StrategicManagementCommandService
     {
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
         {
+            if (ResolveParticipantRole(summary, participant) == StrategicBattleParticipantRole.Reserve)
+            {
+                continue;
+            }
+
             StrategicBattleParticipantResult result = summary.Participants.First(item =>
                 string.Equals(item.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
             state.Heroes.TryGetValue(participant.HeroId ?? "", out StrategicHeroState hero);
@@ -257,11 +373,17 @@ public sealed partial class StrategicManagementCommandService
     private void BuildHeroFeedback(
         StrategicManagementState state,
         StrategicExpeditionState expedition,
+        StrategicBattleResultSummary summary,
         StrategicBattleFeedbackRecord feedback,
         bool victory)
     {
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
         {
+            if (ResolveParticipantRole(summary, participant) == StrategicBattleParticipantRole.Reserve)
+            {
+                continue;
+            }
+
             state.Heroes.TryGetValue(participant.HeroId ?? "", out StrategicHeroState hero);
             _definitions.Heroes.TryGetValue(hero?.HeroDefinitionId ?? "", out StrategicHeroDefinition heroDefinition);
             string heroDisplayName = heroDefinition?.DisplayName ?? participant.HeroId ?? "";
@@ -499,9 +621,35 @@ public sealed partial class StrategicManagementCommandService
     {
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
         {
+            StrategicBattleParticipantRole role = ResolveParticipantRole(summary, participant);
+            participant.BattleRole = role;
+            if (role == StrategicBattleParticipantRole.Reserve)
+            {
+                UnlockExpeditionParticipant(state, expedition, participant, null, participant.RollbackStationLocationId);
+                continue;
+            }
+
             StrategicBattleParticipantResult result = summary.Participants.First(item =>
+                string.Equals(item.HeroId ?? "", participant.HeroId ?? "", System.StringComparison.Ordinal) &&
                 string.Equals(item.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
             UnlockExpeditionParticipant(state, expedition, participant, result, capturedCityId);
         }
+    }
+
+    private static StrategicBattleParticipantRole ResolveParticipantRole(
+        StrategicBattleResultSummary summary,
+        StrategicExpeditionParticipantState participant)
+    {
+        StrategicBattleParticipantDisposition disposition = summary?.ParticipantDispositions?.FirstOrDefault(item =>
+            string.Equals(item?.HeroId ?? "", participant?.HeroId ?? "", System.StringComparison.Ordinal) &&
+            string.Equals(item?.CorpsInstanceId ?? "", participant?.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
+        return disposition?.Role ?? StrategicBattleParticipantRole.Deployed;
+    }
+
+    private static string ComputeBattleResultFingerprint(StrategicBattleResultSummary summary)
+    {
+        byte[] payload = System.Text.Encoding.UTF8.GetBytes(
+            System.Text.Json.JsonSerializer.Serialize(summary ?? new StrategicBattleResultSummary()));
+        return System.Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload));
     }
 }

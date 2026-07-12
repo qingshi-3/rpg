@@ -77,7 +77,7 @@ Adding a specific skill, equipment effect, or corps trait should usually require
 
 Repository-level gameplay configuration indexes live under `config/`. These files may reference resource ids and resource paths, but they do not contain Godot-authored resources, imported art, scenes, themes, shaders, or SpriteFrames.
 
-`config/` owns stable content indexes and mappings such as first-slice battle-group bindings, default corps attachments, battle unit resource path indexes, and strategic initial roster data. Repository directory ownership follows `system-design/resource-authoring-taxonomy.md`: `resource/` owns Godot-authored definitions such as `BattleUnitDefinition`, battle skill resources, behavior trees, themes, shaders, and tilesets; `assets/` owns raw imported media and source-like asset packages. `frames.tres` remains a temporary visual-content pipeline exception and may stay beside its source PNG/PLIST files under `assets/` until a later accepted asset-pipeline proposal changes that workflow.
+`config/` owns stable content indexes and mappings such as first-slice battle-group bindings, default corps attachments, battle unit resource path indexes, and strategic initial roster data. Repository directory ownership follows `system-design/resource-authoring-taxonomy.md`: `resource/` owns Godot-authored definitions such as `BattleUnitDefinition`, battle skill resources, behavior trees, themes, shaders, and tilesets; `assets/` owns raw imported media and source-like asset packages. `frames.tres` remains a temporary visual-content pipeline exception and may stay beside its source PNG/PLIST files under `assets/` until confirmed discussion updates the asset-pipeline authority.
 
 Application code may load `config/` indexes to assemble strategic definitions or locate authored resources. Presentation may consume a config-backed resource path index before falling back to broad asset discovery for legacy library content. Runtime must still consume snapshots and ids, not config files or Godot resources directly.
 
@@ -149,7 +149,7 @@ Skill definitions provide:
 
 Runtime actor behavior and validation decide when an accepted skill order can start. Runtime action execution owns cast, impact, recovery, interruption, and failure timing. Runtime effect execution owns applying the resulting effect payloads.
 
-Basic attacks currently share the Runtime action shape used by skills: actor-local windup, one impact boundary, recovery, interruption rules, and deterministic commit/event ordering. They retain a dedicated basic-attack proposal and damage-commit path instead of passing through the skill-effect executor registry; this preserves basic-attack-specific range, minimum-damage, charge, and event semantics. That specialized path is not a second general effect authority and must not grow into a parallel configurable effect system. Full convergence with skill effect executors requires a focused accepted proposal rather than being assumed as unfinished migration work.
+Basic attacks currently share the Runtime action shape used by skills: actor-local windup, one impact boundary, recovery, interruption rules, and deterministic commit/event ordering. They retain a dedicated basic-attack proposal and damage-commit path instead of passing through the skill-effect executor registry; this preserves basic-attack-specific range, minimum-damage, charge, and event semantics. That specialized path is not a second general effect authority and must not grow into a parallel configurable effect system. Full convergence with skill effect executors requires confirmed discussion and an authority update rather than being assumed as unfinished migration work.
 
 ## Cost, Cooldown, And Availability Ownership
 
@@ -163,7 +163,7 @@ Skill configuration may define:
 
 Runtime owns authoritative availability state: current resource pools, cooldown timers, charge counts, pending/casting/recovery/interrupted/completed action state, cost payment, refunds, rejection reasons, and emitted availability events.
 
-The default mature model supports per-granted-skill cooldown, optional shared cooldown groups, charge-based skills, per-battle use limits, and mana cost. A global cooldown is allowed only if a later command-feel proposal accepts it. The hero-led light RTS direction should not inherit an MMO-style global cooldown by default.
+The default mature model supports per-granted-skill cooldown, optional shared cooldown groups, charge-based skills, per-battle use limits, and mana cost. A global cooldown is allowed only if confirmed discussion adds it to command-feel authority. The hero-led light RTS direction should not inherit an MMO-style global cooldown by default.
 
 UI may display cooldown, resource shortage, charge recovery, and disabled reasons from Runtime events and snapshot traits. It must not decide final skill legality.
 
@@ -295,7 +295,7 @@ Explicit non-goals:
 This architecture is acceptable when:
 
 - specific skills and equipment effects can usually be added as resources;
-- new runtime primitives require explicit architecture proposals;
+- new runtime primitives require confirmed discussion and explicit architecture-authority updates;
 - skill identity, grants/loadouts, cost, cooldown, effect payloads, effect executors, and runtime instances have separate ownership;
 - UI and reports consume skill snapshot traits and Runtime events instead of hardcoding concrete skill behavior;
 - legacy or first-slice ability-definition paths are removed or converted instead of retained as fallbacks;

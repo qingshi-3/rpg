@@ -62,7 +62,7 @@ internal static void StrategicBattleLaunchSnapshotPreservesStartingHeroSkillGran
             $"strategic battle session should be created hero={heroId} reason={sessionResult.FailureReason}");
         StrategicBattleParticipantReference participant = sessionResult.Session.Participants.Single();
 
-        BattleStartRequest compatibilityRequest = BuildAssaultLaunchCompatibilityRequest(
+        BattleStartRequest preparationSeed = BuildAssaultPreparationSeed(
             participant,
             heroUnitId,
             corpsUnitId,
@@ -70,7 +70,7 @@ internal static void StrategicBattleLaunchSnapshotPreservesStartingHeroSkillGran
         StrategicBattleActiveContextResult activeContextResult = bridge.CreateActiveContext(
             state,
             sessionResult.Session,
-            compatibilityRequest);
+            preparationSeed);
         AssertTrue(
             activeContextResult.Success,
             $"strategic active context should compile a snapshot hero={heroId} reason={activeContextResult.FailureReason}");
@@ -80,19 +80,18 @@ internal static void StrategicBattleLaunchSnapshotPreservesStartingHeroSkillGran
             participant.HeroId,
             $"active bridge snapshot hero={heroId}");
 
-        StrategicBattleLaunchSnapshotSyncResult syncResult = new StrategicBattleLaunchSnapshotSyncService().Sync(
-            activeContextResult.Context,
-            compatibilityRequest);
+        StrategicBattleDraftSnapshotResult compileResult = new StrategicBattleDraftSnapshotCompiler()
+            .CompileAndCommitFinalSnapshot(activeContextResult.Context);
         AssertTrue(
-            syncResult.Success,
-            $"strategic launch snapshot sync should succeed hero={heroId} reason={syncResult.FailureReason}");
+            compileResult.Success,
+            $"strategic Draft snapshot compilation should succeed hero={heroId} reason={compileResult.FailureReason}");
         AssertThunderKitSkillGrants(
-            syncResult.Snapshot.SkillDefinitions,
+            compileResult.Snapshot.SkillDefinitions,
             participant.ParticipantId,
             participant.HeroId,
             $"launch snapshot hero={heroId}");
         AssertTrue(
-            syncResult.Snapshot.BattleGroups.Any(group =>
+            compileResult.Snapshot.BattleGroups.Any(group =>
                 string.Equals(group.RuntimeCommanderGroupId, participant.ParticipantId, StringComparison.Ordinal) &&
                 string.Equals(group.SourceForceId, participant.ParticipantId, StringComparison.Ordinal)),
             $"launch snapshot should keep strategic participant id as runtime commander/source force for HUD skill ownership hero={heroId}");
@@ -140,7 +139,7 @@ private static IEnumerable<(string HeroId, string HeroUnitId, string CorpsUnitId
         FirstSliceHeroCompanyIds.AssaultCorpsCount);
 }
 
-private static BattleStartRequest BuildAssaultLaunchCompatibilityRequest(
+private static BattleStartRequest BuildAssaultPreparationSeed(
     StrategicBattleParticipantReference participant,
     string heroUnitId,
     string corpsUnitId,

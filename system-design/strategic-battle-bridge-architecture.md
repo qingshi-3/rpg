@@ -54,7 +54,7 @@ Strategic Management owns durable battle-related strategic facts, such as pendin
 
 The bridge session is runtime state by default. It may reference durable strategic IDs, but it must not become another persistent owner for heroes, corps, resources, locations, or expeditions.
 
-Future save/resume for an active battle requires a separate proposal that defines which bridge session fields, battle-preparation draft facts, Runtime facts, and scene context are persistable.
+Future save/resume for an active battle requires confirmed discussion and an authority update defining which bridge session fields, battle-preparation draft facts, Runtime facts, and scene context are persistable.
 
 ## Runtime State
 
@@ -91,6 +91,8 @@ The active context is a typed runtime envelope owned by the Strategic Battle Bri
 - result-consumption state.
 
 The active context is the authoritative in-memory carrier for Strategic Management battle preparation, launch, and return. It is not persistent Strategic Management state, and it must not mutate heroes, corps, locations, resources, or expeditions directly.
+
+Active-context publication, lookup, cancellation, and consumption require the expected context, session, and snapshot identity. Publication must not overwrite a different active identity, and a stale callback or mismatched result must not clear another active context. Successful result consumption occurs only after Strategic Management has durably committed and published the matching candidate state.
 
 Any presentation or compatibility projection derived from the active context is a subordinate adapter. It may expose preparation facts for display, but it must not own launch readiness, participant identity, battle outcome, or result consumption.
 
@@ -144,6 +146,10 @@ Strategic Management decides whether a battle may be requested. The bridge decid
 
 The bridge session envelope carries scene path, return route, rollback context, pending strategic IDs, and preparation workflow facts. These should not be added to `BattleStartSnapshot` unless Runtime directly needs them.
 
+The accepted battle-preparation draft is the only input allowed to compile the final `BattleStartSnapshot`. Final compilation must preserve explicit session and draft identity, and must derive the deployed participant subset, participant identity, formation, placement, initial destination, objective, and one-participant-to-one-battle-group cardinality from that accepted draft. Missing, stale, duplicate, contradictory, or mismatched session/draft/participant lineage rejects launch before the active context is mutated.
+
+Any retained `BattleStartRequest` is an outbound-only compatibility projection compiled after the final snapshot boundary. It may carry subordinate legacy-shaped values to a remaining consumer, but it must not rebuild, replace, overwrite, enrich, or reverse-synchronize the final snapshot. A compatibility projection that is absent, stale, or divergent cannot become fallback authority; consumers that still require it must fail explicitly at their adapter boundary without changing `BridgeActiveContext.Snapshot`.
+
 ### Participant Identity
 
 Strategic participants are battle groups:
@@ -159,9 +165,14 @@ The bridge participant reference must preserve:
 - corps instance ID and definition ID;
 - faction ID;
 - source strategic location ID;
-- role in the battle;
+- the exact valid pre-departure rollback station recorded by Strategic Management;
+- a stable deployed or reserve role finalized at the battle-preparation/snapshot boundary;
 - pre-battle corps strength;
 - deployment eligibility and reserve state.
+
+Every carried strategic participant appears in the bridge session identity set. Only deployed participants enter `BattleStartSnapshot` and require matching Runtime outcomes. Reserve participants remain explicit bridge facts but do not receive synthetic Runtime result rows or casualty calculations.
+
+At final launch, one deployed strategic participant compiles to exactly one `BattleGroupSnapshot`. Legacy hero/corps force rows and their `Count` values are compatibility representation inputs inside that participant boundary; they cannot create additional battle groups, hero identities, or commander identities. The bridge must resolve the participant and the hero/corps row roles uniquely before publishing the final snapshot or deployed/reserve roles. Missing, duplicate, contradictory, or ambiguous mappings reject the launch without partial bridge-state mutation.
 
 Battle `SourceForceId` and actor `SourceStateId` must map back to this participant identity. The long-term source is the corps instance, not a stockpile of individual soldiers or an old garrison row.
 
@@ -218,6 +229,7 @@ The summary should contain:
 - battle outcome and termination reason;
 - objective results;
 - per-participant result mapped to hero and corps instance IDs;
+- the complete carried-participant disposition set with deployed/reserve role and rollback-station identity, while Runtime-backed casualty rows remain deployed-only;
 - hero battle state, such as survived, defeated, retreated, or unavailable-for-report;
 - corps result, including remaining strength, routed/scattered/recovering indicators, and recovery entry point;
 - rewards, losses, experience, recovery requirements, and strategic-location consequences proposed by settlement;
@@ -264,9 +276,11 @@ Legacy non-Strategic battle paths may remain only as explicitly scoped compatibi
 - A launched battle must have a snapshot ID that can be matched to the bridge session.
 - Incomplete Runtime output cannot be settled as normal victory or defeat.
 - Result/session mismatch blocks Strategic Management writeback.
+- Active-context publication or consumption with a mismatched context/session/snapshot identity fails without overwriting or clearing the current context.
 - Settlement and report cannot derive separate truths from Runtime facts.
 - The bridge must not fabricate rewards, losses, corps recovery, location capture, or campaign state changes.
 - Scene transition failure cancels or rolls back only the launch/session boundary; it does not produce battle results.
+- Bridge/session creation and scene-transition failure return through the Strategic Management rollback command, which restores each surviving participant's recorded station without partial mutation.
 
 ## Acceptance
 

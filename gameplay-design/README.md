@@ -14,4 +14,4 @@ It intentionally lives outside `docs/` so it does not inherit older document rou
 
 These files are clean design references. Do not use this directory for implementation progress, temporary task tracking, or historical migration logs.
 
-The long-term design document is the global authority. Detail documents refine specific subsystems and must not silently contradict the global document. If detail work changes a global rule, use the proposal flow in `../design-proposals/`.
+The long-term design document is the global authority. Detail documents refine specific subsystems and must not silently contradict the global document. If detail work changes a global rule, return to discussion; after user confirmation, update the global authority before implementation.

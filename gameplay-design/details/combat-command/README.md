@@ -225,7 +225,7 @@ The kit must remain hero-led light RTS:
 - channeled melee pressure is a hero high-impact window, while the corps still owns the main battle line;
 - spatial transfer must use Runtime facts for units, skill casts, and impact areas, so reports can explain what was moved and why.
 
-First implementation should stop at the first three skills unless a later proposal accepts the event-transfer system work.
+First implementation should stop at the first three skills unless confirmed discussion accepts the event-transfer system work and updates authority.
 
 ## Active Skill Command Timing
 
@@ -254,7 +254,7 @@ The battle report should explain meaningful outcomes through terrain, timing, re
 
 Spatial combat requires authored map semantics. Battle maps and strategic-location interiors should be able to define visible rectangular grid markers from an editor-placed anchor, extending right and down by `m*n` cells.
 
-Marker types may include deployment zone, optional objective zone, chokepoint, lane, reserve point, flank route, ranged point, defend point, entrance, event spawn, and strategic construction region. The marker data model and Godot authoring workflow belong to a separate semantic marker proposal and implementation. Destination beacons are runtime command objects and are not authored semantic markers.
+Marker types may include deployment zone, optional objective zone, chokepoint, lane, reserve point, flank route, ranged point, defend point, entrance, event spawn, and strategic construction region. The marker data model and Godot authoring workflow belong to the focused semantic-marker authority and its confirmed execution work. Destination beacons are runtime command objects and are not authored semantic markers.
 
 ## Non-Goals
 

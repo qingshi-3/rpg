@@ -45,7 +45,7 @@ For first strategic management:
 
 - suitable heroes can use a corps normally and may unlock skill links or stronger automatic corps performance;
 - poor-fit heroes may receive weaker modifiers or lose skill links;
-- poor fit must not create random beast-control failure, command instability, or hidden recovery-cost punishment unless a later accepted proposal adds that behavior.
+- poor fit must not create random beast-control failure, command instability, or hidden recovery-cost punishment unless a later confirmed discussion adds that behavior to accepted authority.
 
 The first-version city recruitment surface is also the hero main-corps reassignment workbench. The player selects a hero, reviews available troop options, and chooses the hero's new main corps there.
 

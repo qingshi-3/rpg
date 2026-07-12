@@ -137,7 +137,7 @@ export const workspaceUiDefinitions: WorkspaceUiDefinition[] = [
     label: "地貌绘制",
     shortLabel: "地貌",
     description: "铺设草原、森林、沼泽等基础地貌，并处理边缘与空白。",
-    defaultTool: "terrain-brush",
+    defaultTool: "select",
     tools: ["terrain-brush", "terrain-erase", "terrain-fill", "terrain-lasso", "terrain-polygon"],
     steps: ["选择要绘制的地貌类型", "选择笔刷、填充或范围工具", "在地图上绘制并检查 Chunk 接缝"],
   },

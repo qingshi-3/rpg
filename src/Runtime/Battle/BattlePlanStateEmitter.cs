@@ -1,101 +1,84 @@
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.Events;
-using Rpg.Runtime.Battle.Navigation;
+using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
 internal static class BattlePlanStateEmitter
 {
-    public static void SetPlanState(
+    internal static bool SetPlanState(
+        BattleGroupTacticalStateStore commanderStateStore,
         BattleEventStream stream,
         string battleId,
         int tick,
         double currentTimeSeconds,
-        BattleRuntimeActor actor,
+        BattleRuntimeActor representativeActor,
         BattleGroupPlanRuntimeState state,
-        string reasonCode,
-        bool logWhenUnchanged = false,
-        string actionCode = "",
-        BattleGridCoord? from = null,
-        BattleGridCoord? to = null)
+        string reasonCode)
     {
-        if (stream == null || actor == null)
+        if (commanderStateStore == null || stream == null || representativeActor == null)
         {
-            return;
+            return false;
         }
 
-        BattleGroupPlanRuntimeState previousState = actor.PlanState;
-        bool stateChanged = previousState != state;
-        if (!stateChanged && !logWhenUnchanged)
+        string battleGroupId = representativeActor.BattleGroupId ?? "";
+        if (!commanderStateStore.TryApplyPlanState(battleGroupId, state, out BattleGroupPlanRuntimeState previousState))
         {
-            return;
+            commanderStateStore.SynchronizeActorExecutionCache(representativeActor);
+            return false;
         }
 
-        if (stateChanged)
-        {
-            actor.PlanState = state;
-        }
-
-        LogStateTransition(
+        BattleGroupTacticalState commanderState = commanderStateStore.GetRequiredSnapshot(battleGroupId);
+        EmitAppliedTransition(
+            stream,
             battleId,
             tick,
             currentTimeSeconds,
-            actor,
-            state,
+            commanderState,
+            representativeActor,
             previousState,
-            reasonCode,
-            actionCode,
-            from,
-            to,
-            stateChanged);
-        if (!stateChanged)
+            reasonCode);
+        return true;
+    }
+
+    internal static void EmitAppliedTransition(
+        BattleEventStream stream,
+        string battleId,
+        int tick,
+        double currentTimeSeconds,
+        BattleGroupTacticalState commanderState,
+        BattleRuntimeActor representativeActor,
+        BattleGroupPlanRuntimeState previousState,
+        string reasonCode)
+    {
+        if (stream == null || commanderState == null || previousState == commanderState.PlanState)
         {
             return;
         }
 
+        string reason = string.IsNullOrWhiteSpace(reasonCode)
+            ? commanderState.PlanState.ToString()
+            : reasonCode;
+        string actorCell = representativeActor == null
+            ? ""
+            : $" actor={representativeActor.ActorId ?? ""} cell={representativeActor.GridX},{representativeActor.GridY},{representativeActor.GridHeight}";
+
+        // One commander transition produces one semantic event regardless of how
+        // many actor execution contexts contributed to the group decision.
+        GameLog.Info(
+            "BattleRuntimeStateTransition",
+            $"BattleRuntimeStateTransition battle={battleId ?? ""} tick={tick} time={currentTimeSeconds:0.00} group={commanderState.BattleGroupId ?? ""}{actorCell} state={commanderState.PlanState} previous={previousState} changed=True reason={reason} target={commanderState.ObjectiveZoneId ?? ""}");
         stream.Add(new BattleEvent
         {
-            EventId = $"{battleId}:tick_{tick}:{actor.ActorId}:plan:{state}",
-            BattleId = battleId,
-            BattleGroupId = actor.BattleGroupId,
-            ActorId = actor.ActorId,
-            TargetId = actor.ObjectiveZoneId ?? "",
+            EventId = $"{battleId}:tick_{tick}:{commanderState.BattleGroupId}:plan:{commanderState.PlanState}",
+            BattleId = battleId ?? "",
+            BattleGroupId = commanderState.BattleGroupId ?? "",
+            TargetId = commanderState.ObjectiveZoneId ?? "",
+            SourceCommandId = commanderState.ActiveCommandId ?? "",
             Kind = BattleEventKind.BattleGroupPlanStateChanged,
-            ReasonCode = string.IsNullOrWhiteSpace(reasonCode) ? state.ToString() : reasonCode,
+            ReasonCode = reason,
             RuntimeTick = tick,
             RuntimeTimeSeconds = currentTimeSeconds
         });
-    }
-
-    private static void LogStateTransition(
-        string battleId,
-        int tick,
-        double currentTimeSeconds,
-        BattleRuntimeActor actor,
-        BattleGroupPlanRuntimeState state,
-        BattleGroupPlanRuntimeState previousState,
-        string reasonCode,
-        string actionCode,
-        BattleGridCoord? from,
-        BattleGridCoord? to,
-        bool stateChanged)
-    {
-        string reason = string.IsNullOrWhiteSpace(reasonCode) ? state.ToString() : reasonCode;
-        string target = !string.IsNullOrWhiteSpace(actor.TargetActorId)
-            ? actor.TargetActorId
-            : actor.ObjectiveZoneId ?? "";
-        string action = string.IsNullOrWhiteSpace(actionCode)
-            ? ""
-            : $" action={actionCode}";
-        string movement = from.HasValue && to.HasValue
-            ? $" from={from.Value.X},{from.Value.Y},{from.Value.Height} to={to.Value.X},{to.Value.Y},{to.Value.Height}"
-            : "";
-
-        // Plan-state events are emitted only for real state changes; this log
-        // also records action-boundary transitions such as starting a new
-        // objective movement segment while remaining AdvancingToObjective.
-        GameLog.Info(
-            "BattleRuntimeStateTransition",
-            $"BattleRuntimeStateTransition battle={battleId ?? ""} tick={tick} time={currentTimeSeconds:0.00} actor={actor.ActorId ?? ""} group={actor.BattleGroupId ?? ""} state={state} previous={previousState} changed={stateChanged} reason={reason} target={target} cell={actor.GridX},{actor.GridY},{actor.GridHeight}{action}{movement}");
     }
 }

@@ -1,0 +1,38 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Preview/StrategicRegionPreviewRoot.cs" id="1_root"]
+[ext_resource type="Script" path="res://src/Presentation/Common/MapCameraController.cs" id="2_camera"]
+[ext_resource type="Resource" path="res://resource/world/preview/strategic_region_preview_config.tres" id="3_config"]
+[ext_resource type="PackedScene" path="res://scenes/world/preview/StrategicReferenceChunkVisual.tscn" id="4_chunk"]
+[ext_resource type="PackedScene" path="res://scenes/world/preview/StrategicRegionOverlayChunk.tscn" id="6_overlay"]
+[ext_resource type="PackedScene" path="res://scenes/world/preview/StrategicCityAnchorVisual.tscn" id="7_city"]
+[ext_resource type="PackedScene" path="res://scenes/world/preview/StrategicRegionPreviewHud.tscn" id="8_hud"]
+
+[node name="StrategicRegionPreview" type="Node2D"]
+script = ExtResource("1_root")
+Config = ExtResource("3_config")
+ReferenceChunkScene = ExtResource("4_chunk")
+RegionOverlayScene = ExtResource("6_overlay")
+CityAnchorScene = ExtResource("7_city")
+
+[node name="ReferenceChunks" type="Node2D" parent="."]
+
+[node name="RegionOverlays" type="Node2D" parent="."]
+
+[node name="Cities" type="Node2D" parent="."]
+z_index = 4
+
+[node name="PreviewCamera" type="Camera2D" parent="."]
+position = Vector2(3584, 2048)
+zoom = Vector2(0.48, 0.48)
+script = ExtResource("2_camera")
+MoveSpeed = 720.0
+MinZoom = 0.35
+MaxZoom = 2.0
+ZoomStep = 0.12
+UseConfiguredMapBoundsFallback = true
+ConfiguredMapBoundsPosition = Vector2(2048, 1024)
+ConfiguredMapBoundsSize = Vector2(3072, 2048)
+UseViewportCamera = true
+
+[node name="PreviewHud" parent="." instance=ExtResource("8_hud")]

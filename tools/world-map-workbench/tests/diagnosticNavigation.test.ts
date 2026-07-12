@@ -11,11 +11,13 @@ interface DiagnosticHarness {
   getLayerDefinition: (id: LayerId) => { visible: boolean };
   renderLayers: () => void;
   activateTool: (tool: ToolId) => void;
+  setDirty: (dirty: boolean) => void;
   setStatus: (message: string, severity: string) => void;
 }
 
 function createHarness() {
   const setVisible = vi.fn();
+  const setDirty = vi.fn();
   const animate = vi.fn();
   const activateTool = vi.fn();
   const definition = { visible: false };
@@ -26,13 +28,14 @@ function createHarness() {
   app.getLayerDefinition = vi.fn(() => definition);
   app.renderLayers = vi.fn();
   app.activateTool = activateTool;
+  app.setDirty = setDirty;
   app.setStatus = vi.fn();
-  return { app, activateTool, animate, definition, setVisible };
+  return { app, activateTool, animate, definition, setDirty, setVisible };
 }
 
 describe("diagnostic workspace navigation", () => {
   it("synchronizes a terrain workspace without requiring an object id", () => {
-    const { app, activateTool, definition, setVisible } = createHarness();
+    const { app, activateTool, definition, setDirty, setVisible } = createHarness();
 
     app.locateDiagnostic({
       code: "TERRAIN_UNCLASSIFIED",
@@ -45,6 +48,7 @@ describe("diagnostic workspace navigation", () => {
     expect(activateTool).toHaveBeenCalledOnce();
     expect(activateTool).toHaveBeenCalledWith("select");
     expect(definition.visible).toBe(true);
+    expect(setDirty).toHaveBeenCalledWith(true);
     expect(setVisible).toHaveBeenCalledWith(true);
   });
 

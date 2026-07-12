@@ -61,7 +61,7 @@ Scene transition state is not persistent save state.
 
 Persistent campaign state remains owned by Domain and Application services. If a transition fails, the router must restore or cancel the operation without fabricating persistent outcomes.
 
-Future scene-resume support requires a separate proposal that defines which snapshot, event boundary, and runtime state are persistable.
+Future scene-resume support requires confirmed discussion and an authority update defining which snapshot, event boundary, and runtime state are persistable.
 
 ## Runtime State
 
@@ -245,11 +245,14 @@ Scene load failure before handoff:
 
 Scene change failure after battle handoff:
 
-- cancel active battle handoff or Bridge Active Context;
-- run supplied rollback token/callback;
+- cancel only the Bridge Active Context matching the transition's expected context/session/snapshot identity;
+- invoke the supplied identity-matched Strategic Management/Bridge rollback boundary;
+- restore every surviving participant to the exact rollback station already recorded by Strategic Management and clear expedition/carrier association atomically;
 - restore prior world/site mode where possible;
 - show failure notice;
 - keep or return to a consistent scene state.
+
+The router cannot invent a station, settlement identity, or strategic consequence. A stale transition callback that no longer matches the active context must fail without clearing the newer context or rolling back its expedition.
 
 Scene change failure after site-visit handoff:
 
@@ -296,7 +299,7 @@ Overlapping transition:
 ### Optional Unified Transition Context
 
 - Consider consolidating remaining static handoff stores into a typed `SceneTransitionContext`.
-- This phase needs its own proposal if it changes persistent state, runtime ownership, or save/resume behavior.
+- This phase must return to discussion and update authority if it changes persistent state, runtime ownership, or save/resume behavior.
 
 ## Acceptance
 

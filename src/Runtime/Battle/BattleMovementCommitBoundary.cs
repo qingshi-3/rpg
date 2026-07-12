@@ -33,36 +33,6 @@ internal static class BattleMovementCommitBoundary
         actor.ReservedGridY = selectedMove.Y;
         actor.ReservedGridHeight = selectedMove.Height;
 
-        BattleGroupPlanRuntimeState planState =
-            context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon
-                ? BattleGroupPlanRuntimeState.AdvancingToBeacon
-                : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective ||
-                  context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion ||
-                  context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                    ? BattleGroupPlanRuntimeState.AdvancingToObjective
-                    : BattleGroupPlanRuntimeState.MovingToAttackSlot;
-        string transitionReason = context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardBeacon
-            ? "destination_beacon_advance"
-            : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardObjective
-                ? "objective_advance"
-                : context.Request.Kind == BattleRuntimeAiActionKind.AdvanceTowardRegion
-                ? context.Request.ReasonCode
-                : context.Request.Kind == BattleRuntimeAiActionKind.ReturnToObjective
-                    ? LocalCombatDecisionReason.ReturnObjectiveThreatClear
-                    : "moving_to_attack_slot";
-        BattlePlanStateEmitter.SetPlanState(
-            stream,
-            battleId,
-            tick,
-            currentTimeSeconds,
-            actor,
-            planState,
-            transitionReason,
-            logWhenUnchanged: true,
-            actionCode: "movement_started",
-            from: from,
-            to: selectedMove);
-
         LogCombatSlotIntentIfChanged(battleId, tick, currentTimeSeconds, context, selectedMove);
         BattleRuntimeActorStateMachine.MarkMovementCommitted(
             actor,

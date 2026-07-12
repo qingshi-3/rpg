@@ -319,9 +319,11 @@ internal static void WorldSiteBattleRuntimeHeroSkillSubmitsHeroCastCommand()
         requestFactoryBody.Contains("TargetActorId = targetActorId", StringComparison.Ordinal),
         "hero skill target click should build a CommandRequest through the hero cast-skill channel with the selected target");
     AssertTrue(
-        rootSource.Contains("_activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand", StringComparison.Ordinal) &&
+        rootSource.Contains("new BattleCommandSubmissionService().Submit", StringComparison.Ordinal) &&
+        rootSource.Contains("_activeBattleGroupRuntimeResolution?.Snapshot", StringComparison.Ordinal) &&
+        !rootSource.Contains("_activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand", StringComparison.Ordinal) &&
         rootSource.Contains("BattleRuntimeHeroSkillSubmitted", StringComparison.Ordinal),
-        "hero skill command should submit to the active runtime controller and leave a low-noise diagnostic");
+        "hero skill command should submit through the Application boundary and leave a low-noise diagnostic");
 }
 
 internal static void WorldSiteRuntimePauseCommandUiSelectsHeroCompany()

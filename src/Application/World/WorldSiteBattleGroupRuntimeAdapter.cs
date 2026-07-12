@@ -30,7 +30,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
     private readonly BattleSettlementService _settlementService = new();
     private readonly BattleReportBuilder _reportBuilder = new();
     private readonly LegacyBattleResultAdapter _legacyResultAdapter = new();
-    private readonly StrategicBattleLaunchSnapshotSyncService _strategicLaunchSnapshotSync = new();
+    private readonly StrategicBattleDraftSnapshotCompiler _strategicDraftSnapshotCompiler = new();
 
     public WorldSiteBattleGroupRuntimeAdapter(BattlePerformanceCounters performanceCounters = null)
     {
@@ -63,17 +63,17 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
         StrategicBattleActiveContext activeContext,
         out WorldSiteBattleGroupRuntimeResolveResult result)
     {
-        BattleStartRequest request = activeContext?.CompatibilityRequest;
-        if (activeContext == null || request == null)
+        StrategicBattlePreparationDraft draft = activeContext?.PreparationDraft;
+        if (activeContext == null || draft == null)
         {
-            result = Reject("strategic_battle_active_context_missing", request, null);
+            result = Reject("strategic_battle_active_context_missing", null, null);
             return false;
         }
 
         BattleStartSnapshot activeSnapshot = activeContext.Snapshot;
         if (activeSnapshot == null || string.IsNullOrWhiteSpace(activeSnapshot.SnapshotId))
         {
-            result = Reject("strategic_battle_active_context_snapshot_missing", request, null, activeContext);
+            result = Reject("strategic_battle_active_context_snapshot_missing", null, null, activeContext);
             return false;
         }
 
@@ -81,13 +81,18 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             (!string.Equals(activeContext.Session.SessionId ?? "", activeContext.ContextId ?? "", System.StringComparison.Ordinal) ||
              !string.Equals(activeSnapshot.BattleId ?? "", activeContext.Session.SessionId ?? "", System.StringComparison.Ordinal)))
         {
-            result = Reject("strategic_battle_active_context_snapshot_mismatch", request, null, activeContext);
+            result = Reject("strategic_battle_active_context_snapshot_mismatch", null, null, activeContext);
             return false;
         }
 
-        if (!TryBuildStrategicLaunchSnapshot(activeContext, request, out BattleStartSnapshot snapshot, out string syncFailureReason))
+        if (!TryBuildStrategicLaunchSnapshot(
+                activeContext,
+                draft,
+                out BattleStartSnapshot snapshot,
+                out BattleStartRequest request,
+                out string compileFailureReason))
         {
-            result = Reject(syncFailureReason, request, null, activeContext);
+            result = Reject(compileFailureReason, activeContext.CompatibilityRequest, null, activeContext);
             return false;
         }
 
@@ -123,60 +128,38 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
 
     private bool TryBuildStrategicLaunchSnapshot(
         StrategicBattleActiveContext activeContext,
-        BattleStartRequest request,
+        StrategicBattlePreparationDraft draft,
         out BattleStartSnapshot snapshot,
+        out BattleStartRequest compatibilityRequest,
         out string failureReason)
     {
         snapshot = null;
+        compatibilityRequest = null;
         failureReason = "";
-        BattleStartSnapshot activeSnapshot = activeContext?.Snapshot;
+        BattleStartSnapshot preparationSeed = activeContext?.PreparationSeedSnapshot;
         if (activeContext == null ||
-            request == null ||
-            activeSnapshot == null ||
-            string.IsNullOrWhiteSpace(activeSnapshot.SnapshotId))
+            draft == null ||
+            preparationSeed == null ||
+            string.IsNullOrWhiteSpace(preparationSeed.SnapshotId))
         {
             failureReason = "strategic_battle_active_context_snapshot_missing";
             return false;
         }
 
-        StrategicBattleLaunchSnapshotSyncResult syncResult = _strategicLaunchSnapshotSync.Sync(activeContext, request);
-        if (!syncResult.Success)
+        StrategicBattleDraftSnapshotResult compileResult = _strategicDraftSnapshotCompiler.CompileAndCommitFinalSnapshot(activeContext);
+        if (!compileResult.Success)
         {
-            failureReason = string.IsNullOrWhiteSpace(syncResult.FailureReason)
-                ? "strategic_battle_launch_snapshot_sync_failed"
-                : syncResult.FailureReason;
+            failureReason = string.IsNullOrWhiteSpace(compileResult.FailureReason)
+                ? "strategic_battle_draft_snapshot_compile_failed"
+                : compileResult.FailureReason;
             return false;
         }
 
-        snapshot = syncResult.Snapshot ?? new BattleStartSnapshot();
-        string battleId = !string.IsNullOrWhiteSpace(activeContext.Session?.SessionId)
-            ? activeContext.Session.SessionId
-            : !string.IsNullOrWhiteSpace(activeContext.ContextId)
-                ? activeContext.ContextId
-                : activeSnapshot.BattleId ?? "";
-        if (string.IsNullOrWhiteSpace(battleId))
-        {
-            failureReason = "strategic_battle_active_context_snapshot_mismatch";
-            return false;
-        }
-
-        // Compatibility request is only the remaining preparation draft carrier.
-        // Strategic player identity must already resolve through the bridge session.
-        snapshot.SnapshotId = activeSnapshot.SnapshotId;
-        snapshot.BattleId = battleId;
-        if (!string.IsNullOrWhiteSpace(activeContext.Session?.TargetLocationId))
-        {
-            snapshot.TargetLocationId = activeContext.Session.TargetLocationId;
-        }
-
-        activeContext.Snapshot = snapshot;
-        activeContext.FlowResult = new BattleGroupBattleFlowResult
-        {
-            Snapshot = snapshot
-        };
+        snapshot = compileResult.Snapshot;
+        compatibilityRequest = activeContext.CompatibilityRequest;
         GameLog.Info(
             nameof(WorldSiteBattleGroupRuntimeAdapter),
-            $"StrategicBattleLaunchSnapshotSynced context={activeContext.ContextId ?? ""} request={request.RequestId ?? ""} snapshot={snapshot.SnapshotId} battle={snapshot.BattleId} groups={snapshot.BattleGroups.Count}");
+            $"StrategicBattleFinalSnapshotCommitted context={activeContext.ContextId ?? ""} draft={draft.DraftId} revision={draft.Revision} request={compatibilityRequest.RequestId ?? ""} snapshot={snapshot.SnapshotId} battle={snapshot.BattleId} groups={snapshot.BattleGroups.Count}");
         return true;
     }
 

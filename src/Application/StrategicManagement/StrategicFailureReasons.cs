@@ -43,4 +43,8 @@ public static class StrategicFailureReasons
     public const string MissingBattleParticipantResult = "missing_battle_participant_result";
     public const string BattleResultMismatch = "battle_result_mismatch";
     public const string BattleResultAlreadyApplied = "battle_result_already_applied";
+    public const string BattleResultConflict = "battle_result_conflict";
+    public const string InvalidExpeditionRollbackPlan = "invalid_expedition_rollback_plan";
+    public const string StrategicPersistenceFailed = "strategic_persistence_failed";
+    public const string ActiveBattleContextMismatch = "active_battle_context_mismatch";
 }

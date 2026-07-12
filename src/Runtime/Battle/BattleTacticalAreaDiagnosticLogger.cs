@@ -58,9 +58,14 @@ internal static class BattleTacticalAreaDiagnosticLogger
                                   BattleGroupActionZoneResolver.IsInsideActionZone(actor, anchor, actionZone)
                 ? actionZone.BattleGroupId
                 : "";
+            BattleGroupPlanRuntimeState planState = state.TacticalStates.TryGetValue(
+                actor.BattleGroupId ?? "",
+                out BattleGroupTacticalState commanderState)
+                ? commanderState.PlanState
+                : BattleGroupPlanRuntimeState.SensingContact;
             GameLog.Info(
                 "BattleUnitPositionSnapshot",
-                $"BattleUnitPositionSnapshot battle={state.BattleId ?? ""} tick={runtimeTick} actor={actor.ActorId ?? ""} group={actor.BattleGroupId ?? ""} faction={actor.FactionId ?? ""} cell=({actor.GridX},{actor.GridY},{actor.GridHeight}) footprint={BattleActorFootprint.NormalizeSize(actor.FootprintWidth)}x{BattleActorFootprint.NormalizeSize(actor.FootprintHeight)} combatZone={combatZoneId} groupActionZone={actionZoneId} planState={actor.PlanState}");
+                $"BattleUnitPositionSnapshot battle={state.BattleId ?? ""} tick={runtimeTick} actor={actor.ActorId ?? ""} group={actor.BattleGroupId ?? ""} faction={actor.FactionId ?? ""} cell=({actor.GridX},{actor.GridY},{actor.GridHeight}) footprint={BattleActorFootprint.NormalizeSize(actor.FootprintWidth)}x{BattleActorFootprint.NormalizeSize(actor.FootprintHeight)} combatZone={combatZoneId} groupActionZone={actionZoneId} planState={planState}");
         }
     }
 }

@@ -270,19 +270,7 @@ internal sealed class BattleCommitBuffer
                 continue;
             }
 
-            BattleHealthComponent.BasicAttackDamageCommitResult result =
-                new BattleHealthComponent(targetFact.Actor).CommitBasicAttackDamage(remainingHitPoints);
-            if (result.TransitionedToDefeated)
-            {
-                BattlePlanStateEmitter.SetPlanState(
-                    stream,
-                    battleId,
-                    tick,
-                    currentTimeSeconds,
-                    targetFact.Actor,
-                    BattleGroupPlanRuntimeState.Defeated,
-                    "defeated");
-            }
+            new BattleHealthComponent(targetFact.Actor).CommitBasicAttackDamage(remainingHitPoints);
         }
 
         _basicAttackRequests.Clear();

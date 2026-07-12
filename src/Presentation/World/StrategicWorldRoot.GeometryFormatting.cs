@@ -110,21 +110,6 @@ public partial class StrategicWorldRoot
         }
     }
 
-    private static string GetControlStateLabel(SiteControlState state)
-    {
-        return state switch
-        {
-            SiteControlState.Unknown => "未知",
-            SiteControlState.Neutral => "中立",
-            SiteControlState.Hostile => "敌控",
-            SiteControlState.Contested => "争夺中",
-            SiteControlState.PlayerHeld => "玩家控制",
-            SiteControlState.Damaged => "受损",
-            SiteControlState.Lost => "丢失",
-            _ => "未知"
-        };
-    }
-
     private static string GetSiteKindLabel(WorldSiteKind kind)
     {
         return kind switch
@@ -163,19 +148,6 @@ public partial class StrategicWorldRoot
             BattleKind.Sabotage => "破坏战",
             BattleKind.BossAssault => "首领战",
             _ => "战斗"
-        };
-    }
-
-    private static Color GetSiteColor(WorldSiteState state)
-    {
-        return state.ControlState switch
-        {
-            SiteControlState.PlayerHeld => new Color(0.52f, 0.84f, 0.68f, 1.0f),
-            SiteControlState.Damaged => new Color(0.88f, 0.72f, 0.36f, 1.0f),
-            SiteControlState.Hostile => new Color(0.88f, 0.38f, 0.34f, 1.0f),
-            SiteControlState.Lost => new Color(0.72f, 0.28f, 0.28f, 1.0f),
-            SiteControlState.Neutral => new Color(0.66f, 0.72f, 0.78f, 1.0f),
-            _ => Colors.White
         };
     }
 

@@ -14,6 +14,8 @@ public sealed class BattleRuntimeState
     public List<BattleRuntimeActor> Actors { get; set; } = new();
     public List<BattleObjectiveZoneSnapshot> ObjectiveZones { get; set; } = new();
     public List<BattleSkillSnapshot> SkillDefinitions { get; set; } = new();
+    // Shared beacon objects form a query/presentation catalog. Each commander
+    // state's active beacon reference remains the command-selection authority.
     public List<BattleRuntimeDestinationBeacon> DestinationBeacons { get; } = new();
     public List<BattleRuntimeSpatialMark> SpatialMarks { get; } = new();
     internal BattleBeaconFlowFieldCache BeaconFlowFields { get; } = new();

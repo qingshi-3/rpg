@@ -99,7 +99,7 @@ The deleted manual runtime no longer owns active flow, but some old battle suppo
 - `src/Presentation/Battle/AI/GreedyEnemyIntentPlanner.cs`
 - `src/Presentation/Battle/Flow/BattleCorpsCommand.cs`
 
-These files are not currently active replacements for the old manual runtime. They may be reusable as future light-RTS building blocks, but they are not documented as such in `system-design/`. Until a combat architecture proposal accepts or deletes them, they remain ambiguous implementation residue.
+These files are not currently active replacements for the old manual runtime. They may be reusable as future light-RTS building blocks, but they are not documented as such in `system-design/`. Until a confirmed discussion classifies them and updates current authority as required, they remain ambiguous implementation residue.
 
 ### 5. Historical Language Still Says "Auto Tactics"
 
@@ -109,7 +109,7 @@ This is acceptable only as historical context for "legacy manual runtime retirem
 
 ## Priority
 
-1. In the next combat architecture proposal, classify the remaining battle intent/action utilities as reusable foundation or delete them as old runtime residue.
+1. In the next confirmed combat-architecture discussion, classify the remaining battle intent/action utilities as reusable foundation or old runtime residue, update current authority as required, and capture execution in one active work item.
 2. Keep historical migration documents as records, but do not route new gameplay or architecture work through them as product authority.
 
 ## Bottom Line

@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Preview/StrategicReferenceChunkVisual.cs" id="1_script"]
+
+[node name="StrategicReferenceChunkVisual" type="Sprite2D"]
+z_index = -30
+texture_filter = 1
+centered = false
+script = ExtResource("1_script")

@@ -158,7 +158,7 @@ internal static partial class StrategicManagementRegressionCases
             setup.ExpeditionId,
             "res://return_to_world.tscn",
             "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
-        StrategicBattleSnapshotResult snapshotResult = bridge.CompileStartSnapshot(setup.State, session);
+        StrategicBattleSnapshotResult snapshotResult = bridge.CompilePreparationSeedSnapshot(setup.State, session);
         BattleOutcomeResult outcome = BattleOutcomeResult.Completed(
             snapshotResult.Snapshot.SnapshotId,
             session.SessionId,

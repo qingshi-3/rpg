@@ -1,6 +1,6 @@
 # rpg
 
-使用 Godot 4.5 .NET 与 C# 开发的 2D 像素风多种族幻想战略经营游戏。
+使用 Godot 4.7 .NET 与 C# 开发的 2D 像素风多种族幻想战略经营游戏。
 
 > 玩家作为君主，在实时运转的大世界中经营领地、组织英雄军团、争夺战略地点，并进入城域实景地图进行建设与低频实时战术作战。
 
@@ -136,7 +136,7 @@
 
 ## 本地运行
 
-1. 使用 Godot 4.5 .NET 打开仓库根目录下的 `project.godot`。
+1. 使用 Godot 4.7 .NET 打开仓库根目录下的 `project.godot`。
 2. 运行项目主场景 `scenes/world/StrategicWorldRoot.tscn`。
 3. 如需单独检查进入地点后的管理、部署或战斗流程，可运行 `scenes/world/sites/WorldSiteRoot.tscn`。
 
@@ -157,8 +157,9 @@ src/                C# 源码与窄适配器
 config/             JSON 等纯文本索引和配置
 gameplay-design/    已接受的玩家侧玩法权威
 system-design/      已接受的实现架构权威
-design-proposals/   玩法与架构变更提案
-gameplay-alignment/ 差距登记、实现提案和验收记录
+work-items/         已确认任务、执行进度、恢复条件与验收交接
+history/            已退役文档流程的历史记录入口
+gameplay-alignment/ 差距登记、workstream 和验收记录
 tests/              回归测试可执行项目
 ```
 
@@ -168,6 +169,7 @@ tests/              回归测试可执行项目
 
 - 协作规则：[AGENTS.md](AGENTS.md)
 - 权威优先级：[authority-map.md](gameplay-alignment/authority-map.md)
+- 活动任务与执行流程：[work-items/README.md](work-items/README.md)
 - 长期玩法方向：[content-systems-long-term-design.md](gameplay-design/content-systems-long-term-design.md)
 - 第一可玩切片：[first-playable-slice.md](gameplay-design/vertical-slices/first-playable-slice.md)
 - 城市与战略地点：[cities-and-locations/README.md](gameplay-design/details/cities-and-locations/README.md)
@@ -176,4 +178,4 @@ tests/              回归测试可执行项目
 - 战略经营架构：[strategic-management-system-architecture.md](system-design/strategic-management-system-architecture.md)
 - 战斗运行时架构：[battle-runtime-architecture.md](system-design/battle-runtime-architecture.md)
 - 当前差距：[gap-register.md](gameplay-alignment/gap-register.md)
-- 实现提案：[implementation-proposals/README.md](gameplay-alignment/implementation-proposals/README.md)
+- 历史记录入口：[history/README.md](history/README.md)

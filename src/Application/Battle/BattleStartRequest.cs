@@ -6,7 +6,9 @@ using Rpg.Domain.World;
 
 namespace Rpg.Application.Battle;
 
-public sealed class BattleStartRequest
+// Legacy-shaped request payload. Strategic battles use a typed Bridge Draft during
+// preparation and create a plain instance only as an outbound compatibility carrier.
+public class BattleStartRequest
 {
     public string RequestId { get; set; } = Guid.NewGuid().ToString("N");
     public string ContextId { get; set; } = "";

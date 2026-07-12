@@ -28,6 +28,9 @@ export function validateWorkbench(project: WorldProject, terrain: TerrainStore, 
   const anchorCounts = new Map<string, number>();
   const rivers = geography.linearFeatures.features.filter((feature) => feature.properties.featureType === "river");
   const mountains = geography.linearFeatures.features.filter((feature) => feature.properties.featureType === "mountain");
+  const cityIds = new Set(geography.strategicLocations.features
+    .filter((feature) => feature.properties.locationType === "city")
+    .map((feature) => feature.properties.locationId));
   for (const location of geography.strategicLocations.features) {
     const id = location.properties.locationId;
     locationCounts.set(id, (locationCounts.get(id) ?? 0) + 1);
@@ -46,6 +49,21 @@ export function validateWorkbench(project: WorldProject, terrain: TerrainStore, 
   }
   for (const [id, count] of locationCounts) {
     if (count > 1) diagnostics.push({ code: "LOCATION_DUPLICATE_ID", severity: "error", message: `LocationId 重复：${id}`, objectId: id, layerId: "strategic-locations" });
+  }
+
+  for (const region of geography.regions.features) {
+    const { cityId, regionId } = region.properties;
+    if (cityId && !cityIds.has(cityId)) {
+      const coordinate = centroid(region).geometry.coordinates;
+      diagnostics.push({
+        code: "REGION_UNKNOWN_CITY",
+        severity: "error",
+        message: `区域 ${regionId} 的 CityId 不存在：${cityId}`,
+        objectId: regionId,
+        coordinate: [coordinate[0] ?? 0, coordinate[1] ?? 0],
+        layerId: "territories",
+      });
+    }
   }
 
   for (const anchor of geography.waterAnchors.features) {

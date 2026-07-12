@@ -39,7 +39,7 @@ public static class StrategicManagementRuntime
         Timeflow = new StrategicWorldTimeflowController(Commands);
         ViewModels = new StrategicManagementViewModelService(Definitions, Rules);
         LocationMappings = new StrategicManagementMapSiteResolver(Definitions);
-        SaveService = new StrategicManagementSaveService();
+        SaveService = new StrategicManagementSaveService(Definitions);
         Invariants.RepairAll(State);
     }
 
@@ -52,7 +52,7 @@ public static class StrategicManagementRuntime
         Timeflow = new StrategicWorldTimeflowController(Commands);
         ViewModels = new StrategicManagementViewModelService(Definitions, Rules);
         LocationMappings = new StrategicManagementMapSiteResolver(Definitions);
-        SaveService = new StrategicManagementSaveService();
+        SaveService = new StrategicManagementSaveService(Definitions);
         Invariants.RepairAll(State);
     }
 
@@ -68,6 +68,16 @@ public static class StrategicManagementRuntime
         EnsureInitialized();
         State = SaveService.Load(path);
         Invariants.RepairAll(State);
+    }
+
+    public static StrategicBattleSettlementCommitResult CommitBattleResult(
+        Rpg.Application.StrategicBattleBridge.StrategicBattleActiveContext context,
+        Rpg.Application.StrategicBattleBridge.StrategicBattleResultSummary summary,
+        string path = DefaultSavePath)
+    {
+        EnsureInitialized();
+        StrategicBattleSettlementCommitService service = new(Definitions, SaveService);
+        return service.Commit(State, context, summary, path, candidate => State = candidate);
     }
 
     public static StrategicManagementDashboardViewModel BuildDashboard(string factionId, string cityId)

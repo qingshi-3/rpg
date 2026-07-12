@@ -10,12 +10,12 @@ The main finding is structural: the completed migration successfully retires the
 
 ## Authority Used
 
-Current authority order:
+Current governance route:
 
-1. `gameplay-design/`
-2. `system-design/`
-3. accepted active proposal `expected/`
-4. legacy `docs/`
+1. `gameplay-design/` supplies accepted player-facing rules.
+2. `system-design/` supplies accepted implementation architecture.
+3. A user-confirmed discussion result is captured in one active work item for execution scope and evidence; it is not gameplay or architecture authority.
+4. Legacy `docs/` material is historical evidence only.
 
 `docs/50-production/technical-changes/2026-05-16-auto-tactics-migration.md` and related old docs are useful migration evidence, but they target "automated tactical validation" and must not override the newer hero-led light RTS authority.
 
@@ -84,7 +84,7 @@ Priority:
 
 Recommended workstream:
 
-- Create a proposal for `battle-group-light-rts-combat` before further battle UI/runtime work.
+- Discuss and obtain user confirmation for `battle-group-light-rts-combat`, capture the result in one active work item, and update current authority as required before further battle UI/runtime work.
 
 ### GAP-B: No Battle Group Runtime Model
 
@@ -269,7 +269,7 @@ Accepted target first-phase city attributes:
 Gap:
 
 - Current implementation has useful site mechanics, but the resource and capacity names/contracts are not aligned with the accepted model.
-- `DamageLevel` and intel/memory exist as implementation support, but they should not be promoted as first-phase core city attributes unless a new proposal accepts that.
+- `DamageLevel` and intel/memory exist as implementation support, but they should not be promoted as first-phase core city attributes unless a confirmed discussion updates current authority.
 
 Priority:
 
@@ -277,7 +277,7 @@ Priority:
 
 Recommended workstream:
 
-- Create a city/resource alignment proposal before changing resource IDs, because this touches persistence, UI text, action costs, facilities, and tests.
+- Discuss and confirm city/resource alignment before changing resource IDs, capture the execution scope in one active work item, and update current authority because this touches persistence, UI text, action costs, facilities, and tests.
 
 ### GAP-I: Terrain, Facility, Objective, And Modifier Rules Do Not Affect Battle Simulation
 
@@ -349,7 +349,7 @@ Priority:
 
 Recommended workstream:
 
-- Create `system-design/` architecture docs through proposal flow before adding new runtime owners.
+- After discussion and user confirmation, update the relevant `system-design/` authority and capture execution in one active work item before adding new runtime owners.
 
 ### GAP-L: Historical Docs Need Authority Routing
 
@@ -372,7 +372,7 @@ Priority:
 
 Recommended workstream:
 
-- After the new combat architecture proposal is accepted, update or quarantine the most misleading old docs. Do not do this before the replacement architecture is clear.
+- After the replacement combat architecture is confirmed and current authority is updated, capture any documentation cleanup in one active work item and update or quarantine the most misleading old docs. Do not do this before the replacement architecture is clear.
 
 ## Updated Completion Estimate Against Current Target
 
@@ -390,7 +390,7 @@ These estimates are relative to the accepted hero-led light RTS and content-syst
 ## Recommended Migration Closure Order
 
 1. Freeze further "auto tactics playback UI" expansion as a product target. Keep it as backend auto-resolve/report infrastructure.
-2. Create a proposal for `battle-group-light-rts-combat` with current architecture and expected architecture copies.
+2. Discuss and confirm `battle-group-light-rts-combat`, record the result in one active work item, and update the relevant current authority before execution.
 3. Define the minimal domain contracts: `Hero`, `Corps`, `BattleGroup`, `CorpsStrength`, command channels, skill resource state, and result writeback fields.
 4. Build the first live battle slice on a `WorldSite` map:
    - one battle group vs one enemy group;
@@ -404,4 +404,4 @@ These estimates are relative to the accepted hero-led light RTS and content-syst
 
 ## Bottom Line
 
-The migration did the hard cleanup work: old AP/manual tactical authority is gone, battle request/result boundaries are alive, and world writeback is test-covered. The next risk is not technical compilation; it is building more UI or simulation on the wrong battle identity. The next accepted proposal should re-center implementation on hero-led light RTS before any larger feature work.
+The migration did the hard cleanup work: old AP/manual tactical authority is gone, battle request/result boundaries are alive, and world writeback is test-covered. The next risk is not technical compilation; it is building more UI or simulation on the wrong battle identity. The next confirmed discussion and active work item should re-center implementation on hero-led light RTS, with current authority updated as required, before any larger feature work.

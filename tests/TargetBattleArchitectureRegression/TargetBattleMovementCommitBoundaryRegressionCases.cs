@@ -35,7 +35,7 @@ internal static class TargetBattleMovementCommitBoundaryRegressionCases
             AssertRequiredPresent(boundarySource, relativePath, failures, "ReservedGridX =", "movement commit boundary should own accepted reservation X writes");
             AssertRequiredPresent(boundarySource, relativePath, failures, "ReservedGridY =", "movement commit boundary should own accepted reservation Y writes");
             AssertRequiredPresent(boundarySource, relativePath, failures, "ReservedGridHeight =", "movement commit boundary should own accepted reservation height writes");
-            AssertRequiredPresent(boundarySource, relativePath, failures, "BattlePlanStateEmitter.SetPlanState", "movement commit boundary should own accepted movement plan-state emission");
+            AssertForbiddenAbsent(boundarySource, relativePath, failures, "BattlePlanStateEmitter.SetPlanState", "actor movement commit boundary must not emit commander plan-state directly");
             AssertRequiredPresent(boundarySource, relativePath, failures, "BattleRuntimeActorStateMachine.MarkMovementCommitted", "movement commit boundary should own accepted movement phase transition");
             AssertRequiredPresent(boundarySource, relativePath, failures, "BattleAdvanceFailureStateBoundary.ResetAdvanceFailureState", "movement commit boundary should reset advance-failure state after accepted movement");
             AssertRequiredPresent(boundarySource, relativePath, failures, "BattleRuntimeAiActionResult.Succeeded", "movement commit boundary should mark the accepted context successful");
@@ -71,6 +71,10 @@ internal static class TargetBattleMovementCommitBoundaryRegressionCases
         AssertForbiddenAbsent(resolverSource, resolverRelativePath, failures, "BattleEventKind.MovementStarted", "movement commit resolver should not own movement-start event semantics");
         AssertForbiddenAbsent(resolverSource, resolverRelativePath, failures, "BattleRuntimeAiActionResult.Succeeded", "movement commit resolver should not mark accepted movement success directly");
         AssertForbiddenAbsent(resolverSource, resolverRelativePath, failures, "RecordMovementEvent", "movement commit resolver should not record accepted movement events directly");
+
+        string commanderCoordinatorPath = Path.Combine(root, "src", "Runtime", "Battle", "BattleGroupCommanderTransitionCoordinator.cs");
+        string commanderCoordinatorSource = File.Exists(commanderCoordinatorPath) ? File.ReadAllText(commanderCoordinatorPath) : "";
+        AssertRequiredPresent(commanderCoordinatorSource, ToRepoPath(root, commanderCoordinatorPath), failures, "BattlePlanStateEmitter.SetPlanState", "group commander coordinator should own accepted execution plan-state emission");
 
         AssertTrue(
             failures.Count == 0,

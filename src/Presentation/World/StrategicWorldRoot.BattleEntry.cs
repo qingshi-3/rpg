@@ -56,11 +56,7 @@ public partial class StrategicWorldRoot
                 SiteScenePath);
             if (!bridgeSessionResult.Success)
             {
-                _armyCommandService.ResetUnsupportedAssault(army);
-                StrategicManagementRuntime.Commands.CancelExpedition(
-                    StrategicManagementRuntime.State,
-                    army.StrategicExpeditionId,
-                    bridgeSessionResult.FailureReason);
+                RollbackStrategicBattleEntry(army.ArmyId, army.StrategicExpeditionId, bridgeSessionResult.FailureReason);
                 _worldClockPaused = false;
                 StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(bridgeSessionResult.FailureReason);
                 GameLog.Warn(
@@ -74,12 +70,14 @@ public partial class StrategicWorldRoot
         }
 
         PendingBattleLaunchRollback rollback = CaptureBattleLaunchRollbackForSite(army.TargetSiteId);
+        rollback.WorldArmyId = army.ArmyId;
+        rollback.StrategicExpeditionId = army.StrategicExpeditionId;
         if (State.SiteStates.TryGetValue(army.TargetSiteId, out WorldSiteState site))
         {
             _siteModeTransitions.EnterWartime(site, State.WorldTick, "assault_army_arrived", army.ArmyId);
         }
 
-        BattleStartRequest request = _battleRequestBuilder.BuildAssaultBonefieldRequest(
+        BattleStartRequest preparationSeed = _battleRequestBuilder.BuildAssaultBonefieldRequest(
             State,
             Definition,
             returnScenePath,
@@ -91,14 +89,10 @@ public partial class StrategicWorldRoot
             StrategicBattleActiveContextResult activeContextResult = strategicBattleBridge.CreateActiveContext(
                 StrategicManagementRuntime.State,
                 strategicBattleSession,
-                request);
+                preparationSeed);
             if (!activeContextResult.Success)
             {
-                _armyCommandService.ResetUnsupportedAssault(army);
-                StrategicManagementRuntime.Commands.CancelExpedition(
-                    StrategicManagementRuntime.State,
-                    army.StrategicExpeditionId,
-                    activeContextResult.FailureReason);
+                RollbackStrategicBattleEntry(army.ArmyId, army.StrategicExpeditionId, activeContextResult.FailureReason);
                 _worldClockPaused = false;
                 StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(activeContextResult.FailureReason);
                 GameLog.Warn(
@@ -116,7 +110,7 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        if (!TryEnterBattle(request, rollback))
+        if (!TryEnterBattle(preparationSeed, rollback))
         {
             RefreshAll();
         }
@@ -186,17 +180,17 @@ public partial class StrategicWorldRoot
 
     private bool TryEnterBattle(StrategicBattleActiveContext activeContext, PendingBattleLaunchRollback rollback)
     {
-        BattleStartRequest request = activeContext?.CompatibilityRequest;
-        if (request == null)
+        StrategicBattlePreparationDraft draft = activeContext?.PreparationDraft;
+        if (draft == null)
         {
             return false;
         }
 
-        // The request remains the temporary presentation adapter for the battle gate,
-        // while the active context is the scene-transition authority.
-        _pendingBattleRollback = rollback ?? CaptureBattleLaunchRollback(request, null);
+        // The Bridge Draft supplies preparation presentation while the active
+        // context remains the scene-transition authority.
+        _pendingBattleRollback = rollback ?? CaptureBattleLaunchRollback(draft, null);
         _pendingStrategicBattleActiveContext = activeContext;
-        BeginBattleAnnouncement(request);
+        BeginBattleAnnouncement(draft);
         return true;
     }
 
@@ -205,6 +199,8 @@ public partial class StrategicWorldRoot
         IReadOnlyCollection<GameEvent> transitionEvents)
     {
         PendingBattleLaunchRollback rollback = CaptureBattleLaunchRollbackForSite(ResolveBattleRollbackSiteId(request));
+        rollback.WorldArmyId = request?.SourceArmyId ?? "";
+        rollback.StrategicExpeditionId = request?.StrategicExpeditionId ?? "";
         ApplyModeTransitionRollbackEvent(rollback, transitionEvents);
         return rollback;
     }
@@ -287,7 +283,41 @@ public partial class StrategicWorldRoot
 
         _worldClockPaused = _pendingBattleRollback.PreviousWorldClockPaused;
         _worldClockAccumulator = 0.0;
+        if (!string.IsNullOrWhiteSpace(_pendingBattleRollback.StrategicExpeditionId))
+        {
+            RollbackStrategicBattleEntry(
+                _pendingBattleRollback.WorldArmyId,
+                _pendingBattleRollback.StrategicExpeditionId,
+                reason);
+        }
         _pendingBattleRollback = null;
+    }
+
+    private StrategicBattleEntryRollbackResult RollbackStrategicBattleEntry(
+        string armyId,
+        string expeditionId,
+        string reason)
+    {
+        StrategicManagementRuntime.EnsureInitialized();
+        StrategicBattleEntryRollbackService rollbackService = new(
+            StrategicManagementRuntime.Commands,
+            _armyCommandService);
+        StrategicBattleEntryRollbackResult result = rollbackService.Rollback(
+            StrategicManagementRuntime.State,
+            State?.ArmyStates,
+            armyId,
+            expeditionId,
+            reason);
+        if (result.Success)
+        {
+            StrategicManagementRuntime.SaveCurrentState();
+            return result;
+        }
+
+        GameLog.Error(
+            nameof(StrategicWorldRoot),
+            $"StrategicBattleEntryRollbackRejected army={armyId ?? ""} expedition={expeditionId ?? ""} reason={result.FailureReason}");
+        return result;
     }
 
     private void ClearPendingBattleLaunchRollback()
@@ -739,9 +769,10 @@ public partial class StrategicWorldRoot
             ? value
             : null;
 
-        if (site == null)
+        if (site == null ||
+            !TryBuildStrategicWorldMapSitePresentation(siteId, out StrategicWorldMapSitePresentation presentation))
         {
-            return "未找到城池状态。";
+            return "未找到战略地点状态。";
         }
 
         string garrison = site.Garrison.Count == 0
@@ -750,8 +781,8 @@ public partial class StrategicWorldRoot
 
         return
             $"场域：{definition?.DisplayName ?? site.SiteId}\n" +
-            $"状态：{GetControlStateLabel(site.ControlState)}\n" +
-            $"归属：{StrategicWorldDisplayNames.GetFactionLabel(queries, site.OwnerFactionId)}\n" +
+            $"状态：{presentation.ControlText}\n" +
+            $"归属：{FormatStrategicFactionId(presentation.OwnerFactionId)}\n" +
             $"受损：{site.DamageLevel}\n" +
             $"驻军：{garrison}";
     }

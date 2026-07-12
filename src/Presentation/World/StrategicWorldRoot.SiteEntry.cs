@@ -99,6 +99,30 @@ public partial class StrategicWorldRoot
         return true;
     }
 
+    private static bool TryBuildStrategicWorldMapSitePresentation(
+        string mapSiteId,
+        out StrategicWorldMapSitePresentation presentation)
+    {
+        presentation = null;
+        if (string.IsNullOrWhiteSpace(mapSiteId))
+        {
+            return false;
+        }
+
+        StrategicManagementRuntime.EnsureInitialized();
+        if (!StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(mapSiteId, out string locationId))
+        {
+            return false;
+        }
+
+        StrategicLocationDashboardViewModel location = StrategicManagementRuntime.ViewModels.BuildLocationMapView(
+            StrategicManagementRuntime.State,
+            StrategicManagementIds.FactionPlayer,
+            locationId);
+        presentation = StrategicWorldMapSitePresenter.Build(location);
+        return string.Equals(presentation.MapSiteId, mapSiteId, System.StringComparison.Ordinal);
+    }
+
     private bool TryGetSelectedArrivedAssaultArmy(out WorldArmyState army)
     {
         army = null;

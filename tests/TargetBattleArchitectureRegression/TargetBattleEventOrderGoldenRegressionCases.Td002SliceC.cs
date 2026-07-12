@@ -26,17 +26,15 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
         {
             "battle_td002_region_refresh_golden:tick_0:group_td002_enemy_region:engagement:engagement_enter_group_perception",
             "battle_td002_region_refresh_golden:group_td002_enemy_region:group_td002_enemy_region:local:0:0:tick_0:local_region_built_perception_single:1",
-            "battle_td002_region_refresh_golden:tick_0:td002_enemy_region:1:plan:TargetLocked",
-            "battle_td002_region_refresh_golden:tick_0:td002_enemy_region:1:plan:MovingToAttackSlot",
-            "battle_td002_region_refresh_golden:tick_0:td002_enemy_region:1:move_start"
+            "battle_td002_region_refresh_golden:tick_0:td002_enemy_region:1:move_start",
+            "battle_td002_region_refresh_golden:tick_0:group_td002_enemy_region:plan:MovingToAttackSlot"
         };
         string[] expectedStableProjection =
         {
             "0:BattleGroupEngagementStateChanged:->:engagement_enter_group_perception",
             "-1:BattleGroupLocalCombatRegionChanged:->:local_region_built_perception_single",
-            "0:BattleGroupPlanStateChanged:td002_enemy_region:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:td002_enemy_region:1->:moving_to_attack_slot",
-            "0:MovementStarted:td002_enemy_region:1->td002_player_region:1:join_recent_damage"
+            "0:MovementStarted:td002_enemy_region:1->td002_player_region:1:join_recent_damage",
+            "0:BattleGroupPlanStateChanged:->:moving_to_attack_slot"
         };
 
         AssertSequence(expectedEventIds, tick.Events.Select(item => item.EventId).ToArray(), "td002 region refresh event id order golden");
@@ -56,14 +54,14 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
         string[] expectedEventIds =
         {
             "battle_td002_temporary_region_golden:group_td002_enemy_temp:group_td002_enemy_temp:temporary:10:0:td002_player_temp_1:temporary_region_created_cluster:2",
-            "battle_td002_temporary_region_golden:tick_0:td002_enemy_temp:1:plan:AdvancingToObjective",
-            "battle_td002_temporary_region_golden:tick_0:td002_enemy_temp:1:move_start"
+            "battle_td002_temporary_region_golden:tick_0:td002_enemy_temp:1:move_start",
+            "battle_td002_temporary_region_golden:tick_0:group_td002_enemy_temp:plan:AdvancingToObjective"
         };
         string[] expectedStableProjection =
         {
             "-1:BattleGroupTemporaryRegionSelected:->:temporary_region_created_cluster",
-            "0:BattleGroupPlanStateChanged:td002_enemy_temp:1->:region_temporary_advance",
-            "0:MovementStarted:td002_enemy_temp:1->group_td002_enemy_temp:temporary:10:0:td002_player_temp_1:region_temporary_advance"
+            "0:MovementStarted:td002_enemy_temp:1->group_td002_enemy_temp:temporary:10:0:td002_player_temp_1:region_temporary_advance",
+            "0:BattleGroupPlanStateChanged:->:region_temporary_advance"
         };
 
         AssertSequence(expectedEventIds, tick.Events.Select(item => item.EventId).ToArray(), "td002 temporary region event id order golden");
@@ -150,23 +148,19 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
 
         string[] expectedEventIds =
         {
-            "battle_td002_hold_defense_attacked_golden:tick_0:td002_enemy_hold_attack:1:plan:TargetLocked",
-            "battle_td002_hold_defense_attacked_golden:tick_0:td002_player_mover:1:plan:TargetLocked",
-            "battle_td002_hold_defense_attacked_golden:tick_0:td002_enemy_hold_attack:1:plan:Attacking",
             "battle_td002_hold_defense_attacked_golden:tick_0:td002_enemy_hold_attack:1:attack:td002_player_attack_target:1",
             "battle_td002_hold_defense_attacked_golden:tick_0:group_td002_enemy_hold_attack:engagement:engagement_enter_member_attacked",
-            "battle_td002_hold_defense_attacked_golden:tick_0:td002_player_mover:1:plan:MovingToAttackSlot",
-            "battle_td002_hold_defense_attacked_golden:tick_0:td002_player_mover:1:move_start"
+            "battle_td002_hold_defense_attacked_golden:tick_0:td002_player_mover:1:move_start",
+            "battle_td002_hold_defense_attacked_golden:tick_0:group_td002_enemy_hold_attack:plan:Attacking",
+            "battle_td002_hold_defense_attacked_golden:tick_0:group_td002_player_mover:plan:MovingToAttackSlot"
         };
         string[] expectedStableProjection =
         {
-            "0:BattleGroupPlanStateChanged:td002_enemy_hold_attack:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:td002_player_mover:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:td002_enemy_hold_attack:1->:attacking",
             "0:DamageApplied:td002_enemy_hold_attack:1->td002_player_attack_target:1:auto_attack",
             "0:BattleGroupEngagementStateChanged:td002_enemy_hold_attack:1->td002_player_attack_target:1:engagement_enter_member_attacked",
-            "0:BattleGroupPlanStateChanged:td002_player_mover:1->:moving_to_attack_slot",
-            "0:MovementStarted:td002_player_mover:1->td002_enemy_live:1:auto_advance"
+            "0:MovementStarted:td002_player_mover:1->td002_enemy_live:1:auto_advance",
+            "0:BattleGroupPlanStateChanged:->:attacking",
+            "0:BattleGroupPlanStateChanged:->:moving_to_attack_slot"
         };
 
         AssertSequence(expectedEventIds, tick.Events.Select(item => item.EventId).ToArray(), "td002 post attack hold defense event id order golden");

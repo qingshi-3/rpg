@@ -274,6 +274,7 @@ public sealed partial class BattleRuntimeSession
                 AttackImpactDelaySeconds = attackImpactDelaySeconds
             };
             state.Actors.Add(heroActor);
+            state.TacticalStateStore.SynchronizeActorExecutionCache(heroActor);
             BattleRuntimeActor corpsActor = new()
             {
                 ActorId = $"{sourceForceId}:{sourceForceIndex + 1}",
@@ -298,21 +299,10 @@ public sealed partial class BattleRuntimeSession
                 AttackSpeed = BattleAttackSpeedPolicy.Normalize(group.AttackSpeed),
                 MoveStepSeconds = moveStepSeconds,
                 AttackActionSeconds = attackActionSeconds,
-                AttackImpactDelaySeconds = attackImpactDelaySeconds,
-                CommandId = BattleRuntimeIdentityRules.NormalizeCorpsCommandId(group.InitialCorpsCommandId),
-                EngagementRule = NormalizeEngagementRule(plan.EngagementRule, group.InitialCorpsCommandId),
-                HasObjectiveAnchor = plan.HasObjectiveAnchor,
-                ObjectiveZoneId = plan.ObjectiveZoneId ?? "",
-                ObjectiveGridX = plan.ObjectiveCellX,
-                ObjectiveGridY = plan.ObjectiveCellY,
-                ObjectiveGridHeight = plan.ObjectiveCellHeight,
-                ObjectiveWidth = System.Math.Max(1, plan.ObjectiveWidth),
-                ObjectiveHeight = System.Math.Max(1, plan.ObjectiveHeight),
-                PlanState = plan.HasObjectiveAnchor
-                    ? BattleGroupPlanRuntimeState.AdvancingToObjective
-                    : BattleGroupPlanRuntimeState.SensingContact
+                AttackImpactDelaySeconds = attackImpactDelaySeconds
             };
             state.Actors.Add(corpsActor);
+            state.TacticalStateStore.SynchronizeActorExecutionCache(corpsActor);
             if (BattleRuntimeIdentityRules.IsPlayerFaction(group.FactionId))
             {
                 SeedInitialDestinationBeacon(state, commanderGroupId, plan);
@@ -334,6 +324,12 @@ public sealed partial class BattleRuntimeSession
             return;
         }
 
+        BattleGroupTacticalState commanderState = state.TacticalStateStore.GetRequiredSnapshot(battleGroupId);
+        if (!string.IsNullOrWhiteSpace(commanderState.ActiveDestinationBeaconId))
+        {
+            return;
+        }
+
         string commandId = $"{state.BattleId}:initial_destination_beacon:{battleGroupId}";
         BattleRuntimeDestinationBeacon beacon = new()
         {
@@ -349,17 +345,20 @@ public sealed partial class BattleRuntimeSession
         beacon.OwnerBattleGroupIds.Add(battleGroupId);
         state.DestinationBeacons.Add(beacon);
 
+        state.TacticalStateStore.TryApplyDestinationCommand(
+            battleGroupId,
+            commandId,
+            beacon.BeaconId,
+            beacon.Revision,
+            beacon.Anchor.X,
+            beacon.Anchor.Y,
+            beacon.Anchor.Height,
+            out _);
+
         foreach (BattleRuntimeActor actor in state.Actors.Where(actor =>
                      string.Equals(actor.BattleGroupId ?? "", battleGroupId, System.StringComparison.Ordinal)))
         {
-            actor.CommandId = commandId;
-            actor.ActiveDestinationBeaconId = beacon.BeaconId;
-            actor.ActiveDestinationBeaconRevision = beacon.Revision;
-            actor.ActiveDestinationBeaconGridX = beacon.Anchor.X;
-            actor.ActiveDestinationBeaconGridY = beacon.Anchor.Y;
-            actor.ActiveDestinationBeaconGridHeight = beacon.Anchor.Height;
-            actor.ActiveDestinationBeaconCommandId = commandId;
-            actor.PlanState = BattleGroupPlanRuntimeState.AdvancingToBeacon;
+            state.TacticalStateStore.SynchronizeActorExecutionCache(actor);
             // The seeded beacon is the first player movement intent. Actors still
             // wait for normal Runtime decision boundaries before committing cells.
             BattleRuntimeActorStateMachine.ClearMovementIntentSnapshot(actor);
@@ -679,7 +678,7 @@ public sealed partial class BattleRuntimeSession
         return value >= 1 && value <= BattleActorFootprint.MaxSupportedFootprintSize;
     }
 
-    private static BattleGroupPlanSnapshot ResolveBattleGroupPlan(
+    internal static BattleGroupPlanSnapshot ResolveBattleGroupPlan(
         BattleGroupSnapshot group,
         IReadOnlyList<BattleObjectiveZoneSnapshot> objectiveZones)
     {
@@ -771,19 +770,18 @@ public sealed partial class BattleRuntimeSession
         string battleId,
         BattleRuntimeState state)
     {
-        foreach (BattleRuntimeActor actor in state?.Actors?.Where(item =>
-                     item.Kind == BattleRuntimeActorKind.Corps &&
+        foreach (BattleGroupTacticalState commanderState in state?.TacticalStates.Values.Where(item =>
                      BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId) &&
-                     !string.IsNullOrWhiteSpace(item.CommandId)) ?? Enumerable.Empty<BattleRuntimeActor>())
+                     !string.IsNullOrWhiteSpace(item.ActiveCommandId)) ?? Enumerable.Empty<BattleGroupTacticalState>())
         {
             stream.Add(new BattleEvent
             {
-                EventId = $"{battleId}:{actor.ActorId}:initial_command",
+                EventId = $"{battleId}:{commanderState.BattleGroupId}:initial_command",
                 BattleId = battleId,
-                BattleGroupId = actor.BattleGroupId,
-                ActorId = actor.ActorId,
+                BattleGroupId = commanderState.BattleGroupId,
+                SourceCommandId = commanderState.ActiveCommandId,
                 Kind = BattleEventKind.CommandAccepted,
-                ReasonCode = actor.CommandId
+                ReasonCode = commanderState.ActiveCommandId
             });
         }
     }
@@ -793,19 +791,17 @@ public sealed partial class BattleRuntimeSession
         string battleId,
         BattleRuntimeState state)
     {
-        foreach (BattleRuntimeActor actor in state?.Actors?.Where(item =>
-                     item.Kind == BattleRuntimeActorKind.Corps &&
-                     BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId)) ?? Enumerable.Empty<BattleRuntimeActor>())
+        foreach (BattleGroupTacticalState commanderState in state?.TacticalStates.Values.Where(item =>
+                     BattleRuntimeIdentityRules.IsPlayerFaction(item.FactionId)) ?? Enumerable.Empty<BattleGroupTacticalState>())
         {
             stream.Add(new BattleEvent
             {
-                EventId = $"{battleId}:{actor.ActorId}:initial_plan",
+                EventId = $"{battleId}:{commanderState.BattleGroupId}:initial_plan",
                 BattleId = battleId,
-                BattleGroupId = actor.BattleGroupId,
-                ActorId = actor.ActorId,
-                TargetId = actor.ObjectiveZoneId ?? "",
+                BattleGroupId = commanderState.BattleGroupId,
+                TargetId = commanderState.ObjectiveZoneId ?? "",
                 Kind = BattleEventKind.BattleGroupPlanAccepted,
-                ReasonCode = actor.EngagementRule.ToString()
+                ReasonCode = commanderState.EngagementRule.ToString()
             });
         }
     }

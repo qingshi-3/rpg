@@ -278,9 +278,9 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 	private bool TryResolveActiveBattleRequest(out BattleStartRequest request)
 	{
 		if (TryResolveActiveBattleContext(out StrategicBattleActiveContext activeContext) &&
-			activeContext.CompatibilityRequest != null)
+			activeContext.PreparationDraft != null)
 		{
-			request = activeContext.CompatibilityRequest;
+			request = activeContext.PreparationDraft;
 			return true;
 		}
 
@@ -335,9 +335,19 @@ public partial class WorldSiteRoot : Control, IBattleMapBoundsSource
 
 	private void CancelActiveBattleLaunch(string reason)
 	{
-		if (_activeStrategicBattleContext != null || StrategicBattleActiveContextStore.HasActiveContext)
+		if (_activeStrategicBattleContext == null &&
+			StrategicBattleActiveContextStore.TryPeek(out StrategicBattleActiveContext storedContext))
 		{
-			StrategicBattleActiveContextStore.Clear(reason);
+			_activeStrategicBattleContext = storedContext;
+		}
+
+		if (_activeStrategicBattleContext != null)
+		{
+			StrategicBattleActiveContextStore.TryClear(
+				_activeStrategicBattleContext.ContextId,
+				_activeStrategicBattleContext.Session?.SessionId,
+				_activeStrategicBattleContext.Snapshot?.SnapshotId,
+				reason);
 			_activeStrategicBattleContext = null;
 			ClearLegacyStrategicBattleHandoff(reason);
 			return;

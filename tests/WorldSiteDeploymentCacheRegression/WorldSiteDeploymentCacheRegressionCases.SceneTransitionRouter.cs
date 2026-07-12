@@ -69,7 +69,7 @@ internal static void SceneTransitionRouterBeginsBattleAndCancelsHandoffOnSceneFa
 internal static void SceneTransitionRouterEntersStrategicBattleThroughActiveContext()
 {
     BattleSessionHandoff.CancelBattle();
-    StrategicBattleActiveContextStore.Clear();
+    ResetActiveContextStore();
     FakeSceneTransitionGateway gateway = new(Error.Ok);
     SceneTransitionRouter router = new(gateway);
     int successCalls = 0;
@@ -99,13 +99,13 @@ internal static void SceneTransitionRouterEntersStrategicBattleThroughActiveCont
     AssertTrue(StrategicBattleActiveContextStore.HasActiveContext, "scene entry should not consume strategic active context");
     AssertTrue(!BattleSessionHandoff.HasActiveLaunch, "scene entry should still not create legacy handoff");
 
-    StrategicBattleActiveContextStore.Clear();
+    ResetActiveContextStore();
 }
 
 internal static void StrategicBattleTransitionClearsStaleLegacyHandoff()
 {
     BattleSessionHandoff.CancelBattle();
-    StrategicBattleActiveContextStore.Clear();
+    ResetActiveContextStore();
     FakeSceneTransitionGateway gateway = new(Error.Ok);
     SceneTransitionRouter router = new(gateway);
     StrategicBattleActiveContext context = BuildSceneTransitionActiveContext("strategic_context_clears_legacy");
@@ -127,14 +127,14 @@ internal static void StrategicBattleTransitionClearsStaleLegacyHandoff()
         !BattleSessionHandoff.HasActiveLaunch,
         "strategic battle transition must clear stale legacy handoff before destination scene entry can read it");
 
-    StrategicBattleActiveContextStore.Clear();
+    ResetActiveContextStore();
     BattleSessionHandoff.CancelBattle();
 }
 
 internal static void SceneTransitionRouterCancelsStrategicActiveContextOnSceneFailure()
 {
     BattleSessionHandoff.CancelBattle();
-    StrategicBattleActiveContextStore.Clear();
+    ResetActiveContextStore();
     FakeSceneTransitionGateway gateway = new(Error.Failed);
     SceneTransitionRouter router = new(gateway);
     int rollbackCalls = 0;
@@ -158,6 +158,36 @@ internal static void SceneTransitionRouterCancelsStrategicActiveContextOnSceneFa
     AssertTrue(!BattleSessionHandoff.HasActiveLaunch, "failed strategic transition must not create legacy handoff");
     AssertEqual(1, rollbackCalls, "failed strategic transition should run supplied rollback once");
     AssertTrue(!router.IsTransitioning, "failed strategic transition should release busy state");
+}
+
+internal static void SceneTransitionRouterStaleFailureCannotClearNewerContext()
+{
+    ResetActiveContextStore();
+    StrategicBattleActiveContext stale = BuildSceneTransitionActiveContext("stale_context");
+    StrategicBattleActiveContext newer = BuildSceneTransitionActiveContext("newer_context");
+    FakeSceneTransitionGateway gateway = new(Error.Failed)
+    {
+        OnChange = () =>
+        {
+    ResetActiveContextStore();
+            AssertTrue(StrategicBattleActiveContextStore.TryBegin(newer, out _), "test should publish newer context before stale failure returns");
+        }
+    };
+    SceneTransitionRouter router = new(gateway);
+    int rollbackCalls = 0;
+
+    SceneTransitionResult result = router.EnterBattlePreparation(new SceneTransitionBattleRequest
+    {
+        ActiveContext = stale,
+        RollbackOnFailure = _ => rollbackCalls++
+    });
+
+    AssertTrue(!result.Success, "stale transition should still report its scene failure");
+    AssertEqual(0, rollbackCalls, "stale failure must not run rollback after identity changed");
+    AssertTrue(
+        StrategicBattleActiveContextStore.TryPeek(newer.ContextId, newer.Session.SessionId, newer.Snapshot.SnapshotId, out StrategicBattleActiveContext active) && ReferenceEquals(newer, active),
+        "stale failure must not clear newer active context");
+    ResetActiveContextStore();
 }
 
 internal static void SceneTransitionRouterRejectsOverlappingTransitions()
@@ -367,11 +397,13 @@ private sealed class FakeSceneTransitionGateway : ISceneTransitionGateway
 
     public int ChangeCalls { get; private set; }
     public string LastScenePath { get; private set; } = "";
+    public Action? OnChange { get; init; }
 
     public Error ChangeSceneToFile(string scenePath, Action onSceneEntered)
     {
         ChangeCalls++;
         LastScenePath = scenePath ?? "";
+        OnChange?.Invoke();
         _onSceneEntered = _result == Error.Ok ? onSceneEntered : null;
         return _result;
     }
@@ -414,5 +446,17 @@ private static StrategicBattleActiveContext BuildSceneTransitionActiveContext(st
             TargetLocationId = "target_location"
         }
     };
+}
+
+private static void ResetActiveContextStore()
+{
+    if (StrategicBattleActiveContextStore.TryPeek(out StrategicBattleActiveContext context))
+    {
+        StrategicBattleActiveContextStore.TryClear(
+            context.ContextId,
+            context.Session?.SessionId,
+            context.Snapshot?.SnapshotId,
+            "test_reset");
+    }
 }
 }

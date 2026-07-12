@@ -211,14 +211,21 @@ DrawWorldArmyMarker(canvas, army);
         foreach (WorldSiteDefinition definition in Definition.SiteDefinitions)
         {
             WorldSiteState state = State.SiteStates[definition.Id];
+            if (!TryBuildStrategicWorldMapSitePresentation(definition.Id, out StrategicWorldMapSitePresentation presentation))
+            {
+                // Unmapped legacy markers stay selectable but expose no inferred
+                // control or command authority until Strategic Management defines them.
+                presentation = StrategicWorldMapSitePresenter.BuildUnavailable(definition.Id);
+            }
+
             Vector2 center = GetSiteMapPosition(definition);
-            Color color = GetSiteColor(state);
+            Color color = presentation.ControlColor;
             bool selected = definition.Id == _selectedSiteId;
             bool hovered = definition.Id == _hoveredSiteId;
 
             if (TryGetSiteVisualMapBounds(definition.Id, out Rect2 visualBounds))
             {
-                DrawSiteVisualOverlay(canvas, state, visualBounds, selected || hovered);
+                DrawSiteVisualOverlay(canvas, state, presentation, visualBounds, selected || hovered);
                 continue;
             }
 
@@ -233,9 +240,14 @@ DrawWorldArmyMarker(canvas, army);
         }
     }
 
-    private static void DrawSiteVisualOverlay(Control canvas, WorldSiteState state, Rect2 visualBounds, bool selected)
+    private static void DrawSiteVisualOverlay(
+        Control canvas,
+        WorldSiteState state,
+        StrategicWorldMapSitePresentation presentation,
+        Rect2 visualBounds,
+        bool selected)
     {
-        Color stateColor = GetSiteColor(state);
+        Color stateColor = presentation.ControlColor;
         Rect2 outline = visualBounds.Grow(selected ? 8.0f : 3.0f);
         if (selected)
         {

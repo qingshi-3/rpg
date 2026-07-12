@@ -4,6 +4,7 @@ using Rpg.Application.Battle.Reports;
 using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Definitions.StrategicManagement;
+using Rpg.Domain.StrategicManagement;
 using Rpg.Runtime.Battle;
 
 namespace Rpg.Application.StrategicBattleBridge;
@@ -89,7 +90,15 @@ public sealed class StrategicBattleActiveContext
     public string ScenePath { get; set; } = "";
     public string ReturnScenePath { get; set; } = "";
     public StrategicBattleSession Session { get; set; } = new();
+    public StrategicBattlePreparationDraft PreparationDraft { get; set; }
+    public BattleStartSnapshot PreparationSeedSnapshot { get; set; } = new();
+    public string PreparationDraftId { get; set; } = "";
+    public long PreparationDraftRevision { get; set; }
+    public string FinalizedDraftId { get; set; } = "";
+    public long FinalizedDraftRevision { get; set; }
     public BattleStartSnapshot Snapshot { get; set; } = new();
+    // Created only after the Draft compiles the final Snapshot. This projection
+    // is outbound compatibility state and never participates in compilation.
     public BattleStartRequest CompatibilityRequest { get; set; }
     public BattleRuntimeSessionResult RuntimeResult { get; set; }
     public SettlementPlan SettlementPlan { get; set; }
@@ -126,6 +135,8 @@ public sealed class StrategicBattleParticipantReference
     public string CorpsDefinitionId { get; set; } = "";
     public string FactionId { get; set; } = "";
     public string SourceLocationId { get; set; } = "";
+    public string RollbackStationLocationId { get; set; } = "";
+    public StrategicBattleParticipantRole Role { get; set; } = StrategicBattleParticipantRole.Unknown;
     public int PreBattleCorpsStrength { get; set; }
     public int CorpsLevel { get; set; }
     public int CorpsEquipmentLevel { get; set; }
@@ -140,6 +151,7 @@ public sealed class StrategicBattleResultSummary
     public BattleOutcome Outcome { get; set; } = BattleOutcome.None;
     public bool ObjectiveSucceeded { get; set; }
     public List<StrategicBattleParticipantResult> Participants { get; set; } = new();
+    public List<StrategicBattleParticipantDisposition> ParticipantDispositions { get; set; } = new();
     public bool HasConsequenceFacts { get; set; }
     public string TargetDisplayName { get; set; } = "";
     public string WorldChangeText { get; set; } = "";
@@ -149,6 +161,15 @@ public sealed class StrategicBattleResultSummary
     public List<string> RewardLines { get; set; } = new();
     public List<StrategicResourceAmount> ResourceRewards { get; set; } = new();
     public List<string> RewardEquipmentSampleIds { get; set; } = new();
+}
+
+public sealed class StrategicBattleParticipantDisposition
+{
+    public string ParticipantId { get; set; } = "";
+    public string HeroId { get; set; } = "";
+    public string CorpsInstanceId { get; set; } = "";
+    public string RollbackStationLocationId { get; set; } = "";
+    public StrategicBattleParticipantRole Role { get; set; } = StrategicBattleParticipantRole.Unknown;
 }
 
 public sealed class StrategicBattleParticipantResult

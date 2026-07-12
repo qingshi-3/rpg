@@ -30,6 +30,7 @@ public sealed class StrategicManagementStateInvariantService
             {
                 if (!state.CorpsInstances.TryGetValue(participant?.CorpsInstanceId ?? "", out StrategicCorpsInstanceState corps) ||
                     corps == null ||
+                    participant.BattleRole == StrategicBattleParticipantRole.Reserve ||
                     corps.Strength <= 0 ||
                     corps.Status == StrategicCorpsInstanceStatus.Routed ||
                     !string.Equals(corps.FactionId, expedition.FactionId, System.StringComparison.Ordinal) ||

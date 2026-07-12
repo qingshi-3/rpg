@@ -99,7 +99,7 @@ internal static class TargetBattleMovementIntentRegressionCases
 
         BattleEvent? plan = controller.EventStream.Events.FirstOrDefault(item =>
             item.Kind == BattleEventKind.BattleGroupPlanAccepted &&
-            item.ActorId == "force_player:1");
+            item.BattleGroupId == "group_player");
         BattleEvent? move = tick.Events.FirstOrDefault(item =>
             item.Kind == BattleEventKind.MovementStarted &&
             item.ActorId == "force_player:1");
@@ -293,7 +293,7 @@ internal static class TargetBattleMovementIntentRegressionCases
 
         BattleEvent? plan = controller.EventStream.Events.FirstOrDefault(item =>
             item.Kind == BattleEventKind.BattleGroupPlanAccepted &&
-            item.ActorId == "force_player:1");
+            item.BattleGroupId == "group_player");
         BattleEvent? move = tick.Events.FirstOrDefault(item =>
             item.Kind == BattleEventKind.MovementStarted &&
             item.ActorId == "force_player:1");

@@ -20,4 +20,13 @@ public sealed class StrategicExpeditionParticipantState
 {
     public string HeroId { get; set; } = "";
     public string CorpsInstanceId { get; set; } = "";
+    public string RollbackStationLocationId { get; set; } = "";
+    public StrategicBattleParticipantRole BattleRole { get; set; } = StrategicBattleParticipantRole.Unknown;
+}
+
+public enum StrategicBattleParticipantRole
+{
+    Unknown = 0,
+    Deployed = 1,
+    Reserve = 2
 }

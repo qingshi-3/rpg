@@ -1,0 +1,58 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Preview/StrategicCityAnchorVisual.cs" id="1_script"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_city"]
+radius = 58.0
+
+[node name="StrategicCityAnchorVisual" type="Area2D"]
+z_index = 20
+collision_layer = 2
+collision_mask = 0
+monitoring = false
+monitorable = false
+input_pickable = true
+script = ExtResource("1_script")
+
+[node name="Shadow" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-47, -18, 47, -18, 47, 34, -47, 34)
+color = Color(0.02, 0.025, 0.03, 0.72)
+
+[node name="Body" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-39, -15, 39, -15, 39, 27, -39, 27)
+color = Color(0.31, 0.682, 0.91, 1)
+
+[node name="Battlements" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-39, -15, -39, -32, -24, -32, -24, -21, -9, -21, -9, -34, 9, -34, 9, -21, 24, -21, 24, -32, 39, -32, 39, -15)
+color = Color(0.42, 0.76, 0.96, 1)
+
+[node name="Gate" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(-10, 27, -10, 4, 0, -6, 10, 4, 10, 27)
+color = Color(0.06, 0.075, 0.09, 0.92)
+
+[node name="FlagPole" type="Line2D" parent="."]
+points = PackedVector2Array(10, -31, 10, -70)
+width = 4.0
+default_color = Color(0.75, 0.9, 1, 1)
+antialiased = true
+
+[node name="Flag" type="Polygon2D" parent="."]
+polygon = PackedVector2Array(12, -68, 48, -57, 12, -47)
+color = Color(0.55, 0.84, 1, 1)
+
+[node name="NameLabel" type="Label" parent="."]
+offset_left = -72.0
+offset_top = 42.0
+offset_right = 72.0
+offset_bottom = 76.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.94, 0.94, 0.88, 0.96)
+theme_override_colors/font_outline_color = Color(0.02, 0.025, 0.03, 0.95)
+theme_override_constants/outline_size = 6
+theme_override_font_sizes/font_size = 26
+text = "城池"
+horizontal_alignment = 1
+
+[node name="HitShape" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_city")
+position = Vector2(0, -10)

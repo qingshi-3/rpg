@@ -189,7 +189,7 @@ Presentation/UI uses three hover paths:
 2. Complex hover detail uses an authored tooltip scene. The scene should be instantiated through `GameUiSceneFactory` or an equivalent resource-backed factory path, and local widgets should bind display data rather than building ad hoc tooltip control trees in code.
 3. Map, battle, construction placement, deployment, debug, and other world-space hover overlays remain owned by their subsystem presenters. They still must share the common Presentation styling and expose clear naming, positioning, and data-source boundaries.
 
-Complex tooltip scenes should use accepted theme variations such as `WorldContextCard` unless a focused proposal accepts a different style. They should keep the triggering control compact and move secondary facts into the hover surface only when those facts help the current context.
+Complex tooltip scenes should use accepted theme variations such as `WorldContextCard` unless confirmed discussion updates the Presentation authority to accept a different style. They should keep the triggering control compact and move secondary facts into the hover surface only when those facts help the current context.
 
 World-space hover overlays are not generic UI tooltips. Battle grid hover frames, unit health-bar hover visibility, construction footprint previews, deployment previews, and debug hover panels belong to their owning presentation subsystem. They may share layout helpers or style resources, but their interaction rules stay with the subsystem that owns the active viewport context.
 

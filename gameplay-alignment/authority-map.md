@@ -1,40 +1,33 @@
 # Authority Map
 
-This document records which document family wins when older material conflicts with the new direction.
+This document records which sources control gameplay, architecture, and execution under the active work-item workflow.
 
 ## Authority Order
 
 1. `gameplay-design/`: accepted player-facing gameplay and content-system rules.
-2. `system-design/`: accepted implementation architecture and system contracts.
-3. `gameplay-alignment/implementation-proposals/`: implementation proposals and acceptance records, only when they reference current accepted authority documents.
-4. `design-proposals/active/<proposal>/expected/`: proposal-stage document changes; not code implementation authority.
-5. `design-proposals/archived/`: historical records; not active authority.
+2. `system-design/`: accepted implementation architecture, system ownership, data flow, and contracts.
 
-## Default Conflict Rule
+Code, resources, active work items, gap registers, workstream records, and historical records are evidence or execution context. They do not override accepted gameplay or system authority.
 
-When implementation proposals, active proposals, code, resources, or historical notes conflict with accepted `gameplay-design/` or `system-design/`, do not silently follow the lower-authority source.
+## Discussion And Execution Rule
 
-Instead:
+A user-confirmed discussion result controls the current task through one self-contained document in `work-items/active/`. If the result changes a durable gameplay or architecture rule, synchronize the relevant authority document at the start of execution before modifying implementation.
+
+When sources conflict:
 
 ```text
 identify the conflict
--> register or update a gap
--> use a design proposal if authority documents must change
--> archive the design proposal after accepted documents are updated
--> use a focused implementation proposal before code changes
--> repair implementation and historical notes through that scoped workstream
+-> return to discussion
+-> obtain user confirmation
+-> create or update the active work item
+-> update gameplay or system authority when durable rules changed
+-> execute and verify against the confirmed active work item and current authority
 ```
 
-## Active Proposal Rule
+Do not reinterpret accepted design from local code, resources, work records, or historical proposals. If implementation exposes a missing or wrong rule, stop execution and return to discussion.
 
-Active design proposals are for changing accepted documents. They do not authorize code changes directly. After a design proposal is accepted, merge it into the authority documents and archive it before starting implementation planning.
+## Work And History Routes
 
-Implementation work starts from a focused implementation proposal under `gameplay-alignment/implementation-proposals/`, not from `design-proposals/active/`.
+`work-items/README.md` defines the active task lifecycle. Execution requires a confirmed active work item, and direction conflicts return that item to `Needs Discussion`.
 
-Proposal relationship metadata must be visible in the default AI-readable proposal entry, not buried in deep notes. At minimum, record the requirement id, parent proposal, supersedes/superseded-by links, amends/amended-by links, related implementation proposal, and affected authority documents.
-
-Archived proposals remain immutable historical records. If a rollback, reopen, amendment, or supersession is needed, create a new proposal and update only index/relationship metadata on the archived entry so future agents can follow the chain without reading archived bodies.
-
-## Archived Proposal Rule
-
-Archived proposal bodies are not current design input. Read only `design-proposals/archived/README.md` summaries unless the user explicitly requests a specific archive.
+`history/README.md` is the only route to records created under retired workflows. Historical records are not active authority or execution gates. Do not read their bodies unless the user explicitly requests history, resumes that exact subject, or asks for a historical investigation requiring a named record.

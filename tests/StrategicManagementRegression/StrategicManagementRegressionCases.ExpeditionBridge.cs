@@ -302,24 +302,29 @@ internal static partial class StrategicManagementRegressionCases
 
         AssertTrue(result.Success, $"active context should be created, got {result.FailureReason}");
         StrategicBattleActiveContext context = result.Context;
+        BattleStartRequest draft = GetRequiredProperty<BattleStartRequest>(context, "PreparationDraft");
+        BattleStartSnapshot seedSnapshot = GetRequiredProperty<BattleStartSnapshot>(context, "PreparationSeedSnapshot");
         AssertEqual(session.SessionId, context.ContextId, "active context id should match the strategic battle session");
         AssertEqual(session.SessionId, context.Session.SessionId, "active context should retain bridge session");
-        AssertEqual(session.SessionId, context.Snapshot.BattleId, "active context snapshot should target the bridge session");
-        AssertEqual(request, context.CompatibilityRequest, "compatibility request should be retained only as the presentation adapter");
-        AssertEqual(session.SessionId, context.CompatibilityRequest.StrategicBattleSessionId, "compatibility request should be projected with session id");
+        AssertEqual(session.SessionId, seedSnapshot.BattleId, "preparation seed should target the bridge session without becoming the final snapshot");
+        AssertTrue(ReferenceEquals(context.Snapshot, seedSnapshot), "active context may publish only the preparation seed before the draft is accepted");
+        AssertTrue(context.CompatibilityRequest == null, "outbound compatibility projection must not exist before final snapshot compilation");
+        AssertEqual(session.SessionId, GetRequiredProperty<string>(draft, "SessionId"), "draft lineage should retain the bridge session id");
+        AssertTrue(!string.IsNullOrWhiteSpace(GetRequiredProperty<string>(draft, "DraftId")), "draft lineage should expose a stable draft id");
+        AssertTrue(GetRequiredProperty<long>(draft, "Revision") > 0, "draft lineage should expose a positive revision");
         AssertTrue(
-            context.CompatibilityRequest.PlayerForces.All(force => !string.IsNullOrWhiteSpace(force.StrategicCorpsInstanceId)),
-            "active context projection should preserve strategic corps identity on player forces");
+            draft.PlayerForces.All(force => !string.IsNullOrWhiteSpace(force.StrategicCorpsInstanceId)),
+            "bridge draft should preserve strategic corps identity on player forces");
         AssertTrue(
-            context.CompatibilityRequest.PlayerForces.All(force =>
+            draft.PlayerForces.All(force =>
                 GetRequiredProperty<string>(force, "StrategicHeroBattleUnitId") ==
                 definitions.Heroes[StrategicManagementIds.HeroOrdinaryCommander].BattleUnitId),
-            "active context compatibility projection should preserve the hero battle unit id on every participant force");
+            "bridge draft should preserve the hero battle unit id on every participant force");
         AssertTrue(
-            context.CompatibilityRequest.PlayerForces.All(force =>
+            draft.PlayerForces.All(force =>
                 GetRequiredProperty<string>(force, "StrategicCorpsBattleUnitId") ==
                 definitions.Corps[StrategicManagementIds.CorpsShieldLine].BattleUnitId),
-            "active context compatibility projection should preserve the corps battle unit id on every participant force");
+            "bridge draft should preserve the corps battle unit id on every participant force");
     }
 
     internal static void StrategicBattleActiveContextLaunchUsesBridgeSnapshotAuthority()
@@ -339,9 +344,11 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.HeroOrdinaryCommander,
             "request_active_context_snapshot_authority");
         StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
-        string bridgeSnapshotId = context.Snapshot.SnapshotId;
-        string bridgeBattleId = context.Snapshot.BattleId;
-        AttachStrategicLaunchFlatTopology(request);
+        BattleStartRequest draft = GetRequiredProperty<BattleStartRequest>(context, "PreparationDraft");
+        BattleStartSnapshot seedSnapshot = GetRequiredProperty<BattleStartSnapshot>(context, "PreparationSeedSnapshot");
+        string bridgeSnapshotId = seedSnapshot.SnapshotId;
+        string bridgeBattleId = seedSnapshot.BattleId;
+        AttachStrategicLaunchFlatTopology(draft);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
@@ -349,14 +356,19 @@ internal static partial class StrategicManagementRegressionCases
 
         AssertTrue(started, $"active context launch should start Runtime, got {result.FailureReason}");
         AssertEqual(bridgeSnapshotId, result.Snapshot.SnapshotId, "Runtime start should consume the bridge-compiled snapshot");
-        AssertEqual(bridgeSnapshotId, context.Snapshot.SnapshotId, "active context snapshot must not be replaced by legacy request preparation");
+        AssertEqual(bridgeSnapshotId, context.Snapshot.SnapshotId, "active context should publish the final Draft-compiled snapshot under the stable bridge identity");
         AssertEqual(bridgeBattleId, result.Snapshot.BattleId, "Runtime snapshot battle id should remain the bridge session id");
+        AssertEqual(session.SessionId, GetRequiredProperty<string>(result.Snapshot, "StrategicBattleSessionId"), "final snapshot should preserve session lineage");
+        AssertEqual(GetRequiredProperty<string>(draft, "DraftId"), GetRequiredProperty<string>(result.Snapshot, "StrategicBattleDraftId"), "final snapshot should preserve draft lineage");
+        AssertEqual(GetRequiredProperty<long>(draft, "Revision"), GetRequiredProperty<long>(result.Snapshot, "StrategicBattleDraftRevision"), "final snapshot should preserve draft revision");
+        AssertTrue(context.CompatibilityRequest != null, "outbound compatibility projection should be created only after final snapshot compilation");
+        AssertTrue(!ReferenceEquals(context.CompatibilityRequest, draft), "outbound compatibility projection must not alias the accepted Draft");
         AssertTrue(
             result.Snapshot.BattleGroups.All(group => !group.HeroId.StartsWith("probe_", StringComparison.Ordinal)),
             "strategic launch must not use legacy probe-generated hero identities");
     }
 
-    internal static void StrategicBattleActiveContextLaunchSyncsFinalPreparationSnapshot()
+    internal static void StrategicBattleActiveContextLaunchCompilesFinalPreparationDraft()
     {
         var setup = CreateStrategicAssaultExpedition();
         StrategicBattleBridgeService bridge = new(setup.Definitions);
@@ -377,10 +389,12 @@ internal static partial class StrategicManagementRegressionCases
         request.AttackerFactionId = "player";
         request.DefenderFactionId = "enemy";
         StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
-        string bridgeSnapshotId = context.Snapshot.SnapshotId;
-        string bridgeBattleId = context.Snapshot.BattleId;
+        BattleStartRequest draft = GetRequiredProperty<BattleStartRequest>(context, "PreparationDraft");
+        BattleStartSnapshot seedSnapshot = GetRequiredProperty<BattleStartSnapshot>(context, "PreparationSeedSnapshot");
+        string bridgeSnapshotId = seedSnapshot.SnapshotId;
+        string bridgeBattleId = seedSnapshot.BattleId;
 
-        request.ObjectiveZones.Add(new BattleObjectiveZoneSnapshot
+        draft.ObjectiveZones.Add(new BattleObjectiveZoneSnapshot
         {
             ObjectiveZoneId = "enemy_deployment_zone_under_test",
             DisplayName = "Enemy Deployment",
@@ -393,9 +407,8 @@ internal static partial class StrategicManagementRegressionCases
             Width = 4,
             Height = 3
         });
-        foreach (BattleForceRequest playerForce in request.PlayerForces)
+        foreach (BattleForceRequest playerForce in draft.PlayerForces)
         {
-            playerForce.FactionId = "player";
             playerForce.PreferredPlacements.Clear();
             playerForce.PreferredPlacements.Add(new BattleForcePlacementRequest
             {
@@ -405,7 +418,7 @@ internal static partial class StrategicManagementRegressionCases
             });
         }
 
-        request.EnemyForces.Add(new BattleForceRequest
+        draft.EnemyForces.Add(new BattleForceRequest
         {
             ForceId = "enemy_runtime_force",
             SourceKind = "Garrison",
@@ -426,35 +439,177 @@ internal static partial class StrategicManagementRegressionCases
                 new BattleForcePlacementRequest { CellX = 29, CellY = 20, CellHeight = 0 }
             }
         });
-        request.PlayerBattleGroupPlan = new BattleGroupPlanSnapshot
+        draft.PlayerBattleGroupPlan = new BattleGroupPlanSnapshot
         {
             ObjectiveZoneId = "enemy_deployment_zone_under_test",
-            EngagementRule = BattleEngagementRule.AttackFirst
+            EngagementRule = BattleEngagementRule.AttackFirst,
+            InitialFormationId = "guard",
+            HasInitialDestinationBeacon = true,
+            InitialDestinationCellX = 18,
+            InitialDestinationCellY = 20,
+            InitialDestinationCellHeight = 0
         };
-        AttachStrategicLaunchFlatTopology(request);
+        AttachStrategicLaunchFlatTopology(draft);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
             out WorldSiteBattleGroupRuntimeResolveResult result);
 
-        int expectedGroupCount = request.PlayerForces.Sum(force => Math.Max(0, force.Count)) +
-                                request.EnemyForces.Sum(force => Math.Max(0, force.Count));
+        int expectedGroupCount = session.Participants.Count(participant => participant.Role == StrategicBattleParticipantRole.Deployed) +
+                                draft.EnemyForces.Sum(force => Math.Max(0, force.Count));
         AssertTrue(started, $"active context launch should start Runtime, got {result.FailureReason}");
         AssertEqual(bridgeSnapshotId, result.Snapshot.SnapshotId, "launch snapshot should keep the active bridge snapshot id");
         AssertEqual(bridgeBattleId, result.Snapshot.BattleId, "launch snapshot should keep the active bridge battle id");
-        AssertEqual(expectedGroupCount, result.Snapshot.BattleGroups.Count, "Runtime snapshot should include final deployed player and enemy forces");
+        AssertEqual(expectedGroupCount, result.Snapshot.BattleGroups.Count, "Runtime snapshot should include one group per deployed strategic participant plus enemy forces");
         AssertTrue(
             result.Snapshot.BattleGroups.Any(group => group.FactionId == "enemy"),
             "Runtime snapshot should include final enemy battle groups");
         AssertTrue(
-            result.Snapshot.BattleGroups.Any(group => group.FactionId == "player" && group.CellX == 11 && group.CellY == 20),
+            result.Snapshot.BattleGroups.Any(group =>
+                group.SourceForceId == session.Participants[0].ParticipantId &&
+                group.CellX == 11 &&
+                group.CellY == 20),
             "Runtime snapshot should include final player deployment placement");
         AssertTrue(
-            context.Snapshot.BattleGroups.Count == expectedGroupCount,
-            "active context snapshot should be synchronized to the final launch snapshot");
+            ReferenceEquals(context.Snapshot, result.Snapshot) && context.Snapshot.BattleGroups.Count == expectedGroupCount,
+            "active context should publish exactly the final Draft-compiled launch snapshot");
+        AssertTrue(context.CompatibilityRequest != null, "launch should emit an outbound compatibility projection");
+        BattleStartRequest compatibilityProjection = context.CompatibilityRequest ??
+                                                     throw new InvalidOperationException("launch should emit compatibility projection");
+        BattleStartSnapshot publishedSnapshot = context.Snapshot;
+        BattleGroupSnapshot publishedPlayerGroup = publishedSnapshot.BattleGroups.Single(group =>
+            group.SourceForceId == session.Participants[0].ParticipantId);
+        AssertEqual("guard", publishedPlayerGroup.Plan.InitialFormationId, "final formation should come from the accepted Draft");
+        AssertTrue(publishedPlayerGroup.Plan.HasInitialDestinationBeacon, "final initial destination should come from the accepted Draft");
+        AssertEqual(18, publishedPlayerGroup.Plan.InitialDestinationCellX, "final initial destination X should come from the accepted Draft");
+        AssertEqual(20, publishedPlayerGroup.Plan.InitialDestinationCellY, "final initial destination Y should come from the accepted Draft");
+        AssertEqual("enemy_deployment_zone_under_test", publishedPlayerGroup.Plan.ObjectiveZoneId, "final objective should come from the accepted Draft");
+        AssertTrue(
+            publishedSnapshot.ObjectiveZones.Any(zone => zone.ObjectiveZoneId == "enemy_deployment_zone_under_test"),
+            "final objective-zone facts should come from the accepted Draft");
+        compatibilityProjection.PlayerForces.ForEach(force =>
+        {
+            force.PreferredPlacements.Clear();
+            force.PreferredPlacements.Add(new BattleForcePlacementRequest { CellX = 99, CellY = 99, CellHeight = 0 });
+        });
+        compatibilityProjection.PlayerBattleGroupPlan.InitialFormationId = "compatibility_overwrite_forbidden";
+        compatibilityProjection.PlayerBattleGroupPlan.InitialDestinationCellX = 99;
+
+        bool restarted = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
+            context,
+            out WorldSiteBattleGroupRuntimeResolveResult restartResult);
+
+        AssertTrue(!restarted, "a finalized Draft lineage must not be compiled or launched twice");
+        AssertEqual(
+            "strategic_battle_final_snapshot_already_compiled",
+            restartResult.FailureReason,
+            "duplicate final compilation should fail explicitly");
+        AssertTrue(ReferenceEquals(publishedSnapshot, context.Snapshot), "compatibility drift must not replace the final active snapshot");
+        AssertEqual(11, publishedPlayerGroup.CellX, "compatibility drift must not overwrite final deployment facts");
+        AssertEqual(20, publishedPlayerGroup.CellY, "compatibility drift must not overwrite final deployment facts");
+        AssertEqual("guard", publishedPlayerGroup.Plan.InitialFormationId, "compatibility drift must not overwrite final formation facts");
+        AssertEqual(18, publishedPlayerGroup.Plan.InitialDestinationCellX, "compatibility drift must not overwrite final destination facts");
     }
 
-    internal static void StrategicBattleActiveContextLaunchRejectsUnmappedCompatibilityPlayerForce()
+    internal static void StrategicBattleActiveContextLaunchRejectsMissingAndStaleDraftLineage()
+    {
+        var missingSetup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService missingBridge = new(missingSetup.Definitions);
+        StrategicBattleSession missingSession = missingBridge.CreateSession(
+            missingSetup.State,
+            missingSetup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        BattleStartRequest missingSeed = BuildStrategicBattleRequestForHero(
+            missingSetup.Definitions,
+            missingSetup.State,
+            missingBridge,
+            missingSession,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            "request_active_context_missing_draft_lineage");
+        StrategicBattleActiveContext missingContext = missingBridge.CreateActiveContext(
+            missingSetup.State,
+            missingSession,
+            missingSeed).Context;
+        missingContext.PreparationDraft.SessionId = "";
+
+        bool missingStarted = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
+            missingContext,
+            out WorldSiteBattleGroupRuntimeResolveResult missingResult);
+
+        AssertTrue(!missingStarted, "missing draft lineage must fail before Runtime start");
+        AssertEqual("strategic_battle_draft_lineage_missing", missingResult.FailureReason, "missing lineage should expose the named bridge failure");
+        AssertTrue(ReferenceEquals(missingContext.PreparationSeedSnapshot, missingContext.Snapshot), "missing lineage failure must preserve the preparation seed");
+
+        var staleSetup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService staleBridge = new(staleSetup.Definitions);
+        StrategicBattleSession staleSession = staleBridge.CreateSession(
+            staleSetup.State,
+            staleSetup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        BattleStartRequest staleSeed = BuildStrategicBattleRequestForHero(
+            staleSetup.Definitions,
+            staleSetup.State,
+            staleBridge,
+            staleSession,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            "request_active_context_stale_draft_lineage");
+        StrategicBattleActiveContext staleContext = staleBridge.CreateActiveContext(
+            staleSetup.State,
+            staleSession,
+            staleSeed).Context;
+        staleContext.PreparationDraftRevision++;
+
+        bool staleStarted = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
+            staleContext,
+            out WorldSiteBattleGroupRuntimeResolveResult staleResult);
+
+        AssertTrue(!staleStarted, "stale draft lineage must fail before Runtime start");
+        AssertEqual("strategic_battle_draft_lineage_stale", staleResult.FailureReason, "stale lineage should expose the named bridge failure");
+        AssertTrue(ReferenceEquals(staleContext.PreparationSeedSnapshot, staleContext.Snapshot), "stale lineage failure must preserve the preparation seed");
+        AssertTrue(staleContext.CompatibilityRequest == null, "stale lineage failure must not emit compatibility state");
+    }
+
+    internal static void StrategicBattleActiveContextLaunchRejectsMismatchedDraftLineage()
+    {
+        var setup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService bridge = new(setup.Definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            setup.State,
+            setup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        BattleStartRequest request = BuildStrategicBattleRequestForHero(
+            setup.Definitions,
+            setup.State,
+            bridge,
+            session,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            "request_active_context_mismatched_draft");
+        StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
+        BattleStartRequest draft = GetRequiredProperty<BattleStartRequest>(context, "PreparationDraft");
+        System.Reflection.PropertyInfo sessionIdProperty = draft.GetType().GetProperty("SessionId") ??
+                                                          throw new InvalidOperationException("strategic draft should expose SessionId");
+        sessionIdProperty.SetValue(draft, "stale_session");
+        AttachStrategicLaunchFlatTopology(draft);
+        BattleStartSnapshot seedSnapshot = context.Snapshot;
+
+        bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
+            context,
+            out WorldSiteBattleGroupRuntimeResolveResult result);
+
+        AssertTrue(!started, "mismatched draft lineage must fail before Runtime start");
+        AssertEqual(
+            "strategic_battle_draft_session_mismatch",
+            result.FailureReason,
+            "lineage mismatch should expose the named bridge failure");
+        AssertTrue(ReferenceEquals(seedSnapshot, context.Snapshot), "failed lineage validation must not mutate the active snapshot");
+        AssertTrue(context.CompatibilityRequest == null, "failed lineage validation must not emit a compatibility projection");
+        AssertTrue(session.Participants.All(participant => participant.Role == StrategicBattleParticipantRole.Unknown), "failed lineage validation must not freeze participant roles");
+    }
+
+    internal static void StrategicBattleActiveContextLaunchRejectsUnmappedDraftPlayerForce()
     {
         var setup = CreateStrategicAssaultExpedition();
         StrategicBattleBridgeService bridge = new(setup.Definitions);
@@ -471,7 +626,8 @@ internal static partial class StrategicManagementRegressionCases
             StrategicManagementIds.HeroOrdinaryCommander,
             "request_active_context_unmapped_force");
         StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
-        request.PlayerForces.Add(new BattleForceRequest
+        BattleStartRequest draft = GetRequiredProperty<BattleStartRequest>(context, "PreparationDraft");
+        draft.PlayerForces.Add(new BattleForceRequest
         {
             ForceId = "rogue_compatibility_force",
             UnitDefinitionId = "rogue_unit_should_not_be_probed",
@@ -489,13 +645,13 @@ internal static partial class StrategicManagementRegressionCases
                 new BattleForcePlacementRequest { CellX = 12, CellY = 20, CellHeight = 0 }
             }
         });
-        AttachStrategicLaunchFlatTopology(request);
+        AttachStrategicLaunchFlatTopology(draft);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
             out WorldSiteBattleGroupRuntimeResolveResult result);
 
-        AssertTrue(!started, "unmapped compatibility player force must not launch through generated probe identities");
+        AssertTrue(!started, "unmapped Draft player force must not launch through generated probe identities");
         AssertEqual(
             "strategic_battle_launch_participant_mapping_missing",
             result.FailureReason,
@@ -547,9 +703,10 @@ internal static partial class StrategicManagementRegressionCases
             session,
             StrategicManagementIds.HeroOrdinaryCommander,
             "request_active_context_missing_combat_stats");
-        request.PlayerForces[0].AttackDamage = 0;
-        AttachStrategicLaunchFlatTopology(request);
         StrategicBattleActiveContext context = bridge.CreateActiveContext(setup.State, session, request).Context;
+        BattleStartRequest draft = GetRequiredProperty<BattleStartRequest>(context, "PreparationDraft");
+        draft.PlayerForces[0].AttackDamage = 0;
+        AttachStrategicLaunchFlatTopology(draft);
 
         bool started = new WorldSiteBattleGroupRuntimeAdapter().TryStartActiveBattle(
             context,
@@ -707,10 +864,24 @@ internal static partial class StrategicManagementRegressionCases
         };
         request.PlayerForces.Add(new BattleForceRequest
         {
+            ForceId = "ordinary_hero",
+            UnitDefinitionId = definitions.Heroes[ordinary.HeroDefinitionId].BattleUnitId,
+            StrategicParticipantId = ordinary.ParticipantId,
+            Count = 1
+        });
+        request.PlayerForces.Add(new BattleForceRequest
+        {
             ForceId = "ordinary_corps",
             UnitDefinitionId = sharedUnitId,
             StrategicParticipantId = ordinary.ParticipantId,
             Count = 4
+        });
+        request.PlayerForces.Add(new BattleForceRequest
+        {
+            ForceId = "archer_hero",
+            UnitDefinitionId = definitions.Heroes[archer.HeroDefinitionId].BattleUnitId,
+            StrategicParticipantId = archer.ParticipantId,
+            Count = 1
         });
         request.PlayerForces.Add(new BattleForceRequest
         {
@@ -722,8 +893,8 @@ internal static partial class StrategicManagementRegressionCases
 
         bridge.AttachSessionToLegacyRequest(session, request);
 
-        AssertEqual(ordinary.CorpsInstanceId, request.PlayerForces[0].StrategicCorpsInstanceId, "first duplicate force should keep its explicit participant identity");
-        AssertEqual(archer.CorpsInstanceId, request.PlayerForces[1].StrategicCorpsInstanceId, "second duplicate force should not be remapped by shared battle unit id");
+        AssertEqual(ordinary.CorpsInstanceId, request.PlayerForces.Single(force => force.ForceId == "ordinary_corps").StrategicCorpsInstanceId, "first duplicate force should keep its explicit participant identity");
+        AssertEqual(archer.CorpsInstanceId, request.PlayerForces.Single(force => force.ForceId == "archer_corps").StrategicCorpsInstanceId, "second duplicate force should not be remapped by shared battle unit id");
         BattleResult battleResult = new()
         {
             RequestId = request.RequestId,
@@ -740,7 +911,7 @@ internal static partial class StrategicManagementRegressionCases
             request,
             BattleOutcome.Victory,
             participant => string.Equals(participant.ParticipantId, ordinary.ParticipantId, StringComparison.Ordinal)
-                ? 4
+                ? ResolveParticipantInitialCount(request, participant)
                 : 0);
         StrategicBattleResultSummary summary = bridge.BuildResultSummary(context);
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
@@ -764,7 +935,7 @@ internal static partial class StrategicManagementRegressionCases
             "res://return_to_world.tscn",
             "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
 
-        StrategicBattleSnapshotResult snapshotResult = bridge.CompileStartSnapshot(state, session);
+        StrategicBattleSnapshotResult snapshotResult = bridge.CompilePreparationSeedSnapshot(state, session);
 
         AssertTrue(snapshotResult.Success, $"bridge snapshot should compile, got {snapshotResult.FailureReason}");
         BattleStartSnapshot snapshot = snapshotResult.Snapshot;

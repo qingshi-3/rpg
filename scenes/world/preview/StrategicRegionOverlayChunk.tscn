@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Preview/StrategicRegionOverlayChunk.cs" id="1_script"]
+[ext_resource type="Material" path="res://resource/world/preview/strategic_region_overlay_material.tres" id="2_material"]
+
+[node name="StrategicRegionOverlayChunk" type="Node2D"]
+z_index = 2
+script = ExtResource("1_script")
+
+[node name="MaskOverlay" type="ColorRect" parent="."]
+offset_right = 1024.0
+offset_bottom = 1024.0
+mouse_filter = 2
+material = ExtResource("2_material")

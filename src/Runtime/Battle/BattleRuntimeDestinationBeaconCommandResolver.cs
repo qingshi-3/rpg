@@ -4,6 +4,7 @@ using Rpg.Application.Battle.Commands;
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Navigation;
+using Rpg.Runtime.Battle.Tactics;
 
 namespace Rpg.Runtime.Battle;
 
@@ -60,16 +61,37 @@ internal static class BattleRuntimeDestinationBeaconCommandResolver
         }
 
         BattleRuntimeDestinationBeacon beacon = CreateOrMoveBeacon(state, request, groupIds, destination);
+        for (int index = 0; index < groupIds.Length; index++)
+        {
+            string groupId = groupIds[index];
+            if (!state.TacticalStateStore.TryApplyDestinationCommand(
+                    groupId,
+                    commandId,
+                    beacon.BeaconId,
+                    beacon.Revision,
+                    beacon.Anchor.X,
+                    beacon.Anchor.Y,
+                    beacon.Anchor.Height,
+                    out BattleGroupPlanRuntimeState previousPlanState))
+            {
+                continue;
+            }
+
+            BattleGroupTacticalState commanderState = state.TacticalStateStore.GetRequiredSnapshot(groupId);
+            BattlePlanStateEmitter.EmitAppliedTransition(
+                eventStream,
+                battleId,
+                tick,
+                currentTimeSeconds,
+                commanderState,
+                selectedCorps[index],
+                previousPlanState,
+                "destination_beacon_accepted");
+        }
+
         foreach (BattleRuntimeActor actor in state.Actors.Where(actor => groupIds.Contains(actor.BattleGroupId ?? "", System.StringComparer.Ordinal)))
         {
-            actor.CommandId = commandId;
-            actor.ActiveDestinationBeaconId = beacon.BeaconId;
-            actor.ActiveDestinationBeaconRevision = beacon.Revision;
-            actor.ActiveDestinationBeaconGridX = beacon.Anchor.X;
-            actor.ActiveDestinationBeaconGridY = beacon.Anchor.Y;
-            actor.ActiveDestinationBeaconGridHeight = beacon.Anchor.Height;
-            actor.ActiveDestinationBeaconCommandId = commandId;
-            actor.PlanState = BattleGroupPlanRuntimeState.AdvancingToBeacon;
+            state.TacticalStateStore.SynchronizeActorExecutionCache(actor);
             // Replacing a beacon changes the movement intent. Runtime keeps any
             // in-progress action lock, then the next decision boundary rebuilds
             // movement from the new command-scoped flow field.

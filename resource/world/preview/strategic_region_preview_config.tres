@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StrategicRegionPreviewConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Preview/StrategicRegionPreviewConfig.cs" id="1_config"]
+
+[resource]
+script = ExtResource("1_config")
+PreviewBounds = Rect2(2048, 1024, 3072, 2048)
+PlayerCityId = "city_qinghe"
+HostileCityId = "city_chiyan"
+InitialZoom = 0.48
+ReferenceOpacity = 0.78
+TerritoryMaskPath = "res://assets/textures/world/masks/territory/territory_mask.png"
+TerritoryMaskScale = 0.25
+PlayerColor = Color(0.31, 0.682, 0.91, 1)
+HostileColor = Color(0.902, 0.373, 0.271, 1)
+NeutralColor = Color(0.82, 0.741, 0.471, 1)
+IdleRegionAlpha = 0.0
+ContextRegionAlpha = 0.015
+HoverRegionAlpha = 0.12
+SelectedRegionAlpha = 0.18
+RegionOutlineWidth = 3.0
+CityOutlineWidth = 7.0

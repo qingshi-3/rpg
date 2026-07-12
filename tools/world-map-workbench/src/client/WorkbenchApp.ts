@@ -157,6 +157,7 @@ export class WorkbenchApp {
     this.map.getView().fit([0, -this.project.world.height, this.project.world.width, 0], { padding: [60, 60, 60, 60] });
 
     this.select = new Select({
+      layers: this.layers.editableVectorLayers,
       filter: (feature) => {
         const id = this.featureLayerId(feature);
         return id !== undefined && !this.getLayerDefinition(id).locked;
@@ -571,7 +572,7 @@ export class WorkbenchApp {
 
   private activateTerrainPolygon(freehand: boolean): void {
     const interaction = new Draw({ type: "Polygon", freehand });
-    interaction.on("drawstart", () => { this.mutationBefore = this.captureSnapshot(); });
+    this.bindDrawMutation(interaction);
     interaction.on("drawend", (event) => {
       const geometry = writeGameFeatures([event.feature]).features[0]?.geometry;
       if (geometry?.type === "Polygon") this.terrain.fillPolygon(geometry.coordinates[0] as [number, number][], this.selectedTerrainId);
@@ -583,7 +584,7 @@ export class WorkbenchApp {
   private activateLineDraw(featureType: "river" | "road" | "mountain"): void {
     const source = featureType === "river" ? this.layers.waterSource : featureType === "road" ? this.layers.roadSource : this.layers.mountainSource;
     const interaction = new Draw({ source, type: "LineString" });
-    interaction.on("drawstart", () => { this.mutationBefore = this.captureSnapshot(); });
+    this.bindDrawMutation(interaction);
     interaction.on("drawend", (event) => {
       const id = shortId(featureType);
       event.feature.setProperties({
@@ -596,8 +597,7 @@ export class WorkbenchApp {
       });
       event.feature.setId(id);
       if (featureType === "river") this.snapRiverFeature(event.feature);
-      this.finishMutation();
-      this.inspectNewFeature(event.feature, featureType === "river" ? "河流" : featureType === "road" ? "道路" : "山脉");
+      this.finishNewFeature(event.feature, featureType === "river" ? "河流" : featureType === "road" ? "道路" : "山脉");
     });
     this.activeInteraction = interaction;
   }
@@ -616,33 +616,31 @@ export class WorkbenchApp {
 
   private activateLocationDraw(): void {
     const interaction = new Draw({ source: this.layers.locationSource, type: "Point" });
-    interaction.on("drawstart", () => { this.mutationBefore = this.captureSnapshot(); });
+    this.bindDrawMutation(interaction);
     interaction.on("drawend", (event) => {
       const id = shortId(this.selectedLocationType);
       event.feature.setProperties({ locationId: id, name: id, locationType: this.selectedLocationType, detailMapId: "" });
       event.feature.setId(id);
-      this.finishMutation();
-      this.inspectNewFeature(event.feature, "战略地点");
+      this.finishNewFeature(event.feature, "战略地点");
     });
     this.activeInteraction = interaction;
   }
 
   private activateWaterAnchorDraw(): void {
     const interaction = new Draw({ source: this.layers.waterAnchorSource, type: "Point" });
-    interaction.on("drawstart", () => { this.mutationBefore = this.captureSnapshot(); });
+    this.bindDrawMutation(interaction);
     interaction.on("drawend", (event) => {
       const id = shortId(this.selectedWaterAnchorType);
       event.feature.setProperties({ anchorId: id, name: id, anchorType: this.selectedWaterAnchorType });
       event.feature.setId(id);
-      this.finishMutation();
-      this.inspectNewFeature(event.feature, "水系锚点");
+      this.finishNewFeature(event.feature, "水系锚点");
     });
     this.activeInteraction = interaction;
   }
 
   private activateRegionDraw(kind: "territory" | "region"): void {
     const interaction = new Draw({ source: this.layers.regionSource, type: "Polygon" });
-    interaction.on("drawstart", () => { this.mutationBefore = this.captureSnapshot(); });
+    this.bindDrawMutation(interaction);
     interaction.on("drawend", (event) => {
       const id = shortId(kind);
       event.feature.setProperties({
@@ -652,15 +650,21 @@ export class WorkbenchApp {
         direction: kind === "territory" ? "center" : this.selectedRegionDirection,
       });
       event.feature.setId(id);
-      this.finishMutation();
-      this.inspectNewFeature(event.feature, kind === "territory" ? "城域" : "小区域");
+      this.finishNewFeature(event.feature, kind === "territory" ? "城域" : "小区域");
     });
     this.activeInteraction = interaction;
   }
 
-  private inspectNewFeature(feature: Feature, label: string): void {
-    // A completed vector immediately enters the property step so authors never need to rediscover it on the map.
+  private bindDrawMutation(interaction: Draw): void {
+    interaction.on("drawstart", () => { this.mutationBefore = this.captureSnapshot(); });
+    // Esc, workspace changes, and layer locks all abort the sketch; none may leave saving permanently blocked.
+    interaction.on("drawabort", () => { this.mutationBefore = undefined; });
+  }
+
+  private finishNewFeature(feature: Feature, label: string): void {
+    // OpenLayers inserts a drawn feature into its VectorSource after drawend returns; derived data must refresh after that insertion.
     queueMicrotask(() => {
+      this.finishMutation();
       this.activateTool("select");
       this.select.getFeatures().clear();
       this.select.getFeatures().push(feature);
@@ -860,8 +864,10 @@ export class WorkbenchApp {
         imageExtent: [0, -this.project.world.height, this.project.world.width, 0],
       }));
       const maskLayer = this.getLayerDefinition("region-masks");
+      const maskVisibilityChanged = !maskLayer.visible;
       maskLayer.visible = true;
       this.layers.regionMaskLayer.setVisible(true);
+      if (maskVisibilityChanged) this.setDirty(true);
       this.renderLayers();
       this.setStatus("区域产物已生成", "success");
     } catch (error) {
@@ -906,7 +912,17 @@ export class WorkbenchApp {
     if (input.dataset.action === "visible") {
       definition.visible = input.checked;
       layer?.setVisible(input.checked);
+      let stoppedEditing = false;
+      let clearedSelection = false;
+      if (!input.checked) {
+        if (toolLayer[this.activeTool] === definition.id) {
+          this.activateTool("select");
+          stoppedEditing = true;
+        }
+        clearedSelection = this.clearSelectionForLayer(definition.id);
+      }
       this.renderLayers();
+      if (stoppedEditing || clearedSelection) this.setStatus(`${definition.label} 已隐藏，已退出相关编辑`, "warning");
     }
     if (input.dataset.action === "opacity") {
       definition.opacity = Number(input.value);
@@ -935,12 +951,7 @@ export class WorkbenchApp {
       definition.locked = !definition.locked;
       if (definition.locked) {
         if (toolLayer[this.activeTool] === id) this.activateTool("select");
-        const selected = this.select.getFeatures().item(0);
-        if (selected && this.featureLayerId(selected) === id) {
-          this.select.getFeatures().clear();
-          this.renderProperties();
-          if (this.openDrawer === "inspector") this.setDrawer(undefined);
-        }
+        this.clearSelectionForLayer(id);
         this.setStatus(`${definition.label} 已锁定`, "warning");
       } else {
         this.setStatus(`${definition.label} 已解锁`, "info");
@@ -1044,10 +1055,17 @@ export class WorkbenchApp {
       return;
     }
     const before = this.captureSnapshot();
-    const value = input instanceof HTMLInputElement && input.type === "number" ? Number(input.value) : input.value;
-    feature.set(input.dataset.property!, value);
-    const id = feature.get("featureId") ?? feature.get("anchorId") ?? feature.get("locationId") ?? feature.get("regionId");
-    if (id) feature.setId(String(id));
+    const propertyKey = input.dataset.property!;
+    const stableIdKeys = new Set(["featureId", "anchorId", "locationId", "regionId"]);
+    let value: string | number = input instanceof HTMLInputElement && input.type === "number" ? Number(input.value) : input.value;
+    if (stableIdKeys.has(propertyKey)) value = String(value).trim();
+    if (stableIdKeys.has(propertyKey) && value === "") {
+      this.renderProperties();
+      this.setStatus("稳定 ID 不能为空", "warning");
+      return;
+    }
+    feature.set(propertyKey, value);
+    if (stableIdKeys.has(propertyKey)) feature.setId(String(value));
     this.history.commit(before);
     this.setDirty(true);
     this.refreshAfterMutation();
@@ -1076,8 +1094,11 @@ export class WorkbenchApp {
     let lockedLayerLabel: string | undefined;
     if (item.layerId) {
       const definition = this.getLayerDefinition(item.layerId);
-      definition.visible = true;
-      this.layers.byId.get(item.layerId)?.setVisible(true);
+      if (!definition.visible) {
+        definition.visible = true;
+        this.layers.byId.get(item.layerId)?.setVisible(true);
+        this.setDirty(true);
+      }
       const workspace = layerWorkspace[item.layerId];
       this.renderLayers();
       if (workspace) {
@@ -1137,11 +1158,11 @@ export class WorkbenchApp {
 
   private featureLayerId(feature: Feature): LayerId | undefined {
     const featureType = feature.get("featureType");
-    return feature.get("regionId")
+    return feature.get("role") !== undefined || feature.get("cityId") !== undefined
       ? "territories"
-      : feature.get("anchorId")
+      : feature.get("anchorType") !== undefined
         ? "water"
-        : feature.get("locationId")
+        : feature.get("locationType") !== undefined
           ? "strategic-locations"
           : featureType === "river"
             ? "water"
@@ -1150,6 +1171,16 @@ export class WorkbenchApp {
               : featureType === "mountain"
                 ? "mountains"
                 : undefined;
+  }
+
+  private clearSelectionForLayer(layerId: LayerId): boolean {
+    const selected = this.select.getFeatures().getArray();
+    if (!selected.some((feature) => this.featureLayerId(feature) === layerId)) return false;
+    // Clearing the whole collection avoids leaving Shift-multiselected handles active on a newly hidden or locked layer.
+    this.select.getFeatures().clear();
+    this.renderProperties();
+    if (this.openDrawer === "inspector") this.setDrawer(undefined);
+    return true;
   }
 
   private updateHistoryButtons(): void {

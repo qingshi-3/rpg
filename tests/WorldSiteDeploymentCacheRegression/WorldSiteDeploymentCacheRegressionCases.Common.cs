@@ -428,6 +428,14 @@ internal static bool CanForceEnterWater(BattleForceRequest force)
 
 internal static void Run(string name, Action test)
 {
+    string filter = System.Environment.GetEnvironmentVariable("RPG_REGRESSION_FILTER") ?? "";
+    if (!string.IsNullOrWhiteSpace(filter) &&
+        !filter.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Contains(name, StringComparer.Ordinal))
+    {
+        return;
+    }
+
     try
     {
         test();

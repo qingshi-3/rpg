@@ -6,6 +6,8 @@ Status: Accepted Architecture
 
 This architecture supports the accepted Sanguo Qunying-style realtime strategic world and paused city/battle contexts. It defines how geographic data, raster chunks, region artifacts, Godot navigation, and runtime presentation share one large-world contract. It does not decide campaign geography, city balance, fog detection rules, territory-control rules, or battle outcomes.
 
+Player-facing city and smaller-region visuals must satisfy `../gameplay-design/details/strategic-world-region-presentation.md`. This architecture preserves the accepted canonical-data and derived-artifact boundaries, while the formal rendering technique remains open.
+
 ## Responsibility
 
 This document owns:
@@ -31,6 +33,7 @@ This document does not own:
 - strategic AI intent;
 - scene transition ownership;
 - player-facing HUD layout;
+- the exact shader, scene, mask compiler, resources, or rendering method used for formal strategic-region presentation;
 - final chunk-art generation or licensed-asset browsing;
 - automatic derivation of Godot navigation from Web terrain data.
 

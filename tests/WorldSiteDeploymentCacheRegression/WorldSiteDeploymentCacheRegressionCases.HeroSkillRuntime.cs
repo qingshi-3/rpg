@@ -696,8 +696,11 @@ internal static void BattleRuntimePauseTargetClickSubmitsIntentWithoutAdvancingR
     string targetInputBody = ExtractMethodBody(rootSource, "private bool TryHandleBattleRuntimeHeroSkillTargetInput(InputEvent inputEvent)");
 
     AssertTrue(
-        submitBody.Contains("_activeBattleGroupRuntimeResolution?.RuntimeController?.SubmitCommand(commandRequest)", StringComparison.Ordinal),
-        "pause-time skill target click should submit command intent to runtime");
+        submitBody.Contains("new BattleCommandSubmissionService().Submit", StringComparison.Ordinal) &&
+        submitBody.Contains("_activeBattleGroupRuntimeResolution?.Snapshot", StringComparison.Ordinal) &&
+        submitBody.Contains("StrategicWorldRuntime.State?.PlayerFactionId", StringComparison.Ordinal) &&
+        !submitBody.Contains("RuntimeController?.SubmitCommand(commandRequest)", StringComparison.Ordinal),
+        "pause-time skill target click should submit command intent through the Application boundary");
     AssertTrue(
         !submitBody.Contains("AdvanceFixedTick", StringComparison.Ordinal) &&
         !targetInputBody.Contains("AdvanceFixedTick", StringComparison.Ordinal),

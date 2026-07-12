@@ -4,7 +4,7 @@
 
 Global product rules live in `../content-systems-long-term-design.md`.
 
-This document defines the first playable vertical slice as a product target. It is used to decide which feature cases implementation proposals must satisfy before the project calls the first slice playable.
+This document defines the first playable vertical slice as a product target. It is used to decide which feature cases implementation and verification must satisfy before the project calls the first slice playable.
 
 ## Boundary
 
@@ -21,7 +21,7 @@ This document does not own:
 - long-term balance values, full content breadth, or final UI polish;
 - temporary progress tracking.
 
-Implementation work should reference the case ids in this document. If implementation reveals that a case is not achievable without changing accepted gameplay or system authority, use the proposal flow before coding around the conflict.
+Implementation work should reference the case ids in this document. If implementation reveals that a case is not achievable without changing accepted gameplay or system authority, stop and return to discussion; update the relevant authority after user confirmation instead of coding around the conflict.
 
 ## Product Target
 
@@ -481,7 +481,7 @@ The following features are required for the first playable vertical slice:
 | Result and continuation | VS-12, VS-13, VS-14, VS-15 |
 | Equipment sample | VS-16 |
 
-Implementation proposals may split these cases across several work items, but a public playable slice is not accepted until every required case is satisfied or explicitly replaced by an accepted gameplay proposal.
+Implementation may split these cases across several confirmed work items, but a public playable slice is not accepted until every required case is satisfied or explicitly replaced through confirmed discussion and an update to gameplay authority.
 
 ## Slice Non-Goals
 

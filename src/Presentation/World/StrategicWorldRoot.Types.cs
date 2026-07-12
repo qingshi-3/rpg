@@ -30,6 +30,8 @@ public partial class StrategicWorldRoot
     private sealed class PendingBattleLaunchRollback
     {
         public string SiteId { get; set; } = "";
+        public string WorldArmyId { get; set; } = "";
+        public string StrategicExpeditionId { get; set; } = "";
         public bool HasPreviousSiteMode { get; set; }
         public WorldSiteMode PreviousSiteMode { get; set; } = WorldSiteMode.Peacetime;
         public bool PreviousWorldClockPaused { get; set; }

@@ -10,21 +10,9 @@ using Rpg.Runtime.Battle.Events;
 
 internal static partial class TargetBattleEventOrderGoldenRegressionCases
 {
-    // Locks same-tick multi-defeat event order. The snapshot inserts battle groups in
-    // near-reverse-alphabetical order (force_z before force_a) on purpose: if defeated
-    // order followed snapshot insertion, the golden would read force_z -> force_a, but it
-    // reads force_a -> force_z, proving the runtime re-sorts.
-    //
-    // NOTE ON THE TRUE ORDERING SOURCE (the name "dictionary order" is a misnomer):
-    // defeated events iterate postAttackHitPoints, a Dictionary<string,int> built from
-    // tickStartFacts.Values (BattleRuntimeTickResolver.cs:626-629, :684-702). A Dictionary's
-    // StringComparer.Ordinal does NOT order enumeration; enumeration follows insertion order
-    // for an add-only dictionary. The alphabetical result actually comes from upstream:
-    // livingCorps is explicitly OrderBy(ActorId, Ordinal) in
-    // BattleRuntimeTickResolver.Perception.cs (~:18-21), and that order flows into
-    // tickStartFacts -> postAttackHitPoints. This golden therefore guards two things: the
-    // upstream ordinal sort, and the dictionary staying add-only (no Remove). Removing either
-    // would change this sequence and fail here, which is the intended regression signal.
+    // Locks same-tick multi-defeat event order. Actor damage remains actor ordered;
+    // commander transitions are folded afterward in battle-group id order so actor
+    // multiplicity and snapshot-row insertion cannot change semantic event identity.
     internal static void RuntimeMultiDefeatDictionaryOrderGoldenLocksCurrentOrder()
     {
         BattleRuntimeSessionResult result = new BattleRuntimeSession().RunMinimal(BuildMultiDefeatDictionaryOrderSnapshot());
@@ -40,24 +28,18 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
             "battle_multi_defeat_dictionary_order_golden:force_player_z:1:spawned",
             "battle_multi_defeat_dictionary_order_golden:group_player_a:hero:spawned",
             "battle_multi_defeat_dictionary_order_golden:force_player_a:1:spawned",
-            "battle_multi_defeat_dictionary_order_golden:force_player_z:1:initial_command",
-            "battle_multi_defeat_dictionary_order_golden:force_player_a:1:initial_command",
-            "battle_multi_defeat_dictionary_order_golden:force_player_z:1:initial_plan",
-            "battle_multi_defeat_dictionary_order_golden:force_player_a:1:initial_plan",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_a:1:plan:TargetLocked",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_player_a:1:plan:TargetLocked",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_player_z:1:plan:TargetLocked",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_z:1:plan:TargetLocked",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_a:1:plan:Attacking",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_player_a:1:plan:Attacking",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_player_z:1:plan:Attacking",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_z:1:plan:Attacking",
+            "battle_multi_defeat_dictionary_order_golden:group_player_z:initial_command",
+            "battle_multi_defeat_dictionary_order_golden:group_player_a:initial_command",
+            "battle_multi_defeat_dictionary_order_golden:group_player_z:initial_plan",
+            "battle_multi_defeat_dictionary_order_golden:group_player_a:initial_plan",
             "battle_multi_defeat_dictionary_order_golden:tick_0:force_a:1:attack:force_player_a:1",
             "battle_multi_defeat_dictionary_order_golden:tick_0:force_player_a:1:attack:force_a:1",
             "battle_multi_defeat_dictionary_order_golden:tick_0:force_player_z:1:attack:force_z:1",
             "battle_multi_defeat_dictionary_order_golden:tick_0:force_z:1:attack:force_player_z:1",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_a:1:plan:Defeated",
-            "battle_multi_defeat_dictionary_order_golden:tick_0:force_z:1:plan:Defeated",
+            "battle_multi_defeat_dictionary_order_golden:tick_0:group_enemy_a:plan:Defeated",
+            "battle_multi_defeat_dictionary_order_golden:tick_0:group_enemy_z:plan:Defeated",
+            "battle_multi_defeat_dictionary_order_golden:tick_0:group_player_a:plan:Attacking",
+            "battle_multi_defeat_dictionary_order_golden:tick_0:group_player_z:plan:Attacking",
             "battle_multi_defeat_dictionary_order_golden:ended"
         };
         string[] expectedStableProjection =
@@ -71,24 +53,18 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
             "-1:RuntimeActorSpawned:force_player_z:1->:runtime_actor_spawned",
             "-1:RuntimeActorSpawned:group_player_a:hero->:runtime_actor_spawned",
             "-1:RuntimeActorSpawned:force_player_a:1->:runtime_actor_spawned",
-            "-1:CommandAccepted:force_player_z:1->:Assault",
-            "-1:CommandAccepted:force_player_a:1->:Assault",
-            "-1:BattleGroupPlanAccepted:force_player_z:1->:AttackFirst",
-            "-1:BattleGroupPlanAccepted:force_player_a:1->:AttackFirst",
-            "0:BattleGroupPlanStateChanged:force_a:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:force_player_a:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:force_player_z:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:force_z:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:force_a:1->:attacking",
-            "0:BattleGroupPlanStateChanged:force_player_a:1->:attacking",
-            "0:BattleGroupPlanStateChanged:force_player_z:1->:attacking",
-            "0:BattleGroupPlanStateChanged:force_z:1->:attacking",
+            "-1:CommandAccepted:->:Assault",
+            "-1:CommandAccepted:->:Assault",
+            "-1:BattleGroupPlanAccepted:->:AttackFirst",
+            "-1:BattleGroupPlanAccepted:->:AttackFirst",
             "0:DamageApplied:force_a:1->force_player_a:1:auto_attack",
             "0:DamageApplied:force_player_a:1->force_a:1:auto_attack_target_defeated",
             "0:DamageApplied:force_player_z:1->force_z:1:auto_attack_target_defeated",
             "0:DamageApplied:force_z:1->force_player_z:1:auto_attack",
-            "0:BattleGroupPlanStateChanged:force_a:1->:defeated",
-            "0:BattleGroupPlanStateChanged:force_z:1->:defeated",
+            "0:BattleGroupPlanStateChanged:->:defeated",
+            "0:BattleGroupPlanStateChanged:->:defeated",
+            "0:BattleGroupPlanStateChanged:->:attacking",
+            "0:BattleGroupPlanStateChanged:->:attacking",
             "1:BattleEnded:->:NormalVictory"
         };
 
@@ -104,25 +80,21 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
 
         string[] expectedEventIds =
         {
-            "battle_attack_stream_slice_golden:tick_0:player_mover_slice:1:plan:TargetLocked",
-            "battle_attack_stream_slice_golden:tick_0:player_ranged:1:plan:TargetLocked",
-            "battle_attack_stream_slice_golden:tick_0:player_ranged:1:plan:Attacking",
             "battle_attack_stream_slice_golden:tick_0:player_ranged:1:attack:enemy_hold:1",
-            "battle_attack_stream_slice_golden:tick_0:enemy_hold:1:plan:Defeated",
             "battle_attack_stream_slice_golden:tick_0:group_enemy_hold:engagement:engagement_enter_member_damaged",
-            "battle_attack_stream_slice_golden:tick_0:player_mover_slice:1:plan:MovingToAttackSlot",
-            "battle_attack_stream_slice_golden:tick_0:player_mover_slice:1:move_start"
+            "battle_attack_stream_slice_golden:tick_0:player_mover_slice:1:move_start",
+            "battle_attack_stream_slice_golden:tick_0:group_enemy_hold:plan:Defeated",
+            "battle_attack_stream_slice_golden:tick_0:group_player_mover:plan:MovingToAttackSlot",
+            "battle_attack_stream_slice_golden:tick_0:group_player_ranged:plan:Attacking"
         };
         string[] expectedStableProjection =
         {
-            "0:BattleGroupPlanStateChanged:player_mover_slice:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:player_ranged:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:player_ranged:1->:attacking",
             "0:DamageApplied:player_ranged:1->enemy_hold:1:auto_attack_target_defeated",
-            "0:BattleGroupPlanStateChanged:enemy_hold:1->:defeated",
             "0:BattleGroupEngagementStateChanged:enemy_hold:1->player_ranged:1:engagement_enter_member_damaged",
-            "0:BattleGroupPlanStateChanged:player_mover_slice:1->:moving_to_attack_slot",
-            "0:MovementStarted:player_mover_slice:1->enemy_live_slice:1:auto_advance"
+            "0:MovementStarted:player_mover_slice:1->enemy_live_slice:1:auto_advance",
+            "0:BattleGroupPlanStateChanged:->:defeated",
+            "0:BattleGroupPlanStateChanged:->:moving_to_attack_slot",
+            "0:BattleGroupPlanStateChanged:->:attacking"
         };
 
         AssertSequence(expectedEventIds, tick.Events.Select(item => item.EventId).ToArray(), "attack stream slice event id order golden");
@@ -141,29 +113,21 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
 
         string[] expectedEventIds =
         {
-            "battle_same_tick_target_death_retarget:tick_0:enemy_weak:1:plan:TargetLocked",
-            "battle_same_tick_target_death_retarget:tick_0:player_killer:1:plan:TargetLocked",
-            "battle_same_tick_target_death_retarget:tick_0:player_mover:1:plan:TargetLocked",
-            "battle_same_tick_target_death_retarget:tick_0:enemy_weak:1:plan:Attacking",
-            "battle_same_tick_target_death_retarget:tick_0:player_killer:1:plan:Attacking",
             "battle_same_tick_target_death_retarget:tick_0:enemy_weak:1:attack:player_killer:1",
             "battle_same_tick_target_death_retarget:tick_0:player_killer:1:attack:enemy_weak:1",
-            "battle_same_tick_target_death_retarget:tick_0:enemy_weak:1:plan:Defeated",
-            "battle_same_tick_target_death_retarget:tick_0:player_mover:1:plan:MovingToAttackSlot",
-            "battle_same_tick_target_death_retarget:tick_0:player_mover:1:move_start"
+            "battle_same_tick_target_death_retarget:tick_0:player_mover:1:move_start",
+            "battle_same_tick_target_death_retarget:tick_0:group_enemy_weak:plan:Defeated",
+            "battle_same_tick_target_death_retarget:tick_0:group_player_killer:plan:Attacking",
+            "battle_same_tick_target_death_retarget:tick_0:group_player_mover:plan:MovingToAttackSlot"
         };
         string[] expectedStableProjection =
         {
-            "0:BattleGroupPlanStateChanged:enemy_weak:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:player_killer:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:player_mover:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:enemy_weak:1->:attacking",
-            "0:BattleGroupPlanStateChanged:player_killer:1->:attacking",
             "0:DamageApplied:enemy_weak:1->player_killer:1:auto_attack",
             "0:DamageApplied:player_killer:1->enemy_weak:1:auto_attack_target_defeated",
-            "0:BattleGroupPlanStateChanged:enemy_weak:1->:defeated",
-            "0:BattleGroupPlanStateChanged:player_mover:1->:moving_to_attack_slot",
-            "0:MovementStarted:player_mover:1->enemy_live:1:auto_advance"
+            "0:MovementStarted:player_mover:1->enemy_live:1:auto_advance",
+            "0:BattleGroupPlanStateChanged:->:defeated",
+            "0:BattleGroupPlanStateChanged:->:attacking",
+            "0:BattleGroupPlanStateChanged:->:moving_to_attack_slot"
         };
 
         AssertSequence(expectedEventIds, tick.Events.Select(item => item.EventId).ToArray(), "retarget event id order golden");
@@ -185,21 +149,17 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
 
         string[] expectedEventIds =
         {
-            "battle_same_tick_alternate_reservation:tick_0:player_bottom:1:plan:TargetLocked",
-            "battle_same_tick_alternate_reservation:tick_0:player_top:1:plan:TargetLocked",
-            "battle_same_tick_alternate_reservation:tick_0:player_top:1:plan:MovingToAttackSlot",
             "battle_same_tick_alternate_reservation:tick_0:player_top:1:move_start",
-            "battle_same_tick_alternate_reservation:tick_0:player_bottom:1:plan:MovingToAttackSlot",
-            "battle_same_tick_alternate_reservation:tick_0:player_bottom:1:move_start"
+            "battle_same_tick_alternate_reservation:tick_0:player_bottom:1:move_start",
+            "battle_same_tick_alternate_reservation:tick_0:group_player_bottom:plan:MovingToAttackSlot",
+            "battle_same_tick_alternate_reservation:tick_0:group_player_top:plan:MovingToAttackSlot"
         };
         string[] expectedStableProjection =
         {
-            "0:BattleGroupPlanStateChanged:player_bottom:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:player_top:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:player_top:1->:moving_to_attack_slot",
             "0:MovementStarted:player_top:1->enemy:1:auto_advance",
-            "0:BattleGroupPlanStateChanged:player_bottom:1->:moving_to_attack_slot",
-            "0:MovementStarted:player_bottom:1->enemy:1:auto_advance"
+            "0:MovementStarted:player_bottom:1->enemy:1:auto_advance",
+            "0:BattleGroupPlanStateChanged:->:moving_to_attack_slot",
+            "0:BattleGroupPlanStateChanged:->:moving_to_attack_slot"
         };
 
         AssertSequence(expectedEventIds, tick.Events.Select(item => item.EventId).ToArray(), "reservation tiebreak event id order golden");
@@ -235,13 +195,13 @@ internal static partial class TargetBattleEventOrderGoldenRegressionCases
 
         string[] expectedEventIds =
         {
-            "battle_failed_attack_contexts:tick_0:force_empty:1:plan:TargetLocked",
-            "battle_failed_attack_contexts:tick_0:force_out:1:plan:TargetLocked"
+            "battle_failed_attack_contexts:tick_0:group_force_empty:plan:TargetLocked",
+            "battle_failed_attack_contexts:tick_0:group_force_out:plan:TargetLocked"
         };
         string[] expectedStableProjection =
         {
-            "0:BattleGroupPlanStateChanged:force_empty:1->:target_locked",
-            "0:BattleGroupPlanStateChanged:force_out:1->:target_locked"
+            "0:BattleGroupPlanStateChanged:->:target_locked",
+            "0:BattleGroupPlanStateChanged:->:target_locked"
         };
         string log = File.Exists(GameLog.CurrentLogPath) ? File.ReadAllText(GameLog.CurrentLogPath) : "";
 

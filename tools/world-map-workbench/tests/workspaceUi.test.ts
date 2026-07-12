@@ -36,8 +36,6 @@ describe("task workspace information architecture", () => {
   });
 
   it("enters object workspaces in a safe selection state", () => {
-    for (const workspaceId of ["networks", "locations", "regions", "review"] as const) {
-      expect(workspaceUiDefinitions.find((workspace) => workspace.id === workspaceId)?.defaultTool).toBe("select");
-    }
+    for (const workspace of workspaceUiDefinitions) expect(workspace.defaultTool).toBe("select");
   });
 });

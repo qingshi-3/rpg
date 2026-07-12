@@ -13,6 +13,7 @@ internal static class TargetBattleLayeredRuntimeRegressionCases
         run("probe force count rows share runtime commander identity", ProbeForceCountRowsShareRuntimeCommanderIdentity);
         run("runtime groups perception by commander identity", RuntimeGroupsPerceptionByCommanderIdentity);
         run("player commanded group enters player scoped engagement from perception", PlayerCommandedGroupEntersPlayerScopedEngagementFromPerception);
+        run("battle group commander state and events ignore actor multiplicity", BattleGroupCommanderStateAndEventsIgnoreActorMultiplicity);
     }
 
     private static void ProbeForceCountRowsShareRuntimeCommanderIdentity()
@@ -74,6 +75,141 @@ internal static class TargetBattleLayeredRuntimeRegressionCases
         AssertTrue(playerState.LocalCombatRegion != null, "player scoped engagement should enable a local combat region");
         AssertEqual("player_company", playerState.LocalCombatRegion!.OwnerBattleGroupId, "local combat owner should be the commander id");
     }
+
+    private static void BattleGroupCommanderStateAndEventsIgnoreActorMultiplicity()
+    {
+        CommanderMultiplicityObservation single = ObserveCommanderMultiplicity(1);
+        CommanderMultiplicityObservation pair = ObserveCommanderMultiplicity(2);
+        CommanderMultiplicityObservation many = ObserveCommanderMultiplicity(4);
+
+        AssertEqual(1, single.InitialPlanEventCount, "one commander should emit one initial plan event");
+        AssertEqual(single.InitialPlanEventCount, pair.InitialPlanEventCount, "two actors must not duplicate the initial commander plan event");
+        AssertEqual(single.InitialPlanEventCount, many.InitialPlanEventCount, "N actors must not duplicate the initial commander plan event");
+        AssertEqual(1, single.CommandAcceptedEventCount, "one accepted group command should emit one accepted event");
+        AssertEqual(single.CommandAcceptedEventCount, pair.CommandAcceptedEventCount, "two actors must not duplicate command acceptance");
+        AssertEqual(single.CommandAcceptedEventCount, many.CommandAcceptedEventCount, "N actors must not duplicate command acceptance");
+        AssertEqual(1, single.CommandPlanTransitionEventCount, "accepted destination command should transition commander plan state once");
+        AssertEqual(single.CommandPlanTransitionEventCount, pair.CommandPlanTransitionEventCount, "two actors must not duplicate command plan transition");
+        AssertEqual(single.CommandPlanTransitionEventCount, many.CommandPlanTransitionEventCount, "N actors must not duplicate command plan transition");
+        AssertEqual(1, single.CommanderVersionDelta, "accepted command should mutate the group authority exactly once");
+        AssertEqual(single.CommanderVersionDelta, pair.CommanderVersionDelta, "two actors must not advance commander authority more than once");
+        AssertEqual(single.CommanderVersionDelta, many.CommanderVersionDelta, "N actors must not advance commander authority more than once");
+        AssertSequence(single.DecisionTransitionEventIds, pair.DecisionTransitionEventIds, "two actors should follow the same group transition event sequence");
+        AssertSequence(single.DecisionTransitionEventIds, many.DecisionTransitionEventIds, "N actors should follow the same group transition event sequence");
+    }
+
+    private static CommanderMultiplicityObservation ObserveCommanderMultiplicity(int actorCount)
+    {
+        const string battleId = "battle_commander_multiplicity";
+        const string commanderGroupId = "player_company";
+        const string commandId = "command_commander_multiplicity";
+        BattleRuntimeSessionController decisionController = new BattleRuntimeSession()
+            .Begin(BuildCommanderMultiplicitySnapshot(actorCount, battleId));
+        int initialPlanEventCount = decisionController.EventStream.Events.Count(item =>
+            item.Kind == Rpg.Runtime.Battle.Events.BattleEventKind.BattleGroupPlanAccepted &&
+            item.BattleGroupId == commanderGroupId);
+
+        decisionController.AdvanceFixedTick();
+        string[] decisionTransitionEventIds = decisionController.EventStream.Events
+            .Where(item =>
+                item.Kind == Rpg.Runtime.Battle.Events.BattleEventKind.BattleGroupPlanStateChanged &&
+                item.BattleGroupId == commanderGroupId)
+            .Select(item => item.EventId)
+            .ToArray();
+
+        BattleRuntimeSessionController commandController = new BattleRuntimeSession()
+            .Begin(BuildCommanderMultiplicitySnapshot(actorCount, battleId));
+        int versionBeforeCommand = commandController.State.TacticalStates[commanderGroupId].Version;
+        BattleRuntimeCommandSubmitResult submit = commandController.SubmitCommand(new Rpg.Application.Battle.Commands.CommandRequest
+        {
+            CommandId = commandId,
+            BattleId = battleId,
+            BattleGroupId = commanderGroupId,
+            Channel = Rpg.Application.Battle.Commands.CommandChannel.Combined,
+            Kind = Rpg.Application.Battle.Commands.CommandKind.DestinationBeacon,
+            HasTargetGrid = true,
+            TargetGridX = 4,
+            TargetGridY = 0,
+            TargetGridHeight = 0,
+            BattleGroupIds = { commanderGroupId }
+        });
+        AssertTrue(submit.Accepted, $"multiplicity command should be accepted for {actorCount} actors: {submit.ReasonCode}");
+        int versionAfterCommand = commandController.State.TacticalStates[commanderGroupId].Version;
+        int commandAcceptedEventCount = commandController.EventStream.Events.Count(item =>
+            item.Kind == Rpg.Runtime.Battle.Events.BattleEventKind.CommandAccepted &&
+            item.SourceCommandId == commandId);
+        int commandPlanTransitionEventCount = commandController.EventStream.Events.Count(item =>
+            item.Kind == Rpg.Runtime.Battle.Events.BattleEventKind.BattleGroupPlanStateChanged &&
+            item.BattleGroupId == commanderGroupId &&
+            item.ReasonCode == "destination_beacon_accepted");
+        BattleRuntimeActor staleActorCache = commandController.State.Actors.First(item =>
+            item.Kind == BattleRuntimeActorKind.Corps &&
+            item.BattleGroupId == commanderGroupId);
+        staleActorCache.CommandId = "stale_actor_command";
+        staleActorCache.ActiveDestinationBeaconId = "stale_actor_beacon";
+        staleActorCache.PlanState = BattleGroupPlanRuntimeState.Defeated;
+        commandController.AdvanceFixedTick();
+        AssertEqual(commandId, staleActorCache.CommandId, "stale actor command cache must be replaced from group authority before decisions");
+        AssertTrue(staleActorCache.ActiveDestinationBeaconId != "stale_actor_beacon", "stale actor beacon cache must not win over group authority");
+        AssertTrue(staleActorCache.PlanState != BattleGroupPlanRuntimeState.Defeated, "stale actor plan cache must not defeat the commander group");
+
+        return new CommanderMultiplicityObservation(
+            initialPlanEventCount,
+            commandAcceptedEventCount,
+            commandPlanTransitionEventCount,
+            versionAfterCommand - versionBeforeCommand,
+            decisionTransitionEventIds);
+    }
+
+    private static BattleStartSnapshot BuildCommanderMultiplicitySnapshot(
+        int actorCount,
+        string battleId)
+    {
+        BattleStartSnapshot snapshot = new()
+        {
+            SnapshotId = $"snapshot_{battleId}",
+            BattleId = battleId,
+            TargetLocationId = "site_1"
+        };
+        for (int index = 0; index < actorCount; index++)
+        {
+            snapshot.BattleGroups.Add(BuildGroup(
+                $"player_row_{index}",
+                "player_company",
+                "player",
+                $"player_force_{index}",
+                0,
+                index,
+                BattleGroupTacticalMode.PlayerCommanded));
+        }
+
+        snapshot.BattleGroups.Add(BuildGroup(
+            "enemy_row",
+            "enemy_company",
+            "enemy",
+            "enemy_force",
+            8,
+            0,
+            BattleGroupTacticalMode.EnemyHoldDefense,
+            initialCommandId: "HoldLine"));
+        for (int x = 0; x <= 8; x++)
+        {
+            for (int y = 0; y < Math.Max(1, actorCount); y++)
+            {
+                AddSurface(snapshot, x, y);
+            }
+        }
+
+        BattleNavigationTestTopology.Compile(snapshot.LocationContext);
+        return snapshot;
+    }
+
+    private sealed record CommanderMultiplicityObservation(
+        int InitialPlanEventCount,
+        int CommandAcceptedEventCount,
+        int CommandPlanTransitionEventCount,
+        int CommanderVersionDelta,
+        IReadOnlyList<string> DecisionTransitionEventIds);
 
     private static BattleStartSnapshot BuildCommanderPerceptionSnapshot()
     {

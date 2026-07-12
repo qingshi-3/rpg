@@ -10,10 +10,179 @@
   },
   "strategicLocations": {
     "type": "FeatureCollection",
-    "features": []
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [2800, 1950]
+        },
+        "properties": {
+          "locationId": "city_qinghe",
+          "name": "青河城",
+          "locationType": "city"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [4500, 1660]
+        },
+        "properties": {
+          "locationId": "city_chiyan",
+          "name": "赤岩城",
+          "locationType": "city"
+        }
+      }
+    ]
   },
   "regions": {
     "type": "FeatureCollection",
-    "features": []
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[2160, 1780], [2360, 1490], [2515, 1825], [2670, 2160], [2320, 2120], [2160, 1780]]]
+        },
+        "properties": {
+          "regionId": "qinghe_fan",
+          "cityId": "city_qinghe",
+          "role": "river-fan",
+          "direction": "west"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[2360, 1490], [2820, 1540], [2905, 1820], [2515, 1825], [2360, 1490]]]
+        },
+        "properties": {
+          "regionId": "qinghe_forest_ribbon",
+          "cityId": "city_qinghe",
+          "role": "forest-ribbon",
+          "direction": "northwest"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[2515, 1825], [2905, 1820], [2990, 2100], [2670, 2160], [2515, 1825]]]
+        },
+        "properties": {
+          "regionId": "qinghe_core",
+          "cityId": "city_qinghe",
+          "role": "city-core",
+          "direction": "north"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[2820, 1540], [3220, 1690], [3260, 2040], [2990, 2100], [2905, 1820], [2820, 1540]]]
+        },
+        "properties": {
+          "regionId": "qinghe_bottleneck",
+          "cityId": "city_qinghe",
+          "role": "river-bottleneck",
+          "direction": "east"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[3220, 1690], [3370, 2020], [3020, 2670], [2570, 2720], [3150, 2400], [3260, 2040], [3220, 1690]]]
+        },
+        "properties": {
+          "regionId": "qinghe_river_delta",
+          "cityId": "city_qinghe",
+          "role": "river-delta",
+          "direction": "south"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[3650, 2580], [3580, 2100], [3970, 2130], [3970, 2430], [3650, 2580]]]
+        },
+        "properties": {
+          "regionId": "chiyan_wasteland",
+          "cityId": "city_chiyan",
+          "role": "wasteland",
+          "direction": "southwest"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[3580, 2100], [3720, 1580], [4080, 1850], [3970, 2130], [3580, 2100]]]
+        },
+        "properties": {
+          "regionId": "chiyan_west_ridge",
+          "cityId": "city_chiyan",
+          "role": "mountain-ridge",
+          "direction": "west"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[3720, 1580], [4300, 1450], [4300, 1810], [4080, 1850], [3720, 1580]]]
+        },
+        "properties": {
+          "regionId": "chiyan_pass",
+          "cityId": "city_chiyan",
+          "role": "mountain-pass",
+          "direction": "northwest"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[4300, 1450], [4880, 1580], [4520, 1850], [4300, 1810], [4300, 1450]]]
+        },
+        "properties": {
+          "regionId": "chiyan_high_basin",
+          "cityId": "city_chiyan",
+          "role": "mountain-basin",
+          "direction": "north"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[4880, 1580], [5020, 2100], [4630, 2130], [4520, 1850], [4880, 1580]]]
+        },
+        "properties": {
+          "regionId": "chiyan_east_ridge",
+          "cityId": "city_chiyan",
+          "role": "mountain-ridge",
+          "direction": "east"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [[[5020, 2100], [4950, 2600], [4630, 2440], [4630, 2130], [5020, 2100]]]
+        },
+        "properties": {
+          "regionId": "chiyan_mine",
+          "cityId": "city_chiyan",
+          "role": "mine",
+          "direction": "southeast"
+        }
+      }
+    ]
   }
 }

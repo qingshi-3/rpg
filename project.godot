@@ -8,11 +8,15 @@
 
 config_version=5
 
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
+
 [application]
 
 config/name="rpg"
 run/main_scene="res://scenes/world/StrategicWorldRoot.tscn"
-config/features=PackedStringArray("4.5", "C#", "GL Compatibility")
+config/features=PackedStringArray("4.7", "C#", "GL Compatibility")
 run/max_fps=60
 config/icon="res://icon.svg"
 
@@ -38,16 +42,16 @@ folder_colors={
 "res://assets/": "red",
 "res://config/": "yellow",
 "res://demo/": "gray",
-"res://design-proposals/": "gray",
-"res://docs/": "yellow",
 "res://gameplay-alignment/": "gray",
 "res://gameplay-design/": "gray",
+"res://history/": "gray",
 "res://outputs/": "gray",
 "res://resource/": "orange",
 "res://src/": "teal",
 "res://system-design/": "gray",
 "res://tests/": "green",
-"res://tools/": "purple"
+"res://tools/": "purple",
+"res://work-items/": "gray"
 }
 
 [gui]

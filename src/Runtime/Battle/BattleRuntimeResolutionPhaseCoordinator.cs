@@ -62,6 +62,13 @@ internal static class BattleRuntimeResolutionPhaseCoordinator
         performanceCounters?.RecordMovementResolveElapsedTicks(Stopwatch.GetTimestamp() - movementResolveStartedAt);
         performanceCounters?.RecordActorsReadyNoMoveLastAdvance(decisionPhase.DecisionReadyActorCount - movementEvents);
         BattleMovementController.ClearEndedMovementChains(state.Actors, movementCompletedActorIds);
+        BattleGroupCommanderTransitionCoordinator.Apply(
+            state,
+            contexts,
+            stream,
+            battleId,
+            tick,
+            currentTimeSeconds);
 
         return new BattleRuntimeResolutionPhaseResult(contexts, movementEvents);
     }

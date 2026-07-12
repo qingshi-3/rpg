@@ -80,6 +80,8 @@ State includes:
 - hero strategic state, corps assignment, and skill grants or loadout slots;
 - expedition state;
 - strategic pending-battle or resolved-battle markers when needed.
+- each active expedition participant's exact valid pre-departure rollback station;
+- committed battle-settlement identity keyed by expedition, session, and snapshot, including the original feedback/settlement identity returned by exact replay.
 
 State does not include UI selection, TileMap node state, battle Runtime actors, deployment drag state, or derived availability booleans. Facts such as "this city can muster wolf pack assault" are derived from state plus definitions, not stored as separate authority.
 
@@ -124,6 +126,8 @@ Commands include:
 - apply a battle result summary to strategic state.
 
 Commands call rules before mutating state. They return explicit success, failure reasons, changed facts, and strategic events.
+
+Battle-result application is orchestrated as a candidate-state transaction around the command boundary: apply to an isolated candidate, durably save the complete candidate, publish it as current state, then consume the identity-matched Bridge Active Context. A save failure leaves the prior live state and context retryable. Exact committed replay returns the recorded successful settlement identity; a conflicting replay fails without duplicate rewards, losses, capture, or feedback.
 
 Elapsed-time settlement commands are internal strategic commands, not player-facing turn buttons. They may be called by the world-map time controller, diagnostics, tests, or later accepted gameplay flows. They must not be exposed as a generic Civilization-style "end turn" action.
 
@@ -279,6 +283,8 @@ Any retained legacy path is an explicit adapter or presentation-only carrier. It
 ## Contracts
 
 - Strategic state can be mutated only through Strategic Management commands.
+- Expedition creation captures every participant's valid current station before clearing the corps station field. Cancellation and battle-entry rollback validate the complete restoration plan before changing any hero, corps, expedition, or carrier association, then restore those exact stations without partial mutation.
+- Strategic save documents are versioned and migrate incrementally. The current save is promoted only from a flushed same-directory staging document, preserving a recoverable previous complete document where supported; load accepts only a complete current or recoverable previous document and never treats a null state as a new campaign.
 - Elapsed strategic time can advance only through the strategic world-map time controller or explicit diagnostics/tests.
 - City management, battle preparation, battle execution, dialogue, and reports pause world-map elapsed time by default.
 - City-management commands must not advance world-map time merely because the player opened or used a city screen.
@@ -299,6 +305,8 @@ Any retained legacy path is an explicit adapter or presentation-only carrier. It
 - Missing definitions fail explicitly.
 - Invalid commands return structured failure reasons.
 - Commands must not partially apply state on failed validation.
+- Malformed, null-state, unsupported-future, or unrecoverable save documents fail explicitly. Migration may derive a missing expedition rollback station from `SourceLocationId` only when current state and definitions prove it was that participant's valid departure city; otherwise migration fails instead of guessing.
+- Battle settlement persistence failure, identity mismatch, or conflicting replay leaves published state unchanged and retryable where applicable.
 - Missing bridge-session or result-summary mappings block battle handoff implementation instead of creating direct Runtime dependencies.
 - A retained legacy path must fail or be removed rather than silently owning new strategic behavior.
 

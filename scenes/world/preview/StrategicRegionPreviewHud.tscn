@@ -1,0 +1,208 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/World/Preview/StrategicRegionPreviewHud.cs" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
+bg_color = Color(0.035, 0.045, 0.055, 0.93)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.34, 0.45, 0.54, 0.82)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0, 0, 0, 0.4)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_badge"]
+bg_color = Color(0.07, 0.055, 0.025, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.9, 0.7, 0.28, 0.75)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="StrategicRegionPreviewHud" type="CanvasLayer"]
+layer = 50
+script = ExtResource("1_script")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="InfoMargin" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 414.0
+offset_bottom = 338.0
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="InfoPanel" type="PanelContainer" parent="Root/InfoMargin"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_panel")
+
+[node name="ContentMargin" type="MarginContainer" parent="Root/InfoMargin/InfoPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="Content" type="VBoxContainer" parent="Root/InfoMargin/InfoPanel/ContentMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.93, 0.82, 0.48, 1)
+theme_override_font_sizes/font_size = 24
+text = "城池区域视觉验证"
+
+[node name="Subtitle" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.66, 0.73, 0.78, 1)
+theme_override_font_sizes/font_size = 14
+text = "独立场景 · 不接入正式战略运行时"
+
+[node name="Divider" type="HSeparator" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content"]
+layout_mode = 2
+
+[node name="Facts" type="GridContainer" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content"]
+layout_mode = 2
+columns = 2
+theme_override_constants/h_separation = 18
+theme_override_constants/v_separation = 8
+
+[node name="CityLabel" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Facts"]
+layout_mode = 2
+mouse_filter = 2
+text = "城池"
+
+[node name="CityValue" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Facts"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.86, 0.91, 0.96, 1)
+text = "—"
+
+[node name="RegionLabel" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Facts"]
+layout_mode = 2
+mouse_filter = 2
+text = "区域"
+
+[node name="RegionValue" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Facts"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.86, 0.91, 0.96, 1)
+text = "—"
+
+[node name="RoleLabel" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Facts"]
+layout_mode = 2
+mouse_filter = 2
+text = "角色"
+
+[node name="RoleValue" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Facts"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.86, 0.91, 0.96, 1)
+text = "—"
+
+[node name="DirectionLabel" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Facts"]
+layout_mode = 2
+mouse_filter = 2
+text = "方向"
+
+[node name="DirectionValue" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Facts"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.86, 0.91, 0.96, 1)
+text = "—"
+
+[node name="StatusLabel" type="Label" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.68, 0.76, 0.82, 1)
+text = "将鼠标移到城池或区域上查看信息"
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ResetButton" type="Button" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "重置视角"
+
+[node name="ClearButton" type="Button" parent="Root/InfoMargin/InfoPanel/ContentMargin/Content/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "清除选择"
+
+[node name="ReferenceMargin" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -344.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = 82.0
+grow_horizontal = 0
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="ReferenceBadge" type="PanelContainer" parent="Root/ReferenceMargin"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_badge")
+
+[node name="ReferenceLabel" type="Label" parent="Root/ReferenceMargin/ReferenceBadge"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.96, 0.82, 0.48, 1)
+text = "参考底图 · 仅用于区域效果验证"
+horizontal_alignment = 1
+
+[node name="ControlsMargin" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 3
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -56.0
+offset_right = 620.0
+offset_bottom = -20.0
+grow_vertical = 0
+
+[node name="Controls" type="Label" parent="Root/ControlsMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.93, 0.93, 0.9, 0.9)
+theme_override_colors/font_outline_color = Color(0.02, 0.025, 0.03, 0.95)
+theme_override_constants/outline_size = 5
+text = "滚轮缩放  ·  中键拖动  ·  方向键/WASD 移动  ·  左键选择"

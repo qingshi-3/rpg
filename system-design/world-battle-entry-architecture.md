@@ -32,4 +32,4 @@ That shape is not compatible with the accepted clean Strategic Management archit
 
 Existing code may still contain this path during migration, but it must not receive new Strategic Management behavior.
 
-If a temporary adapter is needed, it must be scoped by an implementation proposal, convert old facts into the accepted Strategic Battle Bridge and battle snapshot/result contracts, and remain removable.
+If a temporary adapter is needed, it must be explicitly scoped by the confirmed active work item, convert old facts into the accepted Strategic Battle Bridge and battle snapshot/result contracts, and remain removable.

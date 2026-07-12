@@ -30,6 +30,9 @@ public sealed class StrategicManagementState
     public Dictionary<string, string> BattleFeedbackRecordIdsByExpedition { get; set; } =
         new(System.StringComparer.Ordinal);
 
+    public Dictionary<string, StrategicBattleSettlementRecord> BattleSettlementRecordsByExpedition { get; set; } =
+        new(System.StringComparer.Ordinal);
+
     public List<string> UnlockedEquipmentSampleIds { get; set; } = new();
 
     public List<string> ClaimedBattleRewardIds { get; set; } = new();
@@ -130,6 +133,7 @@ public sealed class StrategicBattleFeedbackRecord
     public string FeedbackId { get; set; } = "";
     public string ExpeditionId { get; set; } = "";
     public string SessionId { get; set; } = "";
+    public string SnapshotId { get; set; } = "";
     public string TargetLocationId { get; set; } = "";
     public string TargetDisplayName { get; set; } = "";
     public bool Victory { get; set; }
@@ -143,6 +147,15 @@ public sealed class StrategicBattleFeedbackRecord
     public List<StrategicBattleParticipantFeedbackRecord> ParticipantFeedback { get; set; } = new();
     public List<StrategicHeroBattleFeedbackRecord> HeroFeedback { get; set; } = new();
     public List<StrategicEquipmentSampleFeedbackRecord> EquipmentSamples { get; set; } = new();
+}
+
+public sealed class StrategicBattleSettlementRecord
+{
+    public string ExpeditionId { get; set; } = "";
+    public string SessionId { get; set; } = "";
+    public string SnapshotId { get; set; } = "";
+    public string FeedbackId { get; set; } = "";
+    public string ResultFingerprint { get; set; } = "";
 }
 
 public sealed class StrategicBattleParticipantFeedbackRecord

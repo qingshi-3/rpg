@@ -63,7 +63,9 @@ public sealed partial class StrategicManagementCommandService
             expedition.Participants.Add(new StrategicExpeditionParticipantState
             {
                 HeroId = hero.HeroId,
-                CorpsInstanceId = corps.CorpsInstanceId
+                CorpsInstanceId = corps.CorpsInstanceId,
+                // Capture the authoritative station before dispatch clears HomeCityId.
+                RollbackStationLocationId = corps.HomeCityId
             });
         }
 
@@ -99,15 +101,18 @@ public sealed partial class StrategicManagementCommandService
         string expeditionId,
         string reason = "")
     {
-        if (state == null || !state.Expeditions.TryGetValue(expeditionId ?? "", out StrategicExpeditionState expedition))
+        string failureReason = GetExpeditionCancellationFailureReason(state, expeditionId);
+        if (!string.IsNullOrWhiteSpace(failureReason))
         {
-            return Reject("CancelExpedition", expeditionId, StrategicFailureReasons.MissingExpedition);
+            return Reject("CancelExpedition", expeditionId, failureReason);
         }
 
+        StrategicExpeditionState expedition = state.Expeditions[expeditionId ?? ""];
+        // The entire restoration plan is valid before the first participant is mutated.
         expedition.Status = StrategicExpeditionStatus.Cancelled;
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
         {
-            UnlockExpeditionParticipant(state, expedition, participant, null);
+            UnlockExpeditionParticipant(state, expedition, participant, null, participant.RollbackStationLocationId);
         }
 
         StrategicCommandResult result = StrategicCommandResult.Ok(expedition.ExpeditionId);
@@ -117,6 +122,39 @@ public sealed partial class StrategicManagementCommandService
             ("reason", reason ?? "")));
         Accept("CancelExpedition", expedition.ExpeditionId, result);
         return result;
+    }
+
+    public string GetExpeditionCancellationFailureReason(StrategicManagementState state, string expeditionId)
+    {
+        if (state == null || !state.Expeditions.TryGetValue(expeditionId ?? "", out StrategicExpeditionState expedition))
+        {
+            return StrategicFailureReasons.MissingExpedition;
+        }
+
+        System.Collections.Generic.HashSet<string> heroIds = new(System.StringComparer.Ordinal);
+        System.Collections.Generic.HashSet<string> corpsIds = new(System.StringComparer.Ordinal);
+        foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
+        {
+            string stationId = participant?.RollbackStationLocationId ?? "";
+            if (participant == null ||
+                !heroIds.Add(participant.HeroId ?? "") ||
+                !corpsIds.Add(participant.CorpsInstanceId ?? "") ||
+                !state.Heroes.TryGetValue(participant.HeroId ?? "", out StrategicHeroState hero) ||
+                !state.CorpsInstances.TryGetValue(participant.CorpsInstanceId ?? "", out StrategicCorpsInstanceState corps) ||
+                !string.Equals(hero.CurrentExpeditionId, expedition.ExpeditionId, System.StringComparison.Ordinal) ||
+                !string.Equals(corps.CurrentExpeditionId, expedition.ExpeditionId, System.StringComparison.Ordinal) ||
+                string.IsNullOrWhiteSpace(stationId) ||
+                !state.Cities.ContainsKey(stationId) ||
+                !_definitions.Locations.TryGetValue(stationId, out StrategicLocationDefinition stationDefinition) ||
+                stationDefinition.Kind != StrategicLocationKind.City ||
+                !state.Locations.TryGetValue(stationId, out StrategicLocationState stationState) ||
+                !string.Equals(stationState.OwnerFactionId, expedition.FactionId, System.StringComparison.Ordinal))
+            {
+                return StrategicFailureReasons.InvalidExpeditionRollbackPlan;
+            }
+        }
+
+        return heroIds.Count == 0 ? StrategicFailureReasons.InvalidExpeditionRollbackPlan : "";
     }
 
     public StrategicCommandResult CompleteExpeditionArrival(

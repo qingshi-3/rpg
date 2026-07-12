@@ -124,14 +124,6 @@ internal sealed class BattleActionController
             NormalizeBasicAttackDamage(_actor.AttackDamage),
             currentTimeSeconds);
         BattleAdvanceFailureStateBoundary.ResetAdvanceFailureState(_actor);
-        BattlePlanStateEmitter.SetPlanState(
-            stream,
-            battleId,
-            runtimeTick,
-            currentTimeSeconds,
-            _actor,
-            BattleGroupPlanRuntimeState.Attacking,
-            "attacking");
         context.Result = BattleRuntimeAiActionResult.Succeeded(context.Request, "attack_started");
         if (_actor.CurrentBasicAttackImpactAtSeconds <= currentTimeSeconds + 0.0001)
         {

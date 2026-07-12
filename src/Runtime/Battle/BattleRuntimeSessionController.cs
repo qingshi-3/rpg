@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Linq;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Commands;
+using Rpg.Application.Battle.Snapshots;
 using Rpg.Infrastructure.Diagnostics;
 using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle.AI;
@@ -123,6 +124,12 @@ public sealed class BattleRuntimeSessionController
             };
         }
 
+        string authorizationFailure = ValidatePlayerCommandAuthorization(request);
+        if (!string.IsNullOrWhiteSpace(authorizationFailure))
+        {
+            return RejectPlayerCommand(request, authorizationFailure);
+        }
+
         if (request?.Kind == CommandKind.DestinationBeacon)
         {
             return BattleRuntimeDestinationBeaconCommandResolver.Submit(
@@ -143,6 +150,237 @@ public sealed class BattleRuntimeSessionController
             CurrentTimeSeconds,
             request,
             _navigationGraph);
+    }
+
+    private string ValidatePlayerCommandAuthorization(CommandRequest request)
+    {
+        if (request == null)
+        {
+            return "command_missing";
+        }
+
+        if (request.Kind is not (CommandKind.DestinationBeacon or CommandKind.CastSkill))
+        {
+            return "";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.BattleId) ||
+            !string.Equals(request.BattleId.Trim(), BattleId, System.StringComparison.Ordinal))
+        {
+            return "battle_id_mismatch";
+        }
+
+        if (request.Kind == CommandKind.DestinationBeacon)
+        {
+            if (request.Channel != CommandChannel.Combined)
+            {
+                return "command_channel_unavailable";
+            }
+
+            foreach (string groupId in ResolveRequestedBattleGroupIds(request))
+            {
+                BattleRuntimeActor corps = State?.Actors?
+                    .FirstOrDefault(actor =>
+                        actor.Kind == BattleRuntimeActorKind.Corps &&
+                        actor.HitPoints > 0 &&
+                        string.Equals(actor.BattleGroupId ?? "", groupId, System.StringComparison.Ordinal));
+                if (corps == null)
+                {
+                    return "battle_group_unavailable";
+                }
+
+                if (!BattleRuntimeIdentityRules.IsPlayerFaction(corps.FactionId))
+                {
+                    return "battle_group_not_player_controlled";
+                }
+            }
+
+            return ResolveRequestedBattleGroupIds(request).Length == 0
+                ? "battle_group_unavailable"
+                : "";
+        }
+
+        string battleGroupId = request.BattleGroupId?.Trim() ?? "";
+        BattleRuntimeActor[] groupActors = State?.Actors?
+            .Where(actor =>
+                actor.HitPoints > 0 &&
+                string.Equals(actor.BattleGroupId ?? "", battleGroupId, System.StringComparison.Ordinal))
+            .ToArray() ?? System.Array.Empty<BattleRuntimeActor>();
+        if (string.IsNullOrWhiteSpace(battleGroupId) || groupActors.Length == 0)
+        {
+            return "battle_group_unavailable";
+        }
+
+        if (groupActors.Any(actor => !BattleRuntimeIdentityRules.IsPlayerFaction(actor.FactionId)))
+        {
+            return "battle_group_not_player_controlled";
+        }
+
+        BattleRuntimeActor source = string.IsNullOrWhiteSpace(request.SourceActorId)
+            ? groupActors
+                .Where(actor => actor.Kind == BattleRuntimeActorKind.Hero)
+                .OrderBy(actor => actor.ActorId, System.StringComparer.Ordinal)
+                .FirstOrDefault()
+            : groupActors.FirstOrDefault(actor =>
+                string.Equals(actor.ActorId ?? "", request.SourceActorId.Trim(), System.StringComparison.Ordinal));
+        if (source == null)
+        {
+            return "skill_caster_invalid";
+        }
+
+        string skillDefinitionId = request.SkillDefinitionId?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(skillDefinitionId))
+        {
+            return "skill_definition_id_required";
+        }
+
+        BattleSkillSnapshot[] definitions = (State?.SkillDefinitions ?? new List<BattleSkillSnapshot>())
+            .Where(skill => string.Equals(
+                skill?.SkillDefinitionId?.Trim() ?? "",
+                skillDefinitionId,
+                System.StringComparison.Ordinal))
+            .ToArray();
+        if (definitions.Length == 0)
+        {
+            return "skill_definition_missing";
+        }
+
+        BattleSkillSnapshot skill = definitions.FirstOrDefault(candidate => SkillMatchesRuntimeSource(candidate, source));
+        if (skill == null)
+        {
+            return "skill_caster_not_allowed";
+        }
+
+        if (!ChannelMatches(request.Channel, skill.CommandChannel))
+        {
+            return "skill_command_channel_mismatch";
+        }
+
+        return SourceKindMatches(source.Kind, skill.CommandChannel)
+            ? ""
+            : "skill_caster_invalid";
+    }
+
+    private BattleRuntimeCommandSubmitResult RejectPlayerCommand(CommandRequest request, string reasonCode)
+    {
+        int startIndex = EventStream.Events.Count;
+        EventStream.Add(new BattleEvent
+        {
+            EventId = $"{BattleId}:tick_{_nextTick}:{request?.CommandId ?? ""}:runtime_command_rejected",
+            BattleId = BattleId,
+            BattleGroupId = request?.BattleGroupId ?? "",
+            ActorId = request?.SourceActorId ?? "",
+            TargetId = request?.TargetActorId ?? "",
+            SourceCommandId = request?.CommandId ?? "",
+            SourceDefinitionId = request?.SkillDefinitionId ?? "",
+            Kind = BattleEventKind.CommandRejected,
+            ReasonCode = reasonCode ?? "",
+            RuntimeTick = _nextTick,
+            RuntimeTimeSeconds = CurrentTimeSeconds,
+            HasTargetCells = request?.HasTargetGrid == true,
+            TargetGridX = request?.TargetGridX ?? 0,
+            TargetGridY = request?.TargetGridY ?? 0,
+            TargetGridHeight = request?.TargetGridHeight ?? 0
+        });
+        GameLog.Info(
+            nameof(BattleRuntimeSessionController),
+            $"BattleRuntimeCommandAuthorizationRejected battle={BattleId} command={request?.CommandId ?? ""} group={request?.BattleGroupId ?? ""} source={request?.SourceActorId ?? ""} reason={reasonCode ?? ""}");
+        return new BattleRuntimeCommandSubmitResult
+        {
+            Accepted = false,
+            ReasonCode = reasonCode ?? "",
+            Events = EventStream.Events.Skip(startIndex).ToArray()
+        };
+    }
+
+    private bool SkillMatchesRuntimeSource(BattleSkillSnapshot skill, BattleRuntimeActor source)
+    {
+        if (skill == null || source == null)
+        {
+            return false;
+        }
+
+        bool hasHeroOwner = !string.IsNullOrWhiteSpace(skill.OwnerHeroId);
+        if (hasHeroOwner &&
+            !string.Equals(skill.OwnerHeroId.Trim(), source.SourceHeroId?.Trim() ?? "", System.StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!hasHeroOwner &&
+            !string.IsNullOrWhiteSpace(skill.OwnerBattleGroupId) &&
+            !string.Equals(skill.OwnerBattleGroupId.Trim(), source.BattleGroupId?.Trim() ?? "", System.StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!hasHeroOwner &&
+            !string.IsNullOrWhiteSpace(skill.RuntimeCommanderGroupId) &&
+            !string.Equals(skill.RuntimeCommanderGroupId.Trim(), source.BattleGroupId?.Trim() ?? "", System.StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        string[] casterUnitIds = (skill.CasterUnitIds ?? new List<string>())
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Select(item => item.Trim())
+            .ToArray();
+        if (casterUnitIds.Length > 0 &&
+            !(State?.Actors?.Any(actor =>
+                actor.HitPoints > 0 &&
+                string.Equals(actor.BattleGroupId ?? "", source.BattleGroupId ?? "", System.StringComparison.Ordinal) &&
+                casterUnitIds.Contains(actor.UnitDefinitionId?.Trim() ?? "", System.StringComparer.Ordinal)) == true))
+        {
+            return false;
+        }
+
+        // Older in-memory fixtures can omit grant ownership. Production compiled
+        // snapshots carry owner/group/caster facts and are constrained above.
+        return true;
+    }
+
+    private static bool ChannelMatches(CommandChannel requestChannel, BattleSkillCommandChannel skillChannel)
+    {
+        return requestChannel switch
+        {
+            CommandChannel.Hero => skillChannel == BattleSkillCommandChannel.Hero,
+            CommandChannel.Corps => skillChannel == BattleSkillCommandChannel.Corps,
+            CommandChannel.Combined => skillChannel == BattleSkillCommandChannel.Combined,
+            _ => false
+        };
+    }
+
+    private static bool SourceKindMatches(BattleRuntimeActorKind sourceKind, BattleSkillCommandChannel skillChannel)
+    {
+        return skillChannel switch
+        {
+            BattleSkillCommandChannel.Hero => sourceKind is BattleRuntimeActorKind.Hero or BattleRuntimeActorKind.Corps,
+            BattleSkillCommandChannel.Corps => sourceKind == BattleRuntimeActorKind.Corps,
+            BattleSkillCommandChannel.Combined => sourceKind is BattleRuntimeActorKind.Hero or BattleRuntimeActorKind.Corps,
+            _ => false
+        };
+    }
+
+    private static string[] ResolveRequestedBattleGroupIds(CommandRequest request)
+    {
+        List<string> groupIds = new();
+        string primary = request?.BattleGroupId?.Trim() ?? "";
+        if (!string.IsNullOrWhiteSpace(primary))
+        {
+            groupIds.Add(primary);
+        }
+
+        foreach (string groupId in request?.BattleGroupIds ?? Enumerable.Empty<string>())
+        {
+            string normalized = groupId?.Trim() ?? "";
+            if (!string.IsNullOrWhiteSpace(normalized) &&
+                !groupIds.Contains(normalized, System.StringComparer.Ordinal))
+            {
+                groupIds.Add(normalized);
+            }
+        }
+
+        return groupIds.ToArray();
     }
 
     public BattleRuntimeAdvanceResult AdvanceFixedTick(double fixedDeltaSeconds = BattleActionTimingPolicy.DefaultSimulationTickSeconds)

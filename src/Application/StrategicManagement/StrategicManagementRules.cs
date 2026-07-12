@@ -580,6 +580,39 @@ public sealed class StrategicManagementRules
         };
     }
 
+    public string GetLocationTargetFailureReason(
+        StrategicManagementState state,
+        string targetLocationId,
+        string factionId,
+        StrategicExpeditionIntent intent)
+    {
+        if (state == null)
+        {
+            return StrategicFailureReasons.MissingDefinitions;
+        }
+
+        if (string.IsNullOrWhiteSpace(targetLocationId) ||
+            !state.Locations.TryGetValue(targetLocationId, out StrategicLocationState targetLocation))
+        {
+            return StrategicFailureReasons.MissingLocation;
+        }
+
+        return intent switch
+        {
+            StrategicExpeditionIntent.ReinforceLocation =>
+                string.Equals(targetLocation.OwnerFactionId, factionId ?? "", System.StringComparison.Ordinal) &&
+                targetLocation.ControlState == StrategicLocationControlState.PlayerHeld
+                    ? ""
+                    : StrategicFailureReasons.TargetLocationNotOwned,
+            StrategicExpeditionIntent.AssaultLocation =>
+                !string.Equals(targetLocation.OwnerFactionId, factionId ?? "", System.StringComparison.Ordinal) &&
+                targetLocation.ControlState != StrategicLocationControlState.PlayerHeld
+                    ? ""
+                    : StrategicFailureReasons.TargetLocationNotAttackable,
+            _ => StrategicFailureReasons.UnsupportedExpeditionIntent
+        };
+    }
+
     public string GetExpeditionArrivalFailureReason(
         StrategicManagementState state,
         string expeditionId)
@@ -751,7 +784,7 @@ public sealed class StrategicManagementRules
             expedition.Status is not (StrategicExpeditionStatus.Resolved or StrategicExpeditionStatus.Cancelled));
     }
 
-    private static string GetTargetReinforcementFailureReason(
+    private string GetTargetReinforcementFailureReason(
         StrategicManagementState state,
         StrategicLocationState sourceLocation,
         string targetLocationId,
@@ -773,9 +806,11 @@ public sealed class StrategicManagementRules
             return StrategicFailureReasons.SameLocationTarget;
         }
 
-        return string.Equals(targetLocation.OwnerFactionId, factionId ?? "", System.StringComparison.Ordinal)
-            ? ""
-            : StrategicFailureReasons.TargetLocationNotOwned;
+        return GetLocationTargetFailureReason(
+            state,
+            targetLocationId,
+            factionId,
+            StrategicExpeditionIntent.ReinforceLocation);
     }
 
     private static string GetExpeditionParticipantFailureReason(
@@ -863,14 +898,13 @@ public sealed class StrategicManagementRules
             return StrategicFailureReasons.SameLocationTarget;
         }
 
-        if (string.Equals(targetLocation.OwnerFactionId, factionId ?? "", System.StringComparison.Ordinal))
-        {
-            return StrategicFailureReasons.TargetLocationNotAttackable;
-        }
-
         // Strategic travel only validates whether the target can be attacked.
         // Battle entry is confirmed later by the world-map trigger dialog.
-        return "";
+        return GetLocationTargetFailureReason(
+            state,
+            targetLocationId,
+            factionId,
+            StrategicExpeditionIntent.AssaultLocation);
     }
 
     private bool TryGetCityContext(

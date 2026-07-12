@@ -82,7 +82,7 @@ resource/
   shaders/
 ```
 
-The exact subsystem folders may evolve through focused implementation proposals, but new authored resources should default to `resource/` unless an accepted authority document defines a narrower location.
+The exact subsystem folders may evolve after confirmed discussion and a corresponding authority update, but new authored resources should default to `resource/` unless an accepted authority document defines a narrower location.
 
 Godot-authored strategic-world runtime definitions belong under `resource/world/` when introduced. They may reference the canonical plain-text manifest, visual media, derived masks, and navigation scenes, but they must not duplicate canonical geographic facts or contain persistent campaign state.
 
@@ -117,7 +117,7 @@ The strategic-world geographic workbench belongs under `tools/world-map-workbenc
 - Update all reference surfaces in the same batch: `.tscn`, `.tres`, `.json`, C# constants, tests, and documentation.
 - Run static reference searches before and after each batch.
 - Prefer low-risk resource families before high-volume content libraries.
-- Keep `frames.tres` in place until a later accepted proposal changes the visual-content pipeline.
+- Keep `frames.tres` in place until a later confirmed discussion updates the visual-content pipeline authority.
 - Do not use compatibility duplicate files as a hidden fallback. If a path changes, update the authoritative reference and fail explicitly on stale paths.
 
 ## Current Migrated Families

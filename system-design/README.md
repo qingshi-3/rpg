@@ -11,13 +11,14 @@ Do not use this directory for product pitch, temporary plans, implementation pro
 ```text
 gameplay-design/     accepted player-facing gameplay and content rules
 system-design/       accepted implementation architecture and contracts
-design-proposals/    local proposal copies before merge into authority documents
+work-items/           confirmed active tasks and execution handoffs
 gameplay-alignment/  gap tracking and steady migration workstreams
+history/              legacy records, outside normal bootstrap
 ```
 
-Deleted legacy `docs/` routes are not active inputs. Historical proposals and implementation records remain discoverable through the archived indexes and do not override accepted authority.
+Deleted legacy `docs/` routes are not active inputs. Historical proposal and implementation records are discoverable only through `history/README.md` and do not override accepted authority.
 
-`system-design/` is not edited directly for architecture changes. Use the proposal flow in `../design-proposals/README.md`.
+Architecture changes must complete the global discussion stage first. After user confirmation, update the relevant `system-design/` authority document at the start of execution before changing code, scenes, resources, or persistent state.
 
 ## Document Shape
 

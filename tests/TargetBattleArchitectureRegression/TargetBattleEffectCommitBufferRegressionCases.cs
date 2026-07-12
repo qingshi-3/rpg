@@ -495,7 +495,10 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
         SetCommandTargetGrid(enemyRequest, x: 0, y: 0, height: 0);
 
         AssertTrue(controller.SubmitCommand(playerRequest).Accepted, "player corps channel command should be accepted");
-        AssertTrue(controller.SubmitCommand(enemyRequest).Accepted, "enemy corps channel command should be accepted");
+        BattleRuntimeCommandSubmitResult enemyRejected = controller.SubmitCommand(enemyRequest);
+        AssertTrue(!enemyRejected.Accepted, "enemy command should be rejected by the public player-command Runtime boundary");
+        AssertEqual("battle_group_not_player_controlled", enemyRejected.ReasonCode, "enemy public command rejection reason");
+        AssertTrue(SubmitInternalEffectCommand(controller, enemyRequest).Accepted, "test-only enemy effect injection should preserve opposing-channel commit coverage");
 
         BattleRuntimeAdvanceResult start = controller.AdvanceFixedTick(0.2);
         AssertEqual(10, PlayerCorps(controller).HitPoints, $"player HP after channel-start tick events={DescribeEvents(start.Events)}");
@@ -549,7 +552,10 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
         SetCommandTargetGrid(enemyRequest, x: 0, y: 0, height: 0);
 
         AssertTrue(controller.SubmitCommand(playerRequest).Accepted, "player corps channel command should be accepted");
-        AssertTrue(controller.SubmitCommand(enemyRequest).Accepted, "enemy corps channel command should be accepted");
+        BattleRuntimeCommandSubmitResult enemyRejected = controller.SubmitCommand(enemyRequest);
+        AssertTrue(!enemyRejected.Accepted, "enemy command should be rejected by the public player-command Runtime boundary");
+        AssertEqual("battle_group_not_player_controlled", enemyRejected.ReasonCode, "enemy public command rejection reason");
+        AssertTrue(SubmitInternalEffectCommand(controller, enemyRequest).Accepted, "test-only enemy effect injection should preserve opposing-channel start coverage");
 
         BattleRuntimeAdvanceResult start = controller.AdvanceFixedTick(0.2);
 
@@ -610,6 +616,33 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
         };
         TargetBattleTestTopology.CompileAroundGroups(snapshot, margin: 4);
         return snapshot;
+    }
+
+    private static BattleRuntimeCommandSubmitResult SubmitInternalEffectCommand(
+        BattleRuntimeSessionController controller,
+        CommandRequest request)
+    {
+        // These effect-buffer cases need two opposing Runtime facts in the same
+        // tick. Invoke the internal resolver only inside the test after proving
+        // that the public player-command boundary rejects the enemy request.
+        Type resolverType = typeof(BattleRuntimeSessionController).Assembly.GetType(
+            "Rpg.Runtime.Battle.BattleRuntimeHeroSkillCommandResolver",
+            throwOnError: true)!;
+        System.Reflection.MethodInfo submit = resolverType.GetMethod(
+            "Submit",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        return (BattleRuntimeCommandSubmitResult)submit.Invoke(
+            null,
+            new object?[]
+            {
+                controller.State,
+                controller.EventStream,
+                controller.BattleId,
+                0,
+                controller.CurrentTimeSeconds,
+                request,
+                null
+            })!;
     }
 
     private static void AddDamageSkill(BattleStartSnapshot snapshot, string skillDefinitionId, int damage)

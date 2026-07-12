@@ -58,11 +58,13 @@ internal static class TargetBattleCommitBufferRegressionCases
         string root = ProjectRoot();
         string commitBufferPath = Path.Combine(root, "src", "Runtime", "Battle", "BattleCommitBuffer.cs");
         string healthPath = Path.Combine(root, "src", "Runtime", "Battle", "BattleHealthComponent.cs");
+        string commanderCoordinatorPath = Path.Combine(root, "src", "Runtime", "Battle", "BattleGroupCommanderTransitionCoordinator.cs");
         AssertTrue(File.Exists(commitBufferPath), "BattleCommitBuffer source file should exist");
         AssertTrue(File.Exists(healthPath), "BattleHealthComponent source file should exist");
 
         string commitSource = File.ReadAllText(commitBufferPath);
         string healthSource = File.ReadAllText(healthPath);
+        string commanderCoordinatorSource = File.ReadAllText(commanderCoordinatorPath);
         string commitRelativePath = ToRepoPath(root, commitBufferPath);
         string healthRelativePath = ToRepoPath(root, healthPath);
 
@@ -74,19 +76,14 @@ internal static class TargetBattleCommitBufferRegressionCases
         AssertContains(commitSource, "basicAttackTargetHitPoints", commitRelativePath, "BattleCommitBuffer should keep basic-attack health commits scoped to attacked targets");
         AssertContains(commitSource, "basicAttackTargetHitPoints.TryGetValue", commitRelativePath, "BattleCommitBuffer should skip non-target actors during basic-attack health commit");
         AssertContains(commitSource, "basicAttackTargetIds.Contains", commitRelativePath, "BattleCommitBuffer should explicitly gate basic-attack health commits to attacked target ids");
-        AssertContainsInOrder(
-            commitSource,
-            commitRelativePath,
-            "BattleCommitBuffer should emit basic-attack defeated plan-state events in target actor-id order",
-            "foreach (BattleRuntimeTickStartActorFact targetFact in tickStartFacts.Values",
-            ".Where(item => basicAttackTargetIds.Contains",
-            ".OrderBy(item => item.Actor.ActorId",
-            "BattlePlanStateEmitter.SetPlanState");
+        AssertContains(commitSource, ".OrderBy(item => item.Actor.ActorId", commitRelativePath, "BattleCommitBuffer should preserve deterministic actor health commit order");
         AssertDoesNotContain(commitSource, ".HitPoints =", commitRelativePath, "BattleCommitBuffer should not assign actor HP directly");
         AssertDoesNotContain(commitSource, "MarkDefeated(", commitRelativePath, "BattleCommitBuffer should not mark actor defeat directly");
         AssertDoesNotContain(commitSource, "BattleRuntimeActorPhase.Defeated", commitRelativePath, "BattleCommitBuffer should not assign defeated phase directly");
         AssertDoesNotContain(commitSource, "BattleRuntimeActorMotionState.Defeated", commitRelativePath, "BattleCommitBuffer should not assign defeated motion state directly");
-        AssertContains(commitSource, "BattlePlanStateEmitter.SetPlanState", commitRelativePath, "BattleCommitBuffer should preserve basic-attack defeated plan-state event emission");
+        AssertDoesNotContain(commitSource, "BattlePlanStateEmitter.SetPlanState", commitRelativePath, "BattleCommitBuffer must not emit actor-owned commander transitions");
+        AssertContains(commanderCoordinatorSource, "members.All(actor => actor.HitPoints <= 0)", ToRepoPath(root, commanderCoordinatorPath), "commander coordinator should derive group defeat after actor health commits");
+        AssertContains(commanderCoordinatorSource, "BattleGroupPlanRuntimeState.Defeated", ToRepoPath(root, commanderCoordinatorPath), "commander coordinator should emit group-level defeat state");
     }
 
     internal static void RuntimeBasicAttackLifecycleIsActorLocal()

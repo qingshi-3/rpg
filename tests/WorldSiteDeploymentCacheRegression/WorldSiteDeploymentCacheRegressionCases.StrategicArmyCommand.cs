@@ -380,19 +380,51 @@ internal static void StrategicWorldRootSyncsStrategicExpeditionBeforeSelectedArm
         "strategic expedition sync should prevalidate and then mutate through Strategic Management command authority");
 }
 
-internal static void StrategicWorldRootSyncsSelectedStrategicOwnedTargetsBeforeLegacyCapacity()
+internal static void StrategicWorldRootUsesStrategicManagementMapControlAuthority()
 {
     string source = ReadStrategicWorldRootSource();
     string siteBody = ExtractMethodBody(source, "private bool TryCommandSelectedArmiesToSite(string siteId)");
-    int syncIndex = siteBody.IndexOf("TrySyncStrategicExpeditionCommand(", StringComparison.Ordinal);
-    int legacyCapacityIndex = siteBody.IndexOf("_deploymentService.CanAcceptGarrison", StringComparison.Ordinal);
+    string expeditionBody = ExtractMethodBody(source, "private bool TryIssueExpeditionToSite(string siteId)");
+    string selectedBlockBody = ExtractMethodBody(source, "private bool IsSiteBlockedForSelectedSiteCommand(string siteId)");
+    string expeditionBlockBody = ExtractMethodBody(source, "private bool IsSiteBlockedForExpeditionTarget(string siteId)");
+    string mapDrawingBody = ExtractMethodBody(source, "private void DrawSiteIcons(Control canvas)");
+    string battleSummaryBody = ExtractMethodBody(source, "private string BuildSiteBattleSummary(BattleStartRequest request)");
+    string projectionBody = ExtractMethodBody(source, "private static bool TryBuildStrategicWorldMapSitePresentation(");
 
     AssertTrue(
-        syncIndex >= 0 && legacyCapacityIndex >= 0 && syncIndex < legacyCapacityIndex,
-        "selected Strategic Management expedition carriers must sync owned-city targets before legacy garrison-capacity checks can reject them");
+        projectionBody.Contains("StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite", StringComparison.Ordinal) &&
+        projectionBody.Contains("StrategicManagementRuntime.ViewModels.BuildLocationMapView", StringComparison.Ordinal) &&
+        projectionBody.Contains("StrategicWorldMapSitePresenter.Build", StringComparison.Ordinal),
+        "large-map control projection should resolve the stable map-site mapping and consume the Strategic Management map view");
     AssertTrue(
-        siteBody.Contains("HasSelectedStrategicExpeditionCarrier(", StringComparison.Ordinal),
-        "owned-site commands should explicitly branch strategic expedition carriers away from legacy garrison capacity");
+        siteBody.Contains("target.CanReinforce", StringComparison.Ordinal) &&
+        siteBody.Contains("target.CanAttack", StringComparison.Ordinal) &&
+        expeditionBody.Contains("target.CanReinforce", StringComparison.Ordinal) &&
+        expeditionBody.Contains("target.CanAttack", StringComparison.Ordinal),
+        "selected armies and new expeditions should classify reinforce versus assault from one Strategic Management projection");
+    AssertTrue(
+        selectedBlockBody.Contains("target.NextCommand", StringComparison.Ordinal) &&
+        expeditionBlockBody.Contains("target.NextCommand", StringComparison.Ordinal),
+        "target blocked state should consume Strategic Management command eligibility");
+    AssertTrue(
+        mapDrawingBody.Contains("presentation.ControlColor", StringComparison.Ordinal) &&
+        battleSummaryBody.Contains("presentation.ControlText", StringComparison.Ordinal) &&
+        battleSummaryBody.Contains("presentation.OwnerFactionId", StringComparison.Ordinal),
+        "map color and control text should consume the same Strategic Management projection as commands");
+    AssertTrue(
+        battleSummaryBody.Contains("site.DamageLevel", StringComparison.Ordinal) &&
+        battleSummaryBody.Contains("site.Garrison", StringComparison.Ordinal),
+        "legacy site damage and garrison may remain only as subordinate presentation facts");
+
+    foreach (string body in new[] { siteBody, expeditionBody, selectedBlockBody, expeditionBlockBody, mapDrawingBody, battleSummaryBody })
+    {
+        AssertTrue(
+            !body.Contains("site.OwnerFactionId", StringComparison.Ordinal) &&
+            !body.Contains("site.ControlState", StringComparison.Ordinal) &&
+            !body.Contains("GetSiteColor", StringComparison.Ordinal) &&
+            !body.Contains("CanAcceptGarrison", StringComparison.Ordinal),
+            "main-map control, classification, and command eligibility must not read legacy WorldSite authority");
+    }
 }
 
 internal static void StrategicWorldRootDoesNotBlockStrategicOwnedTargetsByLegacyGarrisonCapacity()
@@ -453,9 +485,8 @@ internal static void StrategicWorldRootDoesNotWaitForStrategicPreparationOnArriv
         !source.Contains("MissingBattlePreparationChoice", StringComparison.Ordinal),
         "arrived strategic assault should no longer wait for a strategic preparation choice");
     AssertTrue(
-        battleEntryBody.Contains("CancelExpedition", StringComparison.Ordinal) &&
-        battleEntryBody.Contains("ResetUnsupportedAssault", StringComparison.Ordinal),
-        "real bridge failures should still use the generic rejection cleanup path");
+        battleEntryBody.Contains("RollbackStrategicBattleEntry", StringComparison.Ordinal),
+        "real bridge failures should use the focused identity-preserving rollback boundary");
 }
 
 internal static void StrategicWorldRootOffersDirectBattleTriggerForArrivedAssault()
@@ -480,7 +511,7 @@ internal static void StrategicBattleBridgeCreatesActiveContextBeforeSceneTransit
     string source = ReadStrategicWorldRootSource();
     string body = ExtractMethodBody(source, "private bool TryEnterBattleForArrivedArmy(string armyId)");
     int createSessionIndex = body.IndexOf("strategicBattleBridge.CreateSession", StringComparison.Ordinal);
-    int buildCompatibilityRequestIndex = body.IndexOf("_battleRequestBuilder.BuildAssaultBonefieldRequest", StringComparison.Ordinal);
+    int buildPreparationSeedIndex = body.IndexOf("_battleRequestBuilder.BuildAssaultBonefieldRequest", StringComparison.Ordinal);
     int createActiveContextIndex = body.IndexOf("strategicBattleBridge.CreateActiveContext", StringComparison.Ordinal);
     int enterBattleIndex = body.IndexOf("TryEnterBattle(activeContextResult.Context, rollback)", StringComparison.Ordinal);
 
@@ -490,8 +521,8 @@ internal static void StrategicBattleBridgeCreatesActiveContextBeforeSceneTransit
         "arrived strategic expeditions should create bridge sessions from Strategic Management state");
     AssertTrue(
         createSessionIndex >= 0 &&
-        buildCompatibilityRequestIndex > createSessionIndex &&
-        createActiveContextIndex > buildCompatibilityRequestIndex &&
+        buildPreparationSeedIndex > createSessionIndex &&
+        createActiveContextIndex > buildPreparationSeedIndex &&
         enterBattleIndex > createActiveContextIndex,
         "strategic battle entry should create a bridge active context before scene transition");
     AssertTrue(
@@ -506,7 +537,7 @@ internal static void StrategicBattleResultSkipsLegacyWorldApplier()
     string legacyWrapperBody = ExtractMethodBody(source, "private WorldActionResult ApplyBattleResultToWorld(BattleStartRequest request, BattleResult battleResult)");
     string legacyBody = ExtractMethodBody(source, "private WorldActionResult ApplyLegacyBattleResultToWorld(BattleStartRequest request, BattleResult battleResult)");
     int summaryIndex = body.IndexOf("bridge.BuildResultSummary", StringComparison.Ordinal);
-    int strategicApplyIndex = body.IndexOf("StrategicManagementRuntime.Commands.ApplyBattleResultSummary", StringComparison.Ordinal);
+    int strategicApplyIndex = body.IndexOf("StrategicManagementRuntime.CommitBattleResult", StringComparison.Ordinal);
     int legacyApplyIndex = legacyBody.IndexOf("_worldBattleResultApplier.Apply", StringComparison.Ordinal);
     int strategicNoticeIndex = body.IndexOf("BuildStrategicBattleFeedbackReturnNotice(strategicFeedback)", StringComparison.Ordinal);
     int strategicReturnIndex = strategicNoticeIndex < 0
@@ -518,7 +549,7 @@ internal static void StrategicBattleResultSkipsLegacyWorldApplier()
         "Strategic Management battle result writeback should validate active context before applying summary");
     AssertTrue(
         summaryIndex >= 0 && strategicApplyIndex > summaryIndex,
-        "Strategic Management result summary must be applied through Strategic Management commands");
+        "Strategic Management result summary must be applied through the candidate-state commit boundary");
     AssertTrue(
         legacyWrapperBody.Contains("request?.StrategicExpeditionId", StringComparison.Ordinal) &&
         legacyWrapperBody.Contains("ApplyLegacyBattleResultToWorld", StringComparison.Ordinal),
@@ -537,7 +568,7 @@ internal static void StrategicBattleResultKeepsPresentationCleanupOnly()
 {
     string source = ReadWorldSiteRootSource();
     string body = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
-    int strategicApplyIndex = body.IndexOf("StrategicManagementRuntime.Commands.ApplyBattleResultSummary", StringComparison.Ordinal);
+    int strategicApplyIndex = body.IndexOf("StrategicManagementRuntime.CommitBattleResult", StringComparison.Ordinal);
     int cleanupIndex = body.IndexOf("ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult, summary)", StringComparison.Ordinal);
     int carrierCleanupIndex = body.IndexOf("ApplyStrategicBattleResultWorldArmyCarrierCleanup(context.CompatibilityRequest, applyResult)", StringComparison.Ordinal);
     int strategicNoticeIndex = body.IndexOf("BuildStrategicBattleFeedbackReturnNotice(strategicFeedback)", StringComparison.Ordinal);
@@ -602,13 +633,13 @@ internal static void StrategicBattleResultClearsStaleLegacyHandoff()
     string source = ReadWorldSiteRootSource();
     string applyBody = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
     string cleanupBody = ExtractMethodBody(source, "private static void ClearLegacyStrategicBattleHandoff(");
-    int activeContextClearIndex = applyBody.IndexOf("StrategicBattleActiveContextStore.Clear(\"result_consumed\")", StringComparison.Ordinal);
+    int activeContextClearIndex = applyBody.IndexOf("StrategicManagementRuntime.CommitBattleResult", StringComparison.Ordinal);
     int legacyCleanupIndex = applyBody.IndexOf("ClearLegacyStrategicBattleHandoff(\"result_consumed\")", StringComparison.Ordinal);
 
     AssertTrue(
         activeContextClearIndex >= 0 &&
         legacyCleanupIndex > activeContextClearIndex,
-        "strategic battle result consumption should clear any stale legacy handoff after consuming the active strategic context");
+        "strategic battle result should clear stale legacy handoff only after the commit boundary consumes the active context");
     AssertTrue(
         cleanupBody.Contains("BattleSessionHandoff.HasActiveLaunch", StringComparison.Ordinal) &&
         cleanupBody.Contains("BattleSessionHandoff.CancelBattle()", StringComparison.Ordinal) &&
@@ -620,17 +651,15 @@ internal static void StrategicBattleResultPersistsStrategicStateBeforeFeedback()
 {
     string source = ReadWorldSiteRootSource();
     string applyBody = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
-    int strategicApplyIndex = applyBody.IndexOf("StrategicManagementRuntime.Commands.ApplyBattleResultSummary", StringComparison.Ordinal);
-    int rejectedReturnIndex = applyBody.IndexOf("if (!strategicResult.Success)", StringComparison.Ordinal);
-    int saveIndex = applyBody.IndexOf("StrategicManagementRuntime.SaveCurrentState()", StringComparison.Ordinal);
+    int strategicApplyIndex = applyBody.IndexOf("StrategicManagementRuntime.CommitBattleResult", StringComparison.Ordinal);
+    int rejectedReturnIndex = applyBody.IndexOf("if (!commitResult.Success", StringComparison.Ordinal);
     int feedbackIndex = applyBody.IndexOf("BuildStrategicBattleFeedbackReturnNotice(strategicFeedback)", StringComparison.Ordinal);
 
     AssertTrue(
         strategicApplyIndex >= 0 &&
         rejectedReturnIndex > strategicApplyIndex &&
-        saveIndex > rejectedReturnIndex &&
-        feedbackIndex > saveIndex,
-        "strategic battle result writeback should apply Strategic Management consequences, reject failures, then persist the settled state before composing player feedback");
+        feedbackIndex > rejectedReturnIndex,
+        "strategic battle result writeback should durably commit and publish Strategic Management consequences before composing player feedback");
 }
 
 internal static void WorldSiteRootRejectsStaleLegacyStrategicHandoff()
