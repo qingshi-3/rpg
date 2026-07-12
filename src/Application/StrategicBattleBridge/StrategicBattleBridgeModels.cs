@@ -5,6 +5,7 @@ using Rpg.Application.Battle.Settlement;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
+using Rpg.Infrastructure.Logging;
 using Rpg.Runtime.Battle;
 
 namespace Rpg.Application.StrategicBattleBridge;
@@ -84,8 +85,36 @@ public sealed class StrategicBattleActiveContextResult
     }
 }
 
+public sealed class StrategicBattleResultEnvelope
+{
+    internal StrategicBattleResultEnvelope(
+        string sessionId,
+        string snapshotId,
+        BattleRuntimeSessionResult runtimeResult,
+        SettlementPlan settlementPlan,
+        BattleReportRecord report)
+    {
+        SessionId = sessionId ?? "";
+        SnapshotId = snapshotId ?? "";
+        RuntimeResult = runtimeResult;
+        SettlementPlan = settlementPlan;
+        Report = report;
+    }
+
+    public string SessionId { get; }
+    public string SnapshotId { get; }
+    public BattleRuntimeSessionResult RuntimeResult { get; }
+    public SettlementPlan SettlementPlan { get; }
+    public BattleReportRecord Report { get; }
+}
+
 public sealed class StrategicBattleActiveContext
 {
+    public const string ResultEnvelopeAlreadyPublishedReason = "strategic_battle_result_envelope_already_published";
+
+    private readonly object _resultEnvelopeGate = new();
+    private StrategicBattleResultEnvelope _resultEnvelope;
+
     public string ContextId { get; set; } = "";
     public string ScenePath { get; set; } = "";
     public string ReturnScenePath { get; set; } = "";
@@ -100,13 +129,64 @@ public sealed class StrategicBattleActiveContext
     // Created only after the Draft compiles the final Snapshot. This projection
     // is outbound compatibility state and never participates in compilation.
     public BattleStartRequest CompatibilityRequest { get; set; }
-    public BattleRuntimeSessionResult RuntimeResult { get; set; }
-    public SettlementPlan SettlementPlan { get; set; }
-    public BattleReportRecord Report { get; set; }
-    public BattleGroupBattleFlowResult FlowResult { get; set; }
+    public StrategicBattleResultEnvelope ResultEnvelope
+    {
+        get
+        {
+            lock (_resultEnvelopeGate)
+            {
+                return _resultEnvelope;
+            }
+        }
+    }
     public BattleResult CompatibilityResult { get; set; }
     public bool ResultConsumed { get; set; }
     public string FailureReason { get; set; } = "";
+
+    public bool TryPublishResultEnvelope(
+        BattleRuntimeSessionResult runtimeResult,
+        SettlementPlan settlementPlan,
+        BattleReportRecord report,
+        out string failureReason)
+    {
+        lock (_resultEnvelopeGate)
+        {
+            if (_resultEnvelope != null)
+            {
+                failureReason = ResultEnvelopeAlreadyPublishedReason;
+                LogResultEnvelopeRejected(failureReason);
+                return false;
+            }
+
+            StrategicBattleResultEnvelope candidate = new(
+                Session?.SessionId,
+                Snapshot?.SnapshotId,
+                runtimeResult,
+                settlementPlan,
+                report);
+            failureReason = StrategicBattleBridgeService.GetResultEnvelopeFailureReason(this, candidate);
+            if (!string.IsNullOrWhiteSpace(failureReason))
+            {
+                LogResultEnvelopeRejected(failureReason);
+                return false;
+            }
+
+            // The three accepted facts cross the Bridge boundary atomically and
+            // can no longer diverge through direct or legacy-mirror writes.
+            _resultEnvelope = candidate;
+            GameLog.Info(
+                nameof(StrategicBattleActiveContext),
+                $"StrategicBattleResultEnvelopePublished context={ContextId} session={candidate.SessionId} snapshot={candidate.SnapshotId} report={candidate.Report.ReportId}");
+            return true;
+        }
+    }
+
+    private void LogResultEnvelopeRejected(string failureReason)
+    {
+        GameLog.Warn(
+            nameof(StrategicBattleActiveContext),
+            $"StrategicBattleResultEnvelopeRejected context={ContextId} session={Session?.SessionId ?? ""} snapshot={Snapshot?.SnapshotId ?? ""} reason={failureReason ?? ""}");
+    }
 }
 
 public sealed class StrategicBattleSession

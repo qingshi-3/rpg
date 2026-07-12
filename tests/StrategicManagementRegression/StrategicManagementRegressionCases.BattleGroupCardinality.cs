@@ -90,7 +90,7 @@ internal static partial class StrategicManagementRegressionCases
                 participant.ParticipantId,
                 corpsActor.ActorId,
                 remainingHitPoints);
-            CompleteCardinalityContext(setup.Context, outcome);
+            AssertEqual("", CompleteCardinalityContext(setup.Context, outcome), "valid cardinality result should publish");
 
             StrategicBattleResultSummary summary = setup.Bridge.BuildResultSummary(setup.Context);
             StrategicBattleParticipantResult participantResult = summary.Participants.Single();
@@ -170,13 +170,14 @@ internal static partial class StrategicManagementRegressionCases
             Survived = duplicateCorps.Survived,
             RemainingHitPoints = duplicateCorps.RemainingHitPoints
         });
-        CompleteCardinalityContext(resultSetup.Context, ambiguousOutcome);
+        string publicationFailure = CompleteCardinalityContext(resultSetup.Context, ambiguousOutcome);
         int originalStrength = resultSetup.State.CorpsInstances[resultParticipant.CorpsInstanceId].Strength;
 
         AssertEqual(
             "strategic_battle_participant_actor_mapping_ambiguous",
-            StrategicBattleBridgeService.GetActiveContextFailureReason(resultSetup.Context),
-            "ambiguous participant actor mapping should expose a named failure");
+            publicationFailure,
+            "ambiguous participant actor mapping should reject envelope publication with a named failure");
+        AssertTrue(resultSetup.Context.ResultEnvelope == null, "ambiguous result rejection must leave the active context unchanged");
         StrategicBattleResultSummary rejectedSummary = resultSetup.Bridge.BuildResultSummary(resultSetup.Context);
         StrategicCommandResult rejected = resultSetup.Commands.ApplyBattleResultSummary(resultSetup.State, rejectedSummary);
         AssertTrue(!rejected.Success, "ambiguous participant actor mapping must not apply strategic consequences");
@@ -329,7 +330,7 @@ internal static partial class StrategicManagementRegressionCases
         return outcome;
     }
 
-    private static void CompleteCardinalityContext(
+    private static string CompleteCardinalityContext(
         StrategicBattleActiveContext context,
         BattleOutcomeResult outcome)
     {
@@ -338,12 +339,14 @@ internal static partial class StrategicManagementRegressionCases
             outcome.SnapshotId,
             outcome,
             eventStream);
-        context.RuntimeResult = new BattleRuntimeSessionResult
+        BattleRuntimeSessionResult runtimeResult = new()
         {
             Outcome = outcome,
             EventStream = eventStream
         };
-        context.SettlementPlan = settlement;
-        context.Report = new BattleReportBuilder().Build(outcome, eventStream, settlement);
+        BattleReportRecord report = new BattleReportBuilder().Build(outcome, eventStream, settlement);
+        return context.TryPublishResultEnvelope(runtimeResult, settlement, report, out string envelopeFailureReason)
+            ? ""
+            : envelopeFailureReason;
     }
 }

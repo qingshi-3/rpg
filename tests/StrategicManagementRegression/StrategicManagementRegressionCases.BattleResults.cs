@@ -11,6 +11,117 @@ using Rpg.Runtime.Battle.Events;
 using Rpg.Runtime.Battle.Results;
 internal static partial class StrategicManagementRegressionCases
 {
+    internal static void StrategicBattleActiveContextPublishesOneResultEnvelopeOnce()
+    {
+        var setup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService bridge = new(setup.Definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            setup.State,
+            setup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        BattleStartRequest request = BuildStrategicBattleRequestForHero(
+            setup.Definitions,
+            setup.State,
+            bridge,
+            session,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            "request_single_result_envelope");
+        StrategicBattleActiveContext context = BuildCompletedActiveContext(
+            bridge,
+            setup.State,
+            session,
+            request,
+            BattleOutcome.Victory,
+            participant => ResolveParticipantInitialCount(request, participant));
+
+        StrategicBattleResultEnvelope accepted = context.ResultEnvelope ??
+            throw new InvalidOperationException("completed strategic context should publish one result envelope");
+        AssertTrue(
+            !context.TryPublishResultEnvelope(
+                accepted.RuntimeResult,
+                accepted.SettlementPlan,
+                accepted.Report,
+                out string duplicateFailure),
+            "published result envelope must reject duplicate publication");
+        AssertEqual(
+            StrategicBattleActiveContext.ResultEnvelopeAlreadyPublishedReason,
+            duplicateFailure,
+            "duplicate publication should fail explicitly");
+        AssertTrue(ReferenceEquals(accepted, context.ResultEnvelope), "duplicate publication must not replace the accepted envelope");
+    }
+
+    internal static void StrategicBattleResultEnvelopeRejectsInvalidAndLegacyMirrorAuthority()
+    {
+        var setup = CreateStrategicAssaultExpedition();
+        StrategicBattleBridgeService bridge = new(setup.Definitions);
+        StrategicBattleSession session = bridge.CreateSession(
+            setup.State,
+            setup.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn").Session;
+        BattleStartRequest request = BuildStrategicBattleRequestForHero(
+            setup.Definitions,
+            setup.State,
+            bridge,
+            session,
+            StrategicManagementIds.HeroOrdinaryCommander,
+            "request_result_envelope_authority");
+        StrategicBattleActiveContext completed = BuildCompletedActiveContext(
+            bridge,
+            setup.State,
+            session,
+            request,
+            BattleOutcome.Victory,
+            participant => ResolveParticipantInitialCount(request, participant));
+        StrategicBattleResultEnvelope accepted = completed.ResultEnvelope;
+        StrategicBattleActiveContext candidate = new()
+        {
+            ContextId = completed.ContextId,
+            Session = completed.Session,
+            Snapshot = completed.Snapshot
+        };
+        SettlementPlan mismatchedSettlement = new()
+        {
+            Accepted = true,
+            BattleId = accepted.SettlementPlan.BattleId,
+            SnapshotId = "mismatched_snapshot"
+        };
+
+        AssertTrue(
+            !candidate.TryPublishResultEnvelope(
+                accepted.RuntimeResult,
+                mismatchedSettlement,
+                accepted.Report,
+                out string mismatchFailure),
+            "identity-mismatched result envelope must be rejected");
+        AssertEqual(StrategicFailureReasons.BattleResultMismatch, mismatchFailure, "identity mismatch should be diagnosable");
+        AssertTrue(candidate.ResultEnvelope == null, "failed publication must leave the active context unchanged");
+        AssertTrue(
+            candidate.TryPublishResultEnvelope(
+                accepted.RuntimeResult,
+                accepted.SettlementPlan,
+                accepted.Report,
+                out string publicationFailure),
+            $"matching complete facts should publish once, got {publicationFailure}");
+        StrategicBattleResultEnvelope published = candidate.ResultEnvelope!;
+
+        BattleGroupBattleFlowResult divergentLegacyMirror = new()
+        {
+            RuntimeResult = new BattleRuntimeSessionResult(),
+            SettlementPlan = mismatchedSettlement,
+            Report = new BattleReportRecord { BattleId = "legacy_divergence" }
+        };
+        StrategicBattleResultSummary summary = bridge.BuildResultSummary(candidate);
+
+        AssertTrue(divergentLegacyMirror.Report.BattleId != published.Report.BattleId, "fixture should be deliberately divergent");
+        AssertEqual(BattleOutcome.Victory, summary.Outcome, "legacy-shaped divergence must not replace the accepted envelope");
+        AssertTrue(typeof(StrategicBattleActiveContext).GetProperty("RuntimeResult") == null, "active context must not expose direct Runtime result authority");
+        AssertTrue(typeof(StrategicBattleActiveContext).GetProperty("SettlementPlan") == null, "active context must not expose direct settlement authority");
+        AssertTrue(typeof(StrategicBattleActiveContext).GetProperty("Report") == null, "active context must not expose direct report authority");
+        AssertTrue(typeof(StrategicBattleActiveContext).GetProperty("FlowResult") == null, "active context must not expose a legacy FlowResult mirror");
+    }
+
     internal static void StrategicBattleResultSummaryAppliesVictoryConsequences()
     {
         var setup = CreateStrategicAssaultExpedition();
@@ -167,28 +278,32 @@ internal static partial class StrategicManagementRegressionCases
         {
             ContextId = session.SessionId,
             Session = session,
-            Snapshot = snapshotResult.Snapshot,
-            RuntimeResult = new BattleRuntimeSessionResult
+            Snapshot = snapshotResult.Snapshot
+        };
+        bool published = context.TryPublishResultEnvelope(
+            new BattleRuntimeSessionResult
             {
                 Outcome = outcome,
                 EventStream = BuildEndedStream(session.SessionId)
             },
-            SettlementPlan = new SettlementPlan
+            new SettlementPlan
             {
                 Accepted = true,
                 SnapshotId = snapshotResult.Snapshot.SnapshotId,
                 BattleId = session.SessionId
             },
-            Report = new BattleReportRecord
+            new BattleReportRecord
             {
                 ReportId = "report_missing_actor_outcomes",
                 SnapshotId = snapshotResult.Snapshot.SnapshotId,
                 BattleId = session.SessionId
-            }
-        };
+            },
+            out string envelopeFailureReason);
 
         StrategicBattleResultSummary summary = bridge.BuildResultSummary(context);
 
+        AssertTrue(!published, "missing actor outcomes must reject result envelope publication");
+        AssertEqual(StrategicFailureReasons.MissingBattleResultSummary, envelopeFailureReason, "missing actor outcomes should fail before context mutation");
         AssertTrue(
             summary.Participants.Count == 0,
             "bridge summary must not fabricate participant strength when runtime actor outcomes are missing");

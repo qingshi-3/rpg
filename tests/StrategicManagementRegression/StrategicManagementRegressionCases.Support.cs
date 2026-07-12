@@ -236,13 +236,15 @@ internal static partial class StrategicManagementRegressionCases
             context.Snapshot.SnapshotId,
             runtimeOutcome,
             eventStream);
-        context.RuntimeResult = new BattleRuntimeSessionResult
+        BattleRuntimeSessionResult runtimeResult = new()
         {
             Outcome = runtimeOutcome,
             EventStream = eventStream
         };
-        context.SettlementPlan = settlement;
-        context.Report = new BattleReportBuilder().Build(runtimeOutcome, eventStream, settlement);
+        BattleReportRecord report = new BattleReportBuilder().Build(runtimeOutcome, eventStream, settlement);
+        AssertTrue(
+            context.TryPublishResultEnvelope(runtimeResult, settlement, report, out string envelopeFailureReason),
+            $"completed fixture should publish one result envelope, got {envelopeFailureReason}");
         return context;
     }
 

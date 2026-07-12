@@ -517,8 +517,9 @@ internal static void WorldSiteRuntimeReturnNoticeOmitsStrategicPreparationReport
     string runtimeBody = ExtractMethodBody(rootSource, "private async Task PlayBattleGroupRuntimeAndApplyResultAsync(");
 
     AssertTrue(
-        runtimeBody.Contains("BuildBattleGroupRuntimeReturnNotice(applyResult, resolution.Report, resolution.Request)", StringComparison.Ordinal),
-        "battle completion should still pass request and report data into return notice composition");
+        runtimeBody.Contains("BuildBattleGroupRuntimeReturnNotice(applyResult, resultReport, resolution.Request)", StringComparison.Ordinal) &&
+        runtimeBody.Contains("resolution.ActiveContext.ResultEnvelope?.Report", StringComparison.Ordinal),
+        "strategic battle completion should pass the Active Context result envelope report into return notice composition");
     AssertTrue(
         !rootSource.Contains("BuildBattlePreparationReportSummary", StringComparison.Ordinal) &&
         !rootSource.Contains("StrategicPreparationReportText", StringComparison.Ordinal) &&

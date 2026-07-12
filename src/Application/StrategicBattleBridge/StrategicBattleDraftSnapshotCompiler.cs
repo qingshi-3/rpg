@@ -82,10 +82,6 @@ public sealed class StrategicBattleDraftSnapshotCompiler
         activeContext.CompatibilityRequest = projection;
         activeContext.FinalizedDraftId = draft.DraftId;
         activeContext.FinalizedDraftRevision = draft.Revision;
-        activeContext.FlowResult = new BattleGroupBattleFlowResult
-        {
-            Snapshot = result.Snapshot
-        };
         return result;
     }
 

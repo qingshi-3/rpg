@@ -216,13 +216,22 @@ public partial class WorldSiteRoot
             SetBattleRuntimeEnabled(false);
             return;
         }
-
         _activeBattleGroupRuntimeResolution = null;
+        BattleReportRecord resultReport = resolution.ActiveContext == null
+            ? resolution.Report : resolution.ActiveContext.ResultEnvelope?.Report;
+        if (resolution.ActiveContext != null && resultReport == null)
+        {
+            _battleStartBlockedReason = "strategic_battle_result_envelope_missing";
+            GameLog.Warn(nameof(WorldSiteRoot), $"Battle group runtime completion blocked reason={_battleStartBlockedReason}");
+            ClearBattleEntities();
+            SetBattleRuntimeEnabled(false);
+            return;
+        }
         BattleOutcome outcome = resolution.BattleResult?.Outcome ?? BattleOutcome.None;
         applyResult = resolution.ActiveContext != null
-            ? ApplyStrategicBattleResultToWorld(resolution.ActiveContext, resolution.BattleResult)
+            ? ApplyStrategicBattleResultToWorld(resolution.ActiveContext)
             : ApplyBattleResultToWorld(resolution.Request, resolution.BattleResult);
-        string battleNotice = BuildBattleGroupRuntimeReturnNotice(applyResult, resolution.Report, resolution.Request);
+        string battleNotice = BuildBattleGroupRuntimeReturnNotice(applyResult, resultReport, resolution.Request);
         if (!string.IsNullOrWhiteSpace(battleNotice))
         {
             applyResult ??= new WorldActionResult
@@ -233,7 +242,6 @@ public partial class WorldSiteRoot
             applyResult.Message = battleNotice;
             StrategicWorldRuntime.LastNotice = battleNotice;
         }
-
         ReconcileWorldSitePlacementsAfterBattle(
             resolution.Request,
             System.Array.Empty<WorldSiteLivePlacementSnapshot>(),
@@ -242,7 +250,7 @@ public partial class WorldSiteRoot
         SetBattleRuntimeEnabled(false);
         GameLog.Info(
             nameof(WorldSiteRoot),
-            $"Battle group runtime resolved request={resolution.Request?.RequestId ?? ""} outcome={resolution.BattleResult?.Outcome} reportEvents={resolution.Report?.SourceEventIds.Count ?? 0} failure={string.Join(",", resolution.Report?.FailureCandidates ?? new List<string>())}");
+            $"Battle group runtime resolved request={resolution.Request?.RequestId ?? ""} outcome={resolution.BattleResult?.Outcome} reportEvents={resultReport?.SourceEventIds.Count ?? 0} failure={string.Join(",", resultReport?.FailureCandidates ?? new List<string>())}");
 
         string returnScenePath = ResolveBattleResultReturnScenePath(resolution.Request?.ReturnScenePath ?? "");
         ShowPostBattleSettlementDialog(
@@ -798,7 +806,7 @@ public partial class WorldSiteRoot
         _unitRoot?.SetHoverPreviewByEntityId(normalizedEntityId);
     }
 
-    private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)
+    private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context)
     {
         StrategicWorldRuntime.EnsureInitialized();
         string bridgeFailureReason = StrategicBattleBridgeService.GetActiveContextFailureReason(context);
@@ -853,7 +861,6 @@ public partial class WorldSiteRoot
         ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult, summary);
         ApplyStrategicBattleResultWorldArmyCarrierCleanup(context.CompatibilityRequest, applyResult);
         StrategicWorldRuntime.LastNotice = applyResult.Message;
-        context.CompatibilityResult = compatibilityResult;
         ClearLegacyStrategicBattleHandoff("result_consumed");
         _activeStrategicBattleContext = null;
         return applyResult;

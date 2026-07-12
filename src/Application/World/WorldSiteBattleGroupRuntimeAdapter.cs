@@ -235,14 +235,22 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
         WorldSiteBattleGroupRuntimeResolveResult started,
         StrategicBattleActiveContext activeContext)
     {
-        BattleStartRequest request = activeContext?.CompatibilityRequest ?? started?.Request;
+        BattleStartRequest request = activeContext?.CompatibilityRequest;
         BattleRuntimeSessionController runtimeController = started?.RuntimeController;
         if (activeContext == null || request == null || runtimeController == null)
         {
             return Reject("strategic_battle_group_runtime_completion_missing", request, started?.FlowResult, activeContext);
         }
 
-        BattleStartSnapshot snapshot = started.Snapshot ?? started.FlowResult?.Snapshot ?? activeContext.Snapshot ?? new BattleStartSnapshot();
+        BattleStartSnapshot snapshot = started?.Snapshot;
+        if (snapshot == null ||
+            activeContext.Snapshot == null ||
+            !string.Equals(snapshot.SnapshotId ?? "", activeContext.Snapshot.SnapshotId ?? "", System.StringComparison.Ordinal) ||
+            !string.Equals(snapshot.BattleId ?? "", activeContext.Session?.SessionId ?? "", System.StringComparison.Ordinal))
+        {
+            return Reject("strategic_battle_active_context_snapshot_mismatch", request, started?.FlowResult, activeContext);
+        }
+
         if (!runtimeController.IsComplete)
         {
             // Strategic writeback only accepts runtime facts produced before this boundary.
@@ -253,9 +261,6 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
                 Snapshot = snapshot,
                 RuntimeResult = incompleteResult
             };
-            activeContext.Snapshot = snapshot;
-            activeContext.RuntimeResult = incompleteResult;
-            activeContext.FlowResult = incompleteFlowResult;
             return Reject("battle_group_runtime_incomplete", request, incompleteFlowResult, activeContext);
         }
 
@@ -275,11 +280,6 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             SettlementPlan = settlementPlan,
             Report = report
         };
-        activeContext.Snapshot = snapshot;
-        activeContext.RuntimeResult = runtimeResult;
-        activeContext.SettlementPlan = settlementPlan;
-        activeContext.Report = report;
-        activeContext.FlowResult = flowResult;
         if (!settlementPlan.Accepted)
         {
             string reason = string.IsNullOrWhiteSpace(settlementPlan.RejectionReason)
@@ -292,6 +292,15 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             request,
             runtimeResult.Outcome);
         CopyObjectiveResults(request, compatibilityResult);
+        if (!activeContext.TryPublishResultEnvelope(
+                runtimeResult,
+                settlementPlan,
+                report,
+                out string envelopeFailureReason))
+        {
+            return Reject(envelopeFailureReason, request, flowResult, activeContext);
+        }
+
         activeContext.CompatibilityResult = compatibilityResult;
 
         WorldSiteBattleGroupRuntimeResolveResult result = new()
@@ -299,7 +308,7 @@ public sealed class WorldSiteBattleGroupRuntimeAdapter
             Success = true,
             Request = request,
             BattleResult = compatibilityResult,
-            Report = report,
+            Report = activeContext.ResultEnvelope.Report,
             FlowResult = flowResult,
             Snapshot = snapshot,
             RuntimeController = runtimeController,

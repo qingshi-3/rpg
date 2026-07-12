@@ -80,6 +80,8 @@ Run("settlement exact replay is idempotent and conflict fails", StrategicManagem
 Run("uncommitted settlement requires matching active context", StrategicManagementRegressionCases.SettlementUncommittedResultRequiresActiveContext);
 Run("settlement commit rejects mismatched identity without mutation", StrategicManagementRegressionCases.SettlementCommitRejectsMismatchedIdentityWithoutMutation);
 Run("active context store rejects stale publication and consumption", StrategicManagementRegressionCases.ActiveContextStoreRejectsStalePublicationAndConsumption);
+Run("strategic battle active context publishes one result envelope once", StrategicManagementRegressionCases.StrategicBattleActiveContextPublishesOneResultEnvelopeOnce);
+Run("strategic battle result envelope rejects invalid and legacy mirror authority", StrategicManagementRegressionCases.StrategicBattleResultEnvelopeRejectsInvalidAndLegacyMirrorAuthority);
 Run("strategic battle result summary rejects legacy request result authority", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsLegacyRequestResultAuthority);
 Run("strategic battle result summary rejects mismatched result", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsMismatchedResult);
 Run("strategic battle result summary rejects missing participant result", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsMissingParticipantResult);

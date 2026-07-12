@@ -533,7 +533,7 @@ internal static void StrategicBattleBridgeCreatesActiveContextBeforeSceneTransit
 internal static void StrategicBattleResultSkipsLegacyWorldApplier()
 {
     string source = ReadWorldSiteRootSource();
-    string body = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
+    string body = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context)");
     string legacyWrapperBody = ExtractMethodBody(source, "private WorldActionResult ApplyBattleResultToWorld(BattleStartRequest request, BattleResult battleResult)");
     string legacyBody = ExtractMethodBody(source, "private WorldActionResult ApplyLegacyBattleResultToWorld(BattleStartRequest request, BattleResult battleResult)");
     int summaryIndex = body.IndexOf("bridge.BuildResultSummary", StringComparison.Ordinal);
@@ -567,7 +567,7 @@ internal static void StrategicBattleResultSkipsLegacyWorldApplier()
 internal static void StrategicBattleResultKeepsPresentationCleanupOnly()
 {
     string source = ReadWorldSiteRootSource();
-    string body = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
+    string body = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context)");
     int strategicApplyIndex = body.IndexOf("StrategicManagementRuntime.CommitBattleResult", StringComparison.Ordinal);
     int cleanupIndex = body.IndexOf("ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult, summary)", StringComparison.Ordinal);
     int carrierCleanupIndex = body.IndexOf("ApplyStrategicBattleResultWorldArmyCarrierCleanup(context.CompatibilityRequest, applyResult)", StringComparison.Ordinal);
@@ -631,7 +631,7 @@ internal static void StrategicBattleResultKeepsPresentationCleanupOnly()
 internal static void StrategicBattleResultClearsStaleLegacyHandoff()
 {
     string source = ReadWorldSiteRootSource();
-    string applyBody = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
+    string applyBody = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context)");
     string cleanupBody = ExtractMethodBody(source, "private static void ClearLegacyStrategicBattleHandoff(");
     int activeContextClearIndex = applyBody.IndexOf("StrategicManagementRuntime.CommitBattleResult", StringComparison.Ordinal);
     int legacyCleanupIndex = applyBody.IndexOf("ClearLegacyStrategicBattleHandoff(\"result_consumed\")", StringComparison.Ordinal);
@@ -650,7 +650,7 @@ internal static void StrategicBattleResultClearsStaleLegacyHandoff()
 internal static void StrategicBattleResultPersistsStrategicStateBeforeFeedback()
 {
     string source = ReadWorldSiteRootSource();
-    string applyBody = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context, BattleResult compatibilityResult)");
+    string applyBody = ExtractMethodBody(source, "private WorldActionResult ApplyStrategicBattleResultToWorld(StrategicBattleActiveContext context)");
     int strategicApplyIndex = applyBody.IndexOf("StrategicManagementRuntime.CommitBattleResult", StringComparison.Ordinal);
     int rejectedReturnIndex = applyBody.IndexOf("if (!commitResult.Success", StringComparison.Ordinal);
     int feedbackIndex = applyBody.IndexOf("BuildStrategicBattleFeedbackReturnNotice(strategicFeedback)", StringComparison.Ordinal);

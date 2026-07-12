@@ -293,7 +293,8 @@ public sealed class StrategicBattleBridgeService
     {
         StrategicBattleSession session = context?.Session;
         BattleStartSnapshot snapshot = context?.Snapshot;
-        BattleRuntimeSessionResult runtimeResult = ResolveRuntimeResult(context);
+        StrategicBattleResultEnvelope resultEnvelope = context?.ResultEnvelope;
+        BattleRuntimeSessionResult runtimeResult = resultEnvelope?.RuntimeResult;
         BattleOutcomeResult outcome = runtimeResult?.Outcome;
         string failureReason = GetActiveContextFailureReason(context);
         BattleOutcome mappedOutcome = string.IsNullOrWhiteSpace(failureReason)
@@ -344,6 +345,7 @@ public sealed class StrategicBattleBridgeService
             if (!TryResolveParticipantRuntimeOutcome(
                     context,
                     participant,
+                    outcome,
                     out BattleGroupSnapshot group,
                     out _,
                     out BattleActorOutcome corpsOutcome,
@@ -377,11 +379,21 @@ public sealed class StrategicBattleBridgeService
 
     public static string GetActiveContextFailureReason(StrategicBattleActiveContext context)
     {
-        BattleRuntimeSessionResult runtimeResult = ResolveRuntimeResult(context);
+        StrategicBattleResultEnvelope resultEnvelope = context?.ResultEnvelope;
+        return resultEnvelope == null
+            ? StrategicFailureReasons.MissingBattleResultSummary
+            : GetResultEnvelopeFailureReason(context, resultEnvelope);
+    }
+
+    public static string GetResultEnvelopeFailureReason(
+        StrategicBattleActiveContext context,
+        StrategicBattleResultEnvelope resultEnvelope)
+    {
+        BattleRuntimeSessionResult runtimeResult = resultEnvelope?.RuntimeResult;
         BattleOutcomeResult outcome = runtimeResult?.Outcome;
         BattleEventStream eventStream = runtimeResult?.EventStream;
-        SettlementPlan settlementPlan = ResolveSettlementPlan(context);
-        BattleReportRecord report = ResolveReport(context);
+        SettlementPlan settlementPlan = resultEnvelope?.SettlementPlan;
+        BattleReportRecord report = resultEnvelope?.Report;
         if (context == null || context.Session == null || outcome == null)
         {
             return StrategicFailureReasons.MissingBattleResultSummary;
@@ -394,15 +406,17 @@ public sealed class StrategicBattleBridgeService
             return StrategicFailureReasons.BattleResultMismatch;
         }
 
-        if (!string.IsNullOrWhiteSpace(outcome.BattleId) &&
-            !string.Equals(outcome.BattleId, context.Session.SessionId, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(outcome.BattleId) ||
+            !string.Equals(outcome.BattleId, context.Session.SessionId, StringComparison.Ordinal) ||
+            !string.Equals(resultEnvelope.SessionId, context.Session.SessionId, StringComparison.Ordinal))
         {
             return StrategicFailureReasons.BattleResultMismatch;
         }
 
         if (context.Snapshot == null ||
             string.IsNullOrWhiteSpace(context.Snapshot.SnapshotId) ||
-            !string.Equals(outcome.SnapshotId ?? "", context.Snapshot.SnapshotId, StringComparison.Ordinal))
+            !string.Equals(outcome.SnapshotId ?? "", context.Snapshot.SnapshotId, StringComparison.Ordinal) ||
+            !string.Equals(resultEnvelope.SnapshotId, context.Snapshot.SnapshotId, StringComparison.Ordinal))
         {
             return string.IsNullOrWhiteSpace(outcome.SnapshotId)
                 ? StrategicFailureReasons.MissingBattleResultSummary
@@ -486,6 +500,7 @@ public sealed class StrategicBattleBridgeService
             if (!TryResolveParticipantRuntimeOutcome(
                     context,
                     participant,
+                    outcome,
                     out _,
                     out _,
                     out _,
@@ -496,21 +511,6 @@ public sealed class StrategicBattleBridgeService
         }
 
         return "";
-    }
-
-    private static BattleRuntimeSessionResult ResolveRuntimeResult(StrategicBattleActiveContext context)
-    {
-        return context?.RuntimeResult ?? context?.FlowResult?.RuntimeResult;
-    }
-
-    private static SettlementPlan ResolveSettlementPlan(StrategicBattleActiveContext context)
-    {
-        return context?.SettlementPlan ?? context?.FlowResult?.SettlementPlan;
-    }
-
-    private static BattleReportRecord ResolveReport(StrategicBattleActiveContext context)
-    {
-        return context?.Report ?? context?.FlowResult?.Report;
     }
 
     private static bool HasDuplicateParticipantIdentity(
@@ -526,6 +526,7 @@ public sealed class StrategicBattleBridgeService
     private static bool TryResolveParticipantRuntimeOutcome(
         StrategicBattleActiveContext context,
         StrategicBattleParticipantReference participant,
+        BattleOutcomeResult runtimeOutcome,
         out BattleGroupSnapshot group,
         out BattleActorOutcome heroOutcome,
         out BattleActorOutcome corpsOutcome,
@@ -535,7 +536,6 @@ public sealed class StrategicBattleBridgeService
         heroOutcome = null;
         corpsOutcome = null;
         failureReason = ParticipantActorMappingMissingReason;
-        BattleOutcomeResult runtimeOutcome = ResolveRuntimeResult(context)?.Outcome;
         if (context?.Snapshot?.BattleGroups == null ||
             runtimeOutcome?.ActorOutcomes == null ||
             participant == null)
