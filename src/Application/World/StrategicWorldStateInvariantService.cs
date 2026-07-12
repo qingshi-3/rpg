@@ -95,6 +95,13 @@ public sealed class StrategicWorldStateInvariantService
             return true;
         }
 
+        // Strategic carriers intentionally have no legacy garrison roster. Their
+        // identity remains valid until Strategic Management removes the carrier.
+        if (!string.IsNullOrWhiteSpace(army.StrategicExpeditionId))
+        {
+            return false;
+        }
+
         return army.GarrisonUnits == null ||
                army.GarrisonUnits.Sum(unit => System.Math.Max(0, unit?.Count ?? 0)) <= 0;
     }

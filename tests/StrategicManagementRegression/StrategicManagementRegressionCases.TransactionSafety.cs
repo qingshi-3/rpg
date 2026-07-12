@@ -702,7 +702,28 @@ internal static partial class StrategicManagementRegressionCases
         try
         {
             saveService.Save(setup.State, savePath);
-            JsonObject versionOne = JsonNode.Parse(File.ReadAllText(savePath))!.AsObject();
+            JsonObject current = JsonNode.Parse(File.ReadAllText(savePath))!.AsObject();
+
+            JsonObject versionTwoAliasesOnly = JsonNode.Parse(current.ToJsonString())!.AsObject();
+            versionTwoAliasesOnly["Version"] = 2;
+            JsonObject aliasOnlyExpedition = versionTwoAliasesOnly["State"]!["Expeditions"]![setup.ExpeditionId]!.AsObject();
+            aliasOnlyExpedition["HeroId"] = StrategicManagementIds.HeroOrdinaryCommander;
+            aliasOnlyExpedition["CorpsInstanceId"] = setup.CorpsInstanceId;
+            aliasOnlyExpedition.Remove("Participants");
+            File.WriteAllText(savePath, versionTwoAliasesOnly.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            StrategicManagementState aliasMigrated = saveService.Load(savePath);
+            AssertEqual(1, aliasMigrated.Expeditions[setup.ExpeditionId].Participants.Count, "v2 migration should convert a provable legacy alias pair");
+            AssertEqual(setup.CorpsInstanceId, aliasMigrated.Expeditions[setup.ExpeditionId].Participants[0].CorpsInstanceId, "v2 migration should preserve the proven legacy pair");
+
+            JsonObject ambiguousVersionTwo = JsonNode.Parse(current.ToJsonString())!.AsObject();
+            ambiguousVersionTwo["Version"] = 2;
+            JsonObject ambiguousExpedition = ambiguousVersionTwo["State"]!["Expeditions"]![setup.ExpeditionId]!.AsObject();
+            ambiguousExpedition["HeroId"] = StrategicManagementIds.HeroOrdinaryCommander;
+            ambiguousExpedition["CorpsInstanceId"] = setup.State.Heroes[StrategicManagementIds.HeroArcherCaptain].AssignedCorpsInstanceId;
+            File.WriteAllText(savePath, ambiguousVersionTwo.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            AssertThrowsInvalidOperation(() => saveService.Load(savePath), "v2 migration must reject aliases that contradict canonical participants");
+
+            JsonObject versionOne = JsonNode.Parse(current.ToJsonString())!.AsObject();
             versionOne["Version"] = 1;
             JsonArray participants = versionOne["State"]!["Expeditions"]![setup.ExpeditionId]!["Participants"]!.AsArray();
             foreach (JsonNode? participant in participants)

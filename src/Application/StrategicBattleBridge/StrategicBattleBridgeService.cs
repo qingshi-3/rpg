@@ -266,6 +266,14 @@ public sealed class StrategicBattleBridgeService
             return;
         }
 
+        request.PlayerForces ??= new List<BattleForceRequest>();
+        if (request.PlayerForces.Count == 0)
+        {
+            // The compatibility rows are compiled from Bridge participant identity.
+            // WorldArmy is only a movement carrier and must not seed roster facts.
+            request.PlayerForces.AddRange(BuildParticipantForceProjection(session, request.SourceArmyId));
+        }
+
         foreach (BattleForceRequest force in request.PlayerForces ?? new List<BattleForceRequest>())
         {
             StrategicBattleParticipantReference participant = ResolveParticipantForForce(session, force);
@@ -287,6 +295,72 @@ public sealed class StrategicBattleBridgeService
                 ? participant.FactionId
                 : force.FactionId;
         }
+    }
+
+    private IEnumerable<BattleForceRequest> BuildParticipantForceProjection(
+        StrategicBattleSession session,
+        string sourceArmyId)
+    {
+        foreach (StrategicBattleParticipantReference participant in session.Participants.Where(item => item != null))
+        {
+            string heroBattleUnitId = GetHeroBattleUnitId(participant);
+            string corpsBattleUnitId = GetCorpsBattleUnitId(participant);
+            int corpsCount = _definitions.Corps.TryGetValue(
+                participant.CorpsDefinitionId ?? "",
+                out StrategicCorpsDefinition corpsDefinition)
+                ? Math.Max(1, corpsDefinition.BattleUnitCount)
+                : 1;
+            string sourceId = string.IsNullOrWhiteSpace(sourceArmyId)
+                ? participant.ParticipantId
+                : sourceArmyId;
+
+            yield return CreateParticipantForce(
+                participant,
+                sourceId,
+                $"{participant.ParticipantId}:hero",
+                heroBattleUnitId,
+                1,
+                heroBattleUnitId,
+                corpsBattleUnitId);
+            yield return CreateParticipantForce(
+                participant,
+                sourceId,
+                $"{participant.ParticipantId}:corps",
+                corpsBattleUnitId,
+                corpsCount,
+                heroBattleUnitId,
+                corpsBattleUnitId);
+        }
+    }
+
+    private static BattleForceRequest CreateParticipantForce(
+        StrategicBattleParticipantReference participant,
+        string sourceId,
+        string forceId,
+        string unitDefinitionId,
+        int count,
+        string heroBattleUnitId,
+        string corpsBattleUnitId)
+    {
+        return new BattleForceRequest
+        {
+            ForceId = forceId,
+            CommandGroupId = participant.ParticipantId,
+            SourceKind = "PlayerArmy",
+            SourceId = sourceId ?? "",
+            UnitDefinitionId = unitDefinitionId ?? "",
+            StrategicParticipantId = participant.ParticipantId,
+            StrategicHeroId = participant.HeroId,
+            StrategicHeroDefinitionId = participant.HeroDefinitionId,
+            StrategicHeroBattleUnitId = heroBattleUnitId ?? "",
+            StrategicCorpsInstanceId = participant.CorpsInstanceId,
+            StrategicCorpsDefinitionId = participant.CorpsDefinitionId,
+            StrategicCorpsBattleUnitId = corpsBattleUnitId ?? "",
+            StrategicSourceLocationId = participant.SourceLocationId,
+            StrategicPreBattleCorpsStrength = participant.PreBattleCorpsStrength,
+            Count = count,
+            FactionId = participant.FactionId
+        };
     }
 
     public StrategicBattleResultSummary BuildResultSummary(StrategicBattleActiveContext context)
@@ -727,7 +801,8 @@ public sealed class StrategicBattleBridgeService
         List<StrategicBattleParticipantReference> participants = new();
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
         {
-            if (!state.Heroes.TryGetValue(participant.HeroId ?? "", out StrategicHeroState hero) ||
+            if (participant == null ||
+                !state.Heroes.TryGetValue(participant.HeroId ?? "", out StrategicHeroState hero) ||
                 !state.CorpsInstances.TryGetValue(participant.CorpsInstanceId ?? "", out StrategicCorpsInstanceState corps))
             {
                 return new List<StrategicBattleParticipantReference>();
@@ -757,26 +832,9 @@ public sealed class StrategicBattleBridgeService
     private static IEnumerable<StrategicExpeditionParticipantState> EnumerateExpeditionParticipants(
         StrategicExpeditionState expedition)
     {
-        if (expedition?.Participants?.Count > 0)
-        {
-            return expedition.Participants;
-        }
-
-        if (expedition == null ||
-            string.IsNullOrWhiteSpace(expedition.HeroId) ||
-            string.IsNullOrWhiteSpace(expedition.CorpsInstanceId))
-        {
-            return Array.Empty<StrategicExpeditionParticipantState>();
-        }
-
-        return new[]
-        {
-            new StrategicExpeditionParticipantState
-            {
-                HeroId = expedition.HeroId,
-                CorpsInstanceId = expedition.CorpsInstanceId
-            }
-        };
+        return expedition?.Participants is { } participants
+            ? participants
+            : Array.Empty<StrategicExpeditionParticipantState>();
     }
 
     private static string GetMissingParticipantFailureReason(
@@ -785,6 +843,11 @@ public sealed class StrategicBattleBridgeService
     {
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
         {
+            if (participant == null)
+            {
+                return StrategicFailureReasons.InvalidExpeditionParticipants;
+            }
+
             if (!state.Heroes.ContainsKey(participant.HeroId ?? ""))
             {
                 return StrategicFailureReasons.MissingHero;

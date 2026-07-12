@@ -51,15 +51,11 @@ public sealed class WorldBattleRequestBuilder
         {
             if (IsStrategicManagementArmy(sourceArmy))
             {
-                AddArmyForces(
-                    request.PlayerForces,
-                    sourceArmy,
-                    "PlayerArmy",
-                    state.PlayerFactionId,
-                    assignFirstSliceHeroCompanyCommandGroups: true);
+                // Bridge session participants, not carrier garrison rows, compile the
+                // strategic player force projection after the session is attached.
                 GameLog.Info(
                     nameof(WorldBattleRequestBuilder),
-                    $"StrategicArmySkippedLegacyGarrisonImport army={sourceArmy.ArmyId} expedition={sourceArmy.StrategicExpeditionId} target={site.SiteId} forces={request.PlayerForces.Count}");
+                    $"StrategicArmyRosterDelegatedToBridge army={sourceArmy.ArmyId} expedition={sourceArmy.StrategicExpeditionId} target={site.SiteId}");
             }
             else
             {

@@ -9,8 +9,6 @@ public sealed class StrategicExpeditionState
     public string SourceLocationId { get; set; } = "";
     public string TargetLocationId { get; set; } = "";
     public StrategicExpeditionIntent Intent { get; set; } = StrategicExpeditionIntent.Unknown;
-    public string HeroId { get; set; } = "";
-    public string CorpsInstanceId { get; set; } = "";
     public List<StrategicExpeditionParticipantState> Participants { get; set; } = new();
     public StrategicExpeditionStatus Status { get; set; } = StrategicExpeditionStatus.Unknown;
     public int CreatedElapsedWorldTimePulses { get; set; }

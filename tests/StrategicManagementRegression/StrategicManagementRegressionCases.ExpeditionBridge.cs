@@ -1,3 +1,4 @@
+using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
 using Rpg.Application.StrategicBattleBridge;
@@ -5,6 +6,7 @@ using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
+using Rpg.Domain.World;
 internal static partial class StrategicManagementRegressionCases
 {
     internal static void CreateExpeditionLocksAssignedHeroCompany()
@@ -23,9 +25,9 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(expedition.Success, $"expedition creation should succeed, got {expedition.FailureReason}");
         AssertTrue(state.Expeditions.ContainsKey(expedition.CreatedEntityId), "created expedition should be durable strategic state");
         StrategicExpeditionState expeditionState = state.Expeditions[expedition.CreatedEntityId];
-        AssertEqual(StrategicManagementIds.HeroOrdinaryCommander, expeditionState.HeroId, "expedition should reference the hero");
-        AssertEqual(corpsInstanceId, expeditionState.CorpsInstanceId, "expedition should reference the assigned corps instance");
         AssertEqual(1, expeditionState.Participants.Count, "single-company expedition should retain one participant");
+        AssertEqual(StrategicManagementIds.HeroOrdinaryCommander, expeditionState.Participants[0].HeroId, "canonical participant should reference the hero");
+        AssertEqual(corpsInstanceId, expeditionState.Participants[0].CorpsInstanceId, "canonical participant should reference the assigned corps instance");
         AssertEqual(StrategicManagementIds.LocationPlainsCity, expeditionState.SourceLocationId, "expedition source should be the source city");
         AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, expeditionState.TargetLocationId, "expedition target should be the selected strategic location");
         AssertEqual(StrategicExpeditionStatus.Moving, expeditionState.Status, "new expedition should start as moving");
@@ -57,8 +59,6 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(expedition.Success, $"multi-battle-group expedition creation should succeed, got {expedition.FailureReason}");
         StrategicExpeditionState expeditionState = state.Expeditions[expedition.CreatedEntityId];
         AssertEqual(3, expeditionState.Participants.Count, "expedition should retain all selected battle-group participants");
-        AssertEqual(heroIds[0], expeditionState.HeroId, "compatibility hero alias should retain the first selected participant");
-        AssertEqual(state.Heroes[heroIds[0]].AssignedCorpsInstanceId, expeditionState.CorpsInstanceId, "compatibility corps alias should retain the first selected participant");
         foreach (string heroId in heroIds)
         {
             string corpsInstanceId = state.Heroes[heroId].AssignedCorpsInstanceId;
@@ -72,6 +72,72 @@ internal static partial class StrategicManagementRegressionCases
             AssertEqual(StrategicCorpsInstanceStatus.Expedition, state.CorpsInstances[corpsInstanceId].Status, $"{corpsInstanceId} should move to expedition status");
             AssertEqual("", state.CorpsInstances[corpsInstanceId].HomeCityId, $"{corpsInstanceId} should leave the source city while on expedition");
         }
+    }
+
+    internal static void ExpeditionParticipantsAreSoleRuntimeRosterAuthority()
+    {
+        StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
+        StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
+        StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
+        StrategicCommandResult created = commands.CreateExpedition(
+            state,
+            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicExpeditionIntent.AssaultLocation,
+            StrategicManagementIds.HeroOrdinaryCommander);
+        AssertTrue(created.Success, $"expedition creation should succeed, got {created.FailureReason}");
+
+        StrategicExpeditionState expedition = state.Expeditions[created.CreatedEntityId];
+        WorldArmyState carrier = new StrategicExpeditionWorldArmyAdapter().CreateWorldArmy(
+            definitions,
+            state,
+            expedition,
+            StrategicWorldIds.SitePlayerCamp,
+            StrategicWorldIds.SiteBonefield,
+            Vector2.Zero,
+            Vector2.One,
+            WorldArmyIntent.AssaultSite,
+            1);
+
+        AssertTrue(typeof(StrategicExpeditionState).GetProperty("HeroId") == null, "expedition must not expose a lead hero roster alias");
+        AssertTrue(typeof(StrategicExpeditionState).GetProperty("CorpsInstanceId") == null, "expedition must not expose a lead corps roster alias");
+        AssertTrue(typeof(WorldArmyState).GetProperty("StrategicHeroId") == null, "strategic carrier must not expose a hero roster mirror");
+        AssertTrue(typeof(WorldArmyState).GetProperty("StrategicCorpsInstanceId") == null, "strategic carrier must not expose a corps roster mirror");
+        AssertTrue(carrier != null, "canonical participants should create a strategic movement carrier");
+        WorldArmyState requiredCarrier = carrier ?? throw new InvalidOperationException("canonical carrier missing");
+        AssertEqual(created.CreatedEntityId, requiredCarrier.StrategicExpeditionId, "carrier should retain only the expedition identity");
+        AssertEqual(0, requiredCarrier.GarrisonUnits.Count, "strategic carrier must not copy participant rows into legacy garrison state");
+
+        StrategicBattleBridgeService bridge = new(definitions);
+        StrategicBattleSessionResult sessionResult = bridge.CreateSession(
+            state,
+            expedition.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn");
+        AssertTrue(sessionResult.Success, $"bridge session should resolve canonical participants, got {sessionResult.FailureReason}");
+        StrategicBattleActiveContextResult contextResult = bridge.CreateActiveContext(
+            state,
+            sessionResult.Session,
+            new BattleStartRequest
+            {
+                SourceArmyId = requiredCarrier.ArmyId,
+                BattleKind = BattleKind.AssaultSite
+            });
+        AssertTrue(contextResult.Success, $"bridge should compile an empty carrier seed, got {contextResult.FailureReason}");
+        AssertEqual(2, contextResult.Context.PreparationDraft.PlayerForces.Count, "bridge should project one hero row and one corps row from the canonical participant");
+        AssertTrue(
+            contextResult.Context.PreparationDraft.PlayerForces.All(force =>
+                force.StrategicParticipantId == sessionResult.Session.Participants[0].ParticipantId),
+            "bridge force projection should derive identity from the canonical session participant");
+
+        expedition.Participants.Clear();
+        StrategicBattleSessionResult missingParticipants = bridge.CreateSession(
+            state,
+            expedition.ExpeditionId,
+            "res://return_to_world.tscn",
+            "res://scenes/world/sites/WorldSiteRoot.tscn");
+        AssertTrue(!missingParticipants.Success, "bridge must reject an expedition without canonical participants");
+        AssertEqual(StrategicFailureReasons.InvalidExpeditionParticipants, missingParticipants.FailureReason, "bridge should expose the canonical participant failure");
     }
 
     internal static void ReinforceArrivalStationsExpeditionAtOwnedTargetCity()

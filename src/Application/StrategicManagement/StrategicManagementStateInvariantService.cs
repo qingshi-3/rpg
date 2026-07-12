@@ -98,25 +98,8 @@ public sealed class StrategicManagementStateInvariantService
     private static System.Collections.Generic.IReadOnlyList<StrategicExpeditionParticipantState> EnumerateParticipants(
         StrategicExpeditionState expedition)
     {
-        if (expedition?.Participants?.Count > 0)
-        {
-            return expedition.Participants;
-        }
-
-        if (expedition == null ||
-            string.IsNullOrWhiteSpace(expedition.HeroId) ||
-            string.IsNullOrWhiteSpace(expedition.CorpsInstanceId))
-        {
-            return System.Array.Empty<StrategicExpeditionParticipantState>();
-        }
-
-        return new[]
-        {
-            new StrategicExpeditionParticipantState
-            {
-                HeroId = expedition.HeroId,
-                CorpsInstanceId = expedition.CorpsInstanceId
-            }
-        };
+        return expedition?.Participants is { } participants
+            ? participants
+            : System.Array.Empty<StrategicExpeditionParticipantState>();
     }
 }

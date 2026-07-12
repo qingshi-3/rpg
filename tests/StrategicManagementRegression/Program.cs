@@ -34,6 +34,7 @@ Run("replenish corps failure leaves resources reserve and strength unchanged", S
 Run("assign corps to hero records aptitude without random failure", StrategicManagementRegressionCases.AssignCorpsToHeroRecordsAptitudeWithoutRandomFailure);
 Run("create expedition locks assigned battle group", StrategicManagementRegressionCases.CreateExpeditionLocksAssignedHeroCompany);
 Run("create expedition locks selected battle groups", StrategicManagementRegressionCases.CreateExpeditionLocksSelectedHeroCompanies);
+Run("expedition participants are the sole runtime roster authority", StrategicManagementRegressionCases.ExpeditionParticipantsAreSoleRuntimeRosterAuthority);
 Run("expedition rollback restores exact stations without partial mutation", StrategicManagementRegressionCases.ExpeditionRollbackRestoresExactStationsWithoutPartialMutation);
 Run("missing deployed result rejects without mutation", StrategicManagementRegressionCases.MissingDeployedResultRejectsWithoutMutation);
 Run("final launch snapshot freezes reserve roles", StrategicManagementRegressionCases.FinalLaunchSnapshotFreezesReserveRoles);

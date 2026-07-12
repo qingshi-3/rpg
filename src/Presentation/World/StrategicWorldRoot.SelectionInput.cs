@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.Battle;
+using Rpg.Application.StrategicManagement;
 using Rpg.Application.World;
 using Rpg.Definitions.World;
 using Rpg.Domain.World;
@@ -394,7 +395,20 @@ public partial class StrategicWorldRoot
             return "未知小队";
         }
 
-        int unitCount = army.GarrisonUnits.Sum(unit => unit.Count);
+        int unitCount;
+        if (!string.IsNullOrWhiteSpace(army.StrategicExpeditionId))
+        {
+            unitCount = StrategicManagementRuntime.State?.Expeditions?.TryGetValue(
+                army.StrategicExpeditionId,
+                out var expedition) == true
+                ? expedition.Participants?.Count ?? 0
+                : 0;
+        }
+        else
+        {
+            unitCount = army.GarrisonUnits.Sum(unit => unit.Count);
+        }
+
         return unitCount > 0 ? $"{army.ArmyId} ({unitCount})" : army.ArmyId;
     }
 

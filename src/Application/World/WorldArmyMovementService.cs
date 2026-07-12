@@ -322,7 +322,7 @@ public sealed class WorldArmyMovementService
 
         GameLog.Info(
             nameof(WorldArmyMovementService),
-            $"WorldArmyArrived army={army.ArmyId} owner={army.OwnerFactionId} target={army.TargetSiteId} intent={army.Intent} status={army.Status} units={FormatUnits(army.GarrisonUnits)} battleReady={result.BattleReadyArmyIds.Contains(army.ArmyId)}");
+            $"WorldArmyArrived army={army.ArmyId} owner={army.OwnerFactionId} target={army.TargetSiteId} intent={army.Intent} status={army.Status} roster={FormatArmyRoster(army)} battleReady={result.BattleReadyArmyIds.Contains(army.ArmyId)}");
     }
 
     private static bool IsStrategicExpeditionCarrier(WorldArmyState army)
@@ -335,6 +335,13 @@ public sealed class WorldArmyMovementService
         return units == null
             ? "none"
             : string.Join(",", units.Where(unit => unit != null).Select(unit => $"{unit.UnitTypeId}:{unit.Count}"));
+    }
+
+    private static string FormatArmyRoster(WorldArmyState army)
+    {
+        return IsStrategicExpeditionCarrier(army)
+            ? $"strategic-expedition:{army.StrategicExpeditionId}"
+            : FormatUnits(army?.GarrisonUnits);
     }
 
     private void TransferArrivedGarrison(

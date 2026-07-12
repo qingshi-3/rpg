@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Godot;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
@@ -12,7 +13,7 @@ namespace Rpg.Application.StrategicManagement;
 
 public sealed class StrategicManagementSaveService
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     private static readonly JsonSerializerOptions SaveJsonOptions = new()
     {
@@ -147,7 +148,8 @@ public sealed class StrategicManagementSaveService
     private StrategicManagementState DeserializeAndMigrate(string json, string path)
     {
         ValidateDocumentShape(json, path, out int declaredVersion);
-        StrategicManagementSaveDocument document = JsonSerializer.Deserialize<StrategicManagementSaveDocument>(json, SaveJsonOptions)
+        string normalizedJson = NormalizeLegacyExpeditionAliases(json, declaredVersion, path);
+        StrategicManagementSaveDocument document = JsonSerializer.Deserialize<StrategicManagementSaveDocument>(normalizedJson, SaveJsonOptions)
                                                    ?? throw new InvalidDataException($"Invalid strategic management save path={path}");
         if (document.Version != declaredVersion)
         {
@@ -172,6 +174,12 @@ public sealed class StrategicManagementSaveService
             version = 2;
         }
 
+        if (version == 2)
+        {
+            MigrateVersionTwoToThree(state, path);
+            version = 3;
+        }
+
         if (version != CurrentVersion)
         {
             throw new InvalidDataException($"Strategic management save migration incomplete version={version} path={path}");
@@ -179,6 +187,164 @@ public sealed class StrategicManagementSaveService
 
         NormalizeCollections(state);
         return state;
+    }
+
+    private static string NormalizeLegacyExpeditionAliases(string json, int version, string path)
+    {
+        JsonObject root = JsonNode.Parse(json)?.AsObject()
+                          ?? throw new InvalidDataException($"Invalid strategic management save path={path}");
+        JsonObject state = GetRequiredObject(root, "State", path);
+        JsonObject expeditions = GetRequiredObject(state, "Expeditions", path);
+        foreach ((string expeditionKey, JsonNode expeditionNode) in expeditions.ToList())
+        {
+            if (expeditionNode is not JsonObject expedition)
+            {
+                throw new InvalidDataException($"Strategic management save contains malformed expedition={expeditionKey} path={path}");
+            }
+
+            bool hasHeroAlias = TryGetNodeProperty(expedition, "HeroId", out string heroAliasKey, out JsonNode heroAliasNode);
+            bool hasCorpsAlias = TryGetNodeProperty(expedition, "CorpsInstanceId", out string corpsAliasKey, out JsonNode corpsAliasNode);
+            if (version >= 3)
+            {
+                if (hasHeroAlias || hasCorpsAlias)
+                {
+                    throw new InvalidDataException($"Current strategic management save contains retired expedition aliases expedition={expeditionKey} path={path}");
+                }
+
+                continue;
+            }
+
+            string heroAlias = ReadLegacyString(heroAliasNode, hasHeroAlias, "HeroId", expeditionKey, path);
+            string corpsAlias = ReadLegacyString(corpsAliasNode, hasCorpsAlias, "CorpsInstanceId", expeditionKey, path);
+            if (hasHeroAlias != hasCorpsAlias ||
+                hasHeroAlias && (string.IsNullOrWhiteSpace(heroAlias) || string.IsNullOrWhiteSpace(corpsAlias)))
+            {
+                throw new InvalidDataException($"Cannot migrate incomplete expedition aliases expedition={expeditionKey} path={path}");
+            }
+
+            JsonArray participants;
+            if (!TryGetNodeProperty(expedition, "Participants", out _, out JsonNode participantsNode) ||
+                participantsNode == null)
+            {
+                participants = new JsonArray();
+                expedition["Participants"] = participants;
+            }
+            else if (participantsNode is JsonArray participantArray)
+            {
+                participants = participantArray;
+            }
+            else
+            {
+                throw new InvalidDataException($"Cannot migrate malformed expedition participants expedition={expeditionKey} path={path}");
+            }
+
+            if (participants.Count == 0)
+            {
+                if (!hasHeroAlias)
+                {
+                    throw new InvalidDataException($"Cannot migrate expedition without participant identity expedition={expeditionKey} path={path}");
+                }
+
+                participants.Add(new JsonObject
+                {
+                    ["HeroId"] = heroAlias,
+                    ["CorpsInstanceId"] = corpsAlias
+                });
+            }
+            else if (hasHeroAlias)
+            {
+                if (participants[0] is not JsonObject leadParticipant ||
+                    !TryReadRequiredString(leadParticipant, "HeroId", out string participantHeroId) ||
+                    !TryReadRequiredString(leadParticipant, "CorpsInstanceId", out string participantCorpsId) ||
+                    !string.Equals(heroAlias, participantHeroId, StringComparison.Ordinal) ||
+                    !string.Equals(corpsAlias, participantCorpsId, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException($"Cannot migrate ambiguous expedition aliases expedition={expeditionKey} path={path}");
+                }
+            }
+
+            if (hasHeroAlias)
+            {
+                expedition.Remove(heroAliasKey);
+                expedition.Remove(corpsAliasKey);
+            }
+        }
+
+        return root.ToJsonString(SaveJsonOptions);
+    }
+
+    private static JsonObject GetRequiredObject(JsonObject parent, string propertyName, string path)
+    {
+        if (!TryGetNodeProperty(parent, propertyName, out _, out JsonNode node) || node is not JsonObject result)
+        {
+            throw new InvalidDataException($"Strategic management save object={propertyName} is missing or malformed path={path}");
+        }
+
+        return result;
+    }
+
+    private static bool TryGetNodeProperty(
+        JsonObject source,
+        string propertyName,
+        out string actualName,
+        out JsonNode value)
+    {
+        foreach ((string key, JsonNode node) in source)
+        {
+            if (string.Equals(key, propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                actualName = key;
+                value = node;
+                return true;
+            }
+        }
+
+        actualName = "";
+        value = null;
+        return false;
+    }
+
+    private static string ReadLegacyString(
+        JsonNode node,
+        bool exists,
+        string propertyName,
+        string expeditionId,
+        string path)
+    {
+        if (!exists)
+        {
+            return "";
+        }
+
+        try
+        {
+            return node?.GetValue<string>()?.Trim() ?? "";
+        }
+        catch (InvalidOperationException exception)
+        {
+            throw new InvalidDataException(
+                $"Cannot migrate malformed expedition alias={propertyName} expedition={expeditionId} path={path}",
+                exception);
+        }
+    }
+
+    private static bool TryReadRequiredString(JsonObject source, string propertyName, out string value)
+    {
+        value = "";
+        if (!TryGetNodeProperty(source, propertyName, out _, out JsonNode node))
+        {
+            return false;
+        }
+
+        try
+        {
+            value = node?.GetValue<string>()?.Trim() ?? "";
+            return !string.IsNullOrWhiteSpace(value);
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
     }
 
     private void MigrateVersionOneToTwo(StrategicManagementState state, string path)
@@ -189,20 +355,6 @@ public sealed class StrategicManagementSaveService
             if (expedition == null || expedition.Status != StrategicExpeditionStatus.Moving)
             {
                 continue;
-            }
-
-            if ((expedition.Participants == null || expedition.Participants.Count == 0) &&
-                !string.IsNullOrWhiteSpace(expedition.HeroId) &&
-                !string.IsNullOrWhiteSpace(expedition.CorpsInstanceId))
-            {
-                expedition.Participants = new()
-                {
-                    new StrategicExpeditionParticipantState
-                    {
-                        HeroId = expedition.HeroId,
-                        CorpsInstanceId = expedition.CorpsInstanceId
-                    }
-                };
             }
 
             foreach (StrategicExpeditionParticipantState participant in expedition.Participants ?? new())
@@ -216,6 +368,26 @@ public sealed class StrategicManagementSaveService
                 {
                     throw new InvalidDataException(
                         $"Cannot migrate expedition rollback station path={path} expedition={expedition.ExpeditionId} hero={participant?.HeroId ?? ""} corps={participant?.CorpsInstanceId ?? ""}");
+                }
+
+                participant.RollbackStationLocationId = expedition.SourceLocationId;
+            }
+        }
+    }
+
+    private void MigrateVersionTwoToThree(StrategicManagementState state, string path)
+    {
+        // Legacy lead aliases were normalized in the versioned JSON boundary.
+        // Version three persists only canonical participant rows.
+        NormalizeCollections(state);
+        foreach (StrategicExpeditionState expedition in state.Expeditions.Values.Where(item => item.Status == StrategicExpeditionStatus.Moving))
+        {
+            foreach (StrategicExpeditionParticipantState participant in expedition.Participants.Where(item => string.IsNullOrWhiteSpace(item.RollbackStationLocationId)))
+            {
+                if (!CanProveVersionOneRollbackStation(state, expedition, participant))
+                {
+                    throw new InvalidDataException(
+                        $"Cannot migrate expedition rollback station path={path} expedition={expedition.ExpeditionId} hero={participant.HeroId} corps={participant.CorpsInstanceId}");
                 }
 
                 participant.RollbackStationLocationId = expedition.SourceLocationId;
@@ -257,9 +429,25 @@ public sealed class StrategicManagementSaveService
             }
 
             expedition.Participants ??= new();
+            if (expedition.Participants.Count == 0)
+            {
+                throw new InvalidDataException($"Strategic management save expedition has no canonical participants expedition={expedition.ExpeditionId}");
+            }
+
             if (expedition.Participants.Exists(participant => participant == null))
             {
                 throw new InvalidDataException($"Strategic management save contains a null expedition participant expedition={expedition.ExpeditionId}");
+            }
+
+            if (expedition.Participants.Any(participant =>
+                    string.IsNullOrWhiteSpace(participant.HeroId) ||
+                    string.IsNullOrWhiteSpace(participant.CorpsInstanceId) ||
+                    !state.Heroes.ContainsKey(participant.HeroId) ||
+                    !state.CorpsInstances.ContainsKey(participant.CorpsInstanceId)) ||
+                expedition.Participants.Select(participant => participant.HeroId).Distinct(StringComparer.Ordinal).Count() != expedition.Participants.Count ||
+                expedition.Participants.Select(participant => participant.CorpsInstanceId).Distinct(StringComparer.Ordinal).Count() != expedition.Participants.Count)
+            {
+                throw new InvalidDataException($"Strategic management save contains invalid or ambiguous expedition participants expedition={expedition.ExpeditionId}");
             }
         }
 

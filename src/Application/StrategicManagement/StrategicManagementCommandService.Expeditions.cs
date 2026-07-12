@@ -44,7 +44,6 @@ public sealed partial class StrategicManagementCommandService
         System.Collections.Generic.List<(StrategicHeroState Hero, StrategicCorpsInstanceState Corps)> participants =
             BuildExpeditionParticipants(state, heroIds);
         StrategicHeroState leadHero = participants[0].Hero;
-        StrategicCorpsInstanceState leadCorps = participants[0].Corps;
         string expeditionId = state.AllocateExpeditionId();
         StrategicExpeditionState expedition = new()
         {
@@ -53,8 +52,6 @@ public sealed partial class StrategicManagementCommandService
             SourceLocationId = sourceLocationId ?? "",
             TargetLocationId = targetLocationId ?? "",
             Intent = intent,
-            HeroId = leadHero.HeroId,
-            CorpsInstanceId = leadCorps.CorpsInstanceId,
             Status = StrategicExpeditionStatus.Moving,
             CreatedElapsedWorldTimePulses = state.ElapsedWorldTimePulses
         };
@@ -284,26 +281,9 @@ public sealed partial class StrategicManagementCommandService
     private static System.Collections.Generic.IReadOnlyList<StrategicExpeditionParticipantState> EnumerateExpeditionParticipants(
         StrategicExpeditionState expedition)
     {
-        if (expedition?.Participants?.Count > 0)
-        {
-            return expedition.Participants;
-        }
-
-        if (expedition == null ||
-            string.IsNullOrWhiteSpace(expedition.HeroId) ||
-            string.IsNullOrWhiteSpace(expedition.CorpsInstanceId))
-        {
-            return System.Array.Empty<StrategicExpeditionParticipantState>();
-        }
-
-        return new[]
-        {
-            new StrategicExpeditionParticipantState
-            {
-                HeroId = expedition.HeroId,
-                CorpsInstanceId = expedition.CorpsInstanceId
-            }
-        };
+        return expedition?.Participants is { } participants
+            ? participants
+            : System.Array.Empty<StrategicExpeditionParticipantState>();
     }
 
     private static string[] NormalizeHeroIds(System.Collections.Generic.IReadOnlyCollection<string> heroIds)

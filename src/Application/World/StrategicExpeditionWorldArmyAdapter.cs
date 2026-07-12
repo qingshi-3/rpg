@@ -30,15 +30,16 @@ public sealed class StrategicExpeditionWorldArmyAdapter
         }
 
         System.Collections.Generic.List<StrategicExpeditionParticipantState> participants =
-            EnumerateExpeditionParticipants(expedition).ToList();
+            (expedition.Participants ?? new()).ToList();
         if (participants.Count == 0)
         {
             return null;
         }
 
-        StrategicExpeditionParticipantState leadParticipant = participants[0];
-        if (!state.Heroes.TryGetValue(leadParticipant.HeroId ?? "", out StrategicHeroState leadHero) ||
-            !state.CorpsInstances.TryGetValue(leadParticipant.CorpsInstanceId ?? "", out StrategicCorpsInstanceState leadCorps))
+        if (participants.Any(participant =>
+                participant == null ||
+                !state.Heroes.ContainsKey(participant.HeroId ?? "") ||
+                !state.CorpsInstances.ContainsKey(participant.CorpsInstanceId ?? "")))
         {
             return null;
         }
@@ -47,8 +48,6 @@ public sealed class StrategicExpeditionWorldArmyAdapter
         {
             ArmyId = $"strategic:{expedition.ExpeditionId}",
             StrategicExpeditionId = expedition.ExpeditionId,
-            StrategicHeroId = leadHero.HeroId,
-            StrategicCorpsInstanceId = leadCorps.CorpsInstanceId,
             OwnerFactionId = ToWorldFactionId(expedition.FactionId),
             SourceSiteId = sourceMapSiteId ?? "",
             TargetSiteId = targetMapSiteId ?? "",
@@ -61,40 +60,6 @@ public sealed class StrategicExpeditionWorldArmyAdapter
         army.WorldPosition = sourcePosition;
         army.Destination = destination;
         army.ClearNavigationPath();
-        foreach (StrategicExpeditionParticipantState participant in participants)
-        {
-            if (!state.Heroes.TryGetValue(participant.HeroId ?? "", out StrategicHeroState hero) ||
-                !state.CorpsInstances.TryGetValue(participant.CorpsInstanceId ?? "", out StrategicCorpsInstanceState corps) ||
-                !definitions.Heroes.TryGetValue(hero.HeroDefinitionId ?? "", out StrategicHeroDefinition heroDefinition) ||
-                !definitions.Corps.TryGetValue(corps.CorpsDefinitionId ?? "", out StrategicCorpsDefinition corpsDefinition) ||
-                string.IsNullOrWhiteSpace(heroDefinition.BattleUnitId) ||
-                string.IsNullOrWhiteSpace(corpsDefinition.BattleUnitId))
-            {
-                return null;
-            }
-
-            string participantId = BuildParticipantId(expedition.ExpeditionId, hero.HeroId, corps.CorpsInstanceId);
-            army.GarrisonUnits.Add(new GarrisonState
-            {
-                UnitTypeId = heroDefinition.BattleUnitId,
-                Count = 1,
-                FactionId = army.OwnerFactionId,
-                SourceKind = "StrategicExpeditionParticipant",
-                SourceId = participantId,
-                StrategicParticipantId = participantId,
-                Morale = 80
-            });
-            army.GarrisonUnits.Add(new GarrisonState
-            {
-                UnitTypeId = corpsDefinition.BattleUnitId,
-                Count = System.Math.Max(1, corpsDefinition.BattleUnitCount),
-                FactionId = army.OwnerFactionId,
-                SourceKind = "StrategicExpeditionParticipant",
-                SourceId = participantId,
-                StrategicParticipantId = participantId,
-                Morale = 70
-            });
-        }
 
         GameLog.Info(
             nameof(StrategicExpeditionWorldArmyAdapter),
@@ -102,39 +67,9 @@ public sealed class StrategicExpeditionWorldArmyAdapter
         return army;
     }
 
-    private static System.Collections.Generic.IEnumerable<StrategicExpeditionParticipantState> EnumerateExpeditionParticipants(
-        StrategicExpeditionState expedition)
-    {
-        if (expedition?.Participants?.Count > 0)
-        {
-            return expedition.Participants;
-        }
-
-        if (expedition == null ||
-            string.IsNullOrWhiteSpace(expedition.HeroId) ||
-            string.IsNullOrWhiteSpace(expedition.CorpsInstanceId))
-        {
-            return System.Array.Empty<StrategicExpeditionParticipantState>();
-        }
-
-        return new[]
-        {
-            new StrategicExpeditionParticipantState
-            {
-                HeroId = expedition.HeroId,
-                CorpsInstanceId = expedition.CorpsInstanceId
-            }
-        };
-    }
-
     private static string FormatParticipants(System.Collections.Generic.IReadOnlyList<StrategicExpeditionParticipantState> participants)
     {
         return string.Join(",", participants.Select(item => $"{item.HeroId}:{item.CorpsInstanceId}"));
-    }
-
-    private static string BuildParticipantId(string expeditionId, string heroId, string corpsInstanceId)
-    {
-        return $"strategic_participant:{expeditionId}:{heroId}:{corpsInstanceId}";
     }
 
     private static string ToWorldFactionId(string factionId)

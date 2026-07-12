@@ -322,6 +322,11 @@ public partial class StrategicWorldRoot
 
     private static string FormatArmyUnitsForLog(WorldArmyState army)
     {
+        if (!string.IsNullOrWhiteSpace(army?.StrategicExpeditionId))
+        {
+            return $"strategic-expedition:{army.StrategicExpeditionId}";
+        }
+
         return army?.GarrisonUnits == null
             ? "none"
             : string.Join(",", army.GarrisonUnits.Where(unit => unit != null).Select(unit => $"{unit.UnitTypeId}:{unit.Count}"));
