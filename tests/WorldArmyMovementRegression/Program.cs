@@ -1,3 +1,4 @@
+using static RegressionTestRunner;
 using Godot;
 using Rpg.Application.World;
 using Rpg.Definitions.World;
@@ -196,20 +197,6 @@ static WorldArmyState BuildMovingArmy()
     army.WorldPosition = new Vector2(0, 0);
     army.Destination = new Vector2(100, 0);
     return army;
-}
-
-static void Run(string name, Action test)
-{
-    try
-    {
-        test();
-        Console.WriteLine($"PASS {name}");
-    }
-    catch (Exception exception)
-    {
-        Console.Error.WriteLine($"FAIL {name}: {exception.Message}");
-        System.Environment.ExitCode = 1;
-    }
 }
 
 static void AssertTrue(bool condition, string message)

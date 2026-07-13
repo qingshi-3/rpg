@@ -94,7 +94,8 @@ internal static void BattleSkillDefinitionsLiveInContentLayerAndMapToSnapshots()
     AssertTrue(
         compilerSource.Contains("BattleSkillDefinitionResource", StringComparison.Ordinal) &&
         compilerSource.Contains("IconPath = definition.IconPath", StringComparison.Ordinal) &&
-        compilerSource.Contains("IconPath = template.IconPath", StringComparison.Ordinal) &&
+        compilerSource.Contains("BattleSkillSnapshotCopy.DeepClone(template)", StringComparison.Ordinal) &&
+        compilerSource.Contains("IconPath = source.IconPath", StringComparison.Ordinal) &&
         compilerSource.Contains("DamageSkillEffectSnapshot", StringComparison.Ordinal) &&
         compilerSource.Contains("CreateMarkSkillEffectSnapshot", StringComparison.Ordinal) &&
         compilerSource.Contains("TeleportToMarkSkillEffectSnapshot", StringComparison.Ordinal) &&

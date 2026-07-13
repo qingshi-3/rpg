@@ -1,3 +1,4 @@
+using static RegressionTestRunner;
 using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
@@ -153,20 +154,6 @@ static void ResetStore()
     if (StrategicBattleActiveContextStore.TryPeek(out _, out StrategicBattleActiveContextToken token))
     {
         StrategicBattleActiveContextStore.TryClear(token, "test_reset", out _);
-    }
-}
-
-static void Run(string name, Action test)
-{
-    try
-    {
-        test();
-        Console.WriteLine($"PASS {name}");
-    }
-    catch (Exception exception)
-    {
-        Console.Error.WriteLine($"FAIL {name}: {exception.Message}");
-        System.Environment.ExitCode = 1;
     }
 }
 

@@ -70,6 +70,15 @@ Impact: Medium implementation and test-maintenance cleanup. No gameplay or syste
 Completed:
 
 - Trusted verification gate completed and committed at `6a079983`.
+- Batch A was independently accepted and committed on `main` as `871acf27`.
+- Batch B consolidated all three reported skill Snapshot deep-copy bodies into the compiler-owned internal `BattleSkillSnapshotCopy.DeepClone` path. Template compilation still assigns grant identity and excludes template caster bindings; Draft still rejects blank definition IDs and preserves caster rows; Runtime still normalizes definition IDs, tags, and caster IDs. Nested typed snapshots and all collection instances remain independently copied.
+- Batch B added one bounded shared runner shell compiled as linked source into Battle Hit Feedback, Scene Transition CAS, Strategic Management, Target Battle Architecture, World Army Movement, and World Site Deployment Cache executables. It centralizes only PASS/FAIL/ExitCode handling; Target and WorldSite retain their distinct local filtering rules, assertions remain local, and every runner remains a separate executable.
+- No Batch C source-shape helpers or intermediary services were removed or entered; `BattleGroupSessionProbeService` and all excluded/non-goal systems remain untouched.
+- Batch B focused verification passed: low-concurrency solution build completed with 0 errors and 43 existing warnings; Target Battle Architecture and Strategic Management passed; WorldSite initially failed one obsolete source-shape assertion, which was updated to verify the compiler-owned copy utility, then the full runner passed on its real-failure rerun.
+- Batch B exact `godot-code-review` result: Critical 0, Improvements 0. No scene/node, input, signal, Godot lifecycle, resource-loading, interop, thread, or hot-path behavior changed; shared copy and runner support are stateless and preserve caller ownership. `git diff --check` passed.
+- The single Batch B invocation of `tools/validation/run-trusted-validation.ps1` passed with the required Godot 4.7 console binary: solution build 0 warnings/0 errors, all seven maintained non-preview runners passed, and both explicitly allowlisted scene smokes passed.
+- Batch B implementation is complete and stopped at `Awaiting Verification`; no branch, stage, commit, archive, Batch A rework, or Batch C work was performed.
+- Independent Batch B verification accepted the implementation: the former Template, Draft, and Runtime copy bodies all delegate to the single compiler-owned utility; their distinct identity, owner, filtering, and normalization policies remain at each entry; typed nested objects and collections are independently copied. The runner shell is linked into exactly six independent executables, while Target and WorldSite filters and all assertion helpers remain local. No unresolved `godot-code-review` finding remains.
 - Review report and confirmed slimming order re-read; current worktree contains only the two excluded untracked files.
 - Required `csharp-godot` and `godot-code-review` skills selected.
 - Batch A executor re-read the required authority routes, task contract, code-slimming review section, and both selected skills; confirmed `main` at `6a079983` and began the constrained candidate audit.
@@ -87,16 +96,16 @@ Completed:
 
 Remaining:
 
-- Execute, independently verify, and commit Batch B.
+- Commit the independently accepted Batch B on `main`.
 - Execute, independently verify, and commit Batch C.
 - Mark `Completed`, archive, and report retained decision-bound candidates.
 
 ## Pause And Resume
 
 - Blocker: None.
-- Resume condition: Batch A is committed and the Batch B executor is available.
-- Resume entry: Record the Batch A commit, then execute Batch B only: consolidate exact skill Snapshot copying and repeated runner/helper infrastructure without weakening behavior coverage.
-- Latest verification: Independent renewed verification accepted corrected Batch A after confirming zero removed-path references, three canonical inner-panel scene consumers, `git diff --check`, and no unresolved `godot-code-review` finding. The executor's authorized trusted unified rerun passed all seven runners and both Godot 4.7 smokes.
+- Resume condition: Commit accepted Batch B, then start the Batch C executor from that checkpoint.
+- Resume entry: Commit only the accepted Batch B implementation, tests, and this task record; preserve both excluded files. Then audit `BattleGroupSessionProbeService`, related adapters, and unregistered obsolete source-shape helpers without changing live compatibility boundaries.
+- Latest verification: Independent Batch B review accepted the exact copy and runner boundaries without rerunning the already-passing unified gate. Executor evidence remains: 0-error focused build, affected runners passed after one corrected obsolete assertion, `git diff --check`, Critical 0 / Improvements 0, all seven trusted runners, and both Godot 4.7 smokes passed.
 
 ## Execution Record
 
@@ -109,7 +118,11 @@ Remaining:
 - 2026-07-13: Executor redirected the pause HUD and behavior/resource assertions to the canonical fantasy inner-panel resource, deleted the duplicate, and passed the affected runner, `git diff --check`, and exact review before the authorized trusted unified rerun.
 - 2026-07-13: The one trusted unified rerun authorized for the verifier finding passed completely. Executor handed corrected Batch A back at `Awaiting Verification` without staging or committing.
 - 2026-07-13: Independent renewed verification accepted Batch A and returned the overall multi-batch task to `In Progress` for the next committed checkpoint.
+- 2026-07-13: Batch A was committed as `871acf27`. Batch B executor confirmed `main`, observed only the excluded default-reasoning work item, re-read the task and required skills, and began Batch B without modifying Batch A.
+- 2026-07-13: Batch B executor replaced three structural skill Snapshot copies with one compiler-owned deep-copy utility while retaining each caller's identity/normalization policy, and centralized the exact runner execution shell across six isolated executables. Focused checks and review pass after correcting one obsolete source-shape assertion.
+- 2026-07-13: Batch B trusted unified validation passed on its first and only invocation. Executor handed off at `Awaiting Verification` without staging or committing and stopped before Batch C.
+- 2026-07-13: The independent verifier compared each consolidated copy entry with its pre-Batch-B behavior, confirmed exactly one structural copy path and six linked runner consumers with local filters/assertions intact, accepted Batch B, and returned the multi-batch task to `In Progress` for its commit and Batch C.
 
 ## Final Result
 
-Batch A is independently verified and ready for its local commit. All six discovered byte-identical StyleBox groups are consolidated; `battle_runtime_fantasy_inner_panel.tres` is the sole inner-panel resource and serves all three scene consumers. The full Batch A removal set, compatibility boundaries, and exclusions are accepted. Batch B and Batch C remain unstarted.
+Batch A is independently verified and committed as `871acf27`. Batch B is independently verified and ready to commit: one compiler-owned skill Snapshot deep-copy path serves Template, Draft, and Runtime without merging their entry policies; one bounded runner shell serves six isolated executables without centralizing filters or assertions. Batch C remains unstarted.

@@ -436,16 +436,7 @@ internal static void Run(string name, Action test)
         return;
     }
 
-    try
-    {
-        test();
-        Console.WriteLine($"PASS {name}");
-    }
-    catch (Exception exception)
-    {
-        Console.Error.WriteLine($"FAIL {name}: {exception.Message}");
-        System.Environment.ExitCode = 1;
-    }
+    RegressionTestRunner.Run(name, test);
 }
 
 internal static void AssertTrue(bool condition, string message)

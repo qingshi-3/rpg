@@ -19,16 +19,7 @@ internal static partial class BattleHitFeedbackRegressionCases
 {
 internal static void Run(string name, Action test)
 {
-    try
-    {
-        test();
-        Console.WriteLine($"PASS {name}");
-    }
-    catch (Exception ex)
-    {
-        Console.Error.WriteLine($"FAIL {name}: {ex.Message}");
-        Environment.ExitCode = 1;
-    }
+    RegressionTestRunner.Run(name, test);
 }
 
 internal static void AssertEqual<T>(T expected, T actual, string message)

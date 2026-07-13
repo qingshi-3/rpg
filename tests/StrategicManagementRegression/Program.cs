@@ -1,3 +1,5 @@
+using static RegressionTestRunner;
+
 System.Environment.SetEnvironmentVariable(
     "RPG_GAMELOG_DIR",
     Path.Combine(Path.GetTempPath(), "rpg-strategic-management-tests"));
@@ -115,17 +117,3 @@ Run("strategic management runtime blocks elapsed time while city management paus
 Run("strategic management runtime settles elapsed time after world map resumes", StrategicManagementRegressionCases.StrategicManagementRuntimeSettlesElapsedTimeAfterWorldMapResumes);
 Run("strategic management runtime builds dashboard from retained command state", StrategicManagementRegressionCases.StrategicManagementRuntimeBuildsDashboardFromRetainedCommandState);
 Run("strategic management application has no legacy world state dependency", StrategicManagementRegressionCases.StrategicManagementApplicationHasNoLegacyWorldStateDependency);
-
-static void Run(string name, Action test)
-{
-    try
-    {
-        test();
-        Console.WriteLine($"PASS {name}");
-    }
-    catch (Exception exception)
-    {
-        Console.Error.WriteLine($"FAIL {name}: {exception.Message}");
-        System.Environment.ExitCode = 1;
-    }
-}

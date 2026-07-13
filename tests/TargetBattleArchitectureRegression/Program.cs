@@ -920,16 +920,7 @@ static void Run(string name, Action test)
         return;
     }
 
-    try
-    {
-        test();
-        Console.WriteLine($"PASS {name}");
-    }
-    catch (Exception exception)
-    {
-        Console.Error.WriteLine($"FAIL {name}: {exception.Message}");
-        Environment.ExitCode = 1;
-    }
+    RegressionTestRunner.Run(name, test);
 }
 static void AssertTrue(bool condition, string message)
 {
