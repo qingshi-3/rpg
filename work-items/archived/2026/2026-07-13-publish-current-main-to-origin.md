@@ -1,6 +1,6 @@
 # Publish Current Main To Origin
 
-Status: Awaiting Verification
+Status: Completed
 Executor: executor
 Verifier: root
 Created: 2026-07-13
@@ -80,7 +80,7 @@ Completed:
 
 Remaining:
 
-- Independent verifier checks final refs, ancestry, commit scope, branch, dirty-path set, and protected-file content hashes; then either completes and archives the task or returns it with scoped findings.
+- None. Independent verification passed every acceptance criterion and the completed task is archived.
 
 ## Pause Or Blocker
 
@@ -105,6 +105,9 @@ Independent verification may begin after the ordinary push containing this hando
 - Before mixed reset, the protected files had the recorded SHA-256 values. Their binary-diff hashes were respectively `5c639a8b490db5f217e0f3e49c51ff5662460164`, `c4163bc90563a53b467e57a675a3810c4fe1d8fb`, and `07d306d53aa3c35a76ea6e272eb395bd5c745774`.
 - After `git reset --mixed origin/main`, local HEAD became `3d3b5114...`; all three protected SHA-256 and binary-diff hashes matched their pre-reset values exactly.
 - Final remote-tip, commit-scope, worktree, and protected-content checks are assigned to the independent verifier, using the exact follow-up hash reported by the executor after the ordinary push.
+- 2026-07-14 independent verification confirmed branch `main`; local HEAD, `origin/main`, and direct remote `main` all at `357ee5c69cb828ecf1fec031222189b497233605`; parent `3d3b511474c0ed0f14b8253a46ad2888e37053cb` is the direct parent and an ancestor; and the subject is exactly `docs: record main publication verification handoff`.
+- The follow-up commit changes only this active task and passes `git diff-tree --check`. The worktree contains exactly the three declared unstaged protected modifications, no staged files, and all three SHA-256 values match the recorded values.
+- No build was run because independent verification was explicitly limited to publication topology and evidence. No installed GodotPrompter skill applies.
 
 ## Execution Record
 
@@ -113,7 +116,8 @@ Independent verification may begin after the ordinary push containing this hando
 - 2026-07-14: User confirmed the ordinary-Git, no-force linear recovery and identified three concurrent working-tree files that must be preserved and excluded.
 - 2026-07-14: Executor revalidated local and remote topology, captured protected content/diff hashes, mixed-reset local `main` to verified `origin/main`, and confirmed the protected contents remained byte-identical.
 - 2026-07-14: Executor prepared this document as the sole content of a separate follow-up documentation commit for ordinary non-force publication and independent verification.
+- 2026-07-14: Independent verifier repeated the complete mutation gate with the corrected valid 40-character expected HEAD, verified every acceptance criterion, and set the task to `Completed` for archival.
 
 ## Final Result
 
-The complete project content remains published in `3d3b511474c0ed0f14b8253a46ad2888e37053cb`. The no-force recovery preserves that commit and records lifecycle evidence in a separate documentation child, without replacing published history or including the three unrelated working-tree changes. The task remains active at `Awaiting Verification`; `root` must independently verify the final pushed tip and archive only after every acceptance criterion passes.
+Completed and independently verified. The complete project content remains published in `3d3b511474c0ed0f14b8253a46ad2888e37053cb`, with verification handoff commit `357ee5c69cb828ecf1fec031222189b497233605` as its documentation-only child. Local HEAD, `origin/main`, and direct remote `main` matched before archival; the three unrelated protected working-tree changes remained unstaged and byte-identical. Remaining risks: None. Follow-up work: None.
