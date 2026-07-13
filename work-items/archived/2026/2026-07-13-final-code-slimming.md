@@ -1,6 +1,6 @@
 # Final Code Slimming
 
-- Status: In Progress
+- Status: Completed
 - Executor: `executor` (isolated Codex execution, `gpt-5.6-sol` + `high`)
 - Verifier: Codex primary context (independent from executor)
 - Created: 2026-07-13
@@ -72,6 +72,7 @@ Completed:
 - Trusted verification gate completed and committed at `6a079983`.
 - Batch A was independently accepted and committed on `main` as `871acf27`.
 - Batch B was independently accepted and committed on `main` as `dae74757`.
+- Batch C was independently accepted and committed on `main` as `6f2291f6`.
 - Batch C executor re-read the repository authority routes, this full task, and the full `csharp-godot` and `godot-code-review` skills; confirmed `main` at `dae74757` with only this task progress update outside the excluded user paths, and began the constrained Batch C audit.
 - Batch C production/reference audit retained `BattleGroupSessionProbeService`, `BattleGroupSessionProbeResult`, and `LegacyBattleStartSnapshotAdapter`: `WorldSiteBattleLauncher` still exposes the optional diagnostic probe injection and result in its production startup contract, `Probe` owns the full PrepareSnapshot-to-flow path, and maintained tactical-region tests reflect over its private `ProbeSeed`, `ProbeGroupMetadata`, `BattlePlanSide`, and `ApplyBattleEntryTacticalSeeds` seam. No scene/resource/editor/project registration adds a separate owner. `LegacyBattleResultAdapter` remains production settlement compatibility through `WorldSiteBattleGroupRuntimeAdapter`.
 - `LegacyBattleGroupSeedAdapter` was proven independently test-only: its sole consumer was its own registered Target runner fixture, with no production compile caller, reflection/dynamic/editor use, scene/resource path, or explicit project registration. The adapter and self-only fixture were removed without changing World/Request/Result/Handoff behavior.
@@ -106,15 +107,14 @@ Completed:
 
 Remaining:
 
-- Commit the independently accepted Batch C.
-- Mark `Completed`, archive, and report retained decision-bound candidates.
+- None.
 
 ## Pause And Resume
 
 - Blocker: None.
-- Resume condition: Commit accepted Batch C, then finalize the task record and archive it.
-- Resume entry: Commit only the accepted six-file deletion diff plus this task record, preserving both excluded user files. Then record the Batch C commit, set `Completed`, and move this task to `work-items/archived/2026/`.
-- Latest verification: Independent verification accepted Batch C without rerunning the already-passing unified gate. Executor evidence remains: focused build and both affected runners passed; `git diff --check`; Critical 0 / Improvements 0; all seven trusted runners and both Godot 4.7 smokes passed with 0 build warnings/errors.
+- Resume condition: Not applicable; the confirmed scope is complete.
+- Resume entry: Not applicable.
+- Latest verification: Independent verification accepted Batch C without rerunning the already-passing unified gate. Executor evidence remains: focused build and both affected runners passed; `git diff --check`; Critical 0 / Improvements 0; all seven trusted runners and both Godot 4.7 smokes passed with 0 build warnings/errors. Batch C was committed as `6f2291f6`.
 
 ## Execution Record
 
@@ -136,7 +136,8 @@ Remaining:
 - 2026-07-13: Batch C retained the live probe/start-snapshot/result compatibility seams, removed the isolated legacy garrison seed adapter plus its self-only fixture, and removed four proven unregistered source-shape/helper leftovers. Post-change symbol scans found no remaining references to removed names, and the first `git diff --check` passed.
 - 2026-07-13: Batch C focused build and the two affected full runners passed; `csharp-godot` and the complete `godot-code-review` checklist found no unresolved Critical or Improvement. The single trusted unified validation invocation then passed with 0 warnings/errors, all seven maintained runners, and both Godot 4.7 allowlisted smokes. Executor handed off at `Awaiting Verification` without staging, committing, archiving, or entering later work.
 - 2026-07-13: The independent verifier confirmed zero remaining removed-symbol references, retained production Probe/start-snapshot/result seams and reflection contracts, accepted all Batch C deletions, and returned the task to `In Progress` for the final commit and archive.
+- 2026-07-13: Batch C was committed as `6f2291f6`. With all acceptance criteria satisfied across commits `871acf27`, `dae74757`, and `6f2291f6`, the verifier set the task to `Completed` for archive.
 
 ## Final Result
 
-Batch A is committed as `871acf27`; Batch B is committed as `dae74757`. Batch C is independently verified and ready to commit: one test-only legacy garrison seed adapter and its self-only fixture were removed, four unregistered obsolete source-shape/helper leftovers were removed, and all live Probe/Bridge/Runtime/World/Request/Result/Handoff seams were retained.
+Completed. Batch A (`871acf27`) removed independently dead code/resources and consolidated six byte-identical StyleBox groups. Batch B (`dae74757`) established one skill Snapshot deep-copy path and one bounded runner shell. Batch C (`6f2291f6`) removed one test-only legacy garrison seed adapter, its self-only fixture, and four unregistered obsolete source-shape/helper leftovers. Retained by evidence: the production Probe/start-snapshot/result compatibility seams, reflection test seams, objective-planning and live World/Request/Result/Handoff boundaries, first-slice behavioral fixtures, and the reference-driven HUD resource guard. Remaining risks: None within the confirmed scope. Follow-up work: any removal of retained compatibility or product-bound candidates requires a separate confirmed task.
