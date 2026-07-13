@@ -856,7 +856,7 @@ internal static partial class TargetBattleEffectCommitBufferRegressionCases
         controller.State.Actors.Add(new BattleRuntimeActor
         {
             ActorId = NearEnemyActorId,
-            BattleGroupId = "group_enemy_near",
+            BattleGroupId = "group_enemy",
             FactionId = "enemy",
             SourceForceId = "force_enemy_near",
             SourceStateId = "corps_enemy_near",

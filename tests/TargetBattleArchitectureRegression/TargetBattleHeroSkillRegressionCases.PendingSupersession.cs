@@ -59,7 +59,7 @@ internal static partial class TargetBattleHeroSkillRegressionCases
         controller.State.Actors.Add(new BattleRuntimeActor
         {
             ActorId = SecondaryEnemyActorId,
-            BattleGroupId = "group_enemy_second",
+            BattleGroupId = "group_enemy",
             FactionId = "enemy",
             SourceForceId = "force_enemy_second",
             SourceStateId = "corps_enemy_second",

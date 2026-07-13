@@ -57,7 +57,7 @@ internal static partial class TargetBattleThunderMarkSkillRegressionCases
         controller.State.Actors.Add(new BattleRuntimeActor
         {
             ActorId = NearEnemyActorId,
-            BattleGroupId = "group_enemy_behind",
+            BattleGroupId = "group_enemy",
             FactionId = "enemy",
             SourceForceId = "force_enemy_behind",
             SourceStateId = "corps_enemy_behind",

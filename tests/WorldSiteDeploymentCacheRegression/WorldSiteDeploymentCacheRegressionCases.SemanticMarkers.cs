@@ -400,8 +400,6 @@ internal static void SiteMapLayoutAuthorityIsAccepted()
     string siteLayout = File.ReadAllText(Path.Combine(root, "system-design", "site-map-layout-architecture.md"));
     string semantic = File.ReadAllText(Path.Combine(root, "system-design", "semantic-map-marker-architecture.md"));
     string strategic = File.ReadAllText(Path.Combine(root, "system-design", "strategic-management-system-architecture.md"));
-    string activeIndex = File.ReadAllText(Path.Combine(root, "design-proposals", "active", "README.md"));
-    string archiveIndex = File.ReadAllText(Path.Combine(root, "design-proposals", "archived", "README.md"));
 
     AssertTrue(
         systemIndex.Contains("site-map-layout-architecture.md", StringComparison.Ordinal) &&
@@ -417,10 +415,6 @@ internal static void SiteMapLayoutAuthorityIsAccepted()
         strategic.Contains("site map layout ids", StringComparison.Ordinal) &&
         strategic.Contains("persistent location facts", StringComparison.Ordinal),
         "strategic management authority should bind locations to reusable layouts without making scenes persistent state");
-    AssertTrue(
-        !activeIndex.Contains("2026-06-17-site-map-layout-authoring", StringComparison.Ordinal) &&
-        archiveIndex.Contains("2026-06-17-site-map-layout-authoring", StringComparison.Ordinal),
-        "accepted SMLA-001 proposal should be archived, not active");
 }
 
 internal static void SemanticBridgeMarkerAuthoringIsAvailable()

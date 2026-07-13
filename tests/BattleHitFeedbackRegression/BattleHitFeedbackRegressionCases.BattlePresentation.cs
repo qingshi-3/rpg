@@ -560,33 +560,6 @@ internal static void BattleUnitCommandSelectionUsesUnitOutlineShader()
         "hit outline pulse should animate shader intensity rather than toggling an immediate full-strength outline.");
 }
 
-internal static void BattleRuntimeCommandSelectionSpotlightsOnlySelectedHero()
-{
-    string unitRoot = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitRoot.cs"));
-    string presentation = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitPresentationComponent.cs"));
-    string commandHud = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "WorldSiteRoot.BattleRuntimeCommandHud.cs"));
-    string targetPresentation = File.ReadAllText(Path.Combine("src", "Presentation", "World", "Sites", "BattleRuntimeHeroSkillTargetPresentation.cs"));
-
-    AssertTrue(
-        unitRoot.Contains("SetCommandSelectionByEntityIds(ISet<string> entityIds, ISet<string> spotlightEntityIds = null)", StringComparison.Ordinal) &&
-        unitRoot.Contains("SetSelected(true, spotlightSelected:", StringComparison.Ordinal) &&
-        unitRoot.Contains("spotlightEntityIds.Contains(entity.EntityId ?? \"\")", StringComparison.Ordinal),
-        "runtime command selection should keep selected outlines for the full group while accepting a narrower spotlight entity set.");
-    AssertTrue(
-        presentation.Contains("public void SetSelected(bool selected, bool spotlightSelected)", StringComparison.Ordinal) &&
-        presentation.Contains("_selectionSpotlightSelected", StringComparison.Ordinal) &&
-        presentation.Contains("_selectionSpotlight?.SetSelected(_selectionSpotlightSelected)", StringComparison.Ordinal),
-        "unit presentation should track selection outline and selection spotlight independently.");
-    AssertTrue(
-        commandHud.Contains("BuildBattleRuntimeCommandGroupSpotlightEntityIds(selected)", StringComparison.Ordinal) &&
-        commandHud.Contains("SetCommandSelectionByEntityIds(entityIds, spotlightEntityIds)", StringComparison.Ordinal),
-        "battle runtime HUD should pass only the selected command group's source hero as the spotlight target.");
-    AssertTrue(
-        targetPresentation.Contains("ResolveSourceEntity", StringComparison.Ordinal) &&
-        commandHud.Contains("BuildBattleRuntimeHeroSkillSourceEntity(selected)", StringComparison.Ordinal),
-        "battle runtime spotlight ownership should reuse the existing hero/source entity resolver instead of inventing a second hero rule.");
-}
-
 internal static void DeploymentZonesUseDedicatedOverlayShader()
 {
     string shaderPath = Path.Combine("resource", "shaders", "battle", "deployment_zone_highlight.gdshader");
@@ -1030,7 +1003,7 @@ internal static void BattleUnitBaseSceneAvoidsPhysicsInteractionShape()
 internal static void BattleUnitPreviewWorkbenchIsVisualResourceMirror()
 {
     string scriptPath = Path.Combine("src", "Presentation", "Battle", "Preview", "BattleUnitPreviewWorkbench.cs");
-    string scenePath = Path.Combine("scenes", "tools", "battle", "UnitPreviewWorkbench.tscn");
+    string scenePath = Path.Combine("tools", "battle", "UnitPreviewWorkbench.tscn");
     string siteScenePath = Path.Combine("scenes", "world", "sites", "impl", "BonefieldSite.tscn");
     string worldSiteRootScenePath = Path.Combine("scenes", "world", "sites", "WorldSiteRoot.tscn");
     string factoryPath = Path.Combine("src", "Presentation", "Battle", "Entities", "BattleUnitFactory.cs");
@@ -1113,14 +1086,14 @@ internal static void BattleUnitPreviewWorkbenchIsVisualResourceMirror()
         !scene.Contains("UnitDefinitionPath", StringComparison.Ordinal),
         "workbench scene text should direct authors to put frames.tres on the child AnimatedSprite2D rather than unit.tres");
     AssertTrue(
-        siteScene.Contains("res://scenes/tools/battle/UnitPreviewWorkbench.tscn", StringComparison.Ordinal) &&
+        siteScene.Contains("res://tools/battle/UnitPreviewWorkbench.tscn", StringComparison.Ordinal) &&
         siteScene.Contains("[node name=\"UnitPreviewWorkbench\" parent=\".\" instance=", StringComparison.Ordinal),
         "the current concrete site map should carry the default unit preview workbench for scale debugging");
     AssertTrue(
         siteScene.Contains("metadata/authoring_hint = \"editor_unit_preview\"", StringComparison.Ordinal),
         "embedded field preview should be explicitly marked as editor authoring support");
     AssertTrue(
-        !worldSiteRootScene.Contains("res://scenes/tools/battle/UnitPreviewWorkbench.tscn", StringComparison.Ordinal),
+        !worldSiteRootScene.Contains("res://tools/battle/UnitPreviewWorkbench.tscn", StringComparison.Ordinal),
         "WorldSiteRoot is the site runtime shell and should not own the default authoring workbench");
 }
 

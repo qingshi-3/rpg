@@ -189,8 +189,6 @@ internal static void StrategicArmyCommandServiceRemovesResolvedExpeditionCarrier
     const string expeditionId = "expedition_resolved";
     WorldArmyState army = BuildCommandableArmy(armyId);
     army.StrategicExpeditionId = expeditionId;
-    army.StrategicHeroId = "hero";
-    army.StrategicCorpsInstanceId = "corps";
     army.TargetSiteId = StrategicWorldIds.SiteBonefield;
     army.Intent = WorldArmyIntent.AssaultSite;
     army.Status = WorldArmyStatus.Attacking;

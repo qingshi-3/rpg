@@ -199,7 +199,7 @@ private static BattleForceRequest BuildStrategicLaunchForce(
         forceId,
         unitDefinitionId,
         count,
-        StrategicWorldIds.FactionPlayer,
+        participant.FactionId,
         x,
         y);
     force.CommandGroupId = participant.ParticipantId;

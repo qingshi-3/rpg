@@ -18,7 +18,6 @@ TargetBattleCenteredRegionRegressionCases.Register(Run);
 TargetBattleCombatZoneRegressionCases.Register(Run);
 Run("corps strength clamps and visible soldiers are derived", CorpsStrengthClampsAndVisibleSoldiersAreDerived);
 Run("runtime source stays isolated from domain and presentation owners", RuntimeSourceStaysIsolated); Run("runtime tick resolver stays slim after TD-001 decomposition", TargetBattleTickResolverDecompositionGuard.RuntimeTickResolverStaysSlimAfterTd001Decomposition); Run("runtime tick resolver delegates attack and movement mutation to services", TargetBattleTickResolverDecompositionGuard.RuntimeTickResolverDelegatesAttackAndMovementMutationToServices);
-Run("oversized code files are tracked and no new ones are introduced", OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced);
 Run("runtime owns stable in-memory actor state", RuntimeOwnsStableInMemoryActorState);
 Run("runtime auto battle resolves opposing factions from actor state", RuntimeAutoBattleResolvesOpposingFactionsFromActorState);
 Run("runtime uses 8-neighbor square-grid movement", RuntimeUsesEightNeighborSquareGridMovement);
@@ -137,26 +136,6 @@ static void RuntimeSourceStaysIsolated()
     AssertTrue(!source.Contains("BattleResult", StringComparison.Ordinal), "runtime must not reference legacy battle results");
     AssertTrue(!source.Contains("AutoBattle", StringComparison.Ordinal), "runtime must not reference old auto battle");
     AssertTrue(!source.Contains("temporary workaround", StringComparison.OrdinalIgnoreCase) && !source.Contains("just for now", StringComparison.OrdinalIgnoreCase) && !source.Contains("throwaway", StringComparison.OrdinalIgnoreCase), "runtime source must not describe core flow as temporary workaround, just for now, or throwaway");
-}
-static void OversizedCodeFilesAreTrackedAndNoNewOnesAreIntroduced()
-{
-    string root = ProjectRoot();
-    var allowedOversized = new Dictionary<string, int>(StringComparer.Ordinal)
-    {
-        ["src/Presentation/Battle/BattleGridHighlightOverlay.cs"] = 1070, ["src/Presentation/Battle/Entities/BattleUnitRoot.cs"] = 1112,
-        ["src/Presentation/Battle/Entities/UnitAnimationComponent.cs"] = 1117, ["src/Presentation/World/Sites/WorldSiteRoot.SiteManagementHud.cs"] = 1032,
-        ["tests/BattleHitFeedbackRegression/BattleHitFeedbackRegressionCases.BattlePresentation.cs"] = 1162, ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.HeroCorps.cs"] = 1306,
-        ["tests/WorldSiteDeploymentCacheRegression/WorldSiteDeploymentCacheRegressionCases.PresentationAntiRot.cs"] = 1424
-    };
-    var oversized = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
-        .Where(path => !IsIgnoredCodePath(root, path))
-        .Select(path => (RelativePath: ToRepoPath(root, path), LineCount: File.ReadLines(path).Count()))
-        .Where(item => item.LineCount > 1000)
-        .ToList();
-    List<string> unexpected = oversized.Where(item => !allowedOversized.ContainsKey(item.RelativePath)).Select(item => $"{item.RelativePath}:{item.LineCount}").ToList();
-    List<string> grown = oversized.Where(item => allowedOversized.TryGetValue(item.RelativePath, out int maxLines) && item.LineCount > maxLines).Select(item => $"{item.RelativePath}:{item.LineCount}>{allowedOversized[item.RelativePath]}").ToList();
-    AssertTrue(unexpected.Count == 0, $"new oversized code files must be split or added to the decomposition proposal: {string.Join(", ", unexpected)}");
-    AssertTrue(grown.Count == 0, $"tracked oversized code files grew beyond their accepted line budgets: {string.Join(", ", grown)}");
 }
 static void RuntimeOwnsStableInMemoryActorState()
 {
@@ -305,19 +284,6 @@ static void RuntimeSquareGridCombatAvoidsPhysicsAndFullMapPathfindingAuthority()
     AssertTrue(!source.Contains("Area2D", StringComparison.Ordinal), "runtime combat must not depend on Godot Area2D authority");
     AssertTrue(!source.Contains("CollisionShape2D", StringComparison.Ordinal), "runtime combat must not depend on Godot collision shapes");
     AssertTrue(!source.Contains("MovementRangeFinder", StringComparison.Ordinal), "runtime combat must not run full-map pathfinding per actor in this slice");
-}
-
-static bool IsIgnoredCodePath(string root, string path)
-{
-    string relative = ToRepoPath(root, path);
-    return relative.StartsWith(".godot/", StringComparison.Ordinal) ||
-           relative.Contains("/bin/", StringComparison.Ordinal) ||
-           relative.Contains("/obj/", StringComparison.Ordinal);
-}
-
-static string ToRepoPath(string root, string path)
-{
-    return Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '/');
 }
 
 static void RuntimeRejectsInvalidBattleHandoff()

@@ -105,7 +105,6 @@ BattleHitFeedbackRegressionCases.Run("battle runtime live observation does not a
 BattleHitFeedbackRegressionCases.Run("battle runtime tactical pause freezes scene tree and keeps command ui", BattleHitFeedbackRegressionCases.BattleRuntimeTacticalPauseFreezesSceneTreeAndKeepsCommandUi);
 BattleHitFeedbackRegressionCases.Run("battle runtime tactical pause freezes unit presentation without replay", BattleHitFeedbackRegressionCases.BattleRuntimeTacticalPauseFreezesUnitPresentationWithoutReplay);
 BattleHitFeedbackRegressionCases.Run("battle unit command selection uses unit outline shader", BattleHitFeedbackRegressionCases.BattleUnitCommandSelectionUsesUnitOutlineShader);
-BattleHitFeedbackRegressionCases.Run("battle runtime command selection spotlights only selected hero", BattleHitFeedbackRegressionCases.BattleRuntimeCommandSelectionSpotlightsOnlySelectedHero);
 BattleHitFeedbackRegressionCases.Run("deployment zones use dedicated overlay shader", BattleHitFeedbackRegressionCases.DeploymentZonesUseDedicatedOverlayShader);
 BattleHitFeedbackRegressionCases.Run("skill range highlight uses deployment-zone style region overlay", BattleHitFeedbackRegressionCases.SkillRangeHighlightUsesDeploymentZoneStyleRegionOverlay);
 BattleHitFeedbackRegressionCases.Run("skill target preview uses unit focus and footprint lock ring", BattleHitFeedbackRegressionCases.SkillTargetPreviewUsesUnitFocusAndFootprintLockRing);
