@@ -96,6 +96,7 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = setup.CorpsInstanceId,
             RemainingCorpsStrength = remainingCorpsStrength
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
 
         StrategicCommandResult result = setup.Commands.ApplyBattleResultSummary(setup.State, summary);
         AssertTrue(result.Success, $"strategic battle outcome should apply before map projection, got {result.FailureReason}");

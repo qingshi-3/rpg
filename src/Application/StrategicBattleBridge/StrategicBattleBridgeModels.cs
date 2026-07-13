@@ -307,10 +307,26 @@ public sealed class StrategicBattleResultSummary
     public string ExpeditionId { get; set; } = "";
     public string TargetLocationId { get; set; } = "";
     public BattleOutcome Outcome { get; set; } = BattleOutcome.None;
+    public BattleTerminationReason TerminationReason { get; set; } = BattleTerminationReason.None;
+    public string ObjectiveId { get; set; } = "";
     public bool ObjectiveSucceeded { get; set; }
+    public string ReportId { get; set; } = "";
+    public string ReportOutcomeSummary { get; set; } = "";
+    public List<string> SettlementSourceEventIds { get; set; } = new();
+    public List<string> ReportSourceEventIds { get; set; } = new();
+    public List<string> ChangedHeroIds { get; set; } = new();
+    public List<string> ChangedCorpsIds { get; set; } = new();
+    public List<string> ChangedBattleGroupIds { get; set; } = new();
+    public List<string> ChangedLocationIds { get; set; } = new();
+    public List<StrategicBattleContributionFact> CommandAndSkillContributions { get; set; } = new();
+    public List<string> FailureCandidates { get; set; } = new();
+    public List<string> HeroSkillUses { get; set; } = new();
+    public List<StrategicBattleSkillEffectFact> HeroSkillEffects { get; set; } = new();
+    public List<StrategicBattleSkillFailureFact> HeroSkillFailures { get; set; } = new();
     public List<StrategicBattleParticipantResult> Participants { get; set; } = new();
     public List<StrategicBattleParticipantDisposition> ParticipantDispositions { get; set; } = new();
     public bool HasConsequenceFacts { get; set; }
+    public string OutcomeText { get; set; } = "";
     public string TargetDisplayName { get; set; } = "";
     public string WorldChangeText { get; set; } = "";
     public string FailureReasonText { get; set; } = "";
@@ -318,7 +334,49 @@ public sealed class StrategicBattleResultSummary
     public string RewardClaimId { get; set; } = "";
     public List<string> RewardLines { get; set; } = new();
     public List<StrategicResourceAmount> ResourceRewards { get; set; } = new();
+    public List<string> EquipmentSampleIds { get; set; } = new();
     public List<string> RewardEquipmentSampleIds { get; set; } = new();
+}
+
+public sealed class StrategicBattleContributionFact
+{
+    public string EventId { get; set; } = "";
+    public string EventKind { get; set; } = "";
+    public string BattleGroupId { get; set; } = "";
+    public string ActorId { get; set; } = "";
+    public string SourceCommandId { get; set; } = "";
+    public string SourceActionId { get; set; } = "";
+    public string SourceDefinitionId { get; set; } = "";
+    public string TargetId { get; set; } = "";
+    public string EffectKind { get; set; } = "";
+    public string ReasonCode { get; set; } = "";
+    public int CorpsStrengthDelta { get; set; }
+    public int RuntimeTick { get; set; }
+}
+
+public sealed class StrategicBattleSkillEffectFact
+{
+    public string SourceCommandId { get; set; } = "";
+    public string SourceActionId { get; set; } = "";
+    public string SourceDefinitionId { get; set; } = "";
+    public string EffectKind { get; set; } = "";
+    public string ActorId { get; set; } = "";
+    public string TargetId { get; set; } = "";
+    public string ReasonCode { get; set; } = "";
+    public int CorpsStrengthDelta { get; set; }
+    public int RuntimeTick { get; set; }
+    public double RuntimeTimeSeconds { get; set; }
+}
+
+public sealed class StrategicBattleSkillFailureFact
+{
+    public string SourceCommandId { get; set; } = "";
+    public string SourceDefinitionId { get; set; } = "";
+    public string ActorId { get; set; } = "";
+    public string TargetId { get; set; } = "";
+    public string ReasonCode { get; set; } = "";
+    public int RuntimeTick { get; set; }
+    public double RuntimeTimeSeconds { get; set; }
 }
 
 public sealed class StrategicBattleParticipantDisposition
@@ -332,7 +390,26 @@ public sealed class StrategicBattleParticipantDisposition
 
 public sealed class StrategicBattleParticipantResult
 {
+    public string ParticipantId { get; set; } = "";
     public string HeroId { get; set; } = "";
     public string CorpsInstanceId { get; set; } = "";
+    public StrategicHeroBattleState HeroState { get; set; } = StrategicHeroBattleState.Unknown;
+    public int PreBattleCorpsStrength { get; set; }
     public int RemainingCorpsStrength { get; set; }
+    public int StrengthLoss { get; set; }
+    public int CorpsEquipmentLevel { get; set; }
+    public bool Routed { get; set; }
+    public bool Scattered { get; set; }
+    public bool Retreated { get; set; }
+    public bool RequiresRecovery { get; set; }
+    public string RecoveryLocationId { get; set; } = "";
+}
+
+public enum StrategicHeroBattleState
+{
+    Unknown = 0,
+    Survived = 1,
+    Defeated = 2,
+    Retreated = 3,
+    Unavailable = 4
 }

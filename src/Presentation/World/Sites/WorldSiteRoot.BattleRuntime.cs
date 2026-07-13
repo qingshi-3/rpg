@@ -873,9 +873,9 @@ public partial class WorldSiteRoot
         {
             Success = true,
             ActionId = "battle_result",
-            Message = string.IsNullOrWhiteSpace(strategicNotice)
-                ? "战斗结果已写回战略经营。"
-                : strategicNotice
+            // Strategic return presentation is a projection of the persisted
+            // feedback record; it never falls back to report or result truth.
+            Message = strategicNotice
         };
         ApplyStrategicBattleResultPresentationCleanup(context.CompatibilityRequest, applyResult, summary);
         ApplyStrategicBattleResultWorldArmyCarrierCleanup(context.CompatibilityRequest, applyResult);

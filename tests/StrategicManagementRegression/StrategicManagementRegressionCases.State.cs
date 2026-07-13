@@ -429,6 +429,7 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = setup.CorpsInstanceId,
             RemainingCorpsStrength = 72
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
         StrategicCommandResult applied = setup.Commands.ApplyBattleResultSummary(setup.State, summary);
         AssertTrue(applied.Success, $"setup victory should apply, got {applied.FailureReason}");
         setup.State.CorpsInstances[setup.CorpsInstanceId].HomeCityId = StrategicManagementIds.LocationPlainsCity;

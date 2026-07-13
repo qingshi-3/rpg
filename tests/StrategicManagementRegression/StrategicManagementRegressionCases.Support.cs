@@ -160,7 +160,10 @@ internal static partial class StrategicManagementRegressionCases
         BattleStartRequest request,
         BattleOutcome outcome,
         Func<StrategicBattleParticipantReference, int> survivingCorpsActors,
-        Action<StrategicBattleActiveContextToken, StrategicBattleActiveContextToken, StrategicBattleActiveContextToken>? captureTokens = null)
+        Action<StrategicBattleActiveContextToken, StrategicBattleActiveContextToken, StrategicBattleActiveContextToken>? captureTokens = null,
+        Action<StrategicBattlePreparationDraft>? configureDraft = null,
+        Action<BattleEventStream>? configureEvents = null,
+        Action<SettlementPlan, BattleReportRecord>? configureSettlementAndReport = null)
     {
         StrategicBattleActiveContextResult contextResult = bridge.CreateActiveContext(state, session, request);
         AssertTrue(contextResult.Success, $"active context should be created, got {contextResult.FailureReason}");
@@ -184,6 +187,7 @@ internal static partial class StrategicManagementRegressionCases
                 force.PreferredPlacements.Add(new BattleForcePlacementRequest { CellX = 4, CellY = 4, CellHeight = 0 });
             }
         }
+        configureDraft?.Invoke(context.PreparationDraft);
         StrategicBattleDraftSnapshotResult finalSnapshot = new StrategicBattleDraftSnapshotCompiler()
             .CompileAndCommitFinalSnapshot(context, beginToken, out StrategicBattleActiveContextToken snapshotToken);
         AssertTrue(finalSnapshot.Success, $"completed context should compile the final Draft snapshot, got {finalSnapshot.FailureReason}");
@@ -233,7 +237,20 @@ internal static partial class StrategicManagementRegressionCases
             });
         }
 
-        BattleEventStream eventStream = BuildEndedStream(session.SessionId);
+        BattleEventStream eventStream = new();
+        eventStream.Add(new BattleEvent
+        {
+            EventId = $"{session.SessionId}:started",
+            BattleId = session.SessionId,
+            Kind = BattleEventKind.BattleStarted
+        });
+        configureEvents?.Invoke(eventStream);
+        eventStream.Add(new BattleEvent
+        {
+            EventId = $"{session.SessionId}:ended",
+            BattleId = session.SessionId,
+            Kind = BattleEventKind.BattleEnded
+        });
         SettlementPlan settlement = new BattleSettlementService().BuildPlan(
             context.Snapshot.SnapshotId,
             runtimeOutcome,
@@ -244,6 +261,7 @@ internal static partial class StrategicManagementRegressionCases
             EventStream = eventStream
         };
         BattleReportRecord report = new BattleReportBuilder().Build(runtimeOutcome, eventStream, settlement);
+        configureSettlementAndReport?.Invoke(settlement, report);
         AssertTrue(
             StrategicBattleActiveContextStore.TryPublishResultEnvelope(
                 snapshotToken,
@@ -293,6 +311,100 @@ internal static partial class StrategicManagementRegressionCases
                 string.Equals(force.StrategicParticipantId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
                 string.Equals(force.StrategicCorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", StringComparison.Ordinal))
             .Sum(force => Math.Max(0, force.Count));
+    }
+
+    private static void PopulateExplicitBattleConsequencesForTest(
+        StrategicBattleResultSummary summary,
+        StrategicManagementDefinitionSet definitions)
+    {
+        summary.HasConsequenceFacts = true;
+        summary.OutcomeText = summary.Outcome == BattleOutcome.Victory ? "胜利" : "失败";
+        definitions.Locations.TryGetValue(summary.TargetLocationId ?? "", out StrategicLocationDefinition? target);
+        summary.TargetDisplayName = target?.DisplayName ?? summary.TargetLocationId ?? "";
+        StrategicBattleRewardDefinition? reward = definitions.BattleRewards.Values.SingleOrDefault(item =>
+            string.Equals(item.TargetLocationId, summary.TargetLocationId, StringComparison.Ordinal));
+        if (reward == null)
+        {
+            return;
+        }
+
+        summary.EquipmentSampleIds.AddRange(reward.EquipmentSampleIds);
+        bool victory = summary.Outcome == BattleOutcome.Victory && summary.ObjectiveSucceeded;
+        summary.WorldChangeText = victory ? reward.VictorySummaryText : reward.DefeatSummaryText;
+        summary.ProgressionText = victory ? reward.VictoryProgressionText : reward.DefeatProgressionText;
+        if (!victory)
+        {
+            summary.FailureReasonText = "阵线失利";
+            summary.RewardLines.Add($"未获得：{reward.DisplayName}");
+            return;
+        }
+
+        summary.RewardClaimId = reward.RewardId;
+        summary.ResourceRewards.AddRange(reward.VictoryResourceRewards.Select(item =>
+            new StrategicResourceAmount(item.ResourceId, item.Amount)));
+        if (!string.IsNullOrWhiteSpace(reward.RewardEquipmentSampleId))
+        {
+            summary.RewardEquipmentSampleIds.Add(reward.RewardEquipmentSampleId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(reward.UnlockText))
+        {
+            summary.RewardLines.Add(reward.UnlockText);
+        }
+        foreach (StrategicResourceAmount amount in reward.VictoryResourceRewards)
+        {
+            definitions.Resources.TryGetValue(amount.ResourceId, out StrategicResourceDefinition? resource);
+            summary.RewardLines.Add($"获得：{resource?.DisplayName ?? amount.ResourceId} +{amount.Amount}");
+        }
+        if (definitions.EquipmentSamples.TryGetValue(reward.RewardEquipmentSampleId, out StrategicEquipmentSampleDefinition? equipment))
+        {
+            summary.RewardLines.Add($"获得装备：{equipment.DisplayName}");
+        }
+    }
+
+    private static void CompleteDirectBattleResultSummaryForTest(
+        StrategicBattleResultSummary summary,
+        StrategicBattleSession session)
+    {
+        summary.SnapshotId = $"{session.SessionId}:direct-summary-snapshot";
+        summary.TerminationReason = summary.Outcome == BattleOutcome.Victory
+            ? BattleTerminationReason.NormalVictory
+            : BattleTerminationReason.NormalDefeat;
+        summary.ObjectiveId = session.BattleObjectiveId;
+        summary.ReportId = $"{session.SessionId}:direct-summary-report";
+        summary.HasConsequenceFacts = true;
+
+        foreach (StrategicBattleParticipantReference participant in session.Participants)
+        {
+            StrategicBattleParticipantRole role = participant.Role == StrategicBattleParticipantRole.Unknown
+                ? StrategicBattleParticipantRole.Deployed
+                : participant.Role;
+            summary.ParticipantDispositions.Add(new StrategicBattleParticipantDisposition
+            {
+                ParticipantId = participant.ParticipantId,
+                HeroId = participant.HeroId,
+                CorpsInstanceId = participant.CorpsInstanceId,
+                RollbackStationLocationId = participant.RollbackStationLocationId,
+                Role = role
+            });
+
+            StrategicBattleParticipantResult? result = summary.Participants.SingleOrDefault(item =>
+                string.Equals(item.HeroId, participant.HeroId, StringComparison.Ordinal) &&
+                string.Equals(item.CorpsInstanceId, participant.CorpsInstanceId, StringComparison.Ordinal));
+            if (role != StrategicBattleParticipantRole.Deployed || result == null)
+            {
+                continue;
+            }
+
+            result.ParticipantId = participant.ParticipantId;
+            result.HeroState = result.RemainingCorpsStrength > 0
+                ? StrategicHeroBattleState.Survived
+                : StrategicHeroBattleState.Defeated;
+            result.PreBattleCorpsStrength = participant.PreBattleCorpsStrength;
+            result.StrengthLoss = participant.PreBattleCorpsStrength - result.RemainingCorpsStrength;
+            result.CorpsEquipmentLevel = participant.CorpsEquipmentLevel;
+            result.Routed = result.RemainingCorpsStrength == 0;
+        }
     }
 
     private static BattleTerminationReason ToTerminationReason(BattleOutcome outcome)

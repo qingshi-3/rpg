@@ -167,6 +167,7 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = corpsId,
             RemainingCorpsStrength = 72
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
 
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
 
@@ -384,6 +385,8 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = corpsId,
             RemainingCorpsStrength = 72
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
+        PopulateExplicitBattleConsequencesForTest(summary, definitions);
 
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
 
@@ -453,6 +456,7 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = corpsId,
             RemainingCorpsStrength = 72
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
 
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
 
@@ -495,6 +499,8 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = corpsId,
             RemainingCorpsStrength = 0
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
+        PopulateExplicitBattleConsequencesForTest(summary, definitions);
 
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
 
@@ -540,6 +546,8 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = corpsId,
             RemainingCorpsStrength = 88
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
+        PopulateExplicitBattleConsequencesForTest(summary, definitions);
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
         AssertTrue(result.Success, $"victory summary should apply, got {result.FailureReason}");
 
@@ -582,6 +590,7 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = corpsId,
             RemainingCorpsStrength = 80
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
         StrategicCommandResult first = commands.ApplyBattleResultSummary(state, summary);
         AssertTrue(first.Success, $"first result application should succeed, got {first.FailureReason}");
         int oreAfterFirst = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceOre);
@@ -589,8 +598,8 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult duplicate = commands.ApplyBattleResultSummary(state, summary);
 
-        AssertTrue(!duplicate.Success, "duplicate result application should be rejected");
-        AssertEqual(StrategicFailureReasons.BattleResultAlreadyApplied, duplicate.FailureReason, "duplicate rejection should be explicit");
+        AssertTrue(duplicate.Success, $"exact result replay should be idempotent, got {duplicate.FailureReason}");
+        AssertEqual(first.CreatedEntityId, duplicate.CreatedEntityId, "exact replay should return the original feedback identity");
         AssertEqual(oreAfterFirst, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceOre), "duplicate result must not grant rewards twice");
         AssertEqual(feedbackCountAfterFirst, state.BattleFeedbackRecords.Count, "duplicate result must not create another feedback record");
     }
@@ -665,7 +674,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = setup.Commands.ApplyBattleResultSummary(state, summary);
 
         AssertTrue(!result.Success, "summary with null participant result should be rejected");
-        AssertEqual(StrategicFailureReasons.MissingBattleParticipantResult, result.FailureReason, "null participant rejection should be explicit");
+        AssertEqual(StrategicFailureReasons.BattleResultMismatch, result.FailureReason, "incomplete null-participant summary should fail the compiled summary boundary");
         AssertEqual(StrategicManagementIds.FactionEnemy, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].OwnerFactionId, "null participant result must not transfer location control");
         AssertEqual(StrategicExpeditionStatus.Moving, state.Expeditions[expeditionId].Status, "null participant result must not resolve expedition");
         AssertEqual(100, state.CorpsInstances[corpsId].Strength, "null participant result must not mutate corps strength");
@@ -674,7 +683,7 @@ internal static partial class StrategicManagementRegressionCases
         summary.Participants = null;
         StrategicCommandResult nullListResult = setup.Commands.ApplyBattleResultSummary(state, summary);
         AssertTrue(!nullListResult.Success, "summary with null participant list should be rejected");
-        AssertEqual(StrategicFailureReasons.MissingBattleParticipantResult, nullListResult.FailureReason, "null participant list rejection should be explicit");
+        AssertEqual(StrategicFailureReasons.BattleResultMismatch, nullListResult.FailureReason, "incomplete null-list summary should fail the compiled summary boundary");
         AssertEqual(StrategicExpeditionStatus.Moving, state.Expeditions[expeditionId].Status, "null participant list must not resolve expedition");
     }
 
@@ -706,6 +715,7 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = corpsId,
             RemainingCorpsStrength = 0
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
 
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
 
@@ -847,7 +857,7 @@ internal static partial class StrategicManagementRegressionCases
 
         AssertEqual(0, summary.Participants.Count, "legacy request/result must not produce strategic participant consequences");
         AssertTrue(!result.Success, "legacy request/result-only summary should not apply Strategic Management consequences");
-        AssertEqual(StrategicFailureReasons.MissingBattleParticipantResult, result.FailureReason, "legacy strategic result rejection should be explicit");
+        AssertEqual(StrategicFailureReasons.BattleResultMismatch, result.FailureReason, "legacy strategic result rejection should require the complete compiled summary contract");
         AssertEqual(StrategicExpeditionStatus.Moving, setup.State.Expeditions[setup.ExpeditionId].Status, "legacy strategic result must not resolve the expedition");
         AssertEqual(100, setup.State.CorpsInstances[setup.CorpsInstanceId].Strength, "legacy strategic result must not mutate strategic corps strength");
     }
@@ -897,7 +907,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(0, summary.Participants.Count, "mismatched battle results must not produce participant consequences");
         StrategicCommandResult result = setup.Commands.ApplyBattleResultSummary(state, summary);
         AssertTrue(!result.Success, "mismatched summary should be rejected by Strategic Management");
-        AssertEqual(StrategicFailureReasons.MissingBattleParticipantResult, result.FailureReason, "rejection should be missing mapped participant result");
+        AssertEqual(StrategicFailureReasons.BattleResultMismatch, result.FailureReason, "rejection should require the complete compiled summary contract");
         AssertEqual(StrategicManagementIds.FactionEnemy, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].OwnerFactionId, "mismatched result must not transfer location control");
         AssertEqual(StrategicExpeditionStatus.Moving, state.Expeditions[setup.ExpeditionId].Status, "mismatched result must not resolve expedition");
     }
@@ -918,7 +928,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = setup.Commands.ApplyBattleResultSummary(state, summary);
 
         AssertTrue(!result.Success, "summary without mapped participant result should be rejected");
-        AssertEqual(StrategicFailureReasons.MissingBattleParticipantResult, result.FailureReason, "missing participant rejection should be explicit");
+        AssertEqual(StrategicFailureReasons.BattleResultMismatch, result.FailureReason, "incomplete direct summary should be rejected by the compiled summary contract");
         AssertEqual(StrategicManagementIds.FactionEnemy, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].OwnerFactionId, "missing participant result must not transfer location control");
         AssertEqual(StrategicExpeditionStatus.Moving, state.Expeditions[setup.ExpeditionId].Status, "missing participant result must not resolve expedition");
         AssertEqual(100, state.CorpsInstances[setup.CorpsInstanceId].Strength, "missing participant result must not fabricate corps survival or losses");
@@ -947,6 +957,7 @@ internal static partial class StrategicManagementRegressionCases
             CorpsInstanceId = setup.CorpsInstanceId,
             RemainingCorpsStrength = 0
         });
+        CompleteDirectBattleResultSummaryForTest(summary, session);
         StrategicCommandResult applied = setup.Commands.ApplyBattleResultSummary(setup.State, summary);
         AssertTrue(applied.Success, $"setup battle result should apply, got {applied.FailureReason}");
 

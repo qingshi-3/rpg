@@ -12,6 +12,11 @@ public sealed partial class StrategicManagementCommandService
         StrategicManagementState state,
         StrategicBattleResultSummary summary)
     {
+        if (!HasCompiledSummaryBoundary(summary))
+        {
+            return Reject("ApplyBattleResultSummary", summary?.ExpeditionId, StrategicFailureReasons.BattleResultMismatch);
+        }
+
         StrategicCommandResult replayResult = ResolveCommittedReplay(state, summary, out string replayFailureReason);
         if (replayResult != null)
         {
@@ -27,6 +32,11 @@ public sealed partial class StrategicManagementCommandService
         if (!string.IsNullOrWhiteSpace(failureReason))
         {
             return Reject("ApplyBattleResultSummary", summary?.ExpeditionId, failureReason);
+        }
+
+        if (state.BattleFeedbackRecordIdsByExpedition.ContainsKey(summary.ExpeditionId ?? ""))
+        {
+            return Reject("ApplyBattleResultSummary", summary.ExpeditionId, StrategicFailureReasons.BattleResultAlreadyApplied);
         }
 
         StrategicExpeditionState expedition = state.Expeditions[summary.ExpeditionId];
@@ -47,11 +57,10 @@ public sealed partial class StrategicManagementCommandService
         StrategicBattleFeedbackRecord feedback = BuildBattleFeedbackRecord(
             state,
             expedition,
-            targetLocation,
             summary,
             victory,
             preBattleStrengthByCorps);
-        ApplyBattleFeedbackRewards(state, expedition.FactionId, summary, feedback, victory);
+        ApplyBattleFeedbackRewards(state, expedition.FactionId, summary, victory);
         state.BattleFeedbackRecords[feedback.FeedbackId] = feedback;
         state.BattleFeedbackRecordIdsByExpedition[expedition.ExpeditionId] = feedback.FeedbackId;
         if (!string.IsNullOrWhiteSpace(summary.SessionId) && !string.IsNullOrWhiteSpace(summary.SnapshotId))
@@ -99,6 +108,18 @@ public sealed partial class StrategicManagementCommandService
 
         Accept("ApplyBattleResultSummary", summary.ExpeditionId, result);
         return result;
+    }
+
+    private static bool HasCompiledSummaryBoundary(StrategicBattleResultSummary summary)
+    {
+        return summary != null &&
+               summary.HasConsequenceFacts &&
+               !string.IsNullOrWhiteSpace(summary.SessionId) &&
+               !string.IsNullOrWhiteSpace(summary.SnapshotId) &&
+               summary.Outcome != BattleOutcome.None &&
+               summary.TerminationReason != Rpg.Runtime.Battle.BattleTerminationReason.None &&
+               !string.IsNullOrWhiteSpace(summary.ReportId) &&
+               summary.ParticipantDispositions?.Count > 0;
     }
 
     private static StrategicCommandResult ResolveCommittedReplay(
@@ -150,85 +171,130 @@ public sealed partial class StrategicManagementCommandService
             return StrategicFailureReasons.MissingBattleParticipantResult;
         }
 
-        if (state.BattleFeedbackRecordIdsByExpedition.ContainsKey(summary.ExpeditionId ?? ""))
-        {
-            return StrategicFailureReasons.BattleResultAlreadyApplied;
-        }
-
         if (!state.Locations.ContainsKey(summary.TargetLocationId ?? "") ||
             !string.Equals(expedition.TargetLocationId, summary.TargetLocationId ?? "", System.StringComparison.Ordinal))
         {
             return StrategicFailureReasons.BattleResultMismatch;
         }
 
-        if (summary.ParticipantDispositions?.Count > 0)
+        // Every strategic writeback crosses the compiled Bridge contract; an empty
+        // disposition set must never reactivate the retired direct-summary path.
+        if (summary.ParticipantDispositions == null ||
+            !summary.HasConsequenceFacts ||
+            string.IsNullOrWhiteSpace(summary.SessionId) ||
+            string.IsNullOrWhiteSpace(summary.SnapshotId) ||
+            summary.Outcome == BattleOutcome.None ||
+            summary.TerminationReason == Rpg.Runtime.Battle.BattleTerminationReason.None ||
+            string.IsNullOrWhiteSpace(summary.ReportId) ||
+            summary.ParticipantDispositions.Any(item => item == null) ||
+            summary.ParticipantDispositions.Count != EnumerateExpeditionParticipants(expedition).Count ||
+            summary.ParticipantDispositions.Any(item =>
+                string.IsNullOrWhiteSpace(item.ParticipantId)) ||
+            summary.ParticipantDispositions.Select(item => item.ParticipantId)
+                .Distinct(System.StringComparer.Ordinal).Count() != summary.ParticipantDispositions.Count ||
+            summary.ParticipantDispositions
+                .GroupBy(item => $"{item.HeroId}\u001f{item.CorpsInstanceId}", System.StringComparer.Ordinal)
+                .Any(group => group.Count() != 1))
         {
-            if (string.IsNullOrWhiteSpace(summary.SessionId) ||
-                string.IsNullOrWhiteSpace(summary.SnapshotId) ||
-                summary.Outcome == BattleOutcome.None ||
-                summary.ParticipantDispositions.Any(item => item == null) ||
-                summary.ParticipantDispositions.Count != EnumerateExpeditionParticipants(expedition).Count ||
-                summary.ParticipantDispositions
-                    .GroupBy(item => $"{item.HeroId}\u001f{item.CorpsInstanceId}", System.StringComparer.Ordinal)
-                    .Any(group => group.Count() != 1))
-            {
-                return StrategicFailureReasons.BattleResultMismatch;
-            }
+            return StrategicFailureReasons.BattleResultMismatch;
+        }
 
-            System.Collections.Generic.HashSet<string> deployedKeys = summary.ParticipantDispositions
-                .Where(item => item.Role == StrategicBattleParticipantRole.Deployed)
-                .Select(item => $"{item.HeroId}\u001f{item.CorpsInstanceId}")
-                .ToHashSet(System.StringComparer.Ordinal);
-            string[] resultKeys = summary.Participants
-                .Select(item => $"{item.HeroId}\u001f{item.CorpsInstanceId}")
-                .ToArray();
-            if (resultKeys.Length != deployedKeys.Count ||
-                deployedKeys.Count == 0 ||
-                resultKeys.Distinct(System.StringComparer.Ordinal).Count() != resultKeys.Length ||
-                resultKeys.Any(key => !deployedKeys.Contains(key)))
-            {
-                return StrategicFailureReasons.BattleResultMismatch;
-            }
-
-            foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
-            {
-                StrategicBattleParticipantDisposition disposition = summary.ParticipantDispositions.SingleOrDefault(item =>
-                    string.Equals(item?.HeroId ?? "", participant.HeroId ?? "", System.StringComparison.Ordinal) &&
-                    string.Equals(item?.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
-                if (disposition == null ||
-                    disposition.Role == StrategicBattleParticipantRole.Unknown ||
-                    !string.Equals(disposition.RollbackStationLocationId ?? "", participant.RollbackStationLocationId ?? "", System.StringComparison.Ordinal))
-                {
-                    return StrategicFailureReasons.BattleResultMismatch;
-                }
-
-                bool hasRuntimeResult = summary.Participants.Any(item =>
-                    string.Equals(item?.HeroId ?? "", participant.HeroId ?? "", System.StringComparison.Ordinal) &&
-                    string.Equals(item?.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
-                if (disposition.Role == StrategicBattleParticipantRole.Deployed && !hasRuntimeResult)
-                {
-                    return StrategicFailureReasons.MissingBattleParticipantResult;
-                }
-
-                if (disposition.Role == StrategicBattleParticipantRole.Reserve && hasRuntimeResult)
-                {
-                    return StrategicFailureReasons.BattleResultMismatch;
-                }
-            }
-
-            return "";
+        System.Collections.Generic.HashSet<string> deployedKeys = summary.ParticipantDispositions
+            .Where(item => item.Role == StrategicBattleParticipantRole.Deployed)
+            .Select(item => $"{item.HeroId}\u001f{item.CorpsInstanceId}")
+            .ToHashSet(System.StringComparer.Ordinal);
+        string[] resultKeys = summary.Participants
+            .Select(item => $"{item.HeroId}\u001f{item.CorpsInstanceId}")
+            .ToArray();
+        if (resultKeys.Length != deployedKeys.Count ||
+            deployedKeys.Count == 0 ||
+            resultKeys.Distinct(System.StringComparer.Ordinal).Count() != resultKeys.Length ||
+            resultKeys.Any(key => !deployedKeys.Contains(key)))
+        {
+            return StrategicFailureReasons.BattleResultMismatch;
         }
 
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
         {
-            if (!summary.Participants.Any(item =>
-                    string.Equals(item?.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal)))
+            StrategicBattleParticipantDisposition disposition = summary.ParticipantDispositions.SingleOrDefault(item =>
+                string.Equals(item?.HeroId ?? "", participant.HeroId ?? "", System.StringComparison.Ordinal) &&
+                string.Equals(item?.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
+            if (disposition == null ||
+                disposition.Role == StrategicBattleParticipantRole.Unknown ||
+                !string.Equals(disposition.RollbackStationLocationId ?? "", participant.RollbackStationLocationId ?? "", System.StringComparison.Ordinal))
+            {
+                return StrategicFailureReasons.BattleResultMismatch;
+            }
+
+            bool hasRuntimeResult = summary.Participants.Any(item =>
+                string.Equals(item?.HeroId ?? "", participant.HeroId ?? "", System.StringComparison.Ordinal) &&
+                string.Equals(item?.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
+            if (disposition.Role == StrategicBattleParticipantRole.Deployed && !hasRuntimeResult)
             {
                 return StrategicFailureReasons.MissingBattleParticipantResult;
             }
+
+            StrategicBattleParticipantResult participantResult = summary.Participants.SingleOrDefault(item =>
+                string.Equals(item?.HeroId ?? "", participant.HeroId ?? "", System.StringComparison.Ordinal) &&
+                string.Equals(item?.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
+            if (disposition.Role == StrategicBattleParticipantRole.Deployed &&
+                (participantResult == null ||
+                 !string.Equals(participantResult.ParticipantId ?? "", disposition.ParticipantId ?? "", System.StringComparison.Ordinal) ||
+                 participantResult.HeroState == StrategicHeroBattleState.Unknown ||
+                 participantResult.PreBattleCorpsStrength < 0 ||
+                 participantResult.PreBattleCorpsStrength > 100 ||
+                 participantResult.RemainingCorpsStrength < 0 ||
+                 participantResult.RemainingCorpsStrength > participantResult.PreBattleCorpsStrength ||
+                 participantResult.StrengthLoss != participantResult.PreBattleCorpsStrength - participantResult.RemainingCorpsStrength ||
+                 participantResult.Routed != (participantResult.RemainingCorpsStrength == 0)))
+            {
+                return StrategicFailureReasons.BattleResultMismatch;
+            }
+
+            if (disposition.Role == StrategicBattleParticipantRole.Reserve && hasRuntimeResult)
+            {
+                return StrategicFailureReasons.BattleResultMismatch;
+            }
+        }
+
+        bool victory = summary.Outcome == BattleOutcome.Victory && summary.ObjectiveSucceeded;
+        if (!HasValidSummaryConsequenceFacts(summary, victory))
+        {
+            return StrategicFailureReasons.BattleResultMismatch;
         }
 
         return "";
+    }
+
+    private static bool HasValidSummaryConsequenceFacts(
+        StrategicBattleResultSummary summary,
+        bool victory)
+    {
+        if (summary.ResourceRewards == null ||
+            summary.EquipmentSampleIds == null ||
+            summary.RewardEquipmentSampleIds == null ||
+            summary.RewardLines == null ||
+            summary.FailureCandidates == null ||
+            summary.ResourceRewards.Any(item =>
+                item == null || item.Amount <= 0 || string.IsNullOrWhiteSpace(item.ResourceId)) ||
+            summary.ResourceRewards.Select(item => item.ResourceId).Distinct(System.StringComparer.Ordinal).Count() != summary.ResourceRewards.Count ||
+            summary.EquipmentSampleIds.Any(string.IsNullOrWhiteSpace) ||
+            summary.EquipmentSampleIds.Distinct(System.StringComparer.Ordinal).Count() != summary.EquipmentSampleIds.Count ||
+            summary.RewardEquipmentSampleIds.Any(string.IsNullOrWhiteSpace) ||
+            summary.RewardEquipmentSampleIds.Distinct(System.StringComparer.Ordinal).Count() != summary.RewardEquipmentSampleIds.Count ||
+            summary.RewardEquipmentSampleIds.Any(id => !summary.EquipmentSampleIds.Contains(id, System.StringComparer.Ordinal)) ||
+            summary.RewardLines.Any(item => item == null) ||
+            summary.RewardLines.Distinct(System.StringComparer.Ordinal).Count() != summary.RewardLines.Count)
+        {
+            return false;
+        }
+
+        bool carriesReward = summary.ResourceRewards.Count > 0 || summary.RewardEquipmentSampleIds.Count > 0;
+        return victory
+            ? !carriesReward || !string.IsNullOrWhiteSpace(summary.RewardClaimId)
+            : string.IsNullOrWhiteSpace(summary.RewardClaimId) &&
+              summary.ResourceRewards.Count == 0 &&
+              summary.RewardEquipmentSampleIds.Count == 0;
     }
 
     private System.Collections.Generic.Dictionary<string, int> CapturePreBattleStrengths(
@@ -250,15 +316,10 @@ public sealed partial class StrategicManagementCommandService
     private StrategicBattleFeedbackRecord BuildBattleFeedbackRecord(
         StrategicManagementState state,
         StrategicExpeditionState expedition,
-        StrategicLocationState targetLocation,
         StrategicBattleResultSummary summary,
         bool victory,
         System.Collections.Generic.IReadOnlyDictionary<string, int> preBattleStrengthByCorps)
     {
-        _definitions.Locations.TryGetValue(summary.TargetLocationId ?? "", out StrategicLocationDefinition targetDefinition);
-        StrategicBattleRewardDefinition reward = ResolveBattleReward(summary.TargetLocationId);
-        bool rewardAlreadyClaimed = reward != null &&
-                                    state.ClaimedBattleRewardIds.Contains(reward.RewardId);
         StrategicBattleFeedbackRecord feedback = new()
         {
             FeedbackId = state.AllocateBattleFeedbackId(),
@@ -266,70 +327,30 @@ public sealed partial class StrategicManagementCommandService
             SessionId = summary.SessionId ?? "",
             SnapshotId = summary.SnapshotId ?? "",
             TargetLocationId = summary.TargetLocationId ?? "",
-            TargetDisplayName = targetDefinition?.DisplayName ?? summary.TargetLocationId ?? "",
+            TargetDisplayName = string.IsNullOrWhiteSpace(summary.TargetDisplayName)
+                ? summary.TargetLocationId ?? ""
+                : summary.TargetDisplayName,
             Victory = victory,
             ObjectiveSucceeded = summary.ObjectiveSucceeded,
-            OutcomeText = victory ? "胜利" : "失败",
-            WorldChangeText = BuildWorldChangeText(targetLocation, targetDefinition, reward, victory),
-            FailureReasonText = victory ? "" : "阵线被守军压散，重整编制后再进攻。",
-            ProgressionText = victory
-                ? reward?.VictoryProgressionText ?? "进展：目标已被控制。"
-                : reward?.DefeatProgressionText ?? "进展：本次未取得战略收益。",
+            OutcomeText = summary.OutcomeText ?? "",
+            WorldChangeText = summary.WorldChangeText ?? "",
+            FailureReasonText = summary.FailureReasonText ?? "",
+            ProgressionText = summary.ProgressionText ?? "",
             AppliedElapsedWorldTimePulses = state.ElapsedWorldTimePulses
         };
 
         BuildParticipantFeedback(state, expedition, summary, preBattleStrengthByCorps, feedback);
-        BuildHeroFeedback(state, expedition, summary, feedback, victory);
-        if (summary.HasConsequenceFacts)
+        BuildHeroFeedback(state, expedition, summary, feedback);
+        bool rewardAlreadyClaimed = !string.IsNullOrWhiteSpace(summary.RewardClaimId) &&
+                                    state.ClaimedBattleRewardIds.Contains(summary.RewardClaimId);
+        BuildEquipmentFeedback(summary, feedback, victory && !rewardAlreadyClaimed);
+        BuildRewardLines(summary, feedback);
+        if (rewardAlreadyClaimed)
         {
-            if (!string.IsNullOrWhiteSpace(summary.TargetDisplayName))
-            {
-                feedback.TargetDisplayName = summary.TargetDisplayName;
-            }
-
-            if (!string.IsNullOrWhiteSpace(summary.WorldChangeText))
-            {
-                feedback.WorldChangeText = summary.WorldChangeText;
-            }
-
-            feedback.FailureReasonText = summary.FailureReasonText ?? "";
-            if (!string.IsNullOrWhiteSpace(summary.ProgressionText))
-            {
-                feedback.ProgressionText = summary.ProgressionText;
-            }
-
-            BuildEquipmentFeedback(summary, feedback, victory);
-            BuildRewardLines(summary, feedback);
-        }
-        else
-        {
-            BuildEquipmentFeedback(reward, feedback, victory && !rewardAlreadyClaimed);
-            BuildRewardLines(reward, feedback, victory, rewardAlreadyClaimed);
+            feedback.RewardLines.Clear();
+            feedback.RewardLines.Add($"奖励已领取：{summary.RewardClaimId}");
         }
         return feedback;
-    }
-
-    private StrategicBattleRewardDefinition ResolveBattleReward(string targetLocationId)
-    {
-        return _definitions.BattleRewards.Values.FirstOrDefault(reward =>
-            string.Equals(reward.TargetLocationId, targetLocationId ?? "", System.StringComparison.Ordinal));
-    }
-
-    private static string BuildWorldChangeText(
-        StrategicLocationState targetLocation,
-        StrategicLocationDefinition targetDefinition,
-        StrategicBattleRewardDefinition reward,
-        bool victory)
-    {
-        if (reward != null)
-        {
-            return victory ? reward.VictorySummaryText : reward.DefeatSummaryText;
-        }
-
-        string name = targetDefinition?.DisplayName ?? targetLocation?.LocationId ?? "目标地点";
-        return victory
-            ? $"{name}已转入我方控制。"
-            : $"{name}仍未被我方控制。";
     }
 
     private void BuildParticipantFeedback(
@@ -374,8 +395,7 @@ public sealed partial class StrategicManagementCommandService
         StrategicManagementState state,
         StrategicExpeditionState expedition,
         StrategicBattleResultSummary summary,
-        StrategicBattleFeedbackRecord feedback,
-        bool victory)
+        StrategicBattleFeedbackRecord feedback)
     {
         foreach (StrategicExpeditionParticipantState participant in EnumerateExpeditionParticipants(expedition))
         {
@@ -387,56 +407,31 @@ public sealed partial class StrategicManagementCommandService
             state.Heroes.TryGetValue(participant.HeroId ?? "", out StrategicHeroState hero);
             _definitions.Heroes.TryGetValue(hero?.HeroDefinitionId ?? "", out StrategicHeroDefinition heroDefinition);
             string heroDisplayName = heroDefinition?.DisplayName ?? participant.HeroId ?? "";
+            StrategicBattleParticipantResult participantResult = summary.Participants.Single(item =>
+                string.Equals(item.HeroId ?? "", participant.HeroId ?? "", System.StringComparison.Ordinal) &&
+                string.Equals(item.CorpsInstanceId ?? "", participant.CorpsInstanceId ?? "", System.StringComparison.Ordinal));
             feedback.HeroFeedback.Add(new StrategicHeroBattleFeedbackRecord
             {
                 HeroId = participant.HeroId ?? "",
                 HeroDisplayName = heroDisplayName,
-                ReactionText = BuildHeroReactionText(hero?.HeroDefinitionId ?? participant.HeroId ?? "", heroDisplayName, victory)
+                ReactionText = BuildHeroResultText(heroDisplayName, participantResult.HeroState)
             });
         }
     }
 
-    private static string BuildHeroReactionText(
-        string heroDefinitionId,
+    private static string BuildHeroResultText(
         string heroDisplayName,
-        bool victory)
+        StrategicHeroBattleState heroState)
     {
-        if (!victory)
+        string stateText = heroState switch
         {
-            return $"{heroDisplayName}：阵线被拖散了。先重整编制，再压住敌军侧翼。";
-        }
-
-        if (string.Equals(heroDefinitionId, StrategicManagementIds.HeroCavalryCaptain, System.StringComparison.Ordinal))
-        {
-            return $"{heroDisplayName}：侧翼已经打开，下一次出征可以更快压进。";
-        }
-
-        return $"{heroDisplayName}：白骨岗哨的突破口已经打开。";
-    }
-
-    private void BuildEquipmentFeedback(
-        StrategicBattleRewardDefinition reward,
-        StrategicBattleFeedbackRecord feedback,
-        bool victory)
-    {
-        foreach (string equipmentSampleId in reward?.EquipmentSampleIds ?? Enumerable.Empty<string>())
-        {
-            if (!_definitions.EquipmentSamples.TryGetValue(equipmentSampleId ?? "", out StrategicEquipmentSampleDefinition equipment))
-            {
-                continue;
-            }
-
-            feedback.EquipmentSamples.Add(new StrategicEquipmentSampleFeedbackRecord
-            {
-                EquipmentSampleId = equipment.EquipmentSampleId,
-                DisplayName = equipment.DisplayName,
-                SlotKind = equipment.SlotKind,
-                Grade = equipment.Grade,
-                RoleText = equipment.RoleText,
-                IsReward = victory &&
-                           string.Equals(equipment.EquipmentSampleId, reward.RewardEquipmentSampleId, System.StringComparison.Ordinal)
-            });
-        }
+            StrategicHeroBattleState.Survived => "存活",
+            StrategicHeroBattleState.Defeated => "战败",
+            StrategicHeroBattleState.Retreated => "已撤退",
+            StrategicHeroBattleState.Unavailable => "战报状态不可用",
+            _ => "状态未知"
+        };
+        return $"{heroDisplayName}：{stateText}。";
     }
 
     private void BuildEquipmentFeedback(
@@ -444,7 +439,7 @@ public sealed partial class StrategicManagementCommandService
         StrategicBattleFeedbackRecord feedback,
         bool victory)
     {
-        foreach (string equipmentSampleId in summary?.RewardEquipmentSampleIds ?? Enumerable.Empty<string>())
+        foreach (string equipmentSampleId in summary?.EquipmentSampleIds ?? Enumerable.Empty<string>())
         {
             if (!_definitions.EquipmentSamples.TryGetValue(equipmentSampleId ?? "", out StrategicEquipmentSampleDefinition equipment))
             {
@@ -458,55 +453,10 @@ public sealed partial class StrategicManagementCommandService
                 SlotKind = equipment.SlotKind,
                 Grade = equipment.Grade,
                 RoleText = equipment.RoleText,
-                IsReward = victory
+                IsReward = victory && summary.RewardEquipmentSampleIds.Contains(
+                    equipment.EquipmentSampleId,
+                    System.StringComparer.Ordinal)
             });
-        }
-    }
-
-    private void BuildRewardLines(
-        StrategicBattleRewardDefinition reward,
-        StrategicBattleFeedbackRecord feedback,
-        bool victory,
-        bool rewardAlreadyClaimed)
-    {
-        if (reward == null)
-        {
-            feedback.RewardLines.Add(victory ? "奖励：目标已控制。" : "未获得：目标奖励。");
-            return;
-        }
-
-        if (!victory)
-        {
-            feedback.RewardLines.Add($"未获得：{reward.DisplayName}");
-            return;
-        }
-
-        if (rewardAlreadyClaimed)
-        {
-            feedback.RewardLines.Add($"奖励已领取：{reward.DisplayName}");
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(reward.UnlockText))
-        {
-            feedback.RewardLines.Add(reward.UnlockText);
-        }
-
-        foreach (StrategicResourceAmount amount in reward.VictoryResourceRewards)
-        {
-            if (amount.Amount <= 0 || string.IsNullOrWhiteSpace(amount.ResourceId))
-            {
-                continue;
-            }
-
-            _definitions.Resources.TryGetValue(amount.ResourceId, out StrategicResourceDefinition resource);
-            feedback.RewardLines.Add($"获得：{resource?.DisplayName ?? amount.ResourceId} +{amount.Amount}");
-        }
-
-        StrategicEquipmentSampleFeedbackRecord rewardEquipment = feedback.EquipmentSamples.FirstOrDefault(item => item.IsReward);
-        if (rewardEquipment != null)
-        {
-            feedback.RewardLines.Add($"获得装备：{rewardEquipment.DisplayName}（{FormatEquipmentSlot(rewardEquipment.SlotKind)}）");
         }
     }
 
@@ -527,7 +477,6 @@ public sealed partial class StrategicManagementCommandService
         StrategicManagementState state,
         string factionId,
         StrategicBattleResultSummary summary,
-        StrategicBattleFeedbackRecord feedback,
         bool victory)
     {
         if (!victory)
@@ -535,63 +484,22 @@ public sealed partial class StrategicManagementCommandService
             return;
         }
 
-        if (summary?.HasConsequenceFacts == true)
-        {
-            if (!string.IsNullOrWhiteSpace(summary.RewardClaimId) &&
-                state.ClaimedBattleRewardIds.Contains(summary.RewardClaimId))
-            {
-                return;
-            }
-
-            foreach (StrategicResourceAmount amount in summary.ResourceRewards ?? Enumerable.Empty<StrategicResourceAmount>())
-            {
-                if (amount?.Amount > 0 && !string.IsNullOrWhiteSpace(amount.ResourceId))
-                {
-                    state.AddResourceAmount(factionId, amount.ResourceId, amount.Amount);
-                }
-            }
-
-            AddUnique(state.ClaimedBattleRewardIds, summary.RewardClaimId);
-            foreach (string equipmentSampleId in summary.RewardEquipmentSampleIds ?? Enumerable.Empty<string>())
-            {
-                AddUnique(state.UnlockedEquipmentSampleIds, equipmentSampleId);
-            }
-
-            return;
-        }
-
-        StrategicBattleRewardDefinition reward = ResolveBattleReward(feedback.TargetLocationId);
-        if (reward == null)
+        if (!string.IsNullOrWhiteSpace(summary.RewardClaimId) &&
+            state.ClaimedBattleRewardIds.Contains(summary.RewardClaimId))
         {
             return;
         }
 
-        if (state.ClaimedBattleRewardIds.Contains(reward.RewardId))
-        {
-            return;
-        }
-
-        foreach (StrategicResourceAmount amount in reward.VictoryResourceRewards)
+        foreach (StrategicResourceAmount amount in summary.ResourceRewards ?? Enumerable.Empty<StrategicResourceAmount>())
         {
             state.AddResourceAmount(factionId, amount.ResourceId, amount.Amount);
         }
 
-        AddUnique(state.ClaimedBattleRewardIds, reward.RewardId);
-        foreach (StrategicEquipmentSampleFeedbackRecord equipment in feedback.EquipmentSamples.Where(item => item.IsReward))
+        AddUnique(state.ClaimedBattleRewardIds, summary.RewardClaimId);
+        foreach (string equipmentSampleId in summary.RewardEquipmentSampleIds ?? Enumerable.Empty<string>())
         {
-            AddUnique(state.UnlockedEquipmentSampleIds, equipment.EquipmentSampleId);
+            AddUnique(state.UnlockedEquipmentSampleIds, equipmentSampleId);
         }
-    }
-
-    private static string FormatEquipmentSlot(string slotKind)
-    {
-        return slotKind switch
-        {
-            "weapon" => "武器",
-            "armor" => "护甲",
-            "token" => "号令道具",
-            _ => slotKind ?? ""
-        };
     }
 
     private static string ResolveCapturedCityForSurvivingParticipants(

@@ -381,6 +381,8 @@ public sealed class StrategicBattleBridgeService
             ExpeditionId = session?.ExpeditionId ?? "",
             TargetLocationId = session?.TargetLocationId ?? "",
             Outcome = mappedOutcome,
+            TerminationReason = outcome?.TerminationReason ?? BattleTerminationReason.None,
+            ObjectiveId = session?.BattleObjectiveId ?? "",
             ObjectiveSucceeded = mappedOutcome == BattleOutcome.Victory
         };
 
@@ -409,6 +411,17 @@ public sealed class StrategicBattleBridgeService
             return summary;
         }
 
+        PopulateEnvelopeFacts(summary, runtimeResult, resultEnvelope.SettlementPlan, resultEnvelope.Report);
+        if (!TryCompileTargetConsequences(summary, resultEnvelope.Report, out string consequenceFailureReason))
+        {
+            summary.Outcome = BattleOutcome.None;
+            summary.TerminationReason = BattleTerminationReason.None;
+            GameLog.Warn(
+                nameof(StrategicBattleBridgeService),
+                $"StrategicBattleResultSummaryRejected session={summary.SessionId} snapshot={summary.SnapshotId} reason={consequenceFailureReason}");
+            return summary;
+        }
+
         foreach (StrategicBattleParticipantReference participant in session.Participants.Where(item => item?.Role == StrategicBattleParticipantRole.Deployed))
         {
             if (participant == null || string.IsNullOrWhiteSpace(participant.CorpsInstanceId))
@@ -421,7 +434,7 @@ public sealed class StrategicBattleBridgeService
                     participant,
                     outcome,
                     out BattleGroupSnapshot group,
-                    out _,
+                    out BattleActorOutcome heroOutcome,
                     out BattleActorOutcome corpsOutcome,
                     out string mappingFailureReason))
             {
@@ -439,15 +452,36 @@ public sealed class StrategicBattleBridgeService
                 0.0,
                 1.0);
             int remainingStrength = (int)Math.Round(preBattleStrength * survivalFraction);
+            int strengthLoss = Math.Max(0, preBattleStrength - remainingStrength);
+            bool retreated = outcome.TerminationReason == BattleTerminationReason.PlayerRetreat;
+            bool routed = remainingStrength == 0;
 
             summary.Participants.Add(new StrategicBattleParticipantResult
             {
+                ParticipantId = participant.ParticipantId,
                 HeroId = participant.HeroId,
                 CorpsInstanceId = participant.CorpsInstanceId,
-                RemainingCorpsStrength = remainingStrength
+                HeroState = retreated && heroOutcome.Survived
+                    ? StrategicHeroBattleState.Retreated
+                    : heroOutcome.Survived
+                        ? StrategicHeroBattleState.Survived
+                        : StrategicHeroBattleState.Defeated,
+                PreBattleCorpsStrength = preBattleStrength,
+                RemainingCorpsStrength = remainingStrength,
+                StrengthLoss = strengthLoss,
+                CorpsEquipmentLevel = participant.CorpsEquipmentLevel,
+                Routed = routed,
+                Retreated = retreated,
+                RequiresRecovery = routed || retreated || strengthLoss > 0,
+                RecoveryLocationId = routed || retreated || strengthLoss > 0
+                    ? participant.RollbackStationLocationId
+                    : ""
             });
         }
 
+        // This flag is an acceptance boundary, not an optional enhancement. Strategic
+        // Management may consume only summaries that completed every source mapping.
+        summary.HasConsequenceFacts = true;
         return summary;
     }
 
@@ -514,6 +548,11 @@ public sealed class StrategicBattleBridgeService
             return StrategicFailureReasons.MissingBattleResultSummary;
         }
 
+        if (!HasConsistentSourceEvents(outcome, eventStream, settlementPlan, report))
+        {
+            return StrategicFailureReasons.BattleResultMismatch;
+        }
+
         if (settlementPlan?.Accepted != true)
         {
             return StrategicFailureReasons.MissingBattleResultSummary;
@@ -539,17 +578,27 @@ public sealed class StrategicBattleBridgeService
             return StrategicFailureReasons.BattleResultMismatch;
         }
 
-        StrategicBattleParticipantReference[] deployedParticipants = context.Session.Participants
+        if ((settlementPlan.Deltas?.ChangedLocationIds ?? new List<string>()).Any(id =>
+                !string.Equals(id ?? "", context.Session.TargetLocationId ?? "", StringComparison.Ordinal)))
+        {
+            return StrategicFailureReasons.BattleResultMismatch;
+        }
+
+        StrategicBattleParticipantReference[] carriedParticipants = context.Session.Participants
+            .Where(participant => participant != null)
+            .ToArray();
+        if (carriedParticipants.Length != context.Session.Participants.Count ||
+            HasDuplicateParticipantIdentity(carriedParticipants))
+        {
+            return ParticipantActorMappingAmbiguousReason;
+        }
+
+        StrategicBattleParticipantReference[] deployedParticipants = carriedParticipants
             .Where(participant => participant?.Role == StrategicBattleParticipantRole.Deployed)
             .ToArray();
         if (deployedParticipants.Length == 0)
         {
             return StrategicFailureReasons.MissingBattleResultSummary;
-        }
-
-        if (HasDuplicateParticipantIdentity(deployedParticipants))
-        {
-            return ParticipantActorMappingAmbiguousReason;
         }
 
         HashSet<string> actorIds = new(StringComparer.Ordinal);
@@ -597,6 +646,301 @@ public sealed class StrategicBattleBridgeService
                list.Select(item => item.CorpsInstanceId ?? "").Distinct(StringComparer.Ordinal).Count() != list.Length;
     }
 
+    private static bool HasConsistentSourceEvents(
+        BattleOutcomeResult outcome,
+        BattleEventStream eventStream,
+        SettlementPlan settlementPlan,
+        BattleReportRecord report)
+    {
+        if (outcome == null || eventStream == null || settlementPlan?.Deltas == null || report == null)
+        {
+            return false;
+        }
+
+        string[] eventIds = eventStream.Events.Select(item => item?.EventId ?? "").ToArray();
+        if (eventIds.Any(string.IsNullOrWhiteSpace) ||
+            eventIds.Distinct(StringComparer.Ordinal).Count() != eventIds.Length ||
+            eventStream.Events.Any(item =>
+                item == null ||
+                !string.Equals(item.BattleId ?? "", outcome.BattleId ?? "", StringComparison.Ordinal)))
+        {
+            return false;
+        }
+
+        if (!(settlementPlan.SourceEventIds ?? new List<string>()).SequenceEqual(eventIds, StringComparer.Ordinal) ||
+            !(report.SourceEventIds ?? new List<string>()).SequenceEqual(eventIds, StringComparer.Ordinal) ||
+            !string.Equals(report.OutcomeSummary ?? "", outcome.TerminationReason.ToString(), StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        HashSet<string> heroIds = outcome.ActorOutcomes
+            .Where(item => item?.Kind == BattleRuntimeActorKind.Hero)
+            .Select(item => item.SourceStateId ?? "")
+            .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> corpsIds = outcome.ActorOutcomes
+            .Where(item => item?.Kind == BattleRuntimeActorKind.Corps)
+            .Select(item => item.SourceStateId ?? "")
+            .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> groupIds = outcome.ActorOutcomes
+            .Where(item => item != null)
+            .Select(item => item.BattleGroupId ?? "")
+            .ToHashSet(StringComparer.Ordinal);
+
+        return HasUniqueNonEmptyValues(settlementPlan.Deltas?.ChangedHeroIds) &&
+               settlementPlan.Deltas.ChangedHeroIds.All(heroIds.Contains) &&
+               HasUniqueNonEmptyValues(settlementPlan.Deltas?.ChangedCorpsIds) &&
+               settlementPlan.Deltas.ChangedCorpsIds.All(corpsIds.Contains) &&
+               HasUniqueNonEmptyValues(settlementPlan.Deltas?.ChangedBattleGroupIds) &&
+               settlementPlan.Deltas.ChangedBattleGroupIds.All(groupIds.Contains) &&
+               HasUniqueNonEmptyValues(settlementPlan.Deltas?.ChangedLocationIds) &&
+               HasUniqueValues(report.FailureCandidates) &&
+               HasReportSkillSourceConsistency(eventStream, report);
+    }
+
+    private static bool HasUniqueNonEmptyValues(IEnumerable<string> values)
+    {
+        string[] list = (values ?? Enumerable.Empty<string>()).ToArray();
+        return list.All(value => !string.IsNullOrWhiteSpace(value)) &&
+               list.Distinct(StringComparer.Ordinal).Count() == list.Length;
+    }
+
+    private static bool HasUniqueValues(IEnumerable<string> values)
+    {
+        string[] list = (values ?? Enumerable.Empty<string>()).ToArray();
+        return list.All(value => value != null) &&
+               list.Distinct(StringComparer.Ordinal).Count() == list.Length;
+    }
+
+    private static bool HasReportSkillSourceConsistency(
+        BattleEventStream eventStream,
+        BattleReportRecord report)
+    {
+        string[] expectedUses = eventStream.Events
+            .Where(item => item?.Kind == BattleEventKind.SkillUsed)
+            .Select(item => $"{item.ReasonCode}:{item.ActorId}->{item.TargetId}")
+            .ToArray();
+        if (!(report.HeroSkillUses ?? new List<string>()).SequenceEqual(expectedUses, StringComparer.Ordinal))
+        {
+            return false;
+        }
+
+        foreach (BattleReportSkillEffectFact fact in report.HeroSkillEffects ?? new List<BattleReportSkillEffectFact>())
+        {
+            if (fact == null || !eventStream.Events.Any(item =>
+                    item.Kind == BattleEventKind.EffectApplied &&
+                    string.Equals(item.SourceCommandId ?? "", fact.SourceCommandId ?? "", StringComparison.Ordinal) &&
+                    string.Equals(item.SourceActionId ?? "", fact.SourceActionId ?? "", StringComparison.Ordinal) &&
+                    string.Equals(item.SourceDefinitionId ?? "", fact.SourceDefinitionId ?? "", StringComparison.Ordinal) &&
+                    string.Equals(item.ActorId ?? "", fact.ActorId ?? "", StringComparison.Ordinal) &&
+                    string.Equals(item.TargetId ?? "", fact.TargetId ?? "", StringComparison.Ordinal) &&
+                    string.Equals(item.ReasonCode ?? "", fact.ReasonCode ?? "", StringComparison.Ordinal) &&
+                    item.CorpsStrengthDelta == fact.CorpsStrengthDelta &&
+                    item.RuntimeTick == fact.RuntimeTick))
+            {
+                return false;
+            }
+        }
+
+        foreach (BattleReportSkillFailureFact fact in report.HeroSkillFailures ?? new List<BattleReportSkillFailureFact>())
+        {
+            if (fact == null || !eventStream.Events.Any(item =>
+                    item.Kind == BattleEventKind.CommandFailed &&
+                    string.Equals(item.SourceCommandId ?? "", fact.SourceCommandId ?? "", StringComparison.Ordinal) &&
+                    string.Equals(item.SourceDefinitionId ?? "", fact.SourceDefinitionId ?? "", StringComparison.Ordinal) &&
+                    string.Equals(item.ActorId ?? "", fact.ActorId ?? "", StringComparison.Ordinal) &&
+                    string.Equals(item.TargetId ?? "", fact.TargetId ?? "", StringComparison.Ordinal) &&
+                    string.Equals(item.ReasonCode ?? "", fact.ReasonCode ?? "", StringComparison.Ordinal) &&
+                    item.RuntimeTick == fact.RuntimeTick))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static void PopulateEnvelopeFacts(
+        StrategicBattleResultSummary summary,
+        BattleRuntimeSessionResult runtimeResult,
+        SettlementPlan settlementPlan,
+        BattleReportRecord report)
+    {
+        summary.ReportId = report.ReportId ?? "";
+        summary.ReportOutcomeSummary = report.OutcomeSummary ?? "";
+        summary.SettlementSourceEventIds.AddRange(settlementPlan.SourceEventIds ?? new List<string>());
+        summary.ReportSourceEventIds.AddRange(report.SourceEventIds ?? new List<string>());
+        summary.ChangedHeroIds.AddRange(settlementPlan.Deltas?.ChangedHeroIds ?? new List<string>());
+        summary.ChangedCorpsIds.AddRange(settlementPlan.Deltas?.ChangedCorpsIds ?? new List<string>());
+        summary.ChangedBattleGroupIds.AddRange(settlementPlan.Deltas?.ChangedBattleGroupIds ?? new List<string>());
+        summary.ChangedLocationIds.AddRange(settlementPlan.Deltas?.ChangedLocationIds ?? new List<string>());
+        summary.FailureCandidates.AddRange(report.FailureCandidates ?? new List<string>());
+        summary.HeroSkillUses.AddRange(report.HeroSkillUses ?? new List<string>());
+
+        foreach (BattleEvent item in runtimeResult.EventStream.Events.Where(IsContributionEvent))
+        {
+            summary.CommandAndSkillContributions.Add(new StrategicBattleContributionFact
+            {
+                EventId = item.EventId ?? "",
+                EventKind = item.Kind.ToString(),
+                BattleGroupId = item.BattleGroupId ?? "",
+                ActorId = item.ActorId ?? "",
+                SourceCommandId = item.SourceCommandId ?? "",
+                SourceActionId = item.SourceActionId ?? "",
+                SourceDefinitionId = item.SourceDefinitionId ?? "",
+                TargetId = item.TargetId ?? "",
+                EffectKind = item.EffectKind ?? "",
+                ReasonCode = item.ReasonCode ?? "",
+                CorpsStrengthDelta = item.CorpsStrengthDelta,
+                RuntimeTick = item.RuntimeTick
+            });
+        }
+
+        foreach (BattleReportSkillEffectFact fact in report.HeroSkillEffects ?? new List<BattleReportSkillEffectFact>())
+        {
+            summary.HeroSkillEffects.Add(new StrategicBattleSkillEffectFact
+            {
+                SourceCommandId = fact.SourceCommandId ?? "",
+                SourceActionId = fact.SourceActionId ?? "",
+                SourceDefinitionId = fact.SourceDefinitionId ?? "",
+                EffectKind = fact.EffectKind ?? "",
+                ActorId = fact.ActorId ?? "",
+                TargetId = fact.TargetId ?? "",
+                ReasonCode = fact.ReasonCode ?? "",
+                CorpsStrengthDelta = fact.CorpsStrengthDelta,
+                RuntimeTick = fact.RuntimeTick,
+                RuntimeTimeSeconds = fact.RuntimeTimeSeconds
+            });
+        }
+
+        foreach (BattleReportSkillFailureFact fact in report.HeroSkillFailures ?? new List<BattleReportSkillFailureFact>())
+        {
+            summary.HeroSkillFailures.Add(new StrategicBattleSkillFailureFact
+            {
+                SourceCommandId = fact.SourceCommandId ?? "",
+                SourceDefinitionId = fact.SourceDefinitionId ?? "",
+                ActorId = fact.ActorId ?? "",
+                TargetId = fact.TargetId ?? "",
+                ReasonCode = fact.ReasonCode ?? "",
+                RuntimeTick = fact.RuntimeTick,
+                RuntimeTimeSeconds = fact.RuntimeTimeSeconds
+            });
+        }
+    }
+
+    private static bool IsContributionEvent(BattleEvent item)
+    {
+        return item != null &&
+               (!string.IsNullOrWhiteSpace(item.SourceCommandId) ||
+                item.Kind == BattleEventKind.SkillUsed ||
+                item.Kind == BattleEventKind.EffectApplied ||
+                item.Kind == BattleEventKind.CommandFailed ||
+                item.Kind == BattleEventKind.CommandInterrupted ||
+                item.Kind == BattleEventKind.CommandCompleted);
+    }
+
+    private bool TryCompileTargetConsequences(
+        StrategicBattleResultSummary summary,
+        BattleReportRecord report,
+        out string failureReason)
+    {
+        failureReason = "";
+        _definitions.Locations.TryGetValue(summary.TargetLocationId ?? "", out StrategicLocationDefinition target);
+        summary.TargetDisplayName = target?.DisplayName ?? "";
+        summary.OutcomeText = summary.Outcome switch
+        {
+            BattleOutcome.Victory => "\u80dc\u5229",
+            BattleOutcome.Defeat => "\u5931\u8d25",
+            BattleOutcome.Withdraw => "\u64a4\u9000",
+            _ => "\u672a\u77e5"
+        };
+
+        StrategicBattleRewardDefinition[] matches = _definitions.BattleRewards.Values
+            .Where(item => item != null &&
+                           string.Equals(item.TargetLocationId ?? "", summary.TargetLocationId ?? "", StringComparison.Ordinal))
+            .ToArray();
+        if (matches.Length > 1)
+        {
+            failureReason = StrategicFailureReasons.BattleResultMismatch;
+            return false;
+        }
+
+        StrategicBattleRewardDefinition reward = matches.SingleOrDefault();
+        if (reward == null)
+        {
+            summary.FailureReasonText = summary.Outcome == BattleOutcome.Victory
+                ? ""
+                : string.Join("\uff1b", report.FailureCandidates ?? new List<string>());
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(reward.RewardId) ||
+            !HasUniqueNonEmptyValues(reward.EquipmentSampleIds) ||
+            reward.VictoryResourceRewards.Any(item =>
+                item == null || item.Amount <= 0 || string.IsNullOrWhiteSpace(item.ResourceId)) ||
+            reward.VictoryResourceRewards.Select(item => item.ResourceId).Distinct(StringComparer.Ordinal).Count() != reward.VictoryResourceRewards.Count ||
+            reward.EquipmentSampleIds.Any(id => !_definitions.EquipmentSamples.ContainsKey(id)) ||
+            reward.VictoryResourceRewards.Any(item => !_definitions.Resources.ContainsKey(item.ResourceId)) ||
+            !string.IsNullOrWhiteSpace(reward.RewardEquipmentSampleId) &&
+            !reward.EquipmentSampleIds.Contains(reward.RewardEquipmentSampleId, StringComparer.Ordinal))
+        {
+            failureReason = StrategicFailureReasons.BattleResultMismatch;
+            return false;
+        }
+
+        summary.EquipmentSampleIds.AddRange(reward.EquipmentSampleIds);
+        bool victory = summary.Outcome == BattleOutcome.Victory && summary.ObjectiveSucceeded;
+        summary.WorldChangeText = victory ? reward.VictorySummaryText ?? "" : reward.DefeatSummaryText ?? "";
+        summary.ProgressionText = victory ? reward.VictoryProgressionText ?? "" : reward.DefeatProgressionText ?? "";
+        summary.FailureReasonText = victory
+            ? ""
+            : string.Join("\uff1b", report.FailureCandidates ?? new List<string>());
+        if (!victory)
+        {
+            if (!string.IsNullOrWhiteSpace(reward.DisplayName))
+            {
+                AddSummaryLine(summary.RewardLines, $"\u672a\u83b7\u5f97\uff1a{reward.DisplayName}");
+            }
+
+            return true;
+        }
+
+        summary.RewardClaimId = reward.RewardId;
+        foreach (StrategicResourceAmount amount in reward.VictoryResourceRewards)
+        {
+            summary.ResourceRewards.Add(new StrategicResourceAmount(amount.ResourceId, amount.Amount));
+        }
+
+        if (!string.IsNullOrWhiteSpace(reward.RewardEquipmentSampleId))
+        {
+            summary.RewardEquipmentSampleIds.Add(reward.RewardEquipmentSampleId);
+        }
+
+        AddSummaryLine(summary.RewardLines, reward.UnlockText);
+        foreach (StrategicResourceAmount amount in summary.ResourceRewards)
+        {
+            _definitions.Resources.TryGetValue(amount.ResourceId, out StrategicResourceDefinition resource);
+            AddSummaryLine(summary.RewardLines, $"\u83b7\u5f97\uff1a{resource?.DisplayName ?? amount.ResourceId} +{amount.Amount}");
+        }
+
+        if (_definitions.EquipmentSamples.TryGetValue(
+                reward.RewardEquipmentSampleId ?? "",
+                out StrategicEquipmentSampleDefinition equipment))
+        {
+            AddSummaryLine(summary.RewardLines, $"\u83b7\u5f97\u88c5\u5907\uff1a{equipment.DisplayName}");
+        }
+
+        return true;
+    }
+
+    private static void AddSummaryLine(ICollection<string> lines, string line)
+    {
+        if (!string.IsNullOrWhiteSpace(line) && !lines.Contains(line))
+        {
+            lines.Add(line);
+        }
+    }
+
     private static bool TryResolveParticipantRuntimeOutcome(
         StrategicBattleActiveContext context,
         StrategicBattleParticipantReference participant,
@@ -635,7 +979,9 @@ public sealed class StrategicBattleBridgeService
         if (!string.Equals(group.BattleGroupId ?? "", participant.ParticipantId ?? "", StringComparison.Ordinal) ||
             !string.Equals(commanderGroupId, participant.ParticipantId ?? "", StringComparison.Ordinal) ||
             !string.Equals(group.HeroId ?? "", participant.HeroId ?? "", StringComparison.Ordinal) ||
-            !string.Equals(group.CorpsId ?? "", participant.CorpsInstanceId ?? "", StringComparison.Ordinal))
+            !string.Equals(group.CorpsId ?? "", participant.CorpsInstanceId ?? "", StringComparison.Ordinal) ||
+            group.CorpsStrength != ClampStrength(participant.PreBattleCorpsStrength) ||
+            group.CorpsEquipmentLevel != participant.CorpsEquipmentLevel)
         {
             failureReason = ParticipantActorMappingAmbiguousReason;
             return false;
@@ -676,6 +1022,8 @@ public sealed class StrategicBattleBridgeService
         }
 
         if (group.MaxHitPoints <= 0 ||
+            heroOutcome.RemainingHitPoints < 0 ||
+            heroOutcome.Survived != (heroOutcome.RemainingHitPoints > 0) ||
             corpsOutcome.RemainingHitPoints < 0 ||
             corpsOutcome.RemainingHitPoints > group.MaxHitPoints ||
             corpsOutcome.Survived != (corpsOutcome.RemainingHitPoints > 0))

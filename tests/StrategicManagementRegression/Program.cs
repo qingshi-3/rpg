@@ -59,6 +59,7 @@ Run("strategic battle duplicate mappings reject without mutation", StrategicMana
 Run("retarget moving expedition to assault updates strategic battle session authority", StrategicManagementRegressionCases.RetargetMovingExpeditionToAssaultUpdatesStrategicBattleSessionAuthority);
 Run("retarget moving expedition to assault creates bridge session without preparation gate", StrategicManagementRegressionCases.RetargetMovingExpeditionToAssaultCreatesBridgeSessionWithoutPreparationGate);
 Run("strategic battle result summary omits strategic preparation feedback", StrategicManagementRegressionCases.StrategicBattleResultSummaryOmitsStrategicPreparationFeedback);
+Run("strategic battle active context compiles complete consequence summary", StrategicManagementRegressionCases.StrategicBattleActiveContextCompilesCompleteConsequenceSummary);
 Run("strategic battle bridge maps duplicate battle unit participants by participant identity", StrategicManagementRegressionCases.StrategicBattleBridgeMapsDuplicateBattleUnitParticipantsByParticipantIdentity);
 Run("strategic battle bridge snapshot preserves strategic participant identity", StrategicManagementRegressionCases.StrategicBattleBridgeSnapshotPreservesStrategicParticipantIdentity);
 Run("strategic battle result summary applies victory consequences", StrategicManagementRegressionCases.StrategicBattleResultSummaryAppliesVictoryConsequences);
