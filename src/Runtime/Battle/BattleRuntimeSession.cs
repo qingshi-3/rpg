@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Rpg.Application.Battle;
 using Rpg.Application.Battle.Snapshots;
@@ -363,61 +362,6 @@ public sealed partial class BattleRuntimeSession
             // wait for normal Runtime decision boundaries before committing cells.
             BattleRuntimeActorStateMachine.ClearMovementIntentSnapshot(actor);
         }
-    }
-
-    internal BattleTerminationReason ResolveAutonomousCombat(
-        BattleRuntimeState state,
-        BattleEventStream stream,
-        string battleId,
-        BattleNavigationGraph navigationGraph)
-    {
-        if (state?.Actors == null)
-        {
-            return BattleTerminationReason.RuntimeException;
-        }
-
-        var navigationFailureDiagnostics = new HashSet<string>(System.StringComparer.Ordinal);
-        BattleRuntimeClock runtimeClock = new();
-        for (int tick = 0; tick < MaxAutonomousCombatTicks; tick++)
-        {
-            BattleTerminationReason resolved = ResolveTermination(state);
-            if (resolved != BattleTerminationReason.None)
-            {
-                return resolved;
-            }
-
-            double? nextReady = state.Actors
-                .Where(item => item.Kind == BattleRuntimeActorKind.Corps && item.HitPoints > 0)
-                .Select(item => (double?)System.Math.Max(runtimeClock.CurrentTimeSeconds, item.ActionReadyAtSeconds))
-                .DefaultIfEmpty(runtimeClock.CurrentTimeSeconds)
-                .Min();
-            if (nextReady.HasValue)
-            {
-                runtimeClock.AdvanceTo(nextReady.Value);
-            }
-
-            long resolveStartedAt = Stopwatch.GetTimestamp();
-            _tickResolver.ResolveTick(
-                state,
-                stream,
-                battleId,
-                tick,
-                runtimeClock.CurrentTimeSeconds,
-                navigationGraph,
-                navigationFailureDiagnostics,
-                _performanceCounters);
-            long resolveElapsedTicks = Stopwatch.GetTimestamp() - resolveStartedAt;
-            bool isNewMaximum = _performanceCounters?.RecordRuntimeAdvanceElapsedTicks(resolveElapsedTicks, tick) == true;
-            BattleRuntimeSpikeDiagnostics.LogIfNeeded(
-                battleId,
-                tick,
-                runtimeClock.CurrentTimeSeconds,
-                resolveElapsedTicks,
-                isNewMaximum,
-                _performanceCounters);
-        }
-
-        return BattleTerminationReason.RuntimeException;
     }
 
     internal static void LogNavigationGraphSummary(string battleId, BattleNavigationGraph navigationGraph)

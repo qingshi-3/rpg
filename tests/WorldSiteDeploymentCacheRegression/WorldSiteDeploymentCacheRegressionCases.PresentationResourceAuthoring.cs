@@ -108,10 +108,6 @@ internal static void StrategicWorldUiUsesManaSoulGuiSkin()
 
     (string fileName, string sheetName, float regionX)[] buttonStyleResources =
     {
-        ("basic_ui_1_button_primary.tres", "20250421manaSoulButtonB-Sheet.png", 0f),
-        ("basic_ui_1_button_primary_hover.tres", "20250421manaSoulButtonB-Sheet.png", 96f),
-        ("basic_ui_1_button_primary_pressed.tres", "20250421manaSoulButtonB-Sheet.png", 192f),
-        ("basic_ui_1_button_disabled.tres", "20250421manaSoulButtonB-Sheet.png", 288f),
         ("basic_ui_1_button_action.tres", "20250421manaSoulButtonB-Sheet.png", 0f),
         ("basic_ui_1_button_action_hover.tres", "20250421manaSoulButtonB-Sheet.png", 96f),
         ("basic_ui_1_button_action_pressed.tres", "20250421manaSoulButtonB-Sheet.png", 192f),

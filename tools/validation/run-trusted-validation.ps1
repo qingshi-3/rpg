@@ -7,7 +7,6 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 
 # This list is the maintained non-preview suite. Keep it explicit: validation must never discover projects by walking the tree.
 $runnerProjects = @(
-    'tests/AutoBattleRuntimeRegression/AutoBattleRuntimeRegression.csproj',
     'tests/BattleHitFeedbackRegression/BattleHitFeedbackRegression.csproj',
     'tests/GameCursorAnimationRegression/GameCursorAnimationRegression.csproj',
     'tests/SceneTransitionCasRegression/SceneTransitionCasRegression.csproj',

@@ -91,8 +91,6 @@ Run("active context snapshot CAS rejects invalid participants atomically", Strat
 Run("active context result revision returns exact duplicate and rejects conflict", StrategicManagementRegressionCases.ActiveContextResultRevisionReturnsExactDuplicateAndRejectsConflict);
 Run("strategic battle active context publishes one result envelope once", StrategicManagementRegressionCases.StrategicBattleActiveContextPublishesOneResultEnvelopeOnce);
 Run("strategic battle result envelope rejects invalid and legacy mirror authority", StrategicManagementRegressionCases.StrategicBattleResultEnvelopeRejectsInvalidAndLegacyMirrorAuthority);
-Run("strategic battle result summary rejects legacy request result authority", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsLegacyRequestResultAuthority);
-Run("strategic battle result summary rejects mismatched result", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsMismatchedResult);
 Run("strategic battle result summary rejects missing participant result", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsMissingParticipantResult);
 Run("strategic battle result summary rejects missing runtime actor outcomes", StrategicManagementRegressionCases.StrategicBattleResultSummaryRejectsMissingRuntimeActorOutcomes);
 Run("strategic battle bridge rejects resolved expedition", StrategicManagementRegressionCases.StrategicBattleBridgeRejectsResolvedExpedition);

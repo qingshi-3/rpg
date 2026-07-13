@@ -99,28 +99,6 @@ internal static partial class StrategicManagementRegressionCases
         return request;
     }
 
-    private static BattleResult BuildVictoryResult(BattleStartRequest request, int survivedCount)
-    {
-        BattleResult result = new()
-        {
-            RequestId = request.RequestId,
-            ContextId = request.ContextId,
-            BattleKind = BattleKind.AssaultSite,
-            Outcome = BattleOutcome.Victory
-        };
-        foreach (BattleForceRequest force in request.PlayerForces)
-        {
-            result.ForceResults.Add(new BattleForceResult
-            {
-                ForceId = force.ForceId,
-                InitialCount = force.Count,
-                SurvivedCount = Math.Min(force.Count, survivedCount)
-            });
-        }
-
-        return result;
-    }
-
     private static StrategicCommandResult ApplyVictoryForSingleHeroExpedition(
         StrategicManagementDefinitionSet definitions,
         StrategicManagementState state,

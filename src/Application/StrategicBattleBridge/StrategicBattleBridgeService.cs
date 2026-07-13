@@ -1048,95 +1048,6 @@ public sealed class StrategicBattleBridgeService
                string.Equals(actor.BattleGroupId ?? "", commanderGroupId ?? "", StringComparison.Ordinal);
     }
 
-    public StrategicBattleResultSummary BuildResultSummary(BattleStartRequest request, BattleResult result)
-    {
-        StrategicBattleResultSummary summary = new()
-        {
-            SessionId = request?.StrategicBattleSessionId ?? "",
-            SnapshotId = result?.ContextId ?? request?.ContextId ?? "",
-            ExpeditionId = request?.StrategicExpeditionId ?? "",
-            TargetLocationId = request?.StrategicTargetLocationId ?? "",
-            Outcome = result?.Outcome ?? BattleOutcome.None,
-            ObjectiveSucceeded = IsAnyObjectiveSucceeded(result)
-        };
-        if (!string.IsNullOrWhiteSpace(GetLegacyResultFailureReason(request, result)))
-        {
-            return summary;
-        }
-
-        if (IsStrategicCompatibilityRequest(request))
-        {
-            GameLog.Warn(
-                nameof(StrategicBattleBridgeService),
-                $"StrategicBattleLegacyResultSummaryRejected session={request?.StrategicBattleSessionId ?? ""} expedition={request?.StrategicExpeditionId ?? ""} request={request?.RequestId ?? ""}");
-            return summary;
-        }
-
-        foreach (IGrouping<string, BattleForceRequest> group in (request?.PlayerForces ?? new List<BattleForceRequest>())
-                     .Where(force => !string.IsNullOrWhiteSpace(force.StrategicCorpsInstanceId))
-                     .GroupBy(force => force.StrategicCorpsInstanceId))
-        {
-            BattleForceRequest first = group.First();
-            BattleForceResult[] forceResults = group
-                .Select(force => FindForceResult(result, force))
-                .ToArray();
-            if (forceResults.Any(item => item == null))
-            {
-                continue;
-            }
-
-            int preBattleStrength = group.Max(force => Math.Max(0, force.StrategicPreBattleCorpsStrength));
-            int initialCount = group.Sum(force => Math.Max(0, force.Count));
-            int survivedCount = forceResults.Sum(forceResult => Math.Max(0, forceResult.SurvivedCount));
-            int remainingStrength = initialCount <= 0
-                ? (summary.Outcome == BattleOutcome.Victory ? preBattleStrength : 0)
-                : (int)Math.Round(preBattleStrength * Math.Clamp(survivedCount / (double)initialCount, 0.0, 1.0));
-            summary.Participants.Add(new StrategicBattleParticipantResult
-            {
-                HeroId = first.StrategicHeroId,
-                CorpsInstanceId = first.StrategicCorpsInstanceId,
-                RemainingCorpsStrength = remainingStrength
-            });
-        }
-
-        return summary;
-    }
-
-    private static bool IsStrategicCompatibilityRequest(BattleStartRequest request)
-    {
-        return !string.IsNullOrWhiteSpace(request?.StrategicBattleSessionId) ||
-               !string.IsNullOrWhiteSpace(request?.StrategicExpeditionId) ||
-               !string.IsNullOrWhiteSpace(request?.StrategicTargetLocationId);
-    }
-
-    public static string GetLegacyResultFailureReason(BattleStartRequest request, BattleResult result)
-    {
-        if (request == null || result == null)
-        {
-            return StrategicFailureReasons.MissingBattleResultSummary;
-        }
-
-        if (!string.Equals(request.RequestId ?? "", result.RequestId ?? "", StringComparison.Ordinal) ||
-            request.BattleKind != result.BattleKind)
-        {
-            return StrategicFailureReasons.BattleResultMismatch;
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.ContextId) &&
-            !string.IsNullOrWhiteSpace(result.ContextId) &&
-            !string.Equals(request.ContextId, result.ContextId, StringComparison.Ordinal))
-        {
-            return StrategicFailureReasons.BattleResultMismatch;
-        }
-
-        if (request.BattleKind == BattleKind.Unknown || result.Outcome == BattleOutcome.None)
-        {
-            return StrategicFailureReasons.MissingBattleResultSummary;
-        }
-
-        return "";
-    }
-
     private static string BuildParticipantId(string expeditionId, string heroId, string corpsInstanceId)
     {
         return $"strategic_participant:{expeditionId}:{heroId}:{corpsInstanceId}";
@@ -1254,29 +1165,6 @@ public sealed class StrategicBattleBridgeService
                _definitions.Corps.TryGetValue(participant.CorpsDefinitionId ?? "", out StrategicCorpsDefinition definition)
             ? definition.BattleUnitId ?? ""
             : "";
-    }
-
-    private static bool IsAnyObjectiveSucceeded(BattleResult result)
-    {
-        return result != null &&
-               (result.ObjectiveResults.Count == 0 && result.Outcome == BattleOutcome.Victory ||
-                result.ObjectiveResults.Any(item => item.State == BattleObjectiveState.Succeeded));
-    }
-
-    private static BattleForceResult FindForceResult(BattleResult result, BattleForceRequest force)
-    {
-        BattleForceResult forceResult = result?.ForceResults?.FirstOrDefault(item =>
-            !string.IsNullOrWhiteSpace(force.ForceId) &&
-            string.Equals(item.ForceId, force.ForceId, StringComparison.Ordinal));
-        if (forceResult == null)
-        {
-            forceResult = result?.ForceResults?.FirstOrDefault(item =>
-                string.Equals(item.SourceKind, force.SourceKind, StringComparison.Ordinal) &&
-                string.Equals(item.SourceId, force.SourceId, StringComparison.Ordinal) &&
-                string.Equals(item.UnitDefinitionId, force.UnitDefinitionId, StringComparison.Ordinal));
-        }
-
-        return forceResult;
     }
 
     private static int ClampStrength(int value)

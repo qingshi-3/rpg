@@ -189,8 +189,6 @@ internal static void BattleRuntimeHudUsesReferenceDrivenMapFirstCommandFlow()
     string fantasyAtlasPath = Path.Combine(root, "assets", "textures", "ui", "fantasy-hud-generated", "fantasy_hud_modular_atlas.png");
     string pauseDecorScenePath = Path.Combine(root, "scenes", "world", "ui", "BattleRuntimePauseDecorFrame.tscn");
     string pausePanelStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_pause_scroll_panel.tres");
-    string pauseInnerStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_pause_scroll_inner_panel.tres");
-    string fantasyPanelStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_panel.tres");
     string fantasyInnerStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_inner_panel.tres");
     string fantasySlotStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_slot.tres");
     string fantasySlotSelectedStylePath = Path.Combine(root, "resource", "ui", "themes", "battle-runtime", "battle_runtime_fantasy_slot_selected.tres");
@@ -203,8 +201,6 @@ internal static void BattleRuntimeHudUsesReferenceDrivenMapFirstCommandFlow()
     string pausePresentationBody = ExtractMethodBody(commandHudSource, "private void RefreshBattleRuntimeCommandPausePresentation()");
     string pauseDecorScene = File.Exists(pauseDecorScenePath) ? File.ReadAllText(pauseDecorScenePath) : "";
     string pausePanelStyle = File.Exists(pausePanelStylePath) ? File.ReadAllText(pausePanelStylePath) : "";
-    string pauseInnerStyle = File.Exists(pauseInnerStylePath) ? File.ReadAllText(pauseInnerStylePath) : "";
-    string fantasyPanelStyle = File.Exists(fantasyPanelStylePath) ? File.ReadAllText(fantasyPanelStylePath) : "";
     string fantasyInnerStyle = File.Exists(fantasyInnerStylePath) ? File.ReadAllText(fantasyInnerStylePath) : "";
     string fantasySlotStyle = File.Exists(fantasySlotStylePath) ? File.ReadAllText(fantasySlotStylePath) : "";
     string fantasySlotSelectedStyle = File.Exists(fantasySlotSelectedStylePath) ? File.ReadAllText(fantasySlotSelectedStylePath) : "";
@@ -224,7 +220,7 @@ internal static void BattleRuntimeHudUsesReferenceDrivenMapFirstCommandFlow()
         fantasyAtlasWidth == 1536 && fantasyAtlasHeight == 1024,
         $"battle runtime fantasy HUD atlas should keep the generated atlas dimensions width={fantasyAtlasWidth} height={fantasyAtlasHeight}");
     AssertTrue(
-        File.Exists(fantasyPanelStylePath) &&
+        File.Exists(pausePanelStylePath) &&
         File.Exists(fantasyInnerStylePath) &&
         File.Exists(fantasySlotStylePath) &&
         File.Exists(fantasySlotSelectedStylePath) &&
@@ -234,8 +230,8 @@ internal static void BattleRuntimeHudUsesReferenceDrivenMapFirstCommandFlow()
         File.Exists(fantasyBarFrameStylePath) &&
         File.Exists(fantasyBarHealthStylePath) &&
         File.Exists(fantasyBarManaStylePath) &&
-        fantasyPanelStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
-        fantasyPanelStyle.Contains("region = Rect2(36, 31, 587, 300)", StringComparison.Ordinal) &&
+        pausePanelStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
+        pausePanelStyle.Contains("region = Rect2(36, 31, 587, 300)", StringComparison.Ordinal) &&
         fantasyInnerStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
         fantasyInnerStyle.Contains("region = Rect2(773, 123, 226, 124)", StringComparison.Ordinal) &&
         fantasySlotStyle.Contains("region = Rect2(1166, 396, 144, 147)", StringComparison.Ordinal) &&
@@ -259,13 +255,13 @@ internal static void BattleRuntimeHudUsesReferenceDrivenMapFirstCommandFlow()
         "battle runtime skills should live inside the bottom tactical-pause detail area without the removed regroup button");
     AssertTrue(
         File.Exists(pausePanelStylePath) &&
-        File.Exists(pauseInnerStylePath) &&
+        File.Exists(fantasyInnerStylePath) &&
         siteScene.Contains("BattleRuntimePauseDetailPanel", StringComparison.Ordinal) &&
         !siteScene.Contains("BattleRuntimePauseDetailFrame", StringComparison.Ordinal) &&
         siteScene.Contains("BattleRuntimePauseCommandQueueList", StringComparison.Ordinal) &&
         !siteScene.Contains("BattleRuntimePauseCollapseButton", StringComparison.Ordinal) &&
         siteScene.Contains("battle_runtime_pause_scroll_panel.tres", StringComparison.Ordinal) &&
-        siteScene.Contains("battle_runtime_pause_scroll_inner_panel.tres", StringComparison.Ordinal) &&
+        siteScene.Contains("battle_runtime_fantasy_inner_panel.tres", StringComparison.Ordinal) &&
         siteScene.Contains("battle_runtime_fantasy_bar_frame.tres", StringComparison.Ordinal) &&
         siteScene.Contains("battle_runtime_fantasy_bar_health_fill.tres", StringComparison.Ordinal) &&
         siteScene.Contains("battle_runtime_fantasy_bar_mana_fill.tres", StringComparison.Ordinal) &&
@@ -284,9 +280,9 @@ internal static void BattleRuntimeHudUsesReferenceDrivenMapFirstCommandFlow()
         pausePanelStyle.Contains("[gd_resource type=\"StyleBoxTexture\"", StringComparison.Ordinal) &&
         pausePanelStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
         pausePanelStyle.Contains("region = Rect2(36, 31, 587, 300)", StringComparison.Ordinal) &&
-        pauseInnerStyle.Contains("[gd_resource type=\"StyleBoxTexture\"", StringComparison.Ordinal) &&
-        pauseInnerStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
-        pauseInnerStyle.Contains("region = Rect2(773, 123, 226, 124)", StringComparison.Ordinal) &&
+        fantasyInnerStyle.Contains("[gd_resource type=\"StyleBoxTexture\"", StringComparison.Ordinal) &&
+        fantasyInnerStyle.Contains("fantasy_hud_modular_atlas.png", StringComparison.Ordinal) &&
+        fantasyInnerStyle.Contains("region = Rect2(773, 123, 226, 124)", StringComparison.Ordinal) &&
         !pauseDecorScene.Contains("battle_runtime_keyboard_panel_sheet.png", StringComparison.Ordinal) &&
         !pausePanelStyle.Contains("StyleBoxFlat", StringComparison.Ordinal) &&
         !siteScene.Contains("battle_runtime_pause_panel.tres", StringComparison.Ordinal),
