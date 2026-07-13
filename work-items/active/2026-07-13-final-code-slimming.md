@@ -71,6 +71,16 @@ Completed:
 
 - Trusted verification gate completed and committed at `6a079983`.
 - Batch A was independently accepted and committed on `main` as `871acf27`.
+- Batch B was independently accepted and committed on `main` as `dae74757`.
+- Batch C executor re-read the repository authority routes, this full task, and the full `csharp-godot` and `godot-code-review` skills; confirmed `main` at `dae74757` with only this task progress update outside the excluded user paths, and began the constrained Batch C audit.
+- Batch C production/reference audit retained `BattleGroupSessionProbeService`, `BattleGroupSessionProbeResult`, and `LegacyBattleStartSnapshotAdapter`: `WorldSiteBattleLauncher` still exposes the optional diagnostic probe injection and result in its production startup contract, `Probe` owns the full PrepareSnapshot-to-flow path, and maintained tactical-region tests reflect over its private `ProbeSeed`, `ProbeGroupMetadata`, `BattlePlanSide`, and `ApplyBattleEntryTacticalSeeds` seam. No scene/resource/editor/project registration adds a separate owner. `LegacyBattleResultAdapter` remains production settlement compatibility through `WorldSiteBattleGroupRuntimeAdapter`.
+- `LegacyBattleGroupSeedAdapter` was proven independently test-only: its sole consumer was its own registered Target runner fixture, with no production compile caller, reflection/dynamic/editor use, scene/resource path, or explicit project registration. The adapter and self-only fixture were removed without changing World/Request/Result/Handoff behavior.
+- Unregistered source-shape audit across the six maintained non-preview runner projects removed four declaration-only leftovers with zero registration/callers: the redundant strategic probe-authority guard (covered by the registered active-context launch guard), the obsolete fullscreen hero-frame aggregate (covered by maintained granular HUD/resource checks), the unenforced WorldSiteRoot line-budget check, and unused `AssertContainsInOrder` helper.
+- Retained declaration-only candidates where deletion would cross scope or discard distinct value: `WorldSiteRootBattleRuntimeCommandUiRoutesInitialCommand` touches excluded objective-planning compatibility; four Strategic result/cleanup methods guard excluded live Result/Handoff behavior; two first-slice expedition/assault methods are behavioral rather than source-shape; and the large reference-driven HUD method still contains distinct authored-resource constraints not established as obsolete.
+- Batch C focused verification passed: low-concurrency solution build completed with 0 errors and 43 existing warnings; the full Target Battle Architecture and World Site Deployment Cache runners passed, including maintained probe, launch, command, settlement, and legacy-handoff checks.
+- Full `csharp-godot` compliance and the exact `godot-code-review` checklist were applied to the final Batch C diff. Critical 0, Improvements 0: no Node/scene, Godot registration, interop, lifecycle, input, signal, resource-loading, threading, hot-path, or failure-semantics behavior was added or changed; the removed pure C# adapter had no Godot owner or consumer.
+- Final `git diff --check` passed. The single Batch C invocation of `tools/validation/run-trusted-validation.ps1` passed with Godot `4.7.stable.mono.official.5b4e0cb0f`: solution build 0 warnings/0 errors, all seven maintained non-preview runners passed, and both explicitly allowlisted scene smokes passed.
+- Independent Batch C verification accepted the deletion boundary: all six removed symbols have zero remaining references; the only production deletion is the self-tested garrison seed adapter with no compile, reflection/dynamic/editor, scene/resource, or project consumer; launcher Probe injection/result, snapshot/result adapters, maintained reflection seam, and every excluded live boundary remain present. The final diff has no unresolved Critical or Improvement.
 - Batch B consolidated all three reported skill Snapshot deep-copy bodies into the compiler-owned internal `BattleSkillSnapshotCopy.DeepClone` path. Template compilation still assigns grant identity and excludes template caster bindings; Draft still rejects blank definition IDs and preserves caster rows; Runtime still normalizes definition IDs, tags, and caster IDs. Nested typed snapshots and all collection instances remain independently copied.
 - Batch B added one bounded shared runner shell compiled as linked source into Battle Hit Feedback, Scene Transition CAS, Strategic Management, Target Battle Architecture, World Army Movement, and World Site Deployment Cache executables. It centralizes only PASS/FAIL/ExitCode handling; Target and WorldSite retain their distinct local filtering rules, assertions remain local, and every runner remains a separate executable.
 - No Batch C source-shape helpers or intermediary services were removed or entered; `BattleGroupSessionProbeService` and all excluded/non-goal systems remain untouched.
@@ -96,16 +106,15 @@ Completed:
 
 Remaining:
 
-- Commit the independently accepted Batch B on `main`.
-- Execute, independently verify, and commit Batch C.
+- Commit the independently accepted Batch C.
 - Mark `Completed`, archive, and report retained decision-bound candidates.
 
 ## Pause And Resume
 
 - Blocker: None.
-- Resume condition: Commit accepted Batch B, then start the Batch C executor from that checkpoint.
-- Resume entry: Commit only the accepted Batch B implementation, tests, and this task record; preserve both excluded files. Then audit `BattleGroupSessionProbeService`, related adapters, and unregistered obsolete source-shape helpers without changing live compatibility boundaries.
-- Latest verification: Independent Batch B review accepted the exact copy and runner boundaries without rerunning the already-passing unified gate. Executor evidence remains: 0-error focused build, affected runners passed after one corrected obsolete assertion, `git diff --check`, Critical 0 / Improvements 0, all seven trusted runners, and both Godot 4.7 smokes passed.
+- Resume condition: Commit accepted Batch C, then finalize the task record and archive it.
+- Resume entry: Commit only the accepted six-file deletion diff plus this task record, preserving both excluded user files. Then record the Batch C commit, set `Completed`, and move this task to `work-items/archived/2026/`.
+- Latest verification: Independent verification accepted Batch C without rerunning the already-passing unified gate. Executor evidence remains: focused build and both affected runners passed; `git diff --check`; Critical 0 / Improvements 0; all seven trusted runners and both Godot 4.7 smokes passed with 0 build warnings/errors.
 
 ## Execution Record
 
@@ -122,7 +131,12 @@ Remaining:
 - 2026-07-13: Batch B executor replaced three structural skill Snapshot copies with one compiler-owned deep-copy utility while retaining each caller's identity/normalization policy, and centralized the exact runner execution shell across six isolated executables. Focused checks and review pass after correcting one obsolete source-shape assertion.
 - 2026-07-13: Batch B trusted unified validation passed on its first and only invocation. Executor handed off at `Awaiting Verification` without staging or committing and stopped before Batch C.
 - 2026-07-13: The independent verifier compared each consolidated copy entry with its pre-Batch-B behavior, confirmed exactly one structural copy path and six linked runner consumers with local filters/assertions intact, accepted Batch B, and returned the multi-batch task to `In Progress` for its commit and Batch C.
+- 2026-07-13: Batch B was committed as `dae74757`; the primary context started the final Batch C checkpoint from that accepted baseline.
+- 2026-07-13: Batch C executor confirmed the required baseline and exclusions, selected `csharp-godot` for C#/Godot boundary safety and `godot-code-review` for the final checklist, and started static reference auditing before any implementation change.
+- 2026-07-13: Batch C retained the live probe/start-snapshot/result compatibility seams, removed the isolated legacy garrison seed adapter plus its self-only fixture, and removed four proven unregistered source-shape/helper leftovers. Post-change symbol scans found no remaining references to removed names, and the first `git diff --check` passed.
+- 2026-07-13: Batch C focused build and the two affected full runners passed; `csharp-godot` and the complete `godot-code-review` checklist found no unresolved Critical or Improvement. The single trusted unified validation invocation then passed with 0 warnings/errors, all seven maintained runners, and both Godot 4.7 allowlisted smokes. Executor handed off at `Awaiting Verification` without staging, committing, archiving, or entering later work.
+- 2026-07-13: The independent verifier confirmed zero remaining removed-symbol references, retained production Probe/start-snapshot/result seams and reflection contracts, accepted all Batch C deletions, and returned the task to `In Progress` for the final commit and archive.
 
 ## Final Result
 
-Batch A is independently verified and committed as `871acf27`. Batch B is independently verified and ready to commit: one compiler-owned skill Snapshot deep-copy path serves Template, Draft, and Runtime without merging their entry policies; one bounded runner shell serves six isolated executables without centralizing filters or assertions. Batch C remains unstarted.
+Batch A is committed as `871acf27`; Batch B is committed as `dae74757`. Batch C is independently verified and ready to commit: one test-only legacy garrison seed adapter and its self-only fixture were removed, four unregistered obsolete source-shape/helper leftovers were removed, and all live Probe/Bridge/Runtime/World/Request/Result/Handoff seams were retained.

@@ -101,7 +101,6 @@ Run("settlement rejects incomplete result", SettlementRejectsIncompleteResult);
 Run("settlement rejects invalid complete results and missing event boundaries", SettlementRejectsInvalidCompleteResultsAndMissingEventBoundaries);
 Run("rejected settlement report is diagnostic", RejectedSettlementReportIsDiagnostic);
 Run("report and settlement consume the same event ids", ReportAndSettlementConsumeSameEventIds);
-Run("legacy garrison adapter creates explicit battle groups", LegacyGarrisonAdapterCreatesExplicitBattleGroups);
 Run("battle group session probe snapshots player and enemy forces", BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces);
 Run("battle group session probe copies initial corps command to player snapshot", TargetBattleCommandRegressionCases.BattleGroupSessionProbeCopiesInitialCorpsCommandToPlayerSnapshot); Run("battle group session probe copies battle group plan to player snapshot", TargetBattleCommandRegressionCases.BattleGroupSessionProbeCopiesBattleGroupPlanToPlayerSnapshot); Run("battle group session probe applies per company objective plans", TargetBattleCommandRegressionCases.BattleGroupSessionProbeAppliesPerCompanyObjectivePlans); Run("battle group session probe applies enemy objective plans", TargetBattleCommandRegressionCases.BattleGroupSessionProbeAppliesEnemyObjectivePlans);
 Run("legacy result adapter preserves request and outcome ids", LegacyResultAdapterPreservesRequestAndOutcomeIds);
@@ -598,20 +597,6 @@ static void ReportAndSettlementConsumeSameEventIds()
 
     AssertSequence(new[] { "event_1", "event_2", "event_3" }, plan.SourceEventIds, "settlement source events");
     AssertSequence(new[] { "event_1", "event_2", "event_3" }, report.SourceEventIds, "report source events");
-}
-
-static void LegacyGarrisonAdapterCreatesExplicitBattleGroups()
-{
-    Rpg.Domain.World.WorldSiteState site = new() { SiteId = "city_1" };
-    site.Garrison.Add(new Rpg.Domain.World.GarrisonState { UnitTypeId = StrategicWorldIds.UnitMilitia, Count = 2 });
-
-    Rpg.Application.Battle.Adapters.LegacyBattleGroupSeedAdapter adapter = new();
-    IReadOnlyList<BattleGroupState> groups = adapter.SeedFromGarrison(site, "hero_seed");
-
-    AssertEqual(2, groups.Count, "group count");
-    AssertEqual("city_1", groups[0].CurrentLocationId, "location copied");
-    AssertTrue(groups.All(item => !string.IsNullOrWhiteSpace(item.HeroId)), "hero ids assigned");
-    AssertTrue(groups.All(item => !string.IsNullOrWhiteSpace(item.CorpsId)), "corps ids assigned");
 }
 
 static void BattleGroupSessionProbeSnapshotsPlayerAndEnemyForces()

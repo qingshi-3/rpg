@@ -26,22 +26,6 @@ internal static void StrategicWorldDefaultDefinitionUsesSandboxNaming()
     }
 }
 
-internal static void WorldSiteRootPartialSetStaysBelowAntiRotLineBudget()
-{
-    string siteRootDir = Path.Combine(ProjectRoot(), "src", "Presentation", "World", "Sites");
-    AssertTrue(Directory.Exists(siteRootDir), $"presentation source directory should exist path={siteRootDir}");
-
-    List<string> files = Directory.GetFiles(siteRootDir, "WorldSiteRoot*.cs")
-        .OrderBy(path => path)
-        .ToList();
-    AssertTrue(files.Count > 0, $"presentation source scan should include WorldSiteRoot partials dir={siteRootDir}");
-
-    int totalLines = files.Sum(file => File.ReadAllLines(file).Length);
-    AssertTrue(
-        totalLines < 8200,
-        $"WorldSiteRoot total line count should stay below 8200 actual={totalLines}. WorldSiteRoot is a known god-node pending UI redesign; do not grow it further\u2014extract into focused components/scenes instead");
-}
-
 internal static void BattleGridHighlightOverlayDelegatesVectorRendering()
 {
     string root = ProjectRoot();

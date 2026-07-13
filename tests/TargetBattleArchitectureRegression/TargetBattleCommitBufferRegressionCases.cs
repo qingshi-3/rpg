@@ -583,17 +583,6 @@ internal static class TargetBattleCommitBufferRegressionCases
             $"{message}: file={relativePath} expected={expected}");
     }
 
-    private static void AssertContainsInOrder(string source, string relativePath, string message, params string[] expected)
-    {
-        int cursor = 0;
-        foreach (string token in expected)
-        {
-            int index = source.IndexOf(token, cursor, StringComparison.Ordinal);
-            AssertTrue(index >= 0, $"{message}: file={relativePath} missing={token}");
-            cursor = index + token.Length;
-        }
-    }
-
     private static void AssertEqual<T>(T expected, T actual, string message)
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))

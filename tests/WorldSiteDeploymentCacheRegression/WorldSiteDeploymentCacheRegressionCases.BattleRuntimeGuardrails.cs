@@ -44,27 +44,6 @@ internal static void BattleRuntimeCompletionDoesNotForceAdvanceIncompleteLiveRun
     }
 }
 
-internal static void StrategicActiveContextLaunchDoesNotUseProbeSnapshotAuthority()
-{
-    string adapterSource = File.ReadAllText(Path.Combine(
-        ProjectRoot(),
-        "src",
-        "Application",
-        "World",
-        "WorldSiteBattleGroupRuntimeAdapter.cs"));
-    string launchBody = ExtractMethodBody(
-        adapterSource,
-        "private bool TryBuildStrategicLaunchSnapshot(");
-
-    AssertTrue(
-        launchBody.Contains("_strategicLaunchSnapshotSync.Sync(activeContext, request)", StringComparison.Ordinal),
-        "Strategic active-context launch should synchronize through the bridge-owned snapshot adapter");
-    AssertTrue(
-        !launchBody.Contains("_sessionService.PrepareSnapshot(request)", StringComparison.Ordinal) &&
-        !launchBody.Contains("PrepareSnapshot(request)", StringComparison.Ordinal),
-        "Strategic active-context launch must not use the legacy probe snapshot as Runtime authority");
-}
-
 internal static void BattleRuntimeLaunchRequiresStrategicActiveContext()
 {
     string root = ProjectRoot();

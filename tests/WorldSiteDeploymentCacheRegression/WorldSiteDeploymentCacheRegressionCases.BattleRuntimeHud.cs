@@ -135,40 +135,6 @@ private static void AddSnapshotGroups(BattleStartSnapshot snapshot, string sourc
     }
 }
 
-internal static void BattleRuntimeHudUsesFullscreenHeroFrame()
-{
-    string root = ProjectRoot();
-    string siteScene = File.ReadAllText(Path.Combine(
-        root,
-        "scenes",
-        "world",
-        "ui",
-        "WorldSitePeacetimeHud.tscn"));
-
-    AssertTrue(
-        !siteScene.Contains("BattleRuntimeCommandPanel", StringComparison.Ordinal) &&
-        !siteScene.Contains("BattleRuntimeHeroCommandList", StringComparison.Ordinal) &&
-        !siteScene.Contains("BattleRuntimeCorpsCommandList", StringComparison.Ordinal) &&
-        !siteScene.Contains("BattleRuntimeCombinedCommandList", StringComparison.Ordinal),
-        "battle runtime must not keep a left-side command encyclopedia panel in the active HUD scene");
-    AssertTrue(
-        siteScene.Contains("BattleRuntimeHeroFrame", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeHeroSelectorList", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeHeroNameLabel", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeHeroStateLabel", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeHeroHealthBar", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeHeroManaBar", StringComparison.Ordinal) &&
-        siteScene.Contains("BattleRuntimeHeroSkillList", StringComparison.Ordinal) &&
-        !siteScene.Contains("BattleRuntimeRegroupButton", StringComparison.Ordinal),
-        "battle runtime HUD should author a persistent hero frame with HP, mana, and skill slots without the removed regroup button");
-    AssertTrue(
-        File.Exists(Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeSkillSlot.tscn")) &&
-        File.Exists(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeSkillSlot.cs")) &&
-        File.Exists(Path.Combine(root, "scenes", "world", "ui", "BattleRuntimeHeroSwitchButton.tscn")) &&
-        File.Exists(Path.Combine(root, "src", "Presentation", "World", "Sites", "BattleRuntimeHeroSwitchButton.cs")),
-        "runtime hero and skill controls should use reusable authored scenes instead of hardcoded single buttons");
-}
-
 internal static void BattleRuntimeHudUsesReferenceDrivenMapFirstCommandFlow()
 {
     string root = ProjectRoot();
