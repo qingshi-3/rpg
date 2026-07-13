@@ -39,14 +39,20 @@ export interface ChunkDefinition {
   worldOrigin: Coordinate;
   visualTexturePath?: string;
   referenceTexturePath?: string;
-  terrainMaskPath: string;
-  territoryMaskPath: string;
+  terrainMaskPath?: string;
+  territoryMaskPath?: string;
   navigationScenePath?: string;
 }
 
+export interface ProvinceDefinition {
+  provinceId: string;
+  name: string;
+  layoutId: string;
+}
+
 export interface WorldProject {
-  version: 1;
-  projectId: string;
+  version: 2;
+  mapId: string;
   displayName: string;
   world: {
     width: number;
@@ -89,33 +95,79 @@ export interface WaterAnchorProperties {
 
 export type WaterAnchorFeature = Feature<Point, WaterAnchorProperties>;
 
-export type StrategicLocationType = "city" | "gate" | "bridge" | "ferry" | "port" | "ruin" | "resource-site";
+export type StrategicLocationType = "main-city" | "auxiliary-city" | "gate" | "bridge" | "ferry" | "port" | "ruin" | "resource-site";
 
 export interface StrategicLocationProperties {
   locationId: string;
   name: string;
   locationType: StrategicLocationType;
-  detailMapId?: string;
+  provinceId?: string;
   referencePosition?: Coordinate;
 }
 
 export type StrategicLocationFeature = Feature<Point, StrategicLocationProperties>;
 
-export interface RegionProperties {
-  regionId: string;
-  cityId: string;
-  role: string;
+export interface LocationGeometryProperties {
+  locationId: string;
+  provinceId: string;
   direction: string;
 }
 
-export type RegionFeature = Feature<Polygon | MultiPolygon, RegionProperties>;
+export type LocationGeometryFeature = Feature<Polygon | MultiPolygon, LocationGeometryProperties>;
 
 export interface GeographyDocument {
-  version: 1;
+  version: 3;
+  provinces: ProvinceDefinition[];
   linearFeatures: FeatureCollection<LineString, LinearFeatureProperties>;
   waterAnchors: FeatureCollection<Point, WaterAnchorProperties>;
   strategicLocations: FeatureCollection<Point, StrategicLocationProperties>;
-  regions: FeatureCollection<Polygon | MultiPolygon, RegionProperties>;
+  locationGeometries: FeatureCollection<Polygon | MultiPolygon, LocationGeometryProperties>;
+}
+
+export type PublishProfile = "visual-preview" | "region-interactive" | "strategic-runtime";
+
+export type MapCatalogKind = "authoring" | "fixture";
+
+export interface MapCatalogEntry {
+  mapId: string;
+  displayName: string;
+  sourceRevision: number;
+  kind: MapCatalogKind;
+}
+
+export interface MapCatalog {
+  version: 2;
+  defaultMapId?: string;
+  maps: MapCatalogEntry[];
+}
+
+export interface PublishedMapPackage {
+  schemaVersion: 2;
+  mapId: string;
+  revision: string;
+  compatibilityRevision: number;
+  contentHash: string;
+  publishProfile: PublishProfile;
+  capabilities: string[];
+  chunkManifestPath: string;
+  geographyPath: string;
+  artifactHashes: Array<{
+    kind: "chunk-manifest" | "geography" | "region-lookup" | "region-outlines" | "visual" | "region-mask" | "terrain" | "navigation";
+    artifactId: string;
+    sha256: string;
+  }>;
+  regionArtifacts?: {
+    encoding: "rgb24-location-code-v1";
+    lookupPath: string;
+    outlinesPath: string;
+    chunks: Array<{
+      chunkId: string;
+      worldOrigin: Coordinate;
+      worldWidth: number;
+      worldHeight: number;
+      maskTexturePath: string;
+    }>;
+  };
 }
 
 export type ValidationSeverity = "error" | "warning" | "info";

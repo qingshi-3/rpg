@@ -84,17 +84,19 @@ resource/
 
 The exact subsystem folders may evolve after confirmed discussion and a corresponding authority update, but new authored resources should default to `resource/` unless an accepted authority document defines a narrower location.
 
-Godot-authored strategic-world runtime definitions belong under `resource/world/` when introduced. They may reference the canonical plain-text manifest, visual media, derived masks, and navigation scenes, but they must not duplicate canonical geographic facts or contain persistent campaign state.
+Godot-authored strategic-world runtime definitions belong under `resource/world/` when introduced. `StrategicMap` resources use a focused `resource/world/strategic_map/` subtree without moving or duplicating canonical geography. They may reference the canonical plain-text manifest, visual media, derived masks, and navigation scenes, but they must not duplicate canonical geographic facts or contain persistent campaign state.
 
 ### `scenes/`
 
 `scenes/` owns `.tscn` PackedScene authoring. Scenes remain separate from `resource/` even though PackedScenes are Godot resources in engine terms. This keeps scene-tree ownership distinct from data-resource ownership.
 
-Strategic-world runtime chunk presentation scenes and per-chunk Godot navigation-authoring scenes belong under `scenes/world/`. The local Web workbench is not authored as a Godot scene, and Godot navigation scenes must not become a second geographic-data editor or a hidden full-world runtime fallback.
+Strategic-world runtime chunk presentation scenes and per-chunk Godot navigation-authoring scenes belong under `scenes/world/`; final greenfield production scenes use a focused `scenes/world/strategic_map/` subtree when introduced. The local Web workbench is not authored as a Godot scene, and Godot navigation scenes must not become a second geographic-data editor or a hidden full-world runtime fallback.
 
 ### `src/`
 
 `src/` owns source code. C# files live here. GDScript files may live here only when they are source-code adapters or implementation code, such as narrow plugin bridge tasks that call C# facades.
+
+The greenfield large-world module uses final-named `StrategicMap` subdirectories under the existing layer roots, including `src/Definitions/StrategicMap/`, `src/Application/StrategicMap/`, and later `src/Presentation/StrategicMap/`. It must not create a second canonical data tree or place compatibility aliases and legacy runtime dependencies inside the new module.
 
 GDScript adapter placement must follow system ownership. For example, LimboAI custom tasks that only bridge behavior-tree blackboards to C# facades are source adapters, not raw assets and not UI presentation resources.
 
@@ -102,7 +104,9 @@ GDScript adapter placement must follow system ownership. For example, LimboAI cu
 
 `config/` owns plain text indexes and mappings such as JSON. Config files may reference resource ids and `res://resource/...` paths. They do not contain Godot-authored Resource objects, imported media, scenes, themes, shaders, or SpriteFrames.
 
-Canonical cross-tool strategic-world data belongs under `config/world/` in implementation-approved JSON, GeoJSON, or equivalent plain-text formats. This includes the chunk manifest, global rivers/roads/mountains, strategic-location definitions, territory/region geometry, and references to chunk-aligned terrain masks. Web and Godot consume these same facts; a generated Godot resource must not silently fork them.
+Strategic-world editable sources are MapId-scoped under `config/world/maps/<MapId>/source/`, with a catalog under `config/world/maps/`. Immutable published snapshots live under `config/world/published/<MapId>/<Revision>/`, and only a small current-revision pointer may be atomically replaced. Scenario definitions live under a focused `config/strategic/scenarios/` route and reference compatible package identity. Web and Godot never edit a published snapshot, and a generated Godot resource must not silently fork source geography.
+
+Map-scoped final visual media and generated raster artifacts live under focused `assets/textures/world/maps/<MapId>/<Revision>/` paths referenced by the published package. Visual chunks and categorical region masks retain distinct import settings. Godot-authored selection/tuning resources live under `resource/world/strategic_map/`; they may point to a generic selection document or package manifest but cannot duplicate map facts or campaign state.
 
 ### `tools/`
 

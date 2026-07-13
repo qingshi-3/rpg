@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Godot;
 using Rpg.Domain.Battle.Grid;
 using Rpg.Infrastructure.Logging;
 using Rpg.Presentation.Battle.Entities;
@@ -19,6 +20,8 @@ internal static class BattleRuntimeTeleportPresentationObserver
             runtimeEvent == null ||
             entitiesByRuntimeActor == null ||
             !entitiesByRuntimeActor.TryGetValue(runtimeEvent.ActorId ?? "", out BattleEntity actor) ||
+            actor == null ||
+            !GodotObject.IsInstanceValid(actor) ||
             !runtimeEvent.HasMovementCells)
         {
             return 0;
@@ -27,14 +30,20 @@ internal static class BattleRuntimeTeleportPresentationObserver
         GridOccupantComponent gridOccupant = actor.GetComponent<GridOccupantComponent>();
         GridSurfacePosition previousSurface = gridOccupant?.SurfacePosition ?? default;
         GridSurfacePosition destinationSurface = new(runtimeEvent.ToGridX, runtimeEvent.ToGridY, runtimeEvent.ToGridHeight);
+        Vector2 originGlobal = actor.GlobalPosition;
         GameLog.Info(
             nameof(WorldSiteRoot),
             $"BattleRuntimeTeleportPresentation actor={runtimeEvent.ActorId ?? ""} fromSurface={previousSurface} toSurface={destinationSurface} activeMovementTweens={unitRoot.ActiveMovementTweenCount}");
 
-        // Teleport is not a movement lane: Runtime already committed the final
-        // anchor, so presentation must drop any queued interpolation first.
+        // Teleport is not a movement lane: capture both visual anchors, drop queued
+        // interpolation, and commit the Runtime destination before staging the fold.
         unitRoot.SnapEntityToSurface(actor, destinationSurface);
+        Vector2 destinationGlobal = actor.GlobalPosition;
         queueOverlayRefresh?.Invoke();
-        return 0;
+        return unitRoot.PlayThunderTeleportPresentation(
+            actor,
+            originGlobal,
+            destinationGlobal,
+            runtimeEvent.BattleGroupId);
     }
 }

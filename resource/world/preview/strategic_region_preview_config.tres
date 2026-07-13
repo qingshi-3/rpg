@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_config")
 PreviewBounds = Rect2(2048, 1024, 3072, 2048)
-PlayerCityId = "city_qinghe"
-HostileCityId = "city_chiyan"
+PlayerCityId = "qinghe"
+HostileCityId = "chiyan"
 InitialZoom = 0.48
 ReferenceOpacity = 0.78
 TerritoryMaskPath = "res://assets/textures/world/masks/territory/territory_mask.png"

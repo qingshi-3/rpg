@@ -4,6 +4,11 @@ namespace Rpg.Definitions.StrategicManagement;
 
 public sealed class StrategicManagementDefinitionSet
 {
+    public StrategicManagementContentIdentity ContentIdentity { get; internal set; } =
+        StrategicManagementContentIdentity.Empty;
+
+    public StrategicManagementScenarioDefinition Scenario { get; internal set; } = null!;
+
     public int ReserveRecoveryPerElapsedPulse { get; set; }
 
     public Dictionary<string, StrategicResourceDefinition> Resources { get; set; } =
@@ -30,6 +35,8 @@ public sealed class StrategicManagementDefinitionSet
     public Dictionary<string, StrategicHeroDefinition> Heroes { get; set; } =
         new(System.StringComparer.Ordinal);
 
+    public StrategicManagementCanonicalGeographyReference CanonicalGeography { get; internal set; } =
+        StrategicManagementCanonicalGeographyReference.Empty;
 }
 
 public sealed class StrategicResourceDefinition
@@ -41,7 +48,6 @@ public sealed class StrategicResourceDefinition
 public sealed class StrategicLocationDefinition
 {
     public string LocationId { get; set; } = "";
-    public string MapSiteId { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public StrategicLocationKind Kind { get; set; } = StrategicLocationKind.Unknown;
     public string BattleEncounterId { get; set; } = "";

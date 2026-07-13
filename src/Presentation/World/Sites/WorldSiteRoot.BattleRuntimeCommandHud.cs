@@ -143,12 +143,12 @@ public partial class WorldSiteRoot
 				? "请先选择我方已部署战斗组。"
 				: "所选战斗组已无法接收命令。";
 		foreach (Button button in new[]
-		         {
-			         _battleRuntimeLiveRegroupButton,
-			         _battleRuntimeLiveRetreatButton,
-			         _battleRuntimePauseRegroupButton,
-			         _battleRuntimePauseRetreatButton
-		         }.Where(item => item != null))
+				 {
+					 _battleRuntimeLiveRegroupButton,
+					 _battleRuntimeLiveRetreatButton,
+					 _battleRuntimePauseRegroupButton,
+					 _battleRuntimePauseRetreatButton
+				 }.Where(item => item != null))
 		{
 			button.Disabled = !available;
 			button.TooltipText = available ? "" : disabledReason;

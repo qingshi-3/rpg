@@ -1,4 +1,4 @@
-import type { GeographyDocument, TerrainChunkPayload, WorldProject } from "../shared/types.js";
+import type { GeographyDocument, MapCatalog, PublishedMapPackage, PublishProfile, TerrainChunkPayload, WorldProject } from "../shared/types.js";
 
 export interface ProjectBundle {
   initialized: boolean;
@@ -15,26 +15,51 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const workbenchApi = {
-  loadProject: () => request<ProjectBundle>("/api/project"),
-  bootstrap: () => request<ProjectBundle>("/api/project/bootstrap", { method: "POST" }),
+  listMaps: () => request<MapCatalog>("/api/maps"),
+  loadProject: (mapId?: string) => request<ProjectBundle>(mapId ? `/api/maps/${encodeURIComponent(mapId)}` : "/api/project"),
+  bootstrap: (mapId: string, columns: number, rows: number) => request<ProjectBundle>("/api/project/bootstrap", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mapId, columns, rows }),
+  }),
+  createMap: (mapId: string, displayName: string, columns: number, rows: number) => request<ProjectBundle>("/api/maps", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mapId, displayName, columns, rows }),
+  }),
+  duplicateMap: (sourceMapId: string, mapId: string, displayName: string) => request<ProjectBundle>(`/api/maps/${encodeURIComponent(sourceMapId)}/duplicate`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mapId, displayName }),
+  }),
+  expandGrid: (mapId: string, columns: number, rows: number) => request<{ ok: true; project: WorldProject }>(`/api/maps/${encodeURIComponent(mapId)}/grid`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ columns, rows }),
+  }),
   saveProject: (project: WorldProject) => request<{ ok: true }>("/api/project", {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(project),
   }),
-  saveGeography: (geography: GeographyDocument) => request<{ ok: true }>("/api/geography", {
+  saveGeography: (mapId: string, geography: GeographyDocument) => request<{ ok: true }>(`/api/geography?mapId=${encodeURIComponent(mapId)}`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(geography),
   }),
-  saveTerrainMasks: (chunks: TerrainChunkPayload[]) => request<{ ok: true; savedChunkIds: string[] }>("/api/terrain/masks", {
+  saveTerrainMasks: (mapId: string, chunks: TerrainChunkPayload[]) => request<{ ok: true; savedChunkIds: string[] }>(`/api/terrain/masks?mapId=${encodeURIComponent(mapId)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ chunks }),
   }),
-  compileRegions: (geography: GeographyDocument) => request<{ ok: true; outputs: Record<string, string> }>("/api/regions/compile", {
+  compileLocationGeometries: (mapId: string, geography: GeographyDocument) => request<{ ok: true; outputs: Record<string, string> }>(`/api/location-geometries/compile?mapId=${encodeURIComponent(mapId)}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(geography),
+  }),
+  publish: (mapId: string, profile: PublishProfile) => request<{ ok: true; package: PublishedMapPackage }>(`/api/maps/${encodeURIComponent(mapId)}/publish`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ profile }),
   }),
 };

@@ -31,29 +31,29 @@ internal static class PreviewRegressionCases
     public static void PreviewGeographyDefinesIrregularFiveAndSixRegionTopologies(string projectRoot)
     {
         using JsonDocument document = JsonDocument.Parse(
-            File.ReadAllText(Path.Combine(projectRoot, "config", "world", "geography.json")));
+            File.ReadAllText(Path.Combine(projectRoot, "config", "world", "maps", "mock_qinghe_chiyan", "source", "geography.json")));
         JsonElement root = document.RootElement;
         JsonElement locations = root.GetProperty("strategicLocations").GetProperty("features");
-        JsonElement regions = root.GetProperty("regions").GetProperty("features");
+        JsonElement regions = root.GetProperty("locationGeometries").GetProperty("features");
 
         string[] cityIds = locations.EnumerateArray()
-            .Where(feature => feature.GetProperty("properties").GetProperty("locationType").GetString() == "city")
-            .Select(feature => feature.GetProperty("properties").GetProperty("locationId").GetString() ?? "")
+            .Where(feature => feature.GetProperty("properties").GetProperty("locationType").GetString() == "main-city")
+            .Select(feature => feature.GetProperty("properties").GetProperty("provinceId").GetString() ?? "")
             .ToArray();
 
         AssertEqual(2, cityIds.Length, "preview geography must contain exactly two cities");
         AssertEqual(11, regions.GetArrayLength(), "preview geography must contain exactly eleven regions");
-        AssertEqual(5, CountRegions(regions, "city_qinghe"), "Qinghe must own exactly five regions");
-        AssertEqual(6, CountRegions(regions, "city_chiyan"), "Chiyan must own exactly six regions");
+        AssertEqual(5, CountRegions(regions, "qinghe"), "Qinghe must own exactly five regions");
+        AssertEqual(6, CountRegions(regions, "chiyan"), "Chiyan must own exactly six regions");
 
-        AssertTopology(regions, "city_qinghe", [1, 2, 3, 3, 3]);
-        AssertTopology(regions, "city_chiyan", [1, 1, 2, 2, 2, 2]);
+        AssertTopology(regions, "qinghe", [1, 2, 3, 3, 3]);
+        AssertTopology(regions, "chiyan", [1, 1, 2, 2, 2, 2]);
 
         string outlinesText = ReadRequired(projectRoot, "assets/textures/world/masks/territory/region_outlines.json");
         using JsonDocument outlines = JsonDocument.Parse(outlinesText);
-        JsonElement cities = outlines.RootElement.GetProperty("cities");
-        AssertTrue(CountReflexVertices(FindCityRing(cities, "city_qinghe")) >= 2, "Qinghe outline must remain visibly concave");
-        AssertTrue(CountReflexVertices(FindCityRing(cities, "city_chiyan")) >= 2, "Chiyan outline must preserve its horseshoe concavity");
+        JsonElement cities = outlines.RootElement.GetProperty("provinces");
+        AssertTrue(CountReflexVertices(FindCityRing(cities, "qinghe")) >= 2, "Qinghe outline must remain visibly concave");
+        AssertTrue(CountReflexVertices(FindCityRing(cities, "chiyan")) >= 2, "Chiyan outline must preserve its horseshoe concavity");
     }
 
     public static void PreviewSceneIsIndependentlyRunnableAndIsolated(string projectRoot)
@@ -140,13 +140,13 @@ internal static class PreviewRegressionCases
     private static int CountRegions(JsonElement regions, string cityId)
     {
         return regions.EnumerateArray().Count(feature =>
-            feature.GetProperty("properties").GetProperty("cityId").GetString() == cityId);
+            feature.GetProperty("properties").GetProperty("provinceId").GetString() == cityId);
     }
 
     private static void AssertTopology(JsonElement regions, string cityId, int[] expectedDegrees)
     {
         JsonElement[] cityRegions = regions.EnumerateArray()
-            .Where(feature => feature.GetProperty("properties").GetProperty("cityId").GetString() == cityId)
+            .Where(feature => feature.GetProperty("properties").GetProperty("provinceId").GetString() == cityId)
             .ToArray();
         Dictionary<string, List<int>> ownersByEdge = new(StringComparer.Ordinal);
         for (int regionIndex = 0; regionIndex < cityRegions.Length; regionIndex++)
@@ -185,7 +185,7 @@ internal static class PreviewRegressionCases
 
     private static JsonElement[] FindCityRing(JsonElement cities, string cityId)
     {
-        JsonElement city = cities.EnumerateArray().Single(element => element.GetProperty("cityId").GetString() == cityId);
+        JsonElement city = cities.EnumerateArray().Single(element => element.GetProperty("provinceId").GetString() == cityId);
         return city.GetProperty("geometry").GetProperty("coordinates")[0].EnumerateArray().ToArray();
     }
 

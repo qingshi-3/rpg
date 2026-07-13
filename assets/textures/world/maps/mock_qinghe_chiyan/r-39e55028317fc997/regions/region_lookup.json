@@ -1,0 +1,50 @@
+{
+  "version": 3,
+  "encoding": "rgb24-location-code-v1",
+  "locations": {
+    "1": {
+      "locationId": "qinghe_fan",
+      "provinceId": "qinghe"
+    },
+    "2": {
+      "locationId": "qinghe_forest_ribbon",
+      "provinceId": "qinghe"
+    },
+    "3": {
+      "locationId": "qinghe_core",
+      "provinceId": "qinghe"
+    },
+    "4": {
+      "locationId": "qinghe_bottleneck",
+      "provinceId": "qinghe"
+    },
+    "5": {
+      "locationId": "qinghe_river_delta",
+      "provinceId": "qinghe"
+    },
+    "6": {
+      "locationId": "chiyan_wasteland",
+      "provinceId": "chiyan"
+    },
+    "7": {
+      "locationId": "chiyan_west_ridge",
+      "provinceId": "chiyan"
+    },
+    "8": {
+      "locationId": "chiyan_pass",
+      "provinceId": "chiyan"
+    },
+    "9": {
+      "locationId": "chiyan_high_basin",
+      "provinceId": "chiyan"
+    },
+    "10": {
+      "locationId": "chiyan_east_ridge",
+      "provinceId": "chiyan"
+    },
+    "11": {
+      "locationId": "chiyan_mine",
+      "provinceId": "chiyan"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/StrategicMap/StrategicMapRegionOverlay.cs" id="1_script"]
+[ext_resource type="Material" path="res://resource/world/strategic_map/strategic_map_region_overlay_material.tres" id="2_material"]
+
+[node name="StrategicMapRegionOverlay" type="Node2D"]
+z_index = 2
+script = ExtResource("1_script")
+
+[node name="Surface" type="ColorRect" parent="."]
+offset_right = 1.0
+offset_bottom = 1.0
+mouse_filter = 2
+material = ExtResource("2_material")

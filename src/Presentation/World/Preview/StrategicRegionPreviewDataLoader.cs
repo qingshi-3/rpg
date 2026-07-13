@@ -28,8 +28,8 @@ public static class StrategicRegionPreviewDataLoader
         }
 
         string normalizedRoot = Path.GetFullPath(projectRoot);
-        string projectPath = Path.Combine(normalizedRoot, "config", "world", "workbench.project.json");
-        string geographyPath = Path.Combine(normalizedRoot, "config", "world", "geography.json");
+        string projectPath = Path.Combine(normalizedRoot, "config", "world", "maps", "mock_qinghe_chiyan", "source", "workbench.project.json");
+        string geographyPath = Path.Combine(normalizedRoot, "config", "world", "maps", "mock_qinghe_chiyan", "source", "geography.json");
         string outlinesPath = Path.Combine(
             normalizedRoot,
             "assets",
@@ -52,17 +52,17 @@ public static class StrategicRegionPreviewDataLoader
         using JsonDocument outlines = ParseRequired(outlinesPath);
         using JsonDocument lookup = ParseRequired(lookupPath);
 
-        RequireVersion(project.RootElement, 1, projectPath);
-        RequireVersion(geography.RootElement, 1, geographyPath);
-        RequireVersion(outlines.RootElement, 1, outlinesPath);
-        RequireVersion(lookup.RootElement, 1, lookupPath);
+        RequireVersion(project.RootElement, 2, projectPath);
+        RequireVersion(geography.RootElement, 3, geographyPath);
+        RequireVersion(outlines.RootElement, 2, outlinesPath);
+        RequireVersion(lookup.RootElement, 2, lookupPath);
 
         IReadOnlyList<StrategicRegionPreviewChunk> chunks = LoadChunks(
             normalizedRoot,
             project.RootElement,
             previewBounds,
             projectPath);
-        Dictionary<string, (string Name, Vector2 Position)> locationById = LoadCities(
+        Dictionary<string, (string Name, Vector2 Position)> locationById = LoadProvinceAnchors(
             geography.RootElement,
             previewBounds,
             geographyPath);
@@ -170,23 +170,31 @@ public static class StrategicRegionPreviewDataLoader
         return chunks.OrderBy(chunk => chunk.WorldOrigin.Y).ThenBy(chunk => chunk.WorldOrigin.X).ToList();
     }
 
-    private static Dictionary<string, (string Name, Vector2 Position)> LoadCities(
+    private static Dictionary<string, (string Name, Vector2 Position)> LoadProvinceAnchors(
         JsonElement geography,
         Rect2 previewBounds,
         string geographyPath)
     {
+        Dictionary<string, string> provinceNames = geography.GetProperty("provinces")
+            .EnumerateArray()
+            .ToDictionary(
+                province => RequiredString(province, "provinceId", geographyPath),
+                province => RequiredString(province, "name", geographyPath),
+                StringComparer.Ordinal);
         Dictionary<string, (string Name, Vector2 Position)> cities = new(StringComparer.Ordinal);
         JsonElement features = geography.GetProperty("strategicLocations").GetProperty("features");
         foreach (JsonElement feature in features.EnumerateArray())
         {
             JsonElement properties = feature.GetProperty("properties");
-            if (RequiredString(properties, "locationType", geographyPath) != "city")
+            if (RequiredString(properties, "locationType", geographyPath) != "main-city")
             {
                 continue;
             }
 
-            string cityId = RequiredString(properties, "locationId", geographyPath);
-            string name = RequiredString(properties, "name", geographyPath);
+            string cityId = RequiredString(properties, "provinceId", geographyPath);
+            string name = provinceNames.TryGetValue(cityId, out string provinceName)
+                ? provinceName
+                : throw new InvalidOperationException($"Preview main city references unknown province province={cityId} path={geographyPath}");
             Vector2 position = ReadCoordinate(feature.GetProperty("geometry").GetProperty("coordinates"), geographyPath);
             if (!previewBounds.HasPoint(position))
             {
@@ -209,9 +217,9 @@ public static class StrategicRegionPreviewDataLoader
     {
         HashSet<string> selected = new(selectedCityIds, StringComparer.Ordinal);
         Dictionary<string, IReadOnlyList<Vector2[]>> territories = new(StringComparer.Ordinal);
-        foreach (JsonElement element in outlines.GetProperty("cities").EnumerateArray())
+        foreach (JsonElement element in outlines.GetProperty("provinces").EnumerateArray())
         {
-            string cityId = RequiredString(element, "cityId", outlinesPath);
+            string cityId = RequiredString(element, "provinceId", outlinesPath);
             if (!selected.Contains(cityId))
             {
                 continue;
@@ -236,16 +244,16 @@ public static class StrategicRegionPreviewDataLoader
         HashSet<string> selected = new(selectedCityIds, StringComparer.Ordinal);
         HashSet<string> regionIds = new(StringComparer.Ordinal);
         List<StrategicRegionPreviewRegion> regions = new();
-        foreach (JsonElement feature in outlines.GetProperty("regions").EnumerateArray())
+        foreach (JsonElement feature in outlines.GetProperty("locationGeometries").EnumerateArray())
         {
             JsonElement properties = feature.GetProperty("properties");
-            string cityId = RequiredString(properties, "cityId", outlinesPath);
+            string cityId = RequiredString(properties, "provinceId", outlinesPath);
             if (!selected.Contains(cityId))
             {
                 continue;
             }
 
-            string regionId = RequiredString(properties, "regionId", outlinesPath);
+            string regionId = RequiredString(properties, "locationId", outlinesPath);
             if (!regionIds.Add(regionId))
             {
                 throw new InvalidOperationException($"Duplicate preview region id={regionId} path={outlinesPath}");
@@ -257,7 +265,7 @@ public static class StrategicRegionPreviewDataLoader
                 maskIdByRegionId.TryGetValue(regionId, out int maskId)
                     ? maskId
                     : throw new InvalidOperationException($"Preview region mask id missing region={regionId}"),
-                RequiredString(properties, "role", outlinesPath),
+                "city-region",
                 RequiredString(properties, "direction", outlinesPath),
                 ReadPolygonParts(feature.GetProperty("geometry"), outlinesPath, regionId)));
         }
@@ -276,14 +284,14 @@ public static class StrategicRegionPreviewDataLoader
     private static Dictionary<string, int> LoadMaskIds(JsonElement lookup, string lookupPath)
     {
         Dictionary<string, int> maskIds = new(StringComparer.Ordinal);
-        foreach (JsonProperty entry in lookup.GetProperty("regions").EnumerateObject())
+        foreach (JsonProperty entry in lookup.GetProperty("locations").EnumerateObject())
         {
             if (!int.TryParse(entry.Name, out int maskId) || maskId <= 0 || maskId > 255)
             {
                 throw new InvalidOperationException($"Invalid preview region mask id={entry.Name} path={lookupPath}");
             }
 
-            string regionId = RequiredString(entry.Value, "regionId", lookupPath);
+            string regionId = RequiredString(entry.Value, "locationId", lookupPath);
             if (!maskIds.TryAdd(regionId, maskId))
             {
                 throw new InvalidOperationException($"Duplicate preview mask lookup region={regionId} path={lookupPath}");

@@ -1,0 +1,46 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/StrategicMap/StrategicMapRoot.cs" id="1_root"]
+[ext_resource type="Script" path="res://src/Presentation/Common/MapCameraController.cs" id="2_camera"]
+[ext_resource type="Resource" path="res://resource/world/strategic_map/strategic_map_presentation_config.tres" id="3_config"]
+[ext_resource type="PackedScene" path="res://scenes/world/strategic_map/StrategicMapChunkVisual.tscn" id="4_chunk"]
+[ext_resource type="PackedScene" path="res://scenes/world/strategic_map/StrategicMapRegionOverlay.tscn" id="5_overlay"]
+
+[node name="StrategicMap" type="Node2D"]
+script = ExtResource("1_root")
+Config = ExtResource("3_config")
+ChunkVisualScene = ExtResource("4_chunk")
+RegionOverlayScene = ExtResource("5_overlay")
+
+[node name="ChunkVisuals" type="Node2D" parent="."]
+
+[node name="RegionPresentation" type="Node2D" parent="."]
+
+[node name="MapCamera" type="Camera2D" parent="."]
+script = ExtResource("2_camera")
+MoveSpeed = 720.0
+MinZoom = 0.35
+MaxZoom = 2.2
+ZoomStep = 0.12
+UseConfiguredMapBoundsFallback = false
+UseViewportCamera = true
+
+[node name="StatusLayer" type="CanvasLayer" parent="."]
+
+[node name="StatusPanel" type="PanelContainer" parent="StatusLayer"]
+offset_left = 18.0
+offset_top = 18.0
+offset_right = 600.0
+offset_bottom = 64.0
+mouse_filter = 2
+
+[node name="StatusMargin" type="MarginContainer" parent="StatusLayer/StatusPanel"]
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 8
+
+[node name="StatusLabel" type="Label" parent="StatusLayer/StatusPanel/StatusMargin"]
+unique_name_in_owner = true
+text = "正在加载战略地图…"
+vertical_alignment = 1

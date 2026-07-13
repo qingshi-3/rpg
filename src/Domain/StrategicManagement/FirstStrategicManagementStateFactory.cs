@@ -12,17 +12,28 @@ public static class FirstStrategicManagementStateFactory
             ElapsedWorldTimePulses = 0
         };
 
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney, 500);
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood, 300);
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood, 240);
-        state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceOre, 120);
+        foreach (StrategicScenarioResourceStart resource in definitions.Scenario.Resources)
+        {
+            state.SetResourceAmount(resource.FactionId, resource.ResourceId, resource.Amount);
+        }
 
-        AddLocation(state, StrategicManagementIds.LocationPlainsCity, StrategicManagementIds.FactionPlayer, StrategicLocationControlState.PlayerHeld);
-        AddLocation(state, StrategicManagementIds.LocationTimberSite, StrategicManagementIds.FactionPlayer, StrategicLocationControlState.PlayerHeld);
-        AddLocation(state, StrategicManagementIds.LocationBonefieldOutpost, StrategicManagementIds.FactionEnemy, StrategicLocationControlState.EnemyHeld);
+        foreach (StrategicManagementCityReference city in definitions.CanonicalGeography.Cities.Values
+                     .OrderBy(city => city.LocationId, System.StringComparer.Ordinal))
+        {
+            StrategicScenarioProvinceStart start = definitions.Scenario.Provinces
+                .Single(province => province.ProvinceId == city.ProvinceId);
+            AddLocation(state, city.LocationId, start.OwnerFactionId, ToControlState(start.Control));
+        }
+
+        foreach (StrategicScenarioLocationStart location in definitions.Scenario.Locations)
+        {
+            AddLocation(state, location.LocationId, location.OwnerFactionId, ToControlState(location.Control));
+        }
 
         foreach (StrategicLocationDefinition cityDefinition in definitions.Locations.Values
-            .Where(location => location.Kind == StrategicLocationKind.City))
+            .Where(location =>
+                location.Kind == StrategicLocationKind.City &&
+                !string.IsNullOrWhiteSpace(location.CityIdentityId)))
         {
             // Every implemented managed location owns isolated city state from the start;
             // ownership/control decide whether the player may open its management UI.
@@ -30,8 +41,8 @@ public static class FirstStrategicManagementStateFactory
             {
                 LocationId = cityDefinition.LocationId,
                 CityIdentityId = cityDefinition.CityIdentityId,
-                CityForceCapacity = 220,
-                ReserveForces = 80,
+                CityForceCapacity = definitions.Scenario.DefaultCityForceCapacity,
+                ReserveForces = definitions.Scenario.DefaultCityReserveForces,
                 ConstructionRegionIds = cityDefinition.ConstructionRegions
                     .Select(region => region.RegionId)
                     .ToList()
@@ -64,6 +75,13 @@ public static class FirstStrategicManagementStateFactory
         return state;
     }
 
+    private static StrategicLocationControlState ToControlState(StrategicScenarioControl control) => control switch
+    {
+        StrategicScenarioControl.PlayerHeld => StrategicLocationControlState.PlayerHeld,
+        StrategicScenarioControl.EnemyHeld => StrategicLocationControlState.EnemyHeld,
+        _ => StrategicLocationControlState.Neutral
+    };
+
     private static void SeedAssignedCorps(
         StrategicManagementState state,
         string heroId,
@@ -74,7 +92,7 @@ public static class FirstStrategicManagementStateFactory
         {
             CorpsInstanceId = corpsInstanceId,
             CorpsDefinitionId = corpsDefinitionId,
-            HomeCityId = StrategicManagementIds.LocationPlainsCity,
+            HomeCityId = StrategicManagementIds.LocationQingheCore,
             FactionId = StrategicManagementIds.FactionPlayer,
             Strength = 100,
             Level = 1,

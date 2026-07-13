@@ -157,7 +157,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = expeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Victory,
             ObjectiveSucceeded = true
         };
@@ -172,9 +172,9 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
 
         AssertTrue(result.Success, $"battle result summary should apply, got {result.FailureReason}");
-        AssertEqual(StrategicManagementIds.FactionPlayer, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].OwnerFactionId, "victory should transfer target location to player control");
-        AssertEqual(StrategicLocationControlState.PlayerHeld, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].ControlState, "victory should mark target location player-held");
-        AssertTrue(state.Cities.ContainsKey(StrategicManagementIds.LocationBonefieldOutpost), "victory target should have managed city state available for post-battle management");
+        AssertEqual(StrategicManagementIds.FactionPlayer, state.Locations[StrategicManagementIds.LocationChiyanHighBasin].OwnerFactionId, "victory should transfer target location to player control");
+        AssertEqual(StrategicLocationControlState.PlayerHeld, state.Locations[StrategicManagementIds.LocationChiyanHighBasin].ControlState, "victory should mark target location player-held");
+        AssertTrue(state.Cities.ContainsKey(StrategicManagementIds.LocationChiyanHighBasin), "victory target should have managed city state available for post-battle management");
         AssertEqual(StrategicExpeditionStatus.Resolved, state.Expeditions[expeditionId].Status, "victory should resolve the expedition");
         AssertEqual("", state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].CurrentExpeditionId, "victory should unlock the hero from active expedition");
         AssertEqual("", state.CorpsInstances[corpsId].CurrentExpeditionId, "victory should unlock the corps from active expedition");
@@ -200,8 +200,8 @@ internal static partial class StrategicManagementRegressionCases
         string cavalryCorpsId = state.Heroes[StrategicManagementIds.HeroCavalryCaptain].AssignedCorpsInstanceId;
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
         AssertTrue(expedition.Success, $"multi-battle-group expedition should be created, got {expedition.FailureReason}");
@@ -209,7 +209,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDashboardViewModel sourceWhileMoving = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
         AssertEqual(0, sourceWhileMoving.SelectedCity.HeroCompanies.Count, "source city should not expose companies already committed to an expedition");
 
         StrategicBattleBridgeService bridge = new(definitions);
@@ -255,19 +255,19 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
 
         AssertTrue(result.Success, $"victory result should apply, got {result.FailureReason}");
-        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, state.CorpsInstances[ordinaryCorpsId].HomeCityId, "surviving ordinary corps should station at the captured city");
-        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, state.CorpsInstances[archerCorpsId].HomeCityId, "surviving archer corps should station at the captured city");
+        AssertEqual(StrategicManagementIds.LocationChiyanHighBasin, state.CorpsInstances[ordinaryCorpsId].HomeCityId, "surviving ordinary corps should station at the captured city");
+        AssertEqual(StrategicManagementIds.LocationChiyanHighBasin, state.CorpsInstances[archerCorpsId].HomeCityId, "surviving archer corps should station at the captured city");
         AssertEqual("", state.CorpsInstances[cavalryCorpsId].HomeCityId, "routed cavalry corps should not auto-return to the source city or station at the captured city");
         AssertEqual(StrategicCorpsInstanceStatus.Routed, state.CorpsInstances[cavalryCorpsId].Status, "zero-strength participant should remain routed");
 
         StrategicManagementDashboardViewModel sourceAfterVictory = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
         StrategicManagementDashboardViewModel targetAfterVictory = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationBonefieldOutpost);
+            StrategicManagementIds.LocationChiyanHighBasin);
         AssertEqual(0, sourceAfterVictory.SelectedCity.HeroCompanies.Count, "source city should not regain companies that are now stationed at the captured city");
         AssertTrue(
             targetAfterVictory.SelectedCity.HeroCompanies.Any(company => company.HeroId == StrategicManagementIds.HeroOrdinaryCommander) &&
@@ -375,7 +375,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = expeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Victory,
             ObjectiveSucceeded = true
         };
@@ -395,7 +395,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(state.BattleFeedbackRecords.ContainsKey(result.CreatedEntityId), "strategic state should retain the battle feedback record");
         StrategicBattleFeedbackRecord feedback = state.BattleFeedbackRecords[result.CreatedEntityId];
         AssertEqual(summary.SessionId, feedback.SessionId, "feedback should retain bridge session identity");
-        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, feedback.TargetLocationId, "feedback should retain target location identity");
+        AssertEqual(StrategicManagementIds.LocationChiyanHighBasin, feedback.TargetLocationId, "feedback should retain target location identity");
         AssertTrue(feedback.Victory, "victory feedback should be marked as victory");
         AssertTrue(feedback.WorldChangeText.Contains("控制", StringComparison.Ordinal), "feedback should explain the world control change");
         AssertTrue(feedback.GetType().GetProperty("PreparationText") == null, "victory feedback should not carry strategic preparation text");
@@ -442,7 +442,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = expeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Victory,
             ObjectiveSucceeded = true,
             HasConsequenceFacts = true,
@@ -489,7 +489,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = expeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Defeat,
             ObjectiveSucceeded = false
         };
@@ -536,7 +536,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = expeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Victory,
             ObjectiveSucceeded = true
         };
@@ -554,7 +554,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDashboardViewModel dashboard = viewModels.BuildLocationDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationBonefieldOutpost);
+            StrategicManagementIds.LocationChiyanHighBasin);
 
         AssertEqual(result.CreatedEntityId, dashboard.LatestBattleFeedback.FeedbackId, "dashboard should expose latest feedback for the selected battle target");
         AssertTrue(dashboard.LatestBattleFeedback.RewardLines.Any(line => line.Contains("前哨号角", StringComparison.Ordinal)), "dashboard feedback should show reward equipment text");
@@ -580,7 +580,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = expeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Victory,
             ObjectiveSucceeded = true
         };
@@ -612,15 +612,15 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementCommandService commands = new(definitions, rules);
         StrategicCommandResult firstExpedition = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
         AssertTrue(firstExpedition.Success, $"first expedition should be created, got {firstExpedition.FailureReason}");
         StrategicCommandResult secondExpedition = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroArcherCaptain);
         AssertTrue(secondExpedition.Success, $"second simultaneous expedition should be created, got {secondExpedition.FailureReason}");
@@ -665,7 +665,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = "session_null_participant",
             ExpeditionId = expeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Victory,
             ObjectiveSucceeded = true
         };
@@ -675,7 +675,7 @@ internal static partial class StrategicManagementRegressionCases
 
         AssertTrue(!result.Success, "summary with null participant result should be rejected");
         AssertEqual(StrategicFailureReasons.BattleResultMismatch, result.FailureReason, "incomplete null-participant summary should fail the compiled summary boundary");
-        AssertEqual(StrategicManagementIds.FactionEnemy, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].OwnerFactionId, "null participant result must not transfer location control");
+        AssertEqual(StrategicManagementIds.FactionEnemy, state.Locations[StrategicManagementIds.LocationChiyanHighBasin].OwnerFactionId, "null participant result must not transfer location control");
         AssertEqual(StrategicExpeditionStatus.Moving, state.Expeditions[expeditionId].Status, "null participant result must not resolve expedition");
         AssertEqual(100, state.CorpsInstances[corpsId].Strength, "null participant result must not mutate corps strength");
         AssertEqual(0, state.BattleFeedbackRecords.Count, "null participant result must not create feedback");
@@ -705,7 +705,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = expeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Defeat,
             ObjectiveSucceeded = false
         };
@@ -720,8 +720,8 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
 
         AssertTrue(result.Success, $"defeat summary should apply, got {result.FailureReason}");
-        AssertEqual(StrategicManagementIds.FactionEnemy, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].OwnerFactionId, "defeat should not transfer the target location");
-        AssertEqual(StrategicLocationControlState.EnemyHeld, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].ControlState, "defeat should leave target enemy-held");
+        AssertEqual(StrategicManagementIds.FactionEnemy, state.Locations[StrategicManagementIds.LocationChiyanHighBasin].OwnerFactionId, "defeat should not transfer the target location");
+        AssertEqual(StrategicLocationControlState.EnemyHeld, state.Locations[StrategicManagementIds.LocationChiyanHighBasin].ControlState, "defeat should leave target enemy-held");
         AssertEqual(StrategicExpeditionStatus.Resolved, state.Expeditions[expeditionId].Status, "defeat should still resolve the expedition");
         AssertEqual("", state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].CurrentExpeditionId, "defeat should unlock the hero from active expedition");
         AssertEqual("", state.CorpsInstances[corpsId].CurrentExpeditionId, "defeat should unlock the corps from active expedition");
@@ -742,8 +742,8 @@ internal static partial class StrategicManagementRegressionCases
         };
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
         AssertTrue(expedition.Success, $"multi-battle-group expedition should be created, got {expedition.FailureReason}");
@@ -823,7 +823,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = commands.ApplyBattleResultSummary(state, summary);
 
         AssertTrue(result.Success, $"multi-participant battle result should apply, got {result.FailureReason}");
-        AssertEqual(StrategicLocationControlState.PlayerHeld, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].ControlState, "victory should still occupy the target");
+        AssertEqual(StrategicLocationControlState.PlayerHeld, state.Locations[StrategicManagementIds.LocationChiyanHighBasin].ControlState, "victory should still occupy the target");
         AssertEqual(100, FindAssignedCorps(state, StrategicManagementIds.HeroOrdinaryCommander).Strength, "ordinary commander corps should keep full strength");
         AssertEqual(50, FindAssignedCorps(state, StrategicManagementIds.HeroArcherCaptain).Strength, "archer captain corps should keep proportional remaining strength");
         AssertEqual(0, FindAssignedCorps(state, StrategicManagementIds.HeroCavalryCaptain).Strength, "cavalry captain corps should be routed");
@@ -842,7 +842,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = "session_missing_participant",
             ExpeditionId = setup.ExpeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Victory,
             ObjectiveSucceeded = true
         };
@@ -851,7 +851,7 @@ internal static partial class StrategicManagementRegressionCases
 
         AssertTrue(!result.Success, "summary without mapped participant result should be rejected");
         AssertEqual(StrategicFailureReasons.BattleResultMismatch, result.FailureReason, "incomplete direct summary should be rejected by the compiled summary contract");
-        AssertEqual(StrategicManagementIds.FactionEnemy, state.Locations[StrategicManagementIds.LocationBonefieldOutpost].OwnerFactionId, "missing participant result must not transfer location control");
+        AssertEqual(StrategicManagementIds.FactionEnemy, state.Locations[StrategicManagementIds.LocationChiyanHighBasin].OwnerFactionId, "missing participant result must not transfer location control");
         AssertEqual(StrategicExpeditionStatus.Moving, state.Expeditions[setup.ExpeditionId].Status, "missing participant result must not resolve expedition");
         AssertEqual(100, state.CorpsInstances[setup.CorpsInstanceId].Strength, "missing participant result must not fabricate corps survival or losses");
     }
@@ -869,7 +869,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = setup.ExpeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Defeat,
             ObjectiveSucceeded = false
         };
@@ -899,7 +899,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = setup.Definitions;
         StrategicManagementState state = setup.State;
         string expeditionId = setup.ExpeditionId;
-        definitions.Locations[StrategicManagementIds.LocationBonefieldOutpost].BattleMapDefinitionId = "";
+        definitions.Locations[StrategicManagementIds.LocationChiyanHighBasin].BattleMapDefinitionId = "";
         StrategicBattleBridgeService bridge = new(definitions);
 
         StrategicBattleSessionResult result = bridge.CreateSession(

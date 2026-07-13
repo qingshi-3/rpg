@@ -3,6 +3,7 @@ using Godot;
 using Rpg.Application.Battle;
 using Rpg.Application.StrategicBattleBridge;
 using Rpg.Application.StrategicManagement;
+using Rpg.Application.World;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Domain.StrategicManagement;
 
@@ -86,7 +87,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = setup.ExpeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = outcome,
             ObjectiveSucceeded = outcome == BattleOutcome.Victory
         };
@@ -112,14 +113,18 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDashboardViewModel dashboard = viewModels.BuildLocationDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationBonefieldOutpost);
+            StrategicManagementIds.LocationChiyanHighBasin);
 
         Type presenterType = typeof(StrategicManagementViewModelService).Assembly.GetType(
             "Rpg.Presentation.World.StrategicWorldMapSitePresenter") ??
             throw new InvalidOperationException("strategic world map control presenter is missing");
         MethodInfo buildMethod = presenterType.GetMethod("Build", BindingFlags.Public | BindingFlags.Static) ??
                                  throw new InvalidOperationException("strategic world map control presenter public Build method is missing");
-        return buildMethod.Invoke(null, new object[] { dashboard.SelectedLocation }) ??
+        return buildMethod.Invoke(null, new object[]
+               {
+                   TemporaryLegacyStrategicSiteIdentityAdapter.LegacyBonefieldSiteId,
+                   dashboard.SelectedLocation
+               }) ??
                throw new InvalidOperationException("strategic world map control presenter returned null");
     }
 
@@ -131,8 +136,8 @@ internal static partial class StrategicManagementRegressionCases
         bool canReinforce,
         StrategicExpeditionIntent expectedNextCommand)
     {
-        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, GetRequiredProperty<string>(projection, "LocationId"), "map projection should preserve the stable strategic location id");
-        AssertEqual(StrategicManagementIds.MapSiteBonefield, GetRequiredProperty<string>(projection, "MapSiteId"), "map projection should preserve the stable map-site mapping");
+        AssertEqual(StrategicManagementIds.LocationChiyanHighBasin, GetRequiredProperty<string>(projection, "LocationId"), "map projection should preserve the stable strategic location id");
+        AssertEqual(TemporaryLegacyStrategicSiteIdentityAdapter.LegacyBonefieldSiteId, GetRequiredProperty<string>(projection, "MapSiteId"), "legacy presentation should preserve its temporary fixed site id");
         AssertEqual(expectedColor, GetRequiredProperty<Color>(projection, "ControlColor"), "map color should follow Strategic Management control");
         AssertEqual(expectedControlText, GetRequiredProperty<string>(projection, "ControlText"), "map control text should follow Strategic Management control");
         AssertEqual(canAttack, GetRequiredProperty<bool>(projection, "CanAttack"), "map attackability should follow Strategic Management rules");
@@ -151,16 +156,16 @@ internal static partial class StrategicManagementRegressionCases
             : StrategicExpeditionIntent.ReinforceLocation;
         StrategicCommandResult rejected = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             rejectedCommand,
             StrategicManagementIds.HeroArcherCaptain);
         AssertTrue(!rejected.Success, "the command opposite to the Strategic Management target classification should remain rejected by rules");
 
         StrategicCommandResult result = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             nextCommand,
             StrategicManagementIds.HeroArcherCaptain);
         AssertTrue(result.Success, $"projected next command should remain enforced and accepted by Strategic Management rules, got {result.FailureReason}");

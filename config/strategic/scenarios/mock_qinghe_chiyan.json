@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "scenarioId": "mock_qinghe_chiyan_campaign",
+  "mapId": "mock_qinghe_chiyan",
+  "packageCompatibilityRevision": 1,
+  "scenarioContentRevision": 1,
+  "defaultCityForceCapacity": 220,
+  "defaultCityReserveForces": 80,
+  "provinces": [
+    { "provinceId": "qinghe", "role": "player-start", "ownerFactionId": "faction_player", "control": "player-held" },
+    { "provinceId": "chiyan", "role": "first-hostile", "ownerFactionId": "faction_enemy", "control": "enemy-held" }
+  ],
+  "locations": [
+    { "locationId": "location_timber_site", "ownerFactionId": "faction_player", "control": "player-held" }
+  ],
+  "resources": [
+    { "factionId": "faction_player", "resourceId": "resource_money", "amount": 500 },
+    { "factionId": "faction_player", "resourceId": "resource_food", "amount": 300 },
+    { "factionId": "faction_player", "resourceId": "resource_wood", "amount": 240 },
+    { "factionId": "faction_player", "resourceId": "resource_ore", "amount": 120 }
+  ]
+}

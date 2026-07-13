@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "encoding": "rgb24-location-code-v1",
+  "locations": {
+    "1": {
+      "locationId": "north_keep",
+      "provinceId": "north_pass"
+    },
+    "2": {
+      "locationId": "east_gate",
+      "provinceId": "north_pass"
+    }
+  }
+}

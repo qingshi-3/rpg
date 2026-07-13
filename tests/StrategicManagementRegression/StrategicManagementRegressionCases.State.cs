@@ -297,7 +297,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
 
         AssertTrue(state.FactionResources.ContainsKey(StrategicManagementIds.FactionPlayer), "player faction resources should be initialized");
-        AssertTrue(state.Cities.ContainsKey(StrategicManagementIds.LocationPlainsCity), "first core city should be initialized");
+        AssertTrue(state.Cities.ContainsKey(StrategicManagementIds.LocationQingheCore), "first core city should be initialized");
         AssertTrue(state.Heroes.ContainsKey(StrategicManagementIds.HeroCavalryCaptain), "first strategic heroes should be initialized");
         AssertTrue(
             typeof(StrategicCityState).GetProperty("Facilities") == null &&
@@ -315,7 +315,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult build = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingFarm,
             StrategicManagementIds.RegionPlainsEconomy,
             economy.OriginX,
@@ -336,7 +336,7 @@ internal static partial class StrategicManagementRegressionCases
                 "strategic management save should be versioned JSON state, not resource serialization");
 
             StrategicManagementState loaded = saveService.Load(savePath);
-            StrategicCityState loadedCity = loaded.Cities[StrategicManagementIds.LocationPlainsCity];
+            StrategicCityState loadedCity = loaded.Cities[StrategicManagementIds.LocationQingheCore];
             StrategicBuildingInstanceState loadedBuilding = loadedCity.Buildings.Single();
             AssertEqual(StrategicManagementIds.BuildingFarm, loadedBuilding.BuildingDefinitionId, "loaded save should keep placed building definition");
             AssertEqual(economy.OriginX, loadedBuilding.GridX, "loaded save should keep building grid x");
@@ -369,13 +369,13 @@ internal static partial class StrategicManagementRegressionCases
         StrategicConstructionRegionDefinition economy = FindRegion(definitions, StrategicManagementIds.RegionPlainsEconomy);
         StrategicCommandResult build = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingFarm,
             StrategicManagementIds.RegionPlainsEconomy,
             economy.OriginX,
             economy.OriginY);
         AssertTrue(build.Success, $"legacy-save setup build should succeed, got {build.FailureReason}");
-        state.Cities[StrategicManagementIds.LocationPlainsCity].ReserveForces = 73;
+        state.Cities[StrategicManagementIds.LocationQingheCore].ReserveForces = 73;
         int expectedCorpsCount = state.CorpsInstances.Count;
 
         string savePath = Path.Combine(Path.GetTempPath(), $"rpg-strategic-management-legacy-conscription-{Guid.NewGuid():N}.json");
@@ -386,13 +386,13 @@ internal static partial class StrategicManagementRegressionCases
             System.Text.Json.Nodes.JsonObject document =
                 System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(savePath))?.AsObject()
                 ?? throw new InvalidOperationException("version-one save should parse as a JSON object");
-            System.Text.Json.Nodes.JsonObject city = document["State"]?["Cities"]?[StrategicManagementIds.LocationPlainsCity]?.AsObject()
+            System.Text.Json.Nodes.JsonObject city = document["State"]?["Cities"]?[StrategicManagementIds.LocationQingheCore]?.AsObject()
                 ?? throw new InvalidOperationException("version-one save should contain the first city object");
             city["AutoConscriptionIntensityId"] = "conscription_high";
             File.WriteAllText(savePath, document.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
 
             StrategicManagementState loaded = saveService.Load(savePath);
-            StrategicCityState loadedCity = loaded.Cities[StrategicManagementIds.LocationPlainsCity];
+            StrategicCityState loadedCity = loaded.Cities[StrategicManagementIds.LocationQingheCore];
             AssertEqual(73, loadedCity.ReserveForces, "legacy policy field should not disturb reserve soldiers");
             AssertEqual(StrategicManagementIds.BuildingFarm, loadedCity.Buildings.Single().BuildingDefinitionId, "legacy policy field should not disturb buildings");
             AssertEqual(expectedCorpsCount, loaded.CorpsInstances.Count, "legacy policy field should not disturb corps instances");
@@ -419,7 +419,7 @@ internal static partial class StrategicManagementRegressionCases
         {
             SessionId = session.SessionId,
             ExpeditionId = setup.ExpeditionId,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             Outcome = BattleOutcome.Victory,
             ObjectiveSucceeded = true
         };
@@ -432,7 +432,7 @@ internal static partial class StrategicManagementRegressionCases
         CompleteDirectBattleResultSummaryForTest(summary, session);
         StrategicCommandResult applied = setup.Commands.ApplyBattleResultSummary(setup.State, summary);
         AssertTrue(applied.Success, $"setup victory should apply, got {applied.FailureReason}");
-        setup.State.CorpsInstances[setup.CorpsInstanceId].HomeCityId = StrategicManagementIds.LocationPlainsCity;
+        setup.State.CorpsInstances[setup.CorpsInstanceId].HomeCityId = StrategicManagementIds.LocationQingheCore;
 
         string savePath = Path.Combine(Path.GetTempPath(), $"rpg-strategic-management-bad-company-home-{Guid.NewGuid():N}.json");
         try
@@ -443,15 +443,15 @@ internal static partial class StrategicManagementRegressionCases
 
             StrategicManagementState loaded = StrategicManagementRuntime.State;
             AssertEqual(
-                StrategicManagementIds.LocationBonefieldOutpost,
+                StrategicManagementIds.LocationChiyanHighBasin,
                 loaded.CorpsInstances[setup.CorpsInstanceId].HomeCityId,
                 "runtime load should repair surviving resolved expedition corps into the captured managed city");
             StrategicManagementDashboardViewModel sourceDashboard = StrategicManagementRuntime.BuildDashboard(
                 StrategicManagementIds.FactionPlayer,
-                StrategicManagementIds.LocationPlainsCity);
+                StrategicManagementIds.LocationQingheCore);
             StrategicManagementDashboardViewModel targetDashboard = StrategicManagementRuntime.BuildDashboard(
                 StrategicManagementIds.FactionPlayer,
-                StrategicManagementIds.LocationBonefieldOutpost);
+                StrategicManagementIds.LocationChiyanHighBasin);
             AssertTrue(
                 !sourceDashboard.SelectedCity.HeroCompanies.Any(company => company.HeroId == StrategicManagementIds.HeroOrdinaryCommander),
                 "repaired source city should not expose the captured expedition company");
@@ -471,7 +471,7 @@ internal static partial class StrategicManagementRegressionCases
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
 
         AssertTrue(city.ConstructionRegionIds.Count >= 3, "first city should expose authored construction regions");
         AssertContains(city.ConstructionRegionIds, StrategicManagementIds.RegionPlainsEconomy, "first city should include an economy construction region");
@@ -519,7 +519,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDashboardViewModel dashboard = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
 
         AssertEqual(3, dashboard.Heroes.Count, "first playable should expose three strategic heroes");
         AssertEqual(3, dashboard.SelectedCity.HeroCompanies.Count, "first playable should start with three dispatchable battle groups");
@@ -552,7 +552,7 @@ internal static partial class StrategicManagementRegressionCases
             .BuildDashboard(
                 state,
                 StrategicManagementIds.FactionPlayer,
-                StrategicManagementIds.LocationPlainsCity);
+                StrategicManagementIds.LocationQingheCore);
 
         AssertTrue(
             typeof(StrategicHeroDefinition).GetProperty("BattleUnitId") != null &&
@@ -613,48 +613,55 @@ internal static partial class StrategicManagementRegressionCases
         }
     }
 
-    internal static void StrategicManagementResolvesMapSiteIdsWithoutSilentCityFallback()
+    internal static void TemporaryLegacySiteAdapterResolvesOnlyRetainedFixedIds()
     {
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
-        StrategicManagementMapSiteResolver resolver = new(definitions);
 
         AssertTrue(
-            resolver.TryResolveLocationId(StrategicManagementIds.MapSitePlayerCamp, out string playerCampLocationId),
+            TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(
+                TemporaryLegacyStrategicSiteIdentityAdapter.LegacyPlayerCampSiteId,
+                out string playerCampLocationId),
             "player camp map site should resolve to a strategic location");
         AssertEqual(
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             playerCampLocationId,
             "player camp should map to the first managed city");
         AssertTrue(
-            resolver.TryResolveCityId(StrategicManagementIds.MapSitePlayerCamp, out string playerCampCityId),
+            TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveCityId(
+                TemporaryLegacyStrategicSiteIdentityAdapter.LegacyPlayerCampSiteId,
+                out string playerCampCityId),
             "player camp should resolve to a managed city");
         AssertEqual(
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             playerCampCityId,
             "player camp city mapping should be the plains city");
 
         AssertTrue(
-            resolver.TryResolveLocationId(StrategicManagementIds.MapSiteBonefield, out string bonefieldLocationId),
+            TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(
+                TemporaryLegacyStrategicSiteIdentityAdapter.LegacyBonefieldSiteId,
+                out string bonefieldLocationId),
             "bonefield map site should resolve to a strategic location");
         AssertEqual(
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationChiyanHighBasin,
             bonefieldLocationId,
             "bonefield should map to the first hostile foundation target");
         AssertTrue(
-            resolver.TryResolveCityId(StrategicManagementIds.MapSiteBonefield, out string bonefieldCityId),
+            TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveCityId(
+                TemporaryLegacyStrategicSiteIdentityAdapter.LegacyBonefieldSiteId,
+                out string bonefieldCityId),
             "Bonefield is the first hostile managed stronghold and should resolve through the city mapping gate");
         AssertEqual(
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationChiyanHighBasin,
             bonefieldCityId,
             "Bonefield city mapping should preserve the hostile target location id");
 
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         AssertTrue(
-            state.Cities.ContainsKey(StrategicManagementIds.LocationBonefieldOutpost),
+            state.Cities.ContainsKey(StrategicManagementIds.LocationChiyanHighBasin),
             "Bonefield should start with isolated managed-city state even before the player captures it");
 
         AssertTrue(
-            !resolver.TryResolveLocationId("unknown_site", out string unknownLocationId),
+            !TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId("unknown_site", out string unknownLocationId),
             "unknown map sites must not silently fall back to the first city");
         AssertEqual("", unknownLocationId, "unknown map-site mapping output should stay empty");
     }
@@ -685,7 +692,7 @@ internal static partial class StrategicManagementRegressionCases
             .BuildDashboard(
                 state,
                 StrategicManagementIds.FactionPlayer,
-                StrategicManagementIds.LocationPlainsCity);
+                StrategicManagementIds.LocationQingheCore);
 
         AssertTrue(
             dashboard.SelectedCity.GetType().GetProperty("BattlePreparations") == null,
@@ -700,8 +707,8 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult result = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
 

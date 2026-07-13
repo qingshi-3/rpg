@@ -261,7 +261,7 @@ public partial class StrategicWorldRoot
     {
         StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
         string signature = string.Join(
             "|",
             dashboard.Resources.Select(resource => $"{resource.ResourceId}:{resource.Amount}"));

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="StrategicMapPresentationConfig" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/StrategicMap/StrategicMapPresentationConfig.cs" id="1_config"]
+
+[resource]
+script = ExtResource("1_config")
+SelectionPath = "res://config/world/strategic-map-selection.json"
+PreloadMargin = 256.0
+MaxConcurrentChunkLoads = 2
+InitialFocusRatio = Vector2(0.5, 0.4)
+InitialZoom = 0.48
+PlayerControlColor = Color(0.31, 0.68, 0.87, 1)
+EnemyControlColor = Color(0.85, 0.38, 0.3, 1)
+NeutralProvinceColor = Color(0.71, 0.64, 0.44, 1)
+RegionFillAlpha = 0.055
+CityBoundaryAlpha = 0.24
+ProvinceBoundaryAlpha = 0.68

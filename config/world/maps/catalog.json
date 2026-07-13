@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "defaultMapId": "mock_qinghe_chiyan",
+  "maps": [
+    {
+      "mapId": "fixture_north_pass",
+      "displayName": "北境关隘替换验证地图",
+      "sourceRevision": 2,
+      "kind": "fixture"
+    },
+    {
+      "mapId": "mock_qinghe_chiyan",
+      "displayName": "青河赤岩管线样例地图",
+      "sourceRevision": 1,
+      "kind": "authoring"
+    }
+  ]
+}

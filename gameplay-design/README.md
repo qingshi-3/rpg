@@ -9,6 +9,7 @@ It intentionally lives outside `docs/` so it does not inherit older document rou
 - Long-term content systems design: `content-systems-long-term-design.md`
 - First playable vertical slice target: `vertical-slices/first-playable-slice.md`
 - Detail design index: `details/README.md`
+- Province/city to detailed-map relationship: `details/strategic-region-detail-map-mapping.md`
 
 ## Boundary
 

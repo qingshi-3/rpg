@@ -10,12 +10,9 @@ public static class StrategicManagementIds
     public const string ResourceWood = "resource_wood";
     public const string ResourceOre = "resource_ore";
 
-    public const string LocationPlainsCity = "location_plains_city";
+    public const string LocationQingheCore = "qinghe_core";
     public const string LocationTimberSite = "location_timber_site";
-    public const string LocationBonefieldOutpost = "location_bonefield_outpost";
-
-    public const string MapSitePlayerCamp = "player_camp";
-    public const string MapSiteBonefield = "bonefield";
+    public const string LocationChiyanHighBasin = "chiyan_high_basin";
 
     public const string RewardBonefieldVictory = "reward_bonefield_victory";
     public const string EquipmentDawnshieldSpear = "equipment_dawnshield_spear";

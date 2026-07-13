@@ -412,8 +412,8 @@ internal static void SiteMapLayoutAuthorityIsAccepted()
         semantic.Contains("ConnectionIds", StringComparison.Ordinal),
         "semantic marker authority should include bridge marker authoring fields");
     AssertTrue(
-        strategic.Contains("site map layout ids", StringComparison.Ordinal) &&
-        strategic.Contains("persistent location facts", StringComparison.Ordinal),
+        strategic.Contains("province-owned site map layout ids", StringComparison.Ordinal) &&
+        strategic.Contains("Persistent city facts stay in Strategic Management state", StringComparison.Ordinal),
         "strategic management authority should bind locations to reusable layouts without making scenes persistent state");
 }
 

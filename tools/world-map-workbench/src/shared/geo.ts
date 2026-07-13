@@ -1,6 +1,6 @@
 import { bboxClip, centroid, featureCollection, intersect, point } from "@turf/turf";
 import type { Feature, FeatureCollection, LineString, MultiLineString, MultiPolygon, Point, Polygon, Position } from "geojson";
-import type { Coordinate, LinearFeatureProperties, RegionProperties, ValidationItem, WaterAnchorProperties, WorldProject } from "./types.js";
+import type { Coordinate, LinearFeatureProperties, LocationGeometryProperties, ValidationItem, WaterAnchorProperties, WorldProject } from "./types.js";
 
 function closestPointOnSegment(pointCoordinate: Coordinate, start: Position, end: Position): { coordinate: Coordinate; distance: number } {
   const [px, py] = pointCoordinate;
@@ -144,7 +144,7 @@ export function clipLinearFeaturesToChunks(
   return featureCollection(clips);
 }
 
-function featureCoordinate(feature: Feature<Polygon | MultiPolygon, RegionProperties>): Coordinate | undefined {
+function featureCoordinate(feature: Feature<Polygon | MultiPolygon, LocationGeometryProperties>): Coordinate | undefined {
   try {
     const center = centroid(feature);
     return [center.geometry.coordinates[0] ?? 0, center.geometry.coordinates[1] ?? 0];
@@ -153,65 +153,62 @@ function featureCoordinate(feature: Feature<Polygon | MultiPolygon, RegionProper
   }
 }
 
-export function validateRegions(regions: FeatureCollection<Polygon | MultiPolygon, RegionProperties>): ValidationItem[] {
+export function validateLocationGeometries(geometries: FeatureCollection<Polygon | MultiPolygon, LocationGeometryProperties>): ValidationItem[] {
   const diagnostics: ValidationItem[] = [];
   const ids = new Map<string, number>();
 
-  for (const region of regions.features) {
-    const regionId = region.properties.regionId;
-    ids.set(regionId, (ids.get(regionId) ?? 0) + 1);
-    const coordinate = featureCoordinate(region);
-    if (!region.properties.cityId) {
-      diagnostics.push({ code: "REGION_ORPHAN", severity: "error", message: `区域 ${regionId} 没有 CityId`, objectId: regionId, coordinate, layerId: "territories" });
+  for (const geometry of geometries.features) {
+    const locationId = geometry.properties.locationId;
+    ids.set(locationId, (ids.get(locationId) ?? 0) + 1);
+    const coordinate = featureCoordinate(geometry);
+    if (!geometry.properties.provinceId) {
+      diagnostics.push({ code: "LOCATION_GEOMETRY_ORPHAN", severity: "error", message: `城市区域 ${locationId} 没有 ProvinceId`, objectId: locationId, coordinate, layerId: "territories" });
     }
-    if (region.geometry.type === "MultiPolygon") {
-      diagnostics.push({ code: "REGION_DISCONTINUOUS", severity: "error", message: `区域 ${regionId} 由不连续多边形组成`, objectId: regionId, coordinate, layerId: "territories" });
-    }
-    if (region.geometry.type === "Polygon" && region.geometry.coordinates.length > 1) {
-      diagnostics.push({ code: "REGION_HOLE", severity: "warning", message: `区域 ${regionId} 存在空洞`, objectId: regionId, coordinate, layerId: "territories" });
+    if (geometry.geometry.type === "Polygon" && geometry.geometry.coordinates.length > 1) {
+      diagnostics.push({ code: "LOCATION_GEOMETRY_HOLE", severity: "warning", message: `城市区域 ${locationId} 存在空洞`, objectId: locationId, coordinate, layerId: "territories" });
     }
   }
 
-  for (const [regionId, count] of ids) {
+  for (const [locationId, count] of ids) {
     if (count > 1) {
-      diagnostics.push({ code: "REGION_DUPLICATE_ID", severity: "error", message: `RegionId 重复：${regionId}`, objectId: regionId, layerId: "territories" });
+      diagnostics.push({ code: "LOCATION_GEOMETRY_DUPLICATE_LOCATION", severity: "error", message: `LocationId 对应多份城市区域：${locationId}`, objectId: locationId, layerId: "territories" });
     }
   }
 
-  for (let leftIndex = 0; leftIndex < regions.features.length; leftIndex += 1) {
-    const left = regions.features[leftIndex];
+  for (let leftIndex = 0; leftIndex < geometries.features.length; leftIndex += 1) {
+    const left = geometries.features[leftIndex];
     if (!left) continue;
-    for (let rightIndex = leftIndex + 1; rightIndex < regions.features.length; rightIndex += 1) {
-      const right = regions.features[rightIndex];
+    for (let rightIndex = leftIndex + 1; rightIndex < geometries.features.length; rightIndex += 1) {
+      const right = geometries.features[rightIndex];
       if (!right) continue;
       try {
         const overlap = intersect(featureCollection([left, right]));
         if (!overlap) continue;
         const coordinate = featureCoordinate(left);
         diagnostics.push({
-          code: "REGION_OVERLAP",
+          code: "LOCATION_GEOMETRY_OVERLAP",
           severity: "error",
-          message: `区域 ${left.properties.regionId} 与 ${right.properties.regionId} 重叠`,
-          objectId: left.properties.regionId,
+          message: `城市区域 ${left.properties.locationId} 与 ${right.properties.locationId} 重叠`,
+          objectId: left.properties.locationId,
           coordinate,
           layerId: "territories",
         });
-        if (left.properties.cityId !== right.properties.cityId) {
+        if (left.properties.provinceId !== right.properties.provinceId) {
           diagnostics.push({
-            code: "REGION_CROSS_CITY",
+            code: "LOCATION_GEOMETRY_CROSS_PROVINCE",
             severity: "error",
-            message: `区域 ${left.properties.regionId} 与其他城市 ${right.properties.cityId} 冲突`,
-            objectId: left.properties.regionId,
+            message: `城市区域 ${left.properties.locationId} 与其他省份 ${right.properties.provinceId} 冲突`,
+            objectId: left.properties.locationId,
             coordinate,
             layerId: "territories",
           });
         }
       } catch {
         diagnostics.push({
-          code: "REGION_INVALID_GEOMETRY",
+          code: "LOCATION_GEOMETRY_INVALID",
           severity: "error",
-          message: `区域 ${left.properties.regionId} 或 ${right.properties.regionId} 几何无效`,
-          objectId: left.properties.regionId,
+          message: `城市区域 ${left.properties.locationId} 或 ${right.properties.locationId} 几何无效`,
+          objectId: left.properties.locationId,
           layerId: "territories",
         });
       }

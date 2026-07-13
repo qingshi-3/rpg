@@ -454,7 +454,7 @@ internal static void StrategicWorldProductionFeedbackFloatsFromSettlementEvents(
         "StrategicLocationProductionSettled",
         "StrategicCityBuildingProductionSettled",
         "TryParseStrategicResourceAmounts",
-        "StrategicManagementRuntime.Definitions.Locations",
+        "TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId",
         "GetSiteLabelRect(",
         "GameUiSceneFactory.CreateWorldResourceFloatText",
         "_worldResourceFloatOverlay"
@@ -508,7 +508,7 @@ internal static void StrategicWorldDetailReadsStrategicManagementLocationDashboa
         "using Rpg.Application.StrategicManagement;",
         "using Rpg.Definitions.StrategicManagement;",
         "using Rpg.Domain.StrategicManagement;",
-        "StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(",
+        "TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(",
         "StrategicManagementRuntime.BuildLocationDashboard(",
         "StrategicLocationDashboardViewModel",
         "StrategicCityManagementViewModel",
@@ -637,7 +637,7 @@ internal static void StrategicWorldSelectedManagedCityActionsUseStrategicManagem
     foreach (string required in new[]
     {
         "TryBuildSelectedStrategicLocationDashboard(",
-        "StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(",
+        "TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(",
         "StrategicManagementRuntime.BuildLocationDashboard(",
         "dashboard.SelectedLocation.CanManageCity"
     })
@@ -688,7 +688,7 @@ internal static void StrategicWorldResetAndDetailInitializeStrategicManagementRu
     AssertTrue(
         refreshBody.Contains("StrategicManagementRuntime.EnsureInitialized()", StringComparison.Ordinal) &&
         refreshBody.IndexOf("StrategicManagementRuntime.EnsureInitialized()", StringComparison.Ordinal) <
-        refreshBody.IndexOf("StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite", StringComparison.Ordinal),
+        refreshBody.IndexOf("TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId", StringComparison.Ordinal),
         "large-map detail should initialize Strategic Management runtime before reading map-site mappings");
     AssertTrue(
         resetBody.Contains("StrategicManagementRuntime.Reset()", StringComparison.Ordinal),
@@ -820,9 +820,9 @@ internal static void WorldSiteRootRoutesStrategicManagementDashboardCommands()
     string commandBodies = buildBuildingBody + recruitCorpsBody;
 
     AssertTrue(
-        rootSource.Contains("StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(", StringComparison.Ordinal) &&
-        rootSource.Contains("StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(", StringComparison.Ordinal) &&
-        !rootSource.Contains("return StrategicManagementIds.LocationPlainsCity;", StringComparison.Ordinal),
+        rootSource.Contains("TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveCityId(", StringComparison.Ordinal) &&
+        rootSource.Contains("TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(", StringComparison.Ordinal) &&
+        !rootSource.Contains("return StrategicManagementIds.LocationQingheCore;", StringComparison.Ordinal),
         "WorldSiteRoot should use explicit Strategic Management map-site resolution instead of silently mapping every site to the first city");
     AssertTrue(
         rootSource.Contains("private static bool TryResolveStrategicManagementLocationId(", StringComparison.Ordinal),

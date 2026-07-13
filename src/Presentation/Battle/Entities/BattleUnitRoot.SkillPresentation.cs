@@ -13,12 +13,14 @@ public partial class BattleUnitRoot
 {
     private const string DefaultThunderLinkFxScenePath = "res://scenes/battle/entities/fx/BattleThunderLinkFx.tscn";
     private const string DefaultThunderMarkFxScenePath = "res://scenes/battle/entities/fx/BattleThunderMarkFx.tscn";
+    private const string DefaultThunderTeleportFxScenePath = "res://scenes/battle/entities/fx/BattleThunderTeleportFx.tscn";
     private const string DefaultThunderSpiralFxScenePath = "res://scenes/battle/entities/fx/BattleThunderSpiralFx.tscn";
     private static readonly Vector2 ThunderLinkSourceOffset = new(0f, -18f);
     private static readonly Vector2 ThunderMarkAttachedOffset = new(0f, -24f);
     private static readonly Vector2 ThunderMarkGroundOffset = new(0f, -10f);
     private static readonly Vector2 ThunderSpiralAreaOffset = Vector2.Zero;
     private readonly Dictionary<string, Node2D> _thunderMarksByBattleGroup = new(System.StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _thunderMarkPresentationVersions = new(System.StringComparer.Ordinal);
 
     public double PlaySkillCastPresentation(
         BattleEntity actor,
@@ -125,36 +127,74 @@ public partial class BattleUnitRoot
         }
 
         Vector2 sourceGlobal = actor.GlobalPosition + ThunderLinkSourceOffset;
-        PlayThunderLink(sourceGlobal, targetGlobal);
-        ShowThunderMark(target, targetGlobal, battleGroupId, attachedToTarget);
-        return 0.32;
+        string key = ResolveThunderMarkKey(battleGroupId);
+        int presentationVersion = AdvanceThunderMarkPresentationVersion(key);
+        ClearThunderMarkPresentation(key);
+        double travelSeconds = PlayThunderLink(sourceGlobal, targetGlobal);
+        _ = ShowThunderMarkAfterArrivalAsync(
+            target,
+            targetGlobal,
+            key,
+            attachedToTarget,
+            presentationVersion,
+            travelSeconds);
+        return travelSeconds;
     }
 
-    private void PlayThunderLink(Vector2 sourceGlobal, Vector2 targetGlobal)
+    private double PlayThunderLink(Vector2 sourceGlobal, Vector2 targetGlobal)
     {
         PackedScene scene = GD.Load<PackedScene>(DefaultThunderLinkFxScenePath);
         if (scene?.Instantiate() is not Node2D fx)
         {
-            return;
+            return 0;
         }
 
         AddChild(fx);
         fx.GlobalPosition = sourceGlobal;
         if (fx is BattleThunderLinkFx linkFx)
         {
-            linkFx.Play(targetGlobal - sourceGlobal);
+            return linkFx.Play(targetGlobal - sourceGlobal);
         }
+
+        fx.QueueFree();
+        return 0;
     }
 
-    private void ShowThunderMark(
+    private async Task ShowThunderMarkAfterArrivalAsync(
         BattleEntity target,
         Vector2 targetGlobal,
-        string battleGroupId,
+        string key,
+        bool attachedToTarget,
+        int presentationVersion,
+        double travelSeconds)
+    {
+        if (travelSeconds > 0 && IsInsideTree())
+        {
+            await ToSignal(
+                GetTree().CreateTimer(travelSeconds, processAlways: false),
+                SceneTreeTimer.SignalName.Timeout);
+        }
+
+        if (!GodotObject.IsInstanceValid(this) ||
+            !IsInsideTree() ||
+            !_thunderMarkPresentationVersions.TryGetValue(key, out int currentVersion) ||
+            currentVersion != presentationVersion ||
+            (attachedToTarget && (target == null || !GodotObject.IsInstanceValid(target))))
+        {
+            return;
+        }
+
+        // Runtime owns mark creation immediately; this short delay only prevents the
+        // persistent visual from appearing before its travelling bolt arrives.
+        ShowThunderMarkAtArrival(target, targetGlobal, key, attachedToTarget);
+    }
+
+    private void ShowThunderMarkAtArrival(
+        BattleEntity target,
+        Vector2 targetGlobal,
+        string key,
         bool attachedToTarget)
     {
-        string key = string.IsNullOrWhiteSpace(battleGroupId) ? "__default" : battleGroupId.Trim();
-        ClearThunderMarkPresentation(key);
-
         PackedScene scene = GD.Load<PackedScene>(DefaultThunderMarkFxScenePath);
         if (scene?.Instantiate() is not Node2D mark)
         {
@@ -180,6 +220,36 @@ public partial class BattleUnitRoot
         }
 
         _thunderMarksByBattleGroup[key] = mark;
+    }
+
+    public double PlayThunderTeleportPresentation(
+        BattleEntity actor,
+        Vector2 originGlobal,
+        Vector2 destinationGlobal,
+        string battleGroupId)
+    {
+        if (actor == null || !GodotObject.IsInstanceValid(actor))
+        {
+            return 0;
+        }
+
+        ConsumeThunderMarkPresentation(battleGroupId);
+        PackedScene scene = GD.Load<PackedScene>(DefaultThunderTeleportFxScenePath);
+        if (scene?.Instantiate() is not Node2D fx)
+        {
+            return 0;
+        }
+
+        AddChild(fx);
+        fx.GlobalPosition = originGlobal;
+        CanvasItem actorVisual = actor.GetNodeOrNull<CanvasItem>("VisualRoot");
+        if (fx is BattleThunderTeleportFx teleportFx)
+        {
+            return teleportFx.Play(destinationGlobal - originGlobal, actorVisual);
+        }
+
+        fx.QueueFree();
+        return 0;
     }
 
     private bool TryResolveThunderTargetGlobalPosition(
@@ -268,8 +338,43 @@ public partial class BattleUnitRoot
         mark.QueueFree();
     }
 
+    private void ConsumeThunderMarkPresentation(string battleGroupId)
+    {
+        string key = ResolveThunderMarkKey(battleGroupId);
+        AdvanceThunderMarkPresentationVersion(key);
+        if (!_thunderMarksByBattleGroup.Remove(key, out Node2D mark) ||
+            mark == null ||
+            !GodotObject.IsInstanceValid(mark))
+        {
+            return;
+        }
+
+        if (mark is BattleThunderMarkFx markFx)
+        {
+            markFx.CollapseAndDischarge();
+            return;
+        }
+
+        mark.QueueFree();
+    }
+
+    private static string ResolveThunderMarkKey(string battleGroupId)
+    {
+        return string.IsNullOrWhiteSpace(battleGroupId) ? "__default" : battleGroupId.Trim();
+    }
+
+    private int AdvanceThunderMarkPresentationVersion(string key)
+    {
+        int nextVersion = _thunderMarkPresentationVersions.TryGetValue(key, out int version)
+            ? version + 1
+            : 1;
+        _thunderMarkPresentationVersions[key] = nextVersion;
+        return nextVersion;
+    }
+
     private void ClearThunderMarkPresentations()
     {
+        _thunderMarkPresentationVersions.Clear();
         foreach (string key in _thunderMarksByBattleGroup.Keys.ToArray())
         {
             ClearThunderMarkPresentation(key);

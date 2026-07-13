@@ -6,21 +6,21 @@ This detail refines `../content-systems-long-term-design.md` for player-facing s
 
 ## Player Promise
 
-Cities read as coherent geographic areas composed of multiple contiguous smaller regions. Their presentation remains calm and legible while preserving clear local interaction and faction ownership cues.
+Provinces read as coherent geographic areas composed of their main and auxiliary cities' contiguous visual regions. Their presentation remains calm and legible while preserving clear local interaction and faction ownership cues.
 
 ## Minimum Presentation Baseline
 
-- A city visually comprises multiple contiguous smaller regions.
+- A province visually comprises the contiguous regions of its main city and auxiliary cities; each city owns exactly one region geometry through its stable `LocationId`.
 - Region boundaries read as natural, continuous, soft curves rather than sharp corners or straight polygon seams.
 - The default treatment is restrained, low-saturation, translucent, and frosted. Chaotic multicolor fills, strong glow, and glossy-glass treatment are outside the baseline.
-- A city's outer border communicates faction ownership.
-- Hover emphasizes only the smaller region under the pointer.
-- Hover, selection, and faction treatment remain visually isolated to their owning city and faction; they must not contaminate another city or faction.
+- A province's outer border communicates faction ownership.
+- Hover emphasizes only the city region under the pointer.
+- Hover, selection, and faction treatment remain visually isolated to their owning city and province; they must not contaminate another province.
 - The user-accepted standalone prototype quality is the minimum baseline. Future formal work may improve it, but must not visibly regress below it.
 
 ## Gameplay Boundary
 
-This presentation baseline does not confirm or define vision, discovery, encounter timing, territorial control, or mapping between strategic regions and detailed maps. Those rules require separate gameplay confirmation.
+This presentation baseline does not define vision, discovery, encounter timing, or exact territorial-control rules. The confirmed province/city relationship with detailed maps lives in `strategic-region-detail-map-mapping.md`; presentation preserves `ProvinceId` and `LocationId` without creating an independent region identity or campaign-state owner.
 
 ## Implementation Boundary
 

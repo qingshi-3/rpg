@@ -43,8 +43,8 @@ internal static void StrategicBattleLaunchSnapshotPreservesStartingHeroSkillGran
 
         StrategicCommandResult expeditionResult = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             new[] { heroId });
         AssertTrue(

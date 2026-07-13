@@ -1,0 +1,107 @@
+{
+  "version": 2,
+  "provinces": [
+    {
+      "provinceId": "north_pass",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              0,
+              0
+            ],
+            [
+              2048,
+              0
+            ],
+            [
+              2048,
+              1024
+            ],
+            [
+              0,
+              1024
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        ]
+      }
+    }
+  ],
+  "locationGeometries": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              0,
+              0
+            ],
+            [
+              1024,
+              0
+            ],
+            [
+              1024,
+              1024
+            ],
+            [
+              0,
+              1024
+            ],
+            [
+              0,
+              0
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "locationId": "north_keep",
+        "provinceId": "north_pass",
+        "direction": "west"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              1024,
+              0
+            ],
+            [
+              2048,
+              0
+            ],
+            [
+              2048,
+              1024
+            ],
+            [
+              1024,
+              1024
+            ],
+            [
+              1024,
+              0
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "locationId": "east_gate",
+        "provinceId": "north_pass",
+        "direction": "east"
+      }
+    }
+  ]
+}

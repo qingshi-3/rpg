@@ -1,4 +1,4 @@
-import { featureCollection, union } from "@turf/turf";
+import { centroid, featureCollection, point, union } from "@turf/turf";
 import type { Feature as GeoFeature, FeatureCollection, LineString, MultiPolygon, Point, Polygon } from "geojson";
 import Feature from "ol/Feature.js";
 import OlMap from "ol/Map.js";
@@ -13,13 +13,17 @@ import ImageStatic from "ol/source/ImageStatic.js";
 import VectorSource from "ol/source/Vector.js";
 import Projection from "ol/proj/Projection.js";
 import { clipLinearFeaturesToChunks, snapRiverEndpoints } from "../shared/geo.js";
+import { FIXED_NEW_MAP_CHUNK_SIZE, getProjectGridDimensions, MAX_GRID_AXIS, MAX_GRID_CHUNKS, validateMapGridDimensions } from "../shared/mapGrid.js";
 import type {
   GeographyDocument,
   LayerId,
   LinearFeature,
   LinearFeatureProperties,
-  RegionFeature,
+  LocationGeometryFeature,
+  ProvinceDefinition,
+  PublishProfile,
   StrategicLocationFeature,
+  StrategicLocationProperties,
   StrategicLocationType,
   TerrainChunkPayload,
   ValidationItem,
@@ -30,7 +34,9 @@ import type {
 import type { ProjectBundle } from "./api.js";
 import { workbenchApi } from "./api.js";
 import { readGameFeatures, toGameCoordinate, toMapCoordinate, writeGameFeatures } from "./coordinates.js";
+import { resolveCityWorkspaceSelection } from "./cityWorkspaceSelection.js";
 import { createWorkbenchLayers, type HoverRegionState, type WorkbenchLayers } from "./mapLayers.js";
+import { AuthoringIdentityFactory } from "./model/AuthoringIdentityFactory.js";
 import { History } from "./model/History.js";
 import { TerrainStore } from "./model/TerrainStore.js";
 import { diagnosticPoint, validateWorkbench } from "./validation.js";
@@ -46,6 +52,19 @@ import {
 interface WorkbenchSnapshot {
   geography: GeographyDocument;
   terrainChunks: TerrainChunkPayload[];
+  selectedProvinceId: string;
+  selectedGeometryLocationId: string;
+}
+
+interface PendingCityRegionCreation {
+  before: WorkbenchSnapshot;
+  location: StrategicLocationProperties;
+  provinceWasCreated: boolean;
+  previousProvinceId: string;
+  previousGeometryLocationId: string;
+  previousDirty: boolean;
+  previousMutationRevision: number;
+  previousLayerVisibility: Partial<Record<LayerId, boolean>>;
 }
 
 const toolLayer: Partial<Record<ToolId, LayerId>> = {
@@ -59,7 +78,6 @@ const toolLayer: Partial<Record<ToolId, LayerId>> = {
   road: "roads",
   mountain: "mountains",
   location: "strategic-locations",
-  territory: "territories",
   region: "territories",
 };
 
@@ -112,25 +130,31 @@ export class WorkbenchApp {
   private readonly expandedLayerIds = new Set<LayerId>();
   private selectedTerrainId = 1;
   private brushRadius = 48;
-  private selectedLocationType: StrategicLocationType = "city";
+  private provinces: ProvinceDefinition[] = [];
+  private selectedLocationType: StrategicLocationType = "gate";
   private selectedWaterAnchorType: WaterAnchorType = "source";
   private selectedRiverWidthClass = 2;
   private selectedRoadClass = 1;
   private selectedMountainDensity = 0.5;
-  private selectedRegionCityId = "";
-  private selectedRegionRole = "region";
+  private selectedLocationProvinceId = "";
+  private selectedGeometryLocationId = "";
   private selectedRegionDirection = "center";
   private hoverRegion: HoverRegionState = {};
   private diagnostics: ValidationItem[] = [];
   private initialized: boolean;
   private mutationBefore?: WorkbenchSnapshot;
+  private pendingCityRegion?: PendingCityRegionCreation;
+  private resizeObserver?: ResizeObserver;
 
   public constructor(private readonly root: HTMLElement, bundle: ProjectBundle) {
     this.project = bundle.project;
     this.initialized = bundle.initialized;
     this.terrain = new TerrainStore(this.project);
     for (const chunk of bundle.terrainChunks) this.terrain.loadChunk(chunk.chunkId, decodeBase64(chunk.cellsBase64));
-    this.selectedRegionCityId = bundle.geography.strategicLocations.features.find((feature) => feature.properties.locationType === "city")?.properties.locationId ?? "";
+    this.provinces = structuredClone(bundle.geography.provinces);
+    this.selectedLocationProvinceId = this.provinces[0]?.provinceId ?? "";
+    this.selectedGeometryLocationId = bundle.geography.strategicLocations.features.find((feature) =>
+      feature.properties.locationType === "main-city" || feature.properties.locationType === "auxiliary-city")?.properties.locationId ?? "";
 
     this.renderShell();
     this.layers = createWorkbenchLayers(this.project, this.terrain, () => this.hoverRegion);
@@ -155,6 +179,11 @@ export class WorkbenchApp {
       }),
     });
     this.map.getView().fit([0, -this.project.world.height, this.project.world.width, 0], { padding: [60, 60, 60, 60] });
+    window.addEventListener("resize", () => this.scheduleMapResize());
+    if (typeof ResizeObserver !== "undefined") {
+      this.resizeObserver = new ResizeObserver(() => this.scheduleMapResize());
+      this.resizeObserver.observe(this.requireElement("map-stage"));
+    }
 
     this.select = new Select({
       layers: this.layers.editableVectorLayers,
@@ -166,7 +195,7 @@ export class WorkbenchApp {
     this.modify = new Modify({ features: this.select.getFeatures() });
     this.map.addInteraction(this.select);
     this.map.addInteraction(this.modify);
-    this.select.on("select", () => this.renderProperties());
+    this.select.on("select", () => this.handleMapSelectionChanged());
     this.modify.on("modifystart", () => { this.mutationBefore = this.captureSnapshot(); });
     this.modify.on("modifyend", () => {
       for (const feature of this.select.getFeatures().getArray()) {
@@ -188,10 +217,13 @@ export class WorkbenchApp {
     this.renderLayers();
     this.renderProperties();
     this.setDirty(false);
+    this.updateHistoryButtons();
+    void this.initializeMapControls();
     this.setStatus(this.initialized ? "项目已加载" : "尚未初始化；首次保存时创建 config/world", "info");
   }
 
   private renderShell(): void {
+    const grid = getProjectGridDimensions(this.project);
     this.root.innerHTML = `
       <div class="workbench-shell" id="workbench-shell">
         <header class="toolbar">
@@ -204,6 +236,12 @@ export class WorkbenchApp {
             <strong id="toolbar-workspace-title">01 · 地貌绘制</strong>
           </div>
           <div class="toolbar-actions">
+            <select id="map-selector" class="compact-select" title="MapId"><option value="${escapeHtml(this.project.mapId)}">${escapeHtml(this.project.mapId)}</option></select>
+            <button class="quiet" id="new-map">新建地图</button>
+            <button class="quiet" id="duplicate-map">复制地图</button>
+            <button class="quiet" id="map-settings">地图设置</button>
+            <select id="publish-profile" class="compact-select" title="发布能力"><option value="region-interactive">区域交互包</option><option value="strategic-runtime">战略运行包</option></select>
+            <button class="quiet" id="publish-map">发布</button>
             <span class="save-state" id="save-state"><i></i><span>已保存</span></span>
             <button class="quiet" id="undo" title="撤销 Ctrl+Z">撤销</button>
             <button class="quiet" id="redo" title="重做 Ctrl+Y">重做</button>
@@ -220,7 +258,7 @@ export class WorkbenchApp {
             <div id="context-panel-body" class="context-panel-body"></div>
           </section>
         </aside>
-        <main class="map-stage">
+        <main class="map-stage" id="map-stage">
           <div id="map" class="map"></div>
           <div id="operation-status" class="operation-status info">正在载入</div>
         </main>
@@ -250,7 +288,36 @@ export class WorkbenchApp {
           </div>
           <div id="validation-list" class="validation-list"></div>
         </footer>
-      </div>`;
+      </div>
+      <dialog class="workbench-dialog" id="new-map-dialog" aria-labelledby="new-map-title">
+        <form id="new-map-form">
+          <header><span>地图文档</span><strong id="new-map-title">新建地图</strong><p>Chunk 结构由地图级网格统一生成，创建后 MapId 不可修改。</p></header>
+          <div class="dialog-fields">
+            <label><span>MapId <em>不可变</em></span><input id="new-map-id" name="mapId" required minlength="2" maxlength="64" pattern="[a-z0-9][a-z0-9_-]{1,63}" value="new_map"><small>小写字母、数字、下划线或连字符</small></label>
+            <label><span>显示名称</span><input id="new-map-name" name="displayName" required value="新地图"></label>
+            <div class="dialog-grid-fields">
+              <label><span>Chunk 列数</span><input id="new-map-columns" name="columns" type="number" min="1" max="${MAX_GRID_AXIS}" step="1" required value="4"></label>
+              <label><span>Chunk 行数</span><input id="new-map-rows" name="rows" type="number" min="1" max="${MAX_GRID_AXIS}" step="1" required value="2"></label>
+            </div>
+          </div>
+          <div class="grid-preview"><span>固定 Chunk</span><strong>${FIXED_NEW_MAP_CHUNK_SIZE} × ${FIXED_NEW_MAP_CHUNK_SIZE}</strong><span>世界总尺寸</span><strong id="new-map-world-size">4096 × 2048</strong><small>最多 ${MAX_GRID_CHUNKS} 个 Chunk；提交前会完整校验，失败不会创建目录。</small></div>
+          <div class="dialog-error" id="new-map-error" role="alert"></div>
+          <footer><button type="button" class="quiet" id="cancel-new-map">取消</button><button type="submit" class="primary">创建地图</button></footer>
+        </form>
+      </dialog>
+      <dialog class="workbench-dialog" id="map-settings-dialog" aria-labelledby="map-settings-title">
+        <form id="map-settings-form">
+          <header><span>地图结构</span><strong id="map-settings-title">Chunk 网格扩展</strong><p>只向右增加列、向下增加行；既有身份、原点和世界坐标保持不变。</p></header>
+          <div class="grid-preview current-grid"><span>当前网格</span><strong>${grid.columns} × ${grid.rows}</strong><span>当前世界</span><strong>${this.project.world.width} × ${this.project.world.height}</strong></div>
+          <div class="dialog-grid-fields dialog-fields">
+            <label><span>目标列数</span><input id="map-settings-columns" type="number" min="${grid.columns}" max="${MAX_GRID_AXIS}" step="1" required value="${grid.columns}"></label>
+            <label><span>目标行数</span><input id="map-settings-rows" type="number" min="${grid.rows}" max="${MAX_GRID_AXIS}" step="1" required value="${grid.rows}"></label>
+          </div>
+          <div class="grid-preview"><span>扩展后世界</span><strong id="map-settings-world-size">${this.project.world.width} × ${this.project.world.height}</strong><small>缩小、左/上迁移和单独修改 Chunk 尺寸均不受支持。</small></div>
+          <div class="dialog-error" id="map-settings-error" role="alert"></div>
+          <footer><button type="button" class="quiet" id="cancel-map-settings">取消</button><button type="submit" class="primary">安全扩展</button></footer>
+        </form>
+      </dialog>`;
   }
 
   private bindUi(): void {
@@ -264,17 +331,42 @@ export class WorkbenchApp {
         this.activateTool(button.dataset.tool as ToolId);
         return;
       }
+      const cityLocationId = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-city-location-id]")?.dataset.cityLocationId;
+      if (cityLocationId) {
+        this.selectCityLocation(cityLocationId);
+        return;
+      }
+      const provinceAction = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-province-action]")?.dataset.provinceAction;
+      if (provinceAction === "create") this.createProvince();
+      if (provinceAction === "add-auxiliary") this.addAuxiliaryCityRegion();
+      if (provinceAction === "cancel-pending") {
+        this.cancelPendingCityRegion("已取消本次城市区域创建");
+        this.activateTool("select");
+      }
+      if (provinceAction === "delete") this.deleteProvince();
       const action = (event.target as HTMLElement).closest<HTMLButtonElement>("button[data-review-action]")?.dataset.reviewAction;
       if (action === "validate") {
         this.runValidation();
         this.setValidationExpanded(true);
       }
       if (action === "show-issues") this.setValidationExpanded(true);
-      if (action === "compile-regions") void this.compileRegions();
+      if (action === "compile-location-geometries") void this.compileLocationGeometries();
     });
     this.requireElement("context-panel").addEventListener("input", (event) => this.handleContextSettingChange(event));
     this.requireElement("context-panel").addEventListener("change", (event) => this.handleContextSettingChange(event));
     this.requireElement("save").addEventListener("click", () => void this.saveAll());
+    this.requireElement<HTMLSelectElement>("map-selector").addEventListener("change", (event) => this.switchMap((event.target as HTMLSelectElement).value));
+    this.requireElement("new-map").addEventListener("click", () => this.openNewMapDialog());
+    this.requireElement("duplicate-map").addEventListener("click", () => void this.duplicateMap());
+    this.requireElement("map-settings").addEventListener("click", () => this.openMapSettingsDialog());
+    this.requireElement<HTMLFormElement>("new-map-form").addEventListener("submit", (event) => void this.createMap(event));
+    this.requireElement<HTMLFormElement>("map-settings-form").addEventListener("submit", (event) => void this.expandMapGrid(event));
+    this.requireElement("cancel-new-map").addEventListener("click", () => this.requireElement<HTMLDialogElement>("new-map-dialog").close());
+    this.requireElement("cancel-map-settings").addEventListener("click", () => this.requireElement<HTMLDialogElement>("map-settings-dialog").close());
+    for (const id of ["new-map-columns", "new-map-rows", "map-settings-columns", "map-settings-rows"]) {
+      this.requireElement(id).addEventListener("input", () => this.updateGridPreviews());
+    }
+    this.requireElement("publish-map").addEventListener("click", () => void this.publishMap());
     this.requireElement("validate").addEventListener("click", () => this.runValidation());
     this.requireElement("undo").addEventListener("click", () => this.undo());
     this.requireElement("redo").addEventListener("click", () => this.redo());
@@ -301,7 +393,291 @@ export class WorkbenchApp {
       if (item) this.locateDiagnostic(item);
     });
     window.addEventListener("keydown", (event) => this.handleGlobalKeyDown(event));
+    window.addEventListener("beforeunload", (event) => {
+      if (!this.dirty && !this.pendingCityRegion) return;
+      event.preventDefault();
+      event.returnValue = "";
+    });
     this.map.on("pointermove", (event) => this.handlePointerMove(event.coordinate, event.pixel));
+  }
+
+  private async initializeMapControls(): Promise<void> {
+    try {
+      const catalog = await workbenchApi.listMaps();
+      const selector = this.requireElement<HTMLSelectElement>("map-selector");
+      const groups = (["authoring", "fixture"] as const).map((kind) => {
+        const entries = catalog.maps.filter((entry) => entry.kind === kind);
+        if (entries.length === 0) return "";
+        const label = kind === "authoring" ? "创作地图" : "验证 Fixture";
+        const prefix = kind === "authoring" ? "创作" : "Fixture";
+        return `<optgroup label="${label}">${entries.map((entry) => `<option value="${escapeHtml(entry.mapId)}" ${entry.mapId === this.project.mapId ? "selected" : ""}>[${prefix}] ${escapeHtml(entry.displayName)} · ${escapeHtml(entry.mapId)}${entry.mapId === catalog.defaultMapId ? " · 默认" : ""}</option>`).join("")}</optgroup>`;
+      }).join("");
+      selector.innerHTML = groups;
+      if (catalog.maps.length === 0) selector.innerHTML = `<option value="${escapeHtml(this.project.mapId)}">${escapeHtml(this.project.displayName)} · ${escapeHtml(this.project.mapId)}</option>`;
+    } catch (error) {
+      this.setStatus(`地图目录加载失败：${error instanceof Error ? error.message : String(error)}`, "error");
+    }
+  }
+
+  private switchMap(mapId: string): void {
+    if (!mapId || mapId === this.project.mapId) return;
+    if ((this.dirty || this.pendingCityRegion) && !window.confirm("当前地图有未保存修改。放弃修改并切换地图吗？")) {
+      this.requireElement<HTMLSelectElement>("map-selector").value = this.project.mapId;
+      return;
+    }
+    window.location.assign(`?mapId=${encodeURIComponent(mapId)}`);
+  }
+
+  private openNewMapDialog(): void {
+    const dialog = this.requireElement<HTMLDialogElement>("new-map-dialog");
+    this.requireElement("new-map-error").textContent = "";
+    this.updateGridPreviews();
+    dialog.showModal();
+  }
+
+  private async createMap(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    if ((this.dirty || this.pendingCityRegion) && !window.confirm("当前地图有未保存修改。放弃修改并新建地图吗？")) return;
+    const mapId = this.requireElement<HTMLInputElement>("new-map-id").value.trim();
+    const displayName = this.requireElement<HTMLInputElement>("new-map-name").value.trim();
+    const columns = Number(this.requireElement<HTMLInputElement>("new-map-columns").value);
+    const rows = Number(this.requireElement<HTMLInputElement>("new-map-rows").value);
+    const error = this.requireElement("new-map-error");
+    try {
+      if (!/^[a-z0-9][a-z0-9_-]{1,63}$/.test(mapId)) throw new RangeError("MapId 必须由小写字母、数字、下划线或连字符组成，长度 2–64");
+      if (!displayName) throw new RangeError("显示名称不能为空");
+      validateMapGridDimensions(columns, rows);
+      error.textContent = "正在创建并初始化 Chunk…";
+      await workbenchApi.createMap(mapId, displayName, columns, rows);
+      window.location.assign(`?mapId=${encodeURIComponent(mapId)}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.requireElement("new-map-error").textContent = message;
+      this.setStatus(`新建地图失败：${message}`, "error");
+    }
+  }
+
+  private openMapSettingsDialog(): void {
+    const dialog = this.requireElement<HTMLDialogElement>("map-settings-dialog");
+    this.requireElement("map-settings-error").textContent = "";
+    this.updateGridPreviews();
+    dialog.showModal();
+  }
+
+  private async expandMapGrid(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    const error = this.requireElement("map-settings-error");
+    if (this.dirty || this.pendingCityRegion) {
+      error.textContent = "请先保存当前地图，再扩展网格。";
+      return;
+    }
+    const columns = Number(this.requireElement<HTMLInputElement>("map-settings-columns").value);
+    const rows = Number(this.requireElement<HTMLInputElement>("map-settings-rows").value);
+    try {
+      validateMapGridDimensions(columns, rows);
+      error.textContent = "正在安全扩展并初始化新增 Chunk…";
+      await workbenchApi.expandGrid(this.project.mapId, columns, rows);
+      window.location.reload();
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : String(caught);
+      error.textContent = message;
+      this.setStatus(`网格扩展失败：${message}`, "error");
+    }
+  }
+
+  private updateGridPreviews(): void {
+    const newColumns = Number(this.requireElement<HTMLInputElement>("new-map-columns").value);
+    const newRows = Number(this.requireElement<HTMLInputElement>("new-map-rows").value);
+    this.requireElement("new-map-world-size").textContent = Number.isFinite(newColumns) && Number.isFinite(newRows)
+      ? `${newColumns * FIXED_NEW_MAP_CHUNK_SIZE} × ${newRows * FIXED_NEW_MAP_CHUNK_SIZE}`
+      : "—";
+    const columns = Number(this.requireElement<HTMLInputElement>("map-settings-columns").value);
+    const rows = Number(this.requireElement<HTMLInputElement>("map-settings-rows").value);
+    this.requireElement("map-settings-world-size").textContent = Number.isFinite(columns) && Number.isFinite(rows)
+      ? `${columns * this.project.chunk.width} × ${rows * this.project.chunk.height}`
+      : "—";
+  }
+
+  private async duplicateMap(): Promise<void> {
+    if ((this.dirty || this.pendingCityRegion) && !window.confirm("当前地图有未保存修改。放弃修改并复制已保存版本吗？")) return;
+    const mapId = window.prompt("输入副本的不可变 MapId", `${this.project.mapId}_copy`)?.trim();
+    if (!mapId) return;
+    const displayName = window.prompt("输入副本显示名称", `${this.project.displayName} 副本`)?.trim() || mapId;
+    try {
+      await workbenchApi.duplicateMap(this.project.mapId, mapId, displayName);
+      window.location.assign(`?mapId=${encodeURIComponent(mapId)}`);
+    } catch (error) {
+      this.setStatus(`复制地图失败：${error instanceof Error ? error.message : String(error)}`, "error");
+    }
+  }
+
+  private createProvince(): void {
+    if (this.saving || this.pendingCityRegion || this.mutationBefore) return;
+    try {
+      const identity = new AuthoringIdentityFactory(this.getGeography()).createProvinceCityIdentity();
+      const province = { provinceId: identity.provinceId, name: identity.provinceId, layoutId: identity.layoutId };
+      this.beginCityRegionCreation({
+        province,
+        location: {
+          locationId: identity.locationId,
+          name: identity.locationId,
+          locationType: "main-city",
+          provinceId: identity.provinceId,
+        },
+      });
+    } catch (error) {
+      this.setStatus(`无法生成省份身份：${error instanceof Error ? error.message : String(error)}`, "error");
+    }
+  }
+
+  private addAuxiliaryCityRegion(): void {
+    if (this.saving || this.pendingCityRegion || this.mutationBefore) return;
+    const province = this.provinces.find((candidate) => candidate.provinceId === this.selectedLocationProvinceId);
+    if (!province) {
+      this.setStatus("请先选择一个省份", "warning");
+      return;
+    }
+    try {
+      const locationId = new AuthoringIdentityFactory(this.getGeography()).createLocationId();
+      this.beginCityRegionCreation({
+        location: {
+          locationId,
+          name: locationId,
+          locationType: "auxiliary-city",
+          provinceId: province.provinceId,
+        },
+      });
+    } catch (error) {
+      this.setStatus(`无法生成辅城身份：${error instanceof Error ? error.message : String(error)}`, "error");
+    }
+  }
+
+  private beginCityRegionCreation(input: { province?: ProvinceDefinition; location: StrategicLocationProperties }): void {
+    const requiredLayers: LayerId[] = ["strategic-locations", "territories"];
+    const locked = requiredLayers.map((id) => this.getLayerDefinition(id)).find((layer) => layer.locked);
+    if (locked) {
+      this.setStatus(`${locked.label} 已锁定，无法创建城市区域`, "warning");
+      return;
+    }
+
+    const before = this.captureSnapshot();
+    const previousLayerVisibility: Partial<Record<LayerId, boolean>> = {};
+    for (const id of requiredLayers) {
+      const definition = this.getLayerDefinition(id);
+      previousLayerVisibility[id] = definition.visible;
+      definition.visible = true;
+      this.layers.byId.get(id)?.setVisible(true);
+    }
+    this.pendingCityRegion = {
+      before,
+      location: input.location,
+      provinceWasCreated: input.province !== undefined,
+      previousProvinceId: this.selectedLocationProvinceId,
+      previousGeometryLocationId: this.selectedGeometryLocationId,
+      previousDirty: this.dirty,
+      previousMutationRevision: this.mutationRevision,
+      previousLayerVisibility,
+    };
+    if (input.province) this.provinces.push(input.province);
+    this.selectedLocationProvinceId = input.location.provinceId ?? "";
+    this.selectedGeometryLocationId = input.location.locationId;
+    this.select.getFeatures().clear();
+    if (this.openDrawer === "inspector") this.setDrawer(undefined);
+    this.renderLayers();
+    this.activateTool("region");
+    const role = input.location.locationType === "main-city" ? "主城" : "辅城";
+    this.setStatus(`${role}身份已生成，请立即绘制区域；Esc 或“取消本次创建”会完整回滚`, "pending");
+  }
+
+  private cancelPendingCityRegion(message: string): void {
+    const pending = this.pendingCityRegion;
+    if (!pending) return;
+    this.pendingCityRegion = undefined;
+    this.mutationBefore = undefined;
+    this.restoreSnapshot(pending.before);
+    this.selectedLocationProvinceId = pending.previousProvinceId;
+    this.selectedGeometryLocationId = pending.previousGeometryLocationId;
+    for (const [id, visible] of Object.entries(pending.previousLayerVisibility) as Array<[LayerId, boolean]>) {
+      const definition = this.getLayerDefinition(id);
+      definition.visible = visible;
+      this.layers.byId.get(id)?.setVisible(visible);
+    }
+    this.restoreDirtyState(pending.previousDirty, pending.previousMutationRevision);
+    this.renderLayers();
+    this.renderWorkspaceContext();
+    this.setStatus(message, "info");
+  }
+
+  private selectCityLocation(locationId: string): void {
+    const feature = this.layers.locationSource.getFeatures().find((candidate) => candidate.get("locationId") === locationId);
+    if (!feature) return;
+    if (!this.synchronizeCityWorkspaceFromFeature(feature)) return;
+    this.select.getFeatures().clear();
+    this.select.getFeatures().push(feature);
+    this.renderProperties();
+  }
+
+  private handleMapSelectionChanged(): void {
+    const feature = this.select.getFeatures().item(0);
+    if (feature) this.synchronizeCityWorkspaceFromFeature(feature);
+    // Empty and non-city selections intentionally leave the last city workspace context intact.
+    this.renderProperties();
+  }
+
+  private synchronizeCityWorkspaceFromFeature(feature: Feature): boolean {
+    const locations = this.layers.locationSource.getFeatures().map((candidate) => candidate.getProperties() as StrategicLocationProperties);
+    const selection = resolveCityWorkspaceSelection(feature.getProperties(), this.provinces, locations);
+    if (!selection) return false;
+
+    this.selectedLocationProvinceId = selection.provinceId;
+    this.selectedGeometryLocationId = selection.locationId;
+    // Preserve the OpenLayers selection so the inspector continues to own the exact clicked marker or geometry.
+    this.activateWorkspace("regions", true);
+    return true;
+  }
+
+  private deleteProvince(): void {
+    if (this.saving || this.provinces.length === 0) return;
+    const provinceId = this.selectedLocationProvinceId || this.provinces[0]?.provinceId;
+    if (!provinceId) return;
+    const index = this.provinces.findIndex((province) => province.provinceId === provinceId);
+    if (index < 0) {
+      this.setStatus(`未知 ProvinceId：${provinceId}`, "error");
+      return;
+    }
+    const hasMembers = this.layers.locationSource.getFeatures().some((feature) => feature.get("provinceId") === provinceId) ||
+      this.layers.regionSource.getFeatures().some((feature) => feature.get("provinceId") === provinceId);
+    if (hasMembers) {
+      this.setStatus(`省份仍有地点或区域成员，不能删除：${provinceId}`, "error");
+      return;
+    }
+    if (!window.confirm(`确认删除空省份 ${provinceId}？`)) return;
+    const before = this.captureSnapshot();
+    this.provinces.splice(index, 1);
+    this.selectedLocationProvinceId = this.provinces[0]?.provinceId ?? "";
+    this.history.commit(before);
+    this.setDirty(true);
+    this.refreshAfterMutation();
+    this.renderWorkspaceContext();
+  }
+
+  private async publishMap(): Promise<void> {
+    if (this.saving) return;
+    if (this.dirty || this.pendingCityRegion) {
+      this.setStatus("发布前请先保存当前地图；草稿保存不代表满足发布条件", "warning");
+      return;
+    }
+    const profile = this.requireElement<HTMLSelectElement>("publish-profile").value as PublishProfile;
+    this.setSaving(true);
+    try {
+      const result = await workbenchApi.publish(this.project.mapId, profile);
+      this.setStatus(`发布成功：${result.package.revision} · ${profile}`, "success");
+    } catch (error) {
+      this.setValidationExpanded(true);
+      this.setStatus(`发布被阻止：${error instanceof Error ? error.message : String(error)}`, "error");
+    } finally {
+      this.setSaving(false);
+    }
   }
 
   private handleGlobalKeyDown(event: KeyboardEvent): void {
@@ -332,11 +708,13 @@ export class WorkbenchApp {
     this.requireElement("toolbar-workspace-title").textContent = `${workspace.index} · ${workspace.label}`;
   }
 
-  private activateWorkspace(workspaceId: WorkspaceId): void {
+  private activateWorkspace(workspaceId: WorkspaceId, preserveMapSelection = false): void {
     if (this.saving) return;
     this.activeWorkspace = workspaceId;
-    this.select.getFeatures().clear();
-    if (this.openDrawer === "inspector") this.setDrawer(undefined);
+    if (!preserveMapSelection) {
+      this.select.getFeatures().clear();
+      if (this.openDrawer === "inspector") this.setDrawer(undefined);
+    }
     this.renderWorkspaceNavigation();
     this.activateTool(getWorkspaceDefinition(workspaceId).defaultTool);
   }
@@ -345,13 +723,14 @@ export class WorkbenchApp {
     const workspace = getWorkspaceDefinition(this.activeWorkspace);
     const tools = workspace.id === "review" ? ["select" as ToolId] : ["select" as ToolId, ...workspace.tools];
     const tool = toolUiDefinitions[this.activeTool];
+    const provinceManagement = workspace.id === "regions" ? this.renderProvinceManagementHtml() : "";
     const reviewActions = workspace.id === "review" ? `
       <section class="context-section">
         <div class="section-label">检查与输出</div>
         <div class="review-actions">
           <button data-review-action="validate"><strong>运行地图检查</strong><span>重新扫描地貌、线路、地点与区域问题</span></button>
           <button data-review-action="show-issues"><strong>查看问题清单</strong><span>展开底部列表，点击问题可定位对象</span></button>
-          <button data-review-action="compile-regions"><strong>生成区域数据</strong><span>输出 territory mask、查询表与轮廓</span></button>
+          <button data-review-action="compile-location-geometries"><strong>生成城市区域数据</strong><span>输出 territory mask、LocationId 查询表与省份/城市轮廓</span></button>
         </div>
       </section>` : "";
 
@@ -361,6 +740,7 @@ export class WorkbenchApp {
         <strong>${escapeHtml(workspace.label)}</strong>
         <p>${escapeHtml(workspace.description)}</p>
       </header>
+      ${provinceManagement}
       <section class="context-section">
         <div class="section-label">${workspace.id === "review" ? "定位工具" : "选择操作"}</div>
         <div class="tool-choice-grid">
@@ -382,6 +762,46 @@ export class WorkbenchApp {
         <div class="section-label">推荐步骤</div>
         <ol>${workspace.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
       </section>`;
+  }
+
+  private renderProvinceManagementHtml(): string {
+    const selected = this.provinces.find((province) => province.provinceId === this.selectedLocationProvinceId) ?? this.provinces[0];
+    if (selected && selected.provinceId !== this.selectedLocationProvinceId) this.selectedLocationProvinceId = selected.provinceId;
+    const locations = this.getGeography().strategicLocations.features.filter((feature) => feature.properties.provinceId === selected?.provinceId);
+    const pending = this.pendingCityRegion;
+    const pendingLocation = pending && pending.location.provinceId === selected?.provinceId ? pending.location : undefined;
+    const mainCity = locations.find((feature) => feature.properties.locationType === "main-city")?.properties ?? (pendingLocation?.locationType === "main-city" ? pendingLocation : undefined);
+    const auxiliaries = locations.filter((feature) => feature.properties.locationType === "auxiliary-city").map((feature) => feature.properties);
+    if (pendingLocation?.locationType === "auxiliary-city") auxiliaries.push(pendingLocation);
+    const options = this.provinces.map((province) => `<option value="${escapeHtml(province.provinceId)}" ${province.provinceId === selected?.provinceId ? "selected" : ""}>${escapeHtml(province.name)}</option>`).join("");
+    const cityCard = (location: StrategicLocationProperties, role: "主城" | "辅城") => {
+      const variant = role === "主城" ? "main" : "auxiliary";
+      const isSelected = location.locationId === this.selectedGeometryLocationId;
+      const content = `<span class="city-card-icon" aria-hidden="true">城</span><span class="city-card-copy"><span class="city-role-badge">${role}</span><strong>${escapeHtml(location.name)}</strong></span>`;
+      return location === pendingLocation
+        ? `<div class="city-card city-card-${variant} pending selected" aria-label="${role} ${escapeHtml(location.name)}，正在绘制区域">${content}<small>正在绘制区域…</small></div>`
+        : `<button class="city-card city-card-${variant} ${isSelected ? "selected" : ""}" data-city-location-id="${escapeHtml(location.locationId)}" aria-pressed="${isSelected}" aria-label="选择${role} ${escapeHtml(location.name)}">${content}</button>`;
+    };
+    return `<section class="context-section province-management" data-ui-scope="city-regions-provinces">
+      <div class="section-label">当前省份</div>
+      <label class="setting-field"><span>省份选择</span><select data-setting="province-selection" ${this.provinces.length === 0 || this.pendingCityRegion ? "disabled" : ""}>${options || `<option>尚无省份</option>`}</select></label>
+      ${selected ? `<label class="setting-field"><span>省份名称</span><input data-setting="province-name" value="${escapeHtml(selected.name)}" ${this.pendingCityRegion ? "disabled" : ""}><small>可稍后命名；改名不会改变稳定身份</small></label>
+      <div class="city-member-list">
+        <div class="city-member-group city-main-group"><span>省份核心</span>${mainCity ? cityCard(mainCity, "主城") : `<div class="inline-warning">缺少主城（发布会阻止）</div>`}</div>
+        <div class="city-member-group city-auxiliary-group"><span>辅城成员</span>${auxiliaries.map((location) => cityCard(location, "辅城")).join("")}${!pendingLocation ? `<button class="city-add-card" data-province-action="add-auxiliary" aria-label="添加辅城区域"><span aria-hidden="true">＋</span><strong>添加辅城区域</strong></button>` : ""}</div>
+      </div>
+      <details class="identity-details"><summary>高级身份信息（只读）</summary><dl class="province-facts">
+        <div><dt>ProvinceId</dt><dd>${escapeHtml(selected.provinceId)}</dd></div>
+        <div><dt>省份拥有的 LayoutId</dt><dd>${escapeHtml(selected.layoutId)}</dd></div>
+        ${mainCity ? `<div><dt>主城 LocationId</dt><dd>${escapeHtml(mainCity.locationId)}</dd></div>` : ""}
+        ${auxiliaries.map((location) => `<div><dt>辅城 LocationId</dt><dd>${escapeHtml(location.locationId)}</dd></div>`).join("")}
+      </dl></details>` : `<div class="inline-warning">新建省份后将立即绘制其主城区域。</div>`}
+      <div class="province-actions">
+        ${this.pendingCityRegion
+          ? `<button data-province-action="cancel-pending" class="danger">取消本次创建</button>`
+          : `<button data-province-action="create">新建省份</button><button data-province-action="delete" ${selected ? "" : "disabled"}>删除空省份</button>`}
+      </div>
+    </section>`;
   }
 
   private renderToolSettingsHtml(): string {
@@ -414,16 +834,19 @@ export class WorkbenchApp {
       return `<section class="context-section tool-settings"><div class="section-label">山脉设置</div><label class="setting-field range-field"><span>山脉密度 <output data-value-for="mountain-density">${this.selectedMountainDensity.toFixed(2)}</output></span><input data-setting="mountain-density" type="range" min="0" max="1" step="0.05" value="${this.selectedMountainDensity}"></label></section>`;
     }
     if (this.activeTool === "location") {
-      const options: Array<[StrategicLocationType, string]> = [["city", "城池"], ["gate", "关隘"], ["bridge", "桥梁"], ["ferry", "渡口"], ["port", "港口"], ["ruin", "遗迹"], ["resource-site", "资源点"]];
-      return `<section class="context-section tool-settings"><div class="section-label">地点类型</div><div class="option-card-grid location-options">${options.map(([value, label]) => this.renderRadioOption("location-type", value, label, this.selectedLocationType)).join("")}</div></section>`;
+      const options: Array<[StrategicLocationType, string]> = [["gate", "关隘"], ["bridge", "桥梁"], ["ferry", "渡口"], ["port", "港口"], ["ruin", "遗迹"], ["resource-site", "资源点"]];
+      return `<section class="context-section tool-settings"><div class="section-label">非城市地点类型</div><div class="option-card-grid location-options">${options.map(([value, label]) => this.renderRadioOption("location-type", value, label, this.selectedLocationType)).join("")}</div><small>主城与辅城请在“城市区域”中统一创建并绘制。</small></section>`;
     }
-    if (this.activeTool === "territory" || this.activeTool === "region") {
-      const cityIds = this.getGeography().strategicLocations.features.filter((feature) => feature.properties.locationType === "city").map((feature) => feature.properties.locationId);
+    if (this.activeTool === "region") {
+      const cities = this.getGeography().strategicLocations.features
+        .filter((feature) => feature.properties.locationType === "main-city" || feature.properties.locationType === "auxiliary-city")
+        .map((feature) => feature.properties);
+      if (this.pendingCityRegion) cities.push(this.pendingCityRegion.location);
       return `<section class="context-section tool-settings">
-        <div class="section-label">区域归属</div>
-        <label class="setting-field"><span>归属 CityId <em>必填</em></span><input data-setting="region-city-id" list="known-city-ids" value="${escapeHtml(this.selectedRegionCityId)}" placeholder="例如 city_luoyang"><datalist id="known-city-ids">${cityIds.map((id) => `<option value="${escapeHtml(id)}"></option>`).join("")}</datalist><small>${cityIds.length > 0 ? "可输入或选择已放置的城池 ID" : "尚无城池，可先到“战略地点”工作流放置城池"}</small></label>
-        ${this.activeTool === "region" ? `<label class="setting-field"><span>区域角色</span><input data-setting="region-role" value="${escapeHtml(this.selectedRegionRole)}" placeholder="例如 farmland"></label><label class="setting-field"><span>方向</span><select data-setting="region-direction">${this.renderDirectionOptions()}</select></label>` : ""}
-        ${this.selectedRegionCityId.trim() === "" ? `<div class="inline-warning">填写归属 CityId 后才能在地图上绘制。</div>` : ""}
+        <div class="section-label">城市区域归属</div>
+        <label class="setting-field"><span>城市</span><select data-setting="geometry-location-id" ${cities.length === 0 || this.pendingCityRegion ? "disabled" : ""}>${cities.map((city) => `<option value="${escapeHtml(city.locationId)}" ${city.locationId === this.selectedGeometryLocationId ? "selected" : ""}>${city.locationType === "main-city" ? "主城" : "辅城"} · ${escapeHtml(city.name)}</option>`).join("")}</select><small>${cities.length > 0 ? "每个主城或辅城只能有一份视觉几何" : "尚无城市，请通过上方统一流程创建"}</small></label>
+        <label class="setting-field"><span>方向</span><select data-setting="region-direction">${this.renderDirectionOptions()}</select></label>
+        ${this.selectedGeometryLocationId.trim() === "" ? `<div class="inline-warning">先选择一个城市后才能绘制。</div>` : ""}
       </section>`;
     }
     return "";
@@ -442,6 +865,21 @@ export class WorkbenchApp {
     const input = (event.target as HTMLElement).closest<HTMLInputElement | HTMLSelectElement>("[data-setting]");
     if (!input) return;
     const value = input.value;
+    if (input.dataset.setting === "province-name") {
+      if (event.type !== "change" || this.pendingCityRegion) return;
+      const province = this.provinces.find((candidate) => candidate.provinceId === this.selectedLocationProvinceId);
+      if (!province) return;
+      const name = value.trim() || province.provinceId;
+      if (name === province.name) return;
+      const before = this.captureSnapshot();
+      province.name = name;
+      this.history.commit(before);
+      this.setDirty(true);
+      this.refreshAfterMutation();
+      this.renderWorkspaceContext();
+      this.setStatus("省份名称已更新；稳定身份保持不变", "success");
+      return;
+    }
     switch (input.dataset.setting) {
       case "terrain-id": this.selectedTerrainId = Number(value); break;
       case "brush-radius": this.brushRadius = Number(value); break;
@@ -450,13 +888,19 @@ export class WorkbenchApp {
       case "road-class": this.selectedRoadClass = Number(value); break;
       case "mountain-density": this.selectedMountainDensity = Number(value); break;
       case "location-type": this.selectedLocationType = value as StrategicLocationType; break;
-      case "region-city-id": this.selectedRegionCityId = value.trim(); break;
-      case "region-role": this.selectedRegionRole = value.trim() || "region"; break;
+      case "province-selection": {
+        this.selectedLocationProvinceId = value.trim();
+        const main = this.layers.locationSource.getFeatures().find((feature) => feature.get("provinceId") === value && feature.get("locationType") === "main-city");
+        this.selectedGeometryLocationId = String(main?.get("locationId") ?? "");
+        break;
+      }
+      case "geometry-location-id": this.selectedGeometryLocationId = value.trim(); break;
       case "region-direction": this.selectedRegionDirection = value; break;
     }
     const output = this.root.querySelector<HTMLOutputElement>(`[data-value-for="${input.dataset.setting}"]`);
     if (output) output.textContent = input.dataset.setting === "mountain-density" ? Number(value).toFixed(2) : value;
-    if (event.type === "change" && input.dataset.setting === "region-city-id" && (this.activeTool === "territory" || this.activeTool === "region")) this.activateTool(this.activeTool);
+    if (event.type === "change" && input.dataset.setting === "geometry-location-id" && this.activeTool === "region") this.activateTool(this.activeTool);
+    if (event.type === "change" && input.dataset.setting === "province-selection") this.renderWorkspaceContext();
   }
 
   private setDrawer(drawer: "layers" | "inspector" | undefined): void {
@@ -475,15 +919,29 @@ export class WorkbenchApp {
     this.requireElement("workbench-shell").classList.toggle("validation-expanded", expanded);
     this.requireElement("validation-toggle").setAttribute("aria-expanded", String(expanded));
     this.requireElement("validation-toggle-label").textContent = expanded ? "收起问题" : "查看问题";
+    this.scheduleMapResize();
+  }
+
+  private scheduleMapResize(): void {
     requestAnimationFrame(() => this.map.updateSize());
   }
 
   private setDirty(dirty: boolean): void {
     if (dirty) this.mutationRevision += 1;
     this.dirty = dirty;
+    this.renderDirtyState();
+  }
+
+  private restoreDirtyState(dirty: boolean, mutationRevision: number): void {
+    this.dirty = dirty;
+    this.mutationRevision = mutationRevision;
+    this.renderDirtyState();
+  }
+
+  private renderDirtyState(): void {
     const state = this.requireElement("save-state");
-    state.classList.toggle("dirty", dirty);
-    state.querySelector("span")!.textContent = dirty ? "有未保存修改" : "已保存";
+    state.classList.toggle("dirty", this.dirty);
+    state.querySelector("span")!.textContent = this.dirty ? "有未保存修改" : "已保存";
   }
 
   private setSaving(saving: boolean): void {
@@ -498,6 +956,7 @@ export class WorkbenchApp {
 
   private activateTool(tool: ToolId): void {
     if (this.saving) return;
+    if (this.pendingCityRegion && tool !== "region") this.cancelPendingCityRegion("已取消未完成的城市区域创建");
     const targetWorkspace = workspaceForTool(tool);
     if (targetWorkspace && targetWorkspace !== this.activeWorkspace) this.activeWorkspace = targetWorkspace;
     const requiredLayer = toolLayer[tool];
@@ -528,14 +987,14 @@ export class WorkbenchApp {
     else if (tool === "river" || tool === "road" || tool === "mountain") this.activateLineDraw(tool);
     else if (tool === "water-anchor") this.activateWaterAnchorDraw();
     else if (tool === "location") this.activateLocationDraw();
-    else if ((tool === "territory" || tool === "region") && this.selectedRegionCityId.trim() !== "") this.activateRegionDraw(tool);
+    else if (tool === "region" && this.selectedGeometryLocationId.trim() !== "") this.activateLocationGeometryDraw();
 
     if (this.activeInteraction) this.map.addInteraction(this.activeInteraction);
     this.renderWorkspaceNavigation();
     this.renderWorkspaceContext();
     this.requireElement("current-tool-status").textContent = toolUiDefinitions[tool].shortLabel;
     if (blockedLayerLabel) this.setStatus(`${blockedLayerLabel} 已锁定，已切换为选择 / 修改`, "warning");
-    else if ((tool === "territory" || tool === "region") && this.selectedRegionCityId.trim() === "") this.setStatus("请先填写归属 CityId，再开始绘制", "warning");
+    else if (tool === "region" && this.selectedGeometryLocationId.trim() === "") this.setStatus("请先选择一个城市，再开始绘制", "warning");
     else if (revealedLayerLabel) this.setStatus(`${revealedLayerLabel} 已自动显示 · 工具：${toolUiDefinitions[tool].label}`, "info");
     else this.setStatus(`工具：${toolUiDefinitions[tool].label}`, "info");
   }
@@ -618,8 +1077,8 @@ export class WorkbenchApp {
     const interaction = new Draw({ source: this.layers.locationSource, type: "Point" });
     this.bindDrawMutation(interaction);
     interaction.on("drawend", (event) => {
-      const id = shortId(this.selectedLocationType);
-      event.feature.setProperties({ locationId: id, name: id, locationType: this.selectedLocationType, detailMapId: "" });
+      const id = new AuthoringIdentityFactory(this.getGeography()).createLocationId();
+      event.feature.setProperties({ locationId: id, name: id, locationType: this.selectedLocationType });
       event.feature.setId(id);
       this.finishNewFeature(event.feature, "战略地点");
     });
@@ -638,27 +1097,62 @@ export class WorkbenchApp {
     this.activeInteraction = interaction;
   }
 
-  private activateRegionDraw(kind: "territory" | "region"): void {
+  private activateLocationGeometryDraw(): void {
     const interaction = new Draw({ source: this.layers.regionSource, type: "Polygon" });
     this.bindDrawMutation(interaction);
     interaction.on("drawend", (event) => {
-      const id = shortId(kind);
+      const pending = this.pendingCityRegion;
+      const location = pending?.location ?? this.getGeography().strategicLocations.features.find((feature) => feature.properties.locationId === this.selectedGeometryLocationId)?.properties;
       event.feature.setProperties({
-        regionId: id,
-        cityId: this.selectedRegionCityId,
-        role: kind === "territory" ? "territory" : this.selectedRegionRole,
-        direction: kind === "territory" ? "center" : this.selectedRegionDirection,
+        locationId: this.selectedGeometryLocationId,
+        provinceId: location?.provinceId ?? "",
+        direction: this.selectedRegionDirection,
       });
-      event.feature.setId(id);
-      this.finishNewFeature(event.feature, kind === "territory" ? "城域" : "小区域");
+      event.feature.setId(this.selectedGeometryLocationId);
+      if (pending) {
+        const authoredGeometry = writeGameFeatures([event.feature]).features[0] as GeoFeature<Polygon | MultiPolygon> | undefined;
+        if (!authoredGeometry) {
+          this.cancelPendingCityRegion("城市区域几何无效，本次创建已回滚");
+          return;
+        }
+        const markerCoordinate = centroid(authoredGeometry).geometry.coordinates;
+        const marker = readGameFeatures(featureCollection([
+          point(markerCoordinate, pending.location) as StrategicLocationFeature,
+        ]))[0];
+        if (!marker) {
+          this.cancelPendingCityRegion("无法计算城市标记位置，本次创建已回滚");
+          return;
+        }
+        marker.setId(pending.location.locationId);
+        this.layers.locationSource.addFeature(marker);
+        this.mutationBefore = pending.before;
+        this.pendingCityRegion = undefined;
+        // OpenLayers defers single-click selection after draw completion; select the marker after that window.
+        setTimeout(() => {
+          this.finishMutation();
+          this.activateTool("select");
+          this.select.getFeatures().clear();
+          this.select.getFeatures().push(marker);
+          this.renderProperties();
+          this.renderWorkspaceContext();
+          this.setStatus("城市区域与质心标记已创建；可稍后修改显示名称", "success");
+        }, 350);
+        return;
+      }
+      this.finishNewFeature(event.feature, "城市区域");
     });
     this.activeInteraction = interaction;
   }
 
   private bindDrawMutation(interaction: Draw): void {
-    interaction.on("drawstart", () => { this.mutationBefore = this.captureSnapshot(); });
+    interaction.on("drawstart", () => { this.mutationBefore = this.pendingCityRegion?.before ?? this.captureSnapshot(); });
     // Esc, workspace changes, and layer locks all abort the sketch; none may leave saving permanently blocked.
-    interaction.on("drawabort", () => { this.mutationBefore = undefined; });
+    interaction.on("drawabort", () => {
+      this.mutationBefore = undefined;
+      if (!this.pendingCityRegion) return;
+      this.cancelPendingCityRegion("已取消本次城市区域创建");
+      queueMicrotask(() => this.activateTool("select"));
+    });
   }
 
   private finishNewFeature(feature: Feature, label: string): void {
@@ -674,15 +1168,23 @@ export class WorkbenchApp {
   }
 
   private captureSnapshot(): WorkbenchSnapshot {
-    return { geography: structuredClone(this.getGeography()), terrainChunks: this.terrain.exportAllChunks() };
+    return {
+      geography: structuredClone(this.getGeography()),
+      terrainChunks: this.terrain.exportAllChunks(),
+      selectedProvinceId: this.selectedLocationProvinceId,
+      selectedGeometryLocationId: this.selectedGeometryLocationId,
+    };
   }
 
   private restoreSnapshot(snapshot: WorkbenchSnapshot): void {
+    this.selectedLocationProvinceId = snapshot.selectedProvinceId;
+    this.selectedGeometryLocationId = snapshot.selectedGeometryLocationId;
     this.loadGeography(snapshot.geography);
     for (const chunk of snapshot.terrainChunks) this.terrain.loadChunk(chunk.chunkId, decodeBase64(chunk.cellsBase64), true);
     this.layers.terrainSource.changed();
     this.select.getFeatures().clear();
     this.refreshAfterMutation();
+    this.renderWorkspaceContext();
   }
 
   private finishMutation(): void {
@@ -703,6 +1205,11 @@ export class WorkbenchApp {
 
   private undo(): void {
     if (this.saving) return;
+    if (this.pendingCityRegion) {
+      this.cancelPendingCityRegion("已取消本次城市区域创建；撤销历史未改变");
+      this.activateTool("select");
+      return;
+    }
     const snapshot = this.history.undo(this.captureSnapshot());
     if (!snapshot) return;
     this.restoreSnapshot(snapshot);
@@ -712,6 +1219,11 @@ export class WorkbenchApp {
 
   private redo(): void {
     if (this.saving) return;
+    if (this.pendingCityRegion) {
+      this.cancelPendingCityRegion("已取消本次城市区域创建；重做历史未改变");
+      this.activateTool("select");
+      return;
+    }
     const snapshot = this.history.redo(this.captureSnapshot());
     if (!snapshot) return;
     this.restoreSnapshot(snapshot);
@@ -741,9 +1253,19 @@ export class WorkbenchApp {
       feature.setId(feature.get("locationId"));
       this.layers.locationSource.addFeature(feature);
     }
-    for (const feature of readGameFeatures(geography.regions)) {
-      feature.setId(feature.get("regionId"));
+    this.provinces = structuredClone(geography.provinces);
+    for (const feature of readGameFeatures(geography.locationGeometries)) {
+      feature.setId(feature.get("locationId"));
       this.layers.regionSource.addFeature(feature);
+    }
+    if (!this.provinces.some((province) => province.provinceId === this.selectedLocationProvinceId)) {
+      this.selectedLocationProvinceId = this.provinces[0]?.provinceId ?? "";
+    }
+    const cityLocations = geography.strategicLocations.features.filter((feature) => feature.properties.locationType === "main-city" || feature.properties.locationType === "auxiliary-city");
+    if (!cityLocations.some((feature) => feature.properties.locationId === this.selectedGeometryLocationId)) {
+      this.selectedGeometryLocationId = cityLocations.find((feature) => feature.properties.provinceId === this.selectedLocationProvinceId)?.properties.locationId
+        ?? cityLocations[0]?.properties.locationId
+        ?? "";
     }
   }
 
@@ -751,29 +1273,30 @@ export class WorkbenchApp {
     // Only canonical editable sources are serialized; outlines, clips, masks, and diagnostics are rebuilt derivatives.
     const lineFeatures = [...this.layers.waterSource.getFeatures(), ...this.layers.roadSource.getFeatures(), ...this.layers.mountainSource.getFeatures()];
     return {
-      version: 1,
+      version: 3,
+      provinces: structuredClone(this.provinces),
       linearFeatures: writeGameFeatures(lineFeatures) as GeographyDocument["linearFeatures"],
       waterAnchors: writeGameFeatures(this.layers.waterAnchorSource.getFeatures()) as GeographyDocument["waterAnchors"],
       strategicLocations: writeGameFeatures(this.layers.locationSource.getFeatures()) as GeographyDocument["strategicLocations"],
-      regions: writeGameFeatures(this.layers.regionSource.getFeatures()) as GeographyDocument["regions"],
+      locationGeometries: writeGameFeatures(this.layers.regionSource.getFeatures()) as GeographyDocument["locationGeometries"],
     };
   }
 
   private refreshCityOutlines(): void {
     if (!this.layers) return;
     this.layers.cityOutlineSource.clear();
-    const regions = this.getGeography().regions;
-    const groups = new Map<string, RegionFeature[]>();
-    for (const region of regions.features) {
-      const list = groups.get(region.properties.cityId) ?? [];
-      list.push(region);
-      groups.set(region.properties.cityId, list);
+    const geometries = this.getGeography().locationGeometries;
+    const groups = new Map<string, LocationGeometryFeature[]>();
+    for (const geometry of geometries.features) {
+      const list = groups.get(geometry.properties.provinceId) ?? [];
+      list.push(geometry);
+      groups.set(geometry.properties.provinceId, list);
     }
-    for (const [cityId, cityRegions] of groups) {
+    for (const [provinceId, provinceGeometries] of groups) {
       try {
-        const outline = cityRegions.length === 1 ? cityRegions[0] : union(featureCollection(cityRegions));
+        const outline = provinceGeometries.length === 1 ? provinceGeometries[0] : union(featureCollection(provinceGeometries));
         if (!outline) continue;
-        outline.properties = { ...outline.properties, cityId };
+        outline.properties = { ...outline.properties, provinceId };
         const mapped = readGameFeatures(featureCollection([outline]))[0];
         if (mapped) this.layers.cityOutlineSource.addFeature(mapped);
       } catch {
@@ -806,7 +1329,11 @@ export class WorkbenchApp {
 
   private async saveAll(): Promise<void> {
     if (this.saving) return;
-    if (this.mutationBefore) {
+    if (!this.initialized) {
+      this.setStatus("请使用“新建地图”填写 MapId、名称和 Chunk 网格后再保存", "warning");
+      return;
+    }
+    if (this.mutationBefore || this.pendingCityRegion) {
       this.setStatus("请先完成或取消当前绘制，再保存", "warning");
       return;
     }
@@ -814,16 +1341,12 @@ export class WorkbenchApp {
     this.setSaving(true);
     try {
       this.setStatus("正在保存…", "pending");
-      if (!this.initialized) {
-        await workbenchApi.bootstrap();
-        this.initialized = true;
-      }
       const geography = this.getGeography();
       const chunks = this.terrain.exportDirtyChunks();
       await Promise.all([
         workbenchApi.saveProject(this.project),
-        workbenchApi.saveGeography(geography),
-        chunks.length > 0 ? workbenchApi.saveTerrainMasks(chunks) : Promise.resolve({ ok: true, savedChunkIds: [] }),
+        workbenchApi.saveGeography(this.project.mapId, geography),
+        chunks.length > 0 ? workbenchApi.saveTerrainMasks(this.project.mapId, chunks) : Promise.resolve({ ok: true, savedChunkIds: [] }),
       ]);
       if (this.mutationRevision === revisionAtStart) {
         this.terrain.markSaved(chunks.map((chunk) => chunk.chunkId));
@@ -840,8 +1363,12 @@ export class WorkbenchApp {
     }
   }
 
-  private async compileRegions(): Promise<void> {
+  private async compileLocationGeometries(): Promise<void> {
     if (this.saving) return;
+    if (!this.initialized) {
+      this.setStatus("请先通过结构化表单新建地图", "warning");
+      return;
+    }
     this.runValidation();
     const errorCount = this.diagnostics.filter((item) => item.severity === "error").length;
     if (errorCount > 0) {
@@ -852,15 +1379,11 @@ export class WorkbenchApp {
     this.setSaving(true);
     try {
       this.setStatus("正在生成 territory mask、查询表和轮廓…", "pending");
-      if (!this.initialized) {
-        await workbenchApi.bootstrap();
-        this.initialized = true;
-      }
       const geography = this.getGeography();
-      await workbenchApi.saveGeography(geography);
-      await workbenchApi.compileRegions(geography);
+      await workbenchApi.saveGeography(this.project.mapId, geography);
+      await workbenchApi.compileLocationGeometries(this.project.mapId, geography);
       this.layers.regionMaskLayer.setSource(new ImageStatic({
-        url: `/project-assets/masks/territory/territory_mask.png?v=${Date.now()}`,
+        url: `/project-assets/maps/${encodeURIComponent(this.project.mapId)}/draft/regions/territory_mask.png?v=${Date.now()}`,
         imageExtent: [0, -this.project.world.height, this.project.world.width, 0],
       }));
       const maskLayer = this.getLayerDefinition("region-masks");
@@ -992,21 +1515,23 @@ export class WorkbenchApp {
     const geometry = feature.getGeometry();
     const mapCoordinate = geometry?.getType() === "Point" ? (geometry as import("ol/geom/Point.js").default).getCoordinates() : geometry?.getExtent().slice(0, 2);
     const coordinate = mapCoordinate ? toGameCoordinate(mapCoordinate) : undefined;
-    const fields: Array<{ key: string; label: string; type?: "number"; value: unknown; help?: string; min?: number; max?: number; step?: number; options?: Array<{ value: string; label: string }> }> = [];
+    const fields: Array<{ key: string; label: string; type?: "number"; value: unknown; help?: string; min?: number; max?: number; step?: number; options?: Array<{ value: string; label: string }>; readonly?: boolean; advanced?: boolean }> = [];
     if (properties.featureType) {
       fields.push({ key: "name", label: "名称", value: properties.name ?? "", help: "用于制作时识别，可稍后补充" }, { key: "featureId", label: "对象 ID (FeatureId)", value: properties.featureId, help: "稳定 ID；被其他数据引用后不要随意修改" });
       if (properties.featureType === "river") fields.push({ key: "widthClass", label: "河流宽度等级", type: "number", min: 1, max: 5, step: 1, value: properties.widthClass ?? 2 }, { key: "receiverId", label: "汇入河流 ID", value: properties.receiverId ?? "", help: "端点吸附时自动建立，也可手动修正" });
       if (properties.featureType === "road") fields.push({ key: "roadClass", label: "道路等级", type: "number", min: 1, max: 5, step: 1, value: properties.roadClass ?? 1 });
       if (properties.featureType === "mountain") fields.push({ key: "density", label: "山脉密度", type: "number", min: 0, max: 1, step: 0.05, value: properties.density ?? 0.5 });
     } else if (properties.locationType) {
-      fields.push(
-        { key: "name", label: "名称", value: properties.name ?? "" },
-        { key: "locationType", label: "类型", value: properties.locationType, options: [
-          { value: "city", label: "城池" }, { value: "gate", label: "关隘" }, { value: "bridge", label: "桥梁" },
+      const cityLocation = properties.locationType === "main-city" || properties.locationType === "auxiliary-city";
+      fields.push({ key: "name", label: "名称", value: properties.name ?? "", help: cityLocation ? "可稍后命名；改名不会改变稳定身份或区域绑定" : undefined });
+      if (!cityLocation) fields.push({ key: "locationType", label: "类型", value: properties.locationType, options: [
+          { value: "gate", label: "关隘" }, { value: "bridge", label: "桥梁" },
           { value: "ferry", label: "渡口" }, { value: "port", label: "港口" }, { value: "ruin", label: "遗迹" }, { value: "resource-site", label: "资源点" },
-        ] },
-        { key: "locationId", label: "地点 ID (LocationId)", value: properties.locationId, help: "稳定 ID；用于区域归属和游戏配置引用" },
-        { key: "detailMapId", label: "详细地图 ID", value: properties.detailMapId ?? "", help: "没有对应详细地图时可以留空" },
+        ] });
+      fields.push({ key: "locationId", label: "LocationId", value: properties.locationId, help: "自动生成的稳定身份", readonly: true, advanced: true });
+      if (cityLocation) fields.push(
+        { key: "locationType", label: "城市角色", value: properties.locationType === "main-city" ? "主城" : "辅城", readonly: true, advanced: true },
+        { key: "provinceId", label: "ProvinceId", value: properties.provinceId ?? "", help: "省份归属由统一创建事务绑定", readonly: true, advanced: true },
       );
     } else if (properties.anchorType) {
       fields.push(
@@ -1016,32 +1541,36 @@ export class WorkbenchApp {
         ] },
         { key: "anchorId", label: "锚点 ID (AnchorId)", value: properties.anchorId, help: "河流端点吸附后会引用此 ID" },
       );
-    } else if (properties.regionId) {
+    } else if (properties.direction && properties.locationId && properties.provinceId) {
       fields.push(
-        { key: "cityId", label: "归属城市 (CityId)", value: properties.cityId, help: "必须对应一个已配置的城池 ID" },
-        { key: "regionId", label: "区域 ID (RegionId)", value: properties.regionId, help: "稳定 ID；运行时区域查询使用" },
-        { key: "role", label: "区域角色", value: properties.role },
         { key: "direction", label: "方向", value: properties.direction, options: [
           { value: "center", label: "中央" }, { value: "north", label: "北" }, { value: "northeast", label: "东北" },
           { value: "east", label: "东" }, { value: "southeast", label: "东南" }, { value: "south", label: "南" },
           { value: "southwest", label: "西南" }, { value: "west", label: "西" }, { value: "northwest", label: "西北" },
         ] },
+        { key: "provinceId", label: "ProvinceId", value: properties.provinceId, help: "必须与城市定义的省份一致", readonly: true, advanced: true },
+        { key: "locationId", label: "LocationId", value: properties.locationId, help: "直接绑定主城或辅城；不创建独立区域身份", readonly: true, advanced: true },
       );
     }
-    const objectId = String(properties.featureId ?? properties.anchorId ?? properties.locationId ?? properties.regionId ?? "");
+    const objectId = String(properties.featureId ?? properties.anchorId ?? properties.locationId ?? "");
     const relatedDiagnostics = this.diagnostics.filter((item) => item.objectId === objectId);
+    const renderField = (field: typeof fields[number]) => `<label><span>${escapeHtml(field.label)}</span>${field.options
+      ? `<select data-property="${field.key}">${field.options.map((option) => `<option value="${option.value}" ${option.value === field.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select>`
+      : `<input ${field.readonly ? "readonly" : `data-property="${field.key}"`} type="${field.type ?? "text"}" ${field.min !== undefined ? `min="${field.min}"` : ""} ${field.max !== undefined ? `max="${field.max}"` : ""} step="${field.step ?? 1}" value="${escapeHtml(field.value)}">`}${field.help ? `<small>${escapeHtml(field.help)}</small>` : ""}</label>`;
+    const ordinaryFields = fields.filter((field) => !field.advanced);
+    const advancedFields = fields.filter((field) => field.advanced);
     panel.innerHTML = `
       <div class="selection-summary"><div><span>${escapeHtml(this.objectTypeLabel(properties))}</span><strong>${escapeHtml(properties.name || objectId)}</strong></div>${coordinate ? `<small>X ${Math.round(coordinate[0])} · Y ${Math.round(coordinate[1])}</small>` : ""}</div>
       ${relatedDiagnostics.length > 0 ? `<div class="object-diagnostics"><strong>${relatedDiagnostics.length} 个相关问题</strong>${relatedDiagnostics.map((item) => `<span>${escapeHtml(item.message)}</span>`).join("")}</div>` : ""}
-      <div class="property-fields">${fields.map((field) => `<label><span>${escapeHtml(field.label)}</span>${field.options
-        ? `<select data-property="${field.key}">${field.options.map((option) => `<option value="${option.value}" ${option.value === field.value ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select>`
-        : `<input data-property="${field.key}" type="${field.type ?? "text"}" ${field.min !== undefined ? `min="${field.min}"` : ""} ${field.max !== undefined ? `max="${field.max}"` : ""} step="${field.step ?? 1}" value="${escapeHtml(field.value)}">`}${field.help ? `<small>${escapeHtml(field.help)}</small>` : ""}</label>`).join("")}</div>
+      <div class="property-fields">${ordinaryFields.map(renderField).join("")}</div>
+      ${advancedFields.length > 0 ? `<details class="identity-details property-identities"><summary>高级身份信息（只读）</summary><div class="property-fields">${advancedFields.map(renderField).join("")}</div></details>` : ""}
       <button class="danger" data-action="delete-feature">删除对象</button>`;
   }
 
   private objectTypeLabel(properties: Record<string, unknown>): string {
-    const type = String(properties.featureType ?? properties.anchorType ?? properties.locationType ?? properties.role ?? "object");
-    return ({ river: "河流", road: "道路", mountain: "山脉 / 高地", source: "源头锚点", lake: "湖泊锚点", coast: "海岸锚点", city: "城池", gate: "关隘", bridge: "桥梁", ferry: "渡口", port: "港口", ruin: "遗迹", "resource-site": "资源点", territory: "城域", region: "小区域", object: "对象" } as Record<string, string>)[type] ?? type;
+    if (properties.direction && properties.locationId && properties.provinceId && !properties.locationType) return "城市区域";
+    const type = String(properties.featureType ?? properties.anchorType ?? properties.locationType ?? "object");
+    return ({ river: "河流", road: "道路", mountain: "山脉 / 高地", source: "源头锚点", lake: "湖泊锚点", coast: "海岸锚点", "main-city": "主城", "auxiliary-city": "辅城", gate: "关隘", bridge: "桥梁", ferry: "渡口", port: "港口", ruin: "遗迹", "resource-site": "资源点", object: "对象" } as Record<string, string>)[type] ?? type;
   }
 
   private handlePropertyChange(event: Event): void {
@@ -1056,7 +1585,7 @@ export class WorkbenchApp {
     }
     const before = this.captureSnapshot();
     const propertyKey = input.dataset.property!;
-    const stableIdKeys = new Set(["featureId", "anchorId", "locationId", "regionId"]);
+    const stableIdKeys = new Set(["featureId", "anchorId", "locationId", "provinceId"]);
     let value: string | number = input instanceof HTMLInputElement && input.type === "number" ? Number(input.value) : input.value;
     if (stableIdKeys.has(propertyKey)) value = String(value).trim();
     if (stableIdKeys.has(propertyKey) && value === "") {
@@ -1069,6 +1598,7 @@ export class WorkbenchApp {
     this.history.commit(before);
     this.setDirty(true);
     this.refreshAfterMutation();
+    if (propertyKey === "name" && feature.get("locationType")) this.renderWorkspaceContext();
   }
 
   private deleteSelectedFeature(): void {
@@ -1111,7 +1641,7 @@ export class WorkbenchApp {
     if (item.coordinate) this.map.getView().animate({ center: toMapCoordinate(item.coordinate), zoom: Math.max(this.map.getView().getZoom() ?? 0, 3), duration: 250 });
     if (item.objectId) {
       const sources = [this.layers.waterSource, this.layers.waterAnchorSource, this.layers.roadSource, this.layers.mountainSource, this.layers.locationSource, this.layers.regionSource];
-      const feature = sources.flatMap((source) => source.getFeatures()).find((candidate) => String(candidate.getId() ?? candidate.get("featureId") ?? candidate.get("anchorId") ?? candidate.get("locationId") ?? candidate.get("regionId")) === item.objectId);
+      const feature = sources.flatMap((source) => source.getFeatures()).find((candidate) => String(candidate.getId() ?? candidate.get("featureId") ?? candidate.get("anchorId") ?? candidate.get("locationId")) === item.objectId);
       if (feature) {
         if (!workspaceContextSynced) this.activateTool("select");
         const featureLayerId = this.featureLayerId(feature);
@@ -1135,19 +1665,19 @@ export class WorkbenchApp {
     this.requireElement("coordinate-status").textContent = `X ${Math.round(coordinate[0])} · Y ${Math.round(coordinate[1])}`;
     this.requireElement("terrain-status").textContent = `地貌 ${terrain ? `${terrain.label} · ${terrain.id}` : terrainId === 0 ? "未分类 · 0" : "—"}`;
 
-    let regionId: string | undefined;
-    let cityId: string | undefined;
+    let locationId: string | undefined;
+    let provinceId: string | undefined;
     this.map.forEachFeatureAtPixel(pixel, (feature) => {
-      if (!regionId && feature.get("regionId")) {
-        regionId = String(feature.get("regionId"));
-        cityId = String(feature.get("cityId") ?? "");
+      if (!locationId && feature.get("locationId")) {
+        locationId = String(feature.get("locationId"));
+        provinceId = String(feature.get("provinceId") ?? "");
       }
     }, { layerFilter: (layer) => layer === this.layers.regionLayer });
-    if (this.hoverRegion.regionId !== regionId || this.hoverRegion.cityId !== cityId) {
-      this.hoverRegion = { regionId, cityId };
+    if (this.hoverRegion.locationId !== locationId || this.hoverRegion.provinceId !== provinceId) {
+      this.hoverRegion = { locationId, provinceId };
       this.layers.regionLayer.changed();
     }
-    this.requireElement("region-status").textContent = `Region ${regionId ?? "—"}`;
+    this.requireElement("region-status").textContent = `Location ${locationId ?? "—"}`;
   }
 
   private getLayerDefinition(id: LayerId) {
@@ -1158,7 +1688,7 @@ export class WorkbenchApp {
 
   private featureLayerId(feature: Feature): LayerId | undefined {
     const featureType = feature.get("featureType");
-    return feature.get("role") !== undefined || feature.get("cityId") !== undefined
+    return feature.get("direction") !== undefined && feature.get("provinceId") !== undefined && feature.get("locationType") === undefined
       ? "territories"
       : feature.get("anchorType") !== undefined
         ? "water"
@@ -1207,8 +1737,7 @@ export class WorkbenchApp {
       road: "绘制道路",
       mountain: "绘制山脉",
       location: "放置战略地点",
-      territory: "绘制城域",
-      region: "绘制小区域",
+      region: "绘制城市区域",
     } satisfies Record<ToolId, string>)[tool];
   }
 

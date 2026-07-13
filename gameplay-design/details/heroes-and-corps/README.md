@@ -53,6 +53,14 @@ When a hero already has a main corps, reassignment is a single Strategic Managem
 
 The first special route is beast corps. Beast corps are shock-assault forces. They should be strongest with beast tamers, hunters, wildland leaders, or similar aptitude tags, and weaker with ordinary commanders. Their downside is high creation and recovery cost plus source/facility dependency.
 
+## Corps Class Combat Identity
+
+Corps classes must be readable through base rules that interact with terrain and commander decisions. Speed, attack, defense, range, or other scalar differences may reinforce a role, but they cannot be the only distinction between classes.
+
+Cavalry's first confirmed class principle is momentum-dependent impact. It reaches its strongest offensive value only after moving through enough usable space into a valid charge-like contact. Chokepoints, broken routes, blocking units, and terrain that denies a clean approach should constrain that value. Exact thresholds, turning limits, reset rules, damage formulas, counters, and balance values remain future focused design.
+
+Other corps classes still require their own focused base-mechanic confirmation; this rule does not invent a complete class kit for them.
+
 ## Hero And Battle-Group Skill Loadouts
 
 Hero and battle-group skills are assigned through durable loadout or grant entries. A grant points to a stable skill definition and may carry slot, level, source, progression, equipment, or modifier facts. It must not duplicate the full skill definition.
@@ -93,6 +101,8 @@ Required Bonefield roster:
 Visible combatants in this slice must use authored unit resources under `resource/battle/units/`. Geometric placeholders are not acceptable for hero, corps, or enemy units in the player-facing prototype.
 
 Each selectable hero has one first-slice active skill. Only the selected hero's skill is available during that battle; unselected hero skills must not appear as usable commands. If the current runtime lacks a richer primitive such as shield, control, or area damage, the first implementation may downgrade the skill into a simple targeted effect while preserving the player-facing tactical identity.
+
+The three first-slice hero skills must still communicate distinct signature identities. Skill-content assignment and tactical variety are separate quality requirements from whether the targeting architecture supports unit, cell, direction, area, or multi-stage input.
 
 The expedition panel may show default corps information as read-only. Troop configuration is deferred to a later city or strategic-location configuration flow.
 

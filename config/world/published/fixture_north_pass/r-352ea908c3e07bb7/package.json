@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 2,
+  "mapId": "fixture_north_pass",
+  "revision": "r-352ea908c3e07bb7",
+  "compatibilityRevision": 1,
+  "contentHash": "580ff7c10e6a4af13563c037ec3a7b18c8252d5b073ac499b6ec6da5578a2573",
+  "publishProfile": "region-interactive",
+  "capabilities": [
+    "visual",
+    "regions"
+  ],
+  "chunkManifestPath": "res://config/world/published/fixture_north_pass/r-352ea908c3e07bb7/chunk-manifest.json",
+  "geographyPath": "res://config/world/published/fixture_north_pass/r-352ea908c3e07bb7/geography.json",
+  "artifactHashes": [
+    {
+      "kind": "chunk-manifest",
+      "artifactId": "manifest",
+      "sha256": "e02ce57d94d10c9258069f5d8c3397bbfc90e3d492c0da798a7f00cc8874bbd2"
+    },
+    {
+      "kind": "geography",
+      "artifactId": "geography",
+      "sha256": "4ffb1586bd807cb59a7c7b5375ff66e24339743bad0109b6e3654ebb0068d178"
+    },
+    {
+      "kind": "region-lookup",
+      "artifactId": "lookup",
+      "sha256": "a55e738a3dbc4721957408e824b47c4ccc3cdd002dea63133973e991b9f95ece"
+    },
+    {
+      "kind": "region-mask",
+      "artifactId": "chunk_0_0",
+      "sha256": "42f53dfe7620959998dcebe1636be57cbbb9826fc3ee891cbfcd510656feb068"
+    },
+    {
+      "kind": "region-mask",
+      "artifactId": "chunk_1_0",
+      "sha256": "6cf7a61e1513bd16f8f2738254cc888a86467504eaee131d3845a38c2cfdf158"
+    },
+    {
+      "kind": "region-outlines",
+      "artifactId": "outlines",
+      "sha256": "b8d0745ae588952ea73daacb5872e96167f20c09e393a934dfbaa73435d9a34d"
+    },
+    {
+      "kind": "visual",
+      "artifactId": "chunk_0_0",
+      "sha256": "0330bc96f2cf5d40d5b2b9de5a9815f17a5730b3f200e83cd5148dc458d9d4df"
+    },
+    {
+      "kind": "visual",
+      "artifactId": "chunk_1_0",
+      "sha256": "a8b12a5c3e13b888db010989ed57e7207db884e7413138efbdd2cacc7cb6834b"
+    }
+  ],
+  "regionArtifacts": {
+    "encoding": "rgb24-location-code-v1",
+    "lookupPath": "res://assets/textures/world/maps/fixture_north_pass/r-352ea908c3e07bb7/regions/region_lookup.json",
+    "outlinesPath": "res://assets/textures/world/maps/fixture_north_pass/r-352ea908c3e07bb7/regions/region_outlines.json",
+    "chunks": [
+      {
+        "chunkId": "chunk_0_0",
+        "worldOrigin": [
+          0,
+          0
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/fixture_north_pass/r-352ea908c3e07bb7/regions/chunks/chunk_0_0.png"
+      },
+      {
+        "chunkId": "chunk_1_0",
+        "worldOrigin": [
+          1024,
+          0
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/fixture_north_pass/r-352ea908c3e07bb7/regions/chunks/chunk_1_0.png"
+      }
+    ]
+  }
+}

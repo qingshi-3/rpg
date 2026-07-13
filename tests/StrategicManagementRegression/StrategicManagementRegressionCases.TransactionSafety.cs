@@ -31,8 +31,8 @@ internal static partial class StrategicManagementRegressionCases
                 StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
                 StrategicCommandResult expeditionResult = commands.CreateExpedition(
                     state,
-                    StrategicManagementIds.LocationPlainsCity,
-                    StrategicManagementIds.LocationBonefieldOutpost,
+                    StrategicManagementIds.LocationQingheCore,
+                    StrategicManagementIds.LocationChiyanHighBasin,
                     StrategicExpeditionIntent.AssaultLocation,
                     carriedHeroIds);
                 AssertTrue(expeditionResult.Success, $"subset setup should create expedition carried={carriedCount} mask={deployedMask}");
@@ -91,12 +91,12 @@ internal static partial class StrategicManagementRegressionCases
                     if (deployed)
                     {
                         AssertTrue(corps.Strength < originalStrengths[corpsId], "deployed corps should consume its Runtime casualty result");
-                        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, corps.HomeCityId, "surviving deployed corps should station at captured city");
+                        AssertEqual(StrategicManagementIds.LocationChiyanHighBasin, corps.HomeCityId, "surviving deployed corps should station at captured city");
                     }
                     else
                     {
                         AssertEqual(originalStrengths[corpsId], corps.Strength, "reserve corps should take zero casualty");
-                        AssertEqual(StrategicManagementIds.LocationPlainsCity, corps.HomeCityId, "reserve corps should return to its exact rollback station");
+                        AssertEqual(StrategicManagementIds.LocationQingheCore, corps.HomeCityId, "reserve corps should return to its exact rollback station");
                     }
                 }
             }
@@ -115,13 +115,13 @@ internal static partial class StrategicManagementRegressionCases
         };
         StrategicCommandResult created = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
         AssertTrue(created.Success, "rollback setup expedition should succeed");
         StrategicExpeditionState expedition = state.Expeditions[created.CreatedEntityId];
-        AssertTrue(expedition.Participants.All(item => item.RollbackStationLocationId == StrategicManagementIds.LocationPlainsCity), "dispatch should capture station before clearing corps home");
+        AssertTrue(expedition.Participants.All(item => item.RollbackStationLocationId == StrategicManagementIds.LocationQingheCore), "dispatch should capture station before clearing corps home");
 
         expedition.Participants[1].RollbackStationLocationId = "missing_city";
         string beforeFailure = JsonSerializer.Serialize(state);
@@ -129,7 +129,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(!rejected.Success, "invalid rollback plan should fail");
         AssertEqual(beforeFailure, JsonSerializer.Serialize(state), "invalid rollback plan should not partially unlock or restore participants");
 
-        expedition.Participants[1].RollbackStationLocationId = StrategicManagementIds.LocationPlainsCity;
+        expedition.Participants[1].RollbackStationLocationId = StrategicManagementIds.LocationQingheCore;
         StrategicCommandResult cancelled = commands.CancelExpedition(state, expedition.ExpeditionId, "retry");
         AssertTrue(cancelled.Success, $"valid rollback retry should succeed, got {cancelled.FailureReason}");
         foreach (StrategicExpeditionParticipantState participant in expedition.Participants)
@@ -152,8 +152,8 @@ internal static partial class StrategicManagementRegressionCases
         };
         StrategicCommandResult created = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
         StrategicBattleBridgeService bridge = new(definitions);
@@ -194,8 +194,8 @@ internal static partial class StrategicManagementRegressionCases
         };
         StrategicCommandResult created = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
         StrategicBattleBridgeService bridge = new(definitions);
@@ -733,9 +733,9 @@ internal static partial class StrategicManagementRegressionCases
             File.WriteAllText(savePath, versionOne.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
 
             StrategicManagementState migrated = saveService.Load(savePath);
-            AssertTrue(migrated.Expeditions[setup.ExpeditionId].Participants.All(item => item.RollbackStationLocationId == StrategicManagementIds.LocationPlainsCity), "v1 migration should derive provable departure station");
+            AssertTrue(migrated.Expeditions[setup.ExpeditionId].Participants.All(item => item.RollbackStationLocationId == StrategicManagementIds.LocationQingheCore), "v1 migration should derive provable departure station");
 
-            versionOne["State"]!["Expeditions"]![setup.ExpeditionId]!["SourceLocationId"] = StrategicManagementIds.LocationBonefieldOutpost;
+            versionOne["State"]!["Expeditions"]![setup.ExpeditionId]!["SourceLocationId"] = StrategicManagementIds.LocationChiyanHighBasin;
             File.WriteAllText(savePath, versionOne.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
             AssertThrowsInvalidOperation(() => saveService.Load(savePath), "v1 migration must reject an unprovable rollback station instead of guessing");
 

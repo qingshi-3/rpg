@@ -26,8 +26,8 @@ const chunkSchema = z.object({
 
 export const projectSchema = z
   .object({
-    version: z.literal(1),
-    projectId: z.string().min(1),
+    version: z.literal(2),
+    mapId: z.string().regex(/^[a-z0-9][a-z0-9_-]{1,63}$/),
     displayName: z.string().min(1),
     world: z.object({
       width: z.number().int().positive(),
@@ -57,6 +57,12 @@ export const projectSchema = z
       context.addIssue({ code: "custom", message: "Chunk dimensions must be divisible by terrain cell size", path: ["chunk"] });
     }
 
+    const columns = project.world.width / project.chunk.width;
+    const rows = project.world.height / project.chunk.height;
+    if (!Number.isInteger(columns) || !Number.isInteger(rows) || project.chunks.length !== columns * rows) {
+      context.addIssue({ code: "custom", message: "Chunk grid must exactly cover the map-level world dimensions", path: ["chunks"] });
+    }
+
     const layerIds = new Set(project.layers.map((layer) => layer.id));
     for (const acceptedId of acceptedLayerIds) {
       if (!layerIds.has(acceptedId)) {
@@ -81,6 +87,9 @@ export const projectSchema = z
       const expectedOrigin: [number, number] = [chunk.coordinate[0] * project.chunk.width, chunk.coordinate[1] * project.chunk.height];
       if (chunk.worldOrigin[0] !== expectedOrigin[0] || chunk.worldOrigin[1] !== expectedOrigin[1]) {
         context.addIssue({ code: "custom", message: `Chunk ${chunk.id} origin does not match its coordinate`, path: ["chunks", index, "worldOrigin"] });
+      }
+      if (chunk.coordinate[0] >= columns || chunk.coordinate[1] >= rows) {
+        context.addIssue({ code: "custom", message: `Chunk ${chunk.id} coordinate falls outside the map-level grid`, path: ["chunks", index, "coordinate"] });
       }
     }
 
@@ -127,24 +136,23 @@ const locationFeatureSchema = z.object({
   properties: z.object({
     locationId: z.string().min(1),
     name: z.string(),
-    locationType: z.enum(["city", "gate", "bridge", "ferry", "port", "ruin", "resource-site"]),
-    detailMapId: z.string().optional(),
+    locationType: z.enum(["main-city", "auxiliary-city", "gate", "bridge", "ferry", "port", "ruin", "resource-site"]),
+    provinceId: z.string().min(1).optional(),
     referencePosition: coordinateSchema.optional(),
   }),
 });
 
 const ringSchema = z.array(coordinateSchema).min(4);
 const polygonCoordinatesSchema = z.array(ringSchema).min(1);
-const regionFeatureSchema = z.object({
+const locationGeometryFeatureSchema = z.object({
   type: z.literal("Feature"),
   geometry: z.discriminatedUnion("type", [
     z.object({ type: z.literal("Polygon"), coordinates: polygonCoordinatesSchema }),
     z.object({ type: z.literal("MultiPolygon"), coordinates: z.array(polygonCoordinatesSchema).min(1) }),
   ]),
   properties: z.object({
-    regionId: z.string().min(1),
-    cityId: z.string().min(1),
-    role: z.string().min(1),
+    locationId: z.string().min(1),
+    provinceId: z.string().min(1),
     direction: z.string().min(1),
   }),
 });
@@ -153,10 +161,65 @@ function featureCollectionSchema<T extends z.ZodType>(featureSchema: T) {
   return z.object({ type: z.literal("FeatureCollection"), features: z.array(featureSchema) });
 }
 
-export const geographyDocumentSchema = z.object({
-  version: z.literal(1),
+export const geographyDraftSchema = z.object({
+  version: z.literal(3),
+  provinces: z.array(z.object({
+    provinceId: z.string().min(1),
+    name: z.string().min(1),
+    layoutId: z.string().min(1),
+  })),
   linearFeatures: featureCollectionSchema(lineFeatureSchema),
   waterAnchors: featureCollectionSchema(waterAnchorFeatureSchema),
   strategicLocations: featureCollectionSchema(locationFeatureSchema),
-  regions: featureCollectionSchema(regionFeatureSchema),
+  locationGeometries: featureCollectionSchema(locationGeometryFeatureSchema),
+});
+
+export const geographyDocumentSchema = geographyDraftSchema.superRefine((geography, context) => {
+  const provinceIds = new Set<string>();
+  for (const [index, province] of geography.provinces.entries()) {
+    if (provinceIds.has(province.provinceId)) {
+      context.addIssue({ code: "custom", message: `Duplicate province id ${province.provinceId}`, path: ["provinces", index, "provinceId"] });
+    }
+    provinceIds.add(province.provinceId);
+  }
+
+  const locationsById = new Map<string, (typeof geography.strategicLocations.features)[number]>();
+  const mainCityCounts = new Map<string, number>();
+  for (const [index, location] of geography.strategicLocations.features.entries()) {
+    const { locationId, locationType, provinceId } = location.properties;
+    if (locationsById.has(locationId)) {
+      context.addIssue({ code: "custom", message: `Duplicate location id ${locationId}`, path: ["strategicLocations", "features", index, "properties", "locationId"] });
+    }
+    locationsById.set(locationId, location);
+    const isCity = locationType === "main-city" || locationType === "auxiliary-city";
+    if (isCity && (!provinceId || !provinceIds.has(provinceId))) {
+      context.addIssue({ code: "custom", message: `City ${locationId} references an unknown province`, path: ["strategicLocations", "features", index, "properties", "provinceId"] });
+    }
+    if (locationType === "main-city" && provinceId) {
+      mainCityCounts.set(provinceId, (mainCityCounts.get(provinceId) ?? 0) + 1);
+    }
+  }
+  for (const [index, province] of geography.provinces.entries()) {
+    if ((mainCityCounts.get(province.provinceId) ?? 0) !== 1) {
+      context.addIssue({ code: "custom", message: `Province ${province.provinceId} must have exactly one main city`, path: ["provinces", index, "provinceId"] });
+    }
+  }
+
+  const geometryCounts = new Map<string, number>();
+  for (const [index, geometry] of geography.locationGeometries.features.entries()) {
+    const { locationId, provinceId } = geometry.properties;
+    geometryCounts.set(locationId, (geometryCounts.get(locationId) ?? 0) + 1);
+    const location = locationsById.get(locationId);
+    if (!location || (location.properties.locationType !== "main-city" && location.properties.locationType !== "auxiliary-city")) {
+      context.addIssue({ code: "custom", message: `Location geometry ${locationId} must reference a city`, path: ["locationGeometries", "features", index, "properties", "locationId"] });
+    } else if (location.properties.provinceId !== provinceId) {
+      context.addIssue({ code: "custom", message: `Location geometry ${locationId} province does not match its city`, path: ["locationGeometries", "features", index, "properties", "provinceId"] });
+    }
+  }
+  for (const [locationId, location] of locationsById) {
+    if (location.properties.locationType !== "main-city" && location.properties.locationType !== "auxiliary-city") continue;
+    if ((geometryCounts.get(locationId) ?? 0) !== 1) {
+      context.addIssue({ code: "custom", message: `City ${locationId} must have exactly one location geometry`, path: ["locationGeometries"] });
+    }
+  }
 });

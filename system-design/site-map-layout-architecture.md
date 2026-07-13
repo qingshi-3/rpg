@@ -4,7 +4,7 @@ Status: Accepted Architecture
 
 ## Gameplay Authority
 
-This document supports `gameplay-design/content-systems-long-term-design.md`, `gameplay-design/details/cities-and-locations/README.md`, `system-design/strategic-management-system-architecture.md`, `system-design/semantic-map-marker-architecture.md`, and `system-design/battle-navigation-topology-architecture.md`.
+This document supports `gameplay-design/content-systems-long-term-design.md`, `gameplay-design/details/cities-and-locations/README.md`, `gameplay-design/details/strategic-region-detail-map-mapping.md`, `system-design/strategic-management-system-architecture.md`, `system-design/semantic-map-marker-architecture.md`, `system-design/strategic-region-detail-map-mapping-architecture.md`, and `system-design/battle-navigation-topology-architecture.md`.
 
 The accepted direction is city-led strategic management with authored strategic-location spaces. City and site maps should be reusable enough for production, but varied enough that bridges, high ground, deployment areas, construction regions, resources, and decoration can change how a location reads and plays.
 
@@ -17,6 +17,7 @@ The Site Map Layout system owns the authoring contract for reusable strategic-lo
 - layout definitions that bind a stable layout id to a layout variant scene path and base terrain id;
 - extraction of final gameplay surfaces, semantic markers, bridge markers, and explicit height connections into pure data;
 - validation of layer taxonomy, single-surface-per-cell rules, marker height legality, bridge legality, and layout-state key stability;
+- stable detailed-map marker catalogs that province-member city mappings can reference without copying footprints;
 - diagnostics for invalid or ambiguous map authoring.
 
 The system is an authoring and extraction boundary. It does not own Strategic Management rules, battle Runtime movement decisions, settlement, or persistent campaign mutation.
@@ -31,7 +32,9 @@ Site Map Layout does not own:
 - root scene transition policy;
 - procedural map generation;
 - same-coordinate multi-surface movement or full multi-floor simulation;
-- automatic inference of bridge height, bridge entry points, or high-ground access from visual tile overlap.
+- automatic inference of bridge height, bridge entry points, or high-ground access from visual tile overlap;
+- province/city large-world geometry, control, approach selection, or polygon-to-grid projection;
+- selection of which member city maps to which detailed-map semantic marker.
 
 ## Authoring Model
 
@@ -87,7 +90,7 @@ The first base terrain scene should contain enough terrain variety to validate t
 
 ### Layout Variant Scene
 
-A layout variant scene inherits from a base terrain scene and represents the map template that a strategic location can use.
+A layout variant scene inherits from a base terrain scene and represents the detailed-map template that a province can use for its member cities.
 
 Layout variants may add:
 
@@ -97,7 +100,9 @@ Layout variants may add:
 - explicit height connections such as ramps, stairs, bridge approaches, or gate slopes;
 - layout metadata such as `LayoutId`, `BaseTerrainId`, supported strategic-location kinds, and authoring tags.
 
-Multiple strategic locations may bind to the same layout variant. The layout variant remains a reusable template. It must not store persistent progress or player-owned facts.
+Multiple provinces may bind to the same layout variant. The layout variant remains a reusable template. It must not store persistent progress or player-owned facts.
+
+Each province definition binds its authoritative `LayoutId`. Member-city mappings do not choose a layout; they select semantic marker roles only inside the layout already bound to the province. Different member cities may select different entrances or deployment contexts, but they cannot switch the province to another layout.
 
 The first layout variant should inherit from the first base terrain scene and include:
 
@@ -192,7 +197,7 @@ location_id + bridge_id
 location_id + resource_point_id
 ```
 
-Two strategic locations may use the same layout id and marker ids without sharing built facilities, depleted resources, bridge destruction, control, garrison, event progress, or battle outcomes.
+Two provinces may use the same layout id and marker ids without sharing built facilities, depleted resources, bridge destruction, control, garrison, event progress, or battle outcomes. Persistent city facts remain keyed by member `LocationId` plus stable layout/marker ids.
 
 ## Runtime State
 
@@ -212,7 +217,7 @@ Inputs are:
 - authored base terrain scenes;
 - authored layout variant scenes;
 - Site Map Layout definitions;
-- Strategic Management location definitions that bind location ids to layout ids;
+- canonical province definitions that bind province ids to layout ids and member location ids;
 - semantic markers, bridge markers, and explicit height connections;
 - Godot TileMapLayer custom data used for terrain tags and walkability;
 - optional layout validation rules for strategic-location kind, bridge candidates, and marker requirements.
@@ -221,7 +226,7 @@ Inputs are:
 
 Outputs are:
 
-- pure layout metadata keyed by layout id;
+- pure layout metadata keyed by `LayoutId`;
 - final top-surface data for movement, deployment, placement, and marker validation;
 - bridge marker data and bridge diagnostics;
 - semantic marker data;
@@ -238,14 +243,19 @@ Outputs are:
 - Same-height movement may use ordinary topology adjacency; cross-height movement requires explicit connections.
 - Bridge gameplay facts come from bridge markers and explicit connections, not visual tile overlap.
 - Bridge position is layout-specific and must not be hardcoded into base terrain.
-- Strategic locations bind to layout ids. They must not bind directly to base terrain as the entered map.
+- Provinces bind to layout ids. Member cities must not bind to layouts or directly to base terrain as the entered map.
+- The province's `LayoutId` binding is the sole entered-map selector. A mapping or Bridge value may carry or validate that same identity but must not select a different layout.
+- Extracted `SemanticMapMarkerData.MapId` is the serialized carrier of the containing layout's `LayoutId`; it must equal the selected province layout and is not an independent map identity.
 - Persistent facts are keyed by strategic location id plus stable layout/marker ids.
+- Province-member city mappings may reference a layout's stable marker ids, but the layout never embeds large-world polygons or derives marker cells from world coordinates.
+- A city binding cannot override extracted marker type, footprint, height, topology, or placement legality.
 - Runtime consumers receive pure data; they must not query authoring nodes as gameplay authority.
 
 ## Failure Rules
 
 - Missing layout definition or layout scene path fails explicitly.
-- A strategic location that requires an entered site map must not silently fall back to an unrelated layout.
+- A province that requires an entered site map must not silently fall back to an unrelated layout.
+- A city mapping, extracted marker record, or Bridge context whose carried map identity differs from the province's authoritative `LayoutId` fails validation rather than changing layouts.
 - Duplicate layout ids, bridge ids, or marker ids fail validation within the relevant layout scope.
 - A bridge marker without covered cells fails validation.
 - A height bridge without required cross-height connections fails validation.
@@ -264,6 +274,6 @@ This architecture is acceptable when:
 - cross-river bridges can act as ordinary same-height ground;
 - height bridges preserve high-ground entrance strategy by requiring explicit entry connections;
 - every map extraction yields a single final standable surface per cell;
-- multiple strategic locations can reuse one layout without sharing persistent state;
+- multiple provinces can reuse one layout without sharing persistent province or city state;
 - invalid layout authoring produces actionable diagnostics instead of hidden fallback behavior.
 - the first `scenes/city/` validation slice can demonstrate base-scene inheritance and layout-owned bridge, marker, decoration, obstacle, and connection authoring without touching DemoSite or BonefieldSite.

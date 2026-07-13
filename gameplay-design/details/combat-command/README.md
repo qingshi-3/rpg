@@ -123,11 +123,17 @@ Ability content should support multiple targeting styles without changing the ba
 - Unit target: lock onto one battle actor.
 - Cell target: lock onto a square cell.
 - Direction target: cast toward a resolved direction.
+- Area target: place or orient an authored area using a definition-owned shape and anchor rule.
 - Self-centered: resolve from the caster.
+- Multi-stage target: make each required spatial choice in order before submitting one complete command.
 
 Direction handling is part of the ability definition. Common direction modes are free angle, 8-way square-grid snap, 4-way cardinal snap, and forward arc. Area handling is also definition-driven, with shapes such as single actor, single cell, line, cone, circle radius, and grid radius.
 
-The first implementation only needs basic actor-target attacks and the data-contract extension points for future abilities. Full projectile and area-skill behavior can be added later through these target and direction contracts.
+For player-cast skills, the player chooses every target, placement, direction, or stage required by the definition. The system must not collapse these skills into automatic target selection and release by default. A definition may explicitly describe a self-resolving or automatically selected target, but that is a content rule for that skill rather than the product-wide fallback.
+
+Targeting expressiveness and skill-content quality are separate concerns. Supporting precise input does not make homogeneous skill assignments tactically distinct; the first-slice signature-skill requirement must be satisfied through content identity as well as valid targeting.
+
+The accepted unit, cell, direction, area, and multi-stage player-input forms are current skill contracts, not future placeholders, and they must not be downgraded to automatic target selection. Repairing first-slice signature-skill identity may reuse effect primitives that already exist and does not require adding every possible projectile or area-effect type solely for that repair. This authority does not claim that every targeting or effect mode is already implemented; support is validated against each accepted skill definition.
 
 ## Skill Input, Availability, And Presentation Traits
 
@@ -186,6 +192,8 @@ Corps should stay low-complexity and readable through battlefield responsibility
 - mage: battlefield area changes and timing pressure.
 
 Individual corps types may gain special rules later, but a corps should not need several active skills to communicate its role.
+
+Every corps class needs a readable terrain- and command-facing base mechanic rather than only scalar stat differences. Cavalry's confirmed baseline is momentum-dependent impact: it needs sufficient usable approach space and a valid charge-like contact for its strongest offense, while chokepoints, broken routes, blocking, and terrain that prevents a clean approach constrain it. Exact tuning and counter formulas remain unconfirmed.
 
 ## Skill And Time Rules
 

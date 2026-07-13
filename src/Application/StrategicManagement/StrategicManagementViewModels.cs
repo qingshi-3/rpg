@@ -16,8 +16,9 @@ public sealed class StrategicManagementDashboardViewModel
 
 public sealed class StrategicLocationDashboardViewModel
 {
+    public string ProvinceId { get; set; } = "";
     public string LocationId { get; set; } = "";
-    public string MapSiteId { get; set; } = "";
+    public string LayoutId { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public StrategicLocationKind Kind { get; set; } = StrategicLocationKind.Unknown;
     public string KindDisplayName { get; set; } = "";
@@ -107,7 +108,9 @@ public sealed class StrategicEquipmentSampleFeedbackViewModel
 
 public sealed class StrategicCityManagementViewModel
 {
+    public string ProvinceId { get; set; } = "";
     public string LocationId { get; set; } = "";
+    public string LayoutId { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public string CityIdentityId { get; set; } = "";
     public string CityIdentityDisplayName { get; set; } = "";

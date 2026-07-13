@@ -1,0 +1,139 @@
+{
+  "version": 3,
+  "provinces": [
+    {
+      "provinceId": "north_pass",
+      "name": "北境关隘",
+      "layoutId": "north_pass_layout"
+    },
+    {
+      "provinceId": "province_new",
+      "name": "province_new",
+      "layoutId": "province_new_layout"
+    }
+  ],
+  "linearFeatures": {
+    "type": "FeatureCollection",
+    "features": []
+  },
+  "waterAnchors": {
+    "type": "FeatureCollection",
+    "features": []
+  },
+  "strategicLocations": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            512,
+            512
+          ]
+        },
+        "properties": {
+          "locationId": "north_keep",
+          "name": "北境城",
+          "locationType": "main-city",
+          "provinceId": "north_pass"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            1536,
+            512
+          ]
+        },
+        "properties": {
+          "locationId": "east_gate",
+          "name": "东关",
+          "locationType": "auxiliary-city",
+          "provinceId": "north_pass"
+        }
+      }
+    ]
+  },
+  "locationGeometries": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                1024,
+                0
+              ],
+              [
+                2048,
+                0
+              ],
+              [
+                2048,
+                1024
+              ],
+              [
+                1024,
+                1024
+              ],
+              [
+                1024,
+                0
+              ]
+            ]
+          ]
+        },
+        "properties": {
+          "locationId": "east_gate",
+          "provinceId": "north_pass",
+          "direction": "east"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                291.1228303576972,
+                371.81206803583797
+              ],
+              [
+                226.22496832141331,
+                543.1930868975641
+              ],
+              [
+                431.73476574341004,
+                691.4145246615109
+              ],
+              [
+                459.5481230618702,
+                265.2779440982706
+              ],
+              [
+                317.39095400311487,
+                245.20627604877248
+              ],
+              [
+                291.1228303576972,
+                371.81206803583797
+              ]
+            ]
+          ]
+        },
+        "properties": {
+          "locationId": "north_keep",
+          "provinceId": "north_pass",
+          "direction": "center"
+        }
+      }
+    ]
+  }
+}

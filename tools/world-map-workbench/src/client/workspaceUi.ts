@@ -10,7 +10,6 @@ export type ToolId =
   | "road"
   | "mountain"
   | "location"
-  | "territory"
   | "region";
 
 export type WorkspaceId = "terrain" | "networks" | "locations" | "regions" | "review";
@@ -111,21 +110,14 @@ export const toolUiDefinitions: Record<ToolId, ToolUiDefinition> = {
     label: "放置战略地点",
     shortLabel: "放置地点",
     instruction: "先选择地点类型，再点击地图放置一个战略地点。",
-    nextStep: "放置后会自动打开属性，请补充稳定 ID、名称和详细地图 ID。",
-  },
-  territory: {
-    id: "territory",
-    label: "绘制城域",
-    shortLabel: "城域",
-    instruction: "先指定归属 CityId，再逐点单击围合城域，双击完成；Esc 取消。",
-    nextStep: "完成后会自动打开属性，可核对 CityId 与 RegionId。",
+    nextStep: "放置后会自动打开属性，请补充稳定 LocationId、ProvinceId 和主城/辅城类型。",
   },
   region: {
     id: "region",
-    label: "绘制小区域",
-    shortLabel: "小区域",
-    instruction: "先指定归属 CityId，再逐点单击围合小区域，双击完成；Esc 取消。",
-    nextStep: "完成后请补充区域角色与方向。",
+    label: "绘制城市区域",
+    shortLabel: "城市区域",
+    instruction: "先指定已有主城或辅城的 LocationId，再逐点单击围合其唯一视觉区域，双击完成；Esc 取消。",
+    nextStep: "完成后请核对 ProvinceId、LocationId 与方向。",
   },
 };
 
@@ -156,23 +148,23 @@ export const workspaceUiDefinitions: WorkspaceUiDefinition[] = [
     id: "locations",
     index: "03",
     glyph: "点",
-    label: "战略地点",
+    label: "省份与战略地点",
     shortLabel: "地点",
-    description: "放置城池、关隘、港口、遗迹和资源点，并维护稳定标识。",
+    description: "维护省份成员，并放置主城、辅城、关隘、港口、遗迹和资源点。",
     defaultTool: "select",
     tools: ["location"],
-    steps: ["选择战略地点类型", "点击地图完成放置", "填写名称、稳定 ID 与详细地图 ID"],
+    steps: ["确认 ProvinceId 已存在", "选择地点类型并点击地图放置", "填写名称、LocationId 与 ProvinceId"],
   },
   {
     id: "regions",
     index: "04",
     glyph: "域",
-    label: "城域与区域",
-    shortLabel: "城域",
-    description: "按城市组织城域和内部小区域，并检查归属与拓扑。",
+    label: "省份与城市区域",
+    shortLabel: "城市区域",
+    description: "为每个主城或辅城维护唯一视觉几何，并检查省份归属与拓扑。",
     defaultTool: "select",
-    tools: ["territory", "region"],
-    steps: ["先指定归属城市 CityId", "绘制城域或小区域边界", "核对 RegionId、角色、方向与重叠问题"],
+    tools: ["region"],
+    steps: ["先指定城市 LocationId", "绘制该城市的唯一视觉边界", "核对 ProvinceId、方向与重叠问题"],
   },
   {
     id: "review",
@@ -180,7 +172,7 @@ export const workspaceUiDefinitions: WorkspaceUiDefinition[] = [
     glyph: "检",
     label: "检查与生成",
     shortLabel: "检查",
-    description: "集中处理数据问题，确认无阻断后生成区域 Mask 与查询数据。",
+    description: "集中处理数据问题，确认无阻断后生成城市区域 Mask 与 LocationId 查询数据。",
     defaultTool: "select",
     tools: [],
     steps: ["运行地图校验并展开问题清单", "点击问题定位并修正对象", "生成区域数据，最后保存全部修改"],

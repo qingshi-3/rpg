@@ -71,6 +71,7 @@ Use progressive disclosure. Read the smallest authority document that matches th
 | Snapshot/result contracts, settlement, report attribution, recovery, rollback/failure semantics | `battle-result-settlement-architecture.md` |
 | Ability/effect definitions, combat content resourceization, resource and progression loops | `battle-content-progression-architecture.md` |
 | Strategic Management to battle session bridge, battle preparation draft ownership, snapshot compilation, scene handoff, and strategic result summary writeback | `strategic-battle-bridge-architecture.md` |
+| Strategic-world region and approach mapping to detailed-map entrances, deployment context, and settlement identity | `strategic-region-detail-map-mapping-architecture.md` |
 
 `presentation-ui-layout-architecture.md`, `semantic-map-marker-architecture.md`, and `scene-transition-router-architecture.md` remain separate accepted architecture documents.
 

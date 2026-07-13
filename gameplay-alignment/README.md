@@ -34,5 +34,6 @@ Do not use it for:
 
 - Authority map: `authority-map.md`
 - Gap register: `gap-register.md`
+- StrategicMap terminal migration workstream: `strategic-map-terminal-migration-workstream.md`
 - Active task workflow: `../work-items/README.md`
 - Historical records: `../history/README.md`

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Rpg.Application.StrategicManagement;
+using Rpg.Application.World;
 using Rpg.Definitions.StrategicManagement;
 using Rpg.Definitions.World;
 using Rpg.Presentation.Common;
@@ -39,14 +40,9 @@ public partial class StrategicWorldRoot
             }
 
             string locationId = strategicEvent.TargetIds[0];
-            if (!StrategicManagementRuntime.Definitions.Locations.TryGetValue(locationId, out StrategicLocationDefinition location) ||
-                string.IsNullOrWhiteSpace(location.MapSiteId))
-            {
-                continue;
-            }
-
             WorldSiteDefinition site = Definition.SiteDefinitions.FirstOrDefault(item =>
-                string.Equals(item.Id, location.MapSiteId, StringComparison.Ordinal));
+                TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(item.Id, out string mappedLocationId) &&
+                string.Equals(mappedLocationId, locationId, StringComparison.Ordinal));
             if (site == null ||
                 !strategicEvent.Payload.TryGetValue("resources", out string resourcePayload) ||
                 !TryParseStrategicResourceAmounts(resourcePayload, out IReadOnlyList<StrategicResourceAmount> resources))

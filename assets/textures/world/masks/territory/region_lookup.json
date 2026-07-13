@@ -1,71 +1,49 @@
 {
-  "version": 1,
-  "regions": {
+  "version": 2,
+  "locations": {
     "1": {
-      "regionId": "qinghe_fan",
-      "cityId": "city_qinghe",
-      "role": "river-fan",
-      "direction": "west"
+      "locationId": "qinghe_fan",
+      "provinceId": "qinghe"
     },
     "2": {
-      "regionId": "qinghe_forest_ribbon",
-      "cityId": "city_qinghe",
-      "role": "forest-ribbon",
-      "direction": "northwest"
+      "locationId": "qinghe_forest_ribbon",
+      "provinceId": "qinghe"
     },
     "3": {
-      "regionId": "qinghe_core",
-      "cityId": "city_qinghe",
-      "role": "city-core",
-      "direction": "north"
+      "locationId": "qinghe_core",
+      "provinceId": "qinghe"
     },
     "4": {
-      "regionId": "qinghe_bottleneck",
-      "cityId": "city_qinghe",
-      "role": "river-bottleneck",
-      "direction": "east"
+      "locationId": "qinghe_bottleneck",
+      "provinceId": "qinghe"
     },
     "5": {
-      "regionId": "qinghe_river_delta",
-      "cityId": "city_qinghe",
-      "role": "river-delta",
-      "direction": "south"
+      "locationId": "qinghe_river_delta",
+      "provinceId": "qinghe"
     },
     "6": {
-      "regionId": "chiyan_wasteland",
-      "cityId": "city_chiyan",
-      "role": "wasteland",
-      "direction": "southwest"
+      "locationId": "chiyan_wasteland",
+      "provinceId": "chiyan"
     },
     "7": {
-      "regionId": "chiyan_west_ridge",
-      "cityId": "city_chiyan",
-      "role": "mountain-ridge",
-      "direction": "west"
+      "locationId": "chiyan_west_ridge",
+      "provinceId": "chiyan"
     },
     "8": {
-      "regionId": "chiyan_pass",
-      "cityId": "city_chiyan",
-      "role": "mountain-pass",
-      "direction": "northwest"
+      "locationId": "chiyan_pass",
+      "provinceId": "chiyan"
     },
     "9": {
-      "regionId": "chiyan_high_basin",
-      "cityId": "city_chiyan",
-      "role": "mountain-basin",
-      "direction": "north"
+      "locationId": "chiyan_high_basin",
+      "provinceId": "chiyan"
     },
     "10": {
-      "regionId": "chiyan_east_ridge",
-      "cityId": "city_chiyan",
-      "role": "mountain-ridge",
-      "direction": "east"
+      "locationId": "chiyan_east_ridge",
+      "provinceId": "chiyan"
     },
     "11": {
-      "regionId": "chiyan_mine",
-      "cityId": "city_chiyan",
-      "role": "mine",
-      "direction": "southeast"
+      "locationId": "chiyan_mine",
+      "provinceId": "chiyan"
     }
   }
 }

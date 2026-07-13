@@ -178,7 +178,7 @@ public partial class StrategicWorldRoot
         StrategicManagementRuntime.EnsureInitialized();
         string targetLocationId = "";
         if (strategicIntent != StrategicExpeditionIntent.MoveToPosition &&
-            !StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(targetSiteId, out targetLocationId))
+            !TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(targetSiteId, out targetLocationId))
         {
             StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(StrategicFailureReasons.MissingLocation);
             GameLog.Warn(nameof(StrategicWorldRoot), $"StrategicExpeditionCommandSyncRejected targetSite={targetSiteId} intent={worldIntent} reason={StrategicFailureReasons.MissingLocation}");

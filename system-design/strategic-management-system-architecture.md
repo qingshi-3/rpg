@@ -4,15 +4,16 @@ Status: Accepted Architecture
 
 ## Gameplay Authority
 
-This document supports `gameplay-design/content-systems-long-term-design.md`, `gameplay-design/details/cities-and-locations/README.md`, and `gameplay-design/details/heroes-and-corps/README.md`.
+This document supports `gameplay-design/content-systems-long-term-design.md`, `gameplay-design/details/cities-and-locations/README.md`, `gameplay-design/details/heroes-and-corps/README.md`, and `gameplay-design/details/strategic-region-detail-map-mapping.md`.
 
-The accepted gameplay direction is city-led strategic management with conquest, bounded city construction regions, city building instances, faction-shared foundation resources, aggregate city reserve soldiers, persistent corps instances, city-supported muster templates, hero-corps assignment, and expeditions. Special routes such as beast taming follow after the foundation operation loop is playable.
+The accepted gameplay direction is city-led strategic management with conquest, bounded city construction regions, city building instances, faction-shared foundation resources, aggregate city reserve soldiers, persistent corps instances, city-supported muster templates, hero-corps assignment, and expeditions. The first player-facing construction list uses the generic placement mechanism only for defensive fortifications; support buildings, other non-defensive facilities, and special routes such as beast taming remain later capabilities.
 
 ## Responsibility
 
 The Strategic Management system owns the game's long-term strategic-management layer:
 
-- strategic-location control, availability, and binding to accepted site map layout ids;
+- province and strategic-location control, availability, and stable membership;
+- province-owned detailed-layout identity and validated battle-location context;
 - world-map strategic time, elapsed-time settlement, and paused management-state boundaries;
 - faction-shared first-version resources, passive resource-production settlement, and resource rewards for `Money`, `Food`, `Wood`, and `Ore`;
 - city identity, authored construction regions, city building definitions and instances;
@@ -32,13 +33,22 @@ Strategic Management does not own:
 - battle Runtime simulation;
 - battle AI, movement, damage, skill release, cooldowns, or targeting;
 - battle deployment UI internals;
+- province/city large-world geometry, detailed-map marker authoring, or semantic binding definitions;
 - battle bridge session internals or Runtime-facing DTO implementation details;
 - scene-transition router internals;
 - Godot TileMap or node state as gameplay authority;
 - generic scenario scripting, full diplomacy, logistics, or technology trees in the first version.
 - Godot process callbacks, UI panels, or scene nodes as independent gameplay time authorities.
 
-The bridge contract between Strategic Management and battle is defined in `system-design/strategic-battle-bridge-architecture.md`. This document fixes the strategic dependency boundary: Strategic Management may request battles and apply bridge-produced result summaries, but it must never read or mutate battle Runtime live state.
+The bridge contract between Strategic Management and battle is defined in `system-design/strategic-battle-bridge-architecture.md`; region-to-detailed-map resolution follows `system-design/strategic-region-detail-map-mapping-architecture.md`. This document fixes the strategic dependency boundary: Strategic Management may request battles and apply bridge-produced result summaries, but it must never read or mutate battle Runtime live state.
+
+## Map Package And Scenario Identity
+
+Static geographic facts come from one validated published `StrategicMap` package: `MapId`, package compatibility revision, provinces, member locations, world positions, city geometry, and province-owned `LayoutId`. Strategic Management never copies those facts into a second editable definition tree.
+
+Campaign initialization comes from an explicit scenario definition identified by immutable `ScenarioId`. A scenario declares its compatible `MapId` and package compatibility revision, then owns campaign roles, player/hostile start assignments, initial control, garrisons, resources, and other starting mutable facts. Geography contains no player-start or first-hostile role.
+
+Composition validates package and scenario identity before creating or mutating strategic state. Missing locations, duplicate assignments, incompatible revisions, or scenario references to another map fail atomically. Presentation receives the already validated loaded-map/scenario context and cannot select fallback geography.
 
 ## Architecture Layers
 
@@ -50,6 +60,7 @@ Content definitions describe what the campaign allows. They do not store player 
 
 Definitions include:
 
+- provinces, each with exactly one main city, zero or more auxiliary cities, and one authoritative detailed-map `LayoutId`;
 - strategic locations: cities, resource sites, beast minor sites, enemy targets, and future passes, ruins, or dungeons;
 - city identities such as plains human city or beast-border stronghold;
 - resource types;
@@ -59,7 +70,7 @@ Definitions include:
 - hero-corps aptitude tags;
 - hero or battle-group default skill-grant references, as strategic assignment content that points to battle skill definitions;
 - strategic map metadata;
-- site map layout metadata only as far as the strategic layer needs to bind locations to reusable layout templates;
+- site map layout metadata only as far as the strategic layer needs to resolve a province's reusable layout template;
 - battle-entry metadata only as far as the strategic layer needs to know a location can request a battle.
 
 First-version content should be data-driven only where content variation requires it. Do not create a generic scripting language, full condition expression tree, technology-tree framework, or effect-chain editor for the first implementation.
@@ -72,7 +83,9 @@ State includes:
 
 - world-map strategic time or elapsed-time settlement counters;
 - faction-shared resource stores;
+- province ownership/control facts when confirmed gameplay requires them;
 - strategic-location ownership and control state;
+- validated battle-location facts keyed by `ProvinceId` plus member `BattleLocationId`, with the authoritative `LayoutId` copied from the province definition when mapping lineage must persist;
 - location-owned persistent map facts keyed by stable layout or marker ids when those facts matter to campaign state, such as placed buildings, depleted resources, destroyed bridges, or resolved site events;
 - city building instances, construction state, placed construction-region/grid positions, optional battle anchor ids, and support state when relevant;
 - city force capacity and reserve soldier counts;
@@ -85,7 +98,9 @@ State includes:
 
 State does not include UI selection, TileMap node state, battle Runtime actors, deployment drag state, or derived availability booleans. Facts such as "this city can muster wolf pack assault" are derived from state plus definitions, not stored as separate authority.
 
-Reusable site map layout scenes are templates, not state. Multiple locations may bind to the same layout id without sharing persistent location facts.
+Reusable site map layout scenes are templates, not state. Multiple provinces may reuse the same layout id without sharing persistent province or city facts.
+
+Large-world city geometry has no Strategic Management state record of its own. An expedition source location remains a separate participant, station, or rollback fact and cannot substitute for `BattleLocationId`.
 
 State may store elapsed strategic-time facts needed for save/load, production, timed projects, expeditions, recovery, or diagnostics. It must not store the fact that a UI panel is open as strategic truth; presentation or scene-transition state owns modal UI presence, while the strategic time controller owns whether elapsed world-map time is currently advancing.
 
@@ -96,6 +111,7 @@ Rules are deterministic read-only queries over content definitions and strategic
 Rules answer:
 
 - whether a location can be inspected, occupied, attacked, or used as a source;
+- whether a battle request's `BattleLocationId` is a member of `ProvinceId`, whether that province supplies the authoritative `LayoutId`, and whether the hostile-target flow names the validated target location;
 - whether resources are sufficient;
 - whether a building can be placed in a city construction region;
 - which muster templates are available in a city and why;
@@ -122,8 +138,8 @@ Commands include:
 - replace a hero's main corps through a city muster template, including old-corps full-refund settlement and new-corps assignment;
 - assign, unassign, unlock, or modify a hero or battle-group skill grant;
 - create or resolve an expedition;
-- request a battle handoff intent;
-- apply a battle result summary to strategic state.
+- request a battle handoff intent that records the validated `ProvinceId`, member `BattleLocationId`, and authoritative `LayoutId` from the province definition;
+- apply a battle result summary while preserving that same `ProvinceId`/`BattleLocationId`/`LayoutId` lineage before Strategic Management writes consequences to strategic state.
 
 Commands call rules before mutating state. They return explicit success, failure reasons, changed facts, and strategic events.
 
@@ -133,7 +149,7 @@ Elapsed-time settlement commands are internal strategic commands, not player-fac
 
 ### Presentation And External Boundaries
 
-Presentation is a view-model and input layer over Strategic Management. It may reuse the existing large-map TileMapLayer resource and visual assets, but it does not own strategic truth.
+Presentation is a view-model and input layer over Strategic Management. The replacement large world consumes static geography and later raster-chunk queries through `StrategicMap`; the visible legacy TileMap is not a target implementation or strategic truth.
 
 Presentation owns:
 
@@ -153,7 +169,7 @@ External battle interaction is through the Strategic Battle Bridge. The bridge m
 
 ### Strategic Timeflow
 
-Owns Sanguo Qunying-style world-map time for the strategic layer. The large strategic map is the normal running timeline. The current foundation advances strategic army movement and settles passive resource production and city reserve recovery. Enemy strategic actions, opportunity refresh, construction duration, corps training, and expedition-preparation timers require later accepted capability slices.
+Owns Sanguo Qunying-style world-map time for the strategic layer. The large strategic map is the normal running timeline. The current foundation advances strategic army movement and settles accepted passive resource-site production and city reserve recovery; this is not authority for player-placed economy buildings in the first construction version. Enemy strategic actions, opportunity refresh, construction duration, corps training, and expedition-preparation timers require later accepted capability slices.
 
 Entering city management pauses world-map time. Battle preparation, active battle, dialogue, story scenes, reports, and other modal management states also pause world-map time unless a later accepted architecture defines a specific exception.
 
@@ -175,9 +191,13 @@ It does not own cross-city transport loss, trade, logistics, or battle Runtime r
 
 Owns city identity, authored construction regions, placement legality, city building instances, construction state, and building-provided strategic capabilities.
 
-The current foundation supports bounded building placement, resource costs, durable city building instances, and passive economy production. City reserve recovery is a base city rule and does not require a building. Common military training gates, hero recruitment access, workshop support, defense effects, reserve-capacity modifiers, and special routes are later building-capability slices unless a focused accepted rule explicitly introduces them. The old direct building scalar fields for per-pulse production, reserve recovery, and force-capacity bonuses are retired implementation scaffolding; future building effects must use a focused economy/capability architecture instead of re-adding ad hoc fields. Buildings do not directly instantiate battle Runtime units or bypass corps muster rules.
+The current construction foundation supports bounded placement, resource costs, durable city building instances, and the generic legality path. Its first player-facing building definitions/list is restricted to defensive fortifications whose detailed-map position materially affects a local defense battle. Each eligible placed fortification must cross the Strategic Battle Bridge by producing a battle effect represented through a position-aware local-support snapshot or an explicitly accepted position-aware battle-entity snapshot. Local support is a Bridge representation of that fortification's effect, not a support-building category admitted to the list. Strategic Management remains the persistent owner of the source building instance and any costs, charges, damage, or support state; this authority change does not claim that the bridge or Runtime integration is already implemented.
+
+Medical shrines, medical facilities, other support buildings, passive economy-production buildings, common military training gates, hero recruitment access, workshop support, reserve-capacity modifiers, special routes, and every other non-defensive facility are later building-capability slices, even if they could later affect battle. City reserve recovery remains a base city rule and does not require a building. The old direct building scalar fields for per-pulse production, reserve recovery, and force-capacity bonuses are retired implementation scaffolding; future building effects must use a focused economy/capability architecture instead of re-adding ad hoc fields. Buildings do not directly instantiate battle Runtime units or bypass corps muster rules.
 
 The foundation construction model is bounded RTS-style placement: building-panel selection, mouse-attached preview, grid snapping, footprint validation, overlap checks, region bounds checks, resource checks, and explicit building eligibility. Construction regions define buildable space and must not reject a placement only because the building category differs from the region label. It does not include workers, road connectivity, gathering paths, production-efficiency simulation, or full RTS production queues. Later economy/capability work may use terrain, tile, resource context, or local map facts as efficiency modifiers without making them hidden category bans.
+
+Arrow towers are the sole confirmed baseline first defensive definition. Medical shrines, medical facilities, and all other support or non-defensive buildings are deferred even if their position could later affect battle. Walls, barricades, traps, route sealing, and other navigation-topology mutations are outside this foundation and require a separate accepted architecture slice.
 
 ### Corps Muster And Instances
 
@@ -213,7 +233,7 @@ Skill definitions themselves are battle content definitions. Strategic Managemen
 
 Owns only strategic-side battle intent and battle-result application. It must not own battle Runtime internals or bridge session implementation details.
 
-The current foundation can request battle for an expedition against a hostile target and apply the resulting victory, defeat, corps-loss, ownership, reward, and hero-feedback facts back to strategic state. The bridge contract, preparation session, snapshot compilation, scene handoff, and result-summary shape are owned by `strategic-battle-bridge-architecture.md`.
+The current foundation can request battle for an expedition against a hostile target and apply the resulting victory, defeat, corps-loss, ownership, reward, and hero-feedback facts back to strategic state. For this flow, `BattleLocationId` is the target member city; Strategic Management validates its `ProvinceId`, takes authoritative `LayoutId` from that province's definition, and preserves all three through battle intent and result application. The expedition source location remains a separate participant, station, or rollback fact and cannot replace that lineage. Strategic Management does not resolve marker coordinates. The bridge contract, preparation session, semantic entry-context resolution, snapshot compilation, scene handoff, and result-summary shape are owned by `strategic-battle-bridge-architecture.md` and `strategic-region-detail-map-mapping-architecture.md`.
 
 This establishes the foundation strategic battle loop; it does not mean terrain, facilities, corps automatic skills, equipment, bonds, or city influence already provide complete battle-outcome explanation. Those remain later battle-rule and reporting capabilities.
 
@@ -234,7 +254,7 @@ Data-driven:
 - hero aptitude tags;
 - hero or battle-group default skill-grant references;
 - strategic map metadata;
-- site map layout ids and high-level layout bindings for strategic locations;
+- province definitions and province-owned site map layout ids;
 - high-level battle-entry metadata.
 
 Code-owned rule families:
@@ -263,7 +283,7 @@ Rules:
 - Do not write legacy fallback paths.
 - Do not keep new and old strategic state in sync through double writes.
 - Do not preserve stale strategic authority for compatibility or build convenience.
-- Reuse only the large-map TileMapLayer resource and other pure presentation assets when useful.
+- Consume the replacement raster-chunk world only through the accepted `StrategicMap` boundary; the visible legacy TileMap is not reusable runtime authority.
 - Strategic changes interact with battle only through the Strategic Battle Bridge boundary.
 
 ## Legacy Authority Retirement
@@ -284,11 +304,15 @@ Any retained legacy path is an explicit adapter or presentation-only carrier. It
 
 - Strategic state can be mutated only through Strategic Management commands.
 - Expedition creation captures every participant's valid current station before clearing the corps station field. Cancellation and battle-entry rollback validate the complete restoration plan before changing any hero, corps, expedition, or carrier association, then restore those exact stations without partial mutation.
-- Strategic save documents are versioned and migrate incrementally. The current save is promoted only from a flushed same-directory staging document, preserving a recoverable previous complete document where supported; load accepts only a complete current or recoverable previous document and never treats a null state as a new campaign.
+- Strategic save documents are versioned and migrate incrementally. Every current document persists `MapId`, `ScenarioId`, package compatibility revision, and scenario content revision. The current save is promoted only from a flushed same-directory staging document, preserving a recoverable previous complete document where supported; load accepts only a complete compatible current or recoverable previous document and never treats a null state as a new campaign.
+- The one supported pre-package save version migrates atomically to the explicit mock `MapId`/`ScenarioId` only when its known schema and canonical identities prove that origin. Unknown, future, or mismatched map/scenario saves fail before publishing any candidate state.
 - Elapsed strategic time can advance only through the strategic world-map time controller or explicit diagnostics/tests.
 - City management, battle preparation, battle execution, dialogue, and reports pause world-map elapsed time by default.
 - City-management commands must not advance world-map time merely because the player opened or used a city screen.
 - City construction uses authored bounded construction regions and must not be implemented as unrestricted full-map RTS construction.
+- First-version player construction exposes only defensive fortifications whose placed position materially affects a local defense battle. Their battle effects may cross the Bridge as position-aware local support, but that representation does not admit support buildings; player-placed medical, economy, training, recruitment, hero, workshop, and every other non-defensive facility remain later capabilities.
+- Construction-region labels do not authorize or ban building categories; the player-facing building definitions/list owns the defense-only first-version restriction.
+- Passability- or topology-changing walls, barricades, traps, roadblocks, and route sealing require a separate accepted architecture slice.
 - City manpower follows `ActiveForces + ReserveForces <= CityForceCapacity`; reserve soldiers recover at the configured first-version base rate only through Strategic Management time settlement and are consumed only through Strategic Management commands.
 - Rules must be deterministic read-only queries over definitions and state.
 - Presentation must consume view models and submit commands.
@@ -297,8 +321,10 @@ Any retained legacy path is an explicit adapter or presentation-only carrier. It
 - Strategic skill grants/loadouts reference stable battle skill definition ids and do not duplicate skill definitions or battle Runtime cooldown state.
 - Battle Runtime must never be referenced as a live dependency by Strategic Management.
 - Battle integration must follow `strategic-battle-bridge-architecture.md` before implementing battle-side changes.
-- Strategic-location definitions may bind to site map layout ids, but persistent location facts must stay in Strategic Management state and be keyed by location id plus stable layout or marker ids.
-- Reusing one layout for multiple strategic locations must not share built facilities, resources, bridge state, control, garrison, event progress, or battle results.
+- Province definitions bind to site map layout ids; member city definitions must not select another layout. Persistent city facts stay in Strategic Management state and are keyed by location id plus stable layout or marker ids where needed.
+- Large-world visual geometry has no independent mutable state and must not be inferred as a campaign owner from detailed-map marker coordinates, polygons, or mask values.
+- Strategic battle intents preserve `ProvinceId`, member `BattleLocationId`, and authoritative `LayoutId` from the province definition. Result-application commands validate that same lineage before Strategic Management, as the sole strategic authority, writes consequences back.
+- Reusing one layout for multiple provinces must not share built facilities, resources, bridge state, control, garrison, event progress, or battle results.
 
 ## Failure Rules
 
@@ -306,7 +332,9 @@ Any retained legacy path is an explicit adapter or presentation-only carrier. It
 - Invalid commands return structured failure reasons.
 - Commands must not partially apply state on failed validation.
 - Malformed, null-state, unsupported-future, or unrecoverable save documents fail explicitly. Migration may derive a missing expedition rollback station from `SourceLocationId` only when current state and definitions prove it was that participant's valid departure city; otherwise migration fails instead of guessing.
+- Map/scenario/compatibility mismatch fails before strategic state construction or mutation and never falls back to the mock package.
 - Battle settlement persistence failure, identity mismatch, or conflicting replay leaves published state unchanged and retryable where applicable.
+- A battle intent or result whose `BattleLocationId` is not a member of `ProvinceId`, whose `LayoutId` differs from the province definition, or whose expedition source location substitutes for the battle location fails without strategic mutation.
 - Missing bridge-session or result-summary mappings block battle handoff implementation instead of creating direct Runtime dependencies.
 - A retained legacy path must fail or be removed rather than silently owning new strategic behavior.
 
@@ -319,5 +347,6 @@ This architecture is acceptable when:
 - all player, AI, event, and battle-result strategic mutations go through commands;
 - location, resource, facility, corps, hero, and expedition responsibilities are separable;
 - first-version content can add locations, facilities, resources, corps, and hero aptitude through focused definitions without a generic scripting system;
-- strategic locations can reference reusable site map layouts without making Godot scene nodes or layout templates persistent authority;
+- provinces can reference reusable site map layouts without making Godot scene nodes or layout templates persistent authority;
+- battle intent and result application preserve the same `ProvinceId`/member `BattleLocationId`/authoritative `LayoutId` lineage, while expedition source-location facts remain separate;
 - battle integration follows the explicit Strategic Battle Bridge contract instead of leaking Runtime state into Strategic Management.

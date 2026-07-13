@@ -58,6 +58,7 @@ Keep documents focused. Split large systems into smaller documents when one file
 - `scene-transition-router-architecture.md`: root scene transition ownership, handoff boundaries, loading overlay, and conservative root-scene preload cache rules.
 - `strategic-management-system-architecture.md`: clean Strategic Management authority for strategic content, state, rules, commands, presentation view models, and strategic-side battle boundary.
 - `strategic-world-map-authoring-architecture.md`: local Web geographic authoring, shared world/chunk contracts, Godot navigation authoring and compilation, dynamic passage access, and runtime visual loading.
+- `strategic-region-detail-map-mapping-architecture.md`: stable-id semantic mapping from a province's member cities into its one authored detailed-map layout, entrances, deployment contexts, and battle handoff facts.
 - `strategic-battle-bridge-architecture.md`: accepted bridge contract between Strategic Management and battle Runtime, including battle sessions, preparation drafts, snapshot compilation, result summaries, and strategic command writeback.
 
 ## Retired Documents

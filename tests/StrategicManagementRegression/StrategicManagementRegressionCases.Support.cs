@@ -16,7 +16,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions,
         string regionId)
     {
-        StrategicLocationDefinition city = definitions.Locations[StrategicManagementIds.LocationPlainsCity];
+        StrategicLocationDefinition city = definitions.Locations[StrategicManagementIds.LocationQingheCore];
         StrategicConstructionRegionDefinition? region = city.ConstructionRegions
             .FirstOrDefault(item => item.RegionId == regionId);
         AssertTrue(region != null, $"expected construction region id={regionId}");
@@ -37,8 +37,8 @@ internal static partial class StrategicManagementRegressionCases
         string corpsInstanceId = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].AssignedCorpsInstanceId;
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
         AssertTrue(expedition.Success, $"expedition creation should succeed, got {expedition.FailureReason}");

@@ -7,6 +7,7 @@ public static class StrategicManagementRuntime
 {
     public const string DefaultSavePath = "user://saves/strategic_management_autosave.json";
     private static readonly StrategicManagementStateInvariantService Invariants = new();
+    private static readonly StrategicManagementGeographyInvariantService GeographyInvariants = new();
 
     public static StrategicManagementDefinitionSet Definitions { get; private set; }
     public static StrategicManagementState State { get; private set; }
@@ -14,10 +15,14 @@ public static class StrategicManagementRuntime
     public static StrategicManagementCommandService Commands { get; private set; }
     public static StrategicWorldTimeflowController Timeflow { get; private set; }
     public static StrategicManagementViewModelService ViewModels { get; private set; }
-    public static StrategicManagementMapSiteResolver LocationMappings { get; private set; }
     public static StrategicManagementSaveService SaveService { get; private set; }
 
     public static void EnsureInitialized()
+    {
+        EnsureInitialized(FirstStrategicManagementDefinitions.Create());
+    }
+
+    public static void EnsureInitialized(StrategicManagementDefinitionSet expectedDefinitions)
     {
         if (Definitions != null &&
             State != null &&
@@ -25,33 +30,43 @@ public static class StrategicManagementRuntime
             Commands != null &&
             Timeflow != null &&
             ViewModels != null &&
-            LocationMappings != null &&
             SaveService != null)
         {
+            if (Definitions.ContentIdentity != expectedDefinitions.ContentIdentity)
+            {
+                throw new System.InvalidOperationException(
+                    $"Strategic Management content identity mismatch runtime={Definitions.ContentIdentity} selected={expectedDefinitions.ContentIdentity}");
+            }
+            GeographyInvariants.ThrowIfInvalid(Definitions, State, "runtime-existing");
             Invariants.RepairAll(State);
             return;
         }
 
-        Definitions = FirstStrategicManagementDefinitions.Create();
+        Definitions = expectedDefinitions;
         State = FirstStrategicManagementStateFactory.CreatePlayerStart(Definitions);
+        GeographyInvariants.ThrowIfInvalid(Definitions, State, "runtime-initialize");
         Rules = new StrategicManagementRules(Definitions);
         Commands = new StrategicManagementCommandService(Definitions, Rules);
         Timeflow = new StrategicWorldTimeflowController(Commands);
         ViewModels = new StrategicManagementViewModelService(Definitions, Rules);
-        LocationMappings = new StrategicManagementMapSiteResolver(Definitions);
         SaveService = new StrategicManagementSaveService(Definitions);
         Invariants.RepairAll(State);
     }
 
     public static void Reset()
     {
-        Definitions = FirstStrategicManagementDefinitions.Create();
+        Reset(FirstStrategicManagementDefinitions.Create());
+    }
+
+    public static void Reset(StrategicManagementDefinitionSet definitions)
+    {
+        Definitions = definitions;
         State = FirstStrategicManagementStateFactory.CreatePlayerStart(Definitions);
+        GeographyInvariants.ThrowIfInvalid(Definitions, State, "runtime-reset");
         Rules = new StrategicManagementRules(Definitions);
         Commands = new StrategicManagementCommandService(Definitions, Rules);
         Timeflow = new StrategicWorldTimeflowController(Commands);
         ViewModels = new StrategicManagementViewModelService(Definitions, Rules);
-        LocationMappings = new StrategicManagementMapSiteResolver(Definitions);
         SaveService = new StrategicManagementSaveService(Definitions);
         Invariants.RepairAll(State);
     }
@@ -67,6 +82,7 @@ public static class StrategicManagementRuntime
     {
         EnsureInitialized();
         State = SaveService.Load(path);
+        GeographyInvariants.ThrowIfInvalid(Definitions, State, "runtime-load");
         Invariants.RepairAll(State);
     }
 

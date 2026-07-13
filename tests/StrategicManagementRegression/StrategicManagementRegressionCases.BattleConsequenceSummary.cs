@@ -23,8 +23,8 @@ internal static partial class StrategicManagementRegressionCases
         };
         StrategicCommandResult created = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds);
         AssertTrue(created.Success, $"consequence fixture expedition should be created, got {created.FailureReason}");
@@ -124,7 +124,7 @@ internal static partial class StrategicManagementRegressionCases
             },
             configureSettlementAndReport: (settlement, report) =>
             {
-                settlement.Deltas.ChangedLocationIds.Add(StrategicManagementIds.LocationBonefieldOutpost);
+                settlement.Deltas.ChangedLocationIds.Add(StrategicManagementIds.LocationChiyanHighBasin);
                 report.FailureCandidates.Add("equipment_level_low");
             });
 
@@ -134,7 +134,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(session.SessionId, summary.SessionId, "summary should retain session identity");
         AssertEqual(context.Snapshot.SnapshotId, summary.SnapshotId, "summary should retain snapshot identity");
         AssertEqual(created.CreatedEntityId, summary.ExpeditionId, "summary should retain expedition identity");
-        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, summary.TargetLocationId, "summary should retain target identity");
+        AssertEqual(StrategicManagementIds.LocationChiyanHighBasin, summary.TargetLocationId, "summary should retain target identity");
         AssertEqual(BattleTerminationReason.NormalVictory, GetRequiredProperty<BattleTerminationReason>(summary, "TerminationReason"), "summary should retain Runtime termination");
         AssertEqual(session.BattleObjectiveId, GetRequiredProperty<string>(summary, "ObjectiveId"), "summary should retain objective identity");
         AssertEqual(context.ResultEnvelope.Report.ReportId, GetRequiredProperty<string>(summary, "ReportId"), "summary should retain report identity");
@@ -142,7 +142,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(GetRequiredCollection(summary, "ReportSourceEventIds").Count >= 7, "summary should retain report event lineage");
         AssertTrue(GetRequiredCollection(summary, "CommandAndSkillContributions").Count >= 5, "summary should retain command and skill trace facts");
         AssertTrue(GetRequiredCollection(summary, "FailureCandidates").Any(item => item?.ToString() == "equipment_level_low"), "summary should retain report failure attribution");
-        AssertTrue(GetRequiredCollection(summary, "ChangedLocationIds").Any(item => item?.ToString() == StrategicManagementIds.LocationBonefieldOutpost), "summary should retain settlement location changes");
+        AssertTrue(GetRequiredCollection(summary, "ChangedLocationIds").Any(item => item?.ToString() == StrategicManagementIds.LocationChiyanHighBasin), "summary should retain settlement location changes");
 
         AssertEqual(2, summary.ParticipantDispositions.Count, "every carried participant should have one disposition");
         AssertEqual(1, summary.Participants.Count, "only the deployed participant should receive a Runtime result");

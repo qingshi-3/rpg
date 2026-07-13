@@ -1,0 +1,130 @@
+{
+  "version": 3,
+  "provinces": [
+    {
+      "provinceId": "north_pass",
+      "name": "北境关隘",
+      "layoutId": "north_pass_layout"
+    }
+  ],
+  "linearFeatures": {
+    "type": "FeatureCollection",
+    "features": []
+  },
+  "waterAnchors": {
+    "type": "FeatureCollection",
+    "features": []
+  },
+  "strategicLocations": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            512,
+            512
+          ]
+        },
+        "properties": {
+          "locationId": "north_keep",
+          "name": "北境城",
+          "locationType": "main-city",
+          "provinceId": "north_pass"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [
+            1536,
+            512
+          ]
+        },
+        "properties": {
+          "locationId": "east_gate",
+          "name": "东关",
+          "locationType": "auxiliary-city",
+          "provinceId": "north_pass"
+        }
+      }
+    ]
+  },
+  "locationGeometries": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                0,
+                0
+              ],
+              [
+                1024,
+                0
+              ],
+              [
+                1024,
+                1024
+              ],
+              [
+                0,
+                1024
+              ],
+              [
+                0,
+                0
+              ]
+            ]
+          ]
+        },
+        "properties": {
+          "locationId": "north_keep",
+          "provinceId": "north_pass",
+          "direction": "west"
+        }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [
+                1024,
+                0
+              ],
+              [
+                2048,
+                0
+              ],
+              [
+                2048,
+                1024
+              ],
+              [
+                1024,
+                1024
+              ],
+              [
+                1024,
+                0
+              ]
+            ]
+          ]
+        },
+        "properties": {
+          "locationId": "east_gate",
+          "provinceId": "north_pass",
+          "direction": "east"
+        }
+      }
+    ]
+  }
+}

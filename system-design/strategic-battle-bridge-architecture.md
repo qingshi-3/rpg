@@ -4,7 +4,7 @@ Status: Accepted Architecture
 
 ## Gameplay Authority
 
-This document supports `gameplay-design/content-systems-long-term-design.md`, `system-design/strategic-management-system-architecture.md`, `system-design/hero-led-light-rts-system-architecture.md`, and `system-design/battle-result-settlement-architecture.md`.
+This document supports `gameplay-design/content-systems-long-term-design.md`, `gameplay-design/details/strategic-region-detail-map-mapping.md`, `system-design/strategic-management-system-architecture.md`, `system-design/strategic-region-detail-map-mapping-architecture.md`, `system-design/hero-led-light-rts-system-architecture.md`, and `system-design/battle-result-settlement-architecture.md`.
 
 The accepted loop is:
 
@@ -65,8 +65,11 @@ Bridge runtime state may include:
 - battle kind;
 - attacker and defender faction IDs;
 - source and target strategic location IDs;
+- `ProvinceId`, identifying the province whose one detailed layout is used;
+- `BattleLocationId`, identifying the validated main or auxiliary city where the battle occurs; in the current hostile-target flow this must equal the target strategic location ID;
 - participant references for each battle group;
-- map definition ID and battle scene path;
+- authoritative `LayoutId` copied from the province definition, plus its battle scene path;
+- resolved entrance, deployment, route, and scenario semantic marker identities from the stable-id mapping contract;
 - available entrances, deployment zones, and optional objective/tactical zones from authored map metadata;
 - battle-preparation draft state;
 - local building support selection or confirmation draft state when available;
@@ -101,6 +104,7 @@ Any presentation or compatibility projection derived from the active context is 
 Inputs are:
 
 - `StrategicBattleIntent` or equivalent pending-battle facts created by Strategic Management commands;
+- stable `ProvinceId`/member `BattleLocationId` context plus the authoritative semantic mapping definitions and province-owned `LayoutId` binding;
 - read-only Strategic Management definitions and state views needed to compile battle participants and location context;
 - the world-map battle trigger confirmation after the expedition arrives at the target;
 - battle map entry metadata, semantic deployment markers, optional semantic objective/tactical markers, entrances, and compiled navigation topology;
@@ -142,7 +146,7 @@ Strategic Management decides whether a battle may be requested. The bridge decid
 
 ### Snapshot Boundary
 
-`BattleStartSnapshot` is the immutable Runtime input. It should contain battle-facing facts such as battle groups, hero and corps definitions, combat stats, location context, optional objective/tactical zones, skill snapshots, and topology references.
+`BattleStartSnapshot` is the immutable Runtime input. It should contain battle-facing facts such as battle groups, hero and corps definitions, combat stats, location context, resolved entrance/deployment/route context, optional objective/tactical zones, skill snapshots, and topology references. It also preserves `ProvinceId`, member `BattleLocationId`, and the province-owned `LayoutId` needed for event, report, and settlement attribution without exposing large-world geometry to Runtime. Any expedition source location remains a separate participant or rollback fact and must not be substituted for the battle-location lineage.
 
 The bridge session envelope carries scene path, return route, rollback context, pending strategic IDs, and preparation workflow facts. These should not be added to `BattleStartSnapshot` unless Runtime directly needs them.
 
@@ -195,11 +199,13 @@ The draft does not require objective-zone or engagement-rule choices for launch.
 
 The draft is not long-term strategic state unless a separate Strategic Management command explicitly saves a preference, such as a default formation.
 
-The foundation implementation slice has no mandatory local building support completion requirement. A follow-up slice may add pre-battle support selection or confirmation using the accepted local support snapshot boundary. Scouting, siege-method selection, or other strategic entry modes require a separate accepted design before becoming battle-entry requirements.
+The foundation battle-entry implementation has no mandatory local building support completion requirement and does not yet prove that construction support is integrated. A follow-up implementation slice may add pre-battle support selection or confirmation using the accepted local support snapshot boundary. Scouting, siege-method selection, or other strategic entry modes require a separate accepted design before becoming battle-entry requirements.
 
 ### Local Building Support Snapshot Boundary
 
 When a battle occurs at a city or stronghold, Strategic Management owns the city building facts, reserve soldiers, support charges, costs, cooldown-like state, and building eligibility. The bridge may read those facts through accepted Strategic Management views and translate eligible support into current-battle support snapshots.
+
+For a defensive fortification to appear in the first player-facing construction list, its detailed-map placement must materially affect a local defense battle. The bridge contract must therefore carry that eligible fortification's battle effect through a local-support snapshot with a validated position-aware battle anchor or compile the fortification through a separately accepted position-aware battle-entity snapshot. Local support is a Bridge representation of the eligible defensive fortification's effect, not a support-building category admitted to the first list. A purely strategic modifier, support building, or other non-defensive facility does not satisfy first-version construction eligibility even if it could later affect battle. Arrow towers are the sole confirmed baseline; medical shrines, medical facilities, and all other support buildings are deferred.
 
 Each support snapshot should contain only battle-facing facts for the current battle, such as:
 
@@ -210,12 +216,14 @@ source building instance id
 display name
 trigger mode
 available charges
-optional BattleAnchorId
+BattleAnchorId for a first-version player-constructed defensive fortification's local-support effect; optional only for support not admitted through that construction list
 cost or consumption preview
 effect parameters
 ```
 
 Combat consumes support snapshots as current-battle capabilities. It must not query Strategic Management for building definitions, construction regions, reserve soldier recovery, resource stores, or city economy facts.
+
+The bridge does not make walls, barricades, traps, route sealing, or other topology-changing structures valid construction content. Such structures require a separate accepted navigation/topology and Runtime contract before snapshot compilation may expose them.
 
 The first support interaction starts as pre-battle support selection or confirmation. The contract must preserve a later upgrade path where support entries can appear in the battle HUD and be triggered manually during combat.
 
@@ -226,6 +234,7 @@ The bridge consumes complete Runtime and settlement facts and creates `Strategic
 The summary should contain:
 
 - bridge session ID and snapshot ID;
+- `ProvinceId`, member `BattleLocationId`, and the authoritative `LayoutId` lineage used at launch;
 - battle outcome and termination reason;
 - objective results;
 - per-participant result mapped to hero and corps instance IDs;
@@ -236,7 +245,7 @@ The summary should contain:
 - local support entries used, unused, failed, and the consumption facts that Strategic Management should apply;
 - battle report reference and major failure-attribution candidates.
 
-Strategic Management applies this summary only through a command. The bridge must not directly mutate strategic state.
+Strategic Management applies this summary only through a command. That command preserves the same `ProvinceId`/`BattleLocationId` pair for province and city consequences; it must not reinterpret large-world visual geometry or the expedition source as another campaign owner. The bridge must not directly mutate strategic state.
 
 For Strategic Management-backed battles, the summary is built from Bridge Active Context plus Runtime outcome, event stream, settlement plan, and battle report facts. It must not be reconstructed from legacy `BattleStartRequest` and `BattleResult` as source authority.
 
@@ -272,6 +281,9 @@ Legacy non-Strategic battle paths may remain only as explicitly scoped compatibi
 ## Failure Rules
 
 - Missing strategic intent, participant, hero, corps, location, map, deployment zone, or navigation context fails the bridge session explicitly. Missing objective-zone markers do not fail launch for battle kinds that use runtime destination beacons instead of pre-battle objective selection.
+- A missing, duplicate, wrong-type, stale, or mismatched city-to-detail-map semantic binding fails before launch; the Bridge must not scale a polygon, select a nearby marker, or substitute the full map.
+- A `ProvinceId`/`BattleLocationId` membership mismatch fails before launch. In the current hostile-target flow, a battle location that does not equal the validated target location also fails.
+- The province definition's `LayoutId` is the sole map selector. A mapping assertion, marker `MapId`, or Bridge-carried map identity that differs from it fails without loading or substituting the differing layout.
 - Invalid battle-preparation draft state blocks launch and reports player-readable disabled reasons, including deployed player battle groups that have placement but no initial destination beacon.
 - A launched battle must have a snapshot ID that can be matched to the bridge session.
 - Incomplete Runtime output cannot be settled as normal victory or defeat.
@@ -293,3 +305,4 @@ This architecture is acceptable when:
 - scene transition carries Bridge Active Context or a typed reference to it without owning gameplay validation or outcome truth;
 - local building support crosses the boundary as support snapshots and usage summaries, not as full city building state or direct Combat-to-Strategic queries;
 - legacy request/result builders and appliers are clearly retired as long-term authorities.
+- city approach context resolves through stable `ProvinceId`/`BattleLocationId`/`LayoutId`/`MarkerId` identities and returns through the same settlement lineage without confusing large-world geometry, the expedition source location, or Runtime with campaign authority.

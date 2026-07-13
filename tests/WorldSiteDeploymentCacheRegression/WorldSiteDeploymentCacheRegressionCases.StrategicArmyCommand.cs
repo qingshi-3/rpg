@@ -390,7 +390,7 @@ internal static void StrategicWorldRootUsesStrategicManagementMapControlAuthorit
     string projectionBody = ExtractMethodBody(source, "private static bool TryBuildStrategicWorldMapSitePresentation(");
 
     AssertTrue(
-        projectionBody.Contains("StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite", StringComparison.Ordinal) &&
+        projectionBody.Contains("TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId", StringComparison.Ordinal) &&
         projectionBody.Contains("StrategicManagementRuntime.ViewModels.BuildLocationMapView", StringComparison.Ordinal) &&
         projectionBody.Contains("StrategicWorldMapSitePresenter.Build", StringComparison.Ordinal),
         "large-map control projection should resolve the stable map-site mapping and consume the Strategic Management map view");

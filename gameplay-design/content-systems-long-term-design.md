@@ -121,6 +121,20 @@ Use **strategic location** as the design umbrella for large-map locations.
 
 Do not force every strategic location into the full city management model. Only core cities should carry the full management surface.
 
+## Provinces, Cities, And Detailed Maps
+
+A province is the strategic aggregate for one coherent geographic area. It contains exactly one main city and zero or more auxiliary cities, and it owns one authoritative detailed-map `LayoutId` shared by those member cities. A city does not select a separate layout.
+
+Every main or auxiliary city has exactly one corresponding visual region on the large world. That region is geometry keyed by the city's stable `LocationId`; it is not a separate campaign location, control owner, or persistent-state record. Its hover, selection, interaction, and faction treatment derive from the corresponding city and province facts.
+
+When an army approaches or contests a member city, that stable city identity may resolve an authored entrance, attacker deployment area, route context, or another explicit battle-start condition inside the province's one layout. The mapping is semantic: large-world geometry is never scaled or projected into detailed-map cells, whose authored topology and Runtime legality remain authoritative.
+
+Province and city identities pass through battle entry and settlement so consequences return to Strategic Management through the accepted command path. Large-world visual geometry, detailed-map semantic markers, city construction regions, and battle tactical regions remain distinct concepts even when authored mappings connect them.
+
+Qinghe is the player starting province with `qinghe_core` as its main city and four auxiliary cities. Chiyan is the first hostile province with `chiyan_high_basin` as its main city and five auxiliary cities. Auxiliary display names and balance identities remain future content work.
+
+The focused player-facing rules live in `details/strategic-region-detail-map-mapping.md`.
+
 ## Strategic Time Model
 
 The campaign has a large-map timeline. While the player is on the world map, elapsed strategic time may move armies, allow enemy actions, settle resource-site production, refresh opportunities, and later advance construction, recovery, training, or expedition timers.
@@ -284,6 +298,10 @@ mechanical artillery = archer or mage class + construct / siege tags
 
 Combat class is for player-readable battlefield responsibility. Form and tags provide fantasy identity, special resources, and limited special rules.
 
+A combat class must earn that identity through at least one readable base mechanic that changes terrain or command decisions. Higher movement, attack, defense, or another scalar value may support the class, but scalar differences alone are not an acceptable class identity.
+
+Cavalry's durable baseline is momentum-dependent impact: its strongest offensive value requires sufficient usable movement space and a valid charge-like contact. Tight passages, broken routes, blocking, and terrain that prevents a clean approach naturally constrain cavalry. Exact distance, turning, reset, damage, counter, and balance rules require later focused confirmation.
+
 ### Strategic Corps Muster
 
 Strategic management treats corps options as city-supported muster templates and persistent corps instances.
@@ -391,6 +409,8 @@ Skill tiers:
 - ultimate: long cooldown, high mana cost, limited per battle by resource pressure.
 
 Skill assignment is a long-term loadout decision, not a hardcoded battle shortcut. Heroes, battle groups, equipment, or progression may grant skill slots that point to stable skill definitions. Those grants may carry level, source, modifier, or slot facts, but they should not duplicate the full skill definition.
+
+Player-cast skills preserve definition-driven precise targeting. A definition may require the player to choose a unit, cell, direction, area placement, or each stage of a multi-stage spatial target. Automatic target selection and release is not the default identity for player-cast skills; it is allowed only when a specific accepted skill definition explicitly calls for it.
 
 Skill availability should remain readable to the player through mana, cooldown, charges, limited per-battle use, and explicit disabled reasons. Adding a new skill by content should usually mean composing authored skill definitions and reusable effect primitives; adding a new kind of effect, target rule, cost rule, or cross-system mechanic is code/system work.
 
@@ -507,7 +527,7 @@ world-map time -> 2 reserve soldiers recovered per elapsed pulse up to remaining
 reserve soldiers + resources -> corps creation and replenishment
 battle -> corps level experience
 city training support -> corps training and recovery efficiency
-city defense/support buildings -> later local defensive battle support
+eligible defensive fortifications -> position-aware local defensive battle effects
 ```
 
 First-version reserve recovery is passive and free. Strategic Management aggregates recovery when multiple world-map pulses settle together and caps the result so `ActiveForces + ReserveForces` never exceeds `CityForceCapacity`. The first version has no manual conscription action, automatic conscription intensity, resource-spending conscription policy, or building requirement for base reserve recovery.
@@ -530,14 +550,17 @@ Cities use authored, bounded construction regions with RTS-style preview placeme
 
 The player chooses a building from a construction panel, sees a mouse-attached preview, and places it onto a legal snapped grid position inside an authored construction region. First-foundation legality checks cover footprint, overlap, region bounds, ownership/control, resources, and simple eligibility; construction regions do not ban building categories. The first foundation does not include workers, road connectivity, gathering range, resource pathing, or production-efficiency simulation. Later economy/capability work may let terrain, tiles, resource context, or local map facts modify production or support efficiency without turning those modifiers into hidden placement bans.
 
+The first player-facing construction list is narrower than the long-term facility taxonomy. It contains only defensive fortifications whose detailed-map position materially changes a local defense battle. Eligibility requires the placed fortification's battle effect to cross the Strategic Battle Bridge as position-aware local support or as a position-aware battle entity; local support is a Bridge representation of that eligible fortification's effect, not a support-building category admitted to the list. A purely strategic modifier, support building, or other non-defensive facility does not qualify even if it could later affect battle. This is an acceptance rule for the construction slice, not a claim that the battle integration is already implemented.
+
 Building categories:
 
 | Category | Examples | Role |
 |---|---|---|
-| Economy | farm, market, lumber camp, mine | Foundation income for food, money, wood, and ore. |
-| Military | training ground | City force capacity, reserve support, common corps creation, replenishment, and later reinforcement support. |
-| Hero / Administration | tavern or hero recruitment office | Hero access and later city administrative functions. |
-| Defense / Support | arrow tower, medical shrine or medical facility | Later local battle fire support, emergency aid, and other bounded support effects. |
+| Economy | farm, market, lumber camp, mine | Later city income for food, money, wood, and ore. |
+| Military | training ground | Later city force capacity, reserve support, common corps creation, replenishment, and reinforcement support. |
+| Hero / Administration | tavern or hero recruitment office | Later hero access and city administrative functions. |
+| Defense | arrow tower | Position-aware local battle fire support from eligible defensive fortifications. |
+| Support | medical shrine or medical facility | Later city or battle support; outside the first construction version even if it later becomes position-aware. |
 | Special | beast pen, racial sanctuary, mage tower, graveyard, portal | Later route-specific corps, resources, or story hooks. |
 
 Cities should develop different identities:
@@ -552,20 +575,15 @@ special city: unique corps or special resources
 
 City buildings are not full RTS economy-production buildings. They open, stabilize, and improve city-supported muster templates, reserve recovery, training, garrison, workshop, and defense capabilities. A basic training ground may support common local troops, but it should not unlock every fantasy corps type. Specialized facilities such as archery ranges, stables, beast pens, siege workshops, mage towers, sanctuaries, graveyards, or unique local structures should define city roles and force tradeoffs.
 
-The first building batch is deliberately small:
+The first player-facing construction list contains only defensive fortifications and currently has one confirmed baseline:
 
 ```text
-Farm
-Market
-Lumber Camp
-Mine
-Training Ground
-Tavern / hero recruitment office
-Arrow Tower
-Medical Shrine / medical facility
+Arrow Tower: baseline defensive fortification
 ```
 
-Resource sites may still provide passive income, route pressure, or source permissions as non-city strategic locations. Foundation city economy buildings can also produce faction-shared resources; mines and lumber camps are no longer restricted to resource sites only.
+Medical shrines, medical facilities, other support buildings, farms, markets, lumber camps, mines, training grounds, taverns, workshops, and every other non-defensive facility remain later strategic-management capabilities, but they are not player-placeable buildings in the first construction version even if they could later affect battle. Resource sites may still provide passive income, route pressure, or source permissions as non-city strategic locations; this does not imply a foundation city economy-building construction loop.
+
+Walls, barricades, traps, route sealing, and other passability- or topology-changing fortifications are also outside this first version. They require focused rules for navigation mutation, attacker behavior, persistence, and settlement before entering the construction list.
 
 ## Non-City Strategic Locations
 

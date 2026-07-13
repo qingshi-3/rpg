@@ -186,10 +186,14 @@ Ability spatial contracts should support these extension points:
 | Target mode | Unit target, cell target, direction target, or self-centered execution. |
 | Direction mode | Free angle, 8-way snap, 4-way snap, or forward arc. |
 | Area shape | Single actor, single cell, line, cone, circle radius, or grid radius. |
+| Area placement | Definition-owned anchor and orientation rules for player-placed areas. |
+| Multi-stage targeting | Ordered unit, mark, cell, direction, or area selections compiled into one complete command payload. |
 | Range metric | Square-grid range rule used by the selected target and area mode. |
 | Resolution source | Actor facts and grid facts owned by Runtime, not UI or presentation-only collision callbacks. |
 
-The first square-grid realtime implementation only needs actor-target basic attacks and the contract fields required to avoid hardcoding future skills into the wrong model.
+The accepted player-skill contract currently includes unit, cell, direction, area, and multi-stage input; these are not future-only extension placeholders and must not degrade into default automatic target selection. A first-slice skill-identity repair may compose effect executors and primitives that already exist and does not require implementing every possible projectile or area-effect type as a prerequisite. This architecture does not claim that every targeting mode, effect primitive, or presentation path is already implemented; each accepted skill definition must be checked against actual support and fail explicitly when a required contract is missing.
+
+For player-cast skills, snapshots expose every selection stage required by the definition and Presentation collects those choices before command submission. A self-centered or explicitly automatic definition may omit player target input; the system must not treat automatic target selection and release as the fallback for unit, cell, direction, area, or multi-stage skills.
 
 ## Spatial Mark And Teleport Effect Boundary
 

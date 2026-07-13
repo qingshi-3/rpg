@@ -185,7 +185,6 @@ public sealed class StrategicManagementViewModelService
         if (_definitions.Locations.TryGetValue(scopedLocationId, out StrategicLocationDefinition definition))
         {
             locationView.LocationId = definition.LocationId;
-            locationView.MapSiteId = definition.MapSiteId;
             locationView.DisplayName = string.IsNullOrWhiteSpace(definition.DisplayName)
                 ? definition.LocationId
                 : definition.DisplayName;
@@ -198,6 +197,14 @@ public sealed class StrategicManagementViewModelService
                 : string.Join(" / ", locationView.SourcePermissionTags.Select(FormatSourcePermissionTag));
             locationView.ProductionPerWorldTimePulse = BuildProduction(definition.ProductionPerWorldTimePulse);
             locationView.ProductionDisplayText = BuildProductionDisplayText(locationView.ProductionPerWorldTimePulse);
+        }
+
+        if (_definitions.CanonicalGeography.Cities.TryGetValue(
+                locationView.LocationId,
+                out StrategicManagementCityReference canonicalCity))
+        {
+            locationView.ProvinceId = canonicalCity.ProvinceId;
+            locationView.LayoutId = canonicalCity.LayoutId;
         }
 
         if (state != null && state.Locations.TryGetValue(locationView.LocationId, out StrategicLocationState location))
@@ -259,6 +266,13 @@ public sealed class StrategicManagementViewModelService
         _definitions.CityIdentities.TryGetValue(city.CityIdentityId, out StrategicCityIdentityDefinition identity);
 
         cityView.LocationId = city.LocationId;
+        if (_definitions.CanonicalGeography.Cities.TryGetValue(
+                city.LocationId,
+                out StrategicManagementCityReference canonicalCity))
+        {
+            cityView.ProvinceId = canonicalCity.ProvinceId;
+            cityView.LayoutId = canonicalCity.LayoutId;
+        }
         cityView.DisplayName = location?.DisplayName ?? city.LocationId;
         cityView.CityIdentityId = city.CityIdentityId;
         cityView.CityIdentityDisplayName = identity?.DisplayName ?? city.CityIdentityId;

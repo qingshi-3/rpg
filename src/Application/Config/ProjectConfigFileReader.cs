@@ -28,6 +28,22 @@ public static class ProjectConfigFileReader
         return file.GetAsText();
     }
 
+    public static string ResolveRequiredFilePath(string path)
+    {
+        string normalized = path?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("Config path is empty.");
+        }
+
+        if (!TryResolveProjectFilePath(normalized, out string filePath) || !File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Missing project file path={normalized}");
+        }
+
+        return Path.GetFullPath(filePath);
+    }
+
     private static bool TryResolveProjectFilePath(string path, out string filePath)
     {
         filePath = "";

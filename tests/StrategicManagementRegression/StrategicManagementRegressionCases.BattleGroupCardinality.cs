@@ -208,8 +208,8 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
         StrategicCommandResult expedition = commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             heroIds.ToArray());
         AssertTrue(expedition.Success, $"cardinality expedition should be created, got {expedition.FailureReason}");

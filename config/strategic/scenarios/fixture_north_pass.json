@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "scenarioId": "fixture_north_pass_campaign",
+  "mapId": "fixture_north_pass",
+  "packageCompatibilityRevision": 1,
+  "scenarioContentRevision": 1,
+  "defaultCityForceCapacity": 160,
+  "defaultCityReserveForces": 60,
+  "provinces": [
+    { "provinceId": "north_pass", "role": "player-start", "ownerFactionId": "faction_player", "control": "player-held" }
+  ],
+  "locations": [],
+  "resources": [
+    { "factionId": "faction_player", "resourceId": "resource_money", "amount": 300 },
+    { "factionId": "faction_player", "resourceId": "resource_food", "amount": 180 }
+  ]
+}

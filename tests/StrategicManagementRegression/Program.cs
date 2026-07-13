@@ -11,7 +11,15 @@ Run("strategic management rejects non-positive passive reserve recovery", Strate
 Run("strategic management config rejects invalid resource amount lists", StrategicManagementRegressionCases.StrategicManagementConfigRejectsInvalidResourceAmountLists);
 Run("strategic management foundation resources replace obsolete first-loop resources", StrategicManagementRegressionCases.StrategicManagementFoundationResourcesReplaceObsoleteFirstLoopResources);
 Run("strategic management state initializes without legacy world state", StrategicManagementRegressionCases.StrategicManagementStateInitializesWithoutLegacyWorldState);
+Run("strategic management converges all canonical city controls without auxiliary content", StrategicManagementRegressionCases.StrategicManagementConvergesAllCanonicalCityControlsWithoutAuxiliaryContent);
+Run("strategic management rejects invalid canonical identity lineage with stable ids", StrategicManagementRegressionCases.StrategicManagementRejectsInvalidCanonicalIdentityLineageWithStableIds);
+Run("strategic map campaign port exposes immutable canonical control lineage", StrategicManagementRegressionCases.StrategicMapCampaignPortExposesImmutableCanonicalControlLineage);
+Run("strategic scenario owns campaign starts and supports replacement package", StrategicManagementRegressionCases.StrategicScenarioOwnsCampaignStartsAndSupportsReplacementPackage);
+Run("strategic scenario rejects unknown and duplicate assignments before state creation", StrategicManagementRegressionCases.StrategicScenarioRejectsInvalidAssignmentsBeforeStateCreation);
 Run("strategic management state saves and loads foundation city mutations", StrategicManagementRegressionCases.StrategicManagementStateSavesAndLoadsFoundationCityMutations);
+Run("strategic save version five validates content identity and migrates only mock v4", StrategicManagementRegressionCases.StrategicSaveVersionFiveValidatesContentIdentityAndMigratesOnlyMockV4);
+Run("strategic save migrates legacy city identities atomically", StrategicManagementRegressionCases.StrategicSaveMigratesLegacyCityIdentitiesAtomically);
+Run("strategic save rejects identity collisions partial graphs and current legacy ids", StrategicManagementRegressionCases.StrategicSaveRejectsIdentityCollisionsPartialGraphsAndCurrentLegacyIds);
 Run("strategic management loads version one save with retired conscription field", StrategicManagementRegressionCases.StrategicManagementLoadsVersionOneSaveWithRetiredConscriptionField);
 Run("strategic save migrates rollback station and rejects invalid documents", StrategicManagementRegressionCases.StrategicSaveMigratesRollbackStationAndRejectsInvalidDocuments);
 Run("strategic save recovers only complete old or new documents", StrategicManagementRegressionCases.StrategicSaveRecoversOnlyCompleteOldOrNewDocuments);
@@ -20,7 +28,8 @@ Run("first city initializes construction regions reserve and force capacity", St
 Run("strategic management retires conscription policy contracts", StrategicManagementRegressionCases.StrategicManagementRetiresConscriptionPolicyContracts);
 Run("first playable starts with three dispatchable battle groups", StrategicManagementRegressionCases.FirstPlayableStartsWithThreeDispatchableHeroCompanies);
 Run("strategic management dashboard carries military preview unit ids", StrategicManagementRegressionCases.StrategicManagementDashboardCarriesMilitaryPreviewBattleUnitIds);
-Run("strategic management resolves map site ids without silent city fallback", StrategicManagementRegressionCases.StrategicManagementResolvesMapSiteIdsWithoutSilentCityFallback);
+Run("temporary legacy site adapter resolves only retained fixed ids", StrategicManagementRegressionCases.TemporaryLegacySiteAdapterResolvesOnlyRetainedFixedIds);
+Run("temporary legacy site adapter is isolated from strategic management and StrategicMap", StrategicManagementRegressionCases.TemporaryLegacySiteAdapterIsIsolatedFromCanonicalModules);
 Run("strategic management has no strategic battle preparation choice system", StrategicManagementRegressionCases.StrategicManagementHasNoStrategicBattlePreparationChoiceSystem);
 Run("strategic management dashboard hides strategic battle preparation options", StrategicManagementRegressionCases.StrategicManagementDashboardHidesStrategicBattlePreparationOptions);
 Run("Bonefield assault creates expedition without strategic preparation", StrategicManagementRegressionCases.BonefieldAssaultCreatesExpeditionWithoutStrategicPreparation);

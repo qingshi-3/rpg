@@ -1,0 +1,109 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/Battle/Entities/BattleThunderTeleportFx.cs" id="1_teleport"]
+
+[node name="BattleThunderTeleportFx" type="Node2D"]
+z_index = 172
+script = ExtResource("1_teleport")
+
+[node name="OriginBurst" type="Node2D" parent="."]
+
+[node name="Ring" type="Line2D" parent="OriginBurst"]
+scale = Vector2(1, 0.42)
+points = PackedVector2Array(0, -16, 11, -11, 16, 0, 11, 11, 0, 16, -11, 11, -16, 0, -11, -11, 0, -16)
+width = 4.0
+default_color = Color(0.55, 0.9, 1, 0.78)
+closed = true
+antialiased = true
+
+[node name="Sparks" type="CPUParticles2D" parent="OriginBurst"]
+emitting = false
+amount = 42
+lifetime = 0.28
+one_shot = true
+explosiveness = 0.96
+spread = 180.0
+gravity = Vector2(0, 12)
+initial_velocity_min = 22.0
+initial_velocity_max = 68.0
+scale_amount_min = 0.55
+scale_amount_max = 1.7
+color = Color(0.74, 0.96, 1, 0.9)
+
+[node name="Strands" type="Node2D" parent="."]
+
+[node name="StrandA" type="Node2D" parent="Strands"]
+[node name="Glow" type="Line2D" parent="Strands/StrandA"]
+width = 8.0
+default_color = Color(0.25, 0.68, 1, 0.2)
+joint_mode = 2
+antialiased = true
+[node name="Body" type="Line2D" parent="Strands/StrandA"]
+width = 3.6
+default_color = Color(0.34, 0.84, 1, 0.75)
+joint_mode = 2
+antialiased = true
+[node name="Core" type="Line2D" parent="Strands/StrandA"]
+width = 1.25
+default_color = Color(0.92, 1, 1, 0.98)
+joint_mode = 2
+antialiased = true
+
+[node name="StrandB" type="Node2D" parent="Strands"]
+[node name="Glow" type="Line2D" parent="Strands/StrandB"]
+width = 8.0
+default_color = Color(0.25, 0.68, 1, 0.2)
+joint_mode = 2
+antialiased = true
+[node name="Body" type="Line2D" parent="Strands/StrandB"]
+width = 3.6
+default_color = Color(0.34, 0.84, 1, 0.75)
+joint_mode = 2
+antialiased = true
+[node name="Core" type="Line2D" parent="Strands/StrandB"]
+width = 1.25
+default_color = Color(0.92, 1, 1, 0.98)
+joint_mode = 2
+antialiased = true
+
+[node name="StrandC" type="Node2D" parent="Strands"]
+[node name="Glow" type="Line2D" parent="Strands/StrandC"]
+width = 8.0
+default_color = Color(0.25, 0.68, 1, 0.2)
+joint_mode = 2
+antialiased = true
+[node name="Body" type="Line2D" parent="Strands/StrandC"]
+width = 3.6
+default_color = Color(0.34, 0.84, 1, 0.75)
+joint_mode = 2
+antialiased = true
+[node name="Core" type="Line2D" parent="Strands/StrandC"]
+width = 1.25
+default_color = Color(0.92, 1, 1, 0.98)
+joint_mode = 2
+antialiased = true
+
+[node name="DestinationBurst" type="Node2D" parent="."]
+visible = false
+
+[node name="Ring" type="Line2D" parent="DestinationBurst"]
+scale = Vector2(1, 0.42)
+points = PackedVector2Array(0, -18, 13, -13, 18, 0, 13, 13, 0, 18, -13, 13, -18, 0, -13, -13, 0, -18)
+width = 4.6
+default_color = Color(0.72, 0.96, 1, 0.9)
+closed = true
+antialiased = true
+
+[node name="Sparks" type="CPUParticles2D" parent="DestinationBurst"]
+emitting = false
+amount = 54
+lifetime = 0.3
+one_shot = true
+explosiveness = 0.98
+spread = 180.0
+gravity = Vector2(0, 14)
+initial_velocity_min = 26.0
+initial_velocity_max = 76.0
+scale_amount_min = 0.6
+scale_amount_max = 1.9
+color = Color(0.86, 0.99, 1, 0.96)

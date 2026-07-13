@@ -206,9 +206,49 @@ internal static void BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation
         teleportObserver.Contains("activeMovementTweens", StringComparison.Ordinal),
         "teleport presentation should log the visual snap boundary and active movement lanes for manual QA");
     AssertTrue(
+        teleportObserver.IndexOf("Vector2 originGlobal = actor.GlobalPosition", StringComparison.Ordinal) <
+        teleportObserver.IndexOf("unitRoot.SnapEntityToSurface(actor, destinationSurface)", StringComparison.Ordinal) &&
+        teleportObserver.IndexOf("unitRoot.SnapEntityToSurface(actor, destinationSurface)", StringComparison.Ordinal) <
+        teleportObserver.IndexOf("unitRoot.PlayThunderTeleportPresentation", StringComparison.Ordinal),
+        "teleport presentation should capture the origin, cancel movement and snap logically, then stage only the authored fold visual");
+    AssertTrue(
         displacementBoundary.Contains("BattleRuntimeMarkTeleportDisplacementCommitted", StringComparison.Ordinal) &&
         displacementBoundary.Contains("DescribeActorDisplacementState", StringComparison.Ordinal),
         "runtime mark teleport boundary should log displacement state before and after CommitDisplacement so movement-command conflicts are diagnosable");
+}
+
+internal static void ThunderMarkTeleportUsesAuthoredFoldPresentation()
+{
+    string scenePath = Path.Combine("scenes", "battle", "entities", "fx", "BattleThunderTeleportFx.tscn");
+    string scriptPath = Path.Combine("src", "Presentation", "Battle", "Entities", "BattleThunderTeleportFx.cs");
+    string markScript = File.ReadAllText(Path.Combine("src", "Presentation", "Battle", "Entities", "BattleThunderMarkFx.cs"));
+    string unitRoot = ReadBattleUnitRootSource();
+
+    AssertTrue(File.Exists(scenePath) && File.Exists(scriptPath), "thunder mark fold should have a focused authored presentation scene and script");
+    string scene = File.ReadAllText(scenePath);
+    string script = File.ReadAllText(scriptPath);
+    AssertTrue(
+        scene.Contains("OriginBurst", StringComparison.Ordinal) &&
+        scene.Contains("DestinationBurst", StringComparison.Ordinal) &&
+        scene.Contains("StrandA", StringComparison.Ordinal) &&
+        scene.Contains("StrandB", StringComparison.Ordinal) &&
+        scene.Contains("StrandC", StringComparison.Ordinal) &&
+        scene.Contains("CPUParticles2D", StringComparison.Ordinal),
+        "thunder mark fold should author both bursts, three deterministic strands, and spark particles in the scene");
+    AssertTrue(
+        script.Contains("FoldDurationSeconds", StringComparison.Ordinal) &&
+        script.Contains("_actorVisual.Visible = false", StringComparison.Ordinal) &&
+        script.Contains("RevealActorVisual", StringComparison.Ordinal) &&
+        !script.Contains("TweenProperty(_actorVisual", StringComparison.Ordinal) &&
+        script.Contains("CreateTimer", StringComparison.Ordinal) &&
+        script.Contains("GodotObject.IsInstanceValid", StringComparison.Ordinal),
+        "fold timing should hide only the visual, never tween actor movement, and restore safely on Godot timers");
+    AssertTrue(
+        unitRoot.Contains("DefaultThunderTeleportFxScenePath", StringComparison.Ordinal) &&
+        unitRoot.Contains("ConsumeThunderMarkPresentation", StringComparison.Ordinal) &&
+        unitRoot.Contains("GetNodeOrNull<CanvasItem>(\"VisualRoot\")", StringComparison.Ordinal) &&
+        markScript.Contains("CollapseAndDischarge", StringComparison.Ordinal),
+        "teleport presentation should instantiate the fold resource, hide only VisualRoot, and discharge the consumed mark instead of silently freeing it");
 }
 
 internal static void BattleRuntimeMovementQueuesPerceptionOverlayRefresh()
@@ -286,8 +326,11 @@ internal static void ThunderTagPresentationShowsLightningAndMark()
     AssertTrue(
         unitRoot.Contains("public double PlayMarkProjectilePresentation(", StringComparison.Ordinal) &&
         unitRoot.Contains("BattleThunderLinkFx.tscn", StringComparison.Ordinal) &&
-        unitRoot.Contains("BattleThunderMarkFx.tscn", StringComparison.Ordinal),
-        "battle unit root should instantiate authored lightning-link and thunder-mark FX resources for thunder tag");
+        unitRoot.Contains("BattleThunderMarkFx.tscn", StringComparison.Ordinal) &&
+        unitRoot.Contains("ShowThunderMarkAfterArrivalAsync", StringComparison.Ordinal) &&
+        unitRoot.IndexOf("PlayThunderLink(sourceGlobal, targetGlobal)", StringComparison.Ordinal) <
+        unitRoot.IndexOf("ShowThunderMarkAfterArrivalAsync", StringComparison.Ordinal),
+        "battle unit root should launch the authored bolt and delay the persistent mark visual until arrival");
     AssertTrue(File.Exists(thunderLinkScenePath), "thunder tag should have an authored lightning link scene");
     AssertTrue(File.Exists(thunderMarkScenePath), "thunder tag should have an authored persistent mark scene");
 }
@@ -344,15 +387,19 @@ internal static void ThunderTagProjectileReusesChainLightningFxFrames()
         "thunder tag projectile should reuse the authored chain lightning SpriteFrames asset");
     AssertTrue(
         !linkScene.Contains("fx_f2_killingedge/frames.tres", StringComparison.Ordinal) &&
-        !linkScene.Contains("[node name=\"GlowBolt\" type=\"Line2D\"", StringComparison.Ordinal) &&
-        !linkScene.Contains("[node name=\"CoreBolt\" type=\"Line2D\"", StringComparison.Ordinal),
-        "thunder tag projectile should not use the sword-edge substitute or hand-drawn bolt lines as the primary lightning");
+        linkScene.Contains("[node name=\"BoltGlow\" type=\"Line2D\"", StringComparison.Ordinal) &&
+        linkScene.Contains("[node name=\"BoltBody\" type=\"Line2D\"", StringComparison.Ordinal) &&
+        linkScene.Contains("[node name=\"BoltCore\" type=\"Line2D\"", StringComparison.Ordinal) &&
+        linkScene.Contains("[node name=\"ArrowCore\" type=\"Polygon2D\"", StringComparison.Ordinal) &&
+        linkScene.Contains("CPUParticles2D", StringComparison.Ordinal),
+        "thunder tag should author layered directional bolt lines, a travelling core, and sparks without reusing a sword substitute");
     AssertTrue(
-        linkScene.Contains("[node name=\"ChainLightningSprite\" type=\"AnimatedSprite2D\"", StringComparison.Ordinal) &&
-        linkScript.Contains("ChainLightningSpritePath", StringComparison.Ordinal) &&
-        linkScript.Contains("_projectileRoot.Rotation = endpointLocal.Angle()", StringComparison.Ordinal) &&
-        linkScript.Contains("ChainLightningFrameWidthPixels", StringComparison.Ordinal),
-        "chain lightning presentation should author an AnimatedSprite2D and rotate/scale it along the cast direction");
+        linkScene.Contains("[node name=\"ChainLightningAccent\" type=\"AnimatedSprite2D\"", StringComparison.Ordinal) &&
+        linkScript.Contains("ResolveTravelDurationSeconds", StringComparison.Ordinal) &&
+        linkScript.Contains("line.Points = points", StringComparison.Ordinal) &&
+        linkScript.Contains("TrailLengthPixels", StringComparison.Ordinal) &&
+        !linkScript.Contains("distancePixels / frameWidth", StringComparison.Ordinal),
+        "chain-lightning art should remain a compact accent while deterministic points and distance-scaled travel carry the projectile");
 }
 
 internal static void ThunderSpiralPresentationUsesAuthoredAreaFx()
@@ -383,6 +430,15 @@ internal static void ThunderSpiralPresentationUsesAuthoredAreaFx()
         script.Contains("OnSpiralAnimationFinished", StringComparison.Ordinal) &&
         !script.Contains("SetAnimationLoop", StringComparison.Ordinal),
         "thunder spiral FX should loop the authored one-shot SpriteFrames for the Runtime channel duration without mutating the shared resource");
+    AssertTrue(
+        scene.Contains("[node name=\"StormLayer\" type=\"Node2D\"", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"StrikeA\" type=\"Node2D\"", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"StrikeB\" type=\"Node2D\"", StringComparison.Ordinal) &&
+        scene.Contains("[node name=\"StrikeC\" type=\"Node2D\"", StringComparison.Ordinal) &&
+        scene.Contains("StrikeSparks", StringComparison.Ordinal) &&
+        script.Contains("ActivateNextStrike", StringComparison.Ordinal) &&
+        script.Contains("ActivateFinalConvergence", StringComparison.Ordinal),
+        "thunder spiral should layer repeated authored lightning strikes, sparks, pulses, and a final convergence over the vortex base");
     AssertTrue(
         !scene.Contains("position = Vector2(0, -14)", StringComparison.Ordinal),
         "thunder spiral authored sprite should stay centered on the Runtime 3x3 area center");

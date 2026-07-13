@@ -166,7 +166,7 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        if (!StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(_expeditionSourceSiteId, out string sourceLocationId))
+        if (!TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveCityId(_expeditionSourceSiteId, out string sourceLocationId))
         {
             StrategicWorldRuntime.LastNotice = FormatStrategicExpeditionFailureReason(StrategicFailureReasons.MissingCity);
             RefreshAll();
@@ -283,7 +283,7 @@ public partial class StrategicWorldRoot
             return true;
         }
 
-        if (!StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(targetSiteId, out targetLocationId))
+        if (!TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(targetSiteId, out targetLocationId))
         {
             failureReason = StrategicFailureReasons.MissingLocation;
             return false;
@@ -440,7 +440,7 @@ public partial class StrategicWorldRoot
     {
         StrategicManagementRuntime.EnsureInitialized();
         if (string.IsNullOrWhiteSpace(siteId) ||
-            !StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(siteId, out string cityId))
+            !TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveCityId(siteId, out string cityId))
         {
             return System.Array.Empty<StrategicHeroCompanyViewModel>();
         }

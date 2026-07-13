@@ -74,6 +74,7 @@ BattleHitFeedbackRegressionCases.Run("battle runtime live movement buffers commi
 BattleHitFeedbackRegressionCases.Run("battle runtime live movement continuation hold covers single step gap", BattleHitFeedbackRegressionCases.BattleRuntimeLiveMovementContinuationHoldCoversSingleStepGap);
 BattleHitFeedbackRegressionCases.Run("battle runtime movement keeps surface position at visual commit", BattleHitFeedbackRegressionCases.BattleRuntimeMovementKeepsSurfacePositionAtVisualCommit);
 BattleHitFeedbackRegressionCases.Run("battle runtime teleport cancels stale queued movement presentation", BattleHitFeedbackRegressionCases.BattleRuntimeTeleportCancelsStaleQueuedMovementPresentation);
+BattleHitFeedbackRegressionCases.Run("thunder mark teleport uses authored fold presentation", BattleHitFeedbackRegressionCases.ThunderMarkTeleportUsesAuthoredFoldPresentation);
 BattleHitFeedbackRegressionCases.Run("battle runtime movement queues perception overlay refresh", BattleHitFeedbackRegressionCases.BattleRuntimeMovementQueuesPerceptionOverlayRefresh);
 BattleHitFeedbackRegressionCases.Run("battle runtime live observation consumes SkillUsed as cast cue", BattleHitFeedbackRegressionCases.BattleRuntimeLiveObservationConsumesSkillUsedAsCastCue);
 BattleHitFeedbackRegressionCases.Run("thunder tag offhand presentation does not interrupt movement", BattleHitFeedbackRegressionCases.ThunderTagOffhandPresentationDoesNotInterruptMovement);

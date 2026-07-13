@@ -1,27 +1,104 @@
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Rpg.Application.Config;
+using Rpg.Application.StrategicManagement;
+using Rpg.Application.StrategicMap;
 using Rpg.Application.World;
+using Rpg.Definitions.StrategicMap;
 
 namespace Rpg.Definitions.StrategicManagement;
 
 public static class FirstStrategicManagementDefinitions
 {
+    public const string DefaultSelectionPath = "res://config/world/strategic-map-selection.json";
+
     public static StrategicManagementDefinitionSet Create()
     {
+        return CreateFromSelection(DefaultSelectionPath);
+    }
+
+    public static StrategicManagementDefinitionSet CreateFromSelection(string selectionResourcePath)
+    {
+        string selectionPath = ProjectConfigFileReader.ResolveRequiredFilePath(selectionResourcePath);
+        string projectRoot = Path.GetFullPath(Path.Combine(
+            Path.GetDirectoryName(selectionPath)
+            ?? throw new System.InvalidOperationException($"Strategic map selection directory is missing path={selectionPath}"),
+            "..", ".."));
+        StrategicMapPackageSelection selection = StrategicMapPackageLoader.LoadSelection(projectRoot, selectionResourcePath);
+        StrategicMapLoadedContext context = StrategicMapPackageLoader.LoadSelected(projectRoot, selection);
+        StrategicManagementScenarioDefinition scenario = StrategicManagementScenarioLoader.LoadSelected(
+            projectRoot,
+            selection.ScenarioPath,
+            context.Package,
+            context.Canonical);
+        return Create(context.Canonical, scenario, new StrategicManagementContentIdentity(
+            context.Package.MapId,
+            scenario.ScenarioId,
+            context.Package.CompatibilityRevision,
+            scenario.ScenarioContentRevision));
+    }
+
+    public static StrategicManagementDefinitionSet Create(Rpg.Definitions.StrategicMap.StrategicMapCanonicalDefinition canonical)
+    {
+        string selectionPath = ProjectConfigFileReader.ResolveRequiredFilePath(DefaultSelectionPath);
+        string projectRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(selectionPath)!, "..", ".."));
+        StrategicMapPackageSelection selection = StrategicMapPackageLoader.LoadSelection(projectRoot, DefaultSelectionPath);
+        StrategicMapLoadedContext selected = StrategicMapPackageLoader.LoadSelected(projectRoot, selection);
+        StrategicManagementScenarioDefinition scenario = StrategicManagementScenarioLoader.LoadSelected(
+            projectRoot, selection.ScenarioPath, selected.Package, canonical);
+        return Create(canonical, scenario, new StrategicManagementContentIdentity(
+            selected.Package.MapId,
+            scenario.ScenarioId,
+            selected.Package.CompatibilityRevision,
+            scenario.ScenarioContentRevision));
+    }
+
+    public static StrategicManagementDefinitionSet Create(
+        Rpg.Definitions.StrategicMap.StrategicMapCanonicalDefinition canonical,
+        StrategicManagementScenarioDefinition scenario,
+        StrategicManagementContentIdentity identity)
+    {
+        // Scenario composition is validated again at this public boundary so callers cannot
+        // bypass loader validation and construct partial or conflicting initial state facts.
+        StrategicManagementScenarioLoader.ValidateComposition(scenario, canonical, "strategic-management-definition-composition");
         StrategicManagementContentConfig content = StrategicManagementContentConfigLoader.LoadDefaultContent();
         StrategicManagementDefinitionSet definitions = new()
         {
-            ReserveRecoveryPerElapsedPulse = content.ReserveRecoveryPerElapsedPulse
+            ReserveRecoveryPerElapsedPulse = content.ReserveRecoveryPerElapsedPulse,
+            Scenario = scenario,
+            ContentIdentity = identity
         };
         AddResources(definitions, content.Resources);
-        AddLocations(definitions);
+        AddLocations(definitions, canonical);
+        RemoveImplementedCitiesOutsideCanonicalMap(definitions, canonical);
         AddBattleRewards(definitions);
         AddEquipmentSamples(definitions);
         AddCityIdentities(definitions);
         AddBuildings(definitions, content.Buildings);
         AddCorps(definitions, content.Corps);
         AddHeroes(definitions);
+        StrategicManagementGeographyConvergenceService.Converge(definitions, canonical, scenario);
         return definitions;
+    }
+
+    private static void RemoveImplementedCitiesOutsideCanonicalMap(
+        StrategicManagementDefinitionSet definitions,
+        Rpg.Definitions.StrategicMap.StrategicMapCanonicalDefinition canonical)
+    {
+        System.Collections.Generic.HashSet<string> cityIds = canonical.Geography.Locations
+            .Where(location => location.LocationType is
+                Rpg.Definitions.StrategicMap.StrategicLocationType.MainCity or
+                Rpg.Definitions.StrategicMap.StrategicLocationType.AuxiliaryCity)
+            .Select(location => location.LocationId)
+            .ToHashSet(System.StringComparer.Ordinal);
+        foreach (string locationId in definitions.Locations.Values
+                     .Where(location => location.Kind == StrategicLocationKind.City && !cityIds.Contains(location.LocationId))
+                     .Select(location => location.LocationId)
+                     .ToArray())
+        {
+            definitions.Locations.Remove(locationId);
+        }
     }
 
     private static void AddResources(
@@ -34,12 +111,13 @@ public static class FirstStrategicManagementDefinitions
         }
     }
 
-    private static void AddLocations(StrategicManagementDefinitionSet definitions)
+    private static void AddLocations(
+        StrategicManagementDefinitionSet definitions,
+        Rpg.Definitions.StrategicMap.StrategicMapCanonicalDefinition canonical)
     {
         Add(definitions.Locations, new StrategicLocationDefinition
         {
-            LocationId = StrategicManagementIds.LocationPlainsCity,
-            MapSiteId = StrategicManagementIds.MapSitePlayerCamp,
+            LocationId = StrategicManagementIds.LocationQingheCore,
             DisplayName = "苍原城",
             Kind = StrategicLocationKind.City,
             CityIdentityId = StrategicManagementIds.CityIdentityPlainsHuman,
@@ -86,8 +164,7 @@ public static class FirstStrategicManagementDefinitions
         });
         Add(definitions.Locations, new StrategicLocationDefinition
         {
-            LocationId = StrategicManagementIds.LocationBonefieldOutpost,
-            MapSiteId = StrategicManagementIds.MapSiteBonefield,
+            LocationId = StrategicManagementIds.LocationChiyanHighBasin,
             DisplayName = "敌方前哨",
             Kind = StrategicLocationKind.City,
             BattleEncounterId = "assault_bonefield",
@@ -126,6 +203,26 @@ public static class FirstStrategicManagementDefinitions
                 }
             }
         });
+
+        foreach (Rpg.Definitions.StrategicMap.StrategicLocationDefinition city in canonical.Geography.Locations
+                     .Where(location => location.LocationType is
+                         Rpg.Definitions.StrategicMap.StrategicLocationType.MainCity or
+                         Rpg.Definitions.StrategicMap.StrategicLocationType.AuxiliaryCity)
+                     .OrderBy(location => location.LocationId, System.StringComparer.Ordinal))
+        {
+            if (definitions.Locations.ContainsKey(city.LocationId))
+            {
+                continue;
+            }
+
+            // Auxiliary identity is canonical geography; no deferred display, management, battle,
+            // construction, resource, or balance content is invented at the convergence boundary.
+            Add(definitions.Locations, new StrategicLocationDefinition
+            {
+                LocationId = city.LocationId,
+                Kind = StrategicLocationKind.City
+            });
+        }
     }
 
     private static void AddBattleRewards(StrategicManagementDefinitionSet definitions)
@@ -133,7 +230,7 @@ public static class FirstStrategicManagementDefinitions
         Add(definitions.BattleRewards, new StrategicBattleRewardDefinition
         {
             RewardId = StrategicManagementIds.RewardBonefieldVictory,
-            TargetLocationId = StrategicManagementIds.LocationBonefieldOutpost,
+            TargetLocationId = StrategicManagementIds.LocationChiyanHighBasin,
             DisplayName = "敌方前哨占领奖励",
             VictorySummaryText = "敌方前哨已转入我方控制，周边通路和基础物资点被打开。",
             DefeatSummaryText = "敌方前哨仍由敌方控制，出征部队需要重整后再战。",

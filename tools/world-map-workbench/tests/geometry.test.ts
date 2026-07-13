@@ -1,6 +1,6 @@
 import { featureCollection, lineString, point, polygon } from "@turf/turf";
 import { describe, expect, it } from "vitest";
-import { clipLinearFeaturesToChunks, snapRiverConfluence, snapRiverEndpoints, validateRegions } from "../src/shared/geo.js";
+import { clipLinearFeaturesToChunks, snapRiverConfluence, snapRiverEndpoints, validateLocationGeometries } from "../src/shared/geo.js";
 import { createDefaultProject } from "../src/shared/defaultProject.js";
 import type { LinearFeature, WaterAnchorFeature } from "../src/shared/types.js";
 
@@ -47,8 +47,8 @@ describe("geographic contracts", () => {
     expect(clips.features.map((feature) => feature.properties.chunkId)).toEqual(expect.arrayContaining(["chunk_0_0", "chunk_1_0"]));
   });
 
-  it("reports duplicate region ids, overlap, holes, and cross-city conflict", () => {
-    const regions = featureCollection([
+  it("reports duplicate location geometry, overlap, holes, and cross-province conflict", () => {
+    const geometries = featureCollection([
       polygon(
         [
           [
@@ -66,7 +66,7 @@ describe("geographic contracts", () => {
             [25, 25],
           ],
         ],
-        { regionId: "region_a", cityId: "city_a", role: "core", direction: "center" },
+        { locationId: "city_a", provinceId: "province_a", direction: "center" },
       ),
       polygon(
         [
@@ -78,11 +78,11 @@ describe("geographic contracts", () => {
             [50, 50],
           ],
         ],
-        { regionId: "region_a", cityId: "city_b", role: "outer", direction: "east" },
+        { locationId: "city_a", provinceId: "province_b", direction: "east" },
       ),
     ]);
 
-    const codes = validateRegions(regions).map((item) => item.code);
-    expect(codes).toEqual(expect.arrayContaining(["REGION_DUPLICATE_ID", "REGION_HOLE", "REGION_OVERLAP", "REGION_CROSS_CITY"]));
+    const codes = validateLocationGeometries(geometries).map((item) => item.code);
+    expect(codes).toEqual(expect.arrayContaining(["LOCATION_GEOMETRY_DUPLICATE_LOCATION", "LOCATION_GEOMETRY_HOLE", "LOCATION_GEOMETRY_OVERLAP", "LOCATION_GEOMETRY_CROSS_PROVINCE"]));
   });
 });

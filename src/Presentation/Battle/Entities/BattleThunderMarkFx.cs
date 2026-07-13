@@ -13,6 +13,9 @@ public partial class BattleThunderMarkFx : Node2D
     [Export]
     public NodePath PulseRingPath { get; set; } = new("PulseRing");
 
+    [Export]
+    public NodePath CollapseSparksPath { get; set; } = new("CollapseSparks");
+
     [Export(PropertyHint.Range, "1,20,0.5")]
     public double LifetimeSeconds { get; set; } = 8.0;
 
@@ -20,13 +23,16 @@ public partial class BattleThunderMarkFx : Node2D
     private Line2D _outerRing;
     private Line2D _innerGlyph;
     private Line2D _pulseRing;
+    private CpuParticles2D _collapseSparks;
     private int _lifetimeVersion;
+    private bool _collapsing;
 
     public override void _Ready()
     {
         _outerRing = GetNodeOrNull<Line2D>(OuterRingPath);
         _innerGlyph = GetNodeOrNull<Line2D>(InnerGlyphPath);
         _pulseRing = GetNodeOrNull<Line2D>(PulseRingPath);
+        _collapseSparks = GetNodeOrNull<CpuParticles2D>(CollapseSparksPath);
         Play();
     }
 
@@ -40,6 +46,7 @@ public partial class BattleThunderMarkFx : Node2D
     {
         KillTween();
         int lifetimeVersion = ++_lifetimeVersion;
+        _collapsing = false;
         Modulate = Colors.White;
         PrepareLine(_outerRing, new Color(0.52f, 0.9f, 1f, 0.76f), Vector2.One);
         PrepareLine(_innerGlyph, new Color(0.9f, 1f, 1f, 0.95f), Vector2.One);
@@ -59,6 +66,46 @@ public partial class BattleThunderMarkFx : Node2D
         }));
 
         _ = QueueFreeAfterLifetime(lifetimeVersion);
+    }
+
+    public void CollapseAndDischarge()
+    {
+        if (_collapsing || !GodotObject.IsInstanceValid(this) || !IsInsideTree())
+        {
+            return;
+        }
+
+        _collapsing = true;
+        int lifetimeVersion = ++_lifetimeVersion;
+        KillTween();
+        if (_collapseSparks != null && GodotObject.IsInstanceValid(_collapseSparks))
+        {
+            _collapseSparks.Restart();
+            _collapseSparks.Emitting = true;
+        }
+
+        // Runtime consumes the mark immediately. Presentation keeps only this short
+        // collapse discharge so the authoritative removal does not read as a pop.
+        _pulseTween = CreateTween().BindNode(this).SetParallel();
+        _pulseTween.TweenProperty(_outerRing, "scale", new Vector2(0.08f, 0.04f), 0.12)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.In);
+        _pulseTween.TweenProperty(_innerGlyph, "scale", new Vector2(0.05f, 0.02f), 0.1)
+            .SetTrans(Tween.TransitionType.Cubic)
+            .SetEase(Tween.EaseType.In);
+        _pulseTween.TweenProperty(this, "modulate", new Color(1.2f, 1.4f, 1.6f, 0), 0.14);
+        _ = QueueFreeAfterCollapse(lifetimeVersion);
+    }
+
+    private async System.Threading.Tasks.Task QueueFreeAfterCollapse(int lifetimeVersion)
+    {
+        await ToSignal(
+            GetTree().CreateTimer(0.16, processAlways: false),
+            SceneTreeTimer.SignalName.Timeout);
+        if (IsLifetimeVersionCurrent(lifetimeVersion))
+        {
+            QueueFree();
+        }
     }
 
     private async System.Threading.Tasks.Task QueueFreeAfterLifetime(int lifetimeVersion)

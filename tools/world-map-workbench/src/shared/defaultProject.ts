@@ -1,4 +1,5 @@
 import type { GeographyDocument, LayerDefinition, WorldProject } from "./types.js";
+import { createGridChunk, FIXED_NEW_MAP_CHUNK_SIZE, validateMapGridDimensions } from "./mapGrid.js";
 
 const layers: LayerDefinition[] = [
   { id: "reference-map", label: "真实参考地图", kind: "reference", visible: true, locked: true, opacity: 0.55 },
@@ -7,37 +8,28 @@ const layers: LayerDefinition[] = [
   { id: "mountains", label: "山脉与高地", kind: "canonical", visible: true, locked: false, opacity: 1 },
   { id: "roads", label: "道路", kind: "canonical", visible: true, locked: false, opacity: 1 },
   { id: "strategic-locations", label: "战略地点", kind: "canonical", visible: true, locked: false, opacity: 1 },
-  { id: "territories", label: "城域与小区域", kind: "canonical", visible: true, locked: false, opacity: 0.8 },
+  { id: "territories", label: "省份与城市区域", kind: "canonical", visible: true, locked: false, opacity: 0.8 },
   { id: "final-chunk-art", label: "正式 Chunk 美术", kind: "reference", visible: false, locked: true, opacity: 1 },
-  { id: "region-masks", label: "区域 Mask", kind: "derived", visible: false, locked: true, opacity: 0.55 },
+  { id: "region-masks", label: "城市区域 Mask", kind: "derived", visible: false, locked: true, opacity: 0.55 },
   { id: "validation", label: "校验信息", kind: "derived", visible: true, locked: true, opacity: 1 },
 ];
 
-export function createDefaultProject(): WorldProject {
-  const chunkWidth = 1024;
-  const chunkHeight = 1024;
-  const columns = 4;
-  const rows = 2;
+export function createDefaultProject(mapId = "draft_map", displayName = "新地图草稿", columns = 4, rows = 2): WorldProject {
+  validateMapGridDimensions(columns, rows);
+  const chunkWidth = FIXED_NEW_MAP_CHUNK_SIZE;
+  const chunkHeight = FIXED_NEW_MAP_CHUNK_SIZE;
   const chunks = [];
 
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < columns; x += 1) {
-      const id = `chunk_${x}_${y}`;
-      chunks.push({
-        id,
-        coordinate: [x, y] as [number, number],
-        worldOrigin: [x * chunkWidth, y * chunkHeight] as [number, number],
-        terrainMaskPath: `masks/terrain/${id}.png`,
-        territoryMaskPath: `masks/territory/${id}.png`,
-        navigationScenePath: `res://scenes/world/navigation/${id}.tscn`,
-      });
+      chunks.push(createGridChunk(x, y, chunkWidth, chunkHeight));
     }
   }
 
   return {
-    version: 1,
-    projectId: "strategic_world",
-    displayName: "大世界地理工作台",
+    version: 2,
+    mapId,
+    displayName,
     world: { width: chunkWidth * columns, height: chunkHeight * rows },
     chunk: { width: chunkWidth, height: chunkHeight, terrainCellSize: 16, territoryMaskScale: 0.25 },
     layers: layers.map((layer) => ({ ...layer })),
@@ -55,10 +47,11 @@ export function createDefaultProject(): WorldProject {
 
 export function createEmptyGeography(): GeographyDocument {
   return {
-    version: 1,
+    version: 3,
+    provinces: [],
     linearFeatures: { type: "FeatureCollection", features: [] },
     waterAnchors: { type: "FeatureCollection", features: [] },
     strategicLocations: { type: "FeatureCollection", features: [] },
-    regions: { type: "FeatureCollection", features: [] },
+    locationGeometries: { type: "FeatureCollection", features: [] },
   };
 }

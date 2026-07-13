@@ -29,24 +29,21 @@ Cities are the only full long-term management locations. Non-city locations can 
 
 Each city has a local identity. A plains human city naturally supports common human military routes; a special or foreign route requires the right source permission, facility, resource, or relationship. The city identity defines what is stable and cheap, while special buildings and later support-efficiency tradeoffs define what the city sacrifices development space to support.
 
-City construction uses authored, bounded construction regions with RTS-style preview placement. The player chooses a building from a construction panel, sees a mouse-attached preview, and places it onto a legal snapped grid position inside a buildable region. Construction regions decide where buildings can be placed, not which building categories are allowed there. The first version should make city development choices matter without becoming a full RTS base economy.
+City construction uses authored, bounded construction regions with RTS-style preview placement. The player chooses a building from a construction panel, sees a mouse-attached preview, and places it onto a legal snapped grid position inside a buildable region. Construction regions decide where buildings can be placed, not which building categories are allowed there. The first player-facing construction version uses this interaction only for defensive fortifications.
 
 First-version construction does not include workers, road connectivity, resource pathing, gathering range, or production-efficiency simulation. Placement legality should focus on buildable region membership, footprint, bounds, overlap, resources, and simple eligibility. Later economy or capability work may let terrain, tile, resource context, or local map facts affect resource/support efficiency without becoming hard placement-category bans.
 
-The first foundation building pool is:
+An eligible first-version defensive fortification must have a detailed-map position that materially affects a local defense battle. Its battle effect must cross the Strategic Battle Bridge as position-aware local support or as a position-aware battle entity; local support is only the Bridge representation of the eligible fortification's effect, not a support-building category. A purely strategic benefit, support building, or other non-defensive facility does not qualify even if it could later affect battle. This condition defines the intended construction slice; it does not assert that the required battle integration already exists.
+
+The first player-facing construction list contains only defensive fortifications and currently has one confirmed baseline:
 
 ```text
-Farm
-Market
-Lumber Camp
-Mine
-Training Ground
-Tavern / hero recruitment office
-Arrow Tower
-Medical Shrine / medical facility
+Arrow Tower: baseline defensive fortification
 ```
 
-Resource sites may still provide faction-shared income, route pressure, or later source permissions. Mines and lumber camps are also valid foundation city economy buildings; they are not restricted to non-city resource sites.
+Medical shrines, medical facilities, other support buildings, farms, markets, lumber camps, mines, training grounds, taverns, workshops, and every other non-defensive facility remain later strategic-management capabilities, but they are outside the first player-facing construction list even if they could later affect battle. Resource sites may still provide faction-shared income, route pressure, or later source permissions without creating a foundation city economy-building construction loop.
+
+Walls, barricades, traps, route sealing, and other passability- or topology-changing fortifications are also outside this first version and require later focused design.
 
 First-phase resources use faction-shared storage without cross-city transport loss. Regional logistics, route disruption, or front-line supply efficiency can be explored later only after the base conquest-management loop is playable.
 
@@ -119,3 +116,5 @@ Beast corps should not use random loss-of-control or friendly-fire risk in their
 - Individual soldier records, civilian population simulation, or population-driven recruitment.
 - Cross-city resource transport loss in the first version.
 - Faction technology in the first version.
+- Player construction of economy, recruitment, hero, workshop, or other non-defensive facilities in the first construction version.
+- Passability-changing walls, barricades, traps, roadblocks, or route-sealing structures in the first construction version.

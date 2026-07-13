@@ -17,8 +17,8 @@ import type { LayerId, WorldProject } from "../shared/types.js";
 import type { TerrainStore } from "./model/TerrainStore.js";
 
 export interface HoverRegionState {
-  regionId?: string;
-  cityId?: string;
+  locationId?: string;
+  provinceId?: string;
 }
 
 export interface WorkbenchLayers {
@@ -39,7 +39,12 @@ export interface WorkbenchLayers {
   editableVectorLayers: VectorLayer[];
 }
 
-function assetUrl(relativePath: string): string {
+function assetUrl(project: WorldProject, relativePath: string): string {
+  if (relativePath.startsWith("res://assets/textures/world/")) {
+    relativePath = relativePath.slice("res://assets/textures/world/".length);
+  } else if (!relativePath.startsWith(`maps/${project.mapId}/`)) {
+    relativePath = `maps/${project.mapId}/draft/${relativePath}`;
+  }
   return `/project-assets/${relativePath.split("/").map(encodeURIComponent).join("/")}`;
 }
 
@@ -50,7 +55,7 @@ function chunkImages(project: WorldProject, pathSelector: (chunk: WorldProject["
     const [originX, originY] = chunk.worldOrigin;
     return [new ImageLayer({
       source: new ImageStatic({
-        url: assetUrl(imagePath),
+        url: assetUrl(project, imagePath),
         imageExtent: [originX, -(originY + project.chunk.height), originX + project.chunk.width, -originY],
       }),
     })];
@@ -90,9 +95,10 @@ function lineStyle(color: string, width: number, dash?: number[]): Style {
 }
 
 function locationStyle(feature: FeatureLike): Style {
-  const type = String(feature.get("locationType") ?? "city");
+  const type = String(feature.get("locationType") ?? "main-city");
   const colors: Record<string, string> = {
-    city: "#ffd166",
+    "main-city": "#ffd166",
+    "auxiliary-city": "#9fd4ff",
     gate: "#f4a261",
     bridge: "#78c6d0",
     ferry: "#54a7b5",
@@ -100,7 +106,7 @@ function locationStyle(feature: FeatureLike): Style {
     ruin: "#a78bca",
     "resource-site": "#7cc576",
   };
-  const isCity = type === "city";
+  const isCity = type === "main-city" || type === "auxiliary-city";
   return new Style({
     image: isCity
       ? new RegularShape({ points: 4, radius: 10, angle: Math.PI / 4, fill: new Fill({ color: colors[type] }), stroke: new Stroke({ color: "#1c2431", width: 2 }) })
@@ -177,13 +183,13 @@ export function createWorkbenchLayers(project: WorldProject, terrain: TerrainSto
     source: regionSource,
     style: (feature) => {
       const current = hover();
-      const regionId = String(feature.get("regionId") ?? "");
-      const cityId = String(feature.get("cityId") ?? "");
-      const exact = regionId !== "" && current.regionId === regionId;
-      const sameCity = cityId !== "" && current.cityId === cityId;
+      const locationId = String(feature.get("locationId") ?? "");
+      const provinceId = String(feature.get("provinceId") ?? "");
+      const exact = locationId !== "" && current.locationId === locationId;
+      const sameProvince = provinceId !== "" && current.provinceId === provinceId;
       return new Style({
-        fill: new Fill({ color: exact ? "rgba(255,206,92,.35)" : sameCity ? "rgba(103,177,255,.16)" : "rgba(63,112,168,.035)" }),
-        stroke: new Stroke({ color: exact ? "#ffd166" : sameCity ? "#67b1ff" : "rgba(116,162,214,.28)", width: exact ? 3 : 1.5 }),
+        fill: new Fill({ color: exact ? "rgba(255,206,92,.35)" : sameProvince ? "rgba(103,177,255,.16)" : "rgba(63,112,168,.035)" }),
+        stroke: new Stroke({ color: exact ? "#ffd166" : sameProvince ? "#67b1ff" : "rgba(116,162,214,.28)", width: exact ? 3 : 1.5 }),
       });
     },
   });
@@ -193,7 +199,7 @@ export function createWorkbenchLayers(project: WorldProject, terrain: TerrainSto
   const finalArtGroup = register("final-chunk-art", new LayerGroup({ layers: chunkImages(project, (chunk) => chunk.visualTexturePath) }));
   const regionMaskLayer = register("region-masks", new ImageLayer({
     source: new ImageStatic({
-      url: `${assetUrl("masks/territory/territory_mask.png")}?v=${Date.now()}`,
+      url: `${assetUrl(project, "regions/territory_mask.png")}?v=${Date.now()}`,
       imageExtent: [0, -project.world.height, project.world.width, 0],
     }),
   }));

@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 1,
+  "mapId": "mock_qinghe_chiyan",
+  "revision": "r-b443ddb17142d592",
+  "compatibilityRevision": 1,
+  "contentHash": "b443ddb17142d592576f848f391ac5d35dc65587bff8df3c256abcbb11176808",
+  "publishProfile": "region-interactive",
+  "capabilities": [
+    "visual",
+    "regions"
+  ],
+  "chunkManifestPath": "res://config/world/published/mock_qinghe_chiyan/r-b443ddb17142d592/chunk-manifest.json",
+  "geographyPath": "res://config/world/published/mock_qinghe_chiyan/r-b443ddb17142d592/geography.json",
+  "regionArtifacts": {
+    "encoding": "rgb24-location-code-v1",
+    "lookupPath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/region_lookup.json",
+    "chunks": [
+      {
+        "chunkId": "chunk_0_0",
+        "worldOrigin": [
+          0,
+          0
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_0_0.png"
+      },
+      {
+        "chunkId": "chunk_1_0",
+        "worldOrigin": [
+          1024,
+          0
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_1_0.png"
+      },
+      {
+        "chunkId": "chunk_2_0",
+        "worldOrigin": [
+          2048,
+          0
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_2_0.png"
+      },
+      {
+        "chunkId": "chunk_3_0",
+        "worldOrigin": [
+          3072,
+          0
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_3_0.png"
+      },
+      {
+        "chunkId": "chunk_4_0",
+        "worldOrigin": [
+          4096,
+          0
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_4_0.png"
+      },
+      {
+        "chunkId": "chunk_5_0",
+        "worldOrigin": [
+          5120,
+          0
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_5_0.png"
+      },
+      {
+        "chunkId": "chunk_6_0",
+        "worldOrigin": [
+          6144,
+          0
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_6_0.png"
+      },
+      {
+        "chunkId": "chunk_0_1",
+        "worldOrigin": [
+          0,
+          1024
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_0_1.png"
+      },
+      {
+        "chunkId": "chunk_1_1",
+        "worldOrigin": [
+          1024,
+          1024
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_1_1.png"
+      },
+      {
+        "chunkId": "chunk_2_1",
+        "worldOrigin": [
+          2048,
+          1024
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_2_1.png"
+      },
+      {
+        "chunkId": "chunk_3_1",
+        "worldOrigin": [
+          3072,
+          1024
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_3_1.png"
+      },
+      {
+        "chunkId": "chunk_4_1",
+        "worldOrigin": [
+          4096,
+          1024
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_4_1.png"
+      },
+      {
+        "chunkId": "chunk_5_1",
+        "worldOrigin": [
+          5120,
+          1024
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_5_1.png"
+      },
+      {
+        "chunkId": "chunk_6_1",
+        "worldOrigin": [
+          6144,
+          1024
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_6_1.png"
+      },
+      {
+        "chunkId": "chunk_0_2",
+        "worldOrigin": [
+          0,
+          2048
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_0_2.png"
+      },
+      {
+        "chunkId": "chunk_1_2",
+        "worldOrigin": [
+          1024,
+          2048
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_1_2.png"
+      },
+      {
+        "chunkId": "chunk_2_2",
+        "worldOrigin": [
+          2048,
+          2048
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_2_2.png"
+      },
+      {
+        "chunkId": "chunk_3_2",
+        "worldOrigin": [
+          3072,
+          2048
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_3_2.png"
+      },
+      {
+        "chunkId": "chunk_4_2",
+        "worldOrigin": [
+          4096,
+          2048
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_4_2.png"
+      },
+      {
+        "chunkId": "chunk_5_2",
+        "worldOrigin": [
+          5120,
+          2048
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_5_2.png"
+      },
+      {
+        "chunkId": "chunk_6_2",
+        "worldOrigin": [
+          6144,
+          2048
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_6_2.png"
+      },
+      {
+        "chunkId": "chunk_0_3",
+        "worldOrigin": [
+          0,
+          3072
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_0_3.png"
+      },
+      {
+        "chunkId": "chunk_1_3",
+        "worldOrigin": [
+          1024,
+          3072
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_1_3.png"
+      },
+      {
+        "chunkId": "chunk_2_3",
+        "worldOrigin": [
+          2048,
+          3072
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_2_3.png"
+      },
+      {
+        "chunkId": "chunk_3_3",
+        "worldOrigin": [
+          3072,
+          3072
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_3_3.png"
+      },
+      {
+        "chunkId": "chunk_4_3",
+        "worldOrigin": [
+          4096,
+          3072
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_4_3.png"
+      },
+      {
+        "chunkId": "chunk_5_3",
+        "worldOrigin": [
+          5120,
+          3072
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_5_3.png"
+      },
+      {
+        "chunkId": "chunk_6_3",
+        "worldOrigin": [
+          6144,
+          3072
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_6_3.png"
+      },
+      {
+        "chunkId": "chunk_0_4",
+        "worldOrigin": [
+          0,
+          4096
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_0_4.png"
+      },
+      {
+        "chunkId": "chunk_1_4",
+        "worldOrigin": [
+          1024,
+          4096
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_1_4.png"
+      },
+      {
+        "chunkId": "chunk_2_4",
+        "worldOrigin": [
+          2048,
+          4096
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_2_4.png"
+      },
+      {
+        "chunkId": "chunk_3_4",
+        "worldOrigin": [
+          3072,
+          4096
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_3_4.png"
+      },
+      {
+        "chunkId": "chunk_4_4",
+        "worldOrigin": [
+          4096,
+          4096
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_4_4.png"
+      },
+      {
+        "chunkId": "chunk_5_4",
+        "worldOrigin": [
+          5120,
+          4096
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_5_4.png"
+      },
+      {
+        "chunkId": "chunk_6_4",
+        "worldOrigin": [
+          6144,
+          4096
+        ],
+        "worldWidth": 1024,
+        "worldHeight": 1024,
+        "maskTexturePath": "res://assets/textures/world/maps/mock_qinghe_chiyan/r-b443ddb17142d592/regions/chunks/chunk_6_4.png"
+      }
+    ]
+  }
+}

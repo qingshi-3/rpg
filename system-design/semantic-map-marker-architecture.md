@@ -4,7 +4,7 @@ Status: Accepted Architecture
 
 ## Gameplay Authority
 
-This document supports the accepted strategic-location and spatial battle direction. Maps are authored gameplay spaces, so tactical and management semantics should be placed visually on the map instead of maintained as raw coordinate lists.
+This document supports the accepted strategic-location and spatial battle direction, including `gameplay-design/details/strategic-region-detail-map-mapping.md` and `strategic-region-detail-map-mapping-architecture.md`. Maps are authored gameplay spaces, so tactical and management semantics should be placed visually on the map instead of maintained as raw coordinate lists.
 
 ## Responsibility
 
@@ -17,6 +17,15 @@ The semantic marker system defines reusable map regions for authored gameplay me
 - tactical combat regions such as chokepoints, lanes, reserve points, flank routes, ranged points, and defend points.
 
 The system owns marker authoring, extraction, validation, and pure-data handoff. It does not decide final combat AI, building rules, settlement, or battle outcomes.
+
+## Region Concept Separation
+
+- Province/member-city geography is canonical large-world content keyed by `ProvinceId` and `LocationId`. Each city has one visual geometry and that geometry has no independent campaign state.
+- Detailed-map semantic regions and markers are authored references keyed by the containing `LayoutId` and stable `MarkerId`. `SemanticMapMarkerData.MapId` is the serialized carrier of that same `LayoutId`, not another map selector.
+- City construction regions are a specific detailed-map/Strategic Management placement concept.
+- Battle tactical regions are snapshot- or Runtime-scoped intent and local-combat concepts.
+
+The marker system owns only the detailed-map authoring side of these boundaries. An authored member-city mapping may reference a marker by stable id and role, but marker shape, cell coordinates, or overlap never creates province/location identity.
 
 ## Authoring Model
 
@@ -56,7 +65,7 @@ The marker node snaps its position to the map coordinate tile grid when grid sna
 Runtime extraction converts authoring nodes into pure marker data:
 
 ```text
-MapId
+MapId (= containing LayoutId)
 MarkerId
 MarkerType
 DeploymentSide
@@ -96,6 +105,8 @@ Initial marker types are:
 
 Consumers must filter by type and tags. A marker being present does not imply every system may use it.
 
+Province/member-city detailed-map mappings consume stable `MarkerId` references plus an explicit semantic role within the province's authoritative `LayoutId`. When the mapping or extracted marker data carries `MapId`, it must equal that `LayoutId` and serves only as a scope/validation value. It must not select a different map. Mappings must not duplicate marker footprints or select markers by nearest position, display name, scene-node path, or projected large-world geometry.
+
 Bridge markers describe bridge gameplay facts. Bridge art may overlap water, banks, roads, or high-ground edges, but bridge height, bridge footprint, and cross-height entry points must come from bridge markers and explicit map connections rather than visual tile overlap.
 
 ## Ownership By Layer
@@ -116,7 +127,7 @@ Strategic city construction consumes `ConstructionRegion` markers as the map-aut
 
 The marker id must match a `StrategicConstructionRegionDefinition.RegionId`. The marker footprint supplies the visible map region used for hover highlights, mouse-follow building footprint preview, and click-to-place region resolution. Strategic Management definitions and rules remain the authority for buildable region membership, bounds, overlap, resource costs, explicit building eligibility, and durable building state. Construction-region markers must not carry allowed building categories; category remains building metadata for UI/capability use, not region placement legality.
 
-The current first playable city may use `demo_site.tscn` as the test map and should expose three construction-region markers for the foundation loop: economy, military, and civic/support. `BuildingSlot` markers and old site facility-slot presentation are retired; Strategic Management building placement must route only through construction-region markers, Strategic Management rules, and the `BuildCityBuilding` command.
+The current first playable city may keep its existing authored construction-region markers and editor-facing labels. Labels such as economy, military, or civic/support are organizational metadata only: they neither expand the first player-facing construction list beyond defensive fortifications nor ban an otherwise eligible defensive definition. No marker rename or replacement is required to narrow that list. `BuildingSlot` markers and old site facility-slot presentation are retired; Strategic Management building placement must route only through construction-region markers, Strategic Management rules, and the `BuildCityBuilding` command.
 
 The target placement flow is:
 
@@ -165,7 +176,8 @@ Destination beacons are runtime command objects created from player input. They 
 
 ## Validation Rules
 
-- Marker IDs must be unique within one map.
+- Marker IDs must be unique within one layout.
+- Extracted `MapId` must equal the containing layout's `LayoutId`; a missing or differing value fails consumers that require a mapped layout and must not redirect them to another layout.
 - Width and height are clamped to a safe authored range.
 - The anchor must resolve to the coordinate tile grid.
 - Covered cells are computed from the top-left anchor by extending right and down.
@@ -198,3 +210,4 @@ This architecture is acceptable when:
 - battle-preparation deployment highlighting and validation can consume authored side-based `DeploymentZone` markers without restricting unrelated full-map placement consumers;
 - optional objective-selection or scenario systems can consume authored `ObjectiveZone` markers without making them mandatory for destination-beacon battles;
 - deployment, entrance, event, and tactical marker consumers can be added without inventing separate coordinate systems.
+- stable province/member-city mappings can reference detailed-map markers without conflating large-world visual geometry, construction regions, or battle tactical regions.

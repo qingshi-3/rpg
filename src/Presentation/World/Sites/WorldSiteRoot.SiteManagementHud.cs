@@ -766,19 +766,19 @@ public partial class WorldSiteRoot
     private static bool TryResolveStrategicManagementCityId(string worldSiteId, out string cityId)
     {
         StrategicManagementRuntime.EnsureInitialized();
-        return StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(worldSiteId, out cityId);
+        return TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveCityId(worldSiteId, out cityId);
     }
 
     private static bool TryResolveStrategicManagementLocationId(string worldSiteId, out string locationId)
     {
         StrategicManagementRuntime.EnsureInitialized();
-        return StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(worldSiteId, out locationId);
+        return TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(worldSiteId, out locationId);
     }
 
     private static string BuildStrategicManagementCityUnavailableNotice(string worldSiteId)
     {
         StrategicManagementRuntime.EnsureInitialized();
-        return StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(worldSiteId, out _)
+        return TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(worldSiteId, out _)
             ? "当前战略地点不是可经营城市。"
             : "当前场景尚未映射到战略经营地点。";
     }

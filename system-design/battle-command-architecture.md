@@ -112,10 +112,16 @@ Commands issued during preparation or tactical pause may place or update beacons
 
 Hero and later corps active-skill commands carry intent, not immediate effects. A skill command must name the skill definition id, command channel, source battle group or actor, and targeting payload required by the definition.
 
-Skill commands use two default targeting forms:
+Skill command payloads preserve the definition's player-directed targeting contract:
 
-- Targeted skill command: requires a selected runtime actor target before Runtime accepts the command.
-- Non-targeted skill command: requires only the definition-owned payload, such as self, cell, direction, or no explicit target.
+- unit target: the player selects a valid Runtime actor;
+- cell target: the player selects a legal grid anchor;
+- direction target: the player selects a direction under the definition's snap or arc rules;
+- area target: the player places or orients a definition-owned area shape;
+- multi-stage target: the player completes each required selection before one complete command is submitted;
+- self-centered or explicitly automatic target: no player target is required only when the accepted definition says so.
+
+Internal code may group these forms into targeted and non-targeted payload families, but that grouping must not collapse cell, direction, area, or multi-stage player input into automatic target selection and release. Automatic targeting is definition-specific, not the default identity of player-cast skills.
 
 Runtime acceptance of a targeted skill command checks that the target exists, is targetable for that skill, and is in range at acceptance time. Default active-skill range is footprint-aware Manhattan distance between caster and target footprints, so the player sees and submits a diamond-shaped range on the square grid. Acceptance locks the target identity for later execution. If the locked target moves out of range before the actor can release the skill, the order still resolves against that target. If the target dies or becomes invalid before release, the order fails instead of retargeting or firing at empty space.
 
@@ -172,3 +178,4 @@ This architecture is acceptable when:
 - command state transitions are visible to runtime diagnostics and report attribution;
 - accepted commands respect Runtime actor state-machine action locks and decision boundaries;
 - commands influence Runtime first, and long-term state changes wait for Settlement.
+- player-cast skill commands preserve definition-required unit, cell, direction, area, and multi-stage choices instead of defaulting to automatic target-and-release.

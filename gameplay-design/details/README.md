@@ -10,6 +10,7 @@ Use `../content-systems-long-term-design.md` as the global authority. Detail doc
 - Heroes and corps: `heroes-and-corps/README.md`
 - Cities and locations: `cities-and-locations/README.md`
 - Strategic-world region presentation: `strategic-world-region-presentation.md`
+- Province/city to detailed-map mapping: `strategic-region-detail-map-mapping.md`
 - Progression and equipment: `progression-and-equipment/README.md`
 - Professions, tags, and bonds: `professions-tags-bonds/README.md`
 

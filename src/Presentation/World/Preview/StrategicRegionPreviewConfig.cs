@@ -12,10 +12,10 @@ public partial class StrategicRegionPreviewConfig : Resource
     public Rect2 PreviewBounds { get; set; } = DefaultPreviewBounds;
 
     [Export]
-    public string PlayerCityId { get; set; } = "city_qinghe";
+    public string PlayerCityId { get; set; } = "qinghe";
 
     [Export]
-    public string HostileCityId { get; set; } = "city_chiyan";
+    public string HostileCityId { get; set; } = "chiyan";
 
     [ExportGroup("Camera")]
     [Export(PropertyHint.Range, "0.35,2.0,0.01")]

@@ -90,7 +90,7 @@ public partial class StrategicWorldRoot
         // Large-map detail consumes Strategic Management read models. Legacy WorldSiteState
         // remains map/scene scaffolding until later slices, but it is not management truth here.
         StrategicManagementRuntime.EnsureInitialized();
-        if (!StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(_selectedSiteId, out string locationId))
+        if (!TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(_selectedSiteId, out string locationId))
         {
             BindUnmappedStrategicLocationDetail(definition);
             ShowWorldDetailPanelForCurrentContent();

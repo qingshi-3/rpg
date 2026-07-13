@@ -10,7 +10,85 @@ script = ExtResource("1_spiral")
 [node name="SpiralSprite" type="AnimatedSprite2D" parent="."]
 position = Vector2(0, 0)
 scale = Vector2(0.5625, 0.5625)
-modulate = Color(0.48, 0.88, 1.35, 0.86)
+modulate = Color(0.38, 0.72, 1, 0.62)
 sprite_frames = ExtResource("2_vortex")
 animation = &"default"
-autoplay = "default"
+
+[node name="StormLayer" type="Node2D" parent="."]
+z_index = 3
+
+[node name="GroundPulse" type="Line2D" parent="StormLayer"]
+scale = Vector2(1, 0.42)
+points = PackedVector2Array(0, -28, 20, -20, 28, 0, 20, 20, 0, 28, -20, 20, -28, 0, -20, -20, 0, -28)
+width = 3.2
+default_color = Color(0.56, 0.9, 1, 0.52)
+closed = true
+antialiased = true
+
+[node name="StrikeA" type="Node2D" parent="StormLayer"]
+visible = false
+[node name="Glow" type="Line2D" parent="StormLayer/StrikeA"]
+width = 9.0
+default_color = Color(0.2, 0.62, 1, 0.25)
+joint_mode = 2
+antialiased = true
+[node name="Body" type="Line2D" parent="StormLayer/StrikeA"]
+width = 4.0
+default_color = Color(0.34, 0.84, 1, 0.82)
+joint_mode = 2
+antialiased = true
+[node name="Core" type="Line2D" parent="StormLayer/StrikeA"]
+width = 1.4
+default_color = Color(0.94, 1, 1, 1)
+joint_mode = 2
+antialiased = true
+
+[node name="StrikeB" type="Node2D" parent="StormLayer"]
+visible = false
+[node name="Glow" type="Line2D" parent="StormLayer/StrikeB"]
+width = 9.0
+default_color = Color(0.2, 0.62, 1, 0.25)
+joint_mode = 2
+antialiased = true
+[node name="Body" type="Line2D" parent="StormLayer/StrikeB"]
+width = 4.0
+default_color = Color(0.34, 0.84, 1, 0.82)
+joint_mode = 2
+antialiased = true
+[node name="Core" type="Line2D" parent="StormLayer/StrikeB"]
+width = 1.4
+default_color = Color(0.94, 1, 1, 1)
+joint_mode = 2
+antialiased = true
+
+[node name="StrikeC" type="Node2D" parent="StormLayer"]
+visible = false
+[node name="Glow" type="Line2D" parent="StormLayer/StrikeC"]
+width = 9.0
+default_color = Color(0.2, 0.62, 1, 0.25)
+joint_mode = 2
+antialiased = true
+[node name="Body" type="Line2D" parent="StormLayer/StrikeC"]
+width = 4.0
+default_color = Color(0.34, 0.84, 1, 0.82)
+joint_mode = 2
+antialiased = true
+[node name="Core" type="Line2D" parent="StormLayer/StrikeC"]
+width = 1.4
+default_color = Color(0.94, 1, 1, 1)
+joint_mode = 2
+antialiased = true
+
+[node name="StrikeSparks" type="CPUParticles2D" parent="StormLayer"]
+emitting = false
+amount = 28
+lifetime = 0.24
+one_shot = true
+explosiveness = 0.95
+spread = 180.0
+gravity = Vector2(0, 14)
+initial_velocity_min = 20.0
+initial_velocity_max = 56.0
+scale_amount_min = 0.5
+scale_amount_max = 1.5
+color = Color(0.78, 0.97, 1, 0.9)

@@ -57,7 +57,7 @@ internal static void FirstSliceExpeditionDraftKeepsHeroCompanySelectionsIndepend
         controlsBody.Contains("GetAvailableExpeditionHeroCompanies(_expeditionSourceSiteId)", StringComparison.Ordinal),
         "expedition draft should start from an empty selection and read dispatchable battle groups through the Strategic Management helper when binding the draft UI");
     AssertTrue(
-        availableBody.Contains("StrategicManagementRuntime.LocationMappings.TryResolveCityIdForMapSite(", StringComparison.Ordinal) &&
+        availableBody.Contains("TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveCityId(", StringComparison.Ordinal) &&
         availableBody.Contains("StrategicManagementRuntime.BuildDashboard(", StringComparison.Ordinal) &&
         availableBody.Contains("dashboard.SelectedCity.HeroCompanies", StringComparison.Ordinal) &&
         !availableBody.Contains("site.Garrison", StringComparison.Ordinal),

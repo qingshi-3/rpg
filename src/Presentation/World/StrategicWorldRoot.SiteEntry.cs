@@ -88,7 +88,7 @@ public partial class StrategicWorldRoot
         // Large-map management actions must read Strategic Management ownership.
         // WorldSiteState is only a legacy map/scene cache and may lag after conquest.
         StrategicManagementRuntime.EnsureInitialized();
-        if (!StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(mapSiteId, out string locationId))
+        if (!TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(mapSiteId, out string locationId))
         {
             return false;
         }
@@ -110,7 +110,7 @@ public partial class StrategicWorldRoot
         }
 
         StrategicManagementRuntime.EnsureInitialized();
-        if (!StrategicManagementRuntime.LocationMappings.TryResolveLocationIdForMapSite(mapSiteId, out string locationId))
+        if (!TemporaryLegacyStrategicSiteIdentityAdapter.TryResolveLocationId(mapSiteId, out string locationId))
         {
             return false;
         }
@@ -119,7 +119,7 @@ public partial class StrategicWorldRoot
             StrategicManagementRuntime.State,
             StrategicManagementIds.FactionPlayer,
             locationId);
-        presentation = StrategicWorldMapSitePresenter.Build(location);
+        presentation = StrategicWorldMapSitePresenter.Build(mapSiteId, location);
         return string.Equals(presentation.MapSiteId, mapSiteId, System.StringComparison.Ordinal);
     }
 

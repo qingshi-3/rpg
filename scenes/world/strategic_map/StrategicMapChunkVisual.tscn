@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/Presentation/StrategicMap/StrategicMapChunkVisual.cs" id="1_script"]
+
+[node name="StrategicMapChunkVisual" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Surface" type="Sprite2D" parent="."]
+centered = false
+texture_filter = 1

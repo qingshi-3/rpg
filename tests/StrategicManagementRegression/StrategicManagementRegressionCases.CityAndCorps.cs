@@ -14,7 +14,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementRules rules = new(definitions);
 
         IReadOnlyList<StrategicMusterTemplateAvailability> templates =
-            rules.GetMusterTemplates(state, StrategicManagementIds.LocationPlainsCity);
+            rules.GetMusterTemplates(state, StrategicManagementIds.LocationQingheCore);
 
         AssertAvailable(templates, StrategicManagementIds.CorpsShieldLine);
         AssertAvailable(templates, StrategicManagementIds.CorpsArcherLine);
@@ -35,14 +35,14 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult result = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingFarm,
             StrategicManagementIds.RegionPlainsEconomy,
             economy.OriginX,
             economy.OriginY);
 
         AssertTrue(result.Success, $"farm build should succeed, got {result.FailureReason}");
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         AssertEqual(1, city.Buildings.Count, "city should store one placed building instance");
         StrategicBuildingInstanceState building = city.Buildings[0];
         AssertEqual(StrategicManagementIds.BuildingFarm, building.BuildingDefinitionId, "building instance should record definition id");
@@ -66,7 +66,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult valid = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingFarm,
             StrategicManagementIds.RegionPlainsEconomy,
             economy.OriginX,
@@ -75,7 +75,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult overlap = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingMarket,
             StrategicManagementIds.RegionPlainsEconomy,
             economy.OriginX,
@@ -85,7 +85,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult outside = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingMarket,
             StrategicManagementIds.RegionPlainsEconomy,
             economy.OriginX + economy.Width,
@@ -95,20 +95,20 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult crossCategory = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingTrainingGround,
             StrategicManagementIds.RegionPlainsEconomy,
             economy.OriginX,
             economy.OriginY + 2);
         AssertTrue(crossCategory.Success, $"cross-category placement inside a buildable region should succeed, got {crossCategory.FailureReason}");
 
-        int beforeBuildings = state.Cities[StrategicManagementIds.LocationPlainsCity].Buildings.Count;
+        int beforeBuildings = state.Cities[StrategicManagementIds.LocationQingheCore].Buildings.Count;
         int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
 
         state.SetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood, 0);
         StrategicCommandResult noResources = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingMarket,
             StrategicManagementIds.RegionPlainsEconomy,
             economy.OriginX + 5,
@@ -116,7 +116,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(!noResources.Success, "building placement should fail without resources");
         AssertEqual(StrategicFailureReasons.InsufficientResources, noResources.FailureReason, "resource shortage should be explicit");
 
-        AssertEqual(beforeBuildings, state.Cities[StrategicManagementIds.LocationPlainsCity].Buildings.Count, "failed placements must not add buildings");
+        AssertEqual(beforeBuildings, state.Cities[StrategicManagementIds.LocationQingheCore].Buildings.Count, "failed placements must not add buildings");
         AssertEqual(beforeMoney, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney), "failed placements must not spend money");
         AssertEqual(0, state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceWood), "test resource mutation should stay the only wood change after failed placement");
     }
@@ -126,14 +126,14 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
         int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
         int beforeReserve = city.ReserveForces;
 
         StrategicCommandResult result = commands.CreateCorps(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.CorpsShieldLine);
 
         AssertTrue(result.Success, $"shield corps creation should succeed, got {result.FailureReason}");
@@ -151,7 +151,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         city.ReserveForces = 0;
         int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
         int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
@@ -159,7 +159,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult result = commands.CreateCorps(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.CorpsShieldLine);
 
         AssertTrue(!result.Success, "shield corps creation should fail without reserve soldiers");
@@ -175,7 +175,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         StrategicHeroState hero = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander];
         string oldCorpsInstanceId = hero.AssignedCorpsInstanceId;
         int beforeReserve = city.ReserveForces;
@@ -186,7 +186,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = InvokeRecruitCorpsForHero(
             commands,
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.HeroOrdinaryCommander,
             StrategicManagementIds.CorpsCavalryLine);
 
@@ -224,7 +224,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         StrategicHeroState hero = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander];
         string oldCorpsInstanceId = hero.AssignedCorpsInstanceId;
         state.CorpsInstances[oldCorpsInstanceId].Strength = 50;
@@ -236,7 +236,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicCommandResult result = InvokeRecruitCorpsForHero(
             commands,
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.HeroOrdinaryCommander,
             StrategicManagementIds.CorpsArcherLine);
 
@@ -269,7 +269,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementCommandService commands = new(definitions, rules);
         string corpsInstanceId = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].AssignedCorpsInstanceId;
         StrategicCorpsInstanceState corps = state.CorpsInstances[corpsInstanceId];
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         corps.Strength = 60;
         int beforeReserve = city.ReserveForces;
         int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
@@ -277,7 +277,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult result = commands.ReplenishCorps(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             corpsInstanceId,
             100);
 
@@ -295,14 +295,14 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
         string corpsInstanceId = state.Heroes[StrategicManagementIds.HeroOrdinaryCommander].AssignedCorpsInstanceId;
         StrategicCorpsInstanceState corps = state.CorpsInstances[corpsInstanceId];
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         corps.Strength = 40;
         city.ReserveForces = 0;
         int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
 
         StrategicCommandResult result = commands.ReplenishCorps(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             corpsInstanceId,
             100);
 
@@ -322,7 +322,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(unassign.Success, $"test setup unassignment should succeed, got {unassign.FailureReason}");
         StrategicCommandResult create = commands.CreateCorps(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.CorpsCavalryLine);
 
         StrategicCommandResult assign = commands.AssignCorpsToHero(

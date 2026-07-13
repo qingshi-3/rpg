@@ -13,7 +13,15 @@ namespace Rpg.Application.StrategicManagement;
 
 public sealed class StrategicManagementSaveService
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 5;
+
+    private const string LegacyCompatibleMapId = "mock_qinghe_chiyan";
+    private const string LegacyCompatibleScenarioId = "mock_qinghe_chiyan_campaign";
+    private const int LegacyCompatiblePackageRevision = 1;
+    private const int LegacyCompatibleScenarioRevision = 1;
+
+    private const string LegacyPlainsCityId = "location_plains_city";
+    private const string LegacyBonefieldOutpostId = "location_bonefield_outpost";
 
     private static readonly JsonSerializerOptions SaveJsonOptions = new()
     {
@@ -25,12 +33,13 @@ public sealed class StrategicManagementSaveService
 
     private readonly StrategicManagementDefinitionSet _definitions;
     private readonly IStrategicManagementSaveFileStore _fileStore;
+    private readonly StrategicManagementGeographyInvariantService _geographyInvariants = new();
 
     public StrategicManagementSaveService(
         StrategicManagementDefinitionSet definitions = null,
         IStrategicManagementSaveFileStore fileStore = null)
     {
-        _definitions = definitions;
+        _definitions = definitions ?? FirstStrategicManagementDefinitions.Create();
         _fileStore = fileStore ?? new SystemStrategicManagementSaveFileStore();
     }
 
@@ -140,6 +149,10 @@ public sealed class StrategicManagementSaveService
             new StrategicManagementSaveDocument
             {
                 Version = CurrentVersion,
+                MapId = _definitions.ContentIdentity.MapId,
+                ScenarioId = _definitions.ContentIdentity.ScenarioId,
+                PackageCompatibilityRevision = _definitions.ContentIdentity.PackageCompatibilityRevision,
+                ScenarioContentRevision = _definitions.ContentIdentity.ScenarioContentRevision,
                 State = state
             },
             SaveJsonOptions);
@@ -180,13 +193,59 @@ public sealed class StrategicManagementSaveService
             version = 3;
         }
 
+        if (version == 3)
+        {
+            MigrateVersionThreeToFour(state, path);
+            version = 4;
+        }
+
+        if (version == 4)
+        {
+            MigrateVersionFourToFive(document, path);
+            version = 5;
+        }
+
         if (version != CurrentVersion)
         {
             throw new InvalidDataException($"Strategic management save migration incomplete version={version} path={path}");
         }
 
+        ValidateContentIdentity(document, path);
+
         NormalizeCollections(state);
+        RejectRetiredLocationIds(state, path);
+        _geographyInvariants.ThrowIfInvalid(_definitions, state, $"save:{path}");
         return state;
+    }
+
+    private void MigrateVersionFourToFive(StrategicManagementSaveDocument document, string path)
+    {
+        StrategicManagementContentIdentity identity = _definitions.ContentIdentity;
+        if (!string.Equals(identity.MapId, LegacyCompatibleMapId, StringComparison.Ordinal) ||
+            !string.Equals(identity.ScenarioId, LegacyCompatibleScenarioId, StringComparison.Ordinal) ||
+            identity.PackageCompatibilityRevision != LegacyCompatiblePackageRevision ||
+            identity.ScenarioContentRevision != LegacyCompatibleScenarioRevision)
+        {
+            throw new StrategicManagementSaveIdentityMismatchException(
+                $"Strategic management v4 save can migrate only to the explicit mock identity path={path} selected={identity}");
+        }
+        document.MapId = LegacyCompatibleMapId;
+        document.ScenarioId = LegacyCompatibleScenarioId;
+        document.PackageCompatibilityRevision = LegacyCompatiblePackageRevision;
+        document.ScenarioContentRevision = LegacyCompatibleScenarioRevision;
+    }
+
+    private void ValidateContentIdentity(StrategicManagementSaveDocument document, string path)
+    {
+        StrategicManagementContentIdentity expected = _definitions.ContentIdentity;
+        if (!string.Equals(document.MapId, expected.MapId, StringComparison.Ordinal) ||
+            !string.Equals(document.ScenarioId, expected.ScenarioId, StringComparison.Ordinal) ||
+            document.PackageCompatibilityRevision != expected.PackageCompatibilityRevision ||
+            document.ScenarioContentRevision != expected.ScenarioContentRevision)
+        {
+            throw new StrategicManagementSaveIdentityMismatchException(
+                $"Strategic management save content identity mismatch path={path} expected={expected} actual=MapId={document.MapId},ScenarioId={document.ScenarioId},PackageRevision={document.PackageCompatibilityRevision},ScenarioRevision={document.ScenarioContentRevision}");
+        }
     }
 
     private static string NormalizeLegacyExpeditionAliases(string json, int version, string path)
@@ -395,6 +454,179 @@ public sealed class StrategicManagementSaveService
         }
     }
 
+    private void MigrateVersionThreeToFour(StrategicManagementState state, string path)
+    {
+        NormalizeCollections(state);
+        bool containsLegacy = IdentityGraphContains(state, LegacyPlainsCityId) ||
+                              IdentityGraphContains(state, LegacyBonefieldOutpostId);
+        int canonicalCityCount = _definitions?.CanonicalGeography?.Cities?.Count ?? 0;
+        int presentCanonicalCityCount = _definitions?.CanonicalGeography?.Cities?.Keys.Count(state.Locations.ContainsKey) ?? 0;
+
+        if (!containsLegacy)
+        {
+            if (presentCanonicalCityCount != canonicalCityCount)
+            {
+                throw new InvalidDataException(
+                    $"Cannot migrate partial canonical strategic geography path={path} present={presentCanonicalCityCount} expected={canonicalCityCount}");
+            }
+            return;
+        }
+
+        if (presentCanonicalCityCount > 0)
+        {
+            throw new InvalidDataException(
+                $"Cannot migrate mixed legacy/canonical strategic identity graph path={path} canonicalCities={presentCanonicalCityCount}");
+        }
+
+        MigrateLocationIdentity(state, LegacyPlainsCityId, StrategicManagementIds.LocationQingheCore, path);
+        MigrateLocationIdentity(state, LegacyBonefieldOutpostId, StrategicManagementIds.LocationChiyanHighBasin, path);
+        SeedCanonicalAuxiliaryControlRecords(state, path);
+    }
+
+    private void MigrateLocationIdentity(
+        StrategicManagementState state,
+        string legacyId,
+        string canonicalId,
+        string path)
+    {
+        if (!IdentityGraphContains(state, legacyId))
+        {
+            throw new InvalidDataException(
+                $"Cannot migrate incomplete legacy strategic identity old={legacyId} new={canonicalId} path={path}");
+        }
+        if (IdentityGraphContains(state, canonicalId))
+        {
+            throw new InvalidDataException(
+                $"Cannot migrate legacy/canonical strategic identity collision old={legacyId} new={canonicalId} path={path}");
+        }
+        if (!state.Locations.ContainsKey(legacyId) || !state.Cities.ContainsKey(legacyId))
+        {
+            throw new InvalidDataException(
+                $"Cannot migrate incomplete legacy strategic identity records old={legacyId} new={canonicalId} path={path}");
+        }
+
+        RenameLocationDictionaryRecord(state.Locations, legacyId, canonicalId, location => location.LocationId, (location, id) => location.LocationId = id, "Locations", path);
+        RenameLocationDictionaryRecord(state.Cities, legacyId, canonicalId, city => city.LocationId, (city, id) => city.LocationId = id, "Cities", path);
+
+        foreach (StrategicCorpsInstanceState corps in state.CorpsInstances.Values)
+        {
+            corps.HomeCityId = ReplaceLocationId(corps.HomeCityId, legacyId, canonicalId);
+        }
+        foreach (StrategicExpeditionState expedition in state.Expeditions.Values)
+        {
+            expedition.SourceLocationId = ReplaceLocationId(expedition.SourceLocationId, legacyId, canonicalId);
+            expedition.TargetLocationId = ReplaceLocationId(expedition.TargetLocationId, legacyId, canonicalId);
+            foreach (StrategicExpeditionParticipantState participant in expedition.Participants)
+            {
+                participant.RollbackStationLocationId = ReplaceLocationId(
+                    participant.RollbackStationLocationId,
+                    legacyId,
+                    canonicalId);
+            }
+        }
+        foreach (StrategicBattleFeedbackRecord feedback in state.BattleFeedbackRecords.Values)
+        {
+            feedback.TargetLocationId = ReplaceLocationId(feedback.TargetLocationId, legacyId, canonicalId);
+        }
+    }
+
+    private void SeedCanonicalAuxiliaryControlRecords(StrategicManagementState state, string path)
+    {
+        foreach (StrategicManagementCityReference city in _definitions.CanonicalGeography.Cities.Values)
+        {
+            if (state.Locations.ContainsKey(city.LocationId))
+            {
+                continue;
+            }
+
+            StrategicScenarioProvinceStart start = _definitions.Scenario.Provinces
+                .Single(province => province.ProvinceId == city.ProvinceId);
+            string ownerFactionId = start.OwnerFactionId;
+            StrategicLocationControlState controlState = start.Control switch
+            {
+                StrategicScenarioControl.PlayerHeld => StrategicLocationControlState.PlayerHeld,
+                StrategicScenarioControl.EnemyHeld => StrategicLocationControlState.EnemyHeld,
+                _ => StrategicLocationControlState.Neutral
+            };
+            state.Locations.Add(city.LocationId, new StrategicLocationState
+            {
+                LocationId = city.LocationId,
+                OwnerFactionId = ownerFactionId,
+                ControlState = controlState
+            });
+        }
+
+        int migratedCount = _definitions.CanonicalGeography.Cities.Keys.Count(state.Locations.ContainsKey);
+        if (migratedCount != _definitions.CanonicalGeography.Cities.Count)
+        {
+            throw new InvalidDataException(
+                $"Canonical strategic city control migration is incomplete path={path} actual={migratedCount} expected={_definitions.CanonicalGeography.Cities.Count}");
+        }
+    }
+
+    private static void RenameLocationDictionaryRecord<T>(
+        System.Collections.Generic.Dictionary<string, T> records,
+        string legacyId,
+        string canonicalId,
+        Func<T, string> readId,
+        Action<T, string> writeId,
+        string collection,
+        string path)
+        where T : class
+    {
+        bool hasLegacy = records.TryGetValue(legacyId, out T record);
+        if (records.ContainsKey(canonicalId))
+        {
+            throw new InvalidDataException(
+                $"Cannot migrate strategic identity collision collection={collection} old={legacyId} new={canonicalId} path={path}");
+        }
+        if (!hasLegacy)
+        {
+            return;
+        }
+        string recordId = record == null ? "<null>" : readId(record) ?? "";
+        if (record == null || !string.Equals(recordId, legacyId, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Cannot migrate strategic key/value mismatch collection={collection} key={legacyId} value={recordId} path={path}");
+        }
+
+        records.Remove(legacyId);
+        writeId(record, canonicalId);
+        records.Add(canonicalId, record);
+    }
+
+    private static bool IdentityGraphContains(StrategicManagementState state, string locationId)
+    {
+        return state.Locations.ContainsKey(locationId) ||
+               state.Locations.Values.Any(item => string.Equals(item.LocationId, locationId, StringComparison.Ordinal)) ||
+               state.Cities.ContainsKey(locationId) ||
+               state.Cities.Values.Any(item => string.Equals(item.LocationId, locationId, StringComparison.Ordinal)) ||
+               state.CorpsInstances.Values.Any(item => string.Equals(item.HomeCityId, locationId, StringComparison.Ordinal)) ||
+               state.Expeditions.Values.Any(expedition =>
+                   string.Equals(expedition.SourceLocationId, locationId, StringComparison.Ordinal) ||
+                   string.Equals(expedition.TargetLocationId, locationId, StringComparison.Ordinal) ||
+                   expedition.Participants.Any(participant =>
+                       string.Equals(participant.RollbackStationLocationId, locationId, StringComparison.Ordinal))) ||
+               state.BattleFeedbackRecords.Values.Any(item =>
+                   string.Equals(item.TargetLocationId, locationId, StringComparison.Ordinal));
+    }
+
+    private static string ReplaceLocationId(string value, string legacyId, string canonicalId) =>
+        string.Equals(value, legacyId, StringComparison.Ordinal) ? canonicalId : value ?? "";
+
+    private static void RejectRetiredLocationIds(StrategicManagementState state, string path)
+    {
+        foreach (string legacyId in new[] { LegacyPlainsCityId, LegacyBonefieldOutpostId })
+        {
+            if (IdentityGraphContains(state, legacyId))
+            {
+                throw new InvalidDataException(
+                    $"Current strategic management save contains retired LocationId={legacyId} path={path}");
+            }
+        }
+    }
+
     private bool CanProveVersionOneRollbackStation(
         StrategicManagementState state,
         StrategicExpeditionState expedition,
@@ -403,7 +635,7 @@ public sealed class StrategicManagementSaveService
         string sourceId = expedition?.SourceLocationId ?? "";
         return participant != null &&
                !string.IsNullOrWhiteSpace(sourceId) &&
-               _definitions?.Locations.TryGetValue(sourceId, out StrategicLocationDefinition sourceDefinition) == true &&
+               _definitions?.Locations.TryGetValue(ResolveDefinitionLocationId(sourceId), out StrategicLocationDefinition sourceDefinition) == true &&
                sourceDefinition.Kind == StrategicLocationKind.City &&
                state.Cities.ContainsKey(sourceId) &&
                state.Locations.TryGetValue(sourceId, out StrategicLocationState sourceState) &&
@@ -414,6 +646,13 @@ public sealed class StrategicManagementSaveService
                string.Equals(corps.CurrentExpeditionId, expedition.ExpeditionId, StringComparison.Ordinal) &&
                string.IsNullOrWhiteSpace(corps.HomeCityId);
     }
+
+    private static string ResolveDefinitionLocationId(string persistedLocationId) => persistedLocationId switch
+    {
+        LegacyPlainsCityId => StrategicManagementIds.LocationQingheCore,
+        LegacyBonefieldOutpostId => StrategicManagementIds.LocationChiyanHighBasin,
+        _ => persistedLocationId ?? ""
+    };
 
     private static void NormalizeCollections(StrategicManagementState state)
     {
@@ -591,6 +830,10 @@ public sealed class SystemStrategicManagementSaveFileStore : IStrategicManagemen
 public sealed class StrategicManagementSaveDocument
 {
     public int Version { get; set; }
+    public string MapId { get; set; } = "";
+    public string ScenarioId { get; set; } = "";
+    public int PackageCompatibilityRevision { get; set; }
+    public int ScenarioContentRevision { get; set; }
     public StrategicManagementState State { get; set; } = new();
 }
 
@@ -598,6 +841,13 @@ public sealed class UnsupportedStrategicSaveVersionException : InvalidOperationE
 {
     public UnsupportedStrategicSaveVersionException(int version, string path)
         : base($"Unsupported strategic management save version={version} current={StrategicManagementSaveService.CurrentVersion} path={path}")
+    {
+    }
+}
+
+public sealed class StrategicManagementSaveIdentityMismatchException : InvalidOperationException
+{
+    public StrategicManagementSaveIdentityMismatchException(string message) : base(message)
     {
     }
 }

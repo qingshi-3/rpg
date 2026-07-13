@@ -30,13 +30,15 @@ public static class StrategicWorldMapSitePresenter
         };
     }
 
-    public static StrategicWorldMapSitePresentation Build(StrategicLocationDashboardViewModel location)
+    public static StrategicWorldMapSitePresentation Build(
+        string legacyMapSiteId,
+        StrategicLocationDashboardViewModel location)
     {
         System.ArgumentNullException.ThrowIfNull(location);
         return new StrategicWorldMapSitePresentation
         {
             LocationId = location.LocationId,
-            MapSiteId = location.MapSiteId,
+            MapSiteId = legacyMapSiteId ?? "",
             OwnerFactionId = location.OwnerFactionId,
             ControlText = location.ControlStateDisplayName,
             ControlColor = ResolveControlColor(location.ControlState),

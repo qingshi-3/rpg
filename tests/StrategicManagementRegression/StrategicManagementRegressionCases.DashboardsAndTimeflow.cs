@@ -16,10 +16,10 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDashboardViewModel dashboard = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
 
         AssertEqual(StrategicManagementIds.FactionPlayer, dashboard.FactionId, "dashboard should preserve faction scope");
-        AssertEqual(StrategicManagementIds.LocationPlainsCity, dashboard.SelectedCity.LocationId, "dashboard should preserve selected city");
+        AssertEqual(StrategicManagementIds.LocationQingheCore, dashboard.SelectedCity.LocationId, "dashboard should preserve selected city");
         AssertEqual("苍原城", dashboard.SelectedCity.DisplayName, "city display name should come from definitions");
         AssertEqual("平原人类城池", dashboard.SelectedCity.CityIdentityDisplayName, "city identity display name should come from definitions");
         AssertEqual(0, dashboard.SelectedCity.Buildings.Count, "new city should have no placed buildings");
@@ -50,7 +50,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDashboardViewModel beforeDispatch = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
         StrategicHeroCompanyViewModel company = FindHeroCompany(beforeDispatch, StrategicManagementIds.HeroOrdinaryCommander);
         AssertTrue(company.CanCreateExpedition, $"assigned battle group should be dispatchable, got {company.DisabledReason}");
         AssertEqual(corpsInstanceId, company.CorpsInstanceId, "battle group should expose the assigned corps instance");
@@ -60,14 +60,14 @@ internal static partial class StrategicManagementRegressionCases
 
         commands.CreateExpedition(
             state,
-            StrategicManagementIds.LocationPlainsCity,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationQingheCore,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicExpeditionIntent.AssaultLocation,
             StrategicManagementIds.HeroOrdinaryCommander);
         StrategicManagementDashboardViewModel afterDispatch = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
         AssertEqual(2, afterDispatch.SelectedCity.HeroCompanies.Count, "dispatched battle group should leave the source city's expedition roster");
         AssertTrue(
             afterDispatch.SelectedCity.HeroCompanies.All(item => item.HeroId != StrategicManagementIds.HeroOrdinaryCommander),
@@ -93,7 +93,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult build = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingTrainingGround,
             StrategicManagementIds.RegionPlainsMilitary,
             military.OriginX,
@@ -103,7 +103,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(unassign.Success, $"test setup unassignment should succeed, got {unassign.FailureReason}");
         StrategicCommandResult create = commands.CreateCorps(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.CorpsCavalryLine);
         AssertTrue(create.Success, $"creating cavalry corps should succeed, got {create.FailureReason}");
         commands.AssignCorpsToHero(state, StrategicManagementIds.HeroCavalryCaptain, create.CreatedEntityId);
@@ -111,7 +111,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDashboardViewModel dashboard = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
 
         AssertEqual(1, dashboard.SelectedCity.Buildings.Count, "built training ground should be listed");
         AssertEqual(StrategicManagementIds.BuildingTrainingGround, dashboard.SelectedCity.Buildings[0].BuildingDefinitionId, "built building should expose definition id");
@@ -134,7 +134,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDashboardViewModel dashboard = viewModels.BuildDashboard(
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
         AssertEqual(
             2,
             dashboard.SelectedCity.ReserveRecoveryPerElapsedPulse,
@@ -155,7 +155,7 @@ internal static partial class StrategicManagementRegressionCases
             viewModels,
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.HeroOrdinaryCommander);
         StrategicMusterTemplateViewModel cavalry = FindMusterTemplate(dashboard, StrategicManagementIds.CorpsCavalryLine);
 
@@ -175,7 +175,7 @@ internal static partial class StrategicManagementRegressionCases
             viewModels,
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.HeroOrdinaryCommander);
         StrategicMusterTemplateViewModel archer = FindMusterTemplate(damagedDashboard, StrategicManagementIds.CorpsArcherLine);
 
@@ -205,7 +205,8 @@ internal static partial class StrategicManagementRegressionCases
         object timberLocation = GetRequiredProperty<object>(timberDashboard, "SelectedLocation");
 
         AssertEqual(StrategicManagementIds.LocationTimberSite, GetRequiredProperty<string>(timberLocation, "LocationId"), "location dashboard should preserve selected resource site id");
-        AssertEqual("", GetRequiredProperty<string>(timberLocation, "MapSiteId"), "timber resource site is strategic-only in the first map and should not claim the Bonefield map-site id");
+        AssertEqual("", GetRequiredProperty<string>(timberLocation, "ProvinceId"), "timber resource site is not fabricated into canonical city geography");
+        AssertEqual("", GetRequiredProperty<string>(timberLocation, "LayoutId"), "timber resource site must not claim a province layout");
         AssertEqual("旧林伐场", GetRequiredProperty<string>(timberLocation, "DisplayName"), "location dashboard should use definition display name");
         AssertEqual(StrategicLocationKind.ResourceSite, GetRequiredProperty<StrategicLocationKind>(timberLocation, "Kind"), "timber site should stay a resource site");
         AssertEqual("资源点", GetRequiredProperty<string>(timberLocation, "KindDisplayName"), "resource-site kind should have a player-readable display name");
@@ -220,9 +221,10 @@ internal static partial class StrategicManagementRegressionCases
             viewModels,
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationBonefieldOutpost);
+            StrategicManagementIds.LocationChiyanHighBasin);
         object targetLocation = GetRequiredProperty<object>(targetDashboard, "SelectedLocation");
-        AssertEqual(StrategicManagementIds.MapSiteBonefield, GetRequiredProperty<string>(targetLocation, "MapSiteId"), "foundation target should expose the Bonefield map-site id");
+        AssertEqual("chiyan", GetRequiredProperty<string>(targetLocation, "ProvinceId"), "foundation target should expose canonical province lineage");
+        AssertEqual("chiyan_layout", GetRequiredProperty<string>(targetLocation, "LayoutId"), "foundation target should expose province-owned layout lineage");
         AssertEqual(StrategicLocationKind.City, GetRequiredProperty<StrategicLocationKind>(targetLocation, "Kind"), "foundation target should be an enemy-held managed stronghold/city");
         AssertEqual("", GetRequiredProperty<string>(targetLocation, "SourcePermissionDisplayText"), "foundation target should not expose beast source permission text");
         AssertEqual(StrategicManagementIds.FactionEnemy, GetRequiredProperty<string>(targetLocation, "OwnerFactionId"), "foundation target should start enemy-held");
@@ -232,7 +234,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult occupy = commands.OccupyLocation(
             state,
-            StrategicManagementIds.LocationBonefieldOutpost,
+            StrategicManagementIds.LocationChiyanHighBasin,
             StrategicManagementIds.FactionPlayer);
         AssertTrue(occupy.Success, "occupying foundation target should succeed before dashboard refresh");
 
@@ -240,12 +242,12 @@ internal static partial class StrategicManagementRegressionCases
             viewModels,
             state,
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationBonefieldOutpost);
+            StrategicManagementIds.LocationChiyanHighBasin);
         object occupiedTargetLocation = GetRequiredProperty<object>(occupiedTargetDashboard, "SelectedLocation");
         AssertEqual(StrategicManagementIds.FactionPlayer, GetRequiredProperty<string>(occupiedTargetLocation, "OwnerFactionId"), "location dashboard should reflect command-mutated owner");
         AssertEqual(StrategicLocationControlState.PlayerHeld, GetRequiredProperty<StrategicLocationControlState>(occupiedTargetLocation, "ControlState"), "location dashboard should reflect command-mutated control");
         AssertEqual(true, GetRequiredProperty<bool>(occupiedTargetLocation, "CanManageCity"), "player-held Bonefield should expose city management after victory writeback");
-        AssertEqual(StrategicManagementIds.LocationBonefieldOutpost, occupiedTargetDashboard.SelectedCity.LocationId, "occupied Bonefield should bind its own isolated city-management state");
+        AssertEqual(StrategicManagementIds.LocationChiyanHighBasin, occupiedTargetDashboard.SelectedCity.LocationId, "occupied Bonefield should bind its own isolated city-management state");
 
         StrategicManagementRuntime.Reset();
         StrategicManagementDashboardViewModel runtimeDashboard = InvokeRuntimeLocationDashboard(
@@ -384,12 +386,12 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         StrategicConstructionRegionDefinition economy = FindRegion(definitions, StrategicManagementIds.RegionPlainsEconomy);
         StrategicConstructionRegionDefinition military = FindRegion(definitions, StrategicManagementIds.RegionPlainsMilitary);
         StrategicCommandResult buildFarm = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingFarm,
             StrategicManagementIds.RegionPlainsEconomy,
             economy.OriginX,
@@ -397,7 +399,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertTrue(buildFarm.Success, $"farm setup should succeed, got {buildFarm.FailureReason}");
         StrategicCommandResult buildTraining = commands.BuildCityBuilding(
             state,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingTrainingGround,
             StrategicManagementIds.RegionPlainsMilitary,
             military.OriginX,
@@ -446,7 +448,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         city.ReserveForces = 0;
         int beforeMoney = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceMoney);
         int beforeFood = state.GetResourceAmount(StrategicManagementIds.FactionPlayer, StrategicManagementIds.ResourceFood);
@@ -474,7 +476,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         city.ReserveForces = 0;
 
         StrategicCommandResult result = InvokeSettleElapsedWorldTime(
@@ -497,7 +499,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementRules rules = new(definitions);
         StrategicManagementCommandService commands = new(definitions, rules);
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         city.ReserveForces = city.CityForceCapacity - rules.GetActiveForces(state, city.LocationId) - 1;
         int beforeReserve = city.ReserveForces;
 
@@ -519,7 +521,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementRules rules = new(definitions);
         StrategicManagementCommandService commands = new(definitions, rules);
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         city.ReserveForces = city.CityForceCapacity - rules.GetActiveForces(state, city.LocationId);
         int beforeReserve = city.ReserveForces;
 
@@ -539,7 +541,7 @@ internal static partial class StrategicManagementRegressionCases
         StrategicManagementDefinitionSet definitions = FirstStrategicManagementDefinitions.Create();
         StrategicManagementState state = FirstStrategicManagementStateFactory.CreatePlayerStart(definitions);
         StrategicManagementCommandService commands = new(definitions, new StrategicManagementRules(definitions));
-        StrategicCityState city = state.Cities[StrategicManagementIds.LocationPlainsCity];
+        StrategicCityState city = state.Cities[StrategicManagementIds.LocationQingheCore];
         city.ReserveForces = 0;
         StrategicCommandResult lose = commands.LoseLocation(
             state,
@@ -599,7 +601,7 @@ internal static partial class StrategicManagementRegressionCases
         int beforeWood = state.GetResourceAmount(
             StrategicManagementIds.FactionPlayer,
             StrategicManagementIds.ResourceWood);
-        int beforeReserve = state.Cities[StrategicManagementIds.LocationPlainsCity].ReserveForces;
+        int beforeReserve = state.Cities[StrategicManagementIds.LocationQingheCore].ReserveForces;
 
         StrategicCommandResult result = InvokeSettleElapsedWorldTime(
             commands,
@@ -612,7 +614,7 @@ internal static partial class StrategicManagementRegressionCases
         AssertEqual(beforePulses, GetElapsedWorldTimePulses(state), "failed settlement must not mutate strategic time");
         AssertEqual(
             beforeReserve,
-            state.Cities[StrategicManagementIds.LocationPlainsCity].ReserveForces,
+            state.Cities[StrategicManagementIds.LocationQingheCore].ReserveForces,
             "failed settlement must not recover reserve soldiers");
         AssertEqual(
             beforeWood,
@@ -669,7 +671,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicCommandResult build = StrategicManagementRuntime.Commands.BuildCityBuilding(
             StrategicManagementRuntime.State,
-            StrategicManagementIds.LocationPlainsCity,
+            StrategicManagementIds.LocationQingheCore,
             StrategicManagementIds.BuildingTrainingGround,
             StrategicManagementIds.RegionPlainsMilitary,
             military.OriginX,
@@ -678,7 +680,7 @@ internal static partial class StrategicManagementRegressionCases
 
         StrategicManagementDashboardViewModel dashboard = StrategicManagementRuntime.BuildDashboard(
             StrategicManagementIds.FactionPlayer,
-            StrategicManagementIds.LocationPlainsCity);
+            StrategicManagementIds.LocationQingheCore);
 
         AssertEqual(1, dashboard.SelectedCity.Buildings.Count, "runtime dashboard should reflect command-mutated state");
         AssertEqual(StrategicManagementIds.BuildingTrainingGround, dashboard.SelectedCity.Buildings[0].BuildingDefinitionId, "runtime dashboard should show built training ground");

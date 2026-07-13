@@ -1,6 +1,6 @@
 import { centroid, featureCollection } from "@turf/turf";
 import type { Feature, LineString, Point } from "geojson";
-import { distancePointToLine, validateRegions } from "../shared/geo.js";
+import { distancePointToLine, validateLocationGeometries } from "../shared/geo.js";
 import type {
   GeographyDocument,
   LinearFeatureProperties,
@@ -22,19 +22,37 @@ function nearInternalBoundary(value: number, size: number, worldSize: number, to
 
 export function validateWorkbench(project: WorldProject, terrain: TerrainStore, geography: GeographyDocument): ValidationItem[] {
   const diagnostics = terrain.validateTerrain();
-  diagnostics.push(...validateRegions(geography.regions));
+  diagnostics.push(...validateLocationGeometries(geography.locationGeometries));
 
   const locationCounts = new Map<string, number>();
+  const provinceCounts = new Map<string, number>();
   const anchorCounts = new Map<string, number>();
   const rivers = geography.linearFeatures.features.filter((feature) => feature.properties.featureType === "river");
   const mountains = geography.linearFeatures.features.filter((feature) => feature.properties.featureType === "mountain");
-  const cityIds = new Set(geography.strategicLocations.features
-    .filter((feature) => feature.properties.locationType === "city")
-    .map((feature) => feature.properties.locationId));
+  for (const province of geography.provinces) {
+    provinceCounts.set(province.provinceId, (provinceCounts.get(province.provinceId) ?? 0) + 1);
+    if (province.name === province.provinceId) {
+      diagnostics.push({ code: "PROVINCE_PLACEHOLDER_NAME", severity: "warning", message: `省份 ${province.provinceId} 尚未设置显示名称`, objectId: province.provinceId, layerId: "territories" });
+    }
+  }
+  for (const [provinceId, count] of provinceCounts) {
+    if (count > 1) diagnostics.push({ code: "PROVINCE_DUPLICATE_ID", severity: "error", message: `ProvinceId 重复：${provinceId}`, objectId: provinceId, layerId: "territories" });
+  }
+  const provinceIds = new Set(geography.provinces.map((province) => province.provinceId));
+  const cityLocations = geography.strategicLocations.features.filter((feature) =>
+    feature.properties.locationType === "main-city" || feature.properties.locationType === "auxiliary-city");
+  const locationById = new Map(geography.strategicLocations.features.map((feature) => [feature.properties.locationId, feature]));
   for (const location of geography.strategicLocations.features) {
     const id = location.properties.locationId;
     locationCounts.set(id, (locationCounts.get(id) ?? 0) + 1);
     const coordinate = pointCoordinate(location);
+    const { locationType, provinceId } = location.properties;
+    if ((locationType === "main-city" || locationType === "auxiliary-city") && location.properties.name === id) {
+      diagnostics.push({ code: "CITY_PLACEHOLDER_NAME", severity: "warning", message: `城市 ${id} 尚未设置显示名称`, objectId: id, coordinate, layerId: "strategic-locations" });
+    }
+    if ((locationType === "main-city" || locationType === "auxiliary-city") && (!provinceId || !provinceIds.has(provinceId))) {
+      diagnostics.push({ code: "LOCATION_UNKNOWN_PROVINCE", severity: "error", message: `城市 ${id} 的 ProvinceId 不存在：${provinceId ?? ""}`, objectId: id, coordinate, layerId: "strategic-locations" });
+    }
     if (rivers.some((river) => distancePointToLine(coordinate, river) < 24)) {
       diagnostics.push({ code: "LOCATION_ON_WATER", severity: "error", message: `战略地点 ${id} 落在河流缓冲区`, objectId: id, coordinate, layerId: "strategic-locations" });
     }
@@ -51,19 +69,44 @@ export function validateWorkbench(project: WorldProject, terrain: TerrainStore, 
     if (count > 1) diagnostics.push({ code: "LOCATION_DUPLICATE_ID", severity: "error", message: `LocationId 重复：${id}`, objectId: id, layerId: "strategic-locations" });
   }
 
-  for (const region of geography.regions.features) {
-    const { cityId, regionId } = region.properties;
-    if (cityId && !cityIds.has(cityId)) {
-      const coordinate = centroid(region).geometry.coordinates;
+  for (const province of geography.provinces) {
+    const members = cityLocations.filter((location) => location.properties.provinceId === province.provinceId);
+    const mainCount = members.filter((location) => location.properties.locationType === "main-city").length;
+    if (mainCount !== 1) {
+      diagnostics.push({ code: "PROVINCE_MAIN_CITY_COUNT", severity: "error", message: `省份 ${province.provinceId} 必须且只能有一个主城，当前为 ${mainCount}`, objectId: province.provinceId, layerId: "territories" });
+    }
+  }
+
+  const geometryCounts = new Map<string, number>();
+  for (const geometry of geography.locationGeometries.features) {
+    const { locationId, provinceId } = geometry.properties;
+    geometryCounts.set(locationId, (geometryCounts.get(locationId) ?? 0) + 1);
+    const location = locationById.get(locationId);
+    if (!location || (location.properties.locationType !== "main-city" && location.properties.locationType !== "auxiliary-city")) {
+      const coordinate = centroid(geometry).geometry.coordinates;
       diagnostics.push({
-        code: "REGION_UNKNOWN_CITY",
+        code: "LOCATION_GEOMETRY_UNKNOWN_CITY",
         severity: "error",
-        message: `区域 ${regionId} 的 CityId 不存在：${cityId}`,
-        objectId: regionId,
+        message: `城市区域引用的主城/辅城不存在：${locationId}`,
+        objectId: locationId,
+        coordinate: [coordinate[0] ?? 0, coordinate[1] ?? 0],
+        layerId: "territories",
+      });
+    } else if (location.properties.provinceId !== provinceId) {
+      const coordinate = centroid(geometry).geometry.coordinates;
+      diagnostics.push({
+        code: "LOCATION_GEOMETRY_PROVINCE_MISMATCH",
+        severity: "error",
+        message: `城市区域 ${locationId} 的 ProvinceId 与城市定义不一致`,
+        objectId: locationId,
         coordinate: [coordinate[0] ?? 0, coordinate[1] ?? 0],
         layerId: "territories",
       });
     }
+  }
+  for (const city of cityLocations) {
+    const count = geometryCounts.get(city.properties.locationId) ?? 0;
+    if (count !== 1) diagnostics.push({ code: "CITY_LOCATION_GEOMETRY_COUNT", severity: "error", message: `主城/辅城 ${city.properties.locationId} 必须且只能有一份视觉几何，当前为 ${count}`, objectId: city.properties.locationId, layerId: "territories" });
   }
 
   for (const anchor of geography.waterAnchors.features) {

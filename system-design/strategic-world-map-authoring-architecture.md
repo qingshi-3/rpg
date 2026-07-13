@@ -4,15 +4,16 @@ Status: Accepted Architecture
 
 ## Gameplay Authority
 
-This architecture supports the accepted Sanguo Qunying-style realtime strategic world and paused city/battle contexts. It defines how geographic data, raster chunks, region artifacts, Godot navigation, and runtime presentation share one large-world contract. It does not decide campaign geography, city balance, fog detection rules, territory-control rules, or battle outcomes.
+This architecture supports the accepted Sanguo Qunying-style realtime strategic world and paused city/battle contexts. It defines how geographic data, raster chunks, city-geometry artifacts, Godot navigation, and runtime presentation share one large-world contract. It does not decide campaign geography, city balance, fog detection rules, territory-control rules, or battle outcomes.
 
-Player-facing city and smaller-region visuals must satisfy `../gameplay-design/details/strategic-world-region-presentation.md`. This architecture preserves the accepted canonical-data and derived-artifact boundaries, while the formal rendering technique remains open.
+Player-facing city and smaller-region visuals must satisfy `../gameplay-design/details/strategic-world-region-presentation.md`. Strategic-region handoff into detailed maps follows `strategic-region-detail-map-mapping-architecture.md`. This architecture preserves the accepted canonical-data and derived-artifact boundaries, while the formal rendering technique remains open.
 
 ## Responsibility
 
 This document owns:
 
 - canonical strategic-world coordinates, chunk identity, and stable geographic ids;
+- province membership, one main plus auxiliary city roles, and province-owned layout bindings;
 - the local Web geographic-data workbench boundary;
 - terrain, global linear features, strategic locations, and territory authoring contracts;
 - derived terrain and territory mask contracts;
@@ -27,15 +28,62 @@ This document owns:
 This document does not own:
 
 - campaign geography or the final city roster;
-- city, outpost, gate, bridge, or army persistent state;
-- city-territory control and fog gameplay rules;
+- province, city, gate, bridge, or army persistent state;
+- province/city control and fog gameplay rules;
 - detailed-city map topology or battle deployment markers;
+- selection or resolution of strategic-region-to-detailed-map semantic bindings;
 - strategic AI intent;
 - scene transition ownership;
 - player-facing HUD layout;
 - the exact shader, scene, mask compiler, resources, or rendering method used for formal strategic-region presentation;
 - final chunk-art generation or licensed-asset browsing;
 - automatic derivation of Godot navigation from Web terrain data.
+
+## Greenfield StrategicMap Boundary
+
+The replacement implementation is the final-named `StrategicMap` module, not an extension of the legacy strategic-world runtime. Pure definitions live under `src/Definitions/StrategicMap/`; package loaders and validators live under `src/Application/StrategicMap/`. Production presentation belongs under the corresponding `StrategicMap` presentation/scene roots. Editable map sources, published packages, generated artifacts, and final visual media use the map-scoped ownership defined below; no fixed singleton `config/world` file or global texture path is runtime authority.
+
+`StrategicMap` owns static geography, chunk identity, world-coordinate validation, and later presentation-facing queries. It must not depend on `StrategicWorldRuntime`, `StrategicWorldState`, `WorldArmyState`, `StrategicWorldRoot`, legacy fixed site ids/markers, or the visible legacy TileMap implementation. It also does not own mutable campaign state, navigation runtime, scene transition, battle launch, or Strategic Management rules.
+
+Permanent integration later occurs through explicit read-only geographic/query ports used by Strategic Management and the Strategic Battle Bridge. Cutover may use one temporary adapter outside `StrategicMap` to translate accepted legacy identities at the boundary. The adapter cannot add aliases, fallbacks, dual writes, or business facts to the new module. After the new scene and ports pass their standalone acceptance, the main scene cuts over and the legacy implementation plus temporary adapter are deleted; long-term dual runtime paths are forbidden.
+
+## Multi-Map Source, Publish, And Runtime Model
+
+Every authored world has an immutable stable `MapId`. Display-name edits never rename that identity. The pipeline separates four boundaries:
+
+```text
+map catalog and MapId-scoped editable source
+-> capability-specific validation
+-> immutable published package revision
+-> read-only Godot loaded-map context
+```
+
+Editable sources are the only geographic authoring authority. A structurally readable incomplete draft may be saved and reopened; it must preserve stable ids and parseable document structure but may omit facts required by a publish profile. Validation reports blockers without rewriting the draft. Publishing never treats editor-only workspace/layer state as runtime data.
+
+The map catalog may classify entries as ordinary authoring maps or explicit verification fixtures and may identify one default authoring map. That classification, the default, and the client's last-opened selection are editor-routing facts only: they do not enter published packages, runtime geography, scenarios, or saves. The workbench restores a still-valid last-opened map; otherwise it opens the catalog's declared default rather than inferring authority from catalog order or `MapId` sorting.
+
+The minimum publish profiles are:
+
+- `visual-preview`: coherent world/chunk dimensions and resolvable visual media;
+- `region-interactive`: visual-preview plus valid province membership, exactly one main city per province, province-owned `LayoutId`, exact city geometry, and region artifacts;
+- `strategic-runtime`: region-interactive plus every package capability and scenario-facing identity required by the strategic runtime. Navigation references may be declared as a capability, but navigation compilation and movement remain separately owned.
+
+Publishing validates the selected profile, writes every output into a staging directory, verifies manifest/geography/chunk/artifact hashes and cross-references, then exposes only a complete immutable revision. On Windows the durable publication form is a new revision directory plus atomic replacement of one small current-revision pointer; a failed publish leaves the prior pointer and revision readable.
+
+Each versioned package manifest carries at least:
+
+```text
+SchemaVersion
+MapId
+Revision
+CompatibilityRevision
+ContentHash
+PublishProfile and capabilities
+World dimensions and Chunk dimensions
+map-scoped visual/geography/terrain/region/navigation references
+```
+
+Godot loads one explicit package selection into a read-only loaded-map context. Runtime world bounds, chunk media, geography, and region artifacts come only from that context. Generic `StrategicMap` code, scenes, and reusable resources contain no concrete `MapId`, province/location identity, current-world dimensions, or singleton geography/mask path. Switching compatible content changes only package/scenario selection.
 
 ## Core Model
 
@@ -67,9 +115,11 @@ TerrainMaskPath
 TerritoryMaskPath
 ```
 
-Chunk placement is derived from one manifest and fixed chunk dimensions. The Web workbench, Godot authoring, and runtime must not maintain separate hand-authored positions for the same chunk.
+Chunk placement is derived from one map-level rectangular grid contract and fixed chunk dimensions. Grid columns and rows deterministically derive every `ChunkId`, coordinate, world origin, bounds, and map-scoped draft path; individual chunks do not own independently editable structural size or placement. The Web workbench, Godot authoring, and runtime must not maintain separate hand-authored positions for the same chunk.
 
-Strategic locations and regions use stable ids. World coordinates do not pass through a Web-to-Godot scale or offset adapter: a stored position has the same meaning on both sides.
+The supported first-version resize operation may only increase columns to the right and rows to the bottom. It preserves every existing chunk identity and origin plus every authored world coordinate, and initializes only the newly required chunk state. Shrinking, left/top growth that relocates coordinates, arbitrary per-chunk resizing, and deletion of populated rows or columns are unsupported and must fail before partial source or filesystem mutation.
+
+Provinces and locations use stable ids. Every city visual geometry binds directly to `LocationId`; any categorical numeric mask value is a derived artifact detail that resolves back to that identity. World coordinates do not pass through a Web-to-Godot scale or offset adapter: a stored position has the same meaning on both sides.
 
 ## Local Web Workbench Boundary
 
@@ -144,48 +194,59 @@ The workbench supports:
 
 A feature crossing a chunk boundary retains one stable feature identity. Its clipped pieces must meet at the same canonical boundary coordinate.
 
-## Strategic Location Contract
+## Province And Strategic Location Contract
 
-The accepted strategic-location types are cities, gates or passes, bridges, ferries, ports, ruins, and resource sites.
+Canonical geography declares provinces separately from their member strategic locations. Each province carries at least:
 
-Each definition carries at least:
+```text
+ProvinceId
+Name
+LayoutId
+```
+
+Each province contains exactly one `MainCity` and zero or more `AuxiliaryCity` locations. `LayoutId` belongs only to the province. Campaign roles and starting control are scenario facts, never geographic package fields. The accepted additional strategic-location types remain gates or passes, bridges, ferries, ports, ruins, and resource sites when later content introduces them.
+
+The workbench treats province creation and its required main city as one authoring transaction. It generates collision-safe, prefixed `ProvinceId`, `LocationId`, and `LayoutId` values independently of mutable names or geometry, creates the province plus main-city records together, and immediately enters exact city-region drawing. Adding an auxiliary city follows the same create-and-draw transaction under the selected province. Cancelling before the first polygon is committed rolls back the whole transaction; completing it binds exactly one geometry and initializes the city marker at that geometry's centroid as one coherent undoable operation.
+
+Initial persisted province and city names may equal their generated ids so naming never blocks geography authoring. Later name edits do not regenerate or rewrite stable identity, membership, layout binding, geometry binding, or detailed-map references. Ordinary creation and editing controls do not request technical ids; read-only advanced diagnostics may display them.
+
+Each location definition carries at least:
 
 ```text
 LocationId
+ProvinceId (required for main and auxiliary cities)
 Name
 LocationType
 WorldPosition
-DetailMapId (optional)
 ```
 
 The workbench may render runtime-style city and outpost symbols as non-authoritative previews. Symbols are not baked into static terrain chunks.
 
 Location validation covers stable-id uniqueness, configured reference-map deviation, and illegal placement against authored water, mountain/highland, or other configured exclusion facts. Strategic Management remains the owner of mutable ownership and gameplay state.
 
-## Territory And Region Contract
+## Province And City Geometry Contract
 
-City territories and smaller regions are canonical polygons. Each smaller region carries at least:
+Each main or auxiliary city has exactly one canonical large-world polygon or multipolygon bound directly to its `LocationId`. The geometry may carry authoring-only direction or notes, but it has no independent gameplay `RegionId`, role, owner, or persistent state.
 
-```text
-CityId
-RegionId
-RegionRole
-Direction
-Geometry
-```
-
-The workbench presents the unioned outer city outline, exposes the actual `RegionId` under the pointer, and simulates the accepted default-hidden, city-hover, and smaller-region-highlight behavior for authoring review.
+For the current province presentation, the workbench presents the unioned province outline, exposes the actual city `LocationId` under the pointer, and simulates the accepted default-hidden, province-hover, and city-region-highlight behavior for authoring review.
 
 Topology validation covers:
 
 - overlaps;
 - holes;
 - discontinuous geometry;
-- region-without-city ownership;
-- cross-city conflicts;
-- invalid or duplicate stable ids.
+- geometry without a main/auxiliary city location;
+- city locations without exactly one geometry;
+- geometry whose location belongs to another province;
+- cross-province overlap conflicts;
+- invalid or duplicate stable ids;
+- province membership without exactly one main city.
 
-Derived outputs include `territory_mask`, a world-position region lookup, and precompiled territory and region outlines. Runtime territory presentation and queries consume these artifacts but do not infer city ownership from final chunk colors.
+Published region output is chunk-aligned and exact to authored geometry. The categorical mask uses `rgb24-location-code-v1`: RGB bytes encode one deterministic positive region code in little-endian order, with zero reserved for no region. It supports more than 255 locations while remaining a lossless categorical image. Every code resolves through the package revision's lookup to one stable `LocationId` and owning `ProvinceId`; codes are never saved or used as gameplay keys. Province outlines are exact unions of member-city geometry. Invalid unions, overlaps, holes, topology, or artifact coverage block publish; the compiler must not add artificial edge waviness or fall back to approximate province shapes.
+
+Category-mask imports are lossless, nearest-filtered, and have mipmaps disabled. Zoomable visual chunks are separately imported with mipmaps enabled. Published artifacts and import settings are reproducible package outputs, not editable authorities.
+
+`ProvinceId` and `LocationId` are the sole authoritative geographic identity pair for city regions. A mask's numeric category is derived-only and must resolve to `LocationId`. Geometry, centroid, screen position, mask pixels, and direction labels may support authoring or presentation, but they must not become campaign-state keys, detailed-map cells, or substitute mapping identities.
 
 ## Visual Authoring Contract
 
@@ -196,7 +257,7 @@ The static art contains terrain and fixed natural landmarks. It does not bake in
 - cities or outposts whose presentation depends on state;
 - armies or opportunities;
 - faction control fills;
-- city-territory boundaries;
+- province or city-region boundaries;
 - fog, hover, selection, alerts, or HUD.
 
 Terrain remains intentionally low-detail. Forests, peaks, mountain ranges, rivers, roads, plains, marshes, snow, and wasteland are readable strategic symbols rather than tactical terrain simulations.
@@ -253,19 +314,19 @@ An alternate route is used when available. If no route exists, the army enters a
 
 ## Runtime Visual Loading
 
-Runtime displays visual chunks intersecting the camera view plus a preload margin. The initial implementation may keep all chunk textures resident if measured memory is acceptable, but runtime ownership stays behind a chunk-loading boundary so residency can change without changing navigation or strategic state.
+Runtime displays package visual chunks intersecting the camera view plus a preload margin. Residency remains behind the deterministic bounded threaded-loading boundary so changing package size or chunk count does not change navigation or strategic state.
 
 The runtime render order keeps static art separate from dynamic overlays:
 
 ```text
 visual chunks
 strategic objects
-city-territory and selection overlays
+province, city-region, and selection overlays
 fog and alert presentation
 screen-space HUD
 ```
 
-City-territory, fog, hover, and control systems query strategic definitions, compiled region artifacts, and state. They do not infer authority from chunk pixel colors.
+Province/city-region, fog, hover, and control systems query strategic definitions, compiled geometry artifacts, and Strategic Management state. They do not infer authority from chunk pixel colors.
 
 ## Excluded Workbench Systems
 
@@ -281,11 +342,13 @@ The accepted workbench does not include:
 ## Failure Rules
 
 - Missing canonical manifests, duplicate chunk coordinates, transform drift, and mask-grid mismatches fail visibly with stable ids and paths.
-- Invalid global features or region topology fail validation and identify the relevant world position and object id.
+- Invalid global features or province/city geometry topology fail validation and identify the relevant world position and stable id.
 - A save that would leave only part of one cross-chunk operation written must fail rather than commit a partial geographic state.
 - Derived chunk clips, masks, lookups, and outlines must be reproducible from canonical data and must not be edited as independent authorities.
 - Runtime must not substitute generated fallback terrain, territory, or navigation data when authoritative artifacts are missing.
 - Visual loading failure may hide a visual chunk and report the resource failure, but it must not silently mutate navigation truth.
+- Draft save failure, publish validation failure, staged-output inconsistency, or pointer replacement failure must not expose a partial package revision.
+- Runtime rejects package schema, hash, capability, path-boundary, `MapId`, or scenario-compatibility mismatches before partial presentation initialization.
 - Gameplay-valid route loss is not reported as an engine navigation-contract failure.
 
 ## Acceptance
@@ -297,7 +360,7 @@ This architecture is acceptable when:
 - terrain edits cross chunk boundaries and produce consistent terrain masks;
 - rivers, roads, and mountains remain global features with reproducible chunk clips;
 - strategic locations validate ids and placement without entering static terrain art;
-- territory and region topology produces reproducible masks, lookups, and outlines;
+- province/city geometry topology produces reproducible masks, location lookups, and outlines;
 - the workbench remains limited to the five accepted feature areas;
 - Godot remains the navigation authoring and compilation authority;
 - visual chunk residency remains independent from navigation availability;
